@@ -44,7 +44,7 @@ jobs:
     # intermediate CA key compromise, which Mozilla's certdata.txt doesn't remove.
     - name: Update certs
       run: |
-        cd orbit/pkg/packaging && ./mk-ca-bundle.pl -u -x '125609AA301DA0A249B97A8239CB6A34216F44DCAC9F3954B14292F2E8C8608F,BC4D809B15189D78DB3E1D8CF4F9726A795DA1643CA5F1358E1DDB0EDC0D7EB3,86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B' certs.pem
+        cd orbit/pkg/cabundle && ./mk-ca-bundle.pl -u -x '125609AA301DA0A249B97A8239CB6A34216F44DCAC9F3954B14292F2E8C8608F,BC4D809B15189D78DB3E1D8CF4F9726A795DA1643CA5F1358E1DDB0EDC0D7EB3,86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B' certs.pem
         curl https://curl.se/ca/cacert.pem --output cacert.pem
         diff --ignore-matching-lines "Certificate data from Mozilla as of*" certs.pem cacert.pem
         rm cacert.pem

@@ -482,6 +482,7 @@ import Granola from "./png/Granola.png";
 import Graphviz from "./png/Graphviz.png";
 import Grepwin from "./png/Grepwin.png";
 import Grids from "./png/Grids.png";
+import GrokBot from "./png/GrokBot.png";
 import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
@@ -597,10 +598,12 @@ import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
 import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
 import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
@@ -1065,6 +1068,7 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
+import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1657,6 +1661,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   graphviz: Graphviz,
   grepwin: Grepwin,
   grids: Grids,
+  "grok bot": GrokBot,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
@@ -1773,11 +1778,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
@@ -2264,6 +2271,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
+  unnaturalscrollwheels: UnnaturalScrollWheels,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,

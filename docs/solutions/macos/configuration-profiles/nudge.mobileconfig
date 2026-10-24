@@ -14,7 +14,7 @@
 			<key>PayloadType</key>
 			<string>com.github.macadmins.Nudge</string>
 			<key>PayloadUUID</key>
-			<string>REPLACE-WITH-UUID</string>
+			<string>56D7E966-FED8-4540-B06A-F8036A8F0C86</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>optionalFeatures</key>
@@ -43,7 +43,7 @@
 			<key>PayloadType</key>
 			<string>com.apple.servicemanagement</string>
 			<key>PayloadUUID</key>
-			<string>REPLACE-WITH-UUID</string>
+			<string>BE5E82E0-13B0-426F-AFF5-EA4AB3B14BDC</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>Rules</key>
@@ -66,7 +66,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>REPLACE-WITH-UUID</string>
+	<string>890CBB8F-9043-423B-8D1F-FA3B436F0B2D</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>

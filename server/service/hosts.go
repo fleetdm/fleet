@@ -2967,10 +2967,10 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
-	// Without an ABM token ID we can't resolve which org name to use for the
-	// Apple API call, so return what we have from Fleet's DB.
+	// Deleting an ABM token nulls abm_token_id but leaves the assignment, so
+	// there's nothing to ask Apple about: treat the host as not a DEP host.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, "", nil
+		return nil, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)

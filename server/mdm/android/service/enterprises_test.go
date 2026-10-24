@@ -186,9 +186,15 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.DeleteZeroTouchEnrollmentTokensFunc = func(_ context.Context) error {
 		return nil
 	}
+	ds.DataStore.NewAndroidPolicyRequestFunc = func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.Store.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		return nil, nil
 	}
 	ds.Store.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
 		return nil
