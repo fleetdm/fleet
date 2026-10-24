@@ -1164,6 +1164,20 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 		}
 	}
 
+	// The client certificate and key are stored apart from their PKCS#12, so it can't be exported, even with secrets.
+	if ejbcaCAs, ok := result["ejbca"]; ok && ejbcaCAs != nil {
+		for _, intg := range ejbcaCAs.([]any) {
+			intg.(map[string]any)["client_p12"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 (base64) here")
+			intg.(map[string]any)["password"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 password here")
+			for _, key := range []string{"client_p12", "password"} {
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.ejbca." + key,
+				})
+			}
+		}
+	}
+
 	return result, nil
 }
 
