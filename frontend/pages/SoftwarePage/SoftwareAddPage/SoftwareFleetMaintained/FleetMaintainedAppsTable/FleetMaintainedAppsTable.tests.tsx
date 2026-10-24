@@ -24,7 +24,7 @@ describe("combineAppsByPlatform", () => {
     expect(combined[0].windows?.id).toBe(2);
   });
 
-  it("uses the macOS name regardless of the order of the entries", () => {
+  it("shows the base name regardless of the order of the entries", () => {
     const macos = app({
       id: 1,
       name: "R for macOS",
@@ -38,21 +38,47 @@ describe("combineAppsByPlatform", () => {
       platform: "windows",
     });
 
-    expect(combineAppsByPlatform([macos, windows])[0].name).toBe("R for macOS");
-    expect(combineAppsByPlatform([windows, macos])[0].name).toBe("R for macOS");
+    [
+      [macos, windows],
+      [windows, macos],
+    ].forEach((entries) => {
+      const [combined] = combineAppsByPlatform(entries);
+      expect(combined.name).toBe("R for macOS");
+      expect(combined.displayName).toBe("R");
+    });
   });
 
-  it("keeps the Windows name for a Windows-only app", () => {
-    const combined = combineAppsByPlatform([
+  it("shows the base name when only one platform's name has a suffix", () => {
+    const [combined] = combineAppsByPlatform([
+      app({
+        id: 1,
+        name: "WeChat",
+        slug: "wechat/windows",
+        platform: "windows",
+      }),
       app({
         id: 2,
-        name: "Notepad++",
-        slug: "notepad++/windows",
+        name: "WeChat for Mac",
+        slug: "wechat/darwin",
+        platform: "darwin",
+      }),
+    ]);
+
+    expect(combined.name).toBe("WeChat for Mac");
+    expect(combined.displayName).toBe("WeChat");
+  });
+
+  it("keeps the suffix in a single-platform app's name", () => {
+    const [combined] = combineAppsByPlatform([
+      app({
+        id: 1,
+        name: "Google Credential Provider for Windows",
+        slug: "google-credential-provider/windows",
         platform: "windows",
       }),
     ]);
 
-    expect(combined[0].name).toBe("Notepad++");
+    expect(combined.displayName).toBe("Google Credential Provider for Windows");
   });
 
   it("keeps two distinct apps that share a display name as separate rows", () => {

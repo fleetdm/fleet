@@ -1517,7 +1517,10 @@ export type FleetMaintainedAppPlatform = Extract<
 >;
 
 export interface ICombinedFMA {
+  /** Raw name, used to match the app's icon */
   name: string;
+  /** Name shown in the table, without a platform suffix like " for macOS" */
+  displayName: string;
   macos: Omit<IFleetMaintainedApp, "name"> | null;
   windows: Omit<IFleetMaintainedApp, "name"> | null;
 }
