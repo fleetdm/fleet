@@ -174,6 +174,28 @@ func TestFailedExitCode(t *testing.T) {
 	}
 }
 
+func TestDoneClosesAfterFinalState(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	select {
+	case <-m.Done("unknown"):
+	default:
+		t.Fatal("Done for an untracked id should already be closed")
+	}
+	if err := m.Start("d", StartArgs{Program: "sh", Args: []string{"-c", "sleep 0.2; exit 3"}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-m.Done("d"):
+	case <-time.After(5 * time.Second):
+		t.Fatal("Done never closed")
+	}
+	for _, p := range m.ListProcesses() {
+		if p.ID == "d" && p.State != "failed" {
+			t.Errorf("state when Done closed = %q, want failed", p.State)
+		}
+	}
+}
+
 func TestCrashBySignalIsFailed(t *testing.T) {
 	m := New(t.TempDir(), t.TempDir(), &recorder{})
 	if err := m.Start("c", StartArgs{Program: "sleep", Args: []string{"30"}}); err != nil {

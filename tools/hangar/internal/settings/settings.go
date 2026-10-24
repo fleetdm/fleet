@@ -202,6 +202,61 @@ type TufConfig struct {
 	Debug        bool     `json:"debug"`
 }
 
+// InstallersConfig is the saved state of the Installers tab: where generated
+// fleetd packages land, and one build config per server profile (keyed by
+// ServerProfile.ID). A server missing from Servers uses DefaultInstallerServer.
+type InstallersConfig struct {
+	// OutputDir is the root folder; each server gets a subfolder named after
+	// it. Empty means the default (~/Documents/fleetd-installers).
+	OutputDir string                           `json:"output_dir"`
+	Servers   map[string]InstallerServerConfig `json:"servers"`
+}
+
+// InstallerServerConfig is one server card's build inputs. The enroll secret is
+// deliberately not stored: it's fetched fresh from the server at build time for
+// the selected team, so a rotated secret never ends up baked into a package.
+type InstallerServerConfig struct {
+	// Context is the fleetctl context used to talk to the server. Empty means
+	// auto-match by the server's port.
+	Context string `json:"context"`
+	// Platforms are installer keys (see internal/installers.Platforms).
+	Platforms    []string `json:"platforms"`
+	FleetDesktop bool     `json:"fleet_desktop"`
+	Debug        bool     `json:"debug"`
+	// TeamID is the fleet/team whose enroll secret is used; nil = Unassigned
+	// (the global enroll secret). TeamName is display-only.
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+	// FleetURL overrides the server's server_url baked into the packages.
+	// Empty means use server_url from the server's config at build time.
+	FleetURL string `json:"fleet_url"`
+	// UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
+	// (Hangar's test_tuf repo, served at Tuf.TufURL).
+	UpdateSource    string `json:"update_source"`
+	OrbitChannel    string `json:"orbit_channel"`
+	DesktopChannel  string `json:"desktop_channel"`
+	OsquerydChannel string `json:"osqueryd_channel"`
+}
+
+// Update sources for InstallerServerConfig.UpdateSource.
+const (
+	UpdateSourceOfficial = "official"
+	UpdateSourceLocalTUF = "local-tuf"
+)
+
+// DefaultInstallerServer is a server card's config before the user changes
+// anything: every platform, Fleet Desktop on, official updates on stable.
+func DefaultInstallerServer() InstallerServerConfig {
+	return InstallerServerConfig{
+		Platforms:       []string{"macos", "windows-amd64", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64", "rpm-arm64"},
+		FleetDesktop:    true,
+		UpdateSource:    UpdateSourceOfficial,
+		OrbitChannel:    "stable",
+		DesktopChannel:  "stable",
+		OsquerydChannel: "stable",
+	}
+}
+
 // Settings is the full persisted configuration.
 //
 // Servers is the multi-server source of truth. The legacy single-server fields
@@ -219,6 +274,7 @@ type Settings struct {
 	Theme            ThemePreference  `json:"theme"`
 	FavoriteCrons    []string         `json:"favorite_crons"`
 	Tuf              TufConfig        `json:"tuf"`
+	Installers       InstallersConfig `json:"installers"`
 
 	// Servers is nil in a pre-multi-server file; migrate() backfills it from
 	// the legacy fields on Load so callers always see at least one server.
@@ -340,6 +396,10 @@ func migrate(s *Settings) {
 	// Normalize nil TUF platforms to an empty slice for the frontend.
 	if s.Tuf.Platforms == nil {
 		s.Tuf.Platforms = []string{}
+	}
+	// Same for the Installers map (a JSON object, never null, for the frontend).
+	if s.Installers.Servers == nil {
+		s.Installers.Servers = map[string]InstallerServerConfig{}
 	}
 }
 
