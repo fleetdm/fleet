@@ -8,6 +8,7 @@ package appicons
 #cgo darwin CFLAGS: -DDARWIN -x objective-c
 #cgo darwin LDFLAGS: -framework Cocoa
 #import <Appkit/AppKit.h>
+#include <stdlib.h>
 void Icon(CFDataRef *iconDataRef, char* path) {
 	NSString *appPath = [[NSString stringWithUTF8String:path] stringByStandardizingPath];
 	NSImage *img = [[NSWorkspace sharedWorkspace] iconForFile:appPath];
@@ -80,7 +81,9 @@ func generateAppIcons(ctx context.Context, queryContext table.QueryContext) ([]m
 
 func getAppIcon(appPath string, queryContext table.QueryContext) (image.Image, uint64, error) {
 	var data C.CFDataRef
-	C.Icon(&data, C.CString(appPath)) //nolint:gocritic // ignore dubSubExpr
+	cPath := C.CString(appPath)
+	defer C.free(unsafe.Pointer(cPath))
+	C.Icon(&data, cPath)
 	defer C.CFRelease(C.CFTypeRef(data))
 
 	tiffBytes := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
