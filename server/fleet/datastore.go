@@ -1112,9 +1112,6 @@ type Datastore interface {
 
 	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
-	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
-	// statistics.
-	CleanupStatistics(ctx context.Context) error
 	// GetTableRowCounts returns approximate DB row counts for all tables in a map indexed by table name
 	GetTableRowCounts(ctx context.Context) (map[string]uint, error)
 
@@ -1267,14 +1264,6 @@ type Datastore interface {
 	// CountHostScriptAttempts counts how many script execution attempts exist for a specific
 	// host, script, and policy combination. Used to calculate attempt_number.
 	CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error)
-	// IncrementPolicyViolationDays increments the aggregate count of policy violation days. One
-	// policy violation day is added for each policy that a host is failing as of the time the count
-	// is incremented. The count only increments once per 24-hour interval. If the interval has not
-	// elapsed, IncrementPolicyViolationDays returns nil without incrementing the count.
-	IncrementPolicyViolationDays(ctx context.Context) error
-	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
-	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
-	InitializePolicyViolationDays(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
