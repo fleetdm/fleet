@@ -12,6 +12,7 @@ interface IProps {
   onExit: () => void;
 }
 
+/** Lets users reorder report columns and submit their preferred order. */
 const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
   const [order, setOrder] = useState(columns);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,6 +61,7 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
     pendingFocus.current = null;
   }, [order]);
 
+  /** Moves a column while preserving focus and announcing its new position. */
   const moveColumn = (index: number, offset: number) => {
     const next = [...order];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
@@ -78,6 +80,7 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
     setOrder(next);
   };
 
+  /** Submits the selected order and prevents interaction until saving finishes. */
   const save = async () => {
     setIsSaving(true);
     try {

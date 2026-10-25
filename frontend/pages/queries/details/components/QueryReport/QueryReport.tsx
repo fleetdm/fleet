@@ -86,6 +86,7 @@ const QueryReport = ({
 }: IQueryReportProps): JSX.Element => {
   const { currentUser, userSettings, setUserSettings } = useContext(AppContext);
   const [showColumnPreferences, setShowColumnPreferences] = useState(false);
+  /** Applies saved column positions and appends columns without a saved position. */
   const orderColumns = useCallback(
     (columns: Column[]) => {
       const savedOrder = userSettings?.report_column_order?.[queryId] || [];
@@ -100,6 +101,7 @@ const QueryReport = ({
     },
     [userSettings?.report_column_order, queryId]
   );
+  /** Persists report column order while preserving absent columns and other settings. */
   const saveColumnPreferences = async (order: string[]) => {
     if (!currentUser) return;
     // Keep positions for columns absent from the current server-side page.

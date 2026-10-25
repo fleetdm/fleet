@@ -443,6 +443,7 @@ func TestHasAnyGlobalRole(t *testing.T) {
 	require.True(t, (&User{GlobalRole: new(RoleObserver)}).HasAnyGlobalRole())
 }
 
+// TestUserSettingsReportColumnOrder verifies scanning saved column orders and legacy settings.
 func TestUserSettingsReportColumnOrder(t *testing.T) {
 	for _, value := range []any{
 		`{"hidden_host_columns":["osquery_version"],"report_column_order":{"6":["last_fetched","Host","name"]}}`,
