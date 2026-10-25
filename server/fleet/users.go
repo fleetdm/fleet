@@ -146,6 +146,7 @@ func (u *User) ComputeStatus(now time.Time) UserStatus {
 	return UserStatusActive
 }
 
+// UserSettings holds per-user UI preferences stored as JSON on the user.
 type UserSettings struct {
 	HiddenHostColumns []string `json:"hidden_host_columns"`
 	// ReportColumnOrder stores each user's column layout by query ID.

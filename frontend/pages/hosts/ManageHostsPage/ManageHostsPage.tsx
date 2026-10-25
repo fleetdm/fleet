@@ -1165,6 +1165,7 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
+  /** Saves hidden host columns before updating local and shared settings and closing the modal. */
   const onSaveColumns = async (newHiddenColumns: string[]) => {
     if (!currentUser) {
       return;

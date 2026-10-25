@@ -195,6 +195,7 @@ func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	}
 }
 
+// testSettingsAttribute verifies saved column preferences are returned by UserSettings and omitted by UserByID.
 func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.Settings = &fleet.UserSettings{}
