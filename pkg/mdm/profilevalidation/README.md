@@ -195,6 +195,7 @@ It runs after the structural validator in `server/fleet` (well-formed XML, allow
 
 **Matching a LocURI to a node:**
 
+- The leading `./` is optional, as on devices; `key_path` keeps the LocURI as written.
 - Segments compare case-insensitively. A `*` segment in the schema matches any one non-empty segment, including a Fleet variable.
 - A bare `./Vendor/MSFT/X` and `./Device/Vendor/MSFT/X` are the same setting; each is tried for the other. A bare path counts as device scope.
 - If neither spelling matches, the other scope (`./User/` ↔ `./Device/`) is tried and the match is flagged as the wrong scope.
@@ -205,8 +206,9 @@ It runs after the structural validator in `server/fleet` (well-formed XML, allow
 **Both modes:**
 
 - **`TYPE_MISMATCH`:** a matched node's `<Data>` doesn't parse as its format. A node with several formats accepts Data that parses as any of them.
-  - `int`: a base-10 integer. `bool`: `true`, `false`, `0`, or `1`. `b64`: base64, whitespace ignored. `xml`: well-formed.
-  - Every other format passes: `chr` (including ADMX-backed `<enabled/>` markup), `node`, `null`, `bin`, `time`, `float`, and any format the validator doesn't know. Missing or blank Data passes.
+  - `int`: a base-10 integer. `bool`: `true`, `false`, `0`, or `1`. `b64`: base64, whitespace ignored. `xml`: one root element, escaped, in CDATA, or as raw child elements of `<Data>`.
+  - An empty `<Data>` fails these four, as on devices, and so does a scalar with child elements, e.g. `<Data>5<x/></Data>`.
+  - Every other format passes, empty or not: `chr` (including ADMX-backed `<enabled/>` markup), `node`, `null`, `bin`, `time`, `float`, and any format the validator doesn't know. An item without `<Data>` isn't checked.
 - **Fleet variables** expand to text, so `$FLEET_VAR_…` passes `chr` and `xml` and fails `int`, `bool`, and `b64`. Data containing `$FLEET_SECRET_…` passes any format.
 - **Unknown LocURIs pass.** Allowed values (`enum`, `range`, `regex`, `flag`, `xsd`) aren't checked; the schema carries them for later.
 

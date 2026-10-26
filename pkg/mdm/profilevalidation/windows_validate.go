@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,11 +15,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-// windowsItem is one SyncML <Item> with a target. Data is nil when the item has no <Data>.
+// windowsItem is one SyncML <Item> with a target. Data is the text of <Data> (CDATA unwrapped,
+// entities decoded), or nil when the item has none. DataXML is its raw content when <Data> has
+// child elements, which the text leaves out.
 type windowsItem struct {
-	LocURI     string  `xml:"Target>LocURI"`
-	MetaFormat string  `xml:"Meta>Format"`
-	Data       *string `xml:"Data"`
+	LocURI     string
+	MetaFormat string
+	Data       *string
+	DataXML    string
 }
 
 // decodeWindowsProfile returns every targeted <Item> in a SyncML profile, wherever it's nested
@@ -39,44 +43,69 @@ func decodeWindowsProfile(data []byte) ([]windowsItem, error) {
 		if !ok || el.Name.Local != "Item" {
 			continue
 		}
-		var item windowsItem
-		if err := dec.DecodeElement(&item, &el); err != nil {
+		var raw struct {
+			LocURI     string `xml:"Target>LocURI"`
+			MetaFormat string `xml:"Meta>Format"`
+			Data       *struct {
+				Text     string     `xml:",chardata"`
+				Inner    string     `xml:",innerxml"`
+				Children []struct{} `xml:",any"`
+			} `xml:"Data"`
+		}
+		if err := dec.DecodeElement(&raw, &el); err != nil {
 			return nil, fmt.Errorf("decode profile: %w", err)
 		}
-		item.LocURI = strings.TrimSpace(item.LocURI)
-		item.MetaFormat = strings.TrimSpace(item.MetaFormat)
+		item := windowsItem{LocURI: strings.TrimSpace(raw.LocURI), MetaFormat: strings.TrimSpace(raw.MetaFormat)}
+		if raw.Data != nil {
+			item.Data = &raw.Data.Text
+			if len(raw.Data.Children) > 0 {
+				item.DataXML = raw.Data.Inner
+			}
+		}
 		if item.LocURI != "" {
 			items = append(items, item)
 		}
 	}
 }
 
-// windowsDataAccepts reports whether data parses as any of the node's formats. Only int, bool, b64,
-// and xml are checked; every other format, including ones the validator doesn't know, accepts
-// anything. Fleet variables need no special case: they expand to text, so they already fail int,
-// bool, and b64 and pass chr and xml. A secret can hold any value, so it passes everywhere.
-func windowsDataAccepts(formats WindowsFormats, data string) bool {
+// windowsDataAccepts reports whether an item's Data parses as any of the node's formats. dataXML
+// is the raw content when <Data> has child elements. Only int, bool, b64, and xml are checked, and
+// an empty value fails them (Windows rejects it); every other format, including ones the validator
+// doesn't know, accepts anything. Fleet variables need no special case: they expand to text, so
+// they already fail int, bool, and b64. A secret can hold any value, so it passes everywhere.
+func windowsDataAccepts(formats WindowsFormats, data, dataXML string) bool {
 	data = strings.TrimSpace(data)
-	if data == "" || len(formats) == 0 || variables.SecretRegex.MatchString(data) {
+	if len(formats) == 0 || variables.SecretRegex.MatchString(data) || variables.SecretRegex.MatchString(dataXML) {
 		return true
+	}
+	// Child elements make a scalar invalid even if the text around them parses.
+	scalar := data
+	if dataXML != "" {
+		scalar = ""
 	}
 	for _, f := range formats {
 		switch f {
 		case WindowsFormatInt:
-			if _, err := strconv.ParseInt(data, 10, 64); err == nil {
+			if _, err := strconv.ParseInt(scalar, 10, 64); err == nil {
 				return true
 			}
 		case WindowsFormatBool:
-			if slices.ContainsFunc([]string{"true", "false", "0", "1"}, func(b string) bool { return strings.EqualFold(b, data) }) {
+			if slices.ContainsFunc([]string{"true", "false", "0", "1"}, func(b string) bool { return strings.EqualFold(b, scalar) }) {
 				return true
 			}
 		case WindowsFormatB64:
 			// Certificates are often line-wrapped.
-			if _, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(data), "")); err == nil {
+			b64 := strings.Join(strings.Fields(scalar), "")
+			if _, err := base64.StdEncoding.DecodeString(b64); b64 != "" && err == nil {
 				return true
 			}
 		case WindowsFormatXML:
-			if wellFormedXML(data) {
+			// Raw child elements are the document; otherwise it's escaped or in CDATA.
+			doc := data
+			if dataXML != "" {
+				doc = dataXML
+			}
+			if wellFormedXML(doc) {
 				return true
 			}
 		default:
@@ -86,26 +115,40 @@ func windowsDataAccepts(formats WindowsFormats, data string) bool {
 	return false
 }
 
+// wellFormedXML reports whether data is one XML document: a single root element, with only
+// whitespace, comments, and processing instructions around it.
 func wellFormedXML(data string) bool {
 	dec := xml.NewDecoder(strings.NewReader(data))
+	depth, roots := 0, 0
 	for {
-		_, err := dec.Token()
+		tok, err := dec.Token()
 		if errors.Is(err, io.EOF) {
-			return true
+			return roots == 1
 		}
 		if err != nil {
 			return false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if depth == 0 {
+				roots++
+			}
+			depth++
+		case xml.EndElement:
+			depth--
+		case xml.CharData:
+			if depth == 0 && len(bytes.TrimSpace(t)) > 0 {
+				return false
+			}
 		}
 	}
 }
 
 // splitWindowsRoot splits a LocURI into its scope root and the rest of the path. root is
 // WindowsScopeDevice or WindowsScopeUser for a ./Device/ or ./User/ path, and "" for a bare one.
+// The leading "./" is optional, as on devices.
 func splitWindowsRoot(locURI string) (root WindowsScope, rest string) {
-	rest, ok := strings.CutPrefix(locURI, "./")
-	if !ok {
-		return "", locURI
-	}
+	rest = strings.TrimPrefix(locURI, "./")
 	first, after, _ := strings.Cut(rest, "/")
 	for _, scope := range []WindowsScope{WindowsScopeDevice, WindowsScopeUser} {
 		if strings.EqualFold(first, string(scope)) {
@@ -119,9 +162,6 @@ func splitWindowsRoot(locURI string) (root WindowsScope, rest string) {
 // ./Device/Vendor/MSFT/X are the same setting, so each is tried for the other. If neither spelling
 // matches, the other scope is tried and wrongScope is set; a bare path counts as device scope.
 func (s *ProfileValidationSchema) resolveWindowsNode(locURI string) (node *WindowsNode, wrongScope bool) {
-	if !strings.HasPrefix(locURI, "./") {
-		return nil, false
-	}
 	root, rest := splitWindowsRoot(locURI)
 	device, bare, user := "./Device/"+rest, "./"+rest, "./User/"+rest
 	same, other := []string{device, bare}, []string{user}
@@ -189,12 +229,16 @@ func (s *ProfileValidationSchema) windowsTemplateNode(locURI string) *WindowsNod
 // cutWindowsADMXApp splits a LocURI around the app name of its ~Policy~ area, e.g.
 // "./Device/Vendor/MSFT/Policy/Config/", "~Policy~googlechrome/HomepageLocation".
 func cutWindowsADMXApp(locURI string) (prefix, suffix string, ok bool) {
-	i := strings.Index(strings.ToLower(locURI), "~policy~")
-	if i < 0 {
+	// Not strings.ToLower: it can change byte lengths (Ⱥ → ⱥ), so its index wouldn't fit locURI.
+	loc := windowsADMXMarkerRegex.FindStringIndex(locURI)
+	if loc == nil {
 		return "", "", false
 	}
+	i := loc[0]
 	return locURI[:strings.LastIndex(locURI[:i], "/")+1], locURI[i:], true
 }
+
+var windowsADMXMarkerRegex = regexp.MustCompile(`(?i)~policy~`)
 
 // windowsArea names what a LocURI configures for findings: the area for a Policy CSP setting,
 // e.g. DeviceLock, and otherwise the CSP, e.g. Firewall or DMAcc.
@@ -265,7 +309,7 @@ func (s *ProfileValidationSchema) ValidateWindowsProfile(data []byte, mode Mode)
 			finding(CodeFormatMismatch, formats, item.MetaFormat)
 		}
 		// Actual is left empty: echoing Data could leak values such as SCEP challenges.
-		if item.Data != nil && !windowsDataAccepts(node.Format, *item.Data) {
+		if item.Data != nil && !windowsDataAccepts(node.Format, *item.Data, item.DataXML) {
 			finding(CodeTypeMismatch, formats, "")
 		}
 	}

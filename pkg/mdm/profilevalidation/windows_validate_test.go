@@ -1,6 +1,7 @@
 package profilevalidation
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,10 @@ func TestDecodeWindowsProfile(t *testing.T) {
 			<Target><LocURI>./Vendor/MSFT/Example/Xml</LocURI></Target>
 			<Data><Rules><Rule id="1"/></Rules></Data>
 		</Item>
+		<Item>
+			<Target><LocURI>./Vendor/MSFT/Example/Mixed</LocURI></Target>
+			<Data>5<x/></Data>
+		</Item>
 	</Replace>
 </Atomic>`))
 	require.NoError(t, err)
@@ -46,8 +51,9 @@ func TestDecodeWindowsProfile(t *testing.T) {
 		{LocURI: "./Device/Vendor/MSFT/Policy/Config/Chrome~Policy~googlechrome/HomepageLocation", MetaFormat: "chr", Data: new(`<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>`)},
 		{LocURI: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll"},
 		{LocURI: "./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", Data: new("")},
-		// Raw child elements are already well-formed; only the element's own text is kept.
-		{LocURI: "./Vendor/MSFT/Example/Xml", Data: new("")},
+		// The text leaves child elements out, so their raw markup is kept too.
+		{LocURI: "./Vendor/MSFT/Example/Xml", Data: new(""), DataXML: `<Rules><Rule id="1"/></Rules>`},
+		{LocURI: "./Vendor/MSFT/Example/Mixed", Data: new("5"), DataXML: `5<x/>`},
 	}, items)
 }
 
@@ -75,6 +81,7 @@ func TestWindowsDataAccepts(t *testing.T) {
 		name    string
 		formats WindowsFormats
 		data    string
+		dataXML string
 		want    bool
 	}{
 		{name: "int", formats: f(WindowsFormatInt), data: "5", want: true},
@@ -82,7 +89,9 @@ func TestWindowsDataAccepts(t *testing.T) {
 		{name: "int with whitespace", formats: f(WindowsFormatInt), data: "\n  5\n", want: true},
 		{name: "int with letters", formats: f(WindowsFormatInt), data: "abc"},
 		{name: "int with real", formats: f(WindowsFormatInt), data: "1.5"},
-		{name: "empty int", formats: f(WindowsFormatInt), data: "  ", want: true},
+		{name: "empty int", formats: f(WindowsFormatInt), data: ""},
+		{name: "blank int", formats: f(WindowsFormatInt), data: "  "},
+		{name: "int with child element", formats: f(WindowsFormatInt), data: "5", dataXML: "5<x/>"},
 
 		{name: "bool true", formats: f(WindowsFormatBool), data: "true", want: true},
 		{name: "bool false", formats: f(WindowsFormatBool), data: "False", want: true},
@@ -90,15 +99,28 @@ func TestWindowsDataAccepts(t *testing.T) {
 		{name: "bool 1", formats: f(WindowsFormatBool), data: "1", want: true},
 		{name: "bool 2", formats: f(WindowsFormatBool), data: "2"},
 		{name: "bool yes", formats: f(WindowsFormatBool), data: "yes"},
+		{name: "empty bool", formats: f(WindowsFormatBool), data: ""},
 
 		{name: "b64", formats: f(WindowsFormatB64), data: "Zmxl\n ZXQ=", want: true},
 		{name: "invalid b64", formats: f(WindowsFormatB64), data: "not base64!"},
+		{name: "empty b64", formats: f(WindowsFormatB64), data: " \n "},
 
 		{name: "xml", formats: f(WindowsFormatXML), data: `<a><b x="1"/></a>`, want: true},
 		{name: "unclosed xml", formats: f(WindowsFormatXML), data: `<a><b>`},
 		{name: "mismatched xml", formats: f(WindowsFormatXML), data: `<a></b>`},
+		{name: "xml with prolog and comments", formats: f(WindowsFormatXML), data: `<?xml version="1.0"?><!-- c --><a/><!-- c -->`, want: true},
+		{name: "plain text xml", formats: f(WindowsFormatXML), data: "just text"},
+		{name: "comment-only xml", formats: f(WindowsFormatXML), data: "<!-- c -->"},
+		{name: "two roots", formats: f(WindowsFormatXML), data: "<a/><b/>"},
+		{name: "text after root", formats: f(WindowsFormatXML), data: "<a/>tail"},
+		{name: "empty xml", formats: f(WindowsFormatXML), data: ""},
+		{name: "raw child xml", formats: f(WindowsFormatXML), dataXML: `<Rules><Rule id="1"/></Rules>`, want: true},
+		{name: "raw child xml two roots", formats: f(WindowsFormatXML), dataXML: "<a/><b/>"},
+		{name: "raw child xml with text", formats: f(WindowsFormatXML), data: "5", dataXML: "5<x/>"},
 
 		{name: "chr", formats: f(WindowsFormatChr), data: "anything", want: true},
+		{name: "empty chr", formats: f(WindowsFormatChr), data: "", want: true},
+		{name: "chr with child element", formats: f(WindowsFormatChr), dataXML: "<x/>", want: true},
 		{name: "bin", formats: f(WindowsFormatBin), data: "anything", want: true},
 		{name: "time", formats: f(WindowsFormatTime), data: "anything", want: true},
 		{name: "float", formats: f(WindowsFormatFloat), data: "anything", want: true},
@@ -116,10 +138,11 @@ func TestWindowsDataAccepts(t *testing.T) {
 		{name: "variable in b64", formats: f(WindowsFormatB64), data: "$FLEET_VAR_HOST_UUID"},
 		{name: "secret in int", formats: f(WindowsFormatInt), data: "$FLEET_SECRET_TIMEOUT", want: true},
 		{name: "secret in b64", formats: f(WindowsFormatB64), data: "${FLEET_SECRET_CERT}", want: true},
+		{name: "secret in raw child xml", formats: f(WindowsFormatXML), dataXML: "<a/>$FLEET_SECRET_RULES", want: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.want, windowsDataAccepts(c.formats, c.data))
+			assert.Equal(t, c.want, windowsDataAccepts(c.formats, c.data, c.dataXML))
 		})
 	}
 }
@@ -161,7 +184,13 @@ func TestResolveWindowsNode(t *testing.T) {
 		{name: "policy typo", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo"},
 		{name: "policy area alone", locURI: "./Device/Vendor/MSFT/Policy/Config/Unknown"},
 		{name: "unknown CSP", locURI: "./Device/Vendor/MSFT/Unknown/Setting"},
-		{name: "not rooted", locURI: "Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall"},
+		// Devices accept a LocURI without "./", and so does the structural validator.
+		{name: "not rooted", locURI: "Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", want: node("./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall")},
+		{name: "not rooted device", locURI: "Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock", want: node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock")},
+		{name: "not rooted user for device-only policy", locURI: "User/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock", want: node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"), wrongScope: true},
+		// Lowercasing Ⱥ adds a byte, so an index into the lowercased LocURI would overrun it.
+		{name: "unicode app name", locURI: "./Device/Vendor/MSFT/Policy/Config/" + strings.Repeat("Ⱥ", 64) + "~Policy~googlechrome~Startup/HomepageLocation", want: node("./Device" + chromeHomepage)},
+		{name: "unicode app name unknown policy", locURI: "./Device/Vendor/MSFT/Policy/Config/" + strings.Repeat("Ⱥ", 64) + "~Policy~googlechrome/Nope"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -183,6 +212,8 @@ func TestWindowsArea(t *testing.T) {
 		"./SyncML/DMAcc/MDMServer/Name":                                                                "DMAcc",
 		"./DevDetail/Ext/Microsoft/DeviceName":                                                         "DevDetail",
 		"./Vendor/MSFT":                                                                                "",
+		"Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock":                      "DeviceLock",
+		"Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall":                                   "Firewall",
 	} {
 		assert.Equal(t, want, windowsArea(locURI), locURI)
 	}
@@ -289,6 +320,25 @@ func TestValidateWindowsProfile(t *testing.T) {
 		{name: "secret in int", profile: syncMLItem(minLength, "int", "$FLEET_SECRET_MIN_LENGTH")},
 		{name: "variable in dynamic segment", profile: syncMLItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength", "int", "2048")},
 		{name: "secret-only body", profile: "$FLEET_SECRET_WINDOWS_PROFILE"},
+		{
+			name:    "empty int",
+			profile: syncMLItem(minLength, "int", "") + "<Replace><Item><Target><LocURI>" + minLength + "</LocURI></Target><Data/></Item></Replace>",
+			lenient: []Finding{typeMismatch("DeviceLock", minLength, "int")},
+			strict:  []Finding{typeMismatch("DeviceLock", minLength, "int")},
+		},
+		{name: "empty chr", profile: "<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken</LocURI></Target><Data></Data></Item></Replace>"},
+		{
+			name:    "int with child element",
+			profile: syncMLItem(minLength, "int", "5<x/>"),
+			lenient: []Finding{typeMismatch("DeviceLock", minLength, "int")},
+			strict:  []Finding{typeMismatch("DeviceLock", minLength, "int")},
+		},
+		{
+			name:    "not rooted keeps the LocURI as written",
+			profile: syncMLItem("Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength", "int", "abc"),
+			lenient: []Finding{typeMismatch("DeviceLock", "Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength", "int")},
+			strict:  []Finding{typeMismatch("DeviceLock", "Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength", "int")},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
