@@ -210,7 +210,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   // Get the client certificate expiry of the EJBCA certificate authorities. This shares its cache with the
   // certificate authorities page, so adding, editing, or deleting one updates the banner.
   useQuery(
-    "certAuthorities",
+    ["certAuthorities"],
     () => certificatesAPI.getCertificateAuthoritiesList(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
