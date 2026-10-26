@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/software/titles/:id` including software package data from the unassigned fleet when no fleet ID is provided.
