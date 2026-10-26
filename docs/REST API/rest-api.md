@@ -3618,7 +3618,7 @@ the `software` table.
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`                                                                                                                                                                                                                                    |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, `ipv4`, and end user email addresses. |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.                                              |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified fleet. Use `0` to filter by "Unassigned" hosts.                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
@@ -3709,6 +3709,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "Annas-MacBook-Pro.local",
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+      "enrollment_id": null,
       "platform": "darwin",
       "osquery_version": "5.15.0",
       "os_version": "macOS 15.2",
@@ -3951,7 +3952,7 @@ Response payload with the `munki_issue_id` filter provided:
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, `ipv4`, and end user email addresses. |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -4188,6 +4189,7 @@ Returns the information of the specified host.
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "enrollment_id": null,
     "platform": "darwin",
     "osquery_version": "5.15.0",
     "orbit_version": "1.22.0",
@@ -4476,6 +4478,7 @@ Returns the information of the specified host.
     "refetch_requested": false,
     "hostname": "Annas-iPhone",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "enrollment_id": null,
     "udid": "00008110-001A2B3C4D5E6F78",
     "platform": "ios",
     "osquery_version": "5.15.0",
@@ -4810,7 +4813,8 @@ Returns the information of the specified host.
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "uuid": "",
+    "enrollment_id": null,
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
@@ -5021,11 +5025,11 @@ The `extension_for` field is included when set and when empty. It shows the brow
 
 > Note: `mdm.is_personal_enrollment` reports whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls, so it stays `true` for an unenrolled Android or Apple mobile host. On macOS and Windows, MDM state is re-reported by the agent, which resets the field once the enrollment profile is gone.
 
-> Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
+> Note: For iOS, iPadOS, and Android hosts with `mdm.enrollment_status` set to "On (personal)", `hardware_serial` and `uuid` are empty, because these hosts don't report a hardware serial or UUID. Instead, `enrollment_id` is a temporary enrollment ID. For iOS and iPadOS account-driven User Enrollment, this is Apple's enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets). For fully managed (company-owned) Android hosts, `uuid` is empty and `hardware_serial` is the device's serial number. For all other hosts, `enrollment_id` is `null`.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
+Returns the information of the host specified using the `hostname`, `uuid`, `hardware_serial`, or `enrollment_id` as an identifier.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -5042,7 +5046,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 | Name       | Type              | In   | Description                                                        |
 | ---------- | ----------------- | ---- | ------------------------------------------------------------------ |
-| identifier | string | path | **Required**. The host's `hostname`, `uuid`, or `hardware_serial`. |
+| identifier | string | path | **Required**. The host's `hostname`, `uuid`, `hardware_serial`, or `enrollment_id`. |
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
@@ -5073,6 +5077,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "refetch_requested": false,
     "hostname": "23cfc9caacf0",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "enrollment_id": null,
     "platform": "ubuntu",
     "osquery_version": "5.5.1",
     "os_version": "Ubuntu 20.04.3 LTS",
@@ -5287,6 +5292,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "refetch_requested": false,
     "hostname": "Johns-iPhone",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "enrollment_id": null,
     "platform": "ios",
     "osquery_version": "5.5.1",
     "os_version": "iOS 17.4.1",
@@ -5566,7 +5572,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "uuid": "",
+    "enrollment_id": null,
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
@@ -5810,6 +5817,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "enrollment_id": null,
     "platform": "darwin",
     "osquery_version": "5.15.0",
     "os_version": "macOS 15.2",
@@ -6113,7 +6121,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
-| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | fleet_id                           | number  | ID of the fleet to filter by. |
@@ -6185,7 +6193,7 @@ Delete hosts selected by filter or ids.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
-| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | fleet_id                           | number  | ID of the fleet to filter by. |
@@ -6942,7 +6950,7 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, `ipv4`, and end user email addresses. |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet. |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
@@ -6973,10 +6981,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,enrollment_id,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -7600,7 +7608,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ### Run live report on host by identifier (ad hoc)
 
-Runs an ad hoc live report against a host, specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier, and responds with the results.
+Runs an ad hoc live report against a host, specified using the `hostname`, `uuid`, `hardware_serial`, or `enrollment_id` as an identifier, and responds with the results.
 
 The live report will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
@@ -7611,7 +7619,7 @@ The live report will stop if the targeted host is offline, or if the query times
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `enrollment_id`, `osquery_host_id`, `hostname`, or `node_key`. |
 | query            | string   | body | **Required**. The query SQL. |
 
 
@@ -7837,7 +7845,7 @@ Add a dynamic or manual label.
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
-| hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
+| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `enrollment_id`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `"darwin"`, `"windows"`, `"linux"`, `"ubuntu"`, and `"centos"`. All platforms are included by default and this option is represented by an empty string. |
 
@@ -7905,7 +7913,7 @@ Updates the specified label. Note: Label queries, platforms, and fleets are immu
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
+| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `enrollment_id`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
 | host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 
 `hosts` and `host_ids` can only be used to update a manual label. Including either one when updating a dynamic label returns an error, even if the list is empty.
@@ -8222,7 +8230,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                              |
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                 |
-| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
+| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, and `ipv4`.                                                                                                                         |
 | fleet_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
@@ -8261,6 +8269,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "refetch_requested": false,
       "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+      "enrollment_id": null,
       "platform": "ubuntu",
       "osquery_version": "4.5.1",
       "os_version": "Ubuntu 20.4.0",
@@ -10297,7 +10306,7 @@ The possible `status` values for Android hosts are the following:
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | command_uuid              | string  | query | The unique identifier of the command.                                     |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, `hardware_serial`, or `enrollment_id`. Returns only results for the specified host. |
 
 #### Example
 
@@ -10360,7 +10369,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, `hardware_serial`, or `enrollment_id`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
 | page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
 | per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
@@ -14226,7 +14235,7 @@ The script will be added to each host's list of upcoming activities.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
-| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `enrollment_id`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | fleet_id                           | number  | ID of the fleet to filter by. |
@@ -16830,6 +16839,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "7a2f41482833",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "enrollment_id": null,
         "platform": "rhel",
         "osquery_version": "4.5.1",
         "os_version": "CentOS 6.10.0",
@@ -16871,6 +16881,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "78c96e72746c",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "enrollment_id": null,
         "platform": "ubuntu",
         "osquery_version": "4.5.1",
         "os_version": "Ubuntu 16.4.0",

@@ -553,7 +553,8 @@ Generated when a host is deleted.
 This activity contains the following fields:
 - "host_id": Unique ID of the deleted host in Fleet.
 - "host_display_name": Display name of the deleted host.
-- "host_serial": Hardware serial number of the deleted host.
+- "host_serial": Hardware serial number of the deleted host. Empty for personal (BYOD) hosts, which have no serial number.
+- "enrollment_id": Enrollment ID of the deleted host. Only set for personal (BYOD) hosts, `null` for other hosts.
 - "triggered_by": How the deletion was triggered. Can be "manual" for manual deletions or "expiration" for automatic deletions due to host expiry settings.
 - "host_expiry_window": (Optional) The number of days configured for host expiry. Only present when "triggered_by" is "expiration".
 
@@ -564,6 +565,7 @@ This activity contains the following fields:
 	"host_id": 42,
 	"host_display_name": "USER-WINDOWS",
 	"host_serial": "ABC123",
+	"enrollment_id": null,
 	"triggered_by": "expiration",
 	"host_expiry_window": 30
 }
@@ -675,7 +677,8 @@ Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
 
 This activity contains the following fields:
 - "host_id": ID of the host.
-- "host_serial": Serial number of the host.
+- "host_serial": Serial number of the host. Empty for personal (BYOD) hosts, which have no serial number.
+- "enrollment_id": Enrollment ID of the host. Only set for personal (BYOD) hosts, `null` for other hosts.
 - "host_display_name": Display name of the host.
 
 #### Example
@@ -684,6 +687,7 @@ This activity contains the following fields:
 {
 	"host_id": "123",
 	"host_serial": "B04FL3ALPT21",
+	"enrollment_id": null,
 	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }
 ```
@@ -724,11 +728,11 @@ Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
 - "host_id": ID of the host. Omitted from activities generated before Fleet added this field.
-- "host_serial": Serial number of the host. For Apple BYOD (account-driven user) enrollments, which have no serial number, this is the enrollment ID instead. `null` if the serial number is unknown.
+- "host_serial": Serial number of the host. Empty for personal (BYOD) hosts, which have no serial number. `null` if the serial number is unknown.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled automatically. `true` for Apple hosts enrolled via DEP, and for Windows hosts enrolled through Microsoft Entra ID during the out-of-box experience (OOBE), such as Windows Autopilot.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
-- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
+- "enrollment_id": Enrollment ID of the host. Only set for personal (BYOD) hosts, `null` for other hosts.
 - "platform": The enrolled host's platform
 
 Windows hosts that enroll automatically through Microsoft Entra ID get this activity once it matches the enrollment to a host. This is usually within a minute of the device enrolling, but can be later if the host has not run Fleet's agent (fleetd) yet.
@@ -754,8 +758,8 @@ Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
 - "host_id": ID of the host. `0` when the host record was already deleted at unenroll time.
-- "host_serial": Serial number of the host.
-- "enrollment_id": Unique identifier for personal (BYOD) hosts.
+- "host_serial": Serial number of the host. Empty for personal (BYOD) hosts, which have no serial number.
+- "enrollment_id": Enrollment ID of the host. Only set for personal (BYOD) hosts, `null` for other hosts.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
 - "platform": The unenrolled host's platform
