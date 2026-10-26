@@ -15981,14 +15981,22 @@ When an install attempt was skipped because a patch policy has `patch_when_close
     "software_title": "Falcon.app",
     "software_title_id": 8353,
     "software_package": "FalconSensor-6.44.pkg",
+    "hash_sha256": "8a5a9b1b4e9c4d1f7f2e6c3b0d9a8e7f6c5b4a3928170615f4e3d2c1b0a99887",
+    "source": "apps",
     "host_id": 123,
     "status": "failed_install",
     "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
     "pre_install_query_output": "Query returned result\nSuccess",
-    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess",
+    "created_at": "2024-09-11T20:30:24Z",
+    "self_service": false,
+    "policy_id": null,
+    "attempt_number": 1
   }
 }
 ```
+
+> Note: `created_at` is when Fleet recorded the install result. If the install is still pending, it's when the install was requested.
 
 ### Delete software
 

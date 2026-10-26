@@ -451,7 +451,6 @@ const DEFAULT_SOFTWARE_INSTALL_RESULT: ISoftwareInstallResult = {
   pre_install_query_output: "",
   post_install_script_output: "",
   created_at: "2025-08-10T12:00:00Z",
-  updated_at: "2025-08-10T12:05:00Z",
   self_service: false,
 };
 

@@ -3645,8 +3645,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	assert.Empty(t, resp.Results.PostInstallScriptOutput)
 	assert.Less(t, beforeInstallRequest, resp.Results.CreatedAt)
 	assert.Greater(t, time.Now(), resp.Results.CreatedAt)
-	assert.NotNil(t, resp.Results.UpdatedAt)
-	assert.Less(t, beforeInstallResult, *resp.Results.UpdatedAt)
+	// created_at comes from the installed software activity, which is created after the result
+	assert.Less(t, beforeInstallResult, resp.Results.CreatedAt)
 
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,

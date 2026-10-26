@@ -1956,6 +1956,8 @@ type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, versions []*flee
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
+type GetInstalledSoftwareActivityCreatedAtFunc func(ctx context.Context, hostID uint, installUUID string) (time.Time, error)
+
 type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 type CleanupHostSoftwareInstallsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
@@ -5512,6 +5514,9 @@ type DataStore struct {
 
 	GetSoftwareInstallResultsFunc        GetSoftwareInstallResultsFunc
 	GetSoftwareInstallResultsFuncInvoked bool
+
+	GetInstalledSoftwareActivityCreatedAtFunc        GetInstalledSoftwareActivityCreatedAtFunc
+	GetInstalledSoftwareActivityCreatedAtFuncInvoked bool
 
 	CleanupUnusedSoftwareInstallersFunc        CleanupUnusedSoftwareInstallersFunc
 	CleanupUnusedSoftwareInstallersFuncInvoked bool
@@ -13263,6 +13268,13 @@ func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID s
 	s.GetSoftwareInstallResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallResultsFunc(ctx, resultsUUID)
+}
+
+func (s *DataStore) GetInstalledSoftwareActivityCreatedAt(ctx context.Context, hostID uint, installUUID string) (time.Time, error) {
+	s.mu.Lock()
+	s.GetInstalledSoftwareActivityCreatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInstalledSoftwareActivityCreatedAtFunc(ctx, hostID, installUUID)
 }
 
 func (s *DataStore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
