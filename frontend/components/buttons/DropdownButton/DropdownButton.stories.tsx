@@ -37,6 +37,7 @@ const withGitOpsMode = (Story: React.ComponentType) => (
         gitops: {
           gitops_mode_enabled: true,
           repository_url: "https://github.com/example/fleet-config",
+          exceptions: { labels: false, software: false, secrets: false },
         },
       }),
     }}
