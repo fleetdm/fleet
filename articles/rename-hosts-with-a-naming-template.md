@@ -11,7 +11,7 @@ This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts
 - Fleet Premium.
 - Fleet's MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup).
 - Hosts enrolled in Fleet's MDM. Personally enrolled (BYOD) hosts are skipped and never renamed.
-- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads. Unsupervised hosts reject the command, and after 3 automatic retries they land on **Failed**.
+- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads. Unsupervised hosts reject the command and land on **Failed** right away, without automatic retries.
 
 ## Set a name template
 
