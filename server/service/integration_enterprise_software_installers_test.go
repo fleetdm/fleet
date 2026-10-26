@@ -1906,8 +1906,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		assert.Equal(t, want.PreInstallQueryOutput, resp.Results.PreInstallQueryOutput)
 		assert.Equal(t, want.Output, resp.Results.Output)
 		assert.Equal(t, want.PostInstallScriptOutput, resp.Results.PostInstallScriptOutput)
-		assert.Less(t, beforeInstall, resp.Results.CreatedAt)
-		assert.Greater(t, time.Now(), resp.Results.CreatedAt)
+		require.NotNil(t, resp.Results.ActivityCreatedAt)
+		assert.Less(t, beforeInstall, *resp.Results.ActivityCreatedAt)
+		assert.Greater(t, time.Now(), *resp.Results.ActivityCreatedAt)
 	}
 
 	installHash := func(installUUID string) *string {
@@ -3643,10 +3644,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	assert.NotNil(t, resp.Results.Output)
 	assert.Equal(t, fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed"), *resp.Results.Output)
 	assert.Empty(t, resp.Results.PostInstallScriptOutput)
-	assert.Less(t, beforeInstallRequest, resp.Results.CreatedAt)
-	assert.Greater(t, time.Now(), resp.Results.CreatedAt)
+	require.NotNil(t, resp.Results.ActivityCreatedAt)
+	assert.Less(t, beforeInstallRequest, *resp.Results.ActivityCreatedAt)
+	assert.Greater(t, time.Now(), *resp.Results.ActivityCreatedAt)
 	// created_at comes from the installed software activity, which is created after the result
-	assert.Less(t, beforeInstallResult, resp.Results.CreatedAt)
+	assert.Less(t, beforeInstallResult, *resp.Results.ActivityCreatedAt)
 
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
