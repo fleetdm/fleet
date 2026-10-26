@@ -534,9 +534,8 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
-	// CreatedAt is the time the software installer request was triggered. The API returns the time
-	// the "installed software" activity was created instead, when there is one.
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// CreatedAt is the time the software installer request was triggered.
+	CreatedAt time.Time `json:"-" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
 	UpdatedAt *time.Time `json:"-" db:"updated_at"`
 	// UserID is the user ID that requested the software installation on that host.
@@ -566,6 +565,8 @@ type HostSoftwareInstallerResult struct {
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
 	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
 	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
+	// ActivityCreatedAt is the time the activity for the install was created.
+	ActivityCreatedAt *time.Time `json:"created_at" db:"activity_created_at"`
 }
 
 const (

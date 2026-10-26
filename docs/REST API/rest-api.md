@@ -15988,15 +15988,13 @@ When an install attempt was skipped because a patch policy has `patch_when_close
     "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
     "pre_install_query_output": "Query returned result\nSuccess",
     "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess",
-    "created_at": "2024-09-11T20:30:24Z",
     "self_service": false,
     "policy_id": null,
-    "attempt_number": 1
+    "attempt_number": 1,
+    "created_at": "2024-09-11T20:30:24Z"
   }
 }
 ```
-
-> Note: `created_at` is when Fleet recorded the install result. If the install is still pending, it's when the install was requested.
 
 ### Delete software
 

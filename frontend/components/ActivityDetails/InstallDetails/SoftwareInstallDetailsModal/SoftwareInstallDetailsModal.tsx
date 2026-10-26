@@ -128,14 +128,13 @@ export const StatusMessage = ({
     "the host"
   );
 
-  const displayTimeStamp = ["failed_install", "installed"].includes(
-    status || ""
-  )
-    ? ` (${timeAgo(new Date(created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
+  const displayTimeStamp =
+    created_at && ["failed_install", "installed"].includes(status || "")
+      ? ` (${timeAgo(new Date(created_at), {
+          includeSeconds: true,
+          addSuffix: true,
+        })})`
+      : "";
 
   // A patch-when-closed skip must render its own message even when the host
   // currently reports the app as installed. The skip is the load-bearing state

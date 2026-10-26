@@ -2521,7 +2521,7 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		return nil, ctxerr.Wrap(ctx, err, "get installed software activity created at")
 	}
 	if err == nil {
-		res.CreatedAt = activityCreatedAt
+		res.ActivityCreatedAt = &activityCreatedAt
 	}
 
 	res.EnhanceOutputDetails()
@@ -2547,7 +2547,7 @@ func (svc *Service) getDeviceSoftwareInstallResults(ctx context.Context, resultU
 		return nil, ctxerr.Wrap(ctx, err, "get installed software activity created at")
 	}
 	if err == nil {
-		res.CreatedAt = activityCreatedAt
+		res.ActivityCreatedAt = &activityCreatedAt
 	}
 
 	res.EnhanceOutputDetails()

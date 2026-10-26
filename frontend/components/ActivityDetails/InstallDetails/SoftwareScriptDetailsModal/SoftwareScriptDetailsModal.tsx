@@ -88,14 +88,13 @@ export const StatusMessage = ({
     "the host"
   );
 
-  const displayTimeStamp = ["failed_install", "installed"].includes(
-    status || ""
-  )
-    ? ` (${timeAgo(new Date(created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
+  const displayTimeStamp =
+    created_at && ["failed_install", "installed"].includes(status || "")
+      ? ` (${timeAgo(new Date(created_at), {
+          includeSeconds: true,
+          addSuffix: true,
+        })})`
+      : "";
 
   const renderStatusCopy = () => {
     const prefix = (
