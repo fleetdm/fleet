@@ -6,13 +6,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261023185343, Down_20261023185343)
+	MigrationClient.AddMigration(Up_20261026223030, Down_20261026223030)
 }
 
-// Up_20261023185343 adds the table that binds iOS, iPadOS and Android hosts to their device record in
+// Up_20261026223030 adds the table that binds iOS, iPadOS and Android hosts to their device record in
 // Google. It is not a column on host_conditional_access because those rows are deleted when a bypass is
 // consumed or bypasses are turned off.
-func Up_20261023185343(tx *sql.Tx) error {
+func Up_20261026223030(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_google_device_ids (
 	host_id          INT UNSIGNED NOT NULL,
@@ -27,6 +27,6 @@ CREATE TABLE IF NOT EXISTS host_google_device_ids (
 	return nil
 }
 
-func Down_20261023185343(tx *sql.Tx) error {
+func Down_20261026223030(tx *sql.Tx) error {
 	return nil
 }
