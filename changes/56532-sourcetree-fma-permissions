@@ -1,1 +1,0 @@
-- Fixed the Sourcetree Fleet-maintained app installing with root-only permissions, which kept end users from opening it.
