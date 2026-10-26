@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
@@ -149,7 +150,19 @@ func validatorFor(s *profilevalidation.ProfileValidationSchema, path string) fun
 		}
 	case ".xml":
 		return func(data []byte, mode profilevalidation.Mode) ([]profilevalidation.Finding, error) {
-			if !bytes.Contains(data, []byte("<LocURI>")) {
+			decoder := xml.NewDecoder(bytes.NewReader(data))
+			hasLocURI := false
+			for {
+				token, err := decoder.Token()
+				if err != nil {
+					break
+				}
+				if element, ok := token.(xml.StartElement); ok && element.Name.Local == "LocURI" {
+					hasLocURI = true
+					break
+				}
+			}
+			if !hasLocURI {
 				return nil, errNotProfile
 			}
 			return s.ValidateWindowsProfile(data, mode)
