@@ -1923,15 +1923,6 @@ None.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "macos_setup": {
-      "bootstrap_package": "",
-      "enable_end_user_authentication": false,
-      "macos_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": false,
-      "manual_agent_install": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin"
-    },
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -2338,14 +2329,6 @@ Modifies the Fleet's configuration with the supplied information.
       "enable": false,
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
-    },
-    "macos_setup": {
-      "bootstrap_package": "",
-      "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
-      "lock_end_user_info": true,
-      "macos_setup_assistant": "path/to/config.json"
     },
     "setup_experience": {
       "bootstrap_package": "",
@@ -4413,11 +4396,6 @@ Returns the information of the specified host.
         "disk_encryption": "verified",
         "action_required": null
       },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": "test.pkg"
-      },
       "setup_experience": {
         "bootstrap_package_status": "installed",
         "detail": "",
@@ -4752,11 +4730,6 @@ Returns the information of the specified host.
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": ""
       },
       "setup_experience": {
         "bootstrap_package_status": "installed",
@@ -5231,10 +5204,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "disk_encryption": null,
         "action_required": null
       },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": ""
-      },
       "setup_experience": {
         "bootstrap_package_status": "installed",
         "detail": ""
@@ -5510,10 +5479,6 @@ If `hostname` is specified when there is more than one host with the same hostna
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": ""
       },
       "setup_experience": {
         "bootstrap_package_status": "installed",
@@ -5954,11 +5919,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
       "apple_settings": {
         "disk_encryption": "verified",
         "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": "test.pkg"
       },
       "setup_experience": {
         "bootstrap_package_status": "installed",
@@ -17190,13 +17150,6 @@ _Available in Fleet Premium_
       "linux_settings": {
         "enable_escrow_disk_encryption_key": true
       },
-      "macos_setup": {
-        "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json",
-        "enable_release_device_manually": false,
-        "manual_agent_install": false
-      },
       "setup_experience": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
@@ -17951,11 +17904,6 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": true
-      },
-      "macos_setup": {
-        "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
       },
       "setup_experience": {
         "bootstrap_package": "",
