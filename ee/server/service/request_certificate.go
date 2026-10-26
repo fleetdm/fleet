@@ -360,8 +360,8 @@ func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, i
 	if len(endUsers) == 0 || endUsers[0].IdpUserName == "" {
 		return mismatch
 	}
-	// Case-insensitive, as IdPs treat usernames and as SetHostDeviceMapping compares this field.
-	if !strings.EqualFold(endUsers[0].IdpUserName, identity) {
+	// Case-insensitive for ASCII letters only, matching the IdP username check.
+	if !equalFoldASCII(endUsers[0].IdpUserName, identity) {
 		return mismatch
 	}
 	return nil

@@ -1444,6 +1444,7 @@ func TestRequestCertificate(t *testing.T) {
 			upn, endUser, wantErr string
 		}{
 			"recorded end user, different case": {upn: "FLEETIE@example.com", endUser: "fleetie@example.com"},
+			"non-ASCII letter, different case":  {upn: "\u00c9milie@example.com", endUser: "\u00e9milie@example.com", wantErr: mismatch},
 			"another user":                      {upn: "other@example.com", endUser: "fleetie@example.com", wantErr: mismatch},
 			"local part only":                   {upn: "fleetie", endUser: "fleetie@example.com", wantErr: mismatch},
 		} {
