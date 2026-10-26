@@ -26,6 +26,8 @@ until /bin/launchctl bootstrap system "$ORBIT_PLIST"; do
     [ "\$count" -ge 30 ] && break
     /bin/sleep 1
 done
+# If orbit still isn't loaded, exit nonzero so launchd reruns this job (KeepAlive) until it is.
+/bin/launchctl print "system/com.fleetdm.orbit" > /dev/null 2>&1 || exit 1
 /bin/launchctl kickstart "system/com.fleetdm.orbit"
 /bin/rm -rf "$dir"
 /bin/launchctl bootout "system/$RELOAD_LABEL"
@@ -45,6 +47,11 @@ cat << EOF > "$dir/reload.plist"
     </array>
     <key>RunAtLoad</key>
     <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 </dict>
 </plist>
 EOF
