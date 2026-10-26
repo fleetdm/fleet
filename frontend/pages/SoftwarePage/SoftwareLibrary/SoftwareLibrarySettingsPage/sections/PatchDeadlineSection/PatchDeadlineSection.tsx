@@ -219,7 +219,8 @@ const PatchDeadlineSection = ({
                 ariaLabel={w.label}
                 value={days.includes(w.key)}
                 onChange={() => toggleDay(w.key)}
-                disabled={roleDisabled || fieldReadOnly}
+                disabled={roleDisabled}
+                readOnly={fieldReadOnly}
               >
                 {w.label}
               </Checkbox>
