@@ -231,6 +231,21 @@ func TestLoadConfigCanceled(t *testing.T) {
 	assert.Equal(t, []string{"-G"}, calls())
 }
 
+// TestRefreshConfigRechecksCache covers a caller that missed the cache and
+// reached singleflight only after another caller's run filled it.
+func TestRefreshConfigRechecksCache(t *testing.T) {
+	sshd, calls := writeFakeSSHD(t, modernSSHD)
+
+	_, err := loadConfig(t.Context(), sshd, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"-G"}, calls())
+
+	entries, err := refreshConfig(t.Context(), sshd, "")
+	require.NoError(t, err)
+	assert.Equal(t, []configEntry{{"port", "22"}, {"passwordauthentication", "yes"}}, entries)
+	assert.Equal(t, []string{"-G"}, calls(), "a fresh cache entry shouldn't start another sshd run")
+}
+
 func TestRunSSHDEmptyEnvironment(t *testing.T) {
 	t.Setenv("SSHD_CONFIG_TEST_LEAK", "1")
 	sshd, _ := writeFakeSSHD(t, "#!/bin/sh\nenv\n")

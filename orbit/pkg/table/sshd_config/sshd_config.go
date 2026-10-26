@@ -77,13 +77,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 // cached, so a fixed configuration shows up on the next query. A canceled
 // caller stops waiting, but a run already started finishes for the others.
 func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntry, error) {
-	key := sshd.id + "\x00" + spec
-
-	cacheMu.Lock()
-	cached, ok := cache[key]
-	cacheMu.Unlock()
-	if ok && time.Now().Before(cached.expires) {
-		return cached.entries, nil
+	key := cacheKey(sshd, spec)
+	if entries, ok := cachedEntries(key); ok {
+		return entries, nil
 	}
 
 	// A canceled query starts no more sshd runs.
@@ -94,22 +90,7 @@ func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntr
 	ch := inFlight.DoChan(key, func() (any, error) {
 		// The run is shared, so one caller's cancellation mustn't fail the
 		// others; sshdTimeout still bounds it.
-		output, err := dumpConfig(context.WithoutCancel(ctx), sshd, spec)
-		if err != nil {
-			return nil, err
-		}
-		entries := parseConfig(output)
-
-		now := time.Now()
-		cacheMu.Lock()
-		defer cacheMu.Unlock()
-		for k, c := range cache {
-			if now.After(c.expires) {
-				delete(cache, k)
-			}
-		}
-		cache[key] = cachedConfig{entries: entries, expires: now.Add(cacheTTL)}
-		return entries, nil
+		return refreshConfig(context.WithoutCancel(ctx), sshd, spec)
 	})
 
 	select {
@@ -122,6 +103,48 @@ func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntr
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// refreshConfig runs sshd and caches the parsed dump. It checks the cache first
+// because a caller that missed it can reach singleflight after another caller's
+// run has filled it and finished, which would otherwise start a second run.
+func refreshConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntry, error) {
+	key := cacheKey(sshd, spec)
+	if entries, ok := cachedEntries(key); ok {
+		return entries, nil
+	}
+
+	output, err := dumpConfig(ctx, sshd, spec)
+	if err != nil {
+		return nil, err
+	}
+	entries := parseConfig(output)
+
+	now := time.Now()
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+	for k, c := range cache {
+		if now.After(c.expires) {
+			delete(cache, k)
+		}
+	}
+	cache[key] = cachedConfig{entries: entries, expires: now.Add(cacheTTL)}
+	return entries, nil
+}
+
+func cacheKey(sshd sshdBinary, spec string) string {
+	return sshd.id + "\x00" + spec
+}
+
+// cachedEntries returns the dump cached under key if it hasn't expired.
+func cachedEntries(key string) ([]configEntry, bool) {
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+	c, ok := cache[key]
+	if !ok || !time.Now().Before(c.expires) {
+		return nil, false
+	}
+	return c.entries, true
 }
 
 // connectionSpecs returns the distinct values of every equality constraint on
