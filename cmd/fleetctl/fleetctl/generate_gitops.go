@@ -449,7 +449,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// Get the list of teams.
 		teams, err := cmd.Client.ListTeams("")
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting teams: %s\n", err)
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting fleets: %s\n", err)
 			return ErrGeneric
 		}
 		// If a specific team is requested, find it.
@@ -641,7 +641,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		case "":
 			fileName = "default.yml"
-		case "no-team", "unassigned":
+		case "unassigned":
 			fileName = "fleets/unassigned.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
