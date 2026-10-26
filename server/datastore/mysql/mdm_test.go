@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // content comparison, not security
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"

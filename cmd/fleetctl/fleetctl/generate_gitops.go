@@ -1611,7 +1611,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
 			result[jsonFieldName(mdmT, "OnlyAllowAppleBusinessEnrollment")] = cmd.AppConfig.MDM.OnlyAllowAppleBusinessEnrollment
-			result[jsonFieldName(mdmT, "EnableProfileValidation")] = cmd.AppConfig.MDM.EnableProfileValidation
 
 			// apple_account_provisioning is a global-only MDM setting. The IdP
 			// client secret is masked/non-exportable from the API, so emit a TODO
@@ -1687,6 +1686,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if teamId == nil || *teamId == 0 {
 		mdmT := reflect.TypeFor[fleet.MDM]()
+		// Every tier: omitting it means true, so a Free export must carry a false.
+		result[jsonFieldName(mdmT, "EnableProfileValidation")] = cmd.AppConfig.MDM.EnableProfileValidation
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
 		}

@@ -4179,6 +4179,24 @@ func TestGitOpsEnableProfileValidation(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
 	})
+
+	t.Run("rejected in a team's referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getTeamConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
+	})
+
+	t.Run("accepted in a global referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+	})
 }
 
 func TestUnknownKeyDetection(t *testing.T) {

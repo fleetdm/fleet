@@ -1843,14 +1843,15 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
 func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
+	// A string setting: schema validation checks the expanded secret value.
 	tmpl := `
 <Replace>
     <Item>
         <Meta>
-            <Format xmlns="syncml:metinf">int</Format>
+            <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
         <Target>
-            <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/Browser/HomePages</LocURI>
         </Target>
         <Data>$FLEET_SECRET_BASH</Data>
     </Item>
@@ -2587,5 +2588,21 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		// a match in another fleet doesn't count
 		errMsg = appleBatch(teamB.ID, [][]byte{bad}, http.StatusUnprocessableEntity)
 		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
+	})
+
+	t.Run("Windows secrets are validated expanded", func(t *testing.T) {
+		setValidation(true)
+		s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+			SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_PV_LENGTH", Value: "six"}},
+		}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+		withSecret := mkSyncML(pinLengthLocURI, "$FLEET_SECRET_PV_LENGTH")
+
+		errMsg := add("pv-secret-win.xml", withSecret, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+winMsg)
+		require.NotContains(t, errMsg, "six")
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-secret-win", Contents: withSecret}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv-secret-win": "`+pinLengthLocURI+`" expects a number.`)
+		require.NotContains(t, errMsg, "six")
 	})
 }

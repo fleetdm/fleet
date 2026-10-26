@@ -225,8 +225,8 @@ func profileValidationUserError(err error, edit bool) error {
 
 // validateBatchProfileSchemas runs lenient validation over a batch's new or
 // changed profiles when the setting is on, in payload order and against one
-// schema snapshot, and returns the first finding with the GitOps copy. Apple
-// content is secret-expanded.
+// schema snapshot, and returns the first finding with the GitOps copy. Content
+// is validated secret-expanded and compared unexpanded.
 func (svc *Service) validateBatchProfileSchemas(
 	ctx context.Context,
 	appCfg *fleet.AppConfig,
@@ -273,7 +273,7 @@ func (svc *Service) validateBatchProfileSchemas(
 			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleDeclaration, expanded[i].Contents, profilevalidation.ModeLenient, name, teamID)
 		case windowsProfiles[i] != nil:
 			name = windowsProfiles[i].Name
-			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaWindowsProfile, rawProfile.Contents, profilevalidation.ModeLenient, name, teamID)
+			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaWindowsProfile, expanded[i].Contents, profilevalidation.ModeLenient, name, teamID)
 		}
 		if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 			// "profiles" rather than the profile's name: the message already names it,
