@@ -562,6 +562,10 @@ The `/healthz` endpoint will return an `HTTP 200` status if the server is runnin
 
 Individual checks can be run by providing the `check` URL parameter (e.x., `/healthz?check=mysql` or `/healthz?check=redis`).
 
+The MySQL check confirms that the primary database is reachable and isn't in read-only mode (for example, after an Aurora failover). If a read replica is configured, it also confirms that the replica is reachable. The check uses its own connection to each database, so it passes even when requests are using every connection in the pool. It fails if MySQL doesn't answer within 3 seconds. Each Fleet server opens 1 extra MySQL connection for this check (2 with a read replica), in addition to `FLEET_MYSQL_MAX_OPEN_CONNS`.
+
+Because the check doesn't share connections with requests, it doesn't detect a server whose connection pool stays full. Under heavy load, this keeps the load balancer from replacing a server that's still working through requests. If the pool never frees up, for example because of a bug, the server keeps passing the health check while its requests time out. To catch this, alert on request errors and response times, as described in [Alerting](#alerting).
+
 ### Metrics
 
 Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/).
