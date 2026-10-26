@@ -6330,17 +6330,49 @@ Once set, the ID can't be changed to a different value. If the host already has 
 }
 ```
 
-##### Conflict response
+##### Host already has a different Google device ID
 
 `Status: 409`
 
 ```json
 {
-  "message": "Conflict",
+  "message": "Validation Failed",
   "errors": [
     {
       "name": "google_device_id",
       "reason": "This host already has a different Google device ID."
+    }
+  ]
+}
+```
+
+##### Google device ID is bound to another host
+
+`Status: 409`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This Google device ID is already used by another host."
+    }
+  ]
+}
+```
+
+##### Host isn't an iOS, iPadOS, or Android host
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google device ID is only supported on iOS, iPadOS, and Android hosts."
     }
   ]
 }
