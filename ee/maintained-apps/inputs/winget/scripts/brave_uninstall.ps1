@@ -149,19 +149,25 @@ try {
         }
 
         Write-Host "  Uninstall command: $exePath $arguments"
-        if ($entry.Sid) {
-            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
-        } else {
-            $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru
-            # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
-            $null = $process.Handle
-            if ($process.WaitForExit($timeoutSeconds * 1000)) {
-                $result = $process.ExitCode
+        # Caught here so one copy's failure doesn't skip the others.
+        try {
+            if ($entry.Sid) {
+                $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
             } else {
-                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                Write-Host "  Timed out waiting for the uninstaller."
-                $result = 1460  # ERROR_TIMEOUT
+                $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru -ErrorAction Stop
+                # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+                $null = $process.Handle
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
             }
+        } catch {
+            Write-Host "  Could not run the uninstaller: $_"
+            $result = 1
         }
         Write-Host "  Uninstall exit code: $result"
         if ($successCodes -notcontains $result -and $exitCode -eq 0) { $exitCode = $result }
