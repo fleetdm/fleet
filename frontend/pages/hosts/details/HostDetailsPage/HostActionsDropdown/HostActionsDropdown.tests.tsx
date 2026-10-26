@@ -1900,6 +1900,12 @@ describe("Host Actions Dropdown", () => {
         deviceStatus: "clearing_passcode" as const,
         expectHidden: ["Lock", "Wipe", "Clear passcode"],
       },
+      {
+        case: "BYO + unenrolling",
+        enrollment: "On (personal)" as const,
+        deviceStatus: "unenrolling" as const,
+        expectHidden: ["Lock", "Unenroll", "Clear passcode"],
+      },
     ])(
       "hides pending-gated actions for Android when $case (#41683)",
       async ({ enrollment, deviceStatus, expectHidden }) => {

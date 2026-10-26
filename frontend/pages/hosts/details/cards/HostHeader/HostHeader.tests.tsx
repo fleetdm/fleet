@@ -238,6 +238,21 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
   });
 
+  it("renders no badge for a pending Android BYOD unenroll", () => {
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"unenrolling" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus="On (personal)"
+      />
+    );
+    expect(screen.queryByText(/pending/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/wip/i)).not.toBeInTheDocument();
+  });
+
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {
     render(
       <HostHeader

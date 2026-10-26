@@ -1,9 +1,19 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
+import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import UnenrollMdmModal from "./UnenrollMdmModal";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+jest.mock("services/entities/mdm");
 
 const MOCK_PROPS = {
   hostId: 7,
@@ -19,6 +29,41 @@ describe("UnenrollMdmModal", () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
+
+  it.each([
+    {
+      platform: "android",
+      enrollmentStatus: "On (personal)" as const,
+      message: "Couldn't unenroll. This host already has a pending unenroll.",
+    },
+    {
+      platform: "ios",
+      enrollmentStatus: "On (manual)" as const,
+      message: "Couldn't turn off MDM. This host already has MDM turned off.",
+    },
+  ])(
+    "explains a 409 for $platform and refreshes the page",
+    async ({ platform, enrollmentStatus, message }) => {
+      const conflict = { status: 409 };
+      (mdmAPI.unenrollHostFromMdm as jest.Mock).mockRejectedValue(conflict);
+      const render = createCustomRenderer();
+      const { user } = render(
+        <UnenrollMdmModal
+          {...MOCK_PROPS}
+          hostPlatform={platform}
+          enrollmentStatus={enrollmentStatus}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: "Unenroll" }));
+
+      expect(notify.error).toHaveBeenCalledWith(message, {
+        response: conflict,
+      });
+      expect(MOCK_PROPS.onSuccess).toHaveBeenCalled();
+      expect(MOCK_PROPS.onClose).toHaveBeenCalled();
+    }
+  );
 
   it("shows enrollment link instructions for a manual BYOD host", () => {
     const render = createCustomRenderer({ withBackendMock: true });

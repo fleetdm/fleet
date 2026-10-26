@@ -60,12 +60,15 @@ const UnenrollMdmModal = ({
       onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      // A 409 means MDM is already off for this host, so "please try again"
-      // would send the user in a loop. It also means this page was working from
-      // stale data, so refresh it to drop the action.
+      // A 409 means MDM is already off for this host (or, on Android, an
+      // unenroll is already pending), so "please try again" would send the
+      // user in a loop. It also means this page was working from stale data,
+      // so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
         notify.error(
-          "Couldn't turn off MDM. This host already has MDM turned off.",
+          isAndroid(hostPlatform)
+            ? "Couldn't unenroll. This host already has a pending unenroll."
+            : "Couldn't turn off MDM. This host already has MDM turned off.",
           { response: unenrollMdmError }
         );
         onSuccess();
