@@ -60,25 +60,12 @@ function Get-SignedOutInstalls {
     }
 }
 
-# Retry because a virus scanner or an exiting process can hold a file briefly.
-function Remove-AppDir {
-    param([string]$Path)
-
-    for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
-        if (-not (Test-Path -LiteralPath $Path)) { return $true }
-        Start-Sleep -Seconds 2
-    }
-    Write-Host "  Could not remove $Path."
-    return $false
-}
-
-function Invoke-UninstallerAsUser {
+function Invoke-AsUser {
     param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
     $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
         [System.Security.Principal.NTAccount]).Value
-    Write-Host "  Running the uninstaller as $account"
+    Write-Host "  Running as $account"
 
     try {
         $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
@@ -103,7 +90,7 @@ function Invoke-UninstallerAsUser {
             }
             if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
                 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-                Write-Host "  Timed out waiting for the uninstall task to finish."
+                Write-Host "  Timed out waiting for the task to finish."
                 return 1460  # ERROR_TIMEOUT
             }
             Start-Sleep -Seconds 5
@@ -113,6 +100,33 @@ function Invoke-UninstallerAsUser {
             Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
         }
     }
+}
+
+# Retry because a virus scanner or an exiting process can hold a file briefly.
+# A user's folder is deleted as that user, because a subfolder they swap for a
+# junction mid-delete could redirect a SYSTEM delete elsewhere.
+function Remove-AppDir {
+    param([string]$Path, [string]$Sid)
+
+    if ($Sid) {
+        $quotedPath = "'" + $Path.Replace("'", "''") + "'"
+        $command = "for (`$i = 0; `$i -lt 30 -and (Test-Path -LiteralPath $quotedPath); `$i++) { if (`$i) { Start-Sleep -Seconds 2 }; Remove-Item -LiteralPath $quotedPath -Recurse -Force -ErrorAction SilentlyContinue }"
+        try {
+            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+                -Arguments "-NoProfile -NonInteractive -WindowStyle Hidden -Command `"$command`""
+        } catch {
+            Write-Host "  $_"
+        }
+        if (-not (Test-Path -LiteralPath $Path)) { return $true }
+    } else {
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path -LiteralPath $Path)) { return $true }
+            Start-Sleep -Seconds 2
+        }
+    }
+    Write-Host "  Could not remove $Path."
+    return $false
 }
 
 try {
@@ -151,7 +165,7 @@ try {
 
         if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
             Write-Host "  Uninstaller is missing; removing what's left of this copy."
-            if ($isAppDir -and (Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir)) {
+            if ($isAppDir -and (Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir $entry.Sid)) {
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
             }
@@ -161,7 +175,7 @@ try {
 
         Write-Host "  Uninstall command: $exePath $arguments"
         if ($entry.Sid) {
-            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
+            $result = Invoke-AsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
         } else {
             $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru
             # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
@@ -190,7 +204,7 @@ try {
                 if ($running.Count -eq 0) { break }
                 Start-Sleep -Seconds 1
             }
-            if ((Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir)) {
+            if ((Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir $entry.Sid)) {
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
             }
