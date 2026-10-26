@@ -1105,7 +1105,7 @@ org_settings:
 
 The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) in the Fleet UI. When GitOps mode is enabled, many UI features become read-only to ensure that configuration changes are made only via GitOps.
 
-- `gitops_mode_enabled` (default: `false`) — when `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL. Requires Fleet Premium.
+- `gitops_mode_enabled` (default: `false`) — _Available in Fleet Premium._ When `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL.
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
