@@ -21,6 +21,10 @@
 .host-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .host-list a { font-size: 12px; font-weight: 400; color: var(--ink-2); }
 .spark-fail polyline { fill: none; stroke: var(--bad); stroke-width: 2; stroke-linejoin: round; }
+.types { display: flex; flex-direction: column; gap: 12px; }
+.type-row { display: grid; grid-template-columns: minmax(120px, 200px) auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.type-row .btn[aria-pressed="true"] { background: var(--ui-fleet-black-5); border-color: var(--ui-fleet-black-50); }
+@media (max-width: 600px) { .type-row { grid-template-columns: 1fr; } }
 .spark-fail line { stroke: var(--line); }
 </style>
 
@@ -36,6 +40,8 @@
   <div id="notice"></div>
   <section class="hero" id="hero" aria-label="Summary"></section>
   <div class="stats" id="stats"></div>
+  <div class="panel"><h3>By type</h3><div class="types" id="by-type"></div>
+    <p class="panel-note">Patch policies check that a Fleet-maintained app is on its latest version. Pick a type to see it on its own.</p></div>
 
   <section class="sec" aria-labelledby="trend-h">
     <div class="sec-head">
@@ -67,7 +73,8 @@
         <p><span class="term">Pass rate:</span> passing results out of passing and failing results. Computers with no result yet aren't counted.</p>
       </div>
       <div>
-        <p><span class="term">Passing every policy:</span> a computer with at least one passing result and no failing ones.</p>
+        <p><span class="term">Passing every policy:</span> a computer with at least one passing result and no failing ones, counted for the type you pick.</p>
+        <p><span class="term">Patch policies:</span> the policies Fleet keeps for Fleet-maintained apps, which pass when the app is on its latest version. Every other policy is under "Other policies."</p>
         <p><span class="term">Charts:</span> each policy gets one bar that adds up to 100% of its computers, so you can compare policies down the list. Pie charts can't be compared that way.</p>
       </div>
     </div>
@@ -93,8 +100,14 @@ const G = [
   { key: "pending", label: "No results yet", tone: "neutral", hint: "Hasn't run on any computer here yet.", test: (r) => !r.pass && !r.fail },
 ];
 let shown = new Set(G.map((g) => g.key));
+const KINDS = [["all", "All policies", ""], ["patch", "Patch policies", "p_"], ["other", "Other policies", "o_"]];
+let KIND = KINDS.some(([k]) => k === store.get("dex-policy-kind")) ? store.get("dex-policy-kind") : "all";
 let dayIdx = DAYS.length - 1;
 let query = "";
+const isPatch = (pid) => !!(DATA.policies[pid] || [])[4];
+const kindOk = (patch, kind = KIND) => kind === "all" || (kind === "patch") === patch;
+const prefix = (kind = KIND) => KINDS.find(([k]) => k === kind)[2];
+const kindLabel = () => KINDS.find(([k]) => k === KIND)[1];
 
 const keyOk = (ki) => inFleet(KEYS[ki][0]) && inPlatform(KEYS[ki][1]);
 const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
@@ -102,27 +115,30 @@ const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") :
 const policiesN = (n) => `${fmt.n(n)} ${n === 1 ? "policy" : "policies"}`;
 const platformsOf = (p) => (p ? p.split(",").map((x) => PLATFORM_NAMES[x.trim()] || x.trim()).join(", ") : "All platforms");
 
-// Each policy's counts on day i, summed over the selected fleets and platforms.
-function policiesOn(i) {
+// Each policy's counts on day i, summed over the selected fleets and platforms, for one type.
+function policiesOn(i, kind = KIND) {
   const out = [];
   for (const [pid, byKey] of Object.entries(DAYS[i][1])) {
+    if (!kindOk(isPatch(pid), kind)) continue;
     let pass = 0, fail = 0, none = 0;
     for (const [ki, p, f, n] of byKey) if (keyOk(ki)) { pass += p; fail += f; none += n; }
     if (!(pass + fail + none)) continue;
     const [name, critical, platform, fleet] = DATA.policies[pid] || [`Policy ${pid}`, 0, "", ""];
-    out.push({ _id: pid, id: pid, name, critical: !!critical, platform, fleet, pass, fail, none, rate: pass + fail ? (100 * pass) / (pass + fail) : null });
+    out.push({ _id: pid, id: pid, name, critical: !!critical, platform, fleet, patch: isPatch(pid), pass, fail, none, rate: pass + fail ? (100 * pass) / (pass + fail) : null });
   }
   return out;
 }
+// Daily computer counts for the selected type, from the trend.
 function countsOn(date) {
   const r = { computers: 0, all_pass: 0, any_fail: 0, passed: 0, failed: 0 };
   const t = (DATA.trend || []).find(([d]) => d === date);
   for (const [k, c] of Object.entries(t ? t[1] : {})) {
     const i = k.lastIndexOf("|");
-    if (inFleet(k.slice(0, i)) && inPlatform(k.slice(i + 1))) for (const f in r) r[f] += c[f] || 0;
+    if (inFleet(k.slice(0, i)) && inPlatform(k.slice(i + 1))) for (const f in r) r[f] += c[prefix() + f] || 0;
   }
   return r;
 }
+const setKind = (k) => { KIND = k; store.set("dex-policy-kind", k); render(); };
 // The last recorded day on or before d.
 function dayFor(d) {
   let best = 0;
@@ -178,6 +194,9 @@ function renderDateBar() {
   const input = h("input", { type: "date", class: "search", min: first, max: last, value: DAYS[dayIdx][0],
     onchange: (e) => { if (e.target.value) { dayIdx = dayFor(e.target.value); render(); } } });
   mount("date-bar",
+    h("div", { class: "seg-toggle", role: "group", "aria-label": "Policy type" }, KINDS.map(([k, label]) =>
+      h("button", { type: "button", "aria-pressed": KIND === k ? "true" : "false", onclick: () => setKind(k) },
+        label, h("b", {}, fmt.n(policiesOn(dayIdx, k).length))))),
     h("label", {}, "Results on", input),
     h("div", { class: "seg-toggle small", role: "group", "aria-label": "Move between days" },
       h("button", { type: "button", disabled: dayIdx === 0, onclick: () => { dayIdx -= 1; render(); } }, "Previous day"),
@@ -213,7 +232,7 @@ function render() {
   const support = `${fmt.n(c.all_pass)} of ${noun(c.computers)} pass every policy that ran on them`
     + (critical.length ? `, and ${policiesN(critical.length).replace("policy", "critical policy").replace("policies", "critical policies")} ${critical.length === 1 ? "is" : "are"} failing somewhere.` : ".");
   mount("hero",
-    h("div", {}, h("div", { class: "eyebrow" }, "Policy pass rate"),
+    h("div", {}, h("div", { class: "eyebrow" }, KIND === "all" ? "Policy pass rate" : `Pass rate, ${kindLabel().toLowerCase()}`),
       h("div", { class: "big" }, h("b", { class: F ? null : "hl-good" }, fmt.pct(pct(P, P + F))), h("span", {}, `of ${fmt.n(P + F)} results`))),
     h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support)),
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, latest ? "Latest run" : fmt.date(date)),
@@ -230,11 +249,22 @@ function render() {
     stat("Critical policies failing", fmt.n(critical.length), `of ${fmt.n(all.filter((r) => r.critical).length)} critical`),
     stat("No result yet", fmt.n(N), "waiting for the policy to run"));
 
-  renderTrend(["computers", "all_pass", "any_fail", "passed", "failed"], [
-    { title: "Policy pass rate", series: [{ label: "Pass rate", color: "var(--good)", value: (r) => pct(r.passed, r.passed + r.failed) }], yFmt: fmt.pct, yMax: 100,
+  mount("by-type", KINDS.filter(([k]) => k !== "all").map(([k, label]) => {
+    const rs = policiesOn(dayIdx, k);
+    const t = { pass: 0, fail: 0, none: 0 };
+    for (const r of rs) { t.pass += r.pass; t.fail += r.fail; t.none += r.none; }
+    return h("div", { class: "type-row" },
+      h("button", { type: "button", class: "btn", "aria-pressed": KIND === k ? "true" : "false", onclick: () => setKind(KIND === k ? "all" : k) }, `${label} (${fmt.n(rs.length)})`),
+      t.pass + t.fail + t.none ? stack(t) : h("span", { class: "cell-sub" }, "None here"),
+      h("span", { class: "cell-sub" }, t.pass + t.fail ? `${fmt.pct(pct(t.pass, t.pass + t.fail))} pass rate · ${fmt.n(t.fail)} failing results · ${fmt.n(rs.filter((r) => r.fail).length)} policies failing` : ""));
+  }));
+
+  const pf = prefix();
+  renderTrend([pf + "computers", pf + "all_pass", pf + "any_fail", pf + "passed", pf + "failed"], [
+    { title: KIND === "all" ? "Policy pass rate" : `Pass rate, ${kindLabel().toLowerCase()}`, series: [{ label: "Pass rate", color: "var(--good)", value: (r) => pct(r[pf + "passed"], r[pf + "passed"] + r[pf + "failed"]) }], yFmt: fmt.pct, yMax: 100,
       note: "Passing results out of passing and failing results, for the selected fleets and platforms." },
-    { title: "Computers passing every policy", series: [{ label: "Passing every policy", color: "var(--info)", value: (r) => pct(r.all_pass, r.computers) }], yFmt: fmt.pct, yMax: 100,
-      note: "Computers with at least one passing result and no failing ones." },
+    { title: "Computers passing every policy", series: [{ label: "Passing every policy", color: "var(--info)", value: (r) => pct(r[pf + "all_pass"], r[pf + "computers"]) }], yFmt: fmt.pct, yMax: 100,
+      note: KIND === "all" ? "Computers with at least one passing result and no failing ones." : `Computers with at least one passing result and no failing ones, counting ${kindLabel().toLowerCase()} only.` },
   ]);
 
   const grouped = G.map((g) => ({ ...g, rows: rows.filter((r) => g.test(r)) }));
@@ -250,11 +280,11 @@ function render() {
       el.focus();
       el.setSelectionRange(el.value.length, el.value.length);
     } });
-  mount("pol-tools", search, visible.length ? copyButton("Copy as CSV", () => csv([["date", "policy", "fleet", "platforms", "critical", "pass", "fail", "no_result", "pass_rate"],
-    ...visible.map((r) => [date, r.name, r.fleet || "All fleets", platformsOf(r.platform), r.critical ? "yes" : "no", r.pass, r.fail, r.none, r.rate == null ? "" : Math.round(r.rate * 10) / 10])])) : null);
+  mount("pol-tools", search, visible.length ? copyButton("Copy as CSV", () => csv([["date", "policy", "type", "fleet", "platforms", "critical", "pass", "fail", "no_result", "pass_rate"],
+    ...visible.map((r) => [date, r.name, r.patch ? "patch" : "other", r.fleet || "All fleets", platformsOf(r.platform), r.critical ? "yes" : "no", r.pass, r.fail, r.none, r.rate == null ? "" : Math.round(r.rate * 10) / 10])])) : null);
   mount("pol-legend", RESULTS.map(([, label, tone]) => h("span", {}, h("i", { style: `background:var(--${tone})` }), label)));
   const columns = [
-    { key: "name", label: "Policy", value: (r) => r.name.toLowerCase(), cell: (r) => [h("span", { class: "cell-main" }, r.name), r.critical ? h("span", { class: "tag" }, "Critical") : null,
+    { key: "name", label: "Policy", value: (r) => r.name.toLowerCase(), cell: (r) => [h("span", { class: "cell-main" }, r.name), r.critical ? h("span", { class: "tag" }, "Critical") : null, KIND === "all" && r.patch ? h("span", { class: "tag" }, "Patch") : null,
       h("span", { class: "tag" }, r.fleet || "All fleets")] },
     { key: "results", label: "Results", value: (r) => r.fail / Math.max(1, r.pass + r.fail + r.none), cell: (r) => [stack(r), h("span", { class: "cell-sub" }, `${fmt.n(r.pass)} pass · ${fmt.n(r.fail)} fail`)] },
     { key: "fail", label: "Failing", num: true, value: (r) => r.fail },

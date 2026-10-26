@@ -9,7 +9,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
 - Sustainability: how much energy your Macs use, which computers never sleep, and which laptop batteries need service.
-- Policies: which Fleet policies your computers pass and fail, on the latest run or on any day in the past year.
+- Policies: which Fleet policies your computers pass and fail, on the latest run or on any day in the past year, with patch policies on their own or combined with the rest.
 
 An overview page sums up all eight, with today's key numbers and a 30-day trend for each, and links to every dashboard.
 
@@ -207,7 +207,7 @@ On a large fleet, keep these in mind:
 3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
 5. On Sustainability, the summary shows each Mac's average power since boot. Energy in kWh starts after the second run, once there are two readings to compare.
-6. On Policies, the date picker starts at today's run. Each run adds a day, so you can go back to any day since setup, for up to a year. Click a policy to see which computers fail it.
+6. On Policies, the date picker starts at today's run. Each run adds a day, so you can go back to any day since setup, for up to a year. Pick **Patch policies** or **Other policies** to see the policies Fleet keeps for Fleet-maintained apps apart from the rest, or **All policies** for both. Click a policy to see which computers fail it.
 7. On Analytics, check the **Data sources** table. Each report shows how many computers sent results in the last 7 days. A report marked **Not set up** isn't in Fleet yet, or its name doesn't match `dex-reports.yml`.
 8. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 

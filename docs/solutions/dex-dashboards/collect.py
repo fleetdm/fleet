@@ -200,6 +200,8 @@ def detail(fleet, h):
         "_policy_info": {str(p["id"]): {
             "name": p.get("name") or "", "description": p.get("description") or "", "resolution": p.get("resolution") or "",
             "critical": bool(p.get("critical")), "platform": p.get("platform") or "",
+            # "patch" for the policies Fleet keeps for Fleet-maintained apps; older Fleet has no type.
+            "patch": p.get("type") == "patch",
             "fleet_id": p.get("fleet_id", p.get("team_id"))} for p in policies},
         "vitals": {v.get("name"): v.get("value") for v in g.get("custom_host_vitals") or []},
         "batteries": g.get("batteries") or [],

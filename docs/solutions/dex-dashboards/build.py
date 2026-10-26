@@ -1648,7 +1648,8 @@ def build_sustainability(snap, hist):
 
 def build_policies(snap, hist):
     """Each policy's pass, fail, and no-result counts per fleet and platform, kept per
-    day for a year, so the page can show any day since the history began."""
+    day for a year, so the page can show any day since the history began. Daily totals
+    are kept for all policies, patch policies (p_), and the rest (o_)."""
     now = parse_ts(snap["generated_at"])
     today = now.date()
     D = today.isoformat()
@@ -1674,17 +1675,18 @@ def build_policies(snap, hist):
         if fp not in index:
             index[fp] = len(keys)
             keys.append(fp)
-        passed = failed = 0
+        tally = {"": [0, 0], "p_": [0, 0], "o_": [0, 0]}
         for pid, r in results:
             c = counts.setdefault(str(pid), {}).setdefault(index[fp], [0, 0, 0])
             c[0 if r == 1 else 1 if r == 0 else 2] += 1
-            if r == 1:
-                passed += 1
-            elif r == 0:
-                failed += 1
+            if r == 0:
                 failing.setdefault(str(pid), []).append(int(hid))
-        count_into(day, fleet, plat, computers=int(bool(passed or failed)), all_pass=int(passed > 0 and not failed),
-                   any_fail=int(failed > 0), passed=passed, failed=failed)
+            if r is not None:
+                for kind in ("", "p_" if (info.get(str(pid)) or {}).get("patch") else "o_"):
+                    tally[kind][0 if r == 1 else 1] += 1
+        for kind, (passed, failed) in tally.items():
+            count_into(day, fleet, plat, **{kind + "computers": int(bool(passed or failed)), kind + "all_pass": int(passed > 0 and not failed),
+                                            kind + "any_fail": int(failed > 0), kind + "passed": passed, kind + "failed": failed})
 
     days = hist.setdefault("days", {})
     days[D] = {pid: [[ki, *c] for ki, c in sorted(by_key.items())] for pid, by_key in sorted(counts.items())}
@@ -1692,7 +1694,8 @@ def build_policies(snap, hist):
     # Name, critical, platform, and fleet for every policy in the kept days, current ones updated.
     names = hist.setdefault("policies", {})
     for pid, p in info.items():
-        names[pid] = [p["name"], int(p["critical"]), p["platform"], fleet_names.get(p["fleet_id"], "") if p["fleet_id"] else ""]
+        names[pid] = [p["name"], int(p["critical"]), p["platform"], fleet_names.get(p["fleet_id"], "") if p["fleet_id"] else "",
+                      int(bool(p.get("patch")))]
     seen = {pid for rows in days.values() for pid in rows}
     for pid in [p for p in names if p not in seen]:
         del names[pid]
@@ -1723,7 +1726,7 @@ OVERVIEW_FIELDS = {
     "connectivity": ("computers", "fresh24", "stale7", "weak", "persistent"),
     "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),
     "sustainability": ("kwh", "co2", "sleep_off", "never_slept"),
-    "policies": ("computers", "all_pass", "any_fail", "passed", "failed"),
+    "policies": ("computers", "all_pass", "any_fail", "passed", "failed", "o_passed", "o_failed"),
 }
 
 
