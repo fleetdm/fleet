@@ -479,4 +479,100 @@ describe("routeVersionNameError", () => {
       }
     );
   });
+
+  // iOS/iPadOS BE phrases the error as lowercase "unsupported variable ...".
+  // Must be rewritten so the admin sees the same copy Edit configuration uses
+  // ("Couldn't edit. Variable \"...\" doesn't exist.") instead of the raw BE
+  // reason.
+  it("rewrites an unknown $FLEET_VAR_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_PW_BOGUS",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_PW_BOGUS" doesn't exist.`,
+      { response: err }
+    );
+  });
+
+  // A profile-only variable (e.g. NDES_SCEP_CHALLENGE) in a managed
+  // configuration gets the profile-only explanation, matching Edit
+  // configuration.
+  it("rewrites a profile-only $FLEET_VAR_ reason with the profile-only copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can only be used in configuration profiles.`,
+      { response: err }
+    );
+  });
+
+  // Missing $FLEET_SECRET_ reasons also get the Edit configuration rewrite.
+  it("rewrites a missing $FLEET_SECRET_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA" doesn't exist.`,
+      { response: err }
+    );
+  });
 });
