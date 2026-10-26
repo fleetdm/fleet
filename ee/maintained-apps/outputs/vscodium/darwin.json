@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.140.06880",
+      "version": "1.143.17183",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.vscodium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vscodium' AND version_compare(bundle_short_version, '1.140.06880') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vscodium' AND version_compare(bundle_short_version, '1.143.17183') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.vscodium' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.140.06880/VSCodium-darwin-arm64-1.140.06880.zip",
+      "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.143.17183/VSCodium-darwin-arm64-1.143.17183.zip",
       "install_script_ref": "859ae63c",
       "uninstall_script_ref": "da1ac299",
-      "sha256": "3a0ba1a13b6d743f79ffc20bebd7a2ef8bab2b40e54bcc80fae123da9ed552e0",
+      "sha256": "b31ca09d8187dd48e077c13ca39b01af234582fe8f5015a918e3c985cc76427e",
       "default_categories": [
         "Developer tools"
       ]
