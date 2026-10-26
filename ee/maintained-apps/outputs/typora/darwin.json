@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.14.10",
+      "version": "1.14.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora' AND version_compare(bundle_short_version, '1.14.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'abnerworks.Typora' AND version_compare(bundle_short_version, '1.14.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'abnerworks.Typora' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.typora.io/mac/Typora-1.14.10.dmg",
+      "installer_url": "https://downloads.typora.io/mac/Typora-1.14.15.dmg",
       "install_script_ref": "285b5af1",
       "uninstall_script_ref": "ddf2797b",
-      "sha256": "a1a8e997c174577a69e33e3c1128719e886d1cd635b32f7243e9bab91ce0831c",
+      "sha256": "6f376ef9a61f06470650d24c2e6478947a9a5dc4e30fe641ae266b06bd892451",
       "default_categories": [
         "Productivity"
       ]

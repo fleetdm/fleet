@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1.31",
+      "version": "1.1.32",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.githubapp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.githubapp' AND version_compare(bundle_short_version, '1.1.31') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.githubapp' AND version_compare(bundle_short_version, '1.1.32') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.githubapp' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/github/app/releases/download/v1.1.31/GitHub-Copilot-darwin-arm64.dmg",
+      "installer_url": "https://github.com/github/app/releases/download/v1.1.32/GitHub-Copilot-darwin-arm64.dmg",
       "install_script_ref": "1da64148",
       "uninstall_script_ref": "4bf34e61",
-      "sha256": "94ec8d0bc2f5947829766297e2ac1e490aa43eca9de0fcf8a6a117a0a232151c",
+      "sha256": "91782000feec14e0c5d8de4291ea6c6872cae9cf473a6b46072f06f428087f77",
       "default_categories": [
         "Developer tools"
       ]

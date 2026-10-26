@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.8.2",
+      "version": "4.8.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.org.pythonmac.unspecified.Electrum';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.org.pythonmac.unspecified.Electrum' AND version_compare(bundle_short_version, '4.8.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.org.pythonmac.unspecified.Electrum' AND version_compare(bundle_short_version, '4.8.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.org.pythonmac.unspecified.Electrum' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.electrum.org/4.8.2/electrum-4.8.2.dmg",
+      "installer_url": "https://download.electrum.org/4.8.3/electrum-4.8.3.dmg",
       "install_script_ref": "1acbc303",
       "uninstall_script_ref": "d5c21203",
-      "sha256": "d0715488995ea671a3ac3f382a0ebf9aefb0c1430871940b35718a56a01d5311",
+      "sha256": "27d73fba5dcc0f46f14849e965a93fb720833d7fdf002dabe13b127d6d7ff67f",
       "default_categories": [
         "Productivity"
       ]
