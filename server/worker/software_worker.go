@@ -656,6 +656,11 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 		// Set after unmarshalling so a stored config can never override them.
 		appPolicy.PackageName = appID
 		appPolicy.InstallType = installType
+		// Google rejects installConstraint on AVAILABLE apps, which fails the whole request.
+		// It only applies to installs Google starts, like the setup experience's.
+		if installType == "AVAILABLE" {
+			appPolicy.InstallConstraint = nil
+		}
 		appPolicies = append(appPolicies, appPolicy)
 	}
 	return appPolicies, nil
