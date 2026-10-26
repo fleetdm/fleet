@@ -3914,6 +3914,15 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
+	var schema *profilevalidation.ProfileValidationSchema
+	if appCfg.MDM.EnableProfileValidation {
+		schema = currentProfileValidationSchema()
+	}
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
@@ -3966,6 +3975,17 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(
 					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch",
 				))
+		}
+
+		if appCfg.MDM.EnableProfileValidation {
+			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
+			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
+					profileValidationBatchMessage(mdmProf.Name, pvErr.finding, pvErr.windows)))
+			}
+			if err != nil {
+				return err
+			}
 		}
 
 		// Store original unexpanded profile

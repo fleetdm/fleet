@@ -150,7 +150,12 @@ func (svc *Service) validateProfileSchema(ctx context.Context, kind profileSchem
 	if mode == nil {
 		return nil
 	}
-	schema := currentProfileValidationSchema()
+	return svc.validateProfileSchemaWith(ctx, currentProfileValidationSchema(), kind, data, *mode, name, teamID)
+}
+
+// validateProfileSchemaWith is validateProfileSchema against a given snapshot,
+// so a batch validates every profile against the same schema version.
+func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profilevalidation.ProfileValidationSchema, kind profileSchemaKind, data []byte, mode profilevalidation.Mode, name string, teamID uint) error {
 	if schema == nil {
 		svc.logger.ErrorContext(ctx, "profile schema validation skipped: schema not loaded")
 		return nil
@@ -159,11 +164,11 @@ func (svc *Service) validateProfileSchema(ctx context.Context, kind profileSchem
 	var err error
 	switch kind {
 	case profileSchemaAppleProfile:
-		findings, err = schema.ValidateAppleProfile(data, *mode)
+		findings, err = schema.ValidateAppleProfile(data, mode)
 	case profileSchemaAppleDeclaration:
-		findings, err = schema.ValidateAppleDeclaration(data, *mode)
+		findings, err = schema.ValidateAppleDeclaration(data, mode)
 	case profileSchemaWindowsProfile:
-		findings, err = schema.ValidateWindowsProfile(data, *mode)
+		findings, err = schema.ValidateWindowsProfile(data, mode)
 	}
 	if err != nil {
 		// The structural checks already accepted the profile. The error isn't
@@ -177,7 +182,7 @@ func (svc *Service) validateProfileSchema(ctx context.Context, kind profileSchem
 		svc.logger.DebugContext(ctx, "profile schema validation finding",
 			"code", f.Code, "payload_type", f.PayloadType, "key_path", f.KeyPath,
 			"expected", f.Expected, "actual", f.Actual,
-			"profile_name", name, "team_id", teamID, "strict", *mode == profilevalidation.ModeStrict,
+			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict,
 			"apple_release", v.Apple.Release, "windows_release", v.Windows.Release)
 	}
 	if len(findings) == 0 {
@@ -189,8 +194,8 @@ func (svc *Service) validateProfileSchema(ctx context.Context, kind profileSchem
 // profileValidationUserError turns a *profileValidationError from the single
 // add/edit paths into the 422 the UI shows as its toast; other errors pass through.
 func profileValidationUserError(err error, edit bool) error {
-	var pvErr *profileValidationError
-	if !errors.As(err, &pvErr) {
+	pvErr, ok := errors.AsType[*profileValidationError](err)
+	if !ok {
 		return err
 	}
 	msg := profileValidationAddMessage(pvErr.finding, pvErr.windows)
@@ -198,4 +203,47 @@ func profileValidationUserError(err error, edit bool) error {
 		msg = profileValidationEditMessage(pvErr.finding, pvErr.windows)
 	}
 	return fleet.NewInvalidArgumentError("profile", msg)
+}
+
+// validateBatchProfileSchemas runs lenient validation over a batch when the
+// setting is on, in payload order and against one schema snapshot, and returns
+// the first finding with the GitOps copy. Apple content is secret-expanded.
+func (svc *Service) validateBatchProfileSchemas(
+	ctx context.Context,
+	appCfg *fleet.AppConfig,
+	teamID uint,
+	expanded map[int]fleet.MDMProfileBatchPayload,
+	raw []fleet.MDMProfileBatchPayload,
+	appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+	appleDecls map[int]*fleet.MDMAppleDeclaration,
+	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile,
+) error {
+	if !appCfg.MDM.EnableProfileValidation {
+		return nil
+	}
+	schema := currentProfileValidationSchema()
+	for i, rawProfile := range raw {
+		var err error
+		var name string
+		switch {
+		case appleProfiles[i] != nil:
+			name = appleProfiles[i].Name
+			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, expanded[i].Contents, profilevalidation.ModeLenient, name, teamID)
+		case appleDecls[i] != nil:
+			name = appleDecls[i].Name
+			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleDeclaration, expanded[i].Contents, profilevalidation.ModeLenient, name, teamID)
+		case windowsProfiles[i] != nil:
+			name = windowsProfiles[i].Name
+			err = svc.validateProfileSchemaWith(ctx, schema, profileSchemaWindowsProfile, rawProfile.Contents, profilevalidation.ModeLenient, name, teamID)
+		}
+		if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
+			// "profiles" rather than the profile's name: the message already names it,
+			// and fleetctl would prefix a matching name again
+			return fleet.NewInvalidArgumentError("profiles", profileValidationBatchMessage(name, pvErr.finding, pvErr.windows))
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

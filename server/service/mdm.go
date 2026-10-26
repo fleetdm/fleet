@@ -3085,6 +3085,15 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
+	var batchTeamID uint
+	if tmID != nil {
+		batchTeamID = *tmID
+	}
+	if err := svc.validateBatchProfileSchemas(ctx, appCfg, batchTeamID, profilesWithSecrets, profiles,
+		appleProfiles, appleDecls, windowsProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating profile schemas")
+	}
+
 	// Now that validation is done, we remove the exposed secret variables from the profiles
 	appleProfilesSlice := make([]*fleet.MDMAppleConfigProfile, 0, len(appleProfiles))
 	for i, p := range appleProfiles {

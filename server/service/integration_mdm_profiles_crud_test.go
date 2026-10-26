@@ -2329,13 +2329,13 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 	mkSyncML := func(locURI, data string) []byte {
 		return fmt.Appendf(nil, `<Replace><Item><Target><LocURI>%s</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>%s</Data></Item></Replace>`, locURI, data)
 	}
-	const passwordLength = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
-	badWin := func() []byte { return mkSyncML(passwordLength, "six") }
+	const pinLengthLocURI = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
+	badWin := func() []byte { return mkSyncML(pinLengthLocURI, "six") }
 
 	const hint = " To skip validation, an admin can turn it off in Organization settings > Advanced options."
 	const appleMsg = `"allowAirDrop" expects a boolean.` + hint
 	const declMsg = `"MinimumLength" expects a number.` + hint
-	const winMsg = `"` + passwordLength + `" expects a number.` + hint
+	const winMsg = `"` + pinLengthLocURI + `" expects a number.` + hint
 
 	upload := func(path, fileName string, content []byte, wantStatus int) string {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
@@ -2408,7 +2408,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 			"Couldn't edit profile. "+declMsg)
 
 		edit(winUUID, "pv-edit-win.xml", badWin(), http.StatusOK)
-		require.Contains(t, edit(winUUID, "pv-edit-win.xml", mkSyncML(passwordLength, "seven"), http.StatusUnprocessableEntity),
+		require.Contains(t, edit(winUUID, "pv-edit-win.xml", mkSyncML(pinLengthLocURI, "seven"), http.StatusUnprocessableEntity),
 			"Couldn't edit profile. "+winMsg)
 	})
 
@@ -2424,5 +2424,98 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		require.Contains(t, errMsg, "can't include FileVault settings")
 		errMsg = add("pv-off-bitlocker.xml", syncMLForTest(syncml.FleetBitLockerTargetLocURI), http.StatusBadRequest)
 		require.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
+	})
+
+	batchTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-batch-team"})
+	require.NoError(t, err)
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int, query ...string) string {
+		res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus,
+			append([]string{"fleet_id", fmt.Sprint(batchTeam.ID)}, query...)...)
+		if wantStatus != http.StatusNoContent {
+			return extractServerErrorText(res.Body)
+		}
+		return ""
+	}
+	const gitopsHint = " To skip validation, set `enable_profile_validation` to false in your GitOps configuration."
+	goodApple := mkMobileconfig("pv batch good", "com.example.pv.batchgood", "com.apple.applicationaccess", `<key>allowAirDrop</key><false/>`)
+
+	t.Run("batch rejects a wrong type and names the profile", func(t *testing.T) {
+		setValidation(true)
+
+		errMsg := batch([]fleet.MDMProfileBatchPayload{
+			{Name: "pv batch good", Contents: goodApple},
+			{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")},
+			{Name: "pv-batch-bad-win", Contents: badWin()},
+		}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "Disable AirDrop": "allowAirDrop" expects a boolean.`+gitopsHint)
+		require.NotContains(t, errMsg, "allowCamera")
+		require.NotContains(t, errMsg, "pv-batch-bad-win")
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-batch-bad-decl", Contents: badDecl("com.example.pv.batchdecl")}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "pv-batch-bad-decl": "MinimumLength" expects a number.`+gitopsHint)
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-batch-bad-win", Contents: badWin()}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "pv-batch-bad-win": "`+pinLengthLocURI+`" expects a number.`+gitopsHint)
+
+		// unknown content is accepted
+		batch([]fleet.MDMProfileBatchPayload{
+			{Name: "pv batch unknown", Contents: mkMobileconfig("pv batch unknown", "com.example.pv.batchunknown",
+				"com.example.not.a.real.type", `<key>anything</key><string>x</string>`)},
+			{Name: "pv-batch-unknown-locuri", Contents: mkSyncML("./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting", "1")},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("batch saves invalid profiles with the setting off", func(t *testing.T) {
+		setValidation(false)
+		batch([]fleet.MDMProfileBatchPayload{
+			{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")},
+			{Name: "pv-batch-bad-decl", Contents: badDecl("com.example.pv.batchdecl")},
+			{Name: "pv-batch-bad-win", Contents: badWin()},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("batch dry run honors assume_profile_validation", func(t *testing.T) {
+		bad := []fleet.MDMProfileBatchPayload{{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")}}
+
+		setValidation(true)
+		batch(bad, http.StatusNoContent, "dry_run", "true", "assume_profile_validation", "false")
+		// only honored on dry run
+		batch(bad, http.StatusUnprocessableEntity, "assume_profile_validation", "false")
+
+		setValidation(false)
+		batch(bad, http.StatusUnprocessableEntity, "dry_run", "true", "assume_profile_validation", "true")
+		batch(bad, http.StatusNoContent, "dry_run", "true")
+	})
+
+	t.Run("batch dry run skips profiles with secrets", func(t *testing.T) {
+		setValidation(true)
+		withSecret := mkMobileconfig("pv batch secret", "com.example.pv.batchsecret", "com.apple.applicationaccess",
+			`<key>allowAirDrop</key><string>$FLEET_SECRET_PV_NOT_STORED</string><key>allowCamera</key><string>no</string>`)
+		batch([]fleet.MDMProfileBatchPayload{{Name: "pv batch secret", Contents: withSecret}}, http.StatusNoContent, "dry_run", "true")
+	})
+
+	t.Run("deprecated Apple batch validates", func(t *testing.T) {
+		appleBatch := func(profiles [][]byte, wantStatus int) string {
+			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
+				"fleet_id", fmt.Sprint(batchTeam.ID))
+			if wantStatus != http.StatusNoContent {
+				return extractServerErrorText(res.Body)
+			}
+			return ""
+		}
+		bad := badApple("Disable AirDrop", "com.example.pv.deprbad")
+
+		setValidation(true)
+		errMsg := appleBatch([][]byte{goodApple, bad}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "Disable AirDrop": "allowAirDrop" expects a boolean.`+gitopsHint)
+		require.NotContains(t, errMsg, "allowCamera")
+
+		appleBatch([][]byte{
+			mkMobileconfig("pv depr unknown key", "com.example.pv.deprunknownkey", "com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
+			mkMobileconfig("pv depr unknown type", "com.example.pv.deprunknowntype", "com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
+		}, http.StatusNoContent)
+
+		setValidation(false)
+		appleBatch([][]byte{bad}, http.StatusNoContent)
 	})
 }
