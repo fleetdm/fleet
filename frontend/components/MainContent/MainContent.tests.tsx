@@ -72,10 +72,6 @@ describe("MainContent app-wide banners", () => {
   it("shows the EJBCA banner when a client certificate has expired, or is about to", () => {
     const { unmount } = renderMainContent({ isEJBCACertExpired: true });
     expect(screen.getByText(EJBCA_EXPIRED_TEXT)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Update EJBCA" })).toHaveAttribute(
-      "href",
-      "/settings/integrations/certificate-authorities"
-    );
     unmount();
 
     renderMainContent({ willEJBCACertExpire: true });

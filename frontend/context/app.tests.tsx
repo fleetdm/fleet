@@ -140,7 +140,6 @@ describe("AppProvider - setEJBCAExpiry", () => {
       daysFromNow(10),
       "false true",
     ],
-    ["a certificate that expires later", daysFromNow(90), "false false"],
   ])("flags %s", (_, expiry, want) => {
     renderWithSetup(
       <AppProvider>

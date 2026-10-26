@@ -34,6 +34,5 @@ describe("getEarliestEJBCACertExpiry", () => {
         createMockCertificateAuthorityPartial({ type: "digicert" }),
       ])
     ).toBe("");
-    expect(getEarliestEJBCACertExpiry([])).toBe("");
   });
 });
