@@ -304,6 +304,11 @@ func (st *parseState) parseRecord(n *regparser.CM_KEY_NODE, wanted map[string]st
 	}()
 
 	rec = record{name: nodeName(reg, n), lastWrite: lastWrite(reg, n), values: map[string]string{}}
+	// Names count too: distinct key cells can declare overlapping 64 KiB names.
+	st.budget -= int64(len(rec.name))
+	if st.budget < 0 {
+		return record{}, false
+	}
 
 	if count := n.ValueList().Count(); count > maxValues {
 		warn(logger, warnValueCount, "amcache: a record declares %d values, over the %d cap; its values are dropped", count, maxValues)

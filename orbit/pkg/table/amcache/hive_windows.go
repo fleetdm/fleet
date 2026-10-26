@@ -24,20 +24,20 @@ func readHive(ctx context.Context) (hiveResult, error) {
 		return hiveResult{}, err
 	}
 
-	data, err := readPlain(ctx, path, maxHiveBytes)
+	data, after, err := readPlain(ctx, path, maxHiveBytes)
 	switch {
 	case err == nil:
-		return hiveResult{data: data}, nil
+		return hiveResult{data: data, after: after}, nil
 	case errors.Is(err, fs.ErrNotExist):
 		return hiveResult{}, errHiveNotFound
 	case errors.Is(err, windows.ERROR_SHARING_VIOLATION), errors.Is(err, windows.ERROR_LOCK_VIOLATION):
 		// A raw volume handle is privileged and EDR products flag it, so it's only opened for
 		// this one failure.
-		raw, err := readRaw(ctx, dir[:2], path, maxHiveBytes)
+		raw, after, err := readRaw(ctx, dir[:2], path, maxHiveBytes)
 		if err != nil {
 			return hiveResult{}, err
 		}
-		return hiveResult{data: raw, raw: true}, nil
+		return hiveResult{data: raw, after: after, raw: true}, nil
 	default:
 		return hiveResult{}, err
 	}
@@ -77,30 +77,31 @@ func statHive() (time.Time, int64, error) {
 	return fi.ModTime(), fi.Size(), nil
 }
 
-// readPlain returns errors unwrapped so the caller can classify sharing violations.
-func readPlain(ctx context.Context, path string, limit int64) ([]byte, error) {
+// readPlain returns the file and its base block read again afterwards. Errors are returned
+// unwrapped so the caller can classify sharing violations.
+func readPlain(ctx context.Context, path string, limit int64) (data, after []byte, err error) {
 	f, err := os.Open(path) // #nosec G304 -- fixed path under GetSystemWindowsDirectory
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer f.Close()
 
 	st, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !st.Mode().IsRegular() {
-		return nil, fmt.Errorf("amcache: %s is not a regular file", path)
+		return nil, nil, fmt.Errorf("amcache: %s is not a regular file", path)
 	}
 	if st.Size() > limit {
-		return nil, fmt.Errorf("amcache: %s is %d bytes, over the %d byte cap", path, st.Size(), limit)
+		return nil, nil, fmt.Errorf("amcache: %s is %d bytes, over the %d byte cap", path, st.Size(), limit)
 	}
 	// limit+1 detects a file that grew between the Stat and the read.
 	r := io.LimitReader(f, limit+1)
 	buf := make([]byte, 0, st.Size()+1)
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(buf) == cap(buf) {
 			buf = append(buf, 0)[:len(buf)]
@@ -111,18 +112,36 @@ func readPlain(ctx context.Context, path string, limit int64) ([]byte, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if int64(len(buf)) > limit {
-		return nil, fmt.Errorf("amcache: %s is over the %d byte cap", path, limit)
+		return nil, nil, fmt.Errorf("amcache: %s is over the %d byte cap", path, limit)
 	}
-	return buf, nil
+	after = make([]byte, min(baseBlockSize, len(buf)))
+	if _, err := f.ReadAt(after, 0); err != nil {
+		return nil, nil, err
+	}
+	return buf, after, nil
 }
 
 // readRaw reads winPath straight from the NTFS volume behind drive (e.g. "C:"), bypassing the
-// share-mode check.
-func readRaw(ctx context.Context, drive, winPath string, limit int64) ([]byte, error) {
+// share-mode check, and returns it with its base block read again afterwards.
+func readRaw(ctx context.Context, drive, winPath string, limit int64) (data, after []byte, err error) {
+	data, err = readRawPrefix(ctx, drive, winPath, limit, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	// go-ntfs caches volume pages, so the base block is re-read through a new volume handle.
+	after, err = readRawPrefix(ctx, drive, winPath, limit, baseBlockSize)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, after, nil
+}
+
+// readRawPrefix reads up to the first prefix bytes of winPath from the volume.
+func readRawPrefix(ctx context.Context, drive, winPath string, limit, prefix int64) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -153,6 +172,7 @@ func readRaw(ctx context.Context, drive, winPath string, limit int64) ([]byte, e
 	if n <= 0 || n > limit {
 		return nil, fmt.Errorf("amcache: raw %s is %d bytes, outside (0, %d]", winPath, n, limit)
 	}
+	n = min(n, prefix)
 	buf := make([]byte, n)
 	for off := int64(0); off < n; {
 		if err := ctx.Err(); err != nil {

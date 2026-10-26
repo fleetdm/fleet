@@ -89,11 +89,16 @@ func specFor(t *testing.T, name string) spec {
 
 func fixedStat() (time.Time, int64, error) { return time.Unix(1, 0), 1, nil }
 
+// cleanRead is a read during which Windows didn't write: the base block read afterwards matches.
+func cleanRead(hive []byte) hiveResult {
+	return hiveResult{data: hive, after: hive[:baseBlockSize]}
+}
+
 func newTestTables(hive []byte) (*tables, *atomic.Int32) {
 	var reads atomic.Int32
 	read := func(context.Context) (hiveResult, error) {
 		reads.Add(1)
-		return hiveResult{data: hive}, nil
+		return cleanRead(hive), nil
 	}
 	return newTables(zerolog.Nop(), read, fixedStat), &reads
 }
@@ -201,6 +206,11 @@ func TestPushdown(t *testing.T) {
 	assert.Len(t, generate(t, tt, files, like), 2)
 	assert.Len(t, generate(t, tt, files, eq("publisher", "nobody")), 2)
 	assert.Len(t, generate(t, tt, files, eq("path", "")), 2)
+
+	// An equality the index can't answer keeps its column from narrowing, since the others in
+	// the same IN list would otherwise drop its matches (the stub's empty path).
+	assert.Len(t, generate(t, tt, files, eq("path", "", `c:\windows\system32\notepad.exe`)), 2)
+	assert.Len(t, generate(t, tt, files, eq("sha1", strings.Repeat("a", maxExprLen+1), notepadSha1)), 2)
 }
 
 func TestHiveNotFound(t *testing.T) {
@@ -240,7 +250,7 @@ func TestCanceledLoadIsNotCached(t *testing.T) {
 			cancel()
 			return hiveResult{}, rctx.Err()
 		}
-		return hiveResult{data: hive}, nil
+		return cleanRead(hive), nil
 	}, fixedStat)
 	gen := tt.generator(specFor(t, "amcache_application_files"))
 
@@ -260,7 +270,7 @@ func TestHiveChangeReloads(t *testing.T) {
 	hive := fixtureHive()
 	tt := newTables(zerolog.Nop(), func(context.Context) (hiveResult, error) {
 		reads.Add(1)
-		return hiveResult{data: hive}, nil
+		return cleanRead(hive), nil
 	}, func() (time.Time, int64, error) { return time.Unix(1, 0), size.Load(), nil })
 
 	generate(t, tt, "amcache_application_files", table.QueryContext{})
@@ -315,9 +325,9 @@ func TestDirtyHive(t *testing.T) {
 	size.Store(1)
 	tt := newTables(zerolog.Nop(), func(context.Context) (hiveResult, error) {
 		if size.Load() == 1 {
-			return hiveResult{data: dirty}, nil
+			return cleanRead(dirty), nil
 		}
-		return hiveResult{data: clean}, nil
+		return cleanRead(clean), nil
 	}, func() (time.Time, int64, error) { return time.Unix(1, 0), size.Load(), nil })
 	gen := tt.generator(specFor(t, "amcache_applications"))
 
@@ -328,6 +338,37 @@ func TestDirtyHive(t *testing.T) {
 	rows, err := gen(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
 	assert.Len(t, rows, 1)
+}
+
+// A write that starts after the base block was read leaves a clean-looking copy over pages from
+// two generations; the base block read afterwards gives it away.
+func TestHiveWrittenDuringRead(t *testing.T) {
+	hive := buildHive(tkey{name: keyApplication, subkeys: []tkey{{name: programID}}})
+	withSeq := func(seq1, seq2 uint32) []byte {
+		b := append([]byte(nil), hive[:baseBlockSize]...)
+		binary.LittleEndian.PutUint32(b[4:], seq1)
+		binary.LittleEndian.PutUint32(b[8:], seq2)
+		return b
+	}
+
+	for name, after := range map[string][]byte{
+		"write in progress": withSeq(2, 1),
+		"write finished":    withSeq(2, 2),
+	} {
+		t.Run(name, func(t *testing.T) {
+			tt := newTables(zerolog.Nop(), func(context.Context) (hiveResult, error) {
+				return hiveResult{data: hive, after: after}, nil
+			}, fixedStat)
+			_, err := tt.generator(specFor(t, "amcache_applications"))(t.Context(), table.QueryContext{})
+			require.ErrorIs(t, err, errHiveDirty)
+		})
+	}
+
+	tt := newTables(zerolog.Nop(), func(context.Context) (hiveResult, error) {
+		return hiveResult{data: hive, after: make([]byte, baseBlockSize)}, nil
+	}, fixedStat)
+	_, err := tt.generator(specFor(t, "amcache_applications"))(t.Context(), table.QueryContext{})
+	require.ErrorContains(t, err, "not a regf header")
 }
 
 func TestPanicIsRecoveredAndCached(t *testing.T) {
@@ -448,6 +489,35 @@ func TestSharedCellAmplification(t *testing.T) {
 		distinct[i] = record(fmt.Sprintf("r%03d", i))
 	}
 	tt, _ = newTestTables(hiveWith(w.key(tkey{name: keyApplicationFile}, 0x20, w.lh(distinct...))))
+	_, err := tt.generator(specFor(t, "amcache_application_files"))(t.Context(), table.QueryContext{})
+	require.ErrorIs(t, err, errDecodedTooLarge)
+}
+
+// regparser reads a key name from wherever the cell declares it, so distinct key cells can each
+// declare a 64 KiB name over the same bytes. The names are charged to the decoded bytes budget.
+func TestOverlappingKeyNames(t *testing.T) {
+	w := newHiveWriter()
+	const nameLen = 0xFFFF
+	keys := make([]uint32, 400)
+	for i := range keys {
+		p := make([]byte, 76+4)
+		copy(p, "nk")
+		binary.LittleEndian.PutUint16(p[2:], 0x20)
+		binary.LittleEndian.PutUint32(p[28:], 0xFFFFFFFF)
+		binary.LittleEndian.PutUint32(p[40:], 0xFFFFFFFF)
+		binary.LittleEndian.PutUint16(p[72:], nameLen)
+		copy(p[76:], fmt.Sprintf("%04d", i))
+		keys[i] = w.alloc(p)
+	}
+	files := w.key(tkey{name: keyApplicationFile}, 0x20, w.lh(keys...))
+	root := w.key(tkey{name: "Root"}, 0x20, w.lh(files))
+	base := w.key(tkey{name: "{base}"}, 0x2c, w.lh(root))
+	// Names that run past the last key cell need bytes to read.
+	w.alloc(make([]byte, nameLen))
+	hive := w.hive(base, 1, 1)
+	require.Less(t, len(hive), 1<<20)
+
+	tt, _ := newTestTables(hive)
 	_, err := tt.generator(specFor(t, "amcache_application_files"))(t.Context(), table.QueryContext{})
 	require.ErrorIs(t, err, errDecodedTooLarge)
 }

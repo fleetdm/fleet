@@ -164,7 +164,7 @@ func (t *tables) parse(ctx context.Context) (snap *snapshot, err error) {
 	if err != nil {
 		return nil, err
 	}
-	dirty, err := hiveDirty(res.data)
+	dirty, err := hiveDirty(res)
 	if err != nil {
 		return nil, err
 	}
@@ -238,8 +238,14 @@ func selected(qc table.QueryContext, idx map[string]map[string][]int32, tbl stri
 		var hits []int32
 		usable := false
 		for _, cst := range cl.Constraints {
-			if cst.Operator != table.OperatorEquals || cst.Expression == "" || len(cst.Expression) > maxExprLen {
+			if cst.Operator != table.OperatorEquals {
 				continue
+			}
+			if cst.Expression == "" || len(cst.Expression) > maxExprLen {
+				// The equalities are a union, so narrowing by the others would drop this one's
+				// matches.
+				usable = false
+				break
 			}
 			usable = true
 			hits = append(hits, byVal[strings.ToLower(cst.Expression)]...)
