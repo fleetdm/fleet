@@ -86,7 +86,7 @@ describe("getErrorMessage", () => {
     ],
     [
       "workProfileWidgets",
-      'Couldn\'t update configuration. "WORK_PROFILE_WIDGETS_MAYBE" is not a supported value for "workProfileWidgets".',
+      'Couldn\'t update configuration. "WORK_PROFILE_WIDGETS_MAYBE" is not a supported value for "workProfileWidget".',
     ],
   ])("passes through the %s value validation error", (_key, reason) => {
     const badValueErr = {
