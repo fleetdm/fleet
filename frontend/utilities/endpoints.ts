@@ -152,6 +152,8 @@ export default {
 
   // self-service categories
   SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  // patch deadline settings
+  PATCH_DEADLINE_SETTINGS: `/${API_VERSION}/fleet/software/patch_deadline_settings`,
   SELF_SERVICE_CATEGORY: (id: number) =>
     `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
