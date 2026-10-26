@@ -2148,9 +2148,9 @@ func sendRecoveryLockVerifyCommands(
 				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID)
 			continue
 		}
-		if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
+		if notifErr, ok := errors.AsType[*NotificationFailedError](err); ok {
 			logger.WarnContext(ctx, "VerifyRecoveryLock enqueued but APNs push failed",
-				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", apnsErr)
+				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", notifErr)
 			continue
 		}
 		logger.ErrorContext(ctx, "failed to enqueue VerifyRecoveryLock",

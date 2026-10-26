@@ -1588,6 +1588,58 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	t.Run("rotation whose command was cleaned up before the repair from 4.92 completes", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+		clearRecoveryLockCommandUUIDs(t, host.UUID)
+
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+		next, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, next)
+
+		// The command cleanup deletes the acknowledged command, which no row references.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `DELETE FROM nano_commands WHERE command_uuid = ?`, setCmd.CommandUUID)
+			return err
+		})
+
+		runUpgradeRepair(t)
+		runRecoveryLockCron(t)
+
+		verifyCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, verifyCmd, "the cron should verify the password the device may hold")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Contains(t, string(setCmd.Raw), "<string>"+*getPasswordResp.RecoveryLockPassword.Password+"</string>",
+			"the readable password must be the one the rotation set")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 		"mdm": map[string]any{"enable_recovery_lock_password": false},

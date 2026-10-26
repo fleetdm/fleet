@@ -118,12 +118,29 @@ func TestUp_20261026111120(t *testing.T) {
 	require.Equal(t, row{}, get("first-error"))
 	require.Equal(t, row{Current: old, Pending: rotated}, get("rotation-error"))
 
-	// nothing to go on: back to the cron, keeping every password
-	require.Equal(t, row{Current: old, Pending: rotated}, get("no-command"))
+	// the command cleanup removed the acknowledged command: verified like an acknowledged one
+	require.Equal(t, row{Status: verifying, Current: old, Pending: rotated}, get("no-command"))
 
 	require.Equal(t, row{Status: pending, Current: old, Pending: rotated, PendingSetCommand: str("set-9")}, get("two-sets"))
 
 	require.Equal(t, row{Status: pending, Current: old, Pending: rotated, PendingSetCommand: str("set-10")}, get("tracked"))
 	require.Equal(t, row{Status: str("verified"), Current: old, SetCommand: str("set-x"), VerifyCommand: str("verify-x")}, get("verified"))
 	require.Equal(t, row{Status: pending, Current: old, Pending: rotated}, get("deleted"))
+
+	// every repaired pending password is archived, since the device may hold it
+	type archived struct {
+		HostUUID   string         `db:"host_uuid"`
+		Password   []byte         `db:"encrypted_password"`
+		SetCommand sql.NullString `db:"set_command_uuid"`
+	}
+	var archive []archived
+	require.NoError(t, db.Select(&archive, `
+		SELECT host_uuid, encrypted_password, set_command_uuid FROM host_recovery_key_password_archive ORDER BY host_uuid`))
+	require.Equal(t, []archived{
+		{HostUUID: "no-command", Password: rotated},
+		{HostUUID: "rotation-acked", Password: rotated, SetCommand: str("set-3")},
+		{HostUUID: "rotation-error", Password: rotated, SetCommand: str("set-7")},
+		{HostUUID: "rotation-unanswered", Password: rotated, SetCommand: str("set-1")},
+		{HostUUID: "two-sets", Password: rotated, SetCommand: str("set-9")},
+	}, archive)
 }

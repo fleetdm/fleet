@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -1298,13 +1299,31 @@ func TestSendRecoveryLockVerifyCommands(t *testing.T) {
 				return errors.New("enqueue failed")
 			},
 			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
-				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+				// as enqueueAndNotify returns it once the command is persisted
+				return ctxerr.Wrap(ctx, &NotificationFailedError{
+					err: &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}},
+				}, "sending notifications")
 			},
 		}
 
 		err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger)
 		require.ErrorContains(t, err, "enqueue failed")
 		require.Equal(t, []string{"install-host/verify-1"}, unclaimed)
+	})
+
+	t.Run("a push failure that isn't per device keeps the claim", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims[:1], nil
+		}
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				return ctxerr.Wrap(ctx, &NotificationFailedError{err: errors.New("push certificate expired")}, "sending notifications")
+			},
+		}
+
+		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
+		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
 	})
 }
 
