@@ -55,6 +55,11 @@ log "WROTE: $DROPIN"
 systemctl daemon-reload || die "systemctl daemon-reload failed"
 
 if ! systemctl is-active --quiet "$UNIT"; then
+    if pgrep -x tailscaled >/dev/null 2>&1; then
+        log "tailscaled is running outside ${UNIT}, so this setting doesn't reach it."
+        log "Set TS_SSH_DISABLE_FORWARDING=1 in the environment that starts it, then restart it."
+        exit 2
+    fi
     log "tailscaled isn't running. The setting applies the next time it starts."
     exit 0
 fi

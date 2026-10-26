@@ -51,7 +51,10 @@ started_after_env_file() {
 }
 
 pid="$(tailscaled_pid)"
-if [ -f "$ENV_FILE" ] && grep -qx "$LINE" "$ENV_FILE" && [ -n "$pid" ] && started_after_env_file "$pid"; then
+# tailscaled applies the file's lines in order, so the setting must be the only one for this key
+if [ -f "$ENV_FILE" ] && grep -qx "$LINE" "$ENV_FILE" \
+    && [ "$(grep -c '^[[:space:]]*TS_SSH_DISABLE_FORWARDING[[:space:]]*=' "$ENV_FILE")" -eq 1 ] \
+    && [ -n "$pid" ] && started_after_env_file "$pid"; then
     log "Already applied: tailscaled (pid $pid, $label) started after $ENV_FILE set $LINE."
     exit 0
 fi

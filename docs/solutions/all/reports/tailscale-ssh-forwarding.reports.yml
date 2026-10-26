@@ -20,48 +20,48 @@
   platform: linux
   query: |
     WITH td AS (
-      SELECT pid, cmdline FROM processes
+      -- Pad and normalize flags so " -state=" also matches --state, "-state /path", and never --encrypt-state
+      SELECT pid, cmdline, replace(replace(replace(' ' || cmdline || ' ', ' --', ' -'), ' -state ', ' -state='), ' -statedir ', ' -statedir=') AS args
+      FROM processes
       WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
-    ),
-    args AS (
-      SELECT pid,
-        substr(cmdline, instr(cmdline, '-state=') + 7) || ' ' AS state_arg,
-        substr(cmdline, instr(cmdline, '-statedir=') + 10) || ' ' AS dir_arg,
-        instr(cmdline, '-state=') > 0 AS has_state,
-        instr(cmdline, '-statedir=') > 0 AS has_dir
-      FROM td
     ),
     state AS (
       SELECT pid, CASE
-          WHEN has_state THEN replace(substr(state_arg, 1, instr(state_arg, ' ') - 1), 'tpmseal:', '')
-          WHEN has_dir THEN substr(dir_arg, 1, instr(dir_arg, ' ') - 1) || '/tailscaled.state'
+          WHEN instr(args, ' -state=') > 0 THEN
+            replace(substr(args, instr(args, ' -state=') + 8, instr(substr(args, instr(args, ' -state=') + 8), ' ') - 1), 'tpmseal:', '')
+          WHEN instr(args, ' -statedir=') > 0 THEN
+            substr(args, instr(args, ' -statedir=') + 11, instr(substr(args, instr(args, ' -statedir=') + 11), ' ') - 1) || '/tailscaled.state'
           ELSE '/var/lib/tailscale/tailscaled.state'
         END AS path
-      FROM args
+      FROM td
     ),
-    readable AS (
-      -- file_lines aborts the query on a missing path, so only existing files reach it
-      SELECT s.pid, s.path FROM state s WHERE EXISTS (SELECT 1 FROM file f WHERE f.path = s.path)
-    ),
-    entries AS (
-      -- The state file is indented JSON with one base64-encoded value per line
-      SELECT r.pid,
-        substr(l.line, instr(l.line, '"') + 1, instr(l.line, '":') - instr(l.line, '"') - 1) AS key,
-        from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS value
-      FROM readable r JOIN file_lines l ON l.path = r.path
-      WHERE l.line LIKE '%"profile-%' OR l.line LIKE '%"\_serve/%' ESCAPE '\'
+    st AS (
+      SELECT s.pid, s.path, EXISTS (SELECT 1 FROM file f WHERE f.path = s.path) AS present FROM state s
     ),
     ssh AS (
-      SELECT s.pid, s.path,
+      -- file_lines aborts the query on a missing path, so every read sits behind a CASE that checks the file first
+      SELECT st.pid, st.path,
         CASE
-          WHEN NOT EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%') THEN 'unreadable'
-          WHEN EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%'
-                       AND json_extract(e.value, '$.RunSSH') = 1) THEN 'on'
-          ELSE 'off'
+          WHEN NOT st.present THEN 'unknown (no state file at this path)'
+          WHEN EXISTS (SELECT 1 FROM file_lines l WHERE l.path = st.path AND l.line LIKE '%"nonce":%') THEN 'unknown (state is TPM-sealed)'
+          ELSE CASE coalesce((
+              SELECT max(json_extract(from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')), '$.RunSSH'))
+              FROM file_lines l
+              WHERE l.path = st.path AND l.line LIKE '%"profile-%'
+                AND (NOT EXISTS (SELECT 1 FROM file_lines c WHERE c.path = st.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\')
+                     OR l.line LIKE '%"' || (SELECT from_base64(rtrim(substr(c.line, instr(c.line, '": "') + 4), '",'))
+                                             FROM file_lines c WHERE c.path = st.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\') || '":%')
+            ), 0) WHEN 1 THEN 'on' ELSE 'off' END
         END AS run_ssh,
-        EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = s.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
+        CASE WHEN st.present THEN (
+          SELECT group_concat(v, ' ') FROM (
+            SELECT from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS v
+            FROM file_lines l WHERE l.path = st.path AND l.line LIKE '%"\_serve/%' ESCAPE '\')
+          WHERE v LIKE '%"unix:%')
+        END AS serve_unix,
+        EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = st.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
                 AND lower(pe.value) IN ('1', 't', 'true')) AS knob
-      FROM state s
+      FROM st
     ),
     pkg AS (
       SELECT version FROM deb_packages WHERE name = 'tailscale' AND status = 'install ok installed'
@@ -86,12 +86,12 @@
         WHEN run_ssh = 'off' THEN 'OFF'
         WHEN knob THEN 'FORWARDING_DISABLED'
         WHEN run_ssh = 'on' THEN 'EXPOSED'
-        ELSE 'UNKNOWN: state not readable, treat as EXPOSED'
+        ELSE 'UNKNOWN: treat as EXPOSED'
       END
     FROM ssh
     UNION ALL
-    SELECT 'serve_unix_target', key, substr(value, 1, 500), 'REVIEW: serve forwards to a Unix socket'
-    FROM entries WHERE key LIKE '\_serve/%' ESCAPE '\' AND value LIKE '%"unix:%'
+    SELECT 'serve_unix_target', path, substr(serve_unix, 1, 500), 'REVIEW: serve forwards to a Unix socket'
+    FROM ssh WHERE serve_unix IS NOT NULL
     UNION ALL
     -- Tailscale SSH sessions run as children of tailscaled; forwarding-only connections (ssh -N) have none
     SELECT 'ssh_session', p.name || ' (pid ' || p.pid || ')',
@@ -102,7 +102,6 @@
     SELECT 'tailscaled_unix_listener', s.path, 'pid ' || s.pid, 'REVIEW'
     FROM process_open_sockets s JOIN td ON s.pid = td.pid
     WHERE s.family = 1 AND s.path <> '' AND s.path NOT LIKE '/run/tailscale/%' AND s.path NOT LIKE '/var/run/tailscale/%';
-
 
 - name: macOS - Tailscale SSH forwarding exposure
   automations_enabled: false
@@ -126,63 +125,68 @@
   platform: darwin
   query: |
     WITH td AS (
-      SELECT pid, cmdline, start_time FROM processes
+      -- Pad and normalize flags so " -state=" also matches --state, "-state /path", and never --encrypt-state
+      SELECT pid, cmdline, start_time, replace(replace(replace(' ' || cmdline || ' ', ' --', ' -'), ' -state ', ' -state='), ' -statedir ', ' -statedir=') AS args
+      FROM processes
       WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
-    ),
-    args AS (
-      SELECT pid,
-        substr(cmdline, instr(cmdline, '-state=') + 7) || ' ' AS state_arg,
-        substr(cmdline, instr(cmdline, '-statedir=') + 10) || ' ' AS dir_arg,
-        instr(cmdline, '-state=') > 0 AS has_state,
-        instr(cmdline, '-statedir=') > 0 AS has_dir
-      FROM td
     ),
     state AS (
       SELECT pid, CASE
-          WHEN has_state THEN substr(state_arg, 1, instr(state_arg, ' ') - 1)
-          WHEN has_dir THEN substr(dir_arg, 1, instr(dir_arg, ' ') - 1) || '/tailscaled.state'
+          WHEN instr(args, ' -state=') > 0 THEN
+            substr(args, instr(args, ' -state=') + 8, instr(substr(args, instr(args, ' -state=') + 8), ' ') - 1)
+          WHEN instr(args, ' -statedir=') > 0 THEN
+            substr(args, instr(args, ' -statedir=') + 11, instr(substr(args, instr(args, ' -statedir=') + 11), ' ') - 1) || '/tailscaled.state'
           ELSE '/Library/Tailscale/tailscaled.state'
         END AS path
-      FROM args
-    ),
-    readable AS (
-      -- file_lines aborts the query on a missing path, so only existing files reach it
-      SELECT s.pid, s.path FROM state s WHERE EXISTS (SELECT 1 FROM file f WHERE f.path = s.path)
-    ),
-    entries AS (
-      -- The state file is indented JSON with one base64-encoded value per line
-      SELECT r.pid,
-        substr(l.line, instr(l.line, '"') + 1, instr(l.line, '":') - instr(l.line, '"') - 1) AS key,
-        from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS value
-      FROM readable r JOIN file_lines l ON l.path = r.path
-      WHERE l.line LIKE '%"profile-%' OR l.line LIKE '%"\_serve/%' ESCAPE '\'
+      FROM td
     ),
     env_file AS (
+      -- tailscaled reads this file once at startup, so it only counts if tailscaled started after it changed
       SELECT f.mtime,
         CASE WHEN EXISTS (
           SELECT 1 FROM file_lines l WHERE l.path = '/etc/tailscale/tailscaled-env.txt'
             AND trim(substr(l.line, 1, instr(l.line, '=') - 1)) = 'TS_SSH_DISABLE_FORWARDING'
             AND lower(trim(trim(substr(l.line, instr(l.line, '=') + 1)), '"')) IN ('1', 't', 'true'))
+          -- tailscaled applies the lines in order, so any other value for the key may win
+          AND NOT EXISTS (
+            SELECT 1 FROM file_lines l WHERE l.path = '/etc/tailscale/tailscaled-env.txt'
+              AND trim(substr(l.line, 1, instr(l.line, '=') - 1)) = 'TS_SSH_DISABLE_FORWARDING'
+              AND lower(trim(trim(substr(l.line, instr(l.line, '=') + 1)), '"')) NOT IN ('1', 't', 'true'))
         THEN 1 ELSE 0 END AS knob
       FROM file f WHERE f.path = '/etc/tailscale/tailscaled-env.txt'
     ),
+    st AS (
+      SELECT s.pid, s.path, EXISTS (SELECT 1 FROM file f WHERE f.path = s.path) AS present FROM state s
+    ),
     ssh AS (
-      SELECT s.pid, s.path,
+      -- file_lines aborts the query on a missing path, so every read sits behind a CASE that checks the file first
+      SELECT st.pid, st.path,
         CASE
-          WHEN NOT EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%') THEN 'unreadable'
-          WHEN EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%'
-                       AND json_extract(e.value, '$.RunSSH') = 1) THEN 'on'
-          ELSE 'off'
+          WHEN NOT st.present THEN 'unknown (no state file at this path)'
+          ELSE CASE coalesce((
+              SELECT max(json_extract(from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')), '$.RunSSH'))
+              FROM file_lines l
+              WHERE l.path = st.path AND l.line LIKE '%"profile-%'
+                AND (NOT EXISTS (SELECT 1 FROM file_lines c WHERE c.path = st.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\')
+                     OR l.line LIKE '%"' || (SELECT from_base64(rtrim(substr(c.line, instr(c.line, '": "') + 4), '",'))
+                                             FROM file_lines c WHERE c.path = st.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\') || '":%')
+            ), 0) WHEN 1 THEN 'on' ELSE 'off' END
         END AS run_ssh,
+        CASE WHEN st.present THEN (
+          SELECT group_concat(v, ' ') FROM (
+            SELECT from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS v
+            FROM file_lines l WHERE l.path = st.path AND l.line LIKE '%"\_serve/%' ESCAPE '\')
+          WHERE v LIKE '%"unix:%')
+        END AS serve_unix,
         CASE
-          WHEN EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = s.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
+          WHEN EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = st.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
                        AND lower(pe.value) IN ('1', 't', 'true')) THEN 'set'
           WHEN EXISTS (SELECT 1 FROM env_file WHERE knob = 1 AND mtime <= td.start_time) THEN 'set'
           -- tailscaled reads the env file once at startup
           WHEN EXISTS (SELECT 1 FROM env_file WHERE knob = 1) THEN 'restart pending'
           ELSE 'not set'
         END AS knob
-      FROM state s JOIN td USING (pid)
+      FROM st JOIN td USING (pid)
     )
     SELECT 'host' AS finding, name AS item, version AS detail, '' AS status FROM os_version
     UNION ALL
@@ -200,22 +204,25 @@
     UNION ALL
     SELECT 'tailscaled', 'pid ' || pid, cmdline, 'RUNNING' FROM td
     UNION ALL
-    SELECT 'tailscale_ssh', path, 'RunSSH=' || run_ssh || '; TS_SSH_DISABLE_FORWARDING=' || knob,
+    SELECT 'tailscale_ssh', path,
+      'RunSSH=' || run_ssh || '; TS_SSH_DISABLE_FORWARDING=' || knob,
       CASE
         WHEN run_ssh = 'off' THEN 'OFF'
         WHEN knob = 'set' THEN 'FORWARDING_DISABLED'
         WHEN run_ssh = 'on' THEN 'EXPOSED'
-        ELSE 'UNKNOWN: state not readable, treat as EXPOSED'
+        ELSE 'UNKNOWN: treat as EXPOSED'
       END
     FROM ssh
     UNION ALL
-    SELECT 'serve_unix_target', key, substr(value, 1, 500), 'REVIEW: serve forwards to a Unix socket'
-    FROM entries WHERE key LIKE '\_serve/%' ESCAPE '\' AND value LIKE '%"unix:%'
+    SELECT 'serve_unix_target', path, substr(serve_unix, 1, 500), 'REVIEW: serve forwards to a Unix socket'
+    FROM ssh WHERE serve_unix IS NOT NULL
     UNION ALL
+    -- Tailscale SSH sessions run as children of tailscaled; forwarding-only connections (ssh -N) have none
     SELECT 'ssh_session', p.name || ' (pid ' || p.pid || ')',
       'uid=' || p.uid || ' ' || coalesce(u.username, '') || ': ' || substr(p.cmdline, 1, 300), 'ACTIVE'
     FROM processes p JOIN td ON p.parent = td.pid LEFT JOIN users u ON u.uid = p.uid
     UNION ALL
+    -- A Unix socket that tailscaled listens on outside its own directory is a remote (-R) forward or a serve target
     SELECT 'tailscaled_unix_listener', s.path, 'pid ' || s.pid, 'REVIEW'
     FROM process_open_sockets s JOIN td ON s.pid = td.pid
     WHERE s.family = 1 AND s.path <> '' AND s.path NOT IN ('/var/run/tailscaled.socket', '/private/var/run/tailscaled.socket');
