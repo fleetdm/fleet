@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -385,9 +386,12 @@ func errorMessage(body []byte) string {
 	if err := json.Unmarshal(body, &errResp); err == nil && errResp.ErrorMessage != "" {
 		return errResp.ErrorMessage
 	}
-	text := strings.TrimSpace(string(body))
+	// A proxy in front of EJBCA answers with an HTML page, so keep its text and drop the markup.
+	text := strings.Join(strings.Fields(htmlTag.ReplaceAllString(string(body), " ")), " ")
 	if len(text) > 200 {
 		text = text[:200]
 	}
 	return text
 }
+
+var htmlTag = regexp.MustCompile(`<[^>]*>`)
