@@ -211,6 +211,6 @@ These additional settings control `fleetlab` itself. Add them to `.env` if neede
 <meta name="articleTitle" value="Deploy a Fleet lab with Apple Container and fleetlab">
 <meta name="authorGitHubUsername" value="adriant172">
 <meta name="authorFullName" value="Matthew Thomas">
-<meta name="publishedOn" value="2026-10-29">
+<meta name="publishedOn" value="2026-10-22">
 <meta name="category" value="guides">
 <meta name="description" value="Run a local Fleet lab with MySQL and Redis on an Apple silicon Mac using Apple container and the fleetlab script. No Docker required.">

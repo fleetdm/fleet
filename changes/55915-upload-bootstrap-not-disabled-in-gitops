@@ -1,0 +1,2 @@
+- Disabled bootstrap package uploader in GitOps mode.
+- Disabled delete button jumping when hovered in GitOps mode.
