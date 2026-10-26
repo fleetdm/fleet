@@ -1594,7 +1594,9 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
 }
 
-func TestReconcileWindowsProfilesConditionalAccessReadsSecretsOnce(t *testing.T) {
+// TestReconcileWindowsProfilesConditionalAccessTracksCertificate covers a profile pointed at Fleet's conditional access
+// SCEP server: the URL is filled in, the admin's challenge passes through, and the certificate is tracked by type.
+func TestReconcileWindowsProfilesConditionalAccessTracksCertificate(t *testing.T) {
 	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ds := new(mock.Store)
 
@@ -1603,8 +1605,7 @@ func TestReconcileWindowsProfilesConditionalAccessReadsSecretsOnce(t *testing.T)
 		Name:        "Conditional access",
 		SyncML: []byte(`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/ServerURL</LocURI></Target><Data>$FLEET_VAR_` +
 			string(fleet.FleetVarConditionalAccessSCEPURL) + `</Data></Item></Add>` +
-			`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/Challenge</LocURI></Target><Data>$FLEET_VAR_` +
-			string(fleet.FleetVarConditionalAccessSCEPChallenge) + `</Data></Item></Add>`),
+			`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/Challenge</LocURI></Target><Data>aB3+/= secret</Data></Item></Add>`),
 	}
 	hostUUIDs := []string{"host-1", "host-2"}
 	_, managedCerts := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{
@@ -1618,12 +1619,6 @@ func TestReconcileWindowsProfilesConditionalAccessReadsSecretsOnce(t *testing.T)
 			MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
 		}, nil
 	}
-	secretReads := 0
-	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		secretReads++
-		require.Nil(t, teamID)
-		return []*fleet.EnrollSecret{{Secret: "first"}, {Secret: "second"}}, nil
-	}
 	commandsByHost := map[string]string{}
 	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		for _, hostUUID := range hostUUIDs {
@@ -1634,11 +1629,10 @@ func TestReconcileWindowsProfilesConditionalAccessReadsSecretsOnce(t *testing.T)
 
 	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
 
-	require.Equal(t, 1, secretReads)
 	require.Len(t, commandsByHost, len(hostUUIDs))
 	for _, hostUUID := range hostUUIDs {
 		require.Contains(t, commandsByHost[hostUUID], "https://fleet.example.com"+fleet.ConditionalAccessSCEPPath)
-		require.Contains(t, commandsByHost[hostUUID], "<Data>first</Data>")
+		require.Contains(t, commandsByHost[hostUUID], "<Data>aB3+/= secret</Data>")
 	}
 	require.Len(t, *managedCerts, len(hostUUIDs))
 	for _, cert := range *managedCerts {

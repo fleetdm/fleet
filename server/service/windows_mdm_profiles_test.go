@@ -176,15 +176,16 @@ func syncMLAddItem(locURI, data string) string {
 }
 
 // TestValidateWindowsProfileConditionalAccessVariables covers what is specific to the conditional access group on
-// Windows: the variables are accepted, and the shared SCEP placement check runs with this group's names. The
-// required-variable rules are in TestValidateProfileCertificateAuthorityVariables and the placement rules in
-// TestAdditionalNDESValidationForWindowsProfiles.
+// Windows: the URL variable marks the profile and must sit in the ServerURL node, and the challenge is a global enroll
+// secret the admin writes in (directly or through a secret variable, expanded before validation) that Windows can send.
+// The required-variable rules are in TestValidateProfileCertificateAuthorityVariables.
 func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
 	const scepPrefix = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/"
-	challengeItem := syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE")
+	challengeItem := syncMLAddItem(scepPrefix+"Challenge", "aB3+/= secret")
 	urlItem := syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL")
 	subjectItem := syncMLAddItem(scepPrefix+"SubjectName", "CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
 	sanItem := syncMLAddItem(scepPrefix+"SubjectAlternativeNames", "7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID")
+	const challengeMsg = `The SCEP certificate's "Challenge" field must contain a global enroll secret`
 
 	cases := []struct {
 		name        string
@@ -196,16 +197,44 @@ func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
 			contents: urlItem + challengeItem + subjectItem + sanItem,
 		},
 		{
-			name: "challenge in the ServerURL node",
-			contents: syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE") +
-				syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
-			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE" must only be in the SCEP certificate's "Challenge" field.`,
+			name:     "valid profile with braces syntax",
+			contents: syncMLAddItem(scepPrefix+"ServerURL", "${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}") + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name:        "challenge with characters windows rejects",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "bad_secret") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "empty challenge",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "no challenge item",
+			contents:    urlItem + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "url variable in the Challenge node",
+			contents:    syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must only be in the SCEP certificate's "ServerURL" field.`,
 		},
 		{
 			name: "variable in a LocURI",
-			contents: urlItem + subjectItem +
-				syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE/Install/Challenge", "x"),
+			contents: challengeItem + subjectItem +
+				syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL/Install/KeyProtection", "2"),
 			errContains: "Conditional access Fleet variables must not appear in LocURI target paths.",
+		},
+		{
+			name:        "subject name without the renewal ID",
+			contents:    urlItem + challengeItem + syncMLAddItem(scepPrefix+"SubjectName", "CN=x,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID") + syncMLAddItem(scepPrefix+"SubjectName", "CN=y"),
+			errContains: "SubjectName item must contain the",
+		},
+		{
+			name:        "renewal ID missing",
+			contents:    urlItem + challengeItem + sanItem,
+			errContains: "SCEP profile for conditional access requires",
 		},
 	}
 	for _, c := range cases {

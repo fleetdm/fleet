@@ -366,7 +366,6 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPChallenge,
 	fleet.FleetVarNDESSCEPProxyURL,
 	fleet.FleetVarConditionalAccessSCEPURL,
-	fleet.FleetVarConditionalAccessSCEPChallenge,
 }
 
 var (
@@ -498,12 +497,75 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 	return validateWindowsSCEPURLAndChallengePlacement(contents, "NDES", fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarNDESSCEPChallenge)
 }
 
+// conditionalAccessChallengeInvalidMsg is the upload error when the challenge of a conditional access SCEP profile is
+// missing, empty, or has characters Windows can't encode as a PrintableString.
+const conditionalAccessChallengeInvalidMsg = `The SCEP certificate's "Challenge" field must contain a global enroll secret made of letters, numbers, spaces, and ' ( ) + , - . / : = ?`
+
+// additionalConditionalAccessValidationForWindowsProfiles checks that the conditional access SCEP URL variable is in,
+// and only in, the SCEP node's ServerURL, that the SubjectName carries the renewal ID, and that the challenge, which the
+// admin writes in (secret variables are expanded before validation), is one Windows can send.
 func additionalConditionalAccessValidationForWindowsProfiles(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
 	if conditionalAccessVars == nil {
 		return nil
 	}
-	return validateWindowsSCEPURLAndChallengePlacement(contents, "Conditional access",
-		fleet.FleetVarConditionalAccessSCEPURL, fleet.FleetVarConditionalAccessSCEPChallenge)
+	urlVar := fleet.FleetVarConditionalAccessSCEPURL
+
+	var cmdMsg *fleet.SyncMLCmd
+	// An admin's upload, already parsed as SyncML by the profile validators; encoding/xml resolves no external entities.
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents)))) //nolint:gosec // G709: see above
+	challengeFound := false
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
+			if cmd.Target == nil {
+				continue
+			}
+			target := strings.TrimSpace(*cmd.Target)
+			dataContent := ""
+			if cmd.Data != nil {
+				dataContent = cmd.Data.Content
+			}
+
+			if containsFleetVar(target, urlVar) {
+				return &fleet.BadRequestError{Message: "Conditional access Fleet variables must not appear in LocURI target paths."}
+			}
+			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
+			if !isServerURL && containsFleetVar(dataContent, urlVar) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+				}
+			}
+			if isServerURL && !isFleetVar(dataContent, urlVar) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+				}
+			}
+			if strings.HasSuffix(target, "/Install/Challenge") {
+				challengeFound = true
+				if dataContent == "" || !microsoft_mdm.IsValidWindowsSCEPChallenge(dataContent) {
+					return &fleet.BadRequestError{Message: conditionalAccessChallengeInvalidMsg}
+				}
+			}
+			if strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix) {
+				if err := validateSubjectNameRenewalID(dataContent); err != nil {
+					return &fleet.BadRequestError{Message: err.Error()}
+				}
+			}
+		}
+	}
+	if !challengeFound {
+		return &fleet.BadRequestError{Message: conditionalAccessChallengeInvalidMsg}
+	}
+	return nil
 }
 
 // validateWindowsSCEPURLAndChallengePlacement checks that a certificate authority's SCEP URL and challenge variables

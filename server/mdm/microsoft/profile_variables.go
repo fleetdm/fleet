@@ -34,14 +34,10 @@ var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`
 // challenge contains characters Windows can't encode as a PrintableString.
 const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
 
-// ConditionalAccessSCEPChallengeInvalidCharsDetail is the host profile failure detail when every global enroll secret
-// contains characters Windows can't encode as a PrintableString, so none can be the conditional access SCEP challenge.
-const ConditionalAccessSCEPChallengeInvalidCharsDetail = `Couldn't install certificate. Every global enroll secret includes characters Windows doesn't support in a SCEP challenge. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
-
-// ConditionalAccessSCEPChallengeMissingDetail is the host profile failure detail when there is no global enroll secret
-// to use as the conditional access SCEP challenge.
-const ConditionalAccessSCEPChallengeMissingDetail = "Couldn't install certificate. There is no global enroll secret. Fleet couldn't populate $FLEET_VAR_" +
-	string(fleet.FleetVarConditionalAccessSCEPChallenge) + "."
+// IsValidWindowsSCEPChallenge reports whether Windows can send challenge as a SCEP challenge password.
+func IsValidWindowsSCEPChallenge(challenge string) bool {
+	return windowsSCEPChallengeRegexp.MatchString(challenge)
+}
 
 // MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
@@ -78,9 +74,6 @@ type ProfilePreprocessDependencies struct {
 	// succeed. Required whenever the profile can carry an NDES challenge. Injected rather than called directly to keep
 	// the ee SCEP package out of this one's imports.
 	NDESChallengeErrorIsTerminal func(err error) bool
-	// GetConditionalAccessSCEPChallenges returns the global enroll secrets, any of which Fleet's conditional access SCEP
-	// server accepts as the challenge. Required whenever the profile can carry the conditional access SCEP challenge.
-	GetConditionalAccessSCEPChallenges func(ctx context.Context) ([]string, error)
 }
 
 type ProfilePreprocessParams struct {
@@ -103,7 +96,6 @@ type ProfilePreprocessParams struct {
 //   - $FLEET_VAR_NDES_SCEP_CHALLENGE or ${FLEET_VAR_NDES_SCEP_CHALLENGE}: Replaced with the one-time NDES challenge password
 //   - $FLEET_VAR_NDES_SCEP_PROXY_URL or ${FLEET_VAR_NDES_SCEP_PROXY_URL}: Replaced with the Fleet SCEP proxy URL for NDES
 //   - $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL or ${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}: Replaced with Fleet's conditional access SCEP URL
-//   - $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE or ${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}: Replaced with the first global enroll secret Windows can send
 //
 // Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
@@ -238,21 +230,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			if err != nil {
 				return profileContents, ctxerr.Wrap(deps.Context, err, "building conditional access SCEP URL")
 			}
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPURLRegexp, result, scepURL)
-
-		case fleetVar == string(fleet.FleetVarConditionalAccessSCEPChallenge):
-			challenges, err := deps.GetConditionalAccessSCEPChallenges(deps.Context)
-			if err != nil {
-				return profileContents, ctxerr.Wrap(deps.Context, err, "getting conditional access SCEP challenges")
-			}
-			if len(challenges) == 0 {
-				return profileContents, &MicrosoftProfileProcessingError{message: ConditionalAccessSCEPChallengeMissingDetail}
-			}
-			i := slices.IndexFunc(challenges, windowsSCEPChallengeRegexp.MatchString)
-			if i < 0 {
-				return profileContents, &MicrosoftProfileProcessingError{message: ConditionalAccessSCEPChallengeInvalidCharsDetail}
-			}
-			challenge := challenges[i]
+			// The URL variable is what marks the certificate as Fleet-tracked; the challenge is the admin's global enroll
+			// secret and passes through.
 			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, &fleet.MDMManagedCertificate{
 				HostUUID:             params.HostUUID,
 				ProfileUUID:          params.ProfileUUID,
@@ -260,7 +239,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 				Type:                 fleet.CAConfigConditionalAccess,
 				CAName:               fleet.ConditionalAccessManagedCertificateCAName,
 			})
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPChallengeRegexp, result, challenge)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPURLRegexp, result, scepURL)
 		}
 	}
 

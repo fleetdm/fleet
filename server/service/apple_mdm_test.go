@@ -9755,11 +9755,6 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg:  "Fleet variable " + fleet.FleetVarConditionalAccessSCEPURL.WithPrefix() + " is not supported in configuration profiles.",
 		},
 		{
-			name:    "conditional access SCEP challenge variable",
-			profile: customProfileForValidation(fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix()),
-			errMsg:  "Fleet variable " + fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
-		},
-		{
 			name:    "silent migration SCEP challenge variable",
 			profile: customProfileForValidation(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()),
 			errMsg:  "Fleet variable " + fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
