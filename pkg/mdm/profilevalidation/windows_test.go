@@ -135,7 +135,9 @@ func TestWindowsNodeLookup(t *testing.T) {
 		{name: "missing segment", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/Action/Type"},
 		// Root equivalence is the validator's call, not the lookup's.
 		{name: "device root not equal to bare root", locURI: "./Device/Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type"},
-		{name: "case sensitive", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/maxinactivitytimedevicelock"},
+		{name: "case insensitive", locURI: "./device/vendor/msft/policy/config/devicelock/maxinactivitytimedevicelock", want: maxInactivity},
+		{name: "case insensitive through star", locURI: "./VENDOR/msft/firewall/MdmStore/firewallrules/MyRule/ACTION/type", want: firewallType},
+		{name: "case-folded exact beats star", locURI: "./device/vendor/msft/example/known/group/fixed/value", want: literal},
 		{name: "null node skipped", locURI: "./Device/Vendor/MSFT/Example/X/Null"},
 		{name: "unknown", locURI: "./Device/Vendor/MSFT/Unknown"},
 		{name: "empty", locURI: ""},

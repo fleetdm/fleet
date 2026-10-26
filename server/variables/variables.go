@@ -21,6 +21,9 @@ var fleetVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FL
 // This is specific to the DigiCert and EJBCA certificate data variables.
 var ProfileDataVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(DIGICERT|EJBCA)_DATA_(?P<name1>\w+))|(\${FLEET_VAR_(DIGICERT|EJBCA)_DATA_(?P<name2>\w+)})`)
 
+// SecretRegex matches a $FLEET_SECRET_NAME or ${FLEET_SECRET_NAME} custom secret variable.
+var SecretRegex = regexp.MustCompile(`\$FLEET_SECRET_\w+|\$\{FLEET_SECRET_\w+\}`)
+
 // Find finds all Fleet variables in the given content and returns them as a map
 // without the FLEET_VAR_ prefix. Returns nil if no variables are found.
 //

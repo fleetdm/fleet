@@ -193,6 +193,7 @@ const SelectTargets = ({
         report_id: query_id || null,
         query: query || "",
         excluded_host_ids: selected?.hosts || null,
+        exclude_mobile_hosts: true,
       });
     },
     {

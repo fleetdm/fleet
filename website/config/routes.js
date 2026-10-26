@@ -1492,6 +1492,7 @@ module.exports.routes = {
   'GET /learn-more-about/nixos-package-management': 'https://nixos.org/manual/nixos/stable/#sec-package-management',
   'GET /learn-more-about/rejected-automatic-enrollment': '/guides/setup-experience#rejected-automatic-enrollments',
   'GET /learn-more-about/google-play-automatic-app-updates': 'https://support.google.com/googleplay/answer/113412?hl=en',
+  'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
 
   // Sitemap

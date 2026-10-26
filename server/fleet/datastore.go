@@ -356,7 +356,7 @@ type Datastore interface {
 	ListHostUsers(ctx context.Context, hostID uint) ([]HostUser, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
-	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	SearchHosts(ctx context.Context, filter TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountAllHosts(ctx context.Context) (int, error)
@@ -1275,6 +1275,10 @@ type Datastore interface {
 	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
 	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
 	InitializePolicyViolationDays(ctx context.Context) error
+
+	// IncrementAIGeneratedProfileCount adds one to the cumulative count of configuration profiles generated
+	// for platform ("apple" or "windows") that is reported in usage statistics.
+	IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking

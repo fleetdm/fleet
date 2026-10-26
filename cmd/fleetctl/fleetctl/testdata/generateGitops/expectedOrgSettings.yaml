@@ -22,6 +22,12 @@ certificate_authorities:
       name: some-digicert-name
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
+  google_cas:
+    - api_key_json: ___GITOPS_COMMENT_11___
+      ca_pool: some-google-cas-pool
+      location: us-central1
+      name: some-google-cas-name
+      project: some-google-cas-project
   hydrant:
     - name: some-hydrant-name
       url: https://some-hydrant-url.com
@@ -101,8 +107,8 @@ mdm:
     entity_id: some-mdm-entity-id.com
     idp_name: some-other-idp-name
     issuer_uri: https://some-mdm-issuer-uri.com
-    metadata: ___GITOPS_COMMENT_11___
-    metadata_url: ___GITOPS_COMMENT_12___
+    metadata: ___GITOPS_COMMENT_12___
+    metadata_url: ___GITOPS_COMMENT_13___
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
     - location: Fleet Device Management Inc.
@@ -120,7 +126,7 @@ org_info:
   org_logo_url_light_mode: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
-  - secret: ___GITOPS_COMMENT_13___
+  - secret: ___GITOPS_COMMENT_14___
 server_settings:
   ai_features_disabled: false
   debug_host_ids:
@@ -140,8 +146,8 @@ sso_settings:
   entity_id: dogfood.fleetdm.com
   idp_image_url: http://some-sso-idp-image-url.com
   idp_name: some-idp-name
-  metadata: ___GITOPS_COMMENT_14___
-  metadata_url: ___GITOPS_COMMENT_15___
+  metadata: ___GITOPS_COMMENT_15___
+  metadata_url: ___GITOPS_COMMENT_16___
   sso_server_url: https://sso.fleetdm.com
 webhook_settings:
   activities_webhook:
