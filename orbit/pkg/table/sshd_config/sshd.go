@@ -30,9 +30,15 @@ var sshdPaths = map[string][]string{
 	"linux": {"/usr/sbin/sshd", "/usr/bin/sshd", "/sbin/sshd", "/usr/local/sbin/sshd", "/run/current-system/sw/bin/sshd"},
 }[runtime.GOOS]
 
-// resolveSSHD is a variable so tests can run fake sshd scripts, which aren't
-// owned by root.
-var resolveSSHD = resolveTrusted
+// resolveSSHD returns the sshd at candidate if it is safe to run as root. It is
+// a variable so tests can run fake sshd scripts, which aren't owned by root.
+var resolveSSHD = func(candidate string) (sshdBinary, error) {
+	path, info, err := resolveTrusted(candidate)
+	if err != nil {
+		return sshdBinary{}, err
+	}
+	return newSSHDBinary(path, info)
+}
 
 // unsupportedFlag matches the error sshd prints when it predates -G (added in
 // OpenSSH 9.3). The wording comes from whichever getopt sshd was linked
@@ -62,25 +68,28 @@ type configEntry struct {
 	Value   string
 }
 
-// findSSHD returns the first installed sshd that resolveSSHD trusts.
+// findSSHD returns the first installed sshd that resolveSSHD accepts.
 func findSSHD() (sshdBinary, bool) {
 	for _, candidate := range sshdPaths {
-		path, info, err := resolveSSHD(candidate)
-		if err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				log.Debug().Err(err).Msg("skipping sshd that isn't safe to run as root")
-			}
-			continue
+		sshd, err := resolveSSHD(candidate)
+		if err == nil {
+			return sshd, true
 		}
-		if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
-			continue
+		if !errors.Is(err, fs.ErrNotExist) {
+			log.Debug().Err(err).Msg("skipping sshd candidate")
 		}
-		return sshdBinary{
-			path: path,
-			id:   fmt.Sprintf("%s:%d:%d", path, info.Size(), info.ModTime().UnixNano()),
-		}, true
 	}
 	return sshdBinary{}, false
+}
+
+func newSSHDBinary(path string, info fs.FileInfo) (sshdBinary, error) {
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+		return sshdBinary{}, fmt.Errorf("%s: not an executable file", path)
+	}
+	return sshdBinary{
+		path: path,
+		id:   fmt.Sprintf("%s:%d:%d", path, info.Size(), info.ModTime().UnixNano()),
+	}, nil
 }
 
 // dumpConfig returns sshd's effective configuration. It prefers -G, which only

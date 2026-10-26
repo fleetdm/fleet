@@ -3,7 +3,6 @@
 package sshd_config
 
 import (
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,9 +196,12 @@ func useFakeSSHD(t *testing.T, sshd sshdBinary) {
 	origPaths, origResolve := sshdPaths, resolveSSHD
 	t.Cleanup(func() { sshdPaths, resolveSSHD = origPaths, origResolve })
 	sshdPaths = []string{filepath.Join(filepath.Dir(sshd.path), "missing"), sshd.path}
-	resolveSSHD = func(path string) (string, fs.FileInfo, error) {
+	resolveSSHD = func(path string) (sshdBinary, error) {
 		info, err := os.Lstat(path)
-		return path, info, err
+		if err != nil {
+			return sshdBinary{}, err
+		}
+		return newSSHDBinary(path, info)
 	}
 }
 

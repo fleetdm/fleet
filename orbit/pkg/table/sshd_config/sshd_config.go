@@ -121,12 +121,15 @@ func connectionSpecs(queryContext table.QueryContext) []string {
 	}
 
 	var specs []string
-	seen := make(map[string]bool)
+	seen := make(map[string]struct{})
 	for _, c := range list.Constraints {
-		if c.Operator != table.OperatorEquals || seen[c.Expression] {
+		if c.Operator != table.OperatorEquals {
 			continue
 		}
-		seen[c.Expression] = true
+		if _, dup := seen[c.Expression]; dup {
+			continue
+		}
+		seen[c.Expression] = struct{}{}
 		specs = append(specs, c.Expression)
 	}
 	return specs
