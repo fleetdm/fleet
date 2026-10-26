@@ -88,7 +88,7 @@ function Invoke-UninstallerAsUser {
         Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
 
         $startDate = Get-Date
-        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
         Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
         # Wait for a result rather than for the "Running" state, which a fast task can
@@ -96,8 +96,8 @@ function Invoke-UninstallerAsUser {
         # LastRunTime yet.
         Start-Sleep -Seconds 2
         while ($true) {
-            $info = Get-ScheduledTaskInfo -TaskName $taskName
-            $state = (Get-ScheduledTask -TaskName $taskName).State
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
             if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
                 return $info.LastTaskResult
             }
