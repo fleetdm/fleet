@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ func TestStatistics(t *testing.T) {
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
 		{"MDMProfileCounts", testStatisticsMDMProfileCounts},
 		{"ThirdPartyIntegrations", testStatisticsThirdPartyIntegrations},
+		{"AIGeneratedProfileCounts", testStatisticsAIGeneratedProfileCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -117,6 +119,9 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
 	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
 	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+	assert.Equal(t, 0, stats.NumAppleAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumWindowsAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumAndroidAiGeneratedProfiles)
 	assert.Empty(t, stats.ResultLogDestination)
 	assert.Empty(t, stats.StatusLogDestination)
 	assert.Empty(t, stats.AuditLogDestination)
@@ -1383,4 +1388,45 @@ func testStatisticsThirdPartyIntegrations(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.AnyFailingPoliciesWebhookEnabled)
 	assert.True(t, stats.AnyHostActivitiesWebhookEnabled)
+}
+
+func testStatisticsAIGeneratedProfileCounts(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) { return nil, nil }
+	ctx := ctxerr.NewContext(t.Context(), eh)
+
+	// Generations run concurrently, so every increment has to land.
+	const perPlatform = 20
+	var wg sync.WaitGroup
+	errs := make(chan error, 2*perPlatform)
+	for range perPlatform {
+		for _, platform := range []string{fleet.AutofillConfigProfilePlatformApple, fleet.AutofillConfigProfilePlatformWindows} {
+			wg.Go(func() {
+				errs <- ds.IncrementAIGeneratedProfileCount(ctx, platform)
+			})
+		}
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	require.NoError(t, ds.IncrementAIGeneratedProfileCount(ctx, fleet.AutofillConfigProfilePlatformApple))
+
+	require.Error(t, ds.IncrementAIGeneratedProfileCount(ctx, "android"))
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, time.Millisecond, config.TestConfig())
+	require.NoError(t, err)
+	require.True(t, shouldSend)
+	assert.Equal(t, perPlatform+1, stats.NumAppleAiGeneratedProfiles)
+	assert.Equal(t, perPlatform, stats.NumWindowsAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumAndroidAiGeneratedProfiles)
+
+	// Cumulative: sending statistics and the weekly cleanup leave the counts alone.
+	require.NoError(t, ds.RecordStatisticsSent(ctx))
+	require.NoError(t, ds.CleanupStatistics(ctx))
+	time.Sleep(2 * time.Millisecond)
+	stats, _, err = ds.ShouldSendStatistics(ctx, time.Millisecond, config.TestConfig())
+	require.NoError(t, err)
+	assert.Equal(t, perPlatform+1, stats.NumAppleAiGeneratedProfiles)
 }

@@ -207,8 +207,7 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return err
 	}
 
-	if incoming.NDESSCEP == nil && len(incoming.DigiCert) == 0 && len(incoming.CustomScepProxy) == 0 && len(incoming.Hydrant) == 0 &&
-		len(incoming.EJBCA) == 0 {
+	if incoming.IsEmpty() {
 		return nil
 	}
 

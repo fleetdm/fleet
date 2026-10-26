@@ -91,7 +91,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.ClientID = &p.Hydrant.ClientID
 		caToCreate.ClientSecret = &p.Hydrant.ClientSecret
 		caDisplayType = "Hydrant"
-		activity = fleet.ActivityAddedHydrant{}
+		activity = fleet.ActivityAddedHydrant{Name: p.Hydrant.Name}
 	}
 
 	if p.CustomESTProxy != nil {
@@ -169,6 +169,16 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedEJBCA{Name: p.EJBCA.Name}
 	}
 
+	if p.GoogleCAS != nil {
+		p.GoogleCAS.Preprocess()
+		if err := svc.validateGoogleCAS(ctx, p.GoogleCAS, errPrefix); err != nil {
+			return nil, err
+		}
+		caToCreate = googleCASToCertificateAuthority(*p.GoogleCAS)
+		caDisplayType = "Google CAS"
+		activity = fleet.ActivityAddedGoogleCAS{Name: p.GoogleCAS.Name}
+	}
+
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
@@ -211,6 +221,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.EJBCA != nil {
+		casToCreate++
+	}
+	if p.GoogleCAS != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -488,6 +501,10 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		activity = fleet.ActivityDeletedEJBCA{
 			Name: ca.Name,
 		}
+	case string(fleet.CATypeGoogleCAS):
+		activity = fleet.ActivityDeletedGoogleCAS{
+			Name: ca.Name,
+		}
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
@@ -575,12 +592,13 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
 	checkAllNames := func(name, caType, displayCAType string) error {
-		for i := 0; i < len(allNames[name]); i++ {
-			if allNames[name][i] == caType {
+		key := caNameKey(name)
+		for i := 0; i < len(allNames[key]); i++ {
+			if allNames[key][i] == caType {
 				return fmtDuplicateCANameError(name, caType, displayCAType)
 			}
 		}
-		allNames[name] = append(allNames[name], caType)
+		allNames[key] = append(allNames[key], caType)
 		return nil
 	}
 
@@ -668,6 +686,18 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
 		}
 	}
+	// preprocess google cas, in place so the trimmed values are what gets stored
+	for i := range incoming.GoogleCAS {
+		ca := &incoming.GoogleCAS[i]
+		if strings.TrimSpace(ca.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.google_cas: CA name cannot be empty.")
+		}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "google_cas", "Google CAS"); err != nil {
+			return nil, err
+		}
+	}
 	// preprocess ndes
 	if incoming.NDESSCEP != nil {
 		incoming.NDESSCEP.Preprocess()
@@ -692,6 +722,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 	if err := svc.processSmallstepCAs(ctx, batchOps, incoming.Smallstep, existing.Smallstep); err != nil {
+		return nil, err
+	}
+	if err := svc.processGoogleCASCAs(ctx, batchOps, incoming.GoogleCAS, existing.GoogleCAS); err != nil {
 		return nil, err
 	}
 
@@ -763,6 +796,12 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	return nil
 }
 
+// caNameKey is how batch planning compares CA names. Names are ASCII (see validateCAName) and the
+// unique key on type and name ignores case, so a case-only rename is an update, not an add and a delete.
+func caNameKey(name string) string {
+	return strings.ToLower(name)
+}
+
 func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.DigiCertCA, existingCAs []fleet.DigiCertCA) error {
 	incomingByName := make(map[string]*fleet.DigiCertCA)
 	for _, incoming := range incomingCAs {
@@ -770,12 +809,12 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 			return fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert.name: Name cannot be empty.")
 		}
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.DigiCertCA)
 	for _, existing := range existingCAs {
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			// if current CA isn't in the incoming list, we should delete it
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:                          string(fleet.CATypeDigiCert),
@@ -789,7 +828,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -883,13 +922,13 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	incomingByName := make(map[string]*fleet.CustomSCEPProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.CustomSCEPProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      &existing.Name,
@@ -898,7 +937,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -932,13 +971,13 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	incomingByName := make(map[string]*fleet.HydrantCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.HydrantCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
 				Name:         &existing.Name,
@@ -948,7 +987,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -985,13 +1024,13 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 	incomingByName := make(map[string]*fleet.ESTProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.ESTProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeCustomESTProxy),
 				Name:     &existing.Name,
@@ -1001,7 +1040,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -1038,13 +1077,13 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	incomingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeSmallstep),
 				Name:         &existing.Name,
@@ -1055,7 +1094,7 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -1127,6 +1166,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedEJBCA{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added EJBCA")
 			}
+		case string(fleet.CATypeGoogleCAS):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedGoogleCAS{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for added Google CAS")
+			}
 		}
 	}
 	for _, ca := range ops.Update {
@@ -1159,6 +1202,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedEJBCA{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited EJBCA")
 			}
+		case string(fleet.CATypeGoogleCAS):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedGoogleCAS{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for edited Google CAS")
+			}
 		}
 	}
 	for _, ca := range ops.Delete {
@@ -1190,6 +1237,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 		case string(fleet.CATypeEJBCA):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedEJBCA{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted EJBCA")
+			}
+		case string(fleet.CATypeGoogleCAS):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedGoogleCAS{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deleted Google CAS")
 			}
 		}
 	}
@@ -1379,6 +1430,21 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate = *update
 		caActivityName = cmp.Or(ptr.ValOrZero(caToUpdate.Name), ptr.ValOrZero(oldCA.Name))
 		activity = fleet.ActivityEditedEJBCA{Name: caActivityName}
+	case p.GoogleCASCAUpdatePayload != nil:
+		if oldCA.Type != string(fleet.CATypeGoogleCAS) {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe certificate authority types must be the same.", errPrefix)}
+		}
+		update, err := svc.updateGoogleCAS(ctx, p.GoogleCASCAUpdatePayload, oldCA, errPrefix)
+		if err != nil {
+			return err
+		}
+		if update == nil {
+			// Nothing changes, so there's nothing to store or record.
+			return nil
+		}
+		caToUpdate = *update
+		caActivityName = cmp.Or(ptr.ValOrZero(caToUpdate.Name), ptr.ValOrZero(oldCA.Name))
+		activity = fleet.ActivityEditedGoogleCAS{Name: caActivityName}
 	}
 
 	if oldCA.Type != caToUpdate.Type {

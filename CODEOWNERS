@@ -96,7 +96,9 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro @allenhouchins
+# « docs/solutions: DRI (ddribeiro) is configured in website/config/custom.js (githubRepoDRIByPath), not here.
+#   This entry intentionally has no owners, so no one is a required reviewer and /docs above doesn't apply.
+/docs/solutions
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation

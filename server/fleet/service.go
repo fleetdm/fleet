@@ -1378,6 +1378,15 @@ type Service interface {
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
+	// AutofillConfigProfileNameDescription asks fleetdm.com for a name and
+	// description for a profile described in natural language.
+	AutofillConfigProfileNameDescription(ctx context.Context, instructions, platform string) (name, description string, err error)
+
+	// AutofillConfigProfileContent asks fleetdm.com to generate a profile and
+	// runs the checks Fleet runs when the profile is added to teamID, without
+	// saving it.
+	AutofillConfigProfileContent(ctx context.Context, instructions, platform string, teamID uint) (*AutofilledConfigProfile, error)
+
 	// UpdateMDMConfigProfile updates an existing configuration profile's
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and

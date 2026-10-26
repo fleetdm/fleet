@@ -38,6 +38,12 @@ certificate_authorities:
         -----END CERTIFICATE-----
       url: https://some-ejbca-url.com
       username_template: some-ejbca-username-template
+  google_cas:
+    - api_key_json: '{"type":"service_account"}'
+      ca_pool: some-google-cas-pool
+      location: us-central1
+      name: some-google-cas-name
+      project: some-google-cas-project
   hydrant:
     - name: some-hydrant-name
       url: https://some-hydrant-url.com

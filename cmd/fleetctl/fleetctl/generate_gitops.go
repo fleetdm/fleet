@@ -1162,6 +1162,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if googleCAS, ok := result["google_cas"]; ok && googleCAS != nil {
+			for _, intg := range googleCAS.([]any) {
+				intg.(map[string]any)["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google CAS service account key JSON here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.google_cas.api_key_json",
+				})
+			}
+		}
 	}
 
 	// The client certificate and key are stored apart from their PKCS#12, so it can't be exported, even with secrets.

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 	"testing"
@@ -359,5 +360,115 @@ func TestCertificateAuthorityESTProxyCA(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})
+	}
+}
+
+func TestGroupGoogleCASCertificateAuthorities(t *testing.T) {
+	ca := &CertificateAuthority{
+		ID:                  7,
+		Type:                string(CATypeGoogleCAS),
+		Name:                new("GOOGLE_WIFI"),
+		URL:                 new(""),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-ca-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account"}`),
+	}
+	grouped, err := GroupCertificateAuthoritiesByType([]*CertificateAuthority{ca})
+	require.NoError(t, err)
+	require.Equal(t, []GoogleCASCA{{
+		ID: 7, Name: "GOOGLE_WIFI", Project: "my-project", Location: "us-central1", CAPool: "my-ca-pool", APIKeyJSON: `{"type":"service_account"}`,
+	}}, grouped.GoogleCAS)
+	require.False(t, grouped.IsEmpty())
+
+	// The YAML spec parses into the same shape.
+	spec, err := ValidateCertificateAuthoritiesSpec(map[string]any{
+		"google_cas": []any{map[string]any{
+			"name": "GOOGLE_WIFI", "project": "my-project", "location": "us-central1", "ca_pool": "my-ca-pool", "api_key_json": "$KEY",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []GoogleCASCA{{Name: "GOOGLE_WIFI", Project: "my-project", Location: "us-central1", CAPool: "my-ca-pool", APIKeyJSON: "$KEY"}},
+		spec.GoogleCAS)
+	require.Equal(t, "projects/my-project/locations/us-central1/caPools/my-ca-pool", spec.GoogleCAS[0].CAPoolResourceName())
+
+	// YAML parses a variable holding the key file as a map, which is stored as the file's compact JSON.
+	spec, err = ValidateCertificateAuthoritiesSpec(map[string]any{
+		"google_cas": []any{map[string]any{
+			"name": "GOOGLE_WIFI", "project": "my-project", "location": "us-central1", "ca_pool": "my-ca-pool",
+			"api_key_json": map[string]any{"type": "service_account", "private_key": "-----BEGIN PRIVATE KEY-----\nabc\n"},
+		}},
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----\nabc\n"}`, string(spec.GoogleCAS[0].APIKeyJSON))
+
+	_, err = ValidateCertificateAuthoritiesSpec(map[string]any{"google_cas": "not a list"})
+	require.ErrorContains(t, err, "org_settings.certificate_authorities.google_cas cannot be parsed")
+
+	empty, err := ValidateCertificateAuthoritiesSpec(map[string]any{})
+	require.NoError(t, err)
+	require.Empty(t, empty.GoogleCAS)
+	require.True(t, empty.IsEmpty())
+}
+
+func TestGoogleCASKeyJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		body    string
+		want    *GoogleCASKeyJSON
+		wantErr string
+	}{
+		{"string", `{"api_key_json":"{\"type\":\"service_account\"}"}`, new(GoogleCASKeyJSON(`{"type":"service_account"}`)), ""},
+		{"object", `{"api_key_json":{ "type": "service_account" }}`, new(GoogleCASKeyJSON(`{"type":"service_account"}`)), ""},
+		{"masked", `{"api_key_json":"********"}`, new(GoogleCASKeyJSON(MaskedPassword)), ""},
+		{"absent", `{"name":"GOOGLE_VPN"}`, nil, ""},
+		{"null", `{"api_key_json":null}`, nil, ""},
+		{"number", `{"api_key_json":42}`, nil, "api_key_json must be the service account key file's JSON"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// The update payload holds the key as a pointer, so absent and null leave the stored key alone.
+			var update GoogleCASCAUpdatePayload
+			err := json.Unmarshal([]byte(tc.body), &update)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, update.APIKeyJSON)
+		})
+	}
+
+	// The update payload is embedded in the request struct, so its decoding must not take over the whole request.
+	var req CertificateAuthorityUpdatePayload
+	require.NoError(t, json.Unmarshal([]byte(`{"google_cas":{"name":"GOOGLE_VPN","api_key_json":{"type":"service_account"}}}`), &req))
+	require.Equal(t, "GOOGLE_VPN", *req.GoogleCASCAUpdatePayload.Name)
+	require.JSONEq(t, `{"type":"service_account"}`, string(*req.GoogleCASCAUpdatePayload.APIKeyJSON))
+	require.Nil(t, req.HydrantCAUpdatePayload)
+}
+
+func TestGoogleCASCAEquals(t *testing.T) {
+	a := GoogleCASCA{ID: 1, Name: "WIFI", Project: "p", Location: "l", CAPool: "c", APIKeyJSON: "k"}
+	b := a
+	b.ID = 0
+	require.True(t, a.Equals(&b), "IDs are ignored")
+
+	// The same key as pasted in the UI and as GitOps re-encodes it.
+	a.APIKeyJSON = "{\n  \"type\": \"service_account\",\n  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nabc\\n\"\n}"
+	b.APIKeyJSON = `{"private_key":"-----BEGIN PRIVATE KEY-----\nabc\n","type":"service_account"}`
+	require.True(t, a.Equals(&b), "key formatting and field order are ignored")
+
+	for _, change := range []func(*GoogleCASCA){
+		func(ca *GoogleCASCA) { ca.Name = "other" },
+		func(ca *GoogleCASCA) { ca.Project = "other" },
+		func(ca *GoogleCASCA) { ca.Location = "other" },
+		func(ca *GoogleCASCA) { ca.CAPool = "other" },
+		func(ca *GoogleCASCA) { ca.APIKeyJSON = "other" },
+		func(ca *GoogleCASCA) {
+			ca.APIKeyJSON = `{"private_key":"-----BEGIN PRIVATE KEY-----\nxyz\n","type":"service_account"}`
+		},
+	} {
+		c := a
+		change(&c)
+		require.False(t, a.Equals(&c))
 	}
 }
