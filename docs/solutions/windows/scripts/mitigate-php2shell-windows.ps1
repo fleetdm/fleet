@@ -20,8 +20,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2
 $script:ExitCode = 0
 
-function Log([string]$Message) { Write-Output $Message }
-function Warn([string]$Message) { Write-Output "WARN: $Message"; if ($script:ExitCode -eq 0) { $script:ExitCode = 2 } }
+# Write straight to stdout: Write-Output inside a function that returns a value would be swallowed into that value.
+function Log([string]$Message) { [Console]::Out.WriteLine($Message) }
+function Warn([string]$Message) { [Console]::Out.WriteLine("WARN: $Message"); if ($script:ExitCode -eq 0) { $script:ExitCode = 2 } }
 
 function Get-FixedVersion([version]$v) {
     switch ("$($v.Major).$($v.Minor)") {
@@ -151,6 +152,6 @@ try {
     else { Log 'DONE with warnings (exit 2): read the lines above. The mitigation is partial; replace the build.' }
     exit $script:ExitCode
 } catch {
-    Write-Output "ERROR: $_"
+    [Console]::Out.WriteLine("ERROR: $_")
     exit 1
 }

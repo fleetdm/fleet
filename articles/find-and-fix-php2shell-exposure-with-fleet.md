@@ -85,6 +85,9 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
     ),
     fixed AS (
       SELECT name, pkg, v, substr(v, 1, 3) AS branch,
+        -- Ubuntu security updates always carry "ubuntu" in the version; a GA sync build like
+        -- 8.3.6-0maysync1 does not, and version_compare can't order it against the fixed build
+        (platform = 'ubuntu' AND NOT sury AND NOT upstream AND v NOT LIKE '%ubuntu%') AS ga_build,
         CASE
           -- packages.sury.org and ppa:ondrej/php ship upstream version numbers (EOL branches: patched revisions)
           WHEN sury THEN CASE substr(v, 1, 3)
@@ -154,6 +157,7 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
       SELECT 1 FROM fixed
       -- version_compare treats "9+ubuntu22" as one token and longer tokens win, so turn + and _ into dots first
       WHERE CASE WHEN fixed IS NULL THEN 1
+                 WHEN ga_build THEN 1
                  WHEN version_compare(replace(replace(v, '+', '.'), '_', '.'), replace(replace(fixed, '+', '.'), '_', '.')) < 0 THEN 1
                  ELSE 0 END = 1
     );
@@ -285,23 +289,24 @@ On Linux, add this policy. It passes when the host has no PHP configuration dire
 - name: Linux - PHP session upload progress disabled (PHP2Shell interim mitigation)
   query: |
     WITH conf_dirs AS (
-      SELECT path FROM file
-      WHERE (path LIKE '/etc/php/%/fpm/conf.d' OR path LIKE '/etc/php/%/apache2/conf.d'
-             OR path LIKE '/etc/php/%/cgi/conf.d' OR path LIKE '/etc/php/%/litespeed/conf.d'
-             OR path LIKE '/etc/php/%/embed/conf.d' OR path = '/etc/php.d'
-             OR path LIKE '/etc/php[0-9]/conf.d' OR path LIKE '/etc/php[0-9][0-9]/conf.d'
-             OR path LIKE '/etc/opt/remi/php%/php.d' OR path LIKE '/opt/cpanel/ea-php%/root/etc/php.d'
-             OR path LIKE '/opt/alt/php%/etc/php.d')
-        AND type = 'directory'
+      -- The file table lists directory contents for a LIKE pattern, so collect the parent of every
+      -- file in a PHP configuration directory rather than asking for the directory itself.
+      SELECT DISTINCT directory AS path FROM file
+      WHERE path LIKE '/etc/php/%/%/conf.d/%' OR path LIKE '/etc/php.d/%'
+         OR path LIKE '/etc/php[0-9]/conf.d/%' OR path LIKE '/etc/php[0-9][0-9]/conf.d/%'
+         OR path LIKE '/etc/opt/remi/php%/php.d/%' OR path LIKE '/opt/cpanel/ea-php%/root/etc/php.d/%'
+         OR path LIKE '/opt/alt/php%/etc/php.d/%' OR path LIKE '/usr/local/lsws/lsphp%/etc/php.d/%'
     )
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM conf_dirs d
-      WHERE NOT EXISTS (
-        SELECT 1 FROM file f
-        JOIN file_lines l ON l.path = f.path
-        WHERE f.path = d.path || '/99-php2shell-mitigation.ini'
-          AND l.line LIKE 'session.upload_progress.enabled%0%'
-      )
+      -- file_lines errors on a missing path, so CASE checks the file exists before reading it
+      WHERE CASE
+              WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = d.path || '/99-php2shell-mitigation.ini') THEN 1
+              WHEN NOT EXISTS (SELECT 1 FROM file_lines l
+                               WHERE l.path = d.path || '/99-php2shell-mitigation.ini'
+                                 AND l.line LIKE 'session.upload_progress.enabled%0%') THEN 1
+              ELSE 0
+            END = 1
     );
   critical: false
   description: >-
