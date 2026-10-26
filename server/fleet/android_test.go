@@ -368,6 +368,36 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "ROOT" is not a supported value for "delegatedScopes.1".`,
 		},
 		{
+			name:        "invalid - delegatedScopes empty entry",
+			config:      json.RawMessage(`{"delegatedScopes": ["CERT_INSTALL", ""]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "delegatedScopes.1" can't be empty.`,
+		},
+		{
+			name:        "invalid - delegatedScopes null entry",
+			config:      json.RawMessage(`{"delegatedScopes": [null]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "delegatedScopes.0" can't be empty.`,
+		},
+		{
+			name:        "invalid - permissionGrants null entry",
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}, null]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "permissionGrants.1" can't be empty.`,
+		},
+		{
+			name:        "invalid - installConstraint null entry",
+			config:      json.RawMessage(`{"installConstraint": [null]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installConstraint.0" can't be empty.`,
+		},
+		{
+			name:        "invalid - roles null entry",
+			config:      json.RawMessage(`{"roles": [null]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "roles.0" can't be empty.`,
+		},
+		{
 			name:        "invalid - permissionGrants policy bad value",
 			config:      json.RawMessage(`{"permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}, {"permission": "android.permission.RECORD_AUDIO", "policy": "ALLOW"}]}`),
 			expectError: true,
@@ -451,6 +481,12 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		{
 			name:        "invalid - installPriority above range",
 			config:      json.RawMessage(`{"installPriority": 20000}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installPriority" must be between 0 and 10000.`,
+		},
+		{
+			name:        "invalid - installPriority just above range",
+			config:      json.RawMessage(`{"installPriority": 10001}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "installPriority" must be between 0 and 10000.`,
 		},

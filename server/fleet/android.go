@@ -409,7 +409,8 @@ var androidAppPolicyEnums = map[string][]string{
 // validateAndroidAppPolicyValues checks the enum values and limits Google documents for a single
 // app. Rules that span the policy's apps (e.g. one KIOSK app per policy) are left to Google.
 func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) error {
-	// An empty string is omitted when the policy is sent, so Google applies the default.
+	// An empty string is omitted when the policy is sent, so Google applies the default. List
+	// entries aren't omitted, so empty or null ones are rejected below.
 	checkEnum := func(enumKey, fieldPath, value string) error {
 		if value == "" || slices.Contains(androidAppPolicyEnums[enumKey], value) {
 			return nil
@@ -436,14 +437,20 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	if cfg.CustomAppConfig != nil {
 		return &BadRequestError{Message: `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`}
 	}
+	emptyEntryErr := func(fieldPath string) error {
+		return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q can't be empty.", fieldPath)}
+	}
 	for i, scope := range cfg.DelegatedScopes {
+		if scope == "" {
+			return emptyEntryErr(fmt.Sprintf("delegatedScopes.%d", i))
+		}
 		if err := checkEnum("delegatedScopes", fmt.Sprintf("delegatedScopes.%d", i), scope); err != nil {
 			return err
 		}
 	}
 	for i, grant := range cfg.PermissionGrants {
 		if grant == nil {
-			continue
+			return emptyEntryErr(fmt.Sprintf("permissionGrants.%d", i))
 		}
 		if err := checkEnum("permissionGrants.policy", fmt.Sprintf("permissionGrants.%d.policy", i), grant.Policy); err != nil {
 			return err
@@ -455,7 +462,7 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	}
 	for i, constraint := range cfg.InstallConstraint {
 		if constraint == nil {
-			continue
+			return emptyEntryErr(fmt.Sprintf("installConstraint.%d", i))
 		}
 		for _, field := range []struct{ name, value string }{
 			{"chargingConstraint", constraint.ChargingConstraint},
@@ -471,7 +478,7 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	seenRoles := make(map[string]struct{}, len(cfg.Roles))
 	for i, role := range cfg.Roles {
 		if role == nil {
-			continue
+			return emptyEntryErr(fmt.Sprintf("roles.%d", i))
 		}
 		fieldPath := fmt.Sprintf("roles.%d.roleType", i)
 		if err := checkEnum("roles.roleType", fieldPath, role.RoleType); err != nil {
