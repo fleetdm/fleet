@@ -2270,3 +2270,159 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	}
 	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }
+
+func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
+	t := s.T()
+	ctx := context.Background()
+
+	setValidation := func(on bool) {
+		appConfig, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appConfig.MDM.EnabledAndConfigured = true
+		appConfig.MDM.WindowsEnabledAndConfigured = true
+		appConfig.MDM.EnableProfileValidation = on
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+	}
+	t.Cleanup(func() { setValidation(true) })
+
+	mkMobileconfig := func(name, ident, payloadType, keys string) []byte {
+		return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>%[3]s</string>
+			<key>PayloadIdentifier</key>
+			<string>%[2]s.payload</string>
+			<key>PayloadUUID</key>
+			<string>%[5]s</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			%[4]s
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>%[1]s</string>
+	<key>PayloadIdentifier</key>
+	<string>%[2]s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%[6]s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, name, ident, payloadType, keys, uuid.NewString(), uuid.NewString())
+	}
+	// two wrong-type keys: only the first is reported
+	const badRestrictions = `<key>allowAirDrop</key><string>no</string><key>allowCamera</key><string>no</string>`
+	badApple := func(name, ident string) []byte {
+		return mkMobileconfig(name, ident, "com.apple.applicationaccess", badRestrictions)
+	}
+	declaration := func(ident, payload string) []byte {
+		return fmt.Appendf(nil, `{"Type": "com.apple.configuration.passcode.settings", "Identifier": %q, "Payload": %s}`, ident, payload)
+	}
+	badDecl := func(ident string) []byte { return declaration(ident, `{"MinimumLength": "six"}`) }
+	mkSyncML := func(locURI, data string) []byte {
+		return fmt.Appendf(nil, `<Replace><Item><Target><LocURI>%s</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>%s</Data></Item></Replace>`, locURI, data)
+	}
+	const passwordLength = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
+	badWin := func() []byte { return mkSyncML(passwordLength, "six") }
+
+	const hint = " To skip validation, an admin can turn it off in Organization settings > Advanced options."
+	const appleMsg = `"allowAirDrop" expects a boolean.` + hint
+	const declMsg = `"MinimumLength" expects a number.` + hint
+	const winMsg = `"` + passwordLength + `" expects a number.` + hint
+
+	upload := func(path, fileName string, content []byte, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
+		res := s.DoRawWithHeaders("POST", path, body.Bytes(), wantStatus, headers)
+		if wantStatus != http.StatusOK {
+			return extractServerErrorText(res.Body)
+		}
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	add := func(fileName string, content []byte, wantStatus int) string {
+		return upload("/api/latest/fleet/configuration_profiles", fileName, content, wantStatus)
+	}
+	edit := func(profileUUID, fileName string, content []byte, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
+		res := s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers)
+		if wantStatus != http.StatusOK {
+			return extractServerErrorText(res.Body)
+		}
+		return ""
+	}
+
+	t.Run("setting on rejects wrong types on every add path", func(t *testing.T) {
+		setValidation(true)
+
+		errMsg := add("bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
+		require.NotContains(t, errMsg, "allowCamera")
+
+		errMsg = upload("/api/latest/fleet/mdm/apple/profiles", "bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
+
+		errMsg = add("pv-bad-decl.json", badDecl("com.example.pv.baddecl"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+declMsg)
+
+		errMsg = add("pv-bad-win.xml", badWin(), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+winMsg)
+	})
+
+	t.Run("setting on accepts unknown types, keys, and LocURIs", func(t *testing.T) {
+		setValidation(true)
+
+		add("pv-unknown-key.mobileconfig", mkMobileconfig("pv unknown key", "com.example.pv.unknownkey",
+			"com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`), http.StatusOK)
+		add("pv-unknown-type.mobileconfig", mkMobileconfig("pv unknown type", "com.example.pv.unknowntype",
+			"com.example.not.a.real.type", `<key>anything</key><string>x</string>`), http.StatusOK)
+		add("pv-unknown-decl-key.json", declaration("com.example.pv.unknowndeclkey", `{"MadeUpKey": true}`), http.StatusOK)
+		add("pv-unknown-locuri.xml", mkSyncML("./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting", "1"), http.StatusOK)
+	})
+
+	t.Run("edit skips unchanged content and validates changed content", func(t *testing.T) {
+		// invalid profiles saved while validation was off
+		setValidation(false)
+		appleUUID := add("pv-edit-apple.mobileconfig", badApple("pv edit apple", "com.example.pv.edit"), http.StatusOK)
+		declUUID := add("pv-edit-decl.json", badDecl("com.example.pv.editdecl"), http.StatusOK)
+		winUUID := add("pv-edit-win.xml", badWin(), http.StatusOK)
+		setValidation(true)
+
+		appleProfile, err := s.ds.GetMDMAppleConfigProfile(ctx, appleUUID)
+		require.NoError(t, err)
+		edit(appleUUID, "pv-edit-apple.mobileconfig", appleProfile.Mobileconfig, http.StatusOK)
+		changed := badApple("pv edit apple", "com.example.pv.edit")
+		require.NotEqual(t, appleProfile.Mobileconfig, changed) // fresh PayloadUUIDs
+		require.Contains(t, edit(appleUUID, "pv-edit-apple.mobileconfig", changed, http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+appleMsg)
+
+		edit(declUUID, "pv-edit-decl.json", badDecl("com.example.pv.editdecl"), http.StatusOK)
+		require.Contains(t, edit(declUUID, "pv-edit-decl.json", declaration("com.example.pv.editdecl", `{"MinimumLength": "seven"}`), http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+declMsg)
+
+		edit(winUUID, "pv-edit-win.xml", badWin(), http.StatusOK)
+		require.Contains(t, edit(winUUID, "pv-edit-win.xml", mkSyncML(passwordLength, "seven"), http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+winMsg)
+	})
+
+	t.Run("setting off saves invalid profiles but keeps structural checks", func(t *testing.T) {
+		setValidation(false)
+
+		add("pv-off-apple.mobileconfig", badApple("pv off apple", "com.example.pv.off"), http.StatusOK)
+		add("pv-off-decl.json", badDecl("com.example.pv.offdecl"), http.StatusOK)
+		add("pv-off-win.xml", badWin(), http.StatusOK)
+
+		errMsg := add("pv-off-filevault.mobileconfig", mkMobileconfig("pv off filevault", "com.example.pv.filevault",
+			mobileconfig.FleetFileVaultPayloadType, ""), http.StatusBadRequest)
+		require.Contains(t, errMsg, "can't include FileVault settings")
+		errMsg = add("pv-off-bitlocker.xml", syncMLForTest(syncml.FleetBitLockerTargetLocURI), http.StatusBadRequest)
+		require.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
+	})
+}

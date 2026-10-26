@@ -1,11 +1,16 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // profileValidationTypeWords maps Apple schema types and Windows DDF formats to
@@ -92,4 +97,105 @@ func profileValidationEditMessage(f profilevalidation.Finding, windows bool) str
 func profileValidationBatchMessage(profileName string, f profilevalidation.Finding, windows bool) string {
 	return fmt.Sprintf("Couldn't edit configuration_profiles. \"%s\": %s To skip validation, set `enable_profile_validation` to false in your GitOps configuration.",
 		profileName, profileValidationSentence(f, windows))
+}
+
+var loadProfileValidationSchemaOnce sync.Once
+
+// currentProfileValidationSchema returns the loaded schema. serve loads it at
+// startup; this loads it on first use for test services that don't.
+func currentProfileValidationSchema() *profilevalidation.ProfileValidationSchema {
+	loadProfileValidationSchemaOnce.Do(func() {
+		if profilevalidation.Current() == nil {
+			_ = profilevalidation.ParseProfileValidationSchema()
+		}
+	})
+	return profilevalidation.Current()
+}
+
+type profileSchemaKind int
+
+const (
+	profileSchemaAppleProfile profileSchemaKind = iota
+	profileSchemaAppleDeclaration
+	profileSchemaWindowsProfile
+)
+
+// profileValidationError carries the first schema finding for a profile. It
+// never holds profile content, so it's safe for expanded profiles with secrets.
+type profileValidationError struct {
+	finding profilevalidation.Finding
+	windows bool
+}
+
+func (e *profileValidationError) Error() string {
+	return profileValidationSentence(e.finding, e.windows)
+}
+
+// lenientProfileValidationMode returns the mode for an admin-uploaded profile:
+// lenient when the setting is on, nil (skip) when it's off.
+func (svc *Service) lenientProfileValidationMode(ctx context.Context) (*profilevalidation.Mode, error) {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config for profile validation")
+	}
+	if !appCfg.MDM.EnableProfileValidation {
+		return nil, nil
+	}
+	return new(profilevalidation.ModeLenient), nil
+}
+
+// validateProfileSchema runs schema validation in mode (nil skips it), logs
+// every finding, and returns the first as a *profileValidationError.
+func (svc *Service) validateProfileSchema(ctx context.Context, kind profileSchemaKind, data []byte, mode *profilevalidation.Mode, name string, teamID uint) error {
+	if mode == nil {
+		return nil
+	}
+	schema := currentProfileValidationSchema()
+	if schema == nil {
+		svc.logger.ErrorContext(ctx, "profile schema validation skipped: schema not loaded")
+		return nil
+	}
+	var findings []profilevalidation.Finding
+	var err error
+	switch kind {
+	case profileSchemaAppleProfile:
+		findings, err = schema.ValidateAppleProfile(data, *mode)
+	case profileSchemaAppleDeclaration:
+		findings, err = schema.ValidateAppleDeclaration(data, *mode)
+	case profileSchemaWindowsProfile:
+		findings, err = schema.ValidateWindowsProfile(data, *mode)
+	}
+	if err != nil {
+		// The structural checks already accepted the profile. The error isn't
+		// logged because its text can quote profile content.
+		svc.logger.InfoContext(ctx, "profile schema validation skipped: profile not readable by validator",
+			"profile_name", name, "team_id", teamID)
+		return nil
+	}
+	v := schema.Version
+	for _, f := range findings {
+		svc.logger.DebugContext(ctx, "profile schema validation finding",
+			"code", f.Code, "payload_type", f.PayloadType, "key_path", f.KeyPath,
+			"expected", f.Expected, "actual", f.Actual,
+			"profile_name", name, "team_id", teamID, "strict", *mode == profilevalidation.ModeStrict,
+			"apple_release", v.Apple.Release, "windows_release", v.Windows.Release)
+	}
+	if len(findings) == 0 {
+		return nil
+	}
+	return &profileValidationError{finding: findings[0], windows: kind == profileSchemaWindowsProfile}
+}
+
+// profileValidationUserError turns a *profileValidationError from the single
+// add/edit paths into the 422 the UI shows as its toast; other errors pass through.
+func profileValidationUserError(err error, edit bool) error {
+	var pvErr *profileValidationError
+	if !errors.As(err, &pvErr) {
+		return err
+	}
+	msg := profileValidationAddMessage(pvErr.finding, pvErr.windows)
+	if edit {
+		msg = profileValidationEditMessage(pvErr.finding, pvErr.windows)
+	}
+	return fleet.NewInvalidArgumentError("profile", msg)
 }

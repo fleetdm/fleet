@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -33,9 +34,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ", validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	cp.Description = description
 	cp.Hidden = hidden
@@ -74,7 +79,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
-func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string, validation *profilevalidation.Mode) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -167,6 +172,10 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
+	if err := svc.validateProfileSchema(ctx, profileSchemaWindowsProfile, cp.SyncML, validation, cp.Name, teamID); err != nil {
+		return nil, nil, "", err
+	}
+
 	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "handling windows profile software update")
 	}
@@ -232,9 +241,15 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.SyncML) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ", validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 	} else {
 		// no new content -- only labels are being changed.

@@ -197,16 +197,16 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 	case generated.ProfileType == "mobileconfig" && platform == fleet.AutofillConfigProfilePlatformApple:
 		result.Type = fleet.AutofillConfigProfileTypeMobileconfig
 		var cp *fleet.MDMAppleConfigProfile
-		cp, _, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil)
+		cp, _, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil, nil)
 		if err == nil {
 			result.Name = &cp.Name
 		}
 	case generated.ProfileType == "ddm" && platform == fleet.AutofillConfigProfilePlatformApple:
 		result.Type = fleet.AutofillConfigProfileTypeDeclaration
-		_, _, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil)
+		_, _, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil, nil)
 	case generated.ProfileType == "csp" && platform == fleet.AutofillConfigProfilePlatformWindows:
 		result.Type = fleet.AutofillConfigProfileTypeWindows
-		_, _, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, autofillWindowsProfileCheckName, data, nil, fleet.LabelsIncludeAll, nil, "Couldn't add. ")
+		_, _, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, autofillWindowsProfileCheckName, data, nil, fleet.LabelsIncludeAll, nil, "Couldn't add. ", nil)
 	default:
 		return nil, autofillUnreadableError(ctx, fleet.AutofillConfigProfileContentErrorMessage,
 			errors.New("unexpected profile type "+generated.ProfileType+" for platform "+platform))
