@@ -2,7 +2,9 @@ import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { createMockConfig } from "__mocks__/configMock";
 import Avatar from "components/Avatar";
+import { AppContext, initialState } from "context/app";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 // @ts-ignore
@@ -24,6 +26,26 @@ const options = [
     onClick: noop,
   },
 ];
+
+// Wraps stories in an AppContext with GitOps mode enabled so disabled
+// GitOps-compatible options render their tooltip.
+const withGitOpsMode = (Story: React.ComponentType) => (
+  <AppContext.Provider
+    value={{
+      ...initialState,
+      config: createMockConfig({
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-config",
+        },
+      }),
+    }}
+  >
+    <div style={{ padding: 24 }}>
+      <Story />
+    </div>
+  </AppContext.Provider>
+);
 
 const meta: Meta<typeof DropdownButton> = {
   component: DropdownButton,
@@ -70,5 +92,27 @@ export const Disabled: Story = {
   args: {
     ...Default.args,
     disabled: true,
+  },
+};
+
+export const GitOpsDisabledItems: Story = {
+  name: "GitOps mode (disabled GitOps-compatible items show tooltip)",
+  decorators: [withGitOpsMode],
+  args: {
+    children: "More options",
+    options: [
+      {
+        label: "Rename fleet",
+        onClick: noop,
+        disabled: true,
+        gitOpsModeCompatible: true,
+      },
+      {
+        label: "Delete fleet",
+        onClick: noop,
+        disabled: true,
+        gitOpsModeCompatible: true,
+      },
+    ],
   },
 };
