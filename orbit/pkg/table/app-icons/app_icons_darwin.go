@@ -10,15 +10,23 @@ package appicons
 #import <Appkit/AppKit.h>
 #include <stdlib.h>
 void Icon(CFDataRef *iconDataRef, char* path) {
-	NSString *appPath = [[NSString stringWithUTF8String:path] stringByStandardizingPath];
-	NSImage *img = [[NSWorkspace sharedWorkspace] iconForFile:appPath];
+	// Go threads have no autorelease pool, so drain autoreleased objects here.
+	@autoreleasepool {
+		NSString *appPath = [[NSString stringWithUTF8String:path] stringByStandardizingPath];
+		NSImage *img = [[NSWorkspace sharedWorkspace] iconForFile:appPath];
 
-	//request 128x128 since we are going to resize the icon
-	NSRect targetFrame = NSMakeRect(0, 0, 128, 128);
-	CGImageRef cgref = [img CGImageForProposedRect:&targetFrame context:nil hints:nil];
-	NSBitmapImageRep *brep = [[NSBitmapImageRep alloc] initWithCGImage:cgref];
-	NSData *imageData = [brep TIFFRepresentation];
-	*iconDataRef = (CFDataRef)imageData;
+		//request 128x128 since we are going to resize the icon
+		NSRect targetFrame = NSMakeRect(0, 0, 128, 128);
+		CGImageRef cgref = [img CGImageForProposedRect:&targetFrame context:nil hints:nil];
+		if (cgref == NULL) {
+			*iconDataRef = NULL;
+			return;
+		}
+		NSBitmapImageRep *brep = [[NSBitmapImageRep alloc] initWithCGImage:cgref];
+		// Retain so the caller owns the data and can CFRelease it.
+		*iconDataRef = (CFDataRef)[[brep TIFFRepresentation] retain];
+		[brep release];
+	}
 }
 */
 import (
@@ -83,7 +91,10 @@ func getAppIcon(appPath string, queryContext table.QueryContext) (image.Image, u
 	var data C.CFDataRef
 	cPath := C.CString(appPath)
 	defer C.free(unsafe.Pointer(cPath))
-	C.Icon(&data, cPath)
+	C.Icon(&data, cPath) //nolint:gocritic // ignore dupSubExpr
+	if data == 0 {
+		return nil, 0, errors.New("getting icon image data")
+	}
 	defer C.CFRelease(C.CFTypeRef(data))
 
 	tiffBytes := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
