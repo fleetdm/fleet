@@ -10,6 +10,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// mobilePlatformsSQLList lists the platforms that don't run osquery and so
+// can't be targeted by live reports.
+const mobilePlatformsSQLList = "('ios','ipados','android')"
+
 func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
@@ -34,7 +38,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 			COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`+hostMDMSeenTimeJoin+`
-		WHERE h.platform NOT IN ('ios','ipados','android') AND %s AND %s`,
+		WHERE h.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s`,
 		fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
@@ -139,7 +143,7 @@ func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilt
 	sql := fmt.Sprintf(`
 			SELECT DISTINCT id
 			FROM hosts
-			WHERE hosts.platform NOT IN ('ios','ipados','android') AND %s AND %s
+			WHERE hosts.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s
 			ORDER BY id ASC
 		`,
 		queryTargetLogicCondition,

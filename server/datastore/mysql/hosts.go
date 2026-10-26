@@ -3634,7 +3634,7 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 	platformFilter := "TRUE"
 	if excludeMobile {
-		platformFilter = "h.platform NOT IN ('ios','ipados','android')"
+		platformFilter = "h.platform NOT IN " + mobilePlatformsSQLList
 	}
 
 	query := `SELECT
