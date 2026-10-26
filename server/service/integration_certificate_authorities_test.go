@@ -3000,7 +3000,7 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 
 	// Editing a template doesn't contact EJBCA and keeps the stored credential.
 	editURL := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
-	requests := len(fake.Requests())
+	requests := fake.RequestCount()
 	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}, http.StatusOK)
 	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 	require.Len(t, fake.Requests(), requests)
@@ -3080,7 +3080,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 
 	fake := ejbcatest.New(t, nil)
 	scepServer := scep_server.StartTestSCEPServer(t)
-	t.Cleanup(scepServer.Close)
 	const p12Password = "p12-password"
 	expiry := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
 	ejbcaSpec := func(name, p12 string) fleet.EJBCA {
@@ -3139,7 +3138,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	added := s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 
 	// The same spec changes nothing and doesn't contact EJBCA.
-	requests := len(fake.Requests())
+	requests := fake.RequestCount()
 	apply(false, http.StatusOK, wifi)
 	require.Len(t, fake.Requests(), requests)
 	s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), "", added)
@@ -3147,7 +3146,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	// A changed field is validated again and stored.
 	wifi.CertificateCommonName = "new-common-name"
 	apply(false, http.StatusOK, wifi)
-	require.Greater(t, len(fake.Requests()), requests)
+	require.Greater(t, fake.RequestCount(), requests)
 	require.Equal(t, "new-common-name", stored()[0].CertificateCommonName)
 	edited := s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 
