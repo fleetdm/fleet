@@ -6,6 +6,7 @@ import (
 	"crypto/md5" //nolint:gosec // content comparison, not security
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"sync"
@@ -172,16 +173,22 @@ func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profi
 	case profileSchemaWindowsProfile:
 		findings, err = schema.ValidateWindowsProfile(data, mode)
 	}
+	// Strict mode checks AI-generated profiles, whose findings should be visible;
+	// lenient findings are the admin's own content, and can be fixed and then re-tried easily.
+	level := slog.LevelDebug
+	if mode == profilevalidation.ModeStrict {
+		level = slog.LevelWarn
+	}
 	if err != nil {
 		// The structural checks already accepted the profile. The error isn't
 		// logged because its text can quote profile content.
-		svc.logger.InfoContext(ctx, "profile schema validation skipped: profile not readable by validator",
+		svc.logger.Log(ctx, max(level, slog.LevelInfo), "profile schema validation skipped: profile not readable by validator",
 			"profile_name", name, "team_id", teamID)
 		return nil
 	}
 	v := schema.Version
 	for _, f := range findings {
-		svc.logger.DebugContext(ctx, "profile schema validation finding",
+		svc.logger.Log(ctx, level, "profile schema validation finding",
 			"code", f.Code, "payload_type", f.PayloadType, "key_path", f.KeyPath,
 			"expected", f.Expected, "actual", f.Actual,
 			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict,
