@@ -8225,9 +8225,10 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			wantDetail: "The device is not supervised.",
 		},
 		{
-			name:       "command format error fails without retry",
+			name:       "command format error without an error chain fails without retry",
 			status:     fleet.MDMAppleStatusCommandFormatError,
 			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "Settings command returned status CommandFormatError.",
 		},
 		{
 			name:         "stale result for a superseded command is ignored",
