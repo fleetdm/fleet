@@ -24,7 +24,7 @@ Docs are organized by feature. Each feature directory holds all of that feature'
 - [Software](software/README.md) - Software inventory, installation, and updates
 - [Vulnerability management](vulnerability-management/README.md) - Vulnerability detection and reporting
 - [Automations](automations/README.md) - Policy and software automations, webhooks, calendar
-- [Reports](reports/README.md) - Live and scheduled queries, query packs
+- [Reports](reports/README.md) - Live and scheduled queries
 - [Host vitals](host-vitals/README.md) - Host detail queries
 - [Fleets and access control](fleets/README.md) - Fleets (formerly "teams") and RBAC
 
