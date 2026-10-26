@@ -91,7 +91,6 @@ module.exports = {
       'allenhouchins',
       'harrisonravazzolo',
       'tux234',
-      'ksykulev',
       'mason-buettner',
       'BCTBB',
       'kc9wwh',

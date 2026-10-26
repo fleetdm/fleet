@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"slices"
 	"time"
 
@@ -30,7 +29,6 @@ type SoftwareWorker struct {
 	AndroidModule    android.Service
 	Log              *slog.Logger
 	AndroidBatchSize int
-	VPPInstaller     fleet.AppleMDMVPPInstaller
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -45,8 +43,8 @@ const (
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
-	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"
-	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch"
+	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"       // deprecated
+	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch" // deprecated
 )
 
 type softwareWorkerArgs struct {
@@ -78,12 +76,7 @@ type softwareWorkerArgs struct {
 	// for which the app to make unavailable applies.
 	HostUUIDToPolicyID map[string]string `json:"host_uuid_to_policy_id,omitempty"`
 
-	FleetID                 uint                            `json:"fleet_id,omitempty"`
-	Platform                fleet.InstallableDevicePlatform `json:"platform,omitempty"`
-	ConfigChangedAppTeamIDs []uint                          `json:"config_changed_app_team_ids,omitempty"` //nolint:apiparamcheck // "team" is from the vpp_apps_teams table, not a fleet
-	VersionLabelsChanged    bool                            `json:"version_labels_changed,omitempty"`
-	// HostIDs is empty for every host of the fleet.
-	HostIDs []uint `json:"host_ids,omitempty"`
+	VersionLabelsChanged bool `json:"version_labels_changed,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -156,11 +149,10 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			args.EnterpriseName,
 		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
-	case resendVPPAppConfigurationTask:
-		return ctxerr.Wrapf(ctx, v.resendVPPAppConfiguration(ctx, args), "running %s task", resendVPPAppConfigurationTask)
-
-	case resendVPPAppConfigurationBatchTask:
-		return ctxerr.Wrapf(ctx, v.resendVPPAppConfigurationBatch(ctx, args), "running %s task", resendVPPAppConfigurationBatchTask)
+	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
+		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
+		// kept here in case some pending jobs are still in the queue.
+		return nil
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -340,70 +332,68 @@ func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicat
 	return nil
 }
 
-func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, hostUUID string, enterpriseName, policyID string) error {
-	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
-		var policy androidmanagement.Policy
-		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
-			DeviceSettingsEnabled:        true,
-			MemoryInfoEnabled:            true,
-			NetworkInfoEnabled:           true,
-			DisplayInfoEnabled:           true,
-			PowerManagementEventsEnabled: true,
-			HardwareStatusEnabled:        true,
-			SystemPropertiesEnabled:      true,
-			SoftwareInfoEnabled:          true,
-			CommonCriteriaModeEnabled:    true,
-			ApplicationReportsEnabled:    true,
-			ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
-		}
+// prepareHostSpecificPolicy sets the settings of the host-specific policy before the device is moved to it.
+func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID string, enterpriseName string) error {
+	var policy androidmanagement.Policy
+	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+		DeviceSettingsEnabled:        true,
+		MemoryInfoEnabled:            true,
+		NetworkInfoEnabled:           true,
+		DisplayInfoEnabled:           true,
+		PowerManagementEventsEnabled: true,
+		HardwareStatusEnabled:        true,
+		SystemPropertiesEnabled:      true,
+		SoftwareInfoEnabled:          true,
+		CommonCriteriaModeEnabled:    true,
+		ApplicationReportsEnabled:    true,
+		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+	}
 
-		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
-		if err != nil {
-			return err
-		}
+	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
+	_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+	if err != nil {
+		return err
+	}
 
-		// That patch replaces every setting of the host policy, which a re-enrolled host
-		// reuses and the profile reconciler may already have filled for this enrollment,
-		// so have the reconciler send the host's profiles again.
-		if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
-		}
+	// That patch replaces every setting of the host policy, which a re-enrolled host
+	// reuses and the profile reconciler may already have filled for this enrollment,
+	// so have the reconciler send the host's profiles again.
+	if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
+		return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
+	}
 
-		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
-		}
-
-		device := &androidmanagement.Device{
-			PolicyName: policyName,
-			// State must be specified when updating a device, otherwise it fails with
-			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
-			//
-			// > Note that when calling enterprises.devices.patch, ACTIVE and
-			// > DISABLED are the only allowable values.
-
-			// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
-			// we probably don't want to re-enable it by accident. Those are the only
-			// 2 valid states when patching a device.
-			State: "ACTIVE",
-		}
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
-		}
-		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
-		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
-		if err != nil {
-			return err
-		}
+	err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 	}
 	return nil
 }
 
+func (v *SoftwareWorker) moveDeviceToHostSpecificPolicy(ctx context.Context, androidHost *fleet.AndroidHost, enterpriseName string) error {
+	device := &androidmanagement.Device{
+		PolicyName: fmt.Sprintf("%s/policies/%s", enterpriseName, androidHost.Host.UUID),
+		// State must be specified when updating a device, otherwise it fails with
+		// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+		//
+		// > Note that when calling enterprises.devices.patch, ACTIVE and
+		// > DISABLED are the only allowable values.
+
+		// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+		// we probably don't want to re-enable it by accident. Those are the only
+		// 2 valid states when patching a device.
+		State: "ACTIVE",
+	}
+	deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
+	_, err := v.AndroidModule.PatchDevice(ctx, androidHost.Host.UUID, deviceName, device)
+	return err
+}
+
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-	if err := v.ensureHostSpecificPolicyIsApplied(ctx, hostUUID, enterpriseName, policyID); err != nil {
-		return ctxerr.Wrapf(ctx, err, "ensuring host-specific policy is applied for host %s", hostUUID)
+	onDefaultPolicy := policyID == fmt.Sprint(android.DefaultAndroidPolicyID)
+	if onDefaultPolicy {
+		if err := v.prepareHostSpecificPolicy(ctx, hostUUID, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
@@ -414,10 +404,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
-	}
-
-	if len(appsInScope) == 0 {
-		return nil
 	}
 
 	appIDs := make([]string, 0, len(appsInScope))
@@ -432,19 +418,56 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+	// Substitute per app, so that an app this host can't supply a referenced value for
+	// doesn't keep the rest from replacing the previous enrollment's apps, nor the device
+	// from moving to its host policy. Whichever value is missing has its own resend trigger.
+	substitutionHost := androidHostToSubstitutionHost(androidHost)
+	availableAppIDs := make([]string, 0, len(appIDs))
+	for _, appID := range appIDs {
+		config, ok := configsByAppID[appID]
+		if !ok {
+			availableAppIDs = append(availableAppIDs, appID)
+			continue
+		}
+		substituted, err := v.substituteFleetVarsInConfigs(ctx, map[string][]byte{appID: config}, substitutionHost)
+		if err != nil {
+			if isUnresolvableAndroidAppConfigForHost(err) {
+				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
+					"host_uuid", hostUUID, "application_id", appID, "err", err)
+				continue
+			}
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+		}
+		configsByAppID[appID] = substituted[appID]
+		availableAppIDs = append(availableAppIDs, appID)
 	}
 
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, availableAppIDs, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	// A re-enrolled host reuses its host policy, which still lists the apps of its
+	// previous enrollment, so replace the list instead of adding to it, before the
+	// device is moved to that policy. Fail rather than continue without the Fleet
+	// Agent, as replacing would remove it.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		return ctxerr.Wrapf(ctx, err, "build fleet agent application policy for host %s", hostUUID)
+	}
+	if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
+	}
+
+	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set apps for android policy")
+	}
+
+	if onDefaultPolicy {
+		if err := v.moveDeviceToHostSpecificPolicy(ctx, androidHost, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "moving device to host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	return nil
@@ -957,178 +980,6 @@ func QueueMakeAndroidAppAvailableForHostsJob(ctx context.Context, ds fleet.Datas
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queue batch for make android app available for hosts")
 		}
-	}
-	return nil
-}
-
-func QueueResendVPPAppConfigurationJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
-	args := &softwareWorkerArgs{
-		Task:                    resendVPPAppConfigurationTask,
-		ApplicationID:           appID.AdamID,
-		Platform:                appID.Platform,
-		FleetID:                 fleetID,
-		ConfigChangedAppTeamIDs: configChangedAppTeamIDs,
-		VersionLabelsChanged:    versionLabelsChanged,
-		HostIDs:                 hostIDs,
-	}
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
-	return nil
-}
-
-func (v *SoftwareWorker) resendVPPAppConfiguration(ctx context.Context, args softwareWorkerArgs) error {
-	// This task only queues installs. Leave hosts alone when every version of the app is deleted or the host is in
-	// scope for no version, a configuration re-send never removes the app from a host.
-	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
-	}
-	versions, err := v.Datastore.GetAppStoreAppVersionsByTeamAndTitleID(ctx, args.FleetID, app.TitleID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app versions for configuration resend")
-	}
-	installedVersionByHostID, err := v.Datastore.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, args.FleetID, args.HostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list hosts with app store app installs")
-	}
-
-	installedHostIDs := slices.Collect(maps.Keys(installedVersionByHostID))
-
-	// Give each host the first version that includes it, versions are ordered by id. The batches install the version picked here.
-	hostIDsByVersionID := make(map[uint][]uint, len(versions))
-	assignedHostIDs := make(map[uint]struct{}, len(installedVersionByHostID))
-	var includedHostIDs map[uint]struct{}
-	for _, version := range versions {
-		includedHostIDs, err = v.Datastore.GetIncludedHostIDMapForVPPAppHosts(ctx, version.VPPAppsTeamsID, installedHostIDs)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get hosts in scope of vpp app version %d", version.VPPAppsTeamsID)
-		}
-		for hostID, installedVersionID := range installedVersionByHostID {
-			_, assigned := assignedHostIDs[hostID]
-			if assigned {
-				continue
-			}
-			_, included := includedHostIDs[hostID]
-			if !included {
-				continue
-			}
-			assignedHostIDs[hostID] = struct{}{}
-
-			switch {
-			// Re-send to hosts whose version's configuration changed
-			case slices.Contains(args.ConfigChangedAppTeamIDs, version.VPPAppsTeamsID):
-			// Re-send to hosts whose label scoping now gives them a different version than the one installed
-			case args.VersionLabelsChanged && !ptr.Equal(installedVersionID, &version.VPPAppsTeamsID):
-			// Re-send to hosts whose installed version was deleted and whose label scoping gives them another version
-			case len(args.ConfigChangedAppTeamIDs) == 0 && installedVersionID == nil:
-			default:
-				continue
-			}
-			hostIDsByVersionID[version.VPPAppsTeamsID] = append(hostIDsByVersionID[version.VPPAppsTeamsID], hostID)
-		}
-	}
-
-	// Queue staggered batch jobs per version so each job installs one version on a bounded number of hosts
-	var batchIndex int
-	for _, version := range versions {
-		hostIDs := hostIDsByVersionID[version.VPPAppsTeamsID]
-		slices.Sort(hostIDs)
-		for batchHostIDs := range slices.Chunk(hostIDs, defaultAndroidBatchSize) {
-			batchArgs := args
-			batchArgs.Task = resendVPPAppConfigurationBatchTask
-			batchArgs.AppTeamID = version.VPPAppsTeamsID
-			batchArgs.HostIDs = batchHostIDs
-			delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
-			_, err = QueueJobWithDelay(ctx, v.Datastore, softwareWorkerJobName, &batchArgs, delay)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queue batch for resend vpp app configuration")
-			}
-			batchIndex++
-		}
-	}
-	return nil
-}
-
-func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, args softwareWorkerArgs) error {
-	if v.VPPInstaller == nil {
-		// should be unreachable
-		return errors.New("VPP installer not configured")
-	}
-
-	// Skip the batch when its version was deleted after it was queued, a configuration re-send never removes the app
-	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
-	}
-	vppApp, err := v.Datastore.GetVPPAppByTeamAndTitleID(ctx, &args.FleetID, app.TitleID, args.AppTeamID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrapf(ctx, err, "get vpp app version %d", args.AppTeamID)
-	}
-
-	// Skip hosts with an install of this version that hasn't activated yet, it reads the configuration when it activates.
-	// A retry of this batch skips the hosts it already queued, unless their install activated in between, which only
-	// happens when activity.fleet_initiated_release_per_minute is 0.
-	hostIDsWithUnactivatedInstall, err := v.Datastore.GetHostIDsWithUnactivatedVPPAppInstall(ctx, args.AppTeamID, args.HostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get hosts with unactivated vpp app install")
-	}
-
-	var retryHostIDs []uint
-	var host *fleet.Host
-	var token string
-	for _, hostID := range args.HostIDs {
-		_, installUnactivated := hostIDsWithUnactivatedInstall[hostID]
-		if installUnactivated {
-			continue
-		}
-		host, err = v.Datastore.Host(ctx, hostID)
-		if err != nil {
-			if fleet.IsNotFound(err) {
-				continue
-			}
-			return ctxerr.Wrapf(ctx, err, "get host %d", hostID)
-		}
-		// Skip hosts that left the fleet after the batch was queued
-		if ptr.ValOrZero(host.TeamID) != args.FleetID {
-			continue
-		}
-
-		token, err = v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-		if err == nil {
-			_, err = v.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
-				ForConfigurationResend: true,
-			})
-		}
-		if err != nil {
-			// Skip hosts that can't take the install, such as hosts without MDM or a license, and retry the batch for
-			// other failures, such as an error from Apple
-			var clientErr fleet.ErrWithIsClientError
-			if errors.As(err, &clientErr) && clientErr.IsClientError() {
-				v.Log.WarnContext(ctx, "skipping vpp app configuration resend for host", "host_id", hostID, "adam_id", app.AdamID, "err", err)
-				continue
-			}
-			v.Log.ErrorContext(ctx, "resend vpp app configuration", "host_id", hostID, "adam_id", app.AdamID, "err", err)
-			retryHostIDs = append(retryHostIDs, hostID)
-		}
-	}
-	if len(retryHostIDs) > 0 {
-		return ctxerr.Errorf(ctx, "resend vpp app configuration failed for hosts %v", retryHostIDs)
 	}
 	return nil
 }

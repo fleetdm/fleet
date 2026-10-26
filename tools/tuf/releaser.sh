@@ -134,6 +134,7 @@ update_osquery_schema_and_flags () {
     popd
     git add ./website/config/custom.js
     git add ./schema/osquery_fleet_schema.json
+    git add ./cmd/fleet-mcp/osquery_fleet_schema.json
 
     # 2. Update cli/flags.
     "$GO_TOOLS_DIRECTORY/replace" ./tools/osquery-agent-options/main.go "osqueryVersion = .+\n" "osqueryVersion = \"$version\"\n"
@@ -471,20 +472,6 @@ elif [[ $ACTION == "release-to-production" ]]; then
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
-    pushd website
-    # Strip leading 'v' from `node --version` and get major
-    NODE_VERSION=$(node --version | sed 's/^v//')
-    NODE_MAJOR=${NODE_VERSION%%.*}
-    EXPECTED_NODE_RANGE=$(jq -r '.engines.node' package.json)
-    # Extract the first numeric sequence (major) from the range, e.g., 24 from "^24.10.0"
-    EXPECTED_MAJOR=$(echo "$EXPECTED_NODE_RANGE" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
-    if [[ "$NODE_MAJOR" != "$EXPECTED_MAJOR" ]]; then
-      echo "Your Node.js $NODE_VERSION does not satisfy engines.node ($EXPECTED_NODE_RANGE)."
-      echo "Please use Node $EXPECTED_MAJOR.x (e.g., 24.10.0)."
-      exit 1
-    fi
-    popd
-
     update_osquery_schema_and_flags "$VERSION"
 else
     echo "Unsupported action: $ACTION"

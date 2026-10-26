@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "3.8.6.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.' AND version_compare(version, '3.8.6.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'splashtop streamer.exe');"
+      },
+      "installer_url": "https://download.splashtop.com/win/Splashtop_Streamer_Win_INSTALLER_v3.8.6.3.exe",
+      "install_script_ref": "574847c1",
+      "uninstall_script_ref": "b4da9e5f",
+      "sha256": "8a1e503ab9b8fd0519fd88246f7f2981cdacb3b06dff5a00b0724e32b8c34a0d",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "574847c1": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Splashtop's installer wraps a per-machine MSI and uses its own switches.\n# To link the streamer to a Splashtop Business account, add your deployment\n# code to the parameter list: \"hidewindow=1,dcode=XXXXXXXXXXXX,confirm_d=0\".\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n$softwareName = \"Splashtop Streamer\"\n$successCodes = @(0, 3010, 1641)\n\n$uninstallPaths = @(\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\nfunction Test-StreamerRegistered {\n  $entry = Get-ItemProperty -Path $uninstallPaths -ErrorAction SilentlyContinue |\n    Where-Object { $_.DisplayName -eq $softwareName -and $_.DisplayVersion } |\n    Select-Object -First 1\n  if (-not $entry) { return $false }\n  $installed = $null\n  if (-not [version]::TryParse($entry.DisplayVersion, [ref]$installed)) { return $false }\n  return $installed -ge $targetVersion\n}\n\ntry {\n\n# An older Streamer stays registered until the inner MSI replaces it, so wait\n# for at least the installer's own version.\n$vi = (Get-Item -LiteralPath $exeFilePath).VersionInfo\n$targetVersion = [version]::new($vi.ProductMajorPart, $vi.ProductMinorPart, $vi.ProductBuildPart, $vi.ProductPrivatePart)\nWrite-Host \"Installer version: $targetVersion\"\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"prevercheck /s /i hidewindow=1\" `\n  -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($successCodes -notcontains $exitCode) { Exit $exitCode }\n\n# The wrapper can exit before the inner MSI finishes registering.\n$deadline = (Get-Date).AddSeconds(180)\nwhile ((Get-Date) -lt $deadline) {\n  if (Test-StreamerRegistered) {\n    Write-Host \"$softwareName $targetVersion or later is registered.\"\n    Exit 0\n  }\n  Start-Sleep -Seconds 5\n}\n\nWrite-Host \"Timed out waiting for $softwareName $targetVersion to register in Programs and Features.\"\nExit 1\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b4da9e5f": "$softwareName = \"Splashtop Streamer\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$successCodes = @(0, 3010, 1641)\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName } | Select-Object -First 1\nif (-not $selected) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\n# The ARP key name is the MSI ProductCode; fall back to the GUID in UninstallString.\n$productCode = $selected.PSChildName\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    $raw = $selected.UninstallString\n    if ($raw -match '(\\{[0-9A-Fa-f-]+\\})') { $productCode = $matches[1] }\n}\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    Write-Host \"Could not determine ProductCode for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstalling product code: $productCode\"\n$process = Start-Process msiexec.exe `\n    -ArgumentList \"/x $productCode /qn /norestart\" `\n    -NoNewWindow -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($successCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n"
+  }
+}
