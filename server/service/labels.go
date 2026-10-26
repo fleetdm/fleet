@@ -783,8 +783,8 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
-	// Label names are unique under the name column's collation, so a spec equal to another spec or to a built-in label under it
-	// would be upserted into that label's row. IsReservedLabelName above only catches case variants of built-in names.
+	// The name column's collation also ignores accents and trailing spaces, so compare names in MySQL; a spec matching another spec or a
+	// built-in label would be upserted into that label's row. IsReservedLabelName only catches case variants.
 	regularSpecNames := make([]string, 0, len(regularSpecs))
 	for _, s := range regularSpecs {
 		regularSpecNames = append(regularSpecNames, s.Name)
@@ -795,7 +795,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return ctxerr.Wrap(ctx, err, "checking for duplicate label names")
 	}
 	for _, group := range equalNameGroups {
-		// indices past the specs are reserved names, which sort after the spec they collide with
+		// The compared names are the specs followed by the built-in names, and each group's indices are sorted. So a group that
+		// starts past the specs holds only built-in names and involves no spec.
+		if group.Indices[0] >= len(regularSpecNames) {
+			continue
+		}
 		if last := group.Indices[len(group.Indices)-1]; last >= len(regularSpecNames) {
 			return fleet.NewUserMessageError(
 				ctxerr.Errorf(ctx, "cannot add label '%s' because it conflicts with the name of a built-in label",
