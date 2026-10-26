@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -5330,6 +5331,12 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Zero(t, versionCount)
 	}
+
+	// names equal by case, accents or trailing spaces are grouped, names too long for the column never are
+	longName := strings.Repeat("a", 256)
+	groups, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, []string{longName, longName + "b", "alpha", "Beta", "gamma", "bêta", "Gamma", "beta "})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.DuplicateStringGroup{{Indices: []int{3, 5, 7}}, {Indices: []int{4, 6}}}, groups)
 }
 
 func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
