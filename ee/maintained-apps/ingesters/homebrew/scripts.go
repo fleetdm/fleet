@@ -2,6 +2,7 @@ package homebrew
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -108,6 +109,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	// quit step, or else before the app artifact, which brew lists after it.
 	appStopped := app.UniqueIdentifier == "" || uninstallStopsApp(cask, app.UniqueIdentifier)
 
+	var rmDirs []string
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
@@ -150,6 +152,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 			}
 			for _, u := range artifact.Uninstall {
 				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped)
+				rmDirs = append(rmDirs, stringOrList(u.RmDir)...)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -158,11 +161,41 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
 				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil)
+				rmDirs = append(rmDirs, stringOrList(z.RmDir)...)
 			}
 		}
 	}
+	removeEmptyDirs(sb, rmDirs)
 
 	return sb.String()
+}
+
+// removeEmptyDirs writes the cask rmdir directives. brew defers rmdir until
+// everything else, including every stanza's trash, has run, so a folder emptied
+// along the way can be removed. Deeper paths go first so that a listed parent is
+// tried after its listed children.
+func removeEmptyDirs(sb *scriptBuilder, dirs []string) {
+	if len(dirs) == 0 {
+		return
+	}
+	sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
+	sb.AddFunction("remove_empty_dir", removeEmptyDirFunc)
+	slices.SortStableFunc(dirs, func(a, b string) int {
+		return strings.Count(path.Clean(b), "/") - strings.Count(path.Clean(a), "/")
+	})
+	for _, dir := range dirs {
+		sb.Writef(`remove_empty_dir "$LOGGED_IN_USER" %s`, shellSingleQuote(dir))
+	}
+}
+
+func stringOrList(target optjson.StringOr[[]string]) []string {
+	if target.IsOther {
+		return target.Other
+	}
+	if target.String == "" {
+		return nil
+	}
+	return []string{target.String}
 }
 
 // priority of uninstall directives is defined by homebrew here:
@@ -384,6 +417,8 @@ fi`, cdConsoleUserHome, quoted, quoted)
 	}
 }
 
+const loggedInUserVar = `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`
+
 // cdConsoleUserHome starts script directives in the console user's home, falling
 // back to / when there's none (e.g. at the login window, where the console user
 // is "loginwindow") so the directive still runs.
@@ -403,7 +438,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	}
 
 	addUserVar := func() {
-		sb.AddVariable("LOGGED_IN_USER", `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+		sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
 	}
 
 	process(u.LaunchCtl, func(lc string) {
@@ -474,14 +509,6 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		sb.AddFunction("trash", trashFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
-
-	// rmdir runs after trash, as in brew, so a parent folder emptied by trash
-	// can then be removed.
-	process(u.RmDir, func(dir string) {
-		addUserVar()
-		sb.AddFunction("remove_empty_dir", removeEmptyDirFunc)
-		sb.Writef(`remove_empty_dir "$LOGGED_IN_USER" %s`, shellSingleQuote(dir))
-	})
 }
 
 // caskQuitID returns the ID to quit for a cask uninstall quit entry. Some casks
@@ -511,20 +538,11 @@ func quitTargetsApp(quitID, bundleID string) bool {
 // the app. Casks signal apps that don't quit cleanly, so a quit that stops the
 // script mustn't run ahead of the signal.
 func uninstallStopsApp(cask *brewCask, bundleID string) bool {
-	names := func(target optjson.StringOr[[]string]) []string {
-		if target.IsOther {
-			return target.Other
-		}
-		if target.String == "" {
-			return nil
-		}
-		return []string{target.String}
-	}
 	targetsApp := func(id string) bool { return quitTargetsApp(id, bundleID) }
 	quitsApp := func(id string) bool { return targetsApp(caskQuitID(id, bundleID)) }
 	for _, artifact := range cask.Artifacts {
 		for _, u := range artifact.Uninstall {
-			if slices.ContainsFunc(names(u.Quit), quitsApp) ||
+			if slices.ContainsFunc(stringOrList(u.Quit), quitsApp) ||
 				(u.Signal.IsOther && len(u.Signal.Other) == 2 && targetsApp(u.Signal.Other[1])) {
 				return true
 			}

@@ -1422,24 +1422,42 @@ func TestUninstallScriptRmdirResolvesHome(t *testing.T) {
 	require.Contains(t, script, `remove_empty_dir "$LOGGED_IN_USER" '/Library/Google'`)
 	require.NotContains(t, script, "sudo rmdir '")
 
-	// A zap stanza often trashes a vendor folder's contents and rmdirs the
-	// folder itself, so trash has to run first.
+	// Casks trash a vendor folder's contents and rmdir the folder itself, often
+	// from another entry or stanza, so every trash has to run first.
 	script = uninstallScriptForApp(inputApp{}, &brewCask{
 		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{RmDir: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor"}},
+				},
+			},
 			{
 				Zap: []*brewUninstall{
 					{
 						Trash: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor/App"},
-						RmDir: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor"},
+						RmDir: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor"},
 					},
+					{Trash: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor/App"}},
 				},
 			},
 		},
 	})
-	trashAt := strings.Index(script, `trash "$LOGGED_IN_USER" '~/Library/Application Support/Vendor/App'`)
-	rmdirAt := strings.Index(script, `remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Vendor'`)
-	require.Positive(t, trashAt)
-	require.Greater(t, rmdirAt, trashAt)
+	require.True(t, strings.HasSuffix(script, `
+trash "$LOGGED_IN_USER" '~/Library/Application Support/Vendor/App'
+trash "$LOGGED_IN_USER" '~/Library/Caches/Vendor/App'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Vendor'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Vendor'
+`), script)
+
+	// Children go before their parents, so nested folders that end up empty are
+	// all removed.
+	script = uninstallScriptForApp(inputApp{}, newCask("~/Library/Caches/Mozilla", "~/Library/Caches/Mozilla/updates", "~/Library/Caches/Mozilla/updates/Applications", "/Library/Vendor"))
+	require.True(t, strings.HasSuffix(script, `
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates/Applications'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla'
+remove_empty_dir "$LOGGED_IN_USER" '/Library/Vendor'
+`), script)
 
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
@@ -1460,7 +1478,7 @@ func TestUninstallScriptRmdirResolvesHome(t *testing.T) {
 sudo() { echo "$*"; }
 `
 		out := run(t, stubs, "~/Zotero", "~/Library/Caches/Foo Bar", "~", "/Library/Google", "/tmp/~/x")
-		require.Equal(t, "rmdir /Users/alice/Zotero\nrmdir /Users/alice/Library/Caches/Foo Bar\nrmdir /Users/alice\nrmdir /Library/Google\nrmdir /tmp/~/x\n", out)
+		require.Equal(t, "rmdir /Users/alice/Library/Caches/Foo Bar\nrmdir /tmp/~/x\nrmdir /Library/Google\nrmdir /Users/alice/Zotero\nrmdir /Users/alice\n", out)
 	})
 
 	t.Run("skips home paths without a console user", func(t *testing.T) {
@@ -1484,13 +1502,16 @@ sudo() { echo "$*"; }
 		require.NoError(t, os.Mkdir(empty, 0o755))
 		require.NoError(t, os.Mkdir(full, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(full, "data"), []byte("keep"), 0o600))
+		nested := filepath.Join(tmp, "nested")
+		require.NoError(t, os.MkdirAll(filepath.Join(nested, "a", "b"), 0o755))
 
 		stubs := `scutil() { echo "  Name : alice"; }
 sudo() { "$@"; }
 `
-		out := run(t, stubs, empty, full, filepath.Join(tmp, "missing"))
+		out := run(t, stubs, nested, filepath.Join(nested, "a"), filepath.Join(nested, "a", "b"), empty, full, filepath.Join(tmp, "missing"))
 		require.Empty(t, out)
 		require.NoDirExists(t, empty)
+		require.NoDirExists(t, nested)
 		require.FileExists(t, filepath.Join(full, "data"))
 	})
 }

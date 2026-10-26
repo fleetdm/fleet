@@ -292,5 +292,5 @@ trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate.fba.plis
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate2.plist'
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.shared.plist'
 trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.microsoft.autoupdate2.savedState'
-remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft'
 remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft/uls'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft'
