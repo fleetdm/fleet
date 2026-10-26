@@ -12,6 +12,16 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
+// The native picker resolves a MIME spec against the browser's own
+// MIME-to-extension table, so e.g. `application/gzip` matches a picked
+// `.tar.gz`. Dropped files only expose `file.type` from the OS, which varies
+// (`application/x-gzip`, empty) and often won't exact-match that spec. Mirror
+// the picker by allowing a dropped file whose filename matches a known
+// extension for the MIME spec.
+const MIME_EXTENSION_ALIASES: Record<string, readonly string[]> = {
+  "application/gzip": [".tar.gz", ".tgz", ".gz"],
+};
+
 // The HTML `accept` attribute only filters the native file picker; dropped
 // files are not pre-filtered by the browser. Mirror the picker's behavior
 // for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
@@ -28,7 +38,9 @@ const isFileAccepted = (file: File, accept?: string): boolean => {
   return specs.some((spec) => {
     if (spec.startsWith(".")) return name.endsWith(spec);
     if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
-    return type === spec;
+    if (type === spec) return true;
+    const aliases = MIME_EXTENSION_ALIASES[spec];
+    return aliases ? aliases.some((ext) => name.endsWith(ext)) : false;
   });
 };
 

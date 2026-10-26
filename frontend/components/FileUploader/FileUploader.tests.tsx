@@ -172,6 +172,28 @@ describe("FileUploader", () => {
     expect(onFileUpload).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a dropped .tar.gz when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // macOS Chrome often reports .tar.gz as application/x-gzip (or empty),
+    // which won't exact-match the application/gzip spec.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("bundle-1.0.0.tar.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
+  });
+
   it("still renders the message so existing click-to-upload callers are untouched", () => {
     render(
       <FileUploader
