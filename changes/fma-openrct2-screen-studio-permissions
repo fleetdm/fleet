@@ -1,0 +1,1 @@
+- Fixed the OpenRCT2 and Screen Studio Fleet-maintained apps installing a file that only root could read. On OpenRCT2 it's the app's Info.plist, so macOS didn't recognize the app's bundle ID. On Screen Studio it's a speech model used for audio cleanup.
