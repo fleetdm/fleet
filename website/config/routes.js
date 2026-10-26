@@ -737,6 +737,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /apple': {
+    action: 'view-apple',
+    locals: {
+      pageTitleForMeta: 'AI-native Apple device management',
+      pageDescriptionForMeta: 'Patch apps, answer questions in seconds, and manage every Mac, iPhone, and iPad. Say what you need done, approve the change, and Fleet handles the rest.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
