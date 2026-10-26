@@ -2,6 +2,11 @@ package fleet
 
 import (
 	"encoding/json"
+	"maps"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,7 +52,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - workProfileWidgets bad value",
 			config:      json.RawMessage(`{"workProfileWidgets": "NO_SUCH_VALUE"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidget".`,
+			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidgets".`,
 		},
 		{
 			name:        "valid - credentialProviderPolicy only",
@@ -296,6 +301,158 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. Invalid custom host vital reference "$FLEET_HOST_VITAL_asset_tag"; the value after $FLEET_HOST_VITAL_ must be a custom host vital ID`,
 		},
+		// Values Google rejects
+		{
+			name:        "valid - every enum field with a supported value",
+			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "customAppConfig": {"userUninstallSettings": "ALLOW_UNINSTALL_BY_USER"}, "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "COMPANION_APP"}, {"roleType": "KIOSK"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - unspecified enum values",
+			config:      json.RawMessage(`{"autoUpdateMode": "AUTO_UPDATE_MODE_UNSPECIFIED", "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "PERMISSION_POLICY_UNSPECIFIED"}]}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - autoUpdateMode bad value",
+			config:      json.RawMessage(`{"autoUpdateMode": "NOT_A_MODE"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "NOT_A_MODE" is not a supported value for "autoUpdateMode".`,
+		},
+		{
+			name:        "invalid - enum value with the wrong case",
+			config:      json.RawMessage(`{"autoUpdateMode": "auto_update_default"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "auto_update_default" is not a supported value for "autoUpdateMode".`,
+		},
+		{
+			name:        "invalid - alwaysOnVpnLockdownExemption bad value",
+			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "EXEMPT"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "EXEMPT" is not a supported value for "alwaysOnVpnLockdownExemption".`,
+		},
+		{
+			name:        "invalid - connectedWorkAndPersonalApp bad value",
+			config:      json.RawMessage(`{"connectedWorkAndPersonalApp": "ALLOWED"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ALLOWED" is not a supported value for "connectedWorkAndPersonalApp".`,
+		},
+		{
+			name:        "invalid - defaultPermissionPolicy bad value",
+			config:      json.RawMessage(`{"defaultPermissionPolicy": "ALLOW"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ALLOW" is not a supported value for "defaultPermissionPolicy".`,
+		},
+		{
+			name:        "invalid - preferentialNetworkId bad value",
+			config:      json.RawMessage(`{"preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_SIX"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "PREFERENTIAL_NETWORK_ID_SIX" is not a supported value for "preferentialNetworkId".`,
+		},
+		{
+			name:        "invalid - userControlSettings bad value",
+			config:      json.RawMessage(`{"userControlSettings": "ALLOWED"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ALLOWED" is not a supported value for "userControlSettings".`,
+		},
+		{
+			name:        "invalid - customAppConfig.userUninstallSettings bad value",
+			config:      json.RawMessage(`{"customAppConfig": {"userUninstallSettings": "NEVER"}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "NEVER" is not a supported value for "customAppConfig.userUninstallSettings".`,
+		},
+		{
+			name:        "invalid - delegatedScopes bad value",
+			config:      json.RawMessage(`{"delegatedScopes": ["CERT_INSTALL", "ROOT"]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ROOT" is not a supported value for "delegatedScopes.1".`,
+		},
+		{
+			name:        "invalid - permissionGrants policy bad value",
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}, {"permission": "android.permission.RECORD_AUDIO", "policy": "ALLOW"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ALLOW" is not a supported value for "permissionGrants.1.policy".`,
+		},
+		{
+			name:        "invalid - installConstraint chargingConstraint bad value",
+			config:      json.RawMessage(`{"installConstraint": [{"chargingConstraint": "ONLY_WHEN_CHARGING"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ONLY_WHEN_CHARGING" is not a supported value for "installConstraint.0.chargingConstraint".`,
+		},
+		{
+			name:        "invalid - installConstraint deviceIdleConstraint bad value",
+			config:      json.RawMessage(`{"installConstraint": [{"deviceIdleConstraint": "IDLE"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "IDLE" is not a supported value for "installConstraint.0.deviceIdleConstraint".`,
+		},
+		{
+			name:        "invalid - installConstraint networkTypeConstraint bad value",
+			config:      json.RawMessage(`{"installConstraint": [{"networkTypeConstraint": "WIFI"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "WIFI" is not a supported value for "installConstraint.0.networkTypeConstraint".`,
+		},
+		{
+			name:        "invalid - two installConstraint entries",
+			config:      json.RawMessage(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}, {"networkTypeConstraint": "INSTALL_ON_ANY_NETWORK"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installConstraint" can have at most one entry.`,
+		},
+		{
+			name:        "invalid - roles roleType bad value",
+			config:      json.RawMessage(`{"roles": [{"roleType": "ADMIN"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "ADMIN" is not a supported value for "roles.0.roleType".`,
+		},
+		{
+			name:        "invalid - roles roleType unspecified",
+			config:      json.RawMessage(`{"roles": [{"roleType": "KIOSK"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "roles.1.roleType" is required.`,
+		},
+		{
+			name:        "invalid - roles roleType missing",
+			config:      json.RawMessage(`{"roles": [{}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "roles.0.roleType" is required.`,
+		},
+		{
+			name:        "invalid - duplicate roles roleType",
+			config:      json.RawMessage(`{"roles": [{"roleType": "KIOSK"}, {"roleType": "KIOSK"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "KIOSK" is listed more than once in "roles".`,
+		},
+		{
+			name:        "valid - installPriority bounds",
+			config:      json.RawMessage(`{"installPriority": 10000}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installPriority zero",
+			config:      json.RawMessage(`{"installPriority": 0}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - installPriority above range",
+			config:      json.RawMessage(`{"installPriority": 20000}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installPriority" must be between 0 and 10000.`,
+		},
+		{
+			name:        "invalid - installPriority negative",
+			config:      json.RawMessage(`{"installPriority": -1}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installPriority" must be between 0 and 10000.`,
+		},
+		{
+			name:        "valid - minimumVersionCode at the int32 maximum",
+			config:      json.RawMessage(`{"minimumVersionCode": 2147483647}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - minimumVersionCode above the int32 maximum",
+			config:      json.RawMessage(`{"minimumVersionCode": 2147483648}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "minimumVersionCode" must be between -2147483648 and 2147483647.`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -440,4 +597,56 @@ func TestValidateUserProvided_SoftwareKeys(t *testing.T) {
 		require.EqualError(t, err, AndroidSoftwareJSONKeysFree[key])
 		require.Contains(t, err.Error(), "Fleet Premium only")
 	}
+}
+
+// TestAndroidAppPolicyEnumsMatchDiscoveryDoc fails when a google.golang.org/api bump changes the
+// enum values Google accepts, so androidAppPolicyEnums never rejects a value Google allows.
+func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
+	out, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", "google.golang.org/api").Output()
+	if err != nil {
+		t.Skipf("locating google.golang.org/api: %v", err)
+	}
+	docPath := filepath.Join(strings.TrimSpace(string(out)), "androidmanagement", "v1", "androidmanagement-api.json")
+	docJSON, err := os.ReadFile(docPath)
+	if err != nil {
+		t.Skipf("reading discovery doc: %v", err)
+	}
+
+	type property struct {
+		Ref   string    `json:"$ref"`
+		Enum  []string  `json:"enum"`
+		Items *property `json:"items"`
+	}
+	var doc struct {
+		Schemas map[string]struct {
+			Properties map[string]property `json:"properties"`
+		} `json:"schemas"`
+	}
+	require.NoError(t, json.Unmarshal(docJSON, &doc))
+
+	discovered := make(map[string][]string)
+	var walk func(schema, prefix string, seen map[string]bool)
+	walk = func(schema, prefix string, seen map[string]bool) {
+		if seen[schema] {
+			return
+		}
+		seen = maps.Clone(seen)
+		seen[schema] = true
+		for name, prop := range doc.Schemas[schema].Properties {
+			if prop.Items != nil {
+				prop = *prop.Items
+			}
+			if len(prop.Enum) > 0 {
+				discovered[prefix+name] = prop.Enum
+			}
+			if prop.Ref != "" {
+				walk(prop.Ref, prefix+name+".", seen)
+			}
+		}
+	}
+	walk("ApplicationPolicy", "", map[string]bool{})
+	require.NotEmpty(t, discovered)
+	delete(discovered, "installType")
+
+	require.Equal(t, discovered, androidAppPolicyEnums)
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"reflect"
 	"regexp"
 	"slices"
@@ -364,15 +365,137 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPExternalID,
 }
 
-var validAndroidWorkProfileWidgets = map[string]struct{}{
-	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
-	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
-	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
+// androidAppPolicyEnums lists the values Google accepts for each enum field reachable from
+// ApplicationPolicy (other than the denied installType), keyed by field path. Google rejects the
+// whole policy request when one app has a bad value, so they're checked at save time.
+// TestAndroidAppPolicyEnumsMatchDiscoveryDoc keeps this in sync with the vendored
+// google.golang.org/api version.
+var androidAppPolicyEnums = map[string][]string{
+	"alwaysOnVpnLockdownExemption": {"ALWAYS_ON_VPN_LOCKDOWN_EXEMPTION_UNSPECIFIED", "VPN_LOCKDOWN_ENFORCED", "VPN_LOCKDOWN_EXEMPTION"},
+	"autoUpdateMode":               {"AUTO_UPDATE_MODE_UNSPECIFIED", "AUTO_UPDATE_DEFAULT", "AUTO_UPDATE_POSTPONED", "AUTO_UPDATE_HIGH_PRIORITY"},
+	"connectedWorkAndPersonalApp":  {"CONNECTED_WORK_AND_PERSONAL_APP_UNSPECIFIED", "CONNECTED_WORK_AND_PERSONAL_APP_DISALLOWED", "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED"},
+	"credentialProviderPolicy":     {"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", "CREDENTIAL_PROVIDER_ALLOWED"},
+	"customAppConfig.userUninstallSettings": {
+		"USER_UNINSTALL_SETTINGS_UNSPECIFIED", "DISALLOW_UNINSTALL_BY_USER", "ALLOW_UNINSTALL_BY_USER",
+	},
+	"defaultPermissionPolicy": {"PERMISSION_POLICY_UNSPECIFIED", "PROMPT", "GRANT", "DENY"},
+	"delegatedScopes": {
+		"DELEGATED_SCOPE_UNSPECIFIED", "CERT_INSTALL", "MANAGED_CONFIGURATIONS", "BLOCK_UNINSTALL", "PERMISSION_GRANT",
+		"PACKAGE_ACCESS", "ENABLE_SYSTEM_APP", "NETWORK_ACTIVITY_LOGS", "SECURITY_LOGS", "CERT_SELECTION",
+	},
+	"installConstraint.chargingConstraint": {
+		"CHARGING_CONSTRAINT_UNSPECIFIED", "CHARGING_NOT_REQUIRED", "INSTALL_ONLY_WHEN_CHARGING",
+	},
+	"installConstraint.deviceIdleConstraint": {
+		"DEVICE_IDLE_CONSTRAINT_UNSPECIFIED", "DEVICE_IDLE_NOT_REQUIRED", "INSTALL_ONLY_WHEN_DEVICE_IDLE",
+	},
+	"installConstraint.networkTypeConstraint": {
+		"NETWORK_TYPE_CONSTRAINT_UNSPECIFIED", "INSTALL_ON_ANY_NETWORK", "INSTALL_ONLY_ON_UNMETERED_NETWORK",
+	},
+	"permissionGrants.policy": {"PERMISSION_POLICY_UNSPECIFIED", "PROMPT", "GRANT", "DENY"},
+	"preferentialNetworkId": {
+		"PREFERENTIAL_NETWORK_ID_UNSPECIFIED", "NO_PREFERENTIAL_NETWORK", "PREFERENTIAL_NETWORK_ID_ONE",
+		"PREFERENTIAL_NETWORK_ID_TWO", "PREFERENTIAL_NETWORK_ID_THREE", "PREFERENTIAL_NETWORK_ID_FOUR",
+		"PREFERENTIAL_NETWORK_ID_FIVE",
+	},
+	"roles.roleType": {
+		"ROLE_TYPE_UNSPECIFIED", "COMPANION_APP", "KIOSK", "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE",
+		"SYSTEM_HEALTH_MONITORING",
+	},
+	"userControlSettings": {"USER_CONTROL_SETTINGS_UNSPECIFIED", "USER_CONTROL_ALLOWED", "USER_CONTROL_DISALLOWED"},
+	"workProfileWidgets":  {"WORK_PROFILE_WIDGETS_UNSPECIFIED", "WORK_PROFILE_WIDGETS_ALLOWED", "WORK_PROFILE_WIDGETS_DISALLOWED"},
 }
 
-var validAndroidCredentialProviderPolicies = map[string]struct{}{
-	"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED": {},
-	"CREDENTIAL_PROVIDER_ALLOWED":            {},
+// validateAndroidAppPolicyValues checks the enum values and limits Google documents for a single
+// app. Rules that span the policy's apps (e.g. one KIOSK app per policy) are left to Google.
+func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) error {
+	// An empty string is omitted when the policy is sent, so Google applies the default.
+	checkEnum := func(enumKey, fieldPath, value string) error {
+		if value == "" || slices.Contains(androidAppPolicyEnums[enumKey], value) {
+			return nil
+		}
+		return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q is not a supported value for %q.", value, fieldPath)}
+	}
+
+	for _, field := range []struct{ path, value string }{
+		{"alwaysOnVpnLockdownExemption", cfg.AlwaysOnVpnLockdownExemption},
+		{"autoUpdateMode", cfg.AutoUpdateMode},
+		{"connectedWorkAndPersonalApp", cfg.ConnectedWorkAndPersonalApp},
+		{"credentialProviderPolicy", cfg.CredentialProviderPolicy},
+		{"defaultPermissionPolicy", cfg.DefaultPermissionPolicy},
+		{"preferentialNetworkId", cfg.PreferentialNetworkId},
+		{"userControlSettings", cfg.UserControlSettings},
+		{"workProfileWidgets", cfg.WorkProfileWidgets},
+	} {
+		if err := checkEnum(field.path, field.path, field.value); err != nil {
+			return err
+		}
+	}
+	if cfg.CustomAppConfig != nil {
+		if err := checkEnum("customAppConfig.userUninstallSettings", "customAppConfig.userUninstallSettings", cfg.CustomAppConfig.UserUninstallSettings); err != nil {
+			return err
+		}
+	}
+	for i, scope := range cfg.DelegatedScopes {
+		if err := checkEnum("delegatedScopes", fmt.Sprintf("delegatedScopes.%d", i), scope); err != nil {
+			return err
+		}
+	}
+	for i, grant := range cfg.PermissionGrants {
+		if grant == nil {
+			continue
+		}
+		if err := checkEnum("permissionGrants.policy", fmt.Sprintf("permissionGrants.%d.policy", i), grant.Policy); err != nil {
+			return err
+		}
+	}
+
+	if len(cfg.InstallConstraint) > 1 {
+		return &BadRequestError{Message: `Couldn't update configuration. "installConstraint" can have at most one entry.`}
+	}
+	for i, constraint := range cfg.InstallConstraint {
+		if constraint == nil {
+			continue
+		}
+		for _, field := range []struct{ name, value string }{
+			{"chargingConstraint", constraint.ChargingConstraint},
+			{"deviceIdleConstraint", constraint.DeviceIdleConstraint},
+			{"networkTypeConstraint", constraint.NetworkTypeConstraint},
+		} {
+			if err := checkEnum("installConstraint."+field.name, fmt.Sprintf("installConstraint.%d.%s", i, field.name), field.value); err != nil {
+				return err
+			}
+		}
+	}
+
+	seenRoles := make(map[string]struct{}, len(cfg.Roles))
+	for i, role := range cfg.Roles {
+		if role == nil {
+			continue
+		}
+		fieldPath := fmt.Sprintf("roles.%d.roleType", i)
+		if err := checkEnum("roles.roleType", fieldPath, role.RoleType); err != nil {
+			return err
+		}
+		// Google rejects a role without a type, which an omitted roleType also is.
+		if role.RoleType == "" || role.RoleType == "ROLE_TYPE_UNSPECIFIED" {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q is required.", fieldPath)}
+		}
+		if _, dup := seenRoles[role.RoleType]; dup {
+			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. %q is listed more than once in "roles".`, role.RoleType)}
+		}
+		seenRoles[role.RoleType] = struct{}{}
+	}
+
+	if cfg.InstallPriority < 0 || cfg.InstallPriority > 10_000 {
+		return &BadRequestError{Message: `Couldn't update configuration. "installPriority" must be between 0 and 10000.`}
+	}
+	// Google stores minimumVersionCode as an int32, but the Go client decodes it into an int64.
+	if cfg.MinimumVersionCode < math.MinInt32 || cfg.MinimumVersionCode > math.MaxInt32 {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "minimumVersionCode" must be between %d and %d.`, math.MinInt32, math.MaxInt32)}
+	}
+
+	return nil
 }
 
 // androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the
@@ -450,12 +573,8 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		}
 	}
 
-	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
-		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
-	}
-
-	if _, validVal := validAndroidCredentialProviderPolicies[cfg.CredentialProviderPolicy]; cfg.CredentialProviderPolicy != "" && !validVal {
-		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "credentialProviderPolicy".`, cfg.CredentialProviderPolicy)}
+	if err := validateAndroidAppPolicyValues(&cfg); err != nil {
+		return err
 	}
 
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
