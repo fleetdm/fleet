@@ -174,7 +174,7 @@ sequenceDiagram
         fleet->>fleetd: Disable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted and a<br>key is escrowed
 ```
 
-The server encrypts the key with `server.private_key` and marks it decryptable when it's escrowed. Unlike macOS, Fleet doesn't re-check Windows keys periodically. Keys escrowed by older releases are checked once, when they're migrated, see [Key storage and security](#key-storage-and-security). A key marked undecryptable counts as no key: the orbit config sets `EnforceBitLockerEncryption` again, so orbit rotates the recovery key and escrows a new one.
+The server encrypts the key with `server.private_key` and marks it decryptable when it's escrowed. Unlike macOS, Fleet doesn't re-check Windows keys periodically. Keys escrowed before Fleet 4.95.0 are checked once, when they're migrated, see [Key storage and security](#key-storage-and-security). A key marked undecryptable counts as no key: the orbit config sets `EnforceBitLockerEncryption` again, so orbit rotates the recovery key and escrows a new one.
 
 #### Troubleshooting
 
@@ -413,12 +413,12 @@ Encryption keys are stored in the `host_disk_encryption_keys` table. The value f
 | Platform | Encrypted with | Decrypted in `getHostDiskEncryptionKey` using |
 | --- | --- | --- |
 | macOS, iOS, iPadOS | Fleet's CA certificate | `assets.CACertsAndKeyForDecryption` |
-| Windows | Fleet server private key | `server.private_key`, falling back to the WSTEP identity key for keys escrowed by older releases |
+| Windows | Fleet server private key | `server.private_key`, falling back to the WSTEP identity key for keys escrowed before Fleet 4.95.0 |
 | Linux | Fleet server private key | `server.private_key` |
 
 Replacing any of these leaves every key that was escrowed against the old credential undecryptable. Fleet re-verifies decryptability hourly for macOS only, and only for keys it has not verified before. Windows and Linux keys are marked decryptable at escrow time and are never re-checked, and no platform re-checks a key already marked decryptable.
 
-The exception is Windows keys escrowed by older releases, which were encrypted to the WSTEP identity certificate (CMS). Those rows carry `wstep_encrypted = 1` in both tables, which the migration that added the column backfilled. The `reencrypt_windows_disk_encryption_keys` schedule moves them to `server.private_key`, in batches of 500, with its first run ten minutes after startup and hourly after that:
+The exception is Windows keys escrowed before Fleet 4.95.0, which were encrypted to the WSTEP identity certificate (CMS). Those rows carry `wstep_encrypted = 1` in both tables, which the migration that added the column backfilled. The `reencrypt_windows_disk_encryption_keys` schedule moves them to `server.private_key`, in batches of 500, with its first run ten minutes after startup and hourly after that:
 
 - A key the WSTEP key decrypts is re-encrypted with a compare-and-swap that leaves `updated_at` alone, so the host's disk encryption status doesn't change.
 - A live key it can't decrypt is marked `decryptable = 0`. The host shows "Enforcing" with a detail explaining why, and the orbit config asks it for a new key.

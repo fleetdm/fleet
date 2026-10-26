@@ -846,7 +846,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
-Fleet also encrypts the disk encryption keys it escrows from Windows and Linux hosts with this key, so escrowing them requires it. If you change this key, Fleet can no longer read the keys escrowed before the change.
+Fleet also encrypts the disk encryption keys it escrows from Windows and Linux hosts with this key, so escrowing them requires it.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
@@ -3866,9 +3866,9 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-Earlier versions of Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server_private_key), so replacing or renewing the certificate doesn't affect them.
+Before Fleet 4.95.0, Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server_private_key), so replacing or renewing the certificate doesn't affect them.
 
-Fleet re-encrypts keys escrowed by an earlier version with `server_private_key` automatically, starting ten minutes after the upgraded server starts. This requires both `server_private_key` and this certificate and key. If the configured certificate and key can't decrypt one of these keys, for example because they were replaced before upgrading, the host shows "Enforcing" and escrows a new key when it comes online.
+Fleet re-encrypts keys escrowed by an earlier version with `server_private_key` automatically, starting ten minutes after the upgraded server starts. This requires both `server_private_key` and this certificate and key. If the configured certificate and key can't decrypt one of these keys, the host shows "Enforcing" and escrows a new key when it comes online.
 
 ### mdm.windows_wstep_identity_key_bytes
 

@@ -193,9 +193,9 @@ For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#esc
 
 ### Unreadable recovery keys on Windows
 
-Fleet encrypts Windows recovery keys with the [Fleet server's private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key), so replacing or renewing the Windows MDM (WSTEP) certificate doesn't affect them. Earlier versions of Fleet encrypted them with the WSTEP certificate, and Fleet re-encrypts those keys automatically after you upgrade.
+Fleet encrypts Windows recovery keys with the [Fleet server's private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key), so replacing or renewing the Windows MDM (WSTEP) certificate doesn't affect them. Before Fleet 4.95.0, Fleet encrypted them with the WSTEP certificate, and Fleet re-encrypts those keys automatically when you upgrade.
 
-If Fleet can't read a host's stored key, for example because the WSTEP certificate and key were replaced before the upgrade, the host shows "Enforcing" and its disk encryption details explain why. The next time the host comes online, it replaces its recovery key and escrows the new one, so the key Fleet couldn't read no longer unlocks the disk.
+If Fleet can't read a host's stored key, the host shows "Enforcing" and its disk encryption details explain why. The next time the host comes online, it replaces its recovery key and escrows the new one, so the key Fleet couldn't read no longer unlocks the disk.
 
 ### BitLocker protection (Windows)
 
