@@ -1538,7 +1538,7 @@ func orbitAction(c *cli.Context) error {
 		}
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
-			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker, c.String("root-dir")))
 		if c.Bool("fleet-desktop") {
 			registerFleetDesktopAppID(c.String("root-dir"))
 		}
