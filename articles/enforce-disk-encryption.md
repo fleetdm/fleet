@@ -58,7 +58,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when BitLocker protection is off and Fleet couldn't turn it back on. The host's disk encryption details give the reason. If the end user can resolve it, they'll be asked to on their **My device** page, either to restart the host or to create a BitLocker PIN.
 
-* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted.
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted, and while Fleet waits for a host to escrow a new key because it can't read the stored one. [Learn more](#unreadable-recovery-keys-on-windows).
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
@@ -190,6 +190,12 @@ Currently, on macOS and Linux, Fleet detects when the disk encryption key change
 On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
 
 For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#escrow-disk-encryption-key-on-linux).
+
+### Unreadable recovery keys on Windows
+
+Fleet encrypts Windows recovery keys with the [Fleet server's private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key), so replacing or renewing the Windows MDM (WSTEP) certificate doesn't affect them. Earlier versions of Fleet encrypted them with the WSTEP certificate, and Fleet re-encrypts those keys automatically after you upgrade.
+
+If Fleet can't read a host's stored key, for example because the WSTEP certificate and key were replaced before the upgrade, the host shows "Enforcing" and its disk encryption details explain why. The next time the host comes online, it replaces its recovery key and escrows the new one, so the key Fleet couldn't read no longer unlocks the disk.
 
 ### BitLocker protection (Windows)
 

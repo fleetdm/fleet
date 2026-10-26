@@ -7064,6 +7064,25 @@ The host will only return a key if its disk encryption status is "Verified." Get
   }
 }
 ```
+
+##### Key can't be decrypted
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet has a key for the host but can't decrypt it. For a Windows host that Fleet has asked to escrow a new key, the reason says so, as in this example.
+
+```json
+{
+  "message": "Unprocessable Entity",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Couldn't decrypt the disk encryption key. The host will escrow a new one when it comes online."
+    }
+  ]
+}
+```
+
 ### Get host's Recovery Lock password
 
 Retrieves the Recovery Lock password for a host.
