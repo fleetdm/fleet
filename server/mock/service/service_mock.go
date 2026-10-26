@@ -261,7 +261,7 @@ type DeleteHostsFunc func(ctx context.Context, ids []uint, filters *map[string]i
 
 type CountHostsFunc func(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error)
 
-type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error)
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
@@ -3420,11 +3420,11 @@ func (s *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.Host
 	return s.CountHostsFunc(ctx, labelID, opts)
 }
 
-func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs)
+	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs, excludeMobileHosts)
 }
 
 func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
