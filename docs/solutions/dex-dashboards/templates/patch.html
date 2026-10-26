@@ -133,19 +133,38 @@ function compute() {
     return { ...t, _id: t.key, inst, installs: inst.length, on: on.length, pct: inst.length ? (100 * on.length) / inst.length : null,
       versions: new Set(inst.map(([, v]) => v)).size, fresh };
   }).filter((t) => t.installs >= DATA.min_installs);
-  const events = DATA.events.filter((e) => ok(e[1]) && inPlatform(DATA.titles[e[0]].p)).map(([ti, hid, from, to, seen, applied, lag]) => ({ t: DATA.titles[ti], hid, from, to, seen, applied, lag }));
-  return { titles, events };
+  // Timed updates arrive as totals per "fleet|platform": lag (days) counts, per-computer
+  // [updates, total days], and per-app [title, updates, total days, computers].
+  const keyOk = (k) => { const i = k.lastIndexOf("|"); return inFleet(k.slice(0, i)) && inPlatform(k.slice(i + 1)); };
+  const counts = {};
+  for (const [k, rows] of Object.entries(DATA.lags)) if (keyOk(k)) for (const [lag, n] of rows) counts[lag] = (counts[lag] || 0) + n;
+  const lagDays = Object.keys(counts).map(Number).sort((a, b) => a - b);
+  let n = 0, sum = 0;
+  for (const d of lagDays) { n += counts[d]; sum += d * counts[d]; }
+  const nth = (k) => { let c = 0; for (const d of lagDays) { c += counts[d]; if (k < c) return d; } return null; };
+  const timing = {
+    n, mean: n ? sum / n : null,
+    within: (days) => lagDays.reduce((s, d) => s + (d <= days ? counts[d] : 0), 0),
+    // Same interpolation as quantile() on the full list of lags.
+    q: (p) => { if (!n) return null; const i = (n - 1) * p, lo = Math.floor(i), hi = Math.min(lo + 1, n - 1); const a = nth(lo); return a + (nth(hi) - a) * (i - lo); },
+    byHost: Object.fromEntries(Object.entries(DATA.by_host).filter(([hid]) => ok(hid))),
+    byApp: {},
+  };
+  for (const [k, rows] of Object.entries(DATA.by_app)) if (keyOk(k)) for (const [ti, cnt, total, hosts] of rows) {
+    const a = (timing.byApp[ti] ||= { t: DATA.titles[ti], n: 0, sum: 0, hosts: 0 });
+    a.n += cnt; a.sum += total; a.hosts += hosts;
+  }
+  return { titles, timing };
 }
 
 function render() {
-  const { titles, events } = compute();
+  const { titles, timing } = compute();
   const apps = titles.filter((t) => t.type === "app");
   const installs = apps.reduce((s, t) => s + t.installs, 0);
   const onNewest = apps.reduce((s, t) => s + t.on, 0);
   const pCur = pct(onNewest, installs);
-  const lags = events.map((e) => e.lag);
-  const p50 = quantile(lags, 0.5), p90 = quantile(lags, 0.9);
-  const timed = lags.length >= 5;
+  const p50 = timing.q(0.5), p90 = timing.q(0.9);
+  const timed = timing.n >= 5;
   const behind = {};
   for (const t of titles) for (const [hid, v] of t.inst) if (vcmp(v, t.newest) < 0) (behind[hid] ||= []).push(t);
   const laggards = Object.entries(behind).map(([hid, ts]) => ({ hid, ts })).sort((a, b) => b.ts.length - a.ts.length);
@@ -163,8 +182,8 @@ function render() {
       : `Nine in ten updates land within ${fmt.days(p90)}, inside the ${SLA}-day target.`)
     : `${fmt.pct(pCur)} of app installs run the newest version the fleet has. ${noun(laggards.filter((l) => l.ts.length >= 3).length)} ${laggards.filter((l) => l.ts.length >= 3).length === 1 ? "is" : "are"} behind on three or more apps.`;
   const support = timed
-    ? `${fmt.pct(pCur)} of app installs run the newest version today. Timing covers ${fmt.plural(lags.length, "update")} on ${noun(new Set(events.map((e) => e.hid)).size)} in the last 90 days.`
-    : `Timing starts with the next release. Since ${fmt.date(DATA.history_since)}, every new version Fleet sees is timed until each computer reports it. ${lags.length ? `${fmt.plural(lags.length, "update")} timed so far.` : `No new versions timed yet (${fmt.plural(daysSince, "day")} of history).`}`;
+    ? `${fmt.pct(pCur)} of app installs run the newest version today. Timing covers ${fmt.plural(timing.n, "update")} on ${noun(Object.keys(timing.byHost).length)} in the last 90 days.`
+    : `Timing starts with the next release. Since ${fmt.date(DATA.history_since)}, every new version Fleet sees is timed until each computer reports it. ${timing.n ? `${fmt.plural(timing.n, "update")} timed so far.` : `No new versions timed yet (${fmt.plural(daysSince, "day")} of history).`}`;
   const osTs = titles.filter((t) => t.type === "os").sort((a, b) => b.installs - a.installs);
   if (!titles.length) {
     const where = `${DATA.min_installs} or more ${Noun(true).toLowerCase()}`;
@@ -179,15 +198,14 @@ function render() {
       h("div", { class: "rail-row" }, h("span", {}, "Apps under 50% current"), h("b", {}, fmt.n(apps.filter((t) => t.pct < 50).length))),
       h("div", { class: "rail-row" }, h("span", {}, `${Noun(true)} behind on 3+ apps`), h("b", {}, fmt.n(laggards.filter((l) => l.ts.length >= 3).length)))));
 
-  const byHost = {};
-  for (const e of events) (byHost[e.hid] ||= []).push(e.lag);
-  const hostMeans = Object.values(byHost).map(mean);
+  const byHost = timing.byHost;
+  const hostMeans = Object.values(byHost).map(([cnt, total]) => total / cnt);
   const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
   mount("stats",
-    stat("Updates timed", fmt.n(lags.length), "last 90 days"),
+    stat("Updates timed", fmt.n(timing.n), "last 90 days"),
     stat(`${Noun(true)} patched`, fmt.n(Object.keys(byHost).length), "at least one timed update"),
-    stat("Apps updated", fmt.n(new Set(events.map((e) => e.t.key)).size), "with a timed update"),
-    stat("Within target", lags.length ? fmt.pct(pct(lags.filter((x) => x <= SLA).length, lags.length)) : "---", `${SLA} days or less`),
+    stat("Apps updated", fmt.n(Object.keys(timing.byApp).length), "with a timed update"),
+    stat("Within target", timing.n ? fmt.pct(pct(timing.within(SLA), timing.n)) : "---", `${SLA} days or less`),
     stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
     stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
 
@@ -201,12 +219,12 @@ function render() {
   ]);
 
   // Coverage curve
-  document.getElementById("cov-hint").textContent = lags.length ? `Share of ${fmt.plural(lags.length, "timed update")} installed by each day after release` : "";
-  if (lags.length >= 5) {
+  document.getElementById("cov-hint").textContent = timing.n ? `Share of ${fmt.plural(timing.n, "timed update")} installed by each day after release` : "";
+  if (timing.n >= 5) {
     const W = 860, H = 230, L = 44, R = 16, T = 12, B = 30, maxD = 30;
     const x = (d) => L + (Math.min(d, maxD) / maxD) * (W - L - R), y = (p) => T + (1 - p / 100) * (H - T - B);
     const pts = [];
-    for (let d = 0; d <= maxD; d++) pts.push([d, pct(lags.filter((v) => v <= d).length, lags.length)]);
+    for (let d = 0; d <= maxD; d++) pts.push([d, pct(timing.within(d), timing.n)]);
     const line = pts.map(([d, p], i) => `${i ? "L" : "M"}${x(d).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
     const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": "Cumulative share of updates installed by days after release" },
       [0, 25, 50, 75, 100].map((p) => [svg("line", { x1: L, x2: W - R, y1: y(p), y2: y(p), class: "grid-line" }), svg("text", { x: L - 8, y: y(p) + 4, "text-anchor": "end" }, `${p}%`)]),
@@ -216,16 +234,14 @@ function render() {
       svg("path", { d: `${line} L${x(maxD)},${y(0)} L${x(0)},${y(0)} Z`, class: "area" }),
       svg("path", { d: line, class: "curve" }),
       pts.map(([d, p]) => tip(svg("circle", { cx: x(d), cy: y(p), r: 7, fill: "transparent" }), `Day ${d}: ${fmt.pct(p)} of updates installed`)));
-    mount("coverage", g, h("p", { class: "panel-note" }, `${fmt.pct(pct(lags.filter((v) => v <= SLA).length, lags.length))} of timed updates land within ${SLA} days.`));
+    mount("coverage", g, h("p", { class: "panel-note" }, `${fmt.pct(pct(timing.within(SLA), timing.n))} of timed updates land within ${SLA} days.`));
   } else {
     mount("coverage", empty("Not enough timed updates yet", `This curve fills in once at least five updates have been timed. Each new version Fleet sees from ${fmt.date(DATA.history_since)} on is timed until every computer has it.`));
   }
 
   // Per-app timing: fastest and slowest
-  const byApp = {};
-  for (const e of events) (byApp[e.t.key] ||= { t: e.t, lags: [] }).lags.push(e.lag);
-  const appRows = Object.values(byApp).filter((r) => new Set(events.filter((e) => e.t.key === r.t.key).map((e) => e.hid)).size >= 3)
-    .map((r) => ({ name: r.t.name, mean: mean(r.lags), n: r.lags.length })).sort((a, b) => a.mean - b.mean);
+  const appRows = Object.values(timing.byApp).filter((r) => r.hosts >= 3)
+    .map((r) => ({ name: r.t.name, mean: r.sum / r.n, n: r.n })).sort((a, b) => a.mean - b.mean);
   if (appRows.length >= 2) {
     const line = (r) => h("div", { class: "app-line" }, h("span", {}, r.name), h("span", { class: "num" }, pill(`${fmt.days(r.mean)} · ${noun(r.n)}`, lagTone(r.mean))));
     mount("app-lag", h("h3", {}, `Average days to update, apps with 3+ timed ${Noun(true).toLowerCase()}`),
@@ -283,14 +299,14 @@ function render() {
     label: DATA.hosts[l.hid].n, valueText: fmt.plural(l.ts.length, "app"),
     segs: [{ value: l.ts.length, color: "var(--warn)", tip: `${DATA.hosts[l.hid].n} is behind on ${l.ts.slice(0, 8).map((t) => t.name).join(", ")}${l.ts.length > 8 ? "…" : ""}` }] }))))
     : empty("Nothing is behind", ""));
-  const slow = Object.entries(byHost).filter(([, v]) => v.length >= 2).map(([hid, v]) => ({ hid, m: mean(v), n: v.length })).sort((a, b) => b.m - a.m).slice(0, 8);
+  const slow = Object.entries(byHost).filter(([, [cnt]]) => cnt >= 2).map(([hid, [cnt, total]]) => ({ hid, m: total / cnt, n: cnt })).sort((a, b) => b.m - a.m).slice(0, 8);
   mount("slow", slow.length ? barRows(slow.map((s) => ({ label: DATA.hosts[s.hid]?.n ?? `Host ${s.hid}`, valueText: fmt.days(s.m),
     segs: [{ value: s.m, color: `var(--${lagTone(s.m)})`, tip: `Average ${fmt.days(s.m)} across ${fmt.plural(s.n, "update")}` }] })))
     : empty("Not enough timed updates yet", "Computers with two or more timed updates in the last 30 days show here."));
 
   // Levers
   const levers = [];
-  const fleetMean = mean(lags);
+  const fleetMean = timing.mean;
   if (slow.length >= 2 && fleetMean != null) {
     const tail = slow.filter((s) => s.m > fleetMean * 2).slice(0, 5);
     if (tail.length >= 2) levers.push({ t: `Follow up with the ${tail.length} slowest ${Noun(true).toLowerCase()}`, e: `They average ${fmt.days(mean(tail.map((s) => s.m)))} to apply updates, against ${fmt.days(fleetMean)} for the fleet.`, x: noun(tail.length), s: "to contact" });

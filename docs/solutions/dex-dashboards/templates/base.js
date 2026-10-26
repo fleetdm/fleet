@@ -1,4 +1,4 @@
-const DATA = window.__DATA__;
+let DATA = window.__DATA__;
 
 // Build DOM without innerHTML: data values are untrusted text.
 function h(tag, attrs, ...kids) {
@@ -27,6 +27,31 @@ function mount(id, ...kids) {
   const el = document.getElementById(id);
   el.replaceChildren(...kids.flat().filter(Boolean));
   return el;
+}
+
+// On a big fleet the page's data is split into part files next to the page.
+// build.py wraps the page script in dexReady() only then, so it draws after they load.
+function dexReady(draw) {
+  const parts = DATA.__parts__ || [];
+  const wrap = document.querySelector(".wrap");
+  const note = h("p", { class: "hint", role: "status" }, `Loading ${parts.length} data files…`);
+  wrap.prepend(note);
+  Promise.all(parts.map((p) => fetch(p).then((r) => {
+    if (!r.ok) throw new Error(`${p} returned ${r.status}`);
+    return r.json();
+  }))).then((loaded) => {
+    for (const part of loaded) {
+      const { key, merge, value } = part;
+      if (merge === "list") DATA[key] = (DATA[key] || []).concat(value);
+      else if (merge === "dict") DATA[key] = Object.assign(DATA[key] || {}, value);
+      else DATA[key] = value;
+    }
+    delete DATA.__parts__;
+    note.remove();
+    draw();
+  }).catch((e) => {
+    note.replaceWith(empty("This dashboard's data didn't load", `${e.message}. Reload the page; if it keeps happening, check that the last run published every file under data/.`));
+  });
 }
 
 const fmt = {
@@ -353,9 +378,13 @@ function empty(title, body) {
 }
 
 // Sortable table. columns: {key, label, num, value(row), cell(row)}.
+// Each group shows its first 200 rows, then a button for more, so a big fleet doesn't
+// put thousands of rows on the page at once.
+const TABLE_ROWS = 200;
 function sortTable({ columns, groups, sort, onRow, detail, id }) {
   let [key, dir] = sort;
   let open = null;
+  const shown = groups.map(() => TABLE_ROWS);
   const wrap = h("div", { class: "tbl-wrap" });
   function draw() {
     const col = columns.find((c) => c.key === key);
@@ -369,9 +398,10 @@ function sortTable({ columns, groups, sort, onRow, detail, id }) {
     const head = h("tr", {}, columns.map((c) => h("th", { class: c.num ? "r" : null, scope: "col", "aria-sort": c.key === key ? (dir === "asc" ? "ascending" : "descending") : null },
       h("button", { type: "button", onclick: () => { if (key === c.key) dir = dir === "asc" ? "desc" : "asc"; else { key = c.key; dir = c.num ? "desc" : "asc"; } draw(); } }, c.label))));
     const body = h("tbody");
-    for (const g of groups) {
+    groups.forEach((g, gi) => {
       if (g.label) body.append(h("tr", { class: "group" }, h("td", { colspan: columns.length }, g.pill || "", " ", g.label, g.hint ? h("span", { class: "hint" }, g.hint) : "")));
-      for (const row of [...g.rows].sort(cmp)) {
+      const sorted = [...g.rows].sort(cmp);
+      for (const row of sorted.slice(0, shown[gi])) {
         const rid = row._id;
         const tr = h("tr", { class: onRow || detail ? "click" : null }, columns.map((c) => h("td", { class: c.num ? "r" : null }, c.cell ? c.cell(row) : c.value(row) ?? "---")));
         if (detail) {
@@ -384,7 +414,10 @@ function sortTable({ columns, groups, sort, onRow, detail, id }) {
         body.append(tr);
         if (detail && open === rid) body.append(h("tr", { class: "detail" }, h("td", { colspan: columns.length }, detail(row))));
       }
-    }
+      const more = sorted.length - shown[gi];
+      if (more > 0) body.append(h("tr", {}, h("td", { colspan: columns.length },
+        h("button", { type: "button", class: "btn", onclick: () => { shown[gi] += 1000; draw(); } }, more > 1000 ? `Show 1,000 more of ${fmt.n(more)}` : `Show ${fmt.n(more)} more`))));
+    });
     wrap.replaceChildren(h("table", { class: "tbl", id }, h("thead", {}, head), body));
   }
   draw();

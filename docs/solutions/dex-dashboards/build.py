@@ -2,13 +2,16 @@
 """Build a DEX dashboard page from a collect.py snapshot.
 
   build.py --page lifecycle|software|patch|... --snapshot snap.json \
-           --templates DIR --history in.json --out-html index.html --out-history out.json
-  build.py --page overview --snapshot snap.json --templates DIR --out-html overview.html \
-           --page-history lifecycle=out.json ...
+           --templates DIR --history in/history.json --out DIR
+  build.py --page overview --snapshot snap.json --templates DIR --out DIR \
+           --page-history lifecycle=DIR/data/history.json ...
 
-The history file carries state between daily runs (strain days, version
-first-seen dates). Pass a missing or empty path on the first run. The overview
-keeps no history: it reads the histories the other pages just wrote.
+run.py builds every page in one process; this command line builds one, for
+debugging. The history carries state between runs (strain days, version
+first-seen dates); leave --history out on the first run. A page's data, or a
+history, too big for one file is split into parts under data/, which the page
+fetches and history.json lists. The overview keeps no history: it reads the
+histories the other pages just wrote.
 """
 import argparse
 import datetime as dt
@@ -22,6 +25,7 @@ import sys
 STALE_DAYS = 30
 WARRANTY_VITAL = os.environ.get("DEX_WARRANTY_VITAL", "AppleCare warranty expiration")
 PATCH_SLA_DAYS = 14
+PATCH_TIMED_DAYS = 90
 IDLE_DAYS = 90
 MIN_INSTALLS = 3
 TREND_DAYS = 366
@@ -256,6 +260,97 @@ def load_json(path, default):
         return json.load(f)
 
 
+# Claude artifacts take at most 16 MB per page or file. A page's data, or a
+# history, that's bigger than this moves into part files of about this size.
+PART_BYTES = int(os.environ.get("DEX_PART_BYTES") or 8_000_000)
+FILE_LIMIT = 16_000_000
+
+
+def dumps(obj):
+    return json.dumps(obj, separators=(",", ":"))
+
+
+def split_parts(obj, prefix, limit=None):
+    """Keep obj whole when its JSON fits in limit bytes. Otherwise move its biggest
+    top-level values into parts named "<prefix>-1.json", "<prefix>-2.json", and so on,
+    splitting long lists and dicts across parts. Returns (head, {name: part}); head
+    lists the part names under "__parts__" in the order merge_part() applies them."""
+    limit = limit or PART_BYTES
+    if len(dumps(obj)) <= limit:
+        return obj, {}
+    head = dict(obj)
+    sizes = sorted(((len(dumps(v)), k) for k, v in obj.items()), reverse=True)
+    parts, chunk, chunk_size = [], [], 0
+
+    def flush(key, merge):
+        nonlocal chunk, chunk_size
+        if chunk:
+            parts.append({"key": key, "merge": merge, "value": dict(chunk) if merge == "dict" else chunk})
+        chunk, chunk_size = [], 0
+
+    for size, key in sizes:
+        if len(dumps(head)) <= limit // 4:
+            break
+        value = head.pop(key)
+        if isinstance(value, (list, dict)) and size > limit:
+            merge = "dict" if isinstance(value, dict) else "list"
+            for item in (value.items() if merge == "dict" else value):
+                item_size = len(dumps(list(item) if merge == "dict" else item)) + 1
+                if item_size > limit:
+                    raise ValueError(f"one {key} entry is {item_size} bytes, over the {limit}-byte part size")
+                if chunk_size + item_size > limit:
+                    flush(key, merge)
+                chunk.append(item)
+                chunk_size += item_size
+            flush(key, merge)
+        else:
+            if size > limit:
+                raise ValueError(f"{key} is {size} bytes and can't be split")
+            parts.append({"key": key, "merge": "value", "value": value})
+    names = [f"{prefix}-{i}.json" for i in range(1, len(parts) + 1)]
+    head["__parts__"] = names
+    return head, dict(zip(names, parts))
+
+
+def merge_part(target, part):
+    key, value = part["key"], part["value"]
+    if part["merge"] == "list":
+        target.setdefault(key, []).extend(value)
+    elif part["merge"] == "dict":
+        target.setdefault(key, {}).update(value)
+    else:
+        target[key] = value
+
+
+def load_history(path):
+    """A page's history and the part names its last run wrote. Parts sit next to
+    history.json, under the names it lists."""
+    head = load_json(path, {})
+    names = head.pop("__parts__", [])
+    page_parts = head.pop("__page_parts__", [])
+    for name in names:
+        part = load_json(os.path.join(os.path.dirname(path), os.path.basename(name)), None)
+        if part is None:
+            sys.exit(f"FATAL: {path} lists {name}, which is missing. Read it from the artifact too.")
+        merge_part(head, part)
+    return head, names, page_parts
+
+
+def save_history(hist, data_dir, page_parts):
+    """Write history.json, and parts when it's big, into data_dir. Returns the published
+    paths written, "data/history.json" first."""
+    head, parts = split_parts(hist, "data/history")
+    if page_parts:
+        head = {**head, "__page_parts__": page_parts}
+    os.makedirs(data_dir, exist_ok=True)
+    written = []
+    for name, obj in [("data/history.json", head), *parts.items()]:
+        with open(os.path.join(data_dir, os.path.basename(name)), "w") as f:
+            json.dump(obj, f, separators=(",", ":"))
+        written.append(name)
+    return written
+
+
 def trim_daily(daily, keep_days, today):
     cutoff = (today - dt.timedelta(days=keep_days)).isoformat()
     return {k: v for k, v in daily.items() if k >= cutoff}
@@ -430,6 +525,19 @@ def clean_vendor(v, name):
     return VENDOR_NAMES.get(v.lower().replace(" ", ""), v)
 
 
+def keep_software_row(source, name, path, bundle_id):
+    """Whether any page reads this software row. collect.py drops the rest, which is
+    most of each host's inventory (packages, extensions, OS components)."""
+    name = html.unescape(name)
+    if source == "apps":
+        return (path.startswith("/Applications/") and not bundle_id.startswith("com.apple.")) or name in AI_INVENTORY_APPS
+    if source == "programs":
+        return bool(path) or name in AI_INVENTORY_APPS
+    if source in ("deb_packages", "rpm_packages"):
+        return name in LINUX_DESKTOP_APPS
+    return False
+
+
 def tracked_apps(snap, hid, plat):
     """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}."""
     out = {}
@@ -574,16 +682,37 @@ def newest_release(vers, betas):
     return max(shared or release, key=vkey)
 
 
+def migrate_patch_history(hist, since):
+    """Older histories kept every update for 180 days as [key, from, to, host, first_seen, applied]
+    and each host's versions as [version, date]. Convert them to the compact layout."""
+    events = hist.get("events")
+    if isinstance(events, list):
+        grouped = {}
+        for key, _frm, _to, hid, first_seen, applied in events:
+            day = dt.date.fromisoformat(applied)
+            lag = (day - dt.date.fromisoformat(first_seen)).days if first_seen else None
+            grouped.setdefault(key, []).append([int(hid), (day - since).days, lag])
+        hist["events"] = grouped
+    for titles in (hist.get("hosts") or {}).values():
+        for key, v in titles.items():
+            if isinstance(v, list):
+                titles[key] = v[0]
+
+
 def build_patch(snap, hist):
     now = parse_ts(snap["generated_at"])
     today = now.date()
     D = today.isoformat()
     hist.setdefault("schema", 1)
     hist.setdefault("since", D)
+    since = dt.date.fromisoformat(hist["since"])
+    migrate_patch_history(hist, since)
     versions = hist.setdefault("versions", {})
     names = hist.setdefault("names", {})
     state = hist.setdefault("hosts", {})
-    events = hist.setdefault("events", [])
+    # {title key: [[host id, day since history began, days after the version was first seen or None]]}
+    events = hist.setdefault("events", {})
+    today_i = (today - since).days
     hosts = {str(h["id"]): h for h in snap["hosts"]}
     # A title the history hasn't seen before starts as a baseline: its versions
     # weren't released today, so they aren't timed.
@@ -598,28 +727,32 @@ def build_patch(snap, hist):
             continue
         titles = patch_titles(snap, hid, h)
         current[hid] = titles
-        prev_host = state.get(hid)
+        prev_host = state.get(hid) or {}
         new_host = {}
         for key, (name, ver) in titles.items():
             names[key] = name
             vs = versions.setdefault(key, {})
             if ver not in vs:
                 vs[ver] = D if key in known_titles else None
-            prev = (prev_host or {}).get(key)
-            if prev is None:
-                new_host[key] = [ver, D]
-            elif prev[0] != ver:
-                if vcmp(ver, prev[0]) > 0 and ver not in betas:
-                    events.append([key, prev[0], ver, int(hid), vs.get(ver), D])
-                new_host[key] = [ver, D]
-            else:
-                new_host[key] = prev
+            prev = prev_host.get(key)
+            if prev is not None and prev != ver and vcmp(ver, prev) > 0 and ver not in betas:
+                first = vs.get(ver)
+                lag = (today - dt.date.fromisoformat(first)).days if first else None
+                events.setdefault(key, []).append([int(hid), today_i, lag])
+            new_host[key] = ver
         state[hid] = new_host
     for hid in list(state):
         if hid not in current:
             del state[hid]
-    cutoff180 = (today - dt.timedelta(days=180)).isoformat()
-    hist["events"] = events = [e for e in events if e[5] >= cutoff180]
+
+    # The page times updates from the last 90 days. Untimed updates only feed today's count.
+    first_day = today_i - PATCH_TIMED_DAYS
+    for key in list(events):
+        kept = [e for e in events[key] if e[1] == today_i or (e[2] is not None and e[1] >= first_day)]
+        if kept:
+            events[key] = kept
+        else:
+            del events[key]
 
     # Per-title installs on hosts that still check in. The page aggregates these
     # (per fleet and platform) against the fleet-wide newest release.
@@ -644,36 +777,54 @@ def build_patch(snap, hist):
                              if seen and seen >= recent and v not in betas], key=lambda x: x[1]),
         })
 
-    # Measured latency: only updates to versions first seen after the baseline.
-    cutoff90 = (today - dt.timedelta(days=90)).isoformat()
-    measured = []
-    for key, frm, to, hid, first_seen, applied in events:
-        if applied < cutoff90 or not first_seen or key not in index:
-            continue
-        lag = (dt.date.fromisoformat(applied) - dt.date.fromisoformat(first_seen)).days
-        measured.append([index[key], hid, frm, to, first_seen, applied, lag])
-
     def fleet_of(hid):
         return hosts[str(hid)].get("team_name") or "Unassigned"
+
+    # Timed updates as totals, not one row per update, so the page stays small on a
+    # large fleet. Keys are "fleet|platform" so the page's filters can add them up;
+    # lags are whole days, so the page's medians match a per-update list exactly.
+    active_set = set(active)
+    lags, by_host, by_app = {}, {}, {}
+    for key, rows in events.items():
+        ti = index.get(key)
+        if ti is None:
+            continue
+        for hid, day_i, lag in rows:
+            if lag is None or day_i < first_day or str(hid) not in active_set:
+                continue
+            fp = f"{fleet_of(hid)}|{titles[ti]['p']}"
+            counts = lags.setdefault(fp, {})
+            counts[lag] = counts.get(lag, 0) + 1
+            bh = by_host.setdefault(str(hid), [0, 0])
+            bh[0] += 1
+            bh[1] += lag
+            ba = by_app.setdefault(fp, {}).setdefault(ti, [0, 0, set()])
+            ba[0] += 1
+            ba[1] += lag
+            ba[2].add(hid)
 
     day = {}
     for t in titles:
         if len(t["i"]) < MIN_INSTALLS:
             continue
         for hid, v in t["i"]:
-            current = int(vcmp(v, t["newest"]) >= 0)
+            current_v = int(vcmp(v, t["newest"]) >= 0)
             if t["type"] == "app":
-                count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current)
+                count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
             else:
-                count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current)
-    for _, _, _, hid, _, applied in events:
-        if applied == D and str(hid) in hosts:
-            count_into(day, fleet_of(hid), platform_of(hosts[str(hid)]), updates=1)
+                count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v)
+    for rows in events.values():
+        for hid, day_i, _ in rows:
+            if day_i == today_i and str(hid) in hosts:
+                count_into(day, fleet_of(hid), platform_of(hosts[str(hid)]), updates=1)
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "sla_days": PATCH_SLA_DAYS, "stale_days": STALE_DAYS,
         "min_installs": MIN_INSTALLS, "hosts": host_map(hosts, active),
-        "titles": titles, "events": measured, "betas": sorted(betas),
+        "titles": titles, "betas": sorted(betas),
+        "lags": {fp: sorted(c.items()) for fp, c in lags.items()},
+        "by_host": by_host,
+        "by_app": {fp: [[ti, n, total, len(hs)] for ti, (n, total, hs) in sorted(apps.items())] for fp, apps in by_app.items()},
         "trend": save_trend(hist, today, day),
     }
 
@@ -1493,9 +1644,71 @@ def build_sustainability(snap, hist):
 
 # ---------------------------------------------------------------- render
 
+# ---------------------------------------------------------------- policies
+
+def build_policies(snap, hist):
+    """Each policy's pass, fail, and no-result counts per fleet and platform, kept per
+    day for a year, so the page can show any day since the history began."""
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    D = today.isoformat()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", D)
+    # "fleet|platform" keys, referenced by index from each day's rows.
+    keys = hist.setdefault("keys", [])
+    index = {k: i for i, k in enumerate(keys)}
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    fleet_names = {f["id"]: f["name"] for f in snap.get("fleets") or []}
+    info = snap.get("policies") or {}
+
+    counts, failing, active, day = {}, {}, [], {}
+    for hid, det in (snap.get("host_details") or {}).items():
+        h = hosts.get(hid)
+        plat = platform_of(h) if h else None
+        results = det.get("policies") or []
+        if not plat or not results or not is_active(h, now):
+            continue
+        active.append(hid)
+        fleet = h.get("team_name") or "Unassigned"
+        fp = f"{fleet}|{plat}"
+        if fp not in index:
+            index[fp] = len(keys)
+            keys.append(fp)
+        passed = failed = 0
+        for pid, r in results:
+            c = counts.setdefault(str(pid), {}).setdefault(index[fp], [0, 0, 0])
+            c[0 if r == 1 else 1 if r == 0 else 2] += 1
+            if r == 1:
+                passed += 1
+            elif r == 0:
+                failed += 1
+                failing.setdefault(str(pid), []).append(int(hid))
+        count_into(day, fleet, plat, computers=int(bool(passed or failed)), all_pass=int(passed > 0 and not failed),
+                   any_fail=int(failed > 0), passed=passed, failed=failed)
+
+    days = hist.setdefault("days", {})
+    days[D] = {pid: [[ki, *c] for ki, c in sorted(by_key.items())] for pid, by_key in sorted(counts.items())}
+    hist["days"] = days = trim_daily(days, TREND_DAYS, today)
+    # Name, critical, platform, and fleet for every policy in the kept days, current ones updated.
+    names = hist.setdefault("policies", {})
+    for pid, p in info.items():
+        names[pid] = [p["name"], int(p["critical"]), p["platform"], fleet_names.get(p["fleet_id"], "") if p["fleet_id"] else ""]
+    seen = {pid for rows in days.values() for pid in rows}
+    for pid in [p for p in names if p not in seen]:
+        del names[pid]
+
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "keys": keys, "policies": names, "days": [[d, days[d]] for d in sorted(days)],
+        "current": {pid: {"d": p["description"], "r": p["resolution"]} for pid, p in info.items() if pid in counts},
+        "failing": failing, "hosts": host_map(hosts, active),
+        "trend": save_trend(hist, today, day),
+    }
+
+
 BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai,
             "connectivity": build_connectivity, "analytics": build_analytics,
-            "sustainability": build_sustainability}
+            "sustainability": build_sustainability, "policies": build_policies}
 
 
 # ---------------------------------------------------------------- overview
@@ -1510,6 +1723,7 @@ OVERVIEW_FIELDS = {
     "connectivity": ("computers", "fresh24", "stale7", "weak", "persistent"),
     "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),
     "sustainability": ("kwh", "co2", "sleep_off", "never_slept"),
+    "policies": ("computers", "all_pass", "any_fail", "passed", "failed"),
 }
 
 
@@ -1542,15 +1756,33 @@ def build_overview(snap, page_hists):
 
 
 def render(templates, page, data):
+    """The page's HTML and {published path: part} for data that doesn't fit inline.
+    With parts, the page script waits for dexReady() to fetch them."""
     def read(name):
         with open(os.path.join(templates, name)) as f:
             return f.read()
     page_html = read(f"{page}.html")
-    blob = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
+    head, parts = split_parts(data, "data/page")
+    if parts:
+        start = page_html.index("<script>", page_html.index("/*__BASE_JS__*/")) + len("<script>")
+        end = page_html.index("</script>", start)
+        page_html = page_html[:start] + "\ndexReady(function () {" + page_html[start:end] + "});\n" + page_html[end:]
+    blob = dumps(head).replace("</", "<\\/")
     return (page_html
             .replace("/*__BASE_CSS__*/", read("base.css"))
             .replace("/*__BASE_JS__*/", read("base.js"))
-            .replace("/*__DATA__*/null", blob))
+            .replace("/*__DATA__*/null", blob)), parts
+
+
+def write_page(out_dir, html_text, parts):
+    """Write index.html and its data parts into out_dir. Returns the parts' published paths."""
+    os.makedirs(os.path.join(out_dir, "data"), exist_ok=True)
+    with open(os.path.join(out_dir, "index.html"), "w") as f:
+        f.write(html_text)
+    for name, part in parts.items():
+        with open(os.path.join(out_dir, name), "w") as f:
+            json.dump(part, f, separators=(",", ":"))
+    return list(parts)
 
 
 def main():
@@ -1558,10 +1790,9 @@ def main():
     ap.add_argument("--page", required=True, choices=sorted(BUILDERS) + ["overview"])
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--templates", required=True)
-    ap.add_argument("--history")
-    ap.add_argument("--out-html", required=True)
-    ap.add_argument("--out-history", help="required for every page but the overview")
-    ap.add_argument("--page-history", action="append", default=[], help="overview only: page=path to that page's new history")
+    ap.add_argument("--history", help="the page's history.json; leave out on the first run")
+    ap.add_argument("--out", required=True, help="writes index.html, data/history.json, and any data parts here")
+    ap.add_argument("--page-history", action="append", default=[], help="overview only: page=path to that page's history.json")
     ap.add_argument("--link", action="append", default=[], help="page=URL of that page's artifact")
     args = ap.parse_args()
     snap = load_json(args.snapshot, None)
@@ -1569,22 +1800,17 @@ def main():
         sys.exit("FATAL: snapshot missing or wrong schema")
     links = dict(x.split("=", 1) for x in args.link)
     if args.page == "overview":
-        data = build_overview(snap, {p: load_json(path, {}) for p, path in (x.split("=", 1) for x in args.page_history)})
-        # Without artifact URLs, link the pages written next to this one.
-        data["links"] = {p: links.get(p) or f"{p}.html" for p in OVERVIEW_FIELDS}
+        data = build_overview(snap, {p: load_history(path)[0] for p, path in (x.split("=", 1) for x in args.page_history)})
+        data["links"] = {p: links.get(p) or f"../{p}/" for p in OVERVIEW_FIELDS}
     else:
-        if not args.out_history:
-            sys.exit("FATAL: --out-history is required")
-        hist = load_json(args.history, {})
+        hist = load_history(args.history)[0] if args.history else {}
         data = BUILDERS[args.page](snap, hist)
         data["links"] = {"overview": links["overview"]} if links.get("overview") else {}
-    with open(args.out_html, "w") as f:
-        f.write(render(args.templates, args.page, data))
+    html_text, parts = render(args.templates, args.page, data)
+    written = write_page(args.out, html_text, parts)
     if args.page != "overview":
-        with open(args.out_history, "w") as f:
-            json.dump(hist, f, separators=(",", ":"))
-    print(f"{args.page}: html={os.path.getsize(args.out_html)}B"
-          + (f" history={os.path.getsize(args.out_history)}B" if args.page != "overview" else ""))
+        written += save_history(hist, os.path.join(args.out, "data"), written)
+    print(f"{args.page}: html={len(html_text)}B files={written}")
 
 
 if __name__ == "__main__":

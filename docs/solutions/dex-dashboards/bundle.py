@@ -21,10 +21,10 @@ FILES = [
     "templates/base.css", "templates/base.js",
     "templates/lifecycle.html", "templates/software.html", "templates/patch.html", "templates/ai.html",
     "templates/connectivity.html", "templates/analytics.html", "templates/sustainability.html",
-    "templates/overview.html",
+    "templates/policies.html", "templates/overview.html",
 ]
 TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity", "ai": "AI governance",
-          "connectivity": "Connectivity", "analytics": "Analytics", "sustainability": "Sustainability",
+          "connectivity": "Connectivity", "analytics": "Analytics", "sustainability": "Sustainability", "policies": "Policies",
           "overview": "DEX overview"}
 PLACEHOLDER = """<title>{title}</title>
 <meta name="claude:viewport-fit-sides" content="cover">

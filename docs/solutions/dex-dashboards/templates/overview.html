@@ -32,7 +32,7 @@
   <div class="title-row">
     <div>
       <h1>DEX overview</h1>
-      <p class="subtitle">How your computers are doing across every DEX dashboard: hardware, software, patching, AI tools, connectivity, and energy. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
+      <p class="subtitle">How your computers are doing across every DEX dashboard: hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -87,7 +87,7 @@ const sumSince = (rows, f, days) => {
 };
 const offMac = () => PLATFORM && PLATFORM !== "macos";
 
-// Alphabetical by title, then Analytics across the bottom, since it checks the data behind the rest.
+// Alphabetical by title, then Policies and Analytics across the bottom, since they check compliance and the data behind the rest.
 // key: the card's main number for today's row. spark: the same measure per day.
 const CARDS = [
   { page: "ai", title: "AI governance", about: "Which AI tools run where, and the settings that put data at risk.",
@@ -117,6 +117,10 @@ const CARDS = [
     key: (r, rows) => sumSince(rows, "kwh", 7), keyFmt: kwhFmt, unit: () => "kWh, Macs",
     rows: (r, rows) => [[`Carbon, ${windowLabel("sustainability", 7)}`, offMac() ? "---" : kgFmt(sumSince(rows, "co2", 7))],
       ["Haven't slept", fmt.n(r.never_slept), r.never_slept], ["Sleep turned off", fmt.n(r.sleep_off)]] },
+  { page: "policies", title: "Policies", about: "Which Fleet policies your computers pass and fail, today and on any day this year.", wide: true,
+    label: () => "Policy pass rate", spark: (r) => pct(r.passed, r.passed + r.failed), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.passed)} of ${fmt.n(r.passed + r.failed)} results`,
+    rows: (r) => [["Failing a policy", fmt.n(r.any_fail), r.any_fail], ["Passing every policy", fmt.pct(pct(r.all_pass, r.computers))]] },
   { page: "analytics", title: "Analytics", about: "Whether the data behind these dashboards is complete and fresh, and the security posture it shows.", wide: true,
     label: () => "Every source fresh", spark: (r) => pct(r.all_fresh, r.computers), keyFmt: fmt.pct, yMax: 100,
     unit: (r) => `${fmt.n(r.all_fresh)} of ${fmt.n(r.computers)}`,
