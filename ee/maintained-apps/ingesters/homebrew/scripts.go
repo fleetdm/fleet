@@ -109,7 +109,6 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	appQuit := uninstallQuitsApp(cask, app.UniqueIdentifier)
 	appSignaled := uninstallSignalsApp(cask, app.UniqueIdentifier)
 	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
-	quitFallsBackToSignal := appQuit && appSignaled
 
 	for _, artifact := range cask.Artifacts {
 		switch {
@@ -152,7 +151,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, quitFallsBackToSignal)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, appSignaled)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -160,7 +159,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, quitFallsBackToSignal)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, appSignaled)
 			}
 		}
 	}
@@ -394,7 +393,7 @@ const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 // processUninstallArtifact writes an uninstall or zap directive. appStopped is
 // nil for zap, which runs after the app is removed.
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, quitFallsBackToSignal bool) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, appSignaled bool) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -430,7 +429,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		// on the signal when the quit fails, so the app is checked after the
 		// signal instead.
 		var stop string
-		if quitTargetsApp(appName, bundleID) && !quitFallsBackToSignal {
+		if quitTargetsApp(appName, bundleID) && !appSignaled {
 			stop = " || exit 1"
 		}
 		// osascript can't resolve a wildcard application id, so the pattern is
@@ -457,7 +456,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
 		// send_signal doesn't report whether the app stopped: it may find no
 		// process to signal, or the app may ignore the signal.
-		if quitFallsBackToSignal && quitTargetsApp(u.Signal.Other[1], bundleID) {
+		if quitTargetsApp(u.Signal.Other[1], bundleID) {
 			sb.AddFunction("quit_application", quitApplicationFunc)
 			sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 		}

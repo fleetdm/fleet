@@ -1067,17 +1067,13 @@ func TestUninstallScriptQuitsAppCaskDoesNotName(t *testing.T) {
 	require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
 }
 
-// TestUninstallScriptChecksAppAfterSignal covers casks that quit the app and
-// signal it if the quit fails: the signal runs, and the app isn't removed if
-// it's still running afterward.
+// TestUninstallScriptChecksAppAfterSignal covers casks that signal the app,
+// either alone or if a quit fails: the signal runs, and the app isn't removed
+// if it's still running afterward.
 func TestUninstallScriptChecksAppAfterSignal(t *testing.T) {
 	strs := func(s ...string) optjson.StringOr[[]string] {
 		return optjson.StringOr[[]string]{IsOther: true, Other: s}
 	}
-	script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
-		{Uninstall: []*brewUninstall{{Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")}}},
-		{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
-	}})
 	// send_signal finds the app's PID with launchctl list unless it's unlisted.
 	stubs := `scutil() { echo "  Name : alice"; }
 id() { echo 501; }
@@ -1088,16 +1084,34 @@ kill() { running=${running/ com.example.Foo / }; }
 `
 	const remove = "sudo rm -rf /Applications//Foo.app"
 
-	out, code := runStubbedUninstallScript(t, stubs+script, "com.example.Foo", "com.example.Foo", "")
-	require.Zero(t, code, out)
-	require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
-	require.Contains(t, out, "Successfully signaled PID 123 with signal KILL.")
-	require.Contains(t, out, remove)
+	for name, uninstall := range map[string]*brewUninstall{
+		"quit and signal": {Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")},
+		"signal only":     {Signal: strs("TERM", "com.example.Foo")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+				{Uninstall: []*brewUninstall{uninstall}},
+				{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+			}})
+			signaled := "Successfully signaled PID 123 with signal " + uninstall.Signal.Other[0] + "."
 
-	out, code = runStubbedUninstallScript(t, "unlisted=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
-	require.Equal(t, 1, code, out)
-	require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
-	require.NotContains(t, out, remove)
+			out, code := runStubbedUninstallScript(t, stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Zero(t, code, out)
+			require.Contains(t, out, signaled)
+			require.Contains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, "unlisted=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Equal(t, 1, code, out)
+			require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.NotContains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, stubs+script, "", "", "")
+			require.Zero(t, code, out)
+			require.NotContains(t, out, "Quitting application")
+			require.Contains(t, out, remove)
+		})
+	}
 }
 
 // TestUninstallScriptQuitsAppOnce checks where the generated quit goes and when
@@ -1179,8 +1193,15 @@ func TestUninstallScriptQuitsAppOnce(t *testing.T) {
 			{Uninstall: []*brewUninstall{{Signal: strs("TERM", "com.example.Foo")}}},
 			appArtifact,
 		}})
-		require.NotContains(t, script, "quit_application")
-		require.Contains(t, script, `send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`)
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{`send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`, quit, removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
 	})
 
 	// Like busycontacts: the signal is the fallback for a quit that fails.
