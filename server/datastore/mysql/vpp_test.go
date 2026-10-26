@@ -2905,7 +2905,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID}, // stays nil
-		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": 1}`)}, // updates
+		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": {"key": 1}}`)}, // updates
 		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},
 		{VPPAppID: app4.VPPAppID, Configuration: config1},
 	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
@@ -2933,7 +2933,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	}
 
 	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration)
-	require.Equal(t, []byte(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, []byte(`{"managedConfiguration": {"key": 1}}`), assigned[app2.VPPAppID].Configuration)
 	require.Equal(t, []byte(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
 

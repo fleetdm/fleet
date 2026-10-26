@@ -4913,12 +4913,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	var patchAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 1}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app2TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 2}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	// add app 1 and 2 to Android setup experience
@@ -4963,15 +4963,15 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	require.Equal(t, 2, fleetAgentCount, "fleet agent should be added at enrollment and kept when the app list is replaced")
 	require.ElementsMatch(t, []appCall{
 		// app1 made available individually (from PATCH config change)
-		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		{app1.VPPAppID.AdamID, "AVAILABLE", `{"key":1}`},
 		// app2 made available individually (from PATCH config change)
-		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", `{"key":2}`},
 		// app1+app2 made available during enrollment (self-service)
-		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
-		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		{app1.VPPAppID.AdamID, "AVAILABLE", `{"key":1}`},
+		{app2.VPPAppID.AdamID, "AVAILABLE", `{"key":2}`},
 		// app1+app2 installed during enrollment (setup experience)
-		{app1.VPPAppID.AdamID, "PREINSTALLED", "1"},
-		{app2.VPPAppID.AdamID, "PREINSTALLED", "2"},
+		{app1.VPPAppID.AdamID, "PREINSTALLED", `{"key":1}`},
+		{app2.VPPAppID.AdamID, "PREINSTALLED", `{"key":2}`},
 	}, appCalls)
 
 	patchAppsPolicies = nil
@@ -4998,7 +4998,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// set a configuration for the app3
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5007,7 +5007,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the app available with its config
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`3`)},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`)},
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -5015,7 +5015,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// patch but no change to the configuration for the app3
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5025,7 +5025,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// set the other two supported top-level keys for app3
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 3, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5034,7 +5034,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the app available with both policies set, not just the managed configuration
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`3`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, // #nosec G101 - AMAPI enum value, not a credential
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, // #nosec G101 - AMAPI enum value, not a credential
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -5042,7 +5042,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// other ApplicationPolicy fields are sent to the host as well
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 3, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5052,7 +5052,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		{
 			PackageName:          app3.VPPAppID.AdamID,
 			InstallType:          "AVAILABLE",
-			ManagedConfiguration: googleapi.RawMessage(`3`),
+			ManagedConfiguration: googleapi.RawMessage(`{"key":3}`),
 			AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
 			MinimumVersionCode:   42,
 			PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
@@ -5291,7 +5291,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	var patchAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 1}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5343,7 +5343,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	patchAppResp = updateAppStoreAppResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 2}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
@@ -5433,7 +5433,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	patchAppResp = updateAppStoreAppResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
-		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
+		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 2}}`),
 	}, http.StatusOK, &patchAppResp)
 
 	s.runWorkerUntilDoneWithChecks(true)
