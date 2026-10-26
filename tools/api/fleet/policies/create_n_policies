@@ -21,7 +21,7 @@ def main(n: int, team_id: int):
       name='Policy ' + ''.join(random.choices(string.ascii_lowercase, k=5))
       critical=random.choice(["true", "false"])
       data = f'{{"name": "{name}", "query": "SELECT 1 FROM osquery_info;", "description": "Selects 1", "resolution": "Resolution steps", "platform": "{random.choice(["windows", "linux", "darwin"])}", "critical": {critical}}}'
-      path_suffix = POLICIES_ENDPOINT if team_id == None else f"/api/latest/fleet/teams/{team_id}/policies"
+      path_suffix = POLICIES_ENDPOINT if team_id == None else f"/api/latest/fleet/fleets/{team_id}/policies"
       process = subprocess.Popen(
         ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}{path_suffix}", "-d", f"{data}", "--insecure"], stdout=subprocess.PIPE
       )

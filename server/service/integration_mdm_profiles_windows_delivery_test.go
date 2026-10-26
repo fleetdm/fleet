@@ -824,7 +824,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// make fleet add a Windows OS Updates profile
 	tmResp := teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &tmResp)
 	osUpdatesProf = getProfileUUID(t, servermdm.FleetWindowsOSUpdatesProfileName, &tm.ID)
 
 	// os updates is sent via a profiles commands
@@ -927,7 +927,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// At this point, host is in tm with teamProfiles (2 profiles) verified.
 		// Disable OS updates on tm to simplify profile counts.
 		tmResp := teamResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
 		// Drain any OS updates removal commands
 		drainCommands(mdmDevice)
 		verifyProfiles(mdmDevice, 0, false) // drain remaining
@@ -976,7 +976,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		twoLocURIProfile := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
 		// Also disable OS updates to simplify
 		tmResp := teamResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "edit-locuri-test", Contents: []byte(twoLocURIProfile)},
@@ -1162,7 +1162,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1172,7 +1172,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	// set the windows custom settings fields
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
 				"custom_settings": [
@@ -1186,7 +1186,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	// check that they are returned by a GET /config
 	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
@@ -1195,12 +1195,12 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// check that they are returned by a GET /config
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
@@ -1209,13 +1209,13 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{ "windows_settings": { "custom_settings": null } }
   `), http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{team.Name: team.ID}, applyResp.TeamIDsByName)
 
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
@@ -1223,17 +1223,17 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{ "windows_settings": { "custom_settings": null } }
   `), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// apply with invalid mix of labels fails
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
 				"custom_settings": [

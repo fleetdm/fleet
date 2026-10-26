@@ -1323,7 +1323,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 
 	createFleet := func(name string) (uint, string) {
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			Name: new(t.Name() + name),
 		}, http.StatusOK, &createTeamResp)
 		secret := uuid.NewString()

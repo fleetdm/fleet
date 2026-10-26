@@ -322,7 +322,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 }
 
 ////////////////////////////////////////////////////
-// PATCH /api/_version_/fleet/vpp_tokens/%d/teams //
+// PATCH /api/_version_/fleet/vpp_tokens/%d/fleets //
 ////////////////////////////////////////////////////
 
 type patchVPPTokensTeamsRequest struct {

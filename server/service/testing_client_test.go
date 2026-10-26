@@ -465,7 +465,7 @@ func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
 	specsReq := map[string]any{
 		"specs": []any{teamSpec},
 	}
-	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
+	ts.Do("POST", "/api/latest/fleet/spec/fleets", specsReq, http.StatusOK)
 }
 
 func (ts *withServer) LoginSSOUser(username, password string) string {

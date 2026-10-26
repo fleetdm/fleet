@@ -26,7 +26,7 @@ def main(n: int, use_emoji: bool):
     data = f'{{"name": "Team {teamname_suffix}"}}'
     print(data)
     subprocess.run(
-      ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}/api/latest/fleet/teams", "-d", f"{data}", "--insecure"]
+      ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}/api/latest/fleet/fleets", "-d", f"{data}", "--insecure"]
     )
 
 

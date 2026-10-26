@@ -183,7 +183,7 @@ func TestRouteTierSampler_ApplyRaceFree(t *testing.T) {
 
 	// Run for a tight window. The race detector will fail if there's a torn read.
 	for range 50_000 {
-		_ = sample(t, s, "POST /api/_version_/fleet/spec/teams")
+		_ = sample(t, s, "POST /api/_version_/fleet/spec/fleets")
 	}
 	stop.Store(true)
 	readers.Wait()

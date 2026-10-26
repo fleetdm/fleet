@@ -823,7 +823,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
 	tr := teamResponse{}
 	s.DoJSON(
-		"POST", "/api/latest/fleet/teams", createTeamRequest{
+		"POST", "/api/latest/fleet/fleets", createTeamRequest{
 			Name: new("os_versions_team"),
 		}, http.StatusOK, &tr,
 	)

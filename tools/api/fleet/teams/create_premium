@@ -6,7 +6,7 @@
 source $FLEET_ENV_PATH
 
 # Create teams
-create_team_endpoint="api/latest/fleet/teams"
+create_team_endpoint="api/latest/fleet/fleets"
 
 # Create Apples
 data='{
