@@ -86,6 +86,7 @@ org_settings:
 policies:
   - path: ./lib/all/policies/npm-supply-chain-compromised-packages.yml
   - path: ./lib/all/policies/emudhra-compromised-intermediate-cas.yml
+  - path: ./lib/all/policies/php2shell-php-patched.yml
 reports:
   - path: ./lib/all/reports/collect-fleetd-information.yml
   - path: ./lib/all/reports/collect-operating-system-information.yml
