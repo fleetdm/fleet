@@ -27,6 +27,7 @@ type certificateAuthorityWithEncryptedSecrets struct {
 	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
 	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
 	MTLSKeyEncrypted                 []byte `db:"mtls_key_encrypted"`
+	GoogleCASAPIKeyJSONEncrypted     []byte `db:"google_cas_api_key_json_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 }
 
@@ -39,6 +40,13 @@ const ejbcaColumns = `
 		ejbca_certificate_profile_name,
 		ejbca_end_entity_profile_name,
 		ejbca_username_template,`
+
+// googleCASColumns are the Google CAS columns of certificate_authorities, selected after the EJBCA ones.
+const googleCASColumns = `
+		google_cas_project,
+		google_cas_location,
+		google_cas_ca_pool,
+		google_cas_api_key_json_encrypted,`
 
 func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 	stmt := `
@@ -58,7 +66,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		password_encrypted,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,` + ejbcaColumns + `
+		client_secret_encrypted,` + ejbcaColumns + googleCASColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -120,6 +128,13 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			}
 			ca.MTLSKeyPEM = new(string(decryptedMTLSKey))
 		}
+		if ca.GoogleCASAPIKeyJSONEncrypted != nil {
+			decryptedAPIKeyJSON, err := crypto.DecryptAESGCM(ca.GoogleCASAPIKeyJSONEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting Google CAS service account key for certificate authority %d", ca.ID))
+			}
+			ca.GoogleCASAPIKeyJSON = new(string(decryptedAPIKeyJSON))
+		}
 	} else {
 		if ca.APITokenEncrypted != nil {
 			ca.APIToken = ptr.String(fleet.MaskedPassword)
@@ -135,6 +150,9 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		}
 		if ca.MTLSKeyEncrypted != nil {
 			ca.MTLSKeyPEM = new(fleet.MaskedPassword)
+		}
+		if ca.GoogleCASAPIKeyJSONEncrypted != nil {
+			ca.GoogleCASAPIKeyJSON = new(fleet.MaskedPassword)
 		}
 	}
 	if ca.MTLSCertPEM != nil {
@@ -181,7 +199,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		challenge_url,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,` + ejbcaColumns + `
+		client_secret_encrypted,` + ejbcaColumns + googleCASColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -245,22 +263,60 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		return nil, err
 	}
 
-	result, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
-	if err != nil {
-		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			return nil, fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	var id int64
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
+		if err != nil {
+			if strings.Contains(err.Error(), "idx_ca_type_name") {
+				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			}
+			return ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
-	}
-	id, err := result.LastInsertId()
+		id, err = result.LastInsertId()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+		}
+		return ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name)
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+		return nil, err
 	}
 	ca.ID = uint(id) //nolint:gosec // dismiss G115
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 22
+// ensureEJBCANamesNotSharedDB fails if one of the names is used by an EJBCA certificate authority and by another certificate authority.
+func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
+	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
+	stmt, args, err := sqlx.In(`SELECT name, type FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare check of EJBCA certificate authority names")
+	}
+	var rows []struct {
+		Name string `db:"name"`
+		Type string `db:"type"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
+	}
+	// The names are compared without regard to case, like the DB column is.
+	ejbca, other := map[string]string{}, map[string]struct{}{}
+	for _, row := range rows {
+		if row.Type == string(fleet.CATypeEJBCA) {
+			ejbca[strings.ToLower(row.Name)] = row.Name
+		} else {
+			other[strings.ToLower(row.Name)] = struct{}{}
+		}
+	}
+	for lowerName, name := range ejbca {
+		if _, shared := other[lowerName]; shared {
+			return fleet.EJBCANameInUseError{Name: name}
+		}
+	}
+	return nil
+}
+
+const argsCountInsertCertificateAuthority = 26
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -284,7 +340,11 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	ejbca_ca_name,
 	ejbca_certificate_profile_name,
 	ejbca_end_entity_profile_name,
-	ejbca_username_template
+	ejbca_username_template,
+	google_cas_project,
+	google_cas_location,
+	google_cas_ca_pool,
+	google_cas_api_key_json_encrypted
 ) VALUES %s`
 
 const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLICATE KEY UPDATE
@@ -309,7 +369,11 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	ejbca_ca_name = VALUES(ejbca_ca_name),
 	ejbca_certificate_profile_name = VALUES(ejbca_certificate_profile_name),
 	ejbca_end_entity_profile_name = VALUES(ejbca_end_entity_profile_name),
-	ejbca_username_template = VALUES(ejbca_username_template)`
+	ejbca_username_template = VALUES(ejbca_username_template),
+	google_cas_project = VALUES(google_cas_project),
+	google_cas_location = VALUES(google_cas_location),
+	google_cas_ca_pool = VALUES(google_cas_ca_pool),
+	google_cas_api_key_json_encrypted = VALUES(google_cas_api_key_json_encrypted)`
 
 func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPrivateKey string, ca *fleet.CertificateAuthority) ([]interface{}, string, error) {
 	var upns []byte
@@ -318,6 +382,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
 	var encryptedMTLSKey []byte
+	var encryptedGoogleCASAPIKeyJSON []byte
 	var err error
 
 	if ca.CertificateUserPrincipalNames != nil {
@@ -356,6 +421,12 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for new certificate authority")
 		}
 	}
+	if ca.GoogleCASAPIKeyJSON != nil {
+		encryptedGoogleCASAPIKeyJSON, err = crypto.EncryptAESGCM([]byte(*ca.GoogleCASAPIKeyJSON), serverPrivateKey)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting Google CAS service account key for new certificate authority")
+		}
+	}
 
 	args := []interface{}{
 		ca.Type,
@@ -380,6 +451,10 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		ca.EJBCACertificateProfileName,
 		ca.EJBCAEndEntityProfileName,
 		ca.EJBCAUsernameTemplate,
+		ca.GoogleCASProject,
+		ca.GoogleCASLocation,
+		ca.GoogleCASCAPool,
+		encryptedGoogleCASAPIKeyJSON,
 	}
 	placeholders := "(" + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + ")"
 
@@ -464,7 +539,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 				return err
 			}
 			for _, ca := range updates {
-				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
+				if old, ok := oldCAs[strings.ToLower(*ca.Name)]; ok && certificateFieldsChanged(old, ca, true) {
 					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
@@ -474,6 +549,16 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
+		}
+		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as a rename is in GitOps, is fine.
+		if len(upserts) > 0 {
+			names := make([]string, 0, len(upserts))
+			for _, ca := range upserts {
+				names = append(names, *ca.Name)
+			}
+			if err := ensureEJBCANamesNotSharedDB(ctx, tx, names...); err != nil {
+				return err
+			}
 		}
 		for _, t := range profileCATypes {
 			if names := resendCANames[t.caType]; len(names) > 0 {
@@ -495,7 +580,8 @@ var profileCATypes = []struct {
 	{fleet.CATypeEJBCA, fleet.FleetVarEJBCADataPrefix},
 }
 
-// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares.
+// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares. The result is
+// keyed by the lowercase name, because the column compares names without regard to case.
 func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, caType fleet.CAType, where string, args ...any,
 ) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
@@ -517,7 +603,7 @@ func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, 
 		if err := ds.postprocessRetrievedCertificateAuthority(ctx, &row, false); err != nil {
 			return nil, err
 		}
-		cas[*row.Name] = &row.CertificateAuthority
+		cas[strings.ToLower(*row.Name)] = &row.CertificateAuthority
 	}
 	return cas, nil
 }
@@ -631,6 +717,11 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
 			}
 			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		}
+		if ca.Name != nil {
+			if err := ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name); err != nil {
+				return err
+			}
 		}
 
 		if resendCAName == nil {
@@ -804,21 +895,28 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		for _, f := range []struct {
 			column string
 			value  *string
+			// optional fields are stored as NULL when emptied, as they are when they are not set on create
+			optional bool
 		}{
-			{"name", ca.Name},
-			{"url", ca.URL},
-			{"certificate_common_name", ca.CertificateCommonName},
-			{"mtls_cert_pem", ca.MTLSCertPEM},
-			{"trust_ca_bundle_pem", ca.TrustCABundlePEM},
-			{"ejbca_ca_name", ca.EJBCACAName},
-			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName},
-			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName},
-			{"ejbca_username_template", ca.EJBCAUsernameTemplate},
+			{"name", ca.Name, false},
+			{"url", ca.URL, false},
+			{"certificate_common_name", ca.CertificateCommonName, false},
+			{"mtls_cert_pem", ca.MTLSCertPEM, false},
+			{"trust_ca_bundle_pem", ca.TrustCABundlePEM, true},
+			{"ejbca_ca_name", ca.EJBCACAName, false},
+			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName, false},
+			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName, false},
+			{"ejbca_username_template", ca.EJBCAUsernameTemplate, true},
 		} {
-			if f.value != nil {
-				updates = append(updates, f.column+" = ?")
-				*args = append(*args, *f.value)
+			if f.value == nil {
+				continue
 			}
+			if f.optional {
+				updates = append(updates, f.column+" = NULLIF(?, '')")
+			} else {
+				updates = append(updates, f.column+" = ?")
+			}
+			*args = append(*args, *f.value)
 		}
 		if ca.MTLSKeyPEM != nil {
 			updates = append(updates, "mtls_key_encrypted = ?")
@@ -829,12 +927,39 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			*args = append(*args, encryptedMTLSKey)
 		}
 		if ca.CertificateUserPrincipalNames != nil {
-			updates = append(updates, "certificate_user_principal_names = ?")
-			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+			if len(*ca.CertificateUserPrincipalNames) == 0 {
+				updates = append(updates, "certificate_user_principal_names = NULL")
+			} else {
+				updates = append(updates, "certificate_user_principal_names = ?")
+				upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+				if err != nil {
+					return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+				}
+				*args = append(*args, upns)
 			}
-			*args = append(*args, upns)
+		}
+	case string(fleet.CATypeGoogleCAS):
+		for _, f := range []struct {
+			column string
+			value  *string
+		}{
+			{"name", ca.Name},
+			{"google_cas_project", ca.GoogleCASProject},
+			{"google_cas_location", ca.GoogleCASLocation},
+			{"google_cas_ca_pool", ca.GoogleCASCAPool},
+		} {
+			if f.value != nil {
+				updates = append(updates, f.column+" = ?")
+				*args = append(*args, *f.value)
+			}
+		}
+		if ca.GoogleCASAPIKeyJSON != nil {
+			updates = append(updates, "google_cas_api_key_json_encrypted = ?")
+			encryptedAPIKeyJSON, err := crypto.EncryptAESGCM([]byte(*ca.GoogleCASAPIKeyJSON), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting Google CAS service account key for certificate authority")
+			}
+			*args = append(*args, encryptedAPIKeyJSON)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

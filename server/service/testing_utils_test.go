@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -162,6 +163,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
 		ejbcaService                                                  = ejbca.NewService(ejbca.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
+		googleCASService                fleet.GoogleCASService        = googlecas.NewService(googlecas.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -274,6 +276,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if len(opts) > 0 && opts[0].DigiCertService != nil {
 		digiCertService = opts[0].DigiCertService
 	}
+	if len(opts) > 0 && opts[0].GoogleCASService != nil {
+		googleCASService = opts[0].GoogleCASService
+	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
 		// The Conditional Access feature is gated on Fleet Premium; callers that
@@ -377,6 +382,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ejbcaService,
 			androidModule,
 			estCAService,
+			googleCASService,
 			pssoNonceStore,
 			msGraphClientFactory,
 		)

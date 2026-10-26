@@ -16,6 +16,7 @@ const (
 	aggregatedStatsTypeMunkiIssues          = "munki_issues"
 	aggregatedStatsTypeOSVersions           = "os_versions"
 	aggregatedStatsTypePolicyViolationsDays = "policy_violation_days"
+	aggregatedStatsTypeAIGeneratedProfiles  = "ai_generated_profiles"
 	// those types are partial because the actual stats type is by platform,
 	// which is computed with this stats type and the platform type (see
 	// platformKey function).

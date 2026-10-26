@@ -434,7 +434,7 @@ The scripts live in Fleet's solutions library, so they can improve without this 
 
 Each script is idempotent and keeps a `*.pre-emudhra` backup of every file it edits. It exits `0` when the host is protected, `2` when something needs a look, and `1` on error.
 
-Before editing Fleet's agent bundle, each script fetches the Fleet server's certificate chain. It checks that the chain still ends at a root left in the filtered file. Hosts pinned to their own Fleet certificate skip that check, because `osqueryd` does not use the bundle there. If a script can't prove the edit is safe, it changes nothing and says so. `osqueryd` reloads the file on its next connection, so no restart is needed.
+Before editing Fleet's agent bundle, each script fetches the Fleet server's certificate chain. It checks that a CA in that chain still matches a self-signed root in the filtered file, by name and public key. Comparing keys matters because Windows can extend a chain through a cross-signed copy of a root, to an older root the bundle doesn't carry. Hosts pinned to their own Fleet certificate skip that check, because `osqueryd` does not use the bundle there. If a script can't prove the edit is safe, it changes nothing and says so. `osqueryd` reloads the file on its next connection, so no restart is needed.
 
 ### Roll it out
 

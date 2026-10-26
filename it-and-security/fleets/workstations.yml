@@ -181,6 +181,9 @@ controls:
     - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
     - path: ../lib/macos/scripts/remove-emudhra-roots-macos-system.sh
     - path: ../lib/windows/scripts/remove-emudhra-roots-fleetd.ps1
+    - path: ../lib/macos/scripts/remediate-php2shell-macos.sh
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
+    - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml

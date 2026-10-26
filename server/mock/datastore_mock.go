@@ -254,7 +254,7 @@ type ListHostUsersFunc func(ctx context.Context, hostID uint) ([]fleet.HostUser,
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error)
 
 type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
 
@@ -871,6 +871,8 @@ type CountHostScriptAttemptsFunc func(ctx context.Context, hostID uint, scriptID
 type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
 
 type InitializePolicyViolationDaysFunc func(ctx context.Context) error
+
+type IncrementAIGeneratedProfileCountFunc func(ctx context.Context, platform string) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -2283,6 +2285,8 @@ type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID strin
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
+type ListHostMDMAndroidVPPAppsLatestFailedInstallFunc func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
 
 type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
 
@@ -3892,6 +3896,9 @@ type DataStore struct {
 
 	InitializePolicyViolationDaysFunc        InitializePolicyViolationDaysFunc
 	InitializePolicyViolationDaysFuncInvoked bool
+
+	IncrementAIGeneratedProfileCountFunc        IncrementAIGeneratedProfileCountFunc
+	IncrementAIGeneratedProfileCountFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -6011,6 +6018,9 @@ type DataStore struct {
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
 
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFunc        ListHostMDMAndroidVPPAppsLatestFailedInstallFunc
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked bool
+
 	BulkSetVPPInstallsAsVerifiedFunc        BulkSetVPPInstallsAsVerifiedFunc
 	BulkSetVPPInstallsAsVerifiedFuncInvoked bool
 
@@ -7323,11 +7333,11 @@ func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
-func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, filter, query, omit...)
+	return s.SearchHostsFunc(ctx, filter, query, excludeMobile, omit...)
 }
 
 func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
@@ -9484,6 +9494,13 @@ func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
 	s.InitializePolicyViolationDaysFuncInvoked = true
 	s.mu.Unlock()
 	return s.InitializePolicyViolationDaysFunc(ctx)
+}
+
+func (s *DataStore) IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error {
+	s.mu.Lock()
+	s.IncrementAIGeneratedProfileCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.IncrementAIGeneratedProfileCountFunc(ctx, platform)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -14426,6 +14443,13 @@ func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx conte
 	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc(ctx, hostID)
 }
 
 func (s *DataStore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {

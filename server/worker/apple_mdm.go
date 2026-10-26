@@ -134,6 +134,14 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	// fleetd is queued ahead of the profiles, as in runPostDEPEnrollment, so the
+	// device doesn't run every profile before installing it.
+	if isMacOS(args.Platform) {
+		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+	}
+
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
 	if err != nil {
 		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
@@ -141,11 +149,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-	} else {
+	if !isMacOS(args.Platform) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
