@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/option"
 )
 
 const (
@@ -750,5 +751,39 @@ func TestPolicyRequestGuard(t *testing.T) {
 		mux := newMux(newDeviceStore(), nil, 0, 0, policyOptions{requirePolicies: true})
 		require.Equal(t, http.StatusOK, serve(mux, "PATCH", policyPath(hostPolicyID)))
 		require.Equal(t, http.StatusOK, serve(mux, "POST", policyPath(hostPolicyID+":modifyPolicyApplications")))
+	})
+}
+
+func TestForwardedPolicyPatchRecordsPolicy(t *testing.T) {
+	const realDevicePolicyID = "real-device-policy"
+	policyPath := fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, realDevicePolicyID)
+	serve := func(mux *http.ServeMux, method, path string) int {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
+		return rr.Code
+	}
+	newForwarder := func(t *testing.T, googleStatus int) *googleForwarder {
+		fakeGoogle := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(googleStatus)
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		t.Cleanup(fakeGoogle.Close)
+		svc, err := androidmanagement.NewService(t.Context(),
+			option.WithEndpoint(fakeGoogle.URL), option.WithHTTPClient(fakeGoogle.Client()))
+		require.NoError(t, err)
+		return &googleForwarder{svc: svc}
+	}
+
+	t.Run("a policy Google accepted takes app actions", func(t *testing.T) {
+		mux := newMux(newDeviceStore(), newForwarder(t, http.StatusOK), 0, 0, policyOptions{requirePolicies: true})
+		require.Equal(t, http.StatusOK, serve(mux, "PATCH", policyPath))
+		require.Equal(t, http.StatusOK, serve(mux, "POST", policyPath+":modifyPolicyApplications"))
+	})
+
+	t.Run("a policy Google rejected still doesn't exist", func(t *testing.T) {
+		mux := newMux(newDeviceStore(), newForwarder(t, http.StatusBadRequest), 0, 0, policyOptions{requirePolicies: true})
+		require.NotEqual(t, http.StatusOK, serve(mux, "PATCH", policyPath))
+		require.Equal(t, http.StatusNotFound, serve(mux, "POST", policyPath+":modifyPolicyApplications"))
 	})
 }

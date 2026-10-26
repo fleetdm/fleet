@@ -355,7 +355,10 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 		isFakeDevice := store.getByESID(hostUUID) != nil
 		if !isFakeDevice && google != nil {
 			log.Printf("Forwarding policy patch to Google AMAPI: %q", name) // #nosec G706 -- load testing tool
-			google.ForwardPoliciesPatch(w, r)
+			// App actions on this policy are answered here, so record that it now exists.
+			if google.ForwardPoliciesPatch(w, r) {
+				store.nextPolicyVersion(name)
+			}
 			return
 		}
 

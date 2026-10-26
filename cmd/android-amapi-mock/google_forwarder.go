@@ -117,13 +117,14 @@ func (g *googleForwarder) ForwardDevicesList(enterpriseName string, ctx context.
 	return allDevices, nil
 }
 
-// ForwardPoliciesPatch forwards a PATCH .../policies/{id} request to Google.
-func (g *googleForwarder) ForwardPoliciesPatch(w http.ResponseWriter, r *http.Request) {
+// ForwardPoliciesPatch forwards a PATCH .../policies/{id} request to Google and reports whether
+// Google accepted it.
+func (g *googleForwarder) ForwardPoliciesPatch(w http.ResponseWriter, r *http.Request) bool {
 	name := policyName(r)
 	var policy androidmanagement.Policy
 	if err := readBody(r, &policy); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return false
 	}
 	call := g.svc.Enterprises.Policies.Patch(name, &policy).Context(r.Context())
 	if mask := r.URL.Query().Get("updateMask"); mask != "" {
@@ -132,9 +133,10 @@ func (g *googleForwarder) ForwardPoliciesPatch(w http.ResponseWriter, r *http.Re
 	result, err := call.Do()
 	if err != nil {
 		writeGoogleError(w, err)
-		return
+		return false
 	}
 	writeJSON(w, result)
+	return true
 }
 
 // ForwardEnrollmentTokenCreate forwards a POST .../enrollmentTokens request to Google.
