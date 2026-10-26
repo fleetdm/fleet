@@ -1276,6 +1276,10 @@ type Datastore interface {
 	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
 	InitializePolicyViolationDays(ctx context.Context) error
 
+	// IncrementAIGeneratedProfileCount adds one to the cumulative count of configuration profiles generated
+	// for platform ("apple" or "windows") that is reported in usage statistics.
+	IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
 
