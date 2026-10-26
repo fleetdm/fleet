@@ -1,0 +1,1 @@
+- Fixed macOS Fleet-maintained app installs leaving the app readable only by root when the vendor's archive stores owner-only permissions. End users couldn't open the app even though Fleet reported it as installed. The install now makes the app readable by all users, and fails and restores the previous version if it can't.

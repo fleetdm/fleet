@@ -95,7 +95,7 @@ quit_and_track_application 'com.electron.wispr-flow' || exit 1
 if [ -d "$APPDIR/Wispr Flow.app" ]; then
 	sudo mv "$APPDIR/Wispr Flow.app" "$TMPDIR/Wispr Flow.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Wispr Flow.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Wispr Flow.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Wispr Flow.app"; then
 	sudo rm -rf "$APPDIR/Wispr Flow.app"
 	if [ -d "$TMPDIR/Wispr Flow.app.bkp" ]; then
 		sudo mv "$TMPDIR/Wispr Flow.app.bkp" "$APPDIR/Wispr Flow.app"

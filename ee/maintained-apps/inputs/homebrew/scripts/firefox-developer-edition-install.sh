@@ -95,7 +95,7 @@ quit_and_track_application 'org.mozilla.firefoxdeveloperedition' || exit 1
 if [ -d "$APPDIR/Firefox Developer Edition.app" ]; then
 	sudo mv "$APPDIR/Firefox Developer Edition.app" "$TMPDIR/Firefox Developer Edition.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Firefox Developer Edition.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Firefox Developer Edition.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Firefox Developer Edition.app"; then
 	sudo rm -rf "$APPDIR/Firefox Developer Edition.app"
 	if [ -d "$TMPDIR/Firefox Developer Edition.app.bkp" ]; then
 		sudo mv "$TMPDIR/Firefox Developer Edition.app.bkp" "$APPDIR/Firefox Developer Edition.app"

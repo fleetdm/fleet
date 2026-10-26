@@ -54,7 +54,10 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
-				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
+				// cp keeps the archive's modes, and some vendors ship owner-only ones,
+				// so as root the bundle would be unreadable to the users who open it.
+				// Homebrew doesn't hit this because the user who installs owns the files.
+				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/%[1]s"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/%[1]s"

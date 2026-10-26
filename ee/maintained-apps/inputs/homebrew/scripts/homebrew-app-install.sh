@@ -112,7 +112,7 @@ if [ -d "$APPDIR/Homebrew.app" ]; then
 		exit 1
 	fi
 fi
-if ! sudo cp -R "$TMPDIR/Homebrew.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Homebrew.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Homebrew.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Homebrew.app"

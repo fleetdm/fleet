@@ -101,7 +101,7 @@ quit_and_track_application 'com.github.GitHubClient' || exit 1
 if [ -d "$APPDIR/GitHub Desktop.app" ]; then
   sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/GitHub Desktop.app"; then
   # remove the partial copy so a failed install isn't inventoried as the new
   # version, then restore the previous version if there was one
   sudo rm -rf "$APPDIR/GitHub Desktop.app"

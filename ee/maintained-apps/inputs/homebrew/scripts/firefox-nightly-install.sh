@@ -95,7 +95,7 @@ quit_and_track_application 'org.mozilla.nightly' || exit 1
 if [ -d "$APPDIR/Firefox Nightly.app" ]; then
 	sudo mv "$APPDIR/Firefox Nightly.app" "$TMPDIR/Firefox Nightly.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Firefox Nightly.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Firefox Nightly.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Firefox Nightly.app"; then
 	sudo rm -rf "$APPDIR/Firefox Nightly.app"
 	if [ -d "$TMPDIR/Firefox Nightly.app.bkp" ]; then
 		sudo mv "$TMPDIR/Firefox Nightly.app.bkp" "$APPDIR/Firefox Nightly.app"

@@ -111,7 +111,7 @@ quit_and_track_application 'com.cycling74.Max' || exit 1
 if [ -d "$APPDIR/Max.app" ]; then
 	sudo mv "$APPDIR/Max.app" "$TMPDIR/Max.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Max.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Max.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Max.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Max.app"

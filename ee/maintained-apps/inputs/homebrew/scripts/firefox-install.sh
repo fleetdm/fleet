@@ -95,7 +95,7 @@ quit_and_track_application 'org.mozilla.firefox' || exit 1
 if [ -d "$APPDIR/Firefox.app" ]; then
 	sudo mv "$APPDIR/Firefox.app" "$TMPDIR/Firefox.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Firefox.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Firefox.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Firefox.app"; then
 	sudo rm -rf "$APPDIR/Firefox.app"
 	if [ -d "$TMPDIR/Firefox.app.bkp" ]; then
 		sudo mv "$TMPDIR/Firefox.app.bkp" "$APPDIR/Firefox.app"

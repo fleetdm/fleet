@@ -103,7 +103,7 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 	require.Contains(t, script, `sudo mv "$APPDIR/Foo.app" "$TMPDIR/Foo.app.bkp" || exit $?`)
 	// On copy failure the partial copy is removed (even on a fresh install with
 	// no backup), the previous version is restored, and the script exits non-zero.
-	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR"; then
+	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Foo.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Foo.app"
@@ -112,6 +112,71 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 	fi
 	exit 1
 fi`)
+}
+
+// TestInstallScriptAppReadableByUsers runs the generated copy against a bundle
+// with owner-only modes, as some vendor zips store them (Sourcetree). Fleet
+// installs as root, so without the chmod only root could open the app.
+func TestInstallScriptAppReadableByUsers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "zip",
+	}, &brewCask{Artifacts: []*brewArtifact{{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}}})
+	require.NoError(t, err)
+
+	// The previous version in $APPDIR has only a "previous" marker file.
+	run := func(t *testing.T, stubs string) (string, string, error) {
+		tmpDir, appDir := t.TempDir(), t.TempDir()
+		exe := filepath.Join(tmpDir, "Foo.app", "Contents", "MacOS", "Foo")
+		require.NoError(t, os.MkdirAll(filepath.Dir(exe), 0o700))
+		require.NoError(t, os.WriteFile(exe, nil, 0o700)) //nolint:gosec // G306: an owner-only executable is the point of the test
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "Foo.app", "Contents", "Info.plist"), nil, 0o600))
+		require.NoError(t, os.MkdirAll(filepath.Join(appDir, "Foo.app"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "Foo.app", "previous"), nil, 0o644))
+
+		s := strings.Replace(script, `APPDIR="/Applications/"`, `APPDIR="`+appDir+`/"`, 1)
+		stubs = `realpath() { echo "` + tmpDir + `/installer"; }
+unzip() { :; }
+osascript() { echo false; }
+sudo() { "$@"; }
+` + stubs
+		out, err := exec.Command(bash, "-c", stubs+s).CombinedOutput()
+		return appDir, string(out), err
+	}
+
+	t.Run("copy", func(t *testing.T) {
+		appDir, out, err := run(t, "")
+		require.NoError(t, err, out)
+		require.NoFileExists(t, filepath.Join(appDir, "Foo.app", "previous"))
+		for path, want := range map[string]os.FileMode{
+			"Foo.app":                     0o755,
+			"Foo.app/Contents/MacOS/Foo":  0o755,
+			"Foo.app/Contents/Info.plist": 0o644,
+		} {
+			info, err := os.Stat(filepath.Join(appDir, path))
+			require.NoError(t, err)
+			require.Equal(t, want, info.Mode().Perm(), path)
+		}
+	})
+
+	// A copy users can't open is a failed install: the previous version comes back.
+	t.Run("chmod fails", func(t *testing.T) {
+		appDir, out, err := run(t, "chmod() { return 1; }\n")
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+		require.FileExists(t, filepath.Join(appDir, "Foo.app", "previous"))
+		require.NoDirExists(t, filepath.Join(appDir, "Foo.app", "Contents"))
+	})
 }
 
 // TestInstallScriptStopsWhenAppWontQuit runs generated install scripts in bash

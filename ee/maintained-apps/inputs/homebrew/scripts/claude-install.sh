@@ -106,7 +106,7 @@ quit_and_track_application 'com.anthropic.claudefordesktop' || exit 1
 if [ -d "$APPDIR/Claude.app" ]; then
 	sudo mv "$APPDIR/Claude.app" "$TMPDIR/Claude.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Claude.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Claude.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Claude.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Claude.app"

@@ -98,7 +98,7 @@ if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 fi
 
 # Install the new app
-if ! sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Microsoft Edge.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new version
 	sudo rm -rf "$APPDIR/Microsoft Edge.app"
 	echo "Installation failed"

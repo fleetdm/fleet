@@ -125,7 +125,7 @@ quit_and_track_application 'Cisco-Systems.Spark' || exit 1
 if [ -d "$APPDIR/Webex.app" ]; then
 	sudo mv "$APPDIR/Webex.app" "$TMPDIR/Webex.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Webex.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Webex.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Webex.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Webex.app"

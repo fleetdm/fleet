@@ -108,7 +108,7 @@ quit_and_track_application 'com.valvesoftware.steam' || exit 1
 if [ -d "$APPDIR/Steam.app" ]; then
 	sudo mv "$APPDIR/Steam.app" "$TMPDIR/Steam.app.bkp" || exit $?
 fi
-if ! sudo cp -R "$TMPDIR/Steam.app" "$APPDIR"; then
+if ! sudo cp -R "$TMPDIR/Steam.app" "$APPDIR" || ! sudo chmod -R go+rX "$APPDIR/Steam.app"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
 	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/Steam.app"
