@@ -28,17 +28,16 @@ func Up_20261023112300(tx *sql.Tx) error {
 	INSERT IGNORE INTO fleet_variables (
 		name, is_prefix, created_at
 	) VALUES
-		('FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL', 0, :created_at),
-		('FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE', 0, :created_at)
+		('FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL', 0, :created_at)
 	`
 	// use a constant time so that the generated schema is deterministic
 	createdAt := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	stmt, args, err := sqlx.Named(insStmt, map[string]any{"created_at": createdAt})
 	if err != nil {
-		return fmt.Errorf("failed to prepare insert for conditional access SCEP fleet variables: %w", err)
+		return fmt.Errorf("failed to prepare insert for conditional access SCEP fleet variable: %w", err)
 	}
 	if _, err := tx.Exec(stmt, args...); err != nil {
-		return fmt.Errorf("failed to insert conditional access SCEP fleet variables into fleet_variables: %w", err)
+		return fmt.Errorf("failed to insert conditional access SCEP fleet variable into fleet_variables: %w", err)
 	}
 	return nil
 }
