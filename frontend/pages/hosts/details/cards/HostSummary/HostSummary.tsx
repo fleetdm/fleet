@@ -9,13 +9,14 @@ import StatusIndicator from "components/StatusIndicator";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHostMaintenanceWindow } from "interfaces/host";
 import { BootstrapPackageStatus } from "interfaces/mdm";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
+import { formatHostLocalDeadline } from "utilities/helpers";
 
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
@@ -30,6 +31,9 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
+  /** Admin-only (not My device). Patch deadline flows through to both
+   * endpoints, so the admin pages must opt in explicitly. */
+  showPatchDeadline?: boolean;
   toggleBootstrapPackageModal?: () => void;
   toggleOnlineHistoryModal?: () => void;
   className?: string;
@@ -39,6 +43,7 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
+  showPatchDeadline,
   toggleBootstrapPackageModal,
   toggleOnlineHistoryModal,
   className,
@@ -49,6 +54,7 @@ const HostSummary = ({
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
+  const isMacHost = isMacOS(platform);
 
   const renderIssues = () => (
     <DataSet
@@ -104,6 +110,27 @@ const HostSummary = ({
     );
   };
 
+  const renderPatchDeadline = () => {
+    const { patch_deadline_at, timezone } = summaryData;
+    const hasDeadline =
+      !!patch_deadline_at && patch_deadline_at !== DEFAULT_EMPTY_CELL_VALUE;
+    const hasHostTimezone = !!timezone && timezone !== DEFAULT_EMPTY_CELL_VALUE;
+    // Deadline loading is independent of timezone collection, so hold the row
+    // at "---" until both land. Otherwise the tooltip ("host's local time")
+    // would be lying while the formatter silently falls back to UTC.
+    const canFormat = hasDeadline && hasHostTimezone;
+
+    const value = canFormat ? (
+      <TooltipWrapper tipContent="The deadline is in the host's local time.">
+        {formatHostLocalDeadline(patch_deadline_at, timezone)}
+      </TooltipWrapper>
+    ) : (
+      DEFAULT_EMPTY_CELL_VALUE
+    );
+
+    return <DataSet title="Patch deadline" value={value} />;
+  };
+
   const renderMaintenanceWindow = ({
     starts_at,
     timezone,
@@ -150,6 +177,8 @@ const HostSummary = ({
     !isAndroidHost;
   const showBootstrapPackage =
     !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+  const showPatchDeadlineTile =
+    !!showPatchDeadline && !!isPremiumTier && isMacHost;
   const showMaintenanceWindow =
     !!isPremiumTier &&
     // TODO - refactor normalizeEmptyValues pattern
@@ -161,6 +190,7 @@ const HostSummary = ({
       {renderStatus()}
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}
+      {showPatchDeadlineTile && renderPatchDeadline()}
       {showBootstrapPackage && bootstrapPackageData?.status && (
         <DataSet
           title="Bootstrap package"
