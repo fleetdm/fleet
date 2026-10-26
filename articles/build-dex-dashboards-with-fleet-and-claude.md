@@ -4,7 +4,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
-- Patch velocity: how fast new versions reach every computer.
+- Patch velocity: how fast new versions reach every computer. Rollouts in progress can show only the apps you have patch policies for.
 - AI governance: which AI tools people use, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.

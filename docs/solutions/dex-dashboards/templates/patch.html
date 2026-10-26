@@ -65,6 +65,7 @@
       <h2 id="roll-h">Rollouts in progress</h2>
       <span class="hint">New versions first seen in the last 45 days</span>
     </div>
+    <div class="act-bar"><div class="chips" id="roll-chips"></div><span class="hint" id="roll-hint"></span></div>
     <div id="rollouts"></div>
   </section>
 
@@ -101,6 +102,7 @@
       <div>
         <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
         <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. Medians are used because patch times have a long tail.</p>
+        <p><span class="term">Patch policy:</span> Rollouts in progress can show only apps with a patch policy in Fleet, counted on the computers each policy applies to. A policy is matched to an app by the bundle ID (macOS) or program name (Windows) in its query.</p>
       </div>
     </div>
   </details>
@@ -119,6 +121,9 @@ const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n,
 const Noun = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "Computers" : "Computer"));
 const SLA = DATA.sla_days;
 let driftType = "all";
+// Rollouts default to apps with a patch policy when the fleet has any.
+const HAS_PATCH = DATA.titles.some((t) => t.i.some((e) => e[2]));
+let rollScope = store.get("dex-rollouts") || (HAS_PATCH ? "patch" : "all");
 let showAll = false;
 let query = "";
 const lagTone = (d) => (d <= SLA / 2 ? "good" : d <= SLA ? "info" : d <= SLA * 2 ? "warn" : "bad");
@@ -279,20 +284,30 @@ function render() {
     total > 15 && !q ? h("button", { type: "button", class: "btn", style: "margin-top:8px", onclick: () => { showAll = !showAll; render(); } }, showAll ? "Show the 15 furthest behind" : `Show all ${total}`) : null]
     : empty("No apps match", "Clear the search or pick another type."));
 
-  // Rollouts
-  const rolls = titles.filter((t) => t.fresh).map((t) => {
+  // Rollouts. Install rows carry a third value, 1, when a patch policy for the app applies to that computer.
+  const rollRows = (scope) => titles.filter((t) => t.fresh).map((t) => {
+    const inst = scope === "patch" ? t.inst.filter((e) => e[2]) : t.inst;
+    if (!inst.length) return null;
     const [ver, seen] = t.fresh;
-    const reached = t.inst.filter(([, v]) => vcmp(v, ver) >= 0).length;
-    return { _id: t.key, name: t.name, type: t.type, ver, seen, reached, installs: t.installs, pct: pct(reached, t.installs),
-      age: Math.round((new Date(DATA.generated_at) - new Date(seen + "T00:00:00Z")) / 864e5) };
-  }).sort((a, b) => (a.seen < b.seen ? 1 : -1));
+    const reached = inst.filter(([, v]) => vcmp(v, ver) >= 0).length;
+    return { _id: t.key, name: t.name, type: t.type, ver, seen, reached, installs: inst.length, pct: pct(reached, inst.length),
+      patch: t.inst.some((e) => e[2]), age: Math.round((new Date(DATA.generated_at) - new Date(seen + "T00:00:00Z")) / 864e5) };
+  }).filter(Boolean).sort((a, b) => (a.seen < b.seen ? 1 : -1));
+  const rollsBy = { patch: rollRows("patch"), all: rollRows("all") };
+  const rolls = rollsBy[rollScope];
+  mount("roll-chips", [["patch", "Patch policy"], ["all", "All"]].map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": rollScope === k ? "true" : "false",
+    onclick: () => { rollScope = k; store.set("dex-rollouts", k); render(); } }, l, h("b", {}, fmt.n(rollsBy[k].length)))));
+  mount("roll-hint", rollScope === "patch" ? "Apps with a patch policy, on the computers each policy applies to" : "Every app and OS on this page");
   mount("rollouts", rolls.length ? sortTable({ id: "rollout-table", sort: ["seen", "desc"], groups: [{ rows: rolls }], columns: [
-    { key: "name", label: "App", value: (r) => r.name.toLowerCase(), cell: (r) => h("span", { class: "cell-main" }, r.name) },
+    { key: "name", label: "App", value: (r) => r.name.toLowerCase(), cell: (r) => [h("span", { class: "cell-main" }, r.name),
+      rollScope === "all" && r.patch ? h("span", { class: "tag" }, "Patch policy") : ""] },
     { key: "ver", label: "Version", value: (r) => r.ver, cell: (r) => h("span", { class: "ver" }, r.ver) },
     { key: "seen", label: "First seen", num: true, value: (r) => r.seen, cell: (r) => fmt.date(r.seen) },
     { key: "age", label: "Days out", num: true, value: (r) => r.age },
     { key: "pct", label: "Reached", num: true, value: (r) => r.pct, cell: (r) => [`${fmt.n(r.reached)} of ${fmt.n(r.installs)}`, mini(r.pct, r.age > SLA && r.pct < 90 ? "bad" : covTone(r.pct))] },
-  ] }) : empty("No new versions yet", `Versions that first appear after ${fmt.date(DATA.history_since)} show here as computers pick them up.`));
+  ] }) : rollScope === "patch" && !HAS_PATCH ? empty("No patch policies yet", "Add a patch policy to a Fleet-maintained app in Fleet, and its new versions show here. Pick All to see every app.")
+    : rollScope === "patch" && rollsBy.all.length ? empty("No new versions for apps with a patch policy", "None has a version first seen in the last 45 days. Pick All to see every app.")
+    : empty("No new versions yet", `Versions that first appear after ${fmt.date(DATA.history_since)} show here as computers pick them up.`));
 
   // Tail
   mount("laggards", laggards.length ? h("div", { class: "bars" }, barRows(laggards.slice(0, 8).map((l) => ({

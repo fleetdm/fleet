@@ -202,6 +202,8 @@ def detail(fleet, h):
             "critical": bool(p.get("critical")), "platform": p.get("platform") or "",
             # "patch" for the policies Fleet keeps for Fleet-maintained apps; older Fleet has no type.
             "patch": p.get("type") == "patch",
+            # A patch policy's query names the app it checks, which Patch velocity matches to its apps.
+            **({"query": p.get("query") or ""} if p.get("type") == "patch" else {}),
             "fleet_id": p.get("fleet_id", p.get("team_id"))} for p in policies},
         "vitals": {v.get("name"): v.get("value") for v in g.get("custom_host_vitals") or []},
         "batteries": g.get("batteries") or [],

@@ -672,6 +672,61 @@ def patch_titles(snap, hid, h):
     return out
 
 
+SQL_STRING = r"'((?:[^']|'')*)'"
+
+
+def like_re(pattern):
+    """A SQL LIKE pattern as a regex, case-insensitive like SQLite's LIKE."""
+    return re.compile("".join(".*" if c == "%" else "." if c == "_" else re.escape(c) for c in pattern) + r"\Z", re.I | re.S)
+
+
+def patch_policy_matcher(platform, query):
+    """Which Patch velocity title a patch policy checks, as a test on title keys, or None.
+    Fleet builds the policy's query from the app's bundle ID on macOS, and on Windows
+    from its program name (=, LIKE, or IN, sometimes with NOT LIKE exclusions)."""
+    unquote = lambda s: s.replace("''", "'")
+    if "darwin" in platform:
+        keys = {"app:" + unquote(b) for b in re.findall(r"\bbundle_identifier\s*=\s*" + SQL_STRING, query, re.I)}
+        return (lambda key: key in keys) if keys else None
+    if "windows" not in platform:
+        return None
+    # One test per name condition: name = '…', name IN ('…', …), or name LIKE '…'.
+    tests = [lambda n, e=unquote(e): n == e for e in re.findall(r"\bname\s*=\s*" + SQL_STRING, query, re.I)]
+    for group in re.findall(r"\bname\s+IN\s*\(((?:\s*'(?:[^']|'')*'\s*,?)+)\s*\)", query, re.I):
+        tests.append(lambda n, names={unquote(x) for x in re.findall(SQL_STRING, group)}: n in names)
+    unlike = []
+    for negated, s in re.findall(r"\bname\s+(NOT\s+)?LIKE\s+" + SQL_STRING, query, re.I):
+        if negated:
+            unlike.append(like_re(unquote(s)))
+        else:
+            tests.append(lambda n, r=like_re(unquote(s)): bool(r.match(n)))
+    if not tests:
+        return None
+    # Name conditions joined by OR need any one to match; joined by AND, all of them.
+    any_one = bool(re.search(r"\bOR\s*\(?\s*name\b", query, re.I))
+
+    def match(key):
+        if not key.startswith("win:"):
+            return False
+        name = key[4:]
+        hit = any(t(name) for t in tests) if any_one else all(t(name) for t in tests)
+        return hit and not any(r.match(name) for r in unlike)
+    return match
+
+
+def patch_policy_titles(snap):
+    """{host id: test on title keys} for the patch policies that apply to each host."""
+    info = snap.get("policies") or {}
+    matchers = {pid: m for pid, p in info.items()
+                if p.get("patch") and (m := patch_policy_matcher(p.get("platform") or "", p.get("query") or ""))}
+    out = {}
+    for hid, det in (snap.get("host_details") or {}).items():
+        mine = [matchers[str(pid)] for pid, _ in det.get("policies") or [] if str(pid) in matchers]
+        if mine:
+            out[hid] = lambda key, mine=mine: any(m(key) for m in mine)
+    return out
+
+
 def newest_release(vers, betas):
     """Highest version at least two hosts run, so a lone test build doesn't set the bar."""
     release = [v for v in vers if v not in betas] or list(vers)
@@ -754,20 +809,23 @@ def build_patch(snap, hist):
         else:
             del events[key]
 
-    # Per-title installs on hosts that still check in. The page aggregates these
+    # Per-title installs on hosts that still check in, as [host, version], plus a 1
+    # when a patch policy for that app applies to the host. The page aggregates these
     # (per fleet and platform) against the fleet-wide newest release.
     active = [hid for hid in current if is_active(hosts[hid], now)]
+    patched = patch_policy_titles(snap)
     by_title = {}
     for hid in active:
+        covers = patched.get(hid)
         for key, (name, ver) in current[hid].items():
-            by_title.setdefault(key, []).append([int(hid), ver])
+            by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and covers(key) else [int(hid), ver])
     recent = (today - dt.timedelta(days=45)).isoformat()
     titles, index = [], {}
     for key, hv in sorted(by_title.items()):
         if len(hv) < 2:
             continue
         plat = platform_of(hosts[str(hv[0][0])])
-        newest = newest_release([v for _, v in hv], betas)
+        newest = newest_release([e[1] for e in hv], betas)
         index[key] = len(titles)
         titles.append({
             "key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app", "p": plat,
@@ -807,7 +865,7 @@ def build_patch(snap, hist):
     for t in titles:
         if len(t["i"]) < MIN_INSTALLS:
             continue
-        for hid, v in t["i"]:
+        for hid, v, *_ in t["i"]:
             current_v = int(vcmp(v, t["newest"]) >= 0)
             if t["type"] == "app":
                 count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
