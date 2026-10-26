@@ -315,7 +315,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 ### Additional EJBCA details:
 - Fleet creates a key for each host, sends EJBCA a certificate signing request, and delivers the certificate and key to the host in the PKCS#12 payload. EJBCA creates an end entity for each host, with the username you set (or the CN).
 - If you edit the CA name, certificate profile name, end entity profile name, CN, username, or UPN, or if the value of a variable you used in them changes, Fleet gets new certificates for the hosts that use this CA.
-- The client certificate that Fleet uses to authenticate to EJBCA expires. To replace it, edit the CA in **Settings > Integrations > Certificate authorities**, upload the new `.p12` file, and enter its password. Fleet keeps using the current one until EJBCA accepts the new one.
+- The client certificate that Fleet uses to authenticate to EJBCA expires. To replace it, edit the CA in **Settings > Integrations > Certificate authorities**, upload the new `.p12` file, and enter its password. Fleet keeps using the current one until EJBCA accepts the new one. Starting 30 days before the earliest expiring client certificate expires, Fleet shows a banner to users with the admin role in Fleet, with a link to **Settings > Integrations > Certificate authorities**. If it expires, Fleet can't get certificates from EJBCA until you upload a new one.
 - If EJBCA is temporarily unavailable, Fleet retries the configuration profile up to 3 times before it marks the profile as failed.
 - EJBCA changes a semicolon (`;`) in the CN to a slash (`/`). Avoid `;` in the values of the variables you use for the CN.
 - Fleet doesn't revoke certificates when you delete a host or a CA. To revoke them, use EJBCA.
