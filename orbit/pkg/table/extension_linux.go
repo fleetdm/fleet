@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_nix_packages"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sshd_config"
 	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -34,6 +35,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("containerd_mounts", containerd.MountsColumns(), containerd.GenerateMounts),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
 		table.NewPlugin(fleetd_nix_packages.TableName, fleetd_nix_packages.Columns(), fleetd_nix_packages.Generate),
+		table.NewPlugin("sshd_config", sshd_config.Columns(), sshd_config.Generate),
 		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
