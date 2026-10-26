@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.4.4777.90",
+      "version": "1.4.4791.77",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.pritunl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.pritunl' AND version_compare(bundle_short_version, '1.4.4777.90') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.pritunl' AND version_compare(bundle_short_version, '1.4.4791.77') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.pritunl' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/pritunl/pritunl-client-electron/releases/download/1.4.4777.90/Pritunl.pkg.zip",
+      "installer_url": "https://github.com/pritunl/pritunl-client-electron/releases/download/1.4.4791.77/Pritunl.pkg.zip",
       "install_script_ref": "dba5c0f4",
       "uninstall_script_ref": "04e2eac8",
-      "sha256": "bd0d77c08d64f4ed9e6c6c4ead8a689e9c2cec5c397bbb89e89953ccd5c2c66f",
+      "sha256": "ef6c4f6564d45cf0dfa89aed95db9926328372e0dac2d6608876072dc9b846ab",
       "default_categories": [
         "Productivity"
       ]

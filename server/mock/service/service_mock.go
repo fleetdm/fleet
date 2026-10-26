@@ -261,7 +261,7 @@ type DeleteHostsFunc func(ctx context.Context, ids []uint, filters *map[string]i
 
 type CountHostsFunc func(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error)
 
-type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error)
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
@@ -796,6 +796,10 @@ type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, f
 type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uint) error
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
+
+type AutofillConfigProfileNameDescriptionFunc func(ctx context.Context, instructions string, platform string) (name string, description string, err error)
+
+type AutofillConfigProfileContentFunc func(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error)
 
 type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error
 
@@ -2212,6 +2216,12 @@ type Service struct {
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
 
+	AutofillConfigProfileNameDescriptionFunc        AutofillConfigProfileNameDescriptionFunc
+	AutofillConfigProfileNameDescriptionFuncInvoked bool
+
+	AutofillConfigProfileContentFunc        AutofillConfigProfileContentFunc
+	AutofillConfigProfileContentFuncInvoked bool
+
 	UpdateMDMConfigProfileFunc        UpdateMDMConfigProfileFunc
 	UpdateMDMConfigProfileFuncInvoked bool
 
@@ -3430,11 +3440,11 @@ func (s *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.Host
 	return s.CountHostsFunc(ctx, labelID, opts)
 }
 
-func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs)
+	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs, excludeMobileHosts)
 }
 
 func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
@@ -5304,6 +5314,20 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMInvalidJSONConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
+}
+
+func (s *Service) AutofillConfigProfileNameDescription(ctx context.Context, instructions string, platform string) (name string, description string, err error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileNameDescriptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileNameDescriptionFunc(ctx, instructions, platform)
+}
+
+func (s *Service) AutofillConfigProfileContent(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileContentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileContentFunc(ctx, instructions, platform, teamID)
 }
 
 func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error {
