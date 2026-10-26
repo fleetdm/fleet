@@ -831,6 +831,12 @@
                     <key>url</key>
                     <string>https://dogfood.fleetdm.com/dashboard</string>
                 </dict>
+                <dict>
+                    <key>name</key>
+                    <string>DEX overview</string>
+                    <key>url</key>
+                    <string>https://claude.ai/artifact/TLcnQThVkEra1Lsi24wsyb</string>
+                </dict>
             </array>
         </dict>
     </array>
