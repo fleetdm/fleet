@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1.4",
+      "version": "1.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits' AND version_compare(bundle_short_version, '1.1.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits' AND version_compare(bundle_short_version, '1.1.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.lawand.last-window-quits' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://lawand.io/wp-content/uploads/2024/12/last-window-quits-1.1.4.zip",
+      "installer_url": "https://lawand.io/wp-content/uploads/2026/10/last-window-quits-1.1.6.zip",
       "install_script_ref": "cea7d30a",
       "uninstall_script_ref": "4d0a7b86",
-      "sha256": "10938d6cd6e201914d3041673509891f80e102c6fa78be8ddf1c3caed1fd862d",
+      "sha256": "56aaf1efcc3b3a9f10c6cf2ca7fdaccf4ae30deabe049b4f2012fc7293d06127",
       "default_categories": [
         "Productivity"
       ]
