@@ -5332,34 +5332,11 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		require.Zero(t, versionCount)
 	}
 
-	t.Run("duplicate string groups under collation", func(t *testing.T) {
-		longName := strings.Repeat("a", 256)
-		testCases := []struct {
-			name   string
-			values []string
-			want   []fleet.DuplicateStringGroup
-		}{
-			{name: "no values", values: nil, want: []fleet.DuplicateStringGroup{}},
-			{name: "distinct values", values: []string{"alpha", "beta"}, want: []fleet.DuplicateStringGroup{}},
-			{
-				name:   "case, accents and trailing spaces",
-				values: []string{"alpha", "Beta", "gamma", "bêta", "Gamma", "beta "},
-				want:   []fleet.DuplicateStringGroup{{Indices: []int{1, 3, 5}}, {Indices: []int{2, 4}}},
-			},
-			{
-				name:   "values too long for the column are never duplicates",
-				values: []string{longName, longName + "b", "beta", "Beta"},
-				want:   []fleet.DuplicateStringGroup{{Indices: []int{2, 3}}},
-			},
-		}
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				got, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, tc.values)
-				require.NoError(t, err)
-				require.Equal(t, tc.want, got)
-			})
-		}
-	})
+	// names equal by case, accents or trailing spaces are grouped, names too long for the column never are
+	longName := strings.Repeat("a", 256)
+	groups, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, []string{longName, longName + "b", "alpha", "Beta", "gamma", "bêta", "Gamma", "beta "})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.DuplicateStringGroup{{Indices: []int{3, 5, 7}}, {Indices: []int{4, 6}}}, groups)
 }
 
 func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {

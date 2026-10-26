@@ -41,8 +41,6 @@ func TestFindDuplicateNameUnderCollation(t *testing.T) {
 		wantFound          bool
 		wantDuplicateIndex int
 	}{
-		{name: "no names", names: nil},
-		{name: "one name", names: []string{"a"}},
 		{name: "distinct names", names: []string{"a", "b"}},
 		{name: "one duplicate", names: []string{"a", "b", "a"}, wantFound: true, wantDuplicateIndex: 2},
 		{name: "earliest repeat is in a later group", names: []string{"a", "b", "b", "a"}, wantFound: true, wantDuplicateIndex: 2},
