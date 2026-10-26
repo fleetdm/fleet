@@ -5711,8 +5711,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 }
 
-// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is hidden only for the unenroll-driven
-// work-profile wipe on Android BYOD (personal) hosts.
+// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is reported as a pending unenroll only for
+// the unenroll-driven work-profile wipe on Android BYOD (personal) hosts.
 func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	newHost := func(platform string, enrollment *string, deviceStatus fleet.DeviceStatus, pending fleet.PendingDeviceAction) *fleet.Host {
 		return &fleet.Host{
@@ -5746,7 +5746,7 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 			suppressAndroidBYODWipeStatus(host)
 			if tt.wantSuppress {
 				require.Equal(t, string(fleet.DeviceStatusUnlocked), *host.MDM.DeviceStatus)
-				require.Equal(t, string(fleet.PendingActionNone), *host.MDM.PendingAction)
+				require.Equal(t, string(fleet.PendingActionUnenroll), *host.MDM.PendingAction)
 			} else {
 				require.Equal(t, string(tt.deviceStatus), *host.MDM.DeviceStatus)
 				require.Equal(t, string(tt.pending), *host.MDM.PendingAction)
