@@ -1,1 +1,0 @@
-- Fixed live reports targeting iOS, iPadOS, and Android hosts. Mobile hosts are again excluded from the live report target picker, target counts, and runs, while the manual label host picker still finds them.
