@@ -87,9 +87,9 @@ Additionally:
   - How the story addresses the original request.
   - If the original request is a customer promise, specify what the due date is and who it's for.
 
-- Sometimes a Product Designer in one product group drafts a user story or bug that will be specified, estimated, or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when they're a `assisting-g-*` label on the story or bug.
+- Sometimes a Product Designer in one product group drafts a user story or bug that will be specified or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when there's an `assisting-g-*` label on the story or bug.
   - For example, if a #g-apple-at-work Product Designer drafts a story that #g-supply-chain will implement, the #g-apple-at-work Product Designer invites the #g-supply-chain Tech Lead to #g-apple-at-work design reviews. Once the story is approved, it’s brought to #g-supply-chain user story review.
-  - At that point, the #g-supply-chain Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They bring the story to their group’s estimation and handle questions from their team, coordinating with others as needed.
+  - At that point, the #g-supply-chain Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They handle questions from their team, coordinating with others as needed.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >

@@ -3,20 +3,44 @@
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
-  local app_running; app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then return; fi
-  local console_user; console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then return; fi
+
+  # check if the application is running
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Quitting application '$bundle_id'..."
+
+  # try to quit the application within the timeout period
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
-    if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then break; fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit."
+    return 1
+  fi
 }
 
 for id in "com.perforce.p4v" "com.perforce.p4merge" "com.perforce.p4admin"; do
-  quit_application "$id"
+  quit_application "$id" || exit 1
 done
 
 rm -rf "/Applications/p4v.app" "/Applications/p4merge.app" "/Applications/p4admin.app" >/dev/null 2>&1 || true

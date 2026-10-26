@@ -34,10 +34,12 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -271,6 +273,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	config.Server.ValidatePrivateKeyLength(initFatal)
+
+	// The embedded schema is checked by the generator and tests, so a failure here means a broken
+	// build; refuse to start rather than validate profiles against nothing. Tests start serve more
+	// than once per process, so only parse if nothing is loaded yet.
+	if profilevalidation.Current() == nil {
+		if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
+			initFatal(err, "loading profile validation schema")
+		}
+	}
+
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
 		// some infra setups generate keys that are longer than 32 bytes.
@@ -595,6 +607,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
@@ -634,6 +647,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)

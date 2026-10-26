@@ -140,6 +140,16 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		Password:     "password",
 	}
 
+	// goodGoogleCASCA is a base object for testing with a valid Google CAS CA. Copy it to override specific fields in tests.
+	goodGoogleCASCA := fleet.GoogleCASCA{
+		Name:       "VALID_GOOGLE_CAS",
+		Project:    "my-project",
+		Location:   "us-central1",
+		CAPool:     "my-ca-pool",
+		APIKeyJSON: `{"type":"service_account","client_email":"sa@my-project.iam.gserviceaccount.com","private_key":"key"}`,
+	}
+	s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, _ fleet.GoogleCASCA) error { return nil }
+
 	// newApplyRequest creates a new applyCertificateAuthoritiesSpecRequest. The given payload
 	// should be one of fleet.DigiCertCA, fleet.CustomSCEPProxyCA, fleet.HydrantCA, or fleet.NDESSCEPProxyCA.
 	newApplyRequest := func(p interface{}, dryRun bool) (batchApplyCertificateAuthoritiesRequest, error) {
@@ -183,6 +193,13 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					Smallstep: []fleet.SmallstepSCEPProxyCA{v},
+				},
+				DryRun: dryRun,
+			}, nil
+		case fleet.GoogleCASCA:
+			return batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					GoogleCAS: []fleet.GoogleCASCA{v},
 				},
 				DryRun: dryRun,
 			}, nil
@@ -1366,6 +1383,142 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		// TODO(hca): hydrant happy path and other specific tests
 	})
 
+	t.Run("google cas", func(t *testing.T) {
+		t.Run("invalid name", func(t *testing.T) {
+			for _, tc := range invalidNameTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodGoogleCASCA
+					testCopy.Name = tc.name
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.google_cas")
+					require.Contains(t, errMsg, tc.errMessage)
+				})
+			}
+		})
+
+		t.Run("invalid fields", func(t *testing.T) {
+			for _, tc := range []struct {
+				testName   string
+				mutate     func(ca *fleet.GoogleCASCA)
+				errMessage string
+			}{
+				// The full set of field checks is in the service unit tests; these show they run on the GitOps path.
+				{"pool with a slash", func(ca *fleet.GoogleCASCA) { ca.CAPool = "pool/certificates/other" }, "The CA pool can only contain"},
+				{"key is not json", func(ca *fleet.GoogleCASCA) { ca.APIKeyJSON = "nope" }, "The service account key must be a JSON object."},
+			} {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodGoogleCASCA
+					tc.mutate(&testCopy)
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.google_cas")
+					require.Contains(t, errMsg, tc.errMessage)
+				})
+			}
+		})
+
+		t.Run("duplicate names", func(t *testing.T) {
+			t.Cleanup(func() {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// two Google CAS CAs with the same name are rejected
+			testCopy := goodGoogleCASCA
+			testCopy.CAPool = "some-other-pool"
+			duplicateReq := batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{GoogleCAS: []fleet.GoogleCASCA{goodGoogleCASCA, testCopy}},
+			}
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.google_cas")
+			require.Contains(t, errMsg, "name is already used by another Google CAS certificate authority")
+
+			// the same name as a CA of another type is fine
+			testCopy = goodGoogleCASCA
+			testCopy.Name = goodHydrantCA.Name
+			req := batchApplyCertificateAuthoritiesRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					Hydrant:   []fleet.HydrantCA{goodHydrantCA},
+					GoogleCAS: []fleet.GoogleCASCA{goodGoogleCASCA, testCopy},
+				},
+			}
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+		})
+
+		t.Run("google cas happy path with activities add then modify then delete", func(t *testing.T) {
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+
+			var verified []fleet.GoogleCASCA
+			s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, ca fleet.GoogleCASCA) error {
+				verified = append(verified, ca)
+				return nil
+			}
+			t.Cleanup(func() {
+				s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, _ fleet.GoogleCASCA) error { return nil }
+			})
+
+			req1, err := newApplyRequest(goodGoogleCASCA, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run should not change anything
+			req1.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities) // now it should be applied
+			require.Len(t, verified, 2)                             // the dry run verifies the pool too
+			require.Equal(t, goodGoogleCASCA, verified[0])
+			wantAdded := fleet.ActivityAddedGoogleCAS{Name: goodGoogleCASCA.Name}
+			id := s.lastActivityMatches(wantAdded.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantAdded.Name), 0)
+
+			testCopy := goodGoogleCASCA
+			testCopy.CAPool = "other-pool"
+			req2, err := newApplyRequest(testCopy, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities) // dry run should not change anything
+			s.lastActivityMatches(wantAdded.ActivityName(), "", id) // no new activity yet
+			req2.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // now it should be applied
+			wantEdited := fleet.ActivityEditedGoogleCAS{Name: goodGoogleCASCA.Name}
+			editedID := s.lastActivityMatches(wantEdited.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantEdited.Name), 0)
+			s.lastActivityOfTypeMatches(wantAdded.ActivityName(), "", id) // last "added" activity is the prior one
+
+			// applying the same config again changes nothing, asks Google nothing and records no activity
+			verified = nil
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities)
+			require.Empty(t, verified)
+			s.lastActivityMatches(wantEdited.ActivityName(), "", editedID)
+
+			// a CA pool Google rejects leaves the stored CA alone
+			s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, _ fleet.GoogleCASCA) error { return errors.New("no access") }
+			testCopy.CAPool = "rejected-pool"
+			req3, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req3, http.StatusBadRequest)
+			require.Contains(t, extractServerErrorText(res.Body), "certificate_authorities.google_cas: no access")
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities)
+			s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, _ fleet.GoogleCASCA) error { return nil }
+
+			// sending empty CAs deletes existing one
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // dry run should not change anything
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
+			wantDeleted := fleet.ActivityDeletedGoogleCAS{Name: goodGoogleCASCA.Name}
+			s.lastActivityMatches(wantDeleted.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantDeleted.Name), 0)
+		})
+	})
+
 	t.Run("custom est", func(t *testing.T) {
 		// run common invalid name test cases
 		t.Run("invalid name", func(t *testing.T) {
@@ -1489,6 +1642,79 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 	})
+
+	t.Run("creating a Hydrant CA through the REST API records its name", func(t *testing.T) {
+		hydrant := goodHydrantCA
+		hydrant.Name = "REST_HYDRANT"
+		var resp createCertificateAuthorityResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", fleet.CertificateAuthorityPayload{Hydrant: &hydrant}, http.StatusOK, &resp)
+		s.lastActivityMatches(fleet.ActivityAddedHydrant{}.ActivityName(), `{"name":"REST_HYDRANT"}`, 0)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", resp.ID), nil, http.StatusNoContent)
+	})
+
+	t.Run("names that differ only in case are the same CA", func(t *testing.T) {
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+				return nil
+			})
+		})
+		named := func(names ...string) fleet.GroupedCertificateAuthorities {
+			var cas fleet.GroupedCertificateAuthorities
+			for _, name := range names {
+				digicert, customSCEP, hydrant, est, smallstep, googleCAS := goodDigiCertCA, goodCustomSCEPCA, goodHydrantCA, goodESTCA, goodSmallstepCA, goodGoogleCASCA
+				digicert.Name, customSCEP.Name, hydrant.Name, est.Name, smallstep.Name, googleCAS.Name = name, name, name, name, name, name
+				cas.DigiCert = append(cas.DigiCert, digicert)
+				cas.CustomScepProxy = append(cas.CustomScepProxy, customSCEP)
+				cas.Hydrant = append(cas.Hydrant, hydrant)
+				cas.EST = append(cas.EST, est)
+				cas.Smallstep = append(cas.Smallstep, smallstep)
+				cas.GoogleCAS = append(cas.GoogleCAS, googleCAS)
+			}
+			return cas
+		}
+		apply := func(cas fleet.GroupedCertificateAuthorities, status int) *http.Response {
+			return s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: cas}, status)
+		}
+
+		apply(named("CASE_X"), http.StatusOK)
+		lastID := s.lastActivityMatches("", "", 0)
+
+		// Deletes are enabled, as the request doesn't set skip_deletes: each CA is renamed, not deleted.
+		apply(named("case_x"), http.StatusOK)
+		s.checkAppliedCAs(t, s.ds, named("case_x"))
+		var activities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "id", "order_direction", "desc", "per_page", "20")
+		var newTypes []string
+		for _, a := range activities.Activities {
+			if a.ID > lastID {
+				newTypes = append(newTypes, a.Type)
+			}
+		}
+		require.ElementsMatch(t, []string{
+			fleet.ActivityEditedDigiCert{}.ActivityName(), fleet.ActivityEditedCustomSCEPProxy{}.ActivityName(),
+			fleet.ActivityEditedHydrant{}.ActivityName(), fleet.ActivityEditedCustomESTProxy{}.ActivityName(),
+			fleet.ActivityEditedSmallstep{}.ActivityName(), fleet.ActivityEditedGoogleCAS{}.ActivityName(),
+		}, newTypes)
+
+		duplicates := named("DUP_X", "dup_x")
+		for _, tc := range []struct {
+			caType, displayType string
+			cas                 fleet.GroupedCertificateAuthorities
+		}{
+			{"digicert", "DigiCert", fleet.GroupedCertificateAuthorities{DigiCert: duplicates.DigiCert}},
+			{"custom_scep_proxy", "Custom SCEP Proxy", fleet.GroupedCertificateAuthorities{CustomScepProxy: duplicates.CustomScepProxy}},
+			{"hydrant", "Hydrant", fleet.GroupedCertificateAuthorities{Hydrant: duplicates.Hydrant}},
+			{"custom_est_proxy", "Custom EST Proxy", fleet.GroupedCertificateAuthorities{EST: duplicates.EST}},
+			{"smallstep", "Smallstep", fleet.GroupedCertificateAuthorities{Smallstep: duplicates.Smallstep}},
+			{"google_cas", "Google CAS", fleet.GroupedCertificateAuthorities{GoogleCAS: duplicates.GoogleCAS}},
+		} {
+			errMsg := extractServerErrorText(apply(tc.cas, http.StatusUnprocessableEntity).Body)
+			require.Contains(t, errMsg, "certificate_authorities."+tc.caType)
+			require.Contains(t, errMsg, "name is already used by another "+tc.displayType+" certificate authority")
+		}
+		s.checkAppliedCAs(t, s.ds, named("case_x"))
+	})
 }
 
 func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datastore, expectedCAs fleet.GroupedCertificateAuthorities) {
@@ -1560,6 +1786,22 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 		assert.Empty(t, gotCAs.EST)
 	}
 
+	if len(expectedCAs.Smallstep) != 0 {
+		assert.Len(t, gotCAs.Smallstep, len(expectedCAs.Smallstep))
+		wantByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		gotByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		for _, ca := range expectedCAs.Smallstep {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.Smallstep {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.Smallstep)
+	}
+
 	if expectedCAs.NDESSCEP != nil {
 		assert.NotNil(t, gotCAs.NDESSCEP)
 		gotCAs.NDESSCEP.ID = 0 // ignore ID when comparing
@@ -1567,6 +1809,152 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 	} else {
 		assert.Empty(t, gotCAs.NDESSCEP)
 	}
+
+	if len(expectedCAs.GoogleCAS) != 0 {
+		assert.Len(t, gotCAs.GoogleCAS, len(expectedCAs.GoogleCAS))
+		wantByName := make(map[string]fleet.GoogleCASCA)
+		gotByName := make(map[string]fleet.GoogleCASCA)
+		for _, ca := range expectedCAs.GoogleCAS {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.GoogleCAS {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.GoogleCAS)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestGoogleCASCertificateAuthorities() {
+	t := s.T()
+	ctx := context.Background()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+		return err
+	})
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+			return err
+		})
+	})
+
+	var verified []fleet.GoogleCASCA
+	var verifyErr error
+	s.googleCASService.VerifyCAPoolFunc = func(_ context.Context, ca fleet.GoogleCASCA) error {
+		verified = append(verified, ca)
+		return verifyErr
+	}
+
+	const key = `{"type":"service_account","client_email":"sa@my-project.iam.gserviceaccount.com","private_key":"-----BEGIN PRIVATE KEY-----"}`
+	createReq := func(name string) map[string]any {
+		return map[string]any{"google_cas": map[string]any{
+			// The key file's JSON as an object, the form GitOps produces; the edits below send it as a string.
+			"name": name, "project": "my-project", "location": "us-central1", "ca_pool": "my-ca-pool", "api_key_json": json.RawMessage(key),
+		}}
+	}
+
+	// Create.
+	var createResp createCertificateAuthorityResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("GOOGLE_WIFI"), http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	require.Equal(t, fleet.CATypeGoogleCAS, createResp.Type)
+	s.lastActivityMatches(fleet.ActivityAddedGoogleCAS{}.ActivityName(), `{"name":"GOOGLE_WIFI"}`, 0)
+	require.Len(t, verified, 1)
+	require.Equal(t, "projects/my-project/locations/us-central1/caPools/my-ca-pool", verified[0].CAPoolResourceName())
+	require.JSONEq(t, key, string(verified[0].APIKeyJSON))
+
+	// The same name is already used.
+	res := s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("GOOGLE_WIFI"), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"GOOGLE_WIFI" name is already used by another Google CAS certificate authority`)
+
+	// A CA pool Google rejects is not stored.
+	verifyErr = errors.New("The service account can't access the CA pool.")
+	res = s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("GOOGLE_REJECTED"), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "The service account can't access the CA pool.")
+	verifyErr = nil
+
+	// Only one CA type per request.
+	twoTypes := createReq("GOOGLE_TWO")
+	twoTypes["hydrant"] = map[string]any{"name": "H", "url": "https://example.com", "client_id": "a", "client_secret": "b"}
+	s.Do("POST", "/api/latest/fleet/certificate_authorities", twoTypes, http.StatusBadRequest)
+
+	// The list and the get never return the key.
+	var listResp listCertificateAuthoritiesResponse
+	listRes := s.DoRaw("GET", "/api/latest/fleet/certificate_authorities", nil, http.StatusOK)
+	body, err := io.ReadAll(listRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &listResp))
+	require.Len(t, listResp.CertificateAuthorities, 1)
+	require.Equal(t, string(fleet.CATypeGoogleCAS), listResp.CertificateAuthorities[0].Type)
+	require.NotContains(t, string(body), "PRIVATE KEY")
+
+	var getResp getCertificateAuthorityResponse
+	getRes := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID), nil, http.StatusOK)
+	body, err = io.ReadAll(getRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &getResp))
+	require.Equal(t, "my-project", *getResp.GoogleCASProject)
+	require.Equal(t, "us-central1", *getResp.GoogleCASLocation)
+	require.Equal(t, "my-ca-pool", *getResp.GoogleCASCAPool)
+	require.Equal(t, fleet.MaskedPassword, *getResp.GoogleCASAPIKeyJSON)
+	require.NotContains(t, string(body), "PRIVATE KEY")
+
+	// Renaming doesn't need Google.
+	verified = nil
+	editURL := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"name": "GOOGLE_VPN"}}, http.StatusOK)
+	s.lastActivityMatches(fleet.ActivityEditedGoogleCAS{}.ActivityName(), `{"name":"GOOGLE_VPN"}`, 0)
+	require.Empty(t, verified)
+
+	// Changing the pool, with the masked key, verifies with the stored key and keeps it.
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"ca_pool": "other-pool", "api_key_json": fleet.MaskedPassword}}, http.StatusOK)
+	require.Len(t, verified, 1)
+	require.Equal(t, "other-pool", verified[0].CAPool)
+	require.JSONEq(t, key, string(verified[0].APIKeyJSON))
+	stored, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, "other-pool", *stored.GoogleCASCAPool)
+	require.JSONEq(t, key, *stored.GoogleCASAPIKeyJSON)
+
+	// A replacement key Google rejects leaves the stored one in place.
+	newKey := `{"type":"service_account","client_email":"other@my-project.iam.gserviceaccount.com","private_key":"-----BEGIN PRIVATE KEY-----"}`
+	verifyErr = errors.New("The service account can't access the CA pool.")
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"api_key_json": newKey}}, http.StatusBadRequest)
+	verifyErr = nil
+	stored, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	require.NoError(t, err)
+	require.JSONEq(t, key, *stored.GoogleCASAPIKeyJSON)
+
+	// A replacement key Google accepts replaces it.
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"api_key_json": newKey}}, http.StatusOK)
+	stored, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, newKey, *stored.GoogleCASAPIKeyJSON)
+	editedID := s.lastActivityMatches(fleet.ActivityEditedGoogleCAS{}.ActivityName(), `{"name":"GOOGLE_VPN"}`, 0)
+
+	// Sending nothing new, or the stored values again, asks Google nothing and records no activity.
+	verified = nil
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{}}, http.StatusOK)
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"name": "GOOGLE_VPN", "ca_pool": "other-pool", "api_key_json": fleet.MaskedPassword}}, http.StatusOK)
+	require.Empty(t, verified)
+	s.lastActivityMatches(fleet.ActivityEditedGoogleCAS{}.ActivityName(), "", editedID)
+
+	// A malformed key is rejected before Google is asked.
+	verified = nil
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"api_key_json": "nope"}}, http.StatusUnprocessableEntity)
+	require.Empty(t, verified)
+
+	// The type can't change.
+	s.Do("PATCH", editURL, map[string]any{"hydrant": map[string]any{"name": "H"}}, http.StatusBadRequest)
+
+	// Delete.
+	s.Do("DELETE", editURL, nil, http.StatusNoContent)
+	s.lastActivityMatches(fleet.ActivityDeletedGoogleCAS{}.ActivityName(), `{"name":"GOOGLE_VPN"}`, 0)
+	_, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
+	require.Error(t, err)
 }
 
 // TestUpdateNDESCertificateAuthority covers PATCH /certificate_authorities/{id} for the NDES
@@ -2652,4 +3040,28 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	s.lastActivityMatches(fleet.ActivityDeletedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 	_, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
 	require.Error(t, err)
+}
+
+func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorityNameCannotBeShared() {
+	t := s.T()
+	ctx := t.Context()
+	// A name-only edit doesn't contact EJBCA, so the CAs can be set up directly, with the fields an edit validates.
+	ejbca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeEJBCA), Name: new("EJBCA_WIFI"), URL: new("https://ejbca.example.com"), EJBCACAName: new("CA"),
+		EJBCACertificateProfileName: new("profile"), EJBCAEndEntityProfileName: new("entity"), CertificateCommonName: new("cn"),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(context.Background(), ejbca.ID) })
+	scep, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("SCEP_WIFI"), URL: new("https://scep.example.com"), Challenge: new("c"),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(context.Background(), scep.ID) })
+
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ejbca.ID),
+		map[string]any{"ejbca": map[string]any{"name": "SCEP_WIFI"}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"SCEP_WIFI" name is already used by another certificate authority`)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", scep.ID),
+		map[string]any{"custom_scep_proxy": map[string]any{"name": "EJBCA_WIFI"}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"EJBCA_WIFI" name is already used by another certificate authority`)
 }

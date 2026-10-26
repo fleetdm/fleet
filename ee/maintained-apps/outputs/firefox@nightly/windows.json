@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "160.2610.2009.0",
+      "version": "161.2610.2609.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation' AND version_compare(version, '160.2610.2009.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation' AND version_compare(version, '161.2610.2609.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
-      "installer_url": "https://ftp.mozilla.org/pub/firefox/nightly/2026/10/2026-10-20-09-59-29-mozilla-central/firefox-160.0a1.multi.win64.installer.msix",
+      "installer_url": "https://ftp.mozilla.org/pub/firefox/nightly/2026/10/2026-10-26-09-18-49-mozilla-central/firefox-161.0a1.multi.win64.installer.msix",
       "install_script_ref": "255e7c51",
       "uninstall_script_ref": "f0d0fed1",
-      "sha256": "c3761e4ac20165797ab2b030fae648aec9a0a3e05afabeaafad7dd5acc2b7399",
+      "sha256": "7f1297da3e9ec2e53694aa9e4a54cc40496d5d94e4203fe09db020fe35ece02f",
       "default_categories": [
         "Browsers"
       ]

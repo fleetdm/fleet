@@ -83,11 +83,14 @@ controls:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/remove-emudhra-roots-macos-system.sh
+    - path: ../lib/macos/scripts/remediate-php2shell-macos.sh
     # Windows scripts
     - path: ../lib/windows/scripts/remove-emudhra-roots-fleetd.ps1
+    - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
     # macOS and Linux scripts
     - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
 policies:

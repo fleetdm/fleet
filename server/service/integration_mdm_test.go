@@ -65,6 +65,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	googlecas_mock "github.com/fleetdm/fleet/v4/server/mock/googlecas"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -113,6 +114,8 @@ type integrationMDMTestSuite struct {
 	mdmCommander   *apple_mdm.MDMAppleCommander
 	logger         *slog.Logger
 	scepChallenge  string
+	// googleCASService stands in for Google CAS, which tests that create Google CAS CAs program.
+	googleCASService *googlecas_mock.Service
 
 	acmeCertCA  *x509.Certificate
 	acmeCertKey *ecdsa.PrivateKey
@@ -331,10 +334,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	keyValueStore := redis_key_value.New(s.redisPool)
 
+	s.googleCASService = &googlecas_mock.Service{}
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
+		GoogleCASService:       s.googleCASService,
 		DBConns:                s.dbConns,
 		Logger:                 serverLogger,
 		FleetConfig:            &fleetCfg,
