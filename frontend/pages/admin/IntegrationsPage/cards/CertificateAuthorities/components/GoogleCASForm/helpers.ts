@@ -1,31 +1,10 @@
+import { IFormErrors } from "hooks/useFormValidation";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 import { IGoogleCASFormData } from "./GoogleCASForm";
 
-export interface IGoogleCASFormValidation {
-  isValid: boolean;
-  name?: { isValid: boolean; message?: string };
-  projectId?: { isValid: boolean; message?: string };
-  caPool?: { isValid: boolean; message?: string };
-  location?: { isValid: boolean; message?: string };
-  apiKeyJson?: { isValid: boolean; message?: string };
-}
-
-type IFormValidationKey = keyof IGoogleCASFormData;
-
-interface IValidation {
-  name: string;
-  isValid: (formData: IGoogleCASFormData) => boolean;
-  message?: string;
-}
-
-type IFormValidations = Record<
-  IFormValidationKey,
-  // The order of the validations determines the precedence when validating
-  { validations: IValidation[] }
->;
-
+const NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 // The server limits these to the characters Google allows in the IDs, because
 // they become path segments of Google API URLs.
 const PROJECT_ID_REGEX = /^[a-z0-9][a-z0-9.:-]*$/;
@@ -43,98 +22,65 @@ const isJSONObject = (value: string) => {
   }
 };
 
-const required = (field: IFormValidationKey): IValidation => ({
-  name: "required",
-  isValid: (formData) => formData[field].length > 0,
-});
+interface IValidateOptions {
+  certAuthorities: ICertificateAuthorityPartial[];
+  isEditing: boolean;
+}
 
-export const generateFormValidations = (
-  certAuthorities: ICertificateAuthorityPartial[],
-  isEditing: boolean
-): IFormValidations => ({
-  name: {
-    validations: [
-      required("name"),
-      {
-        name: "validCharacters",
-        isValid: (formData) => /^[a-zA-Z0-9_]+$/.test(formData.name),
-        message:
-          "Invalid characters. Only letters, numbers and underscores allowed.",
-      },
-      {
-        name: "unique",
-        isValid: (formData) =>
-          isEditing ||
-          !certAuthorities.some(
-            (cert) => cert.type === "google_cas" && cert.name === formData.name
-          ),
-        message: "Name is already used by another Google CAS CA.",
-      },
-    ],
-  },
-  projectId: {
-    validations: [
-      required("projectId"),
-      {
-        name: "validCharacters",
-        isValid: (formData) => PROJECT_ID_REGEX.test(formData.projectId),
-        message:
-          "Must contain only lowercase letters, numbers, hyphens, periods and colons.",
-      },
-    ],
-  },
-  caPool: {
-    validations: [
-      required("caPool"),
-      {
-        name: "validCharacters",
-        isValid: (formData) => CA_POOL_REGEX.test(formData.caPool),
-        message: "Must contain only letters, numbers, hyphens and underscores.",
-      },
-    ],
-  },
-  location: {
-    validations: [
-      required("location"),
-      {
-        name: "validCharacters",
-        isValid: (formData) => LOCATION_REGEX.test(formData.location),
-        message: "Must contain only lowercase letters, numbers and hyphens.",
-      },
-    ],
-  },
-  apiKeyJson: {
-    validations: [
-      required("apiKeyJson"),
-      {
-        name: "validJSON",
-        // The masked value the API returns for a saved key means "keep it".
-        isValid: (formData) =>
-          formData.apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE ||
-          isJSONObject(formData.apiKeyJson),
-        message: "Must be the service account key file's JSON.",
-      },
-    ],
-  },
-});
-
-export const validateFormData = (
+const validateGoogleCASForm = (
   formData: IGoogleCASFormData,
-  validationConfig: IFormValidations
-): IGoogleCASFormValidation => {
-  const formValidation: IGoogleCASFormValidation = { isValid: true };
+  { certAuthorities, isEditing }: IValidateOptions
+): IFormErrors => {
+  const errors: IFormErrors = {};
+  const name = formData.name.trim();
+  const projectId = formData.projectId.trim();
+  const caPool = formData.caPool.trim();
+  const location = formData.location.trim();
+  const apiKeyJson = formData.apiKeyJson.trim();
 
-  (Object.keys(validationConfig) as IFormValidationKey[]).forEach((key) => {
-    const failed = validationConfig[key].validations.find(
-      (validation) => !validation.isValid(formData)
-    );
-    if (!failed) {
-      formValidation[key] = { isValid: true };
-      return;
-    }
-    formValidation.isValid = false;
-    formValidation[key] = { isValid: false, message: failed.message };
-  });
+  if (!name) {
+    errors.name = "Enter a name";
+  } else if (!NAME_REGEX.test(name)) {
+    errors.name = "Enter a name with only letters, numbers, and underscores";
+  } else if (
+    !isEditing &&
+    certAuthorities.some((ca) => ca.type === "google_cas" && ca.name === name)
+  ) {
+    errors.name = "Enter a name that isn't used by another Google CAS CA";
+  }
 
-  return formValidation;
+  if (!projectId) {
+    errors.projectId = "Enter a project ID";
+  } else if (!PROJECT_ID_REGEX.test(projectId)) {
+    errors.projectId =
+      "Enter a project ID with only lowercase letters, numbers, hyphens, periods, and colons";
+  }
+
+  if (!caPool) {
+    errors.caPool = "Enter a CA pool";
+  } else if (!CA_POOL_REGEX.test(caPool)) {
+    errors.caPool =
+      "Enter a CA pool with only letters, numbers, hyphens, and underscores";
+  }
+
+  if (!location) {
+    errors.location = "Enter a location";
+  } else if (!LOCATION_REGEX.test(location)) {
+    errors.location =
+      "Enter a location with only lowercase letters, numbers, and hyphens";
+  }
+
+  if (!apiKeyJson) {
+    errors.apiKeyJson = "Enter a service account key";
+  } else if (
+    // When editing, the masked value the API returns means "keep the saved key".
+    !(isEditing && apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE) &&
+    !isJSONObject(apiKeyJson)
+  ) {
+    errors.apiKeyJson = "Enter the service account key file's JSON";
+  }
+
+  return errors;
 };
+
+export default validateGoogleCASForm;

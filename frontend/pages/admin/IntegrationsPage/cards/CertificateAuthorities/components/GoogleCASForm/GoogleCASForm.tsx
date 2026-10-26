@@ -1,13 +1,13 @@
-import React, { useMemo } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
+import useFormValidation from "hooks/useFormValidation";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
-import { generateFormValidations, validateFormData } from "./helpers";
+import validateGoogleCASForm from "./helpers";
 
 const baseClass = "google-cas-form";
 
@@ -19,75 +19,65 @@ export interface IGoogleCASFormData {
   apiKeyJson: string;
 }
 
+const EMPTY_FORM_DATA: IGoogleCASFormData = {
+  name: "",
+  projectId: "",
+  caPool: "",
+  location: "",
+  apiKeyJson: "",
+};
+
 interface IGoogleCASFormProps {
   certAuthorities?: ICertificateAuthorityPartial[];
-  formData: IGoogleCASFormData;
+  /** The saved CA's values. Passing them makes this the edit form. */
+  defaultData?: IGoogleCASFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
-  isDirty?: boolean;
-  onChange: (update: { name: string; value: string }) => void;
-  onSubmit: () => void;
+  onSubmit: (formData: IGoogleCASFormData) => void | Promise<unknown>;
   onCancel: () => void;
 }
 
 const GoogleCASForm = ({
-  certAuthorities,
-  formData,
+  certAuthorities = [],
+  defaultData,
   submitBtnText,
-  isSubmitting,
-  isEditing = false,
-  isDirty = true,
-  onChange,
+  isSubmitting: isSubmittingProp,
   onSubmit,
   onCancel,
 }: IGoogleCASFormProps) => {
-  const validationsConfig = useMemo(
-    () => generateFormValidations(certAuthorities ?? [], isEditing),
-    [certAuthorities, isEditing]
-  );
+  const isEditing = defaultData !== undefined;
 
-  const validations = useMemo(
-    () => validateFormData(formData, validationsConfig),
-    [formData, validationsConfig]
-  );
-
-  const { name, projectId, caPool, location, apiKeyJson } = formData;
-
-  const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    onSubmit();
-  };
+  const {
+    getTextFieldProps,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IGoogleCASFormData>({
+    initialFormData: defaultData ?? EMPTY_FORM_DATA,
+    validate: (formData) =>
+      validateGoogleCASForm(formData, { certAuthorities, isEditing }),
+    isSubmitting: isSubmittingProp,
+  });
 
   return (
-    <form className={baseClass} onSubmit={onSubmitForm}>
+    <form className={baseClass} onSubmit={handleSubmit(onSubmit)}>
       <InputField
-        name="name"
+        {...getTextFieldProps("name")}
         label="Name"
-        value={name}
-        onChange={onChange}
-        error={validations.name?.message}
         helpText="Letters, numbers, and underscores only."
-        parseTarget
+        disabled={isSubmitting}
         placeholder="WIFI_CERTIFICATE"
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
-        name="projectId"
+        {...getTextFieldProps("projectId")}
         label="Project ID"
-        value={projectId}
-        onChange={onChange}
-        error={validations.projectId?.message}
         helpText="The Google Cloud project ID."
-        parseTarget
+        disabled={isSubmitting}
         placeholder="my-project"
       />
       <InputField
-        name="caPool"
+        {...getTextFieldProps("caPool")}
         label="CA pool"
-        value={caPool}
-        onChange={onChange}
-        error={validations.caPool?.message}
         helpText={
           <>
             You can find your <b>CA pool</b> in the{" "}
@@ -98,25 +88,19 @@ const GoogleCASForm = ({
             />
           </>
         }
-        parseTarget
+        disabled={isSubmitting}
         placeholder="my-ca-pool"
       />
       <InputField
-        name="location"
+        {...getTextFieldProps("location")}
         label="Location"
-        value={location}
-        onChange={onChange}
-        error={validations.location?.message}
-        parseTarget
+        disabled={isSubmitting}
         placeholder="us-central1"
       />
       <InputField
+        {...getTextFieldProps("apiKeyJson")}
         type="password"
-        name="apiKeyJson"
         label="Service account key"
-        value={apiKeyJson}
-        onChange={onChange}
-        error={validations.apiKeyJson?.message}
         blockAutoComplete
         helpText={
           <>
@@ -129,24 +113,12 @@ const GoogleCASForm = ({
             />
           </>
         }
-        parseTarget
+        disabled={isSubmitting}
       />
       <div className="modal-cta-wrap">
-        <TooltipWrapper
-          tipContent="Complete all required fields to save."
-          underline={false}
-          position="top"
-          disableTooltip={validations.isValid}
-          showArrow
-        >
-          <Button
-            isLoading={isSubmitting}
-            disabled={!validations.isValid || isSubmitting || !isDirty}
-            type="submit"
-          >
-            {submitBtnText}
-          </Button>
-        </TooltipWrapper>
+        <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
+          {submitBtnText}
+        </Button>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>

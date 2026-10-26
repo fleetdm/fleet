@@ -14,6 +14,7 @@ import CustomESTForm from "../CustomESTForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import DigicertForm from "../DigicertForm";
 import GoogleCASForm from "../GoogleCASForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
 import NDESForm from "../NDESForm";
 import SmallstepForm from "../SmallstepForm";
@@ -61,13 +62,15 @@ const EditCertAuthorityModal = ({
     setIsDirty(true);
   };
 
-  const onEditCertAuthority = async () => {
-    if (!fullCertAuthority || !formData) {
+  // The Google CAS form keeps its own data and passes it in on submit.
+  const onEditCertAuthority = async (submittedFormData?: ICertFormData) => {
+    const data = submittedFormData ?? formData;
+    if (!fullCertAuthority || !data) {
       return;
     }
     const editPatchData = generateEditCertAuthorityData(
       fullCertAuthority,
-      formData
+      data
     );
     setIsUpdating(true);
     try {
@@ -99,8 +102,6 @@ const EditCertAuthorityModal = ({
         return CustomSCEPForm;
       case "custom_est_proxy":
         return CustomESTForm;
-      case "google_cas":
-        return GoogleCASForm;
       default:
         throw new Error(
           `Unknown certificate authority type: ${certAuthority.type}`
@@ -117,8 +118,22 @@ const EditCertAuthorityModal = ({
       return <DataError className={`${baseClass}__data-error`} />;
     }
 
+    if (!formData) return <></>;
+
+    if (certAuthority.type === "google_cas") {
+      return (
+        <GoogleCASForm
+          defaultData={formData as IGoogleCASFormData}
+          submitBtnText="Save"
+          isSubmitting={isUpdating}
+          onSubmit={onEditCertAuthority}
+          onCancel={onExit}
+        />
+      );
+    }
+
     const FormComponent = getFormComponent();
-    if (!FormComponent || !formData) return <></>;
+    if (!FormComponent) return <></>;
 
     return (
       <FormComponent

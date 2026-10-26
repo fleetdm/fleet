@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
 import { noop } from "lodash";
 import React from "react";
 
@@ -22,32 +23,9 @@ const createTestFormData = (overrides?: Partial<IGoogleCASFormData>) => ({
 
 type IFormProps = React.ComponentProps<typeof GoogleCASForm>;
 
-// Holds the form data the way the add and edit modals do, so typed values stick.
-const StatefulGoogleCASForm = ({
-  initialFormData,
-  ...props
-}: Omit<IFormProps, "formData" | "onChange"> & {
-  initialFormData: IGoogleCASFormData;
-}) => {
-  const [formData, setFormData] = React.useState(initialFormData);
-  return (
-    <GoogleCASForm
-      {...props}
-      formData={formData}
-      onChange={({ name, value }) =>
-        setFormData((prev) => ({ ...prev, [name]: value }))
-      }
-    />
-  );
-};
-
-const renderForm = (
-  formData: IGoogleCASFormData,
-  props?: Partial<Omit<IFormProps, "formData" | "onChange">>
-) =>
+const renderForm = (props?: Partial<IFormProps>) =>
   renderWithSetup(
-    <StatefulGoogleCASForm
-      initialFormData={formData}
+    <GoogleCASForm
       isSubmitting={false}
       submitBtnText="Add CA"
       onSubmit={noop}
@@ -56,9 +34,24 @@ const renderForm = (
     />
   );
 
+// Pasted rather than typed, because user.type reads "{" in the key's JSON as a
+// key name.
+const pasteInto = async (user: UserEvent, label: string, value: string) => {
+  await user.click(screen.getByLabelText(label));
+  await user.paste(value);
+};
+
+const fillForm = async (user: UserEvent, formData: IGoogleCASFormData) => {
+  await pasteInto(user, "Name", formData.name);
+  await pasteInto(user, "Project ID", formData.projectId);
+  await pasteInto(user, "CA pool", formData.caPool);
+  await pasteInto(user, "Location", formData.location);
+  await pasteInto(user, "Service account key", formData.apiKeyJson);
+};
+
 describe("GoogleCASForm", () => {
   it("renders the fields in the designed order with links to the Google Cloud console", () => {
-    renderForm(createTestFormData());
+    renderForm();
 
     const fieldNames = Array.from(
       document.querySelectorAll<HTMLInputElement>("form input")
@@ -85,60 +78,60 @@ describe("GoogleCASForm", () => {
   });
 
   it("hides the service account key", () => {
-    renderForm(createTestFormData());
+    renderForm();
     expect(screen.getByLabelText("Service account key")).toHaveAttribute(
       "type",
       "password"
     );
   });
 
-  it("enables submit for valid data, including the masked key of a saved CA", () => {
-    renderForm(
-      createTestFormData({ apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE })
-    );
+  it("keeps submit enabled and shows every missing field on submit", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderForm({ onSubmit });
+
+    await user.click(screen.getByRole("button", { name: "Add CA" }));
+
+    expect(screen.getByText("Enter a name")).toBeInTheDocument();
+    expect(screen.getByText("Enter a project ID")).toBeInTheDocument();
+    expect(screen.getByText("Enter a CA pool")).toBeInTheDocument();
+    expect(screen.getByText("Enter a location")).toBeInTheDocument();
+    expect(screen.getByText("Enter a service account key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add CA" })).toBeEnabled();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it.each([
     [
       "Project ID",
       "my/project",
-      "Must contain only lowercase letters, numbers, hyphens, periods and colons.",
+      "Enter a project ID with only lowercase letters, numbers, hyphens, periods, and colons",
     ],
     [
       "CA pool",
       "pool/certificates/other",
-      "Must contain only letters, numbers, hyphens and underscores.",
+      "Enter a CA pool with only letters, numbers, hyphens, and underscores",
     ],
     [
       "Location",
       "US-CENTRAL1",
-      "Must contain only lowercase letters, numbers and hyphens.",
+      "Enter a location with only lowercase letters, numbers, and hyphens",
+    ],
+    [
+      "Service account key",
+      "not json",
+      "Enter the service account key file's JSON",
     ],
   ])(
-    "shows an error and disables submit when %s has characters Google doesn't allow",
+    "shows an error when %s isn't valid and the field loses focus",
     async (label, value, message) => {
-      const { user } = renderForm(createTestFormData());
+      const { user } = renderForm();
 
-      await user.clear(screen.getByLabelText(label));
       await user.type(screen.getByLabelText(label), value);
+      await user.tab();
 
       expect(screen.getByText(message)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
     }
   );
-
-  it("shows an error when the service account key isn't a JSON object", async () => {
-    const { user } = renderForm(createTestFormData());
-
-    await user.clear(screen.getByLabelText("Service account key"));
-    await user.type(screen.getByLabelText("Service account key"), "not json");
-
-    expect(
-      screen.getByText("Must be the service account key file's JSON.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
-  });
 
   const certAuthorities = [
     { id: 1, name: "TAKEN", type: "google_cas" as const },
@@ -146,65 +139,82 @@ describe("GoogleCASForm", () => {
   ];
 
   it("rejects a name another Google CAS CA already uses", async () => {
-    const { user } = renderForm(createTestFormData(), { certAuthorities });
+    const onSubmit = jest.fn();
+    const { user } = renderForm({ certAuthorities, onSubmit });
 
-    await user.clear(screen.getByLabelText("Name"));
-    await user.type(screen.getByLabelText("Name"), "TAKEN");
-
-    expect(
-      screen.getByText("Name is already used by another Google CAS CA.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
-  });
-
-  it("re-checks the name when the list of CAs changes", () => {
-    const props = {
-      isSubmitting: false,
-      submitBtnText: "Add CA",
-      onSubmit: noop,
-      onCancel: noop,
-      initialFormData: createTestFormData({ name: "TAKEN" }),
-    };
-    const { rerender } = renderWithSetup(
-      <StatefulGoogleCASForm {...props} certAuthorities={[]} />
-    );
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeEnabled();
-
-    rerender(
-      <StatefulGoogleCASForm {...props} certAuthorities={certAuthorities} />
-    );
+    await fillForm(user, createTestFormData({ name: "TAKEN" }));
+    await user.click(screen.getByRole("button", { name: "Add CA" }));
 
     expect(
-      screen.getByText("Name is already used by another Google CAS CA.")
+      screen.getByText("Enter a name that isn't used by another Google CAS CA")
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("accepts a name used by a CA of another type", async () => {
-    const { user } = renderForm(createTestFormData(), { certAuthorities });
-
-    await user.clear(screen.getByLabelText("Name"));
-    await user.type(screen.getByLabelText("Name"), "HYDRANT_NAME");
-
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeEnabled();
-  });
-
-  it("disables submit while submitting", () => {
-    renderForm(createTestFormData(), { isSubmitting: true });
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
-  });
-
-  it("disables submit when editing without changes", () => {
-    renderForm(createTestFormData(), { isEditing: true, isDirty: false });
-    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
-  });
-
-  it("submits through onSubmit", async () => {
     const onSubmit = jest.fn();
-    const { user } = renderForm(createTestFormData(), { onSubmit });
+    const { user } = renderForm({ certAuthorities, onSubmit });
 
+    await fillForm(user, createTestFormData({ name: "HYDRANT_NAME" }));
     await user.click(screen.getByRole("button", { name: "Add CA" }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects the masked key when adding", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderForm({ onSubmit });
+
+    await fillForm(
+      user,
+      createTestFormData({ apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE })
+    );
+    await user.click(screen.getByRole("button", { name: "Add CA" }));
+
+    expect(
+      screen.getByText("Enter the service account key file's JSON")
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits the trimmed values", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderForm({ onSubmit });
+
+    await fillForm(
+      user,
+      createTestFormData({ name: " GOOGLE_WIFI ", location: "us-central1 " })
+    );
+    await user.click(screen.getByRole("button", { name: "Add CA" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(createTestFormData());
+  });
+
+  it("submits a saved CA unchanged, keeping its masked key, when editing", async () => {
+    const onSubmit = jest.fn();
+    const saved = createTestFormData({
+      apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+    });
+    const { user } = renderForm({
+      defaultData: saved,
+      submitBtnText: "Save",
+      certAuthorities: [{ id: 1, name: "GOOGLE_WIFI", type: "google_cas" }],
+      onSubmit,
+    });
+
+    expect(screen.getByLabelText("Name")).toHaveValue("GOOGLE_WIFI");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(saved);
+  });
+
+  it("disables the fields and submit while submitting", () => {
+    renderForm({ isSubmitting: true });
+
+    expect(screen.getByRole("button", { name: "Add CA" })).toBeDisabled();
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+    expect(screen.getByLabelText("Service account key")).toBeDisabled();
   });
 });

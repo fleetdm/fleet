@@ -116,17 +116,6 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
-  const [
-    googleCASFormData,
-    setGoogleCASFormData,
-  ] = useState<IGoogleCASFormData>({
-    name: "",
-    projectId: "",
-    caPool: "",
-    location: "",
-    apiKeyJson: "",
-  });
-
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -159,10 +148,6 @@ const AddCertAuthorityModal = ({
         setFormData = setCustomESTFormData;
         formData = customESTFormData;
         break;
-      case "google_cas":
-        setFormData = setGoogleCASFormData;
-        formData = googleCASFormData;
-        break;
       default:
         return;
     }
@@ -173,7 +158,7 @@ const AddCertAuthorityModal = ({
     });
   };
 
-  const onAddCertAuthority = async () => {
+  const onAddCertAuthority = async (submittedFormData?: ICertFormData) => {
     let formData: ICertFormData;
     switch (certAuthorityType) {
       case "digicert":
@@ -195,7 +180,11 @@ const AddCertAuthorityModal = ({
         formData = customESTFormData;
         break;
       case "google_cas":
-        formData = googleCASFormData;
+        // This form keeps its own data and passes it in on submit.
+        if (!submittedFormData) {
+          return;
+        }
+        formData = submittedFormData;
         break;
       default:
         return;
@@ -297,11 +286,9 @@ const AddCertAuthorityModal = ({
       case "google_cas":
         return (
           <GoogleCASForm
-            formData={googleCASFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
-            onChange={onChangeForm}
             onSubmit={onAddCertAuthority}
             onCancel={onExit}
           />
