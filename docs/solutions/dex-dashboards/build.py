@@ -1649,7 +1649,8 @@ def build_sustainability(snap, hist):
 def build_policies(snap, hist):
     """Each policy's pass, fail, and no-result counts per fleet and platform, kept per
     day for a year, so the page can show any day since the history began. Daily totals
-    are kept for all policies, patch policies (p_), and the rest (o_)."""
+    are kept for all policies, patch policies (p_), and the rest (o_), and again for
+    critical policies alone (c_, cp_, co_)."""
     now = parse_ts(snap["generated_at"])
     today = now.date()
     D = today.isoformat()
@@ -1675,14 +1676,16 @@ def build_policies(snap, hist):
         if fp not in index:
             index[fp] = len(keys)
             keys.append(fp)
-        tally = {"": [0, 0], "p_": [0, 0], "o_": [0, 0]}
+        tally = {k: [0, 0] for k in ("", "p_", "o_", "c_", "cp_", "co_")}
         for pid, r in results:
             c = counts.setdefault(str(pid), {}).setdefault(index[fp], [0, 0, 0])
             c[0 if r == 1 else 1 if r == 0 else 2] += 1
             if r == 0:
                 failing.setdefault(str(pid), []).append(int(hid))
             if r is not None:
-                for kind in ("", "p_" if (info.get(str(pid)) or {}).get("patch") else "o_"):
+                p = info.get(str(pid)) or {}
+                t = "p_" if p.get("patch") else "o_"
+                for kind in ("", t, "c_", "c" + t) if p.get("critical") else ("", t):
                     tally[kind][0 if r == 1 else 1] += 1
         for kind, (passed, failed) in tally.items():
             count_into(day, fleet, plat, **{kind + "computers": int(bool(passed or failed)), kind + "all_pass": int(passed > 0 and not failed),
