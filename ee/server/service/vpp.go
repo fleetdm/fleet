@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -2247,13 +2248,20 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
 			}
-			// Log a failed install and move on to the next host, the next run sends it again
 			host := hostByID[hostID]
 			_, err = vppInstaller.InstallVPPAppPostValidation(ctx, &host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 				ForConfigurationResend: true,
 			})
 			if err != nil {
 				logger.WarnContext(ctx, "failed to send app store app configuration", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
+				// Record a failed install even though no attempt was made, so the next cron run waits 1 hour before retrying.
+				_, _, err = ds.RecordFailedVPPAppInstall(ctx, hostID, vppApp.VPPAppID, uuid.NewString(), err.Error(), fleet.HostSoftwareInstallOptions{
+					VPPAppTeamID:           vppApp.AppTeamID,
+					ForConfigurationResend: true,
+				})
+				if err != nil {
+					logger.WarnContext(ctx, "failed to record failed app store app configuration install", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
+				}
 			}
 		}
 	}

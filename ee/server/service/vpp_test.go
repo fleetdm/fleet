@@ -1098,6 +1098,10 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			}
 			return included, nil
 		}
+		f.ds.RecordFailedVPPAppInstallFunc = func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			f.failedInstalls = append(f.failedInstalls, fleet.HostVPPSoftwareInstall{HostID: hostID, VPPAppTeamID: new(opts.VPPAppTeamID), CreatedAt: f.now})
+			return nil, nil, nil
+		}
 		f.ds.GetHostIDsWithRecentFailedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
 			failed := make(map[uint]struct{})
 			for _, install := range f.failedInstalls {
@@ -1594,6 +1598,36 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 
 		// add the app back to Apple Business, the host should get version 10
 		delete(f.rejectedHostIDs, 1)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install Apple rejects is retried an hour after the rejection", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		f.now = time.Now().Truncate(time.Second)
+
+		// remove the app from Apple Business and run the cron, the install should be rejected and recorded as a failed install of version 10
+		f.rejectedHostIDs[1] = struct{}{}
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Len(t, f.failedInstalls, 1)
+		require.Equal(t, new(uint(10)), f.failedInstalls[0].VPPAppTeamID)
+
+		// add the app back to Apple Business and run the cron, the host should get nothing since the rejection was less than an hour ago
+		delete(f.rejectedHostIDs, 1)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// move the rejection two hours back and run the cron, the host should get version 10
+		f.failedInstalls[0].CreatedAt = time.Now().Add(-2 * time.Hour)
 		sent, err = reconcile(f, ctx)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]uint{1: 10}, sent)
