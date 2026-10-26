@@ -89,12 +89,12 @@
   }
 
   // Teams chat animation, laid out at the Figma frame's size for each layout
-  // (desktop 1072×603, tablet 864×603, mobile 512×603). 1em is one Figma
+  // (desktop 1072×550, tablet 864×603, mobile 512×603). 1em is one Figma
   // pixel, so the whole graphic scales through font-size.
   [purpose='teams-animation'] {
     position: relative;
     width: 1072em;
-    height: 603em;
+    height: 550em;
     margin: 0 auto;
     // Fallbacks for browsers without container query units (e.g. Safari 14–15):
     // the hero's width from the viewport and .page-container() padding.
@@ -104,6 +104,7 @@
     }
     @media (max-width: 991px) {
       width: 864em;
+      height: 603em;
       font-size: ~'calc(min(864px, 100vw - 64px) / 864)';
       @supports (width: 1cqw) {
         font-size: ~'calc(min(864px, 100cqw) / 864)';
@@ -142,13 +143,14 @@
     left: 14em;
     top: 8em;
     width: 1044em;
-    height: 576em;
+    height: 520em;
     border-radius: 6.962em;
     overflow: hidden;
     box-shadow: 0 3.481em 9.283em rgba(0, 0, 0, 0.15);
     @media (max-width: 991px) {
       left: 10em;
       width: 844em;
+      height: 576em;
     }
     @media (max-width: 767px) {
       width: 492em;
@@ -164,19 +166,21 @@
       height: 100%;
     }
   }
-  // The message area below the chat header.
+  // The message area below the chat header. On desktop the chat card runs to
+  // the window's bottom edge, so the window's own clipping squares it off.
   [purpose='teams-messages'] {
     position: absolute;
     left: 278.5em;
     top: 93.37em;
     width: 760em;
-    height: 477.43em;
-    border-radius: 0 0 8em 8em;
+    height: 426.63em;
     overflow: hidden;
     @media (max-width: 991px) {
       left: 220.5em;
       top: 93.57em;
       width: 617em;
+      height: 477.43em;
+      border-radius: 0 0 8em 8em;
     }
     @media (max-width: 767px) {
       left: 0;
@@ -204,12 +208,6 @@
     background-color: #e8ebfa;
     p {
       white-space: nowrap;
-    }
-    @media (max-width: 991px) {
-      max-width: 280em;
-      p {
-        white-space: normal;
-      }
     }
   }
   [purpose='teams-first-reply'], [purpose='teams-second-reply'] {
@@ -253,21 +251,18 @@
       background-color: #616161;
     }
   }
+  // Bubbles hug their text. Only Fleet's first reply is long enough to wrap,
+  // at the widths set in Figma.
   [purpose='teams-reply-body'] {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 3.438em;
-    width: 515.709em;
-    @media (max-width: 991px) {
-      width: 305em;
-    }
-    @media (max-width: 767px) {
-      width: 313em;
-    }
   }
-  [purpose='teams-second-reply'] [purpose='teams-reply-body'] {
-    @media (min-width: 992px) {
-      width: 465.124em;
+  [purpose='teams-first-reply'] [purpose='teams-reply-body'] > [purpose='teams-reply-bubble'] {
+    max-width: 434.5em;
+    @media (max-width: 991px) {
+      max-width: 349.5em;
     }
   }
   [purpose='teams-sender'] {
@@ -276,119 +271,41 @@
     color: #616161;
   }
   [purpose='teams-reply-bubble'] {
-    display: flex;
-    flex-direction: column;
-    gap: 18em;
     padding: 10.314em 20.628em 10.314em 13.752em;
     border-radius: 8em;
     background-color: #f5f5f5;
-    // Inline padding leaves the 18px line height alone, as in the Figma chip.
-    code {
-      padding: 1.719em / 11 4.298em / 11;
-      border: 0.86em / 11 solid #dadada;
-      border-radius: 3.438em / 11;
-      background-color: #eeeeee;
-      font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 11em / 12;
-      color: #242424;
-    }
-    ul {
-      margin: 0;
-      padding-left: 18em / 12;
-      font-size: 12em;
-      line-height: 18 / 12;
-      list-style: disc;
-    }
   }
-  // Figma gives the code block the full text column, and indents the prose
-  // 6.876px from its right edge.
-  [purpose='teams-second-reply'] [purpose='teams-reply-bubble'] {
-    gap: 12.893em;
-    padding-right: 13.752em;
-    p, ul {
-      padding-right: 6.876em / 12;
-    }
-    [purpose='teams-code-block'] p {
-      padding-right: 0;
-    }
-  }
-  [purpose='teams-reply-section'] {
-    display: flex;
-    flex-direction: column;
-    gap: 18em;
-  }
-  [purpose='teams-code-block'] {
-    display: flex;
-    flex-direction: column;
-    gap: 6.876em;
-    padding: 10.314em;
-    border: 0.86em solid #dadada;
-    border-radius: 6.876em;
-    background-color: #eeeeee;
-    p {
-      font-size: 10em;
-      line-height: 16 / 10;
-    }
-    pre {
-      margin: 0;
-      overflow: visible;
-      font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 11em;
-      line-height: 16 / 11;
-      color: #242424;
-    }
-  }
-  [purpose='diff-added'] {
-    color: #40c040;
-  }
-  [purpose='teams-reply-bubble'] [purpose='teams-reply-footer'] {
-    margin-top: 18em / 12;
-  }
-  [purpose='teams-pr-link'] {
-    color: #3149c1;
+  // Underlined to suggest it links to the PR. It isn't interactive.
+  [purpose='teams-link'] {
     text-decoration: underline;
   }
 
   // Without animation (prefers-reduced-motion) this is the second keyframe:
-  // the first question and answer, scrolled to the answer on smaller layouts.
-  [purpose='teams-second-message'], [purpose='teams-second-reply'] [purpose='teams-reply'] {
+  // the question and Fleet's first answer.
+  [purpose='teams-follow-up'], [purpose='teams-second-message'], [purpose='teams-second-reply'] [purpose='teams-reply'] {
     opacity: 0;
   }
-  [purpose='teams-message-stack'] {
-    @media (max-width: 991px) {
-      transform: translateY(-@teams-tablet-scroll-2);
-    }
-    @media (max-width: 767px) {
-      transform: translateY(-@teams-mobile-scroll-2);
-    }
-  }
   @media (prefers-reduced-motion: no-preference) {
-    [purpose='teams-message-stack'] {
-      animation: teams-scroll 16s ease-in-out infinite;
-      @media (max-width: 991px) {
-        animation-name: teams-scroll-tablet;
-      }
-      @media (max-width: 767px) {
-        animation-name: teams-scroll-mobile;
-      }
-    }
     [purpose='teams-first-message'] {
-      animation: teams-first-message 16s ease-out infinite;
+      animation: teams-first-message 15.8s ease-out infinite;
     }
     [purpose='teams-first-reply'] [purpose='teams-typing'] {
-      animation: teams-first-typing 16s linear infinite;
+      animation: teams-first-typing 15.8s linear infinite;
     }
     [purpose='teams-first-reply'] [purpose='teams-reply'] {
-      animation: teams-first-reply 16s ease-out infinite;
+      animation: teams-first-reply 15.8s ease-out infinite;
+    }
+    [purpose='teams-follow-up'] {
+      animation: teams-follow-up 15.8s ease-out infinite;
     }
     [purpose='teams-second-message'] {
-      animation: teams-second-message 16s ease-out infinite;
+      animation: teams-second-message 15.8s ease-out infinite;
     }
     [purpose='teams-second-reply'] [purpose='teams-typing'] {
-      animation: teams-second-typing 16s linear infinite;
+      animation: teams-second-typing 15.8s linear infinite;
     }
     [purpose='teams-second-reply'] [purpose='teams-reply'] {
-      animation: teams-second-reply 16s ease-out infinite;
+      animation: teams-second-reply 15.8s ease-out infinite;
     }
     [purpose='teams-typing-bubble'] span {
       animation: teams-typing-dot 1.2s ease-in-out infinite;
@@ -401,70 +318,50 @@
     }
   }
 
-  // 16s loop. 1% = 0.16s: 5% = 0.8s, 14.375% = 2.3s, 17.5% = 2.8s, 42.5% = 6.8s,
-  // 45% = 7.2s, 47.5% = 7.6s, 56.875% = 9.1s, 61.875% = 9.9s, 93.125% = 14.9s,
-  // 96.25% = 15.4s.
+  // 15.8s loop. Fleet starts typing 0.5s after the question has faded in.
+  // 3.165% = 0.5s, 4.43% = 0.7s, 14.557% = 2.3s, 15.823% = 2.5s, 18.987% = 3s,
+  // 22.152% = 3.5s, 25.316% = 4s, 34.81% = 5.5s, 37.342% = 5.9s, 39.873% = 6.3s,
+  // 41.139% = 6.5s, 51.266% = 8.1s, 52.532% = 8.3s, 55.696% = 8.8s,
+  // 93.671% = 14.8s, 96.835% = 15.3s.
   @keyframes teams-first-message {
-    0%, 93.125% { opacity: 1; }
-    96.25% { opacity: 0; }
+    0%, 93.671% { opacity: 1; }
+    96.835% { opacity: 0; }
     100% { opacity: 1; }
   }
   @keyframes teams-first-typing {
-    0%, 5% { opacity: 0; }
-    6.25%, 13.125% { opacity: 1; }
-    14.375%, 100% { opacity: 0; }
+    0%, 3.165% { opacity: 0; }
+    4.43%, 14.557% { opacity: 1; }
+    15.823%, 100% { opacity: 0; }
   }
   @keyframes teams-first-reply {
-    0%, 14.375% { opacity: 0; transform: translateY(12em); }
-    17.5%, 93.125% { opacity: 1; transform: translateY(0); }
-    96.25% { opacity: 0; transform: translateY(0); }
+    0%, 15.823% { opacity: 0; transform: translateY(12em); }
+    18.987%, 93.671% { opacity: 1; transform: translateY(0); }
+    96.835% { opacity: 0; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(12em); }
+  }
+  // Follows the first reply after half a second, with no typing indicator.
+  @keyframes teams-follow-up {
+    0%, 22.152% { opacity: 0; transform: translateY(12em); }
+    25.316%, 93.671% { opacity: 1; transform: translateY(0); }
+    96.835% { opacity: 0; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(12em); }
   }
   @keyframes teams-second-message {
-    0%, 42.5% { opacity: 0; transform: translateY(12em); }
-    45%, 93.125% { opacity: 1; transform: translateY(0); }
-    96.25% { opacity: 0; transform: translateY(0); }
+    0%, 34.81% { opacity: 0; transform: translateY(12em); }
+    37.342%, 93.671% { opacity: 1; transform: translateY(0); }
+    96.835% { opacity: 0; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(12em); }
   }
   @keyframes teams-second-typing {
-    0%, 47.5% { opacity: 0; }
-    48.75%, 55.625% { opacity: 1; }
-    56.875%, 100% { opacity: 0; }
+    0%, 39.873% { opacity: 0; }
+    41.139%, 51.266% { opacity: 1; }
+    52.532%, 100% { opacity: 0; }
   }
   @keyframes teams-second-reply {
-    0%, 56.875% { opacity: 0; transform: translateY(12em); }
-    60%, 93.125% { opacity: 1; transform: translateY(0); }
-    96.25% { opacity: 0; transform: translateY(0); }
+    0%, 52.532% { opacity: 0; transform: translateY(12em); }
+    55.696%, 93.671% { opacity: 1; transform: translateY(0); }
+    96.835% { opacity: 0; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(12em); }
-  }
-  // Each layout scrolls just far enough to show the newest message (and the
-  // typing indicator below the second question), then jumps back while every
-  // message is faded out. Desktop only needs to scroll for the PR reply.
-  @teams-desktop-scroll-4: 333.4em;
-  @teams-tablet-scroll-2: 15.1em;
-  @teams-tablet-scroll-3: 119.5em;
-  @teams-tablet-scroll-4: 541.7em;
-  @teams-mobile-scroll-2: 10.1em;
-  @teams-mobile-scroll-3: 114.5em;
-  @teams-mobile-scroll-4: 536.5em;
-  @keyframes teams-scroll {
-    0%, 56.875% { transform: translateY(0); }
-    61.875%, 96.2% { transform: translateY(-@teams-desktop-scroll-4); }
-    96.25%, 100% { transform: translateY(0); }
-  }
-  @keyframes teams-scroll-tablet {
-    0%, 14.375% { transform: translateY(0); }
-    17.5%, 42.5% { transform: translateY(-@teams-tablet-scroll-2); }
-    45%, 56.875% { transform: translateY(-@teams-tablet-scroll-3); }
-    61.875%, 96.2% { transform: translateY(-@teams-tablet-scroll-4); }
-    96.25%, 100% { transform: translateY(0); }
-  }
-  @keyframes teams-scroll-mobile {
-    0%, 14.375% { transform: translateY(0); }
-    17.5%, 42.5% { transform: translateY(-@teams-mobile-scroll-2); }
-    45%, 56.875% { transform: translateY(-@teams-mobile-scroll-3); }
-    61.875%, 96.2% { transform: translateY(-@teams-mobile-scroll-4); }
-    96.25%, 100% { transform: translateY(0); }
   }
   @keyframes teams-typing-dot {
     0%, 60%, 100% { opacity: 0.4; transform: translateY(0); }
@@ -483,7 +380,7 @@
     text-align: center;
     &.left-aligned {
       align-items: flex-start;
-      max-width: 780px;
+      max-width: 688px;
       margin-left: 0;
       text-align: left;
     }
@@ -501,6 +398,14 @@
   }
 
   // Feature rows
+  [purpose='feature-pair'] {
+    display: flex;
+    flex-direction: column;
+    gap: 96px;
+  }
+  [purpose='page-section'] > [purpose='feature-with-image'] {
+    margin-top: @section-gap;
+  }
   [purpose='feature-with-image'] {
     .feature-with-image();
     [purpose='feature-image'], [purpose='photo-collage'] {
@@ -527,17 +432,6 @@
     flex-direction: column;
     gap: @section-gap;
   }
-  [purpose='feature-items'] {
-    display: flex;
-    flex-direction: column;
-    gap: @section-gap-sm;
-  }
-  [purpose='feature-item'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    max-width: 360px;
-  }
   [purpose='photo-collage'] {
     max-width: calc(~'50% - 32px');
     display: grid;
@@ -547,7 +441,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 12px;
     }
     [purpose='photo-celebration'] {
       grid-column: 1;
@@ -612,7 +506,7 @@
   // The grid's background shows through the 1px gaps as divider lines between logos.
   [purpose='logo-grid'] {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     flex: 1 1 50%;
     background-color: @core-fleet-black-10;
@@ -620,7 +514,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 96px;
+      height: 76px;
       background-color: @accent-white;
       // Each logo's height comes from its height attribute so differently shaped logos look balanced.
       // object-fit keeps wide logos from stretching when max-width caps them.
@@ -706,55 +600,6 @@
       background-size: 16px 16px;
     }
   }
-  [purpose='pills'] + [purpose='two-column-features'] {
-    margin-top: @section-48;
-    [purpose='feature-card-image'] {
-      margin-bottom: @section-gap;
-      img {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 16px;
-      }
-    }
-  }
-
-  // Enrollment options
-  [purpose='enrollment-options'] {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: @section-48;
-    margin-top: @inner-padding;
-  }
-  [purpose='enrollment-option'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    [purpose='enrollment-icon'] {
-      display: flex;
-      align-items: center;
-      height: 66px;
-      margin-bottom: @inner-padding-xs;
-    }
-    [purpose='windows-icon'] {
-      height: 56px;
-      width: 56px;
-    }
-    [purpose='entra-icon'] {
-      height: 64px;
-      width: 64px;
-    }
-    [purpose='provisioning-package-icon'] {
-      height: 66px;
-      width: 66px;
-    }
-    [purpose='checklist'] {
-      margin-top: @inner-padding-xs;
-      p {
-        margin-bottom: @inner-padding;
-      }
-    }
-  }
 
   // Customer quote
   [purpose='quote-section'] {
@@ -774,7 +619,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: @inner-padding-xs;
+      gap: @inner-padding-xxs;
     }
     [purpose='name-and-title'] {
       align-items: center;
@@ -875,9 +720,6 @@
     [purpose='migration-banner'] [purpose='banner-image'] {
       flex-basis: 280px;
     }
-    [purpose='enrollment-options'] {
-      gap: @section-gap;
-    }
   }
 
   @media (max-width: 767px) {
@@ -887,27 +729,11 @@
     [purpose='photo-collage'] {
       max-width: 100%;
     }
-    [purpose='feature-item'] {
-      max-width: none;
+    [purpose='feature-pair'] {
+      gap: @section-160-xs;
     }
     [purpose='two-column-features'] {
       grid-template-columns: 1fr;
-    }
-    [purpose='enrollment-options'] {
-      grid-template-columns: 1fr;
-      gap: @section-48;
-    }
-    [purpose='enrollment-option'] {
-      align-items: center;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: center;
-      [purpose='checklist'] {
-        max-width: 100%;
-        width: fit-content;
-        text-align: left;
-      }
     }
     [purpose='migration-banner'] {
       flex-direction: column;
