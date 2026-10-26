@@ -9,6 +9,8 @@
 			<string>CIS 1.6</string>
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-1.6.check</string>
 			<key>PayloadUUID</key>

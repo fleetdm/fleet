@@ -568,6 +568,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAppleProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// turn off apple MDM
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -581,6 +582,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// delete existing Apple declaration
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uuidAppleDDMWithLabel), nil, http.StatusOK, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedDeclarationProfile{}.ActivityName(),
 		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
@@ -588,14 +590,24 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	)
 	// delete non-existing Apple declaration
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
-	// delete existing Windows profiles
+	// delete existing Windows profiles; DoJSON leaves fields the body lacks untouched, so reset deleteResp before each check
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamWinProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// Now disabling windows MDM
 	filler := struct{}{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_enabled_and_configured": false}}`), http.StatusOK, &filler)
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
+	// the deprecated route, which the UI uses, shares the handler
+	deleteResp = deleteMDMConfigProfileResponse{}
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", uuidWindowsWithLabel), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// delete non-existing Windows profile
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// delete existing Android profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
@@ -722,7 +734,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	profUUID := checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
 
 	// try to delete the profile
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// TODO: Add tests for OS updates declaration when implemented.
 }

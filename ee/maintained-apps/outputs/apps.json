@@ -5056,6 +5056,13 @@
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
+      "name": "LM Studio",
+      "slug": "lm-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.elementlabs.lmstudio",
+      "description": "LM Studio is an app to discover, download, and run local LLMs."
+    },
+    {
       "name": "Local",
       "slug": "local/darwin",
       "platform": "darwin",
@@ -5096,6 +5103,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech G HUB",
+      "slug": "logitech-g-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.ghub",
+      "description": "Logitech G HUB is software for customizing Logitech G gaming gear."
     },
     {
       "name": "Logitech Unifying Software",

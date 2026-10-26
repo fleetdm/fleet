@@ -129,6 +129,7 @@ module.exports.custom = {
     'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
+    'docs/solutions': 'ddribeiro',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -253,6 +254,10 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/styles': ['eashaw','mike-j-thomas'],
+    'website/assets/images': ['eashaw','mike-j-thomas','allenhouchins'],
+    'website/assets/videos': ['eashaw','mike-j-thomas'],
+    'website/assets/pdfs': ['eashaw','mike-j-thomas'],
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
@@ -273,7 +278,6 @@ module.exports.custom = {
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
     'pkg/patch_policy': 'allenhouchins',
-    'website/assets/images': 'allenhouchins',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
@@ -374,7 +378,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.24.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

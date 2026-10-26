@@ -452,7 +452,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
-	// dry-run with macos disk encryption set to true
+	// dry-run with macos disk encryption set to true, no error: like the disk
+	// encryption API, it doesn't require Apple MDM
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
@@ -465,9 +466,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos enable release device set to false, no error
 	teamSpecs = map[string]any{
@@ -686,6 +687,39 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithoutAppleMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, appCfg.MDM.EnabledAndConfigured, "this suite runs without Apple MDM")
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	spec := func(macOSSettings map[string]any) map[string]any {
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+	}
+
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+		"enable_disk_encryption":            true,
+		"enable_escrow_disk_encryption_key": true,
+	}), http.StatusOK, &applyResp)
+
+	var getResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// custom profiles still need Apple MDM
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+		"custom_settings": []string{"foo"},
+	}), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 }
 
 // applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
@@ -1803,8 +1837,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	team.ID = tmResp.Team.ID
 
 	// modify the team's config - enable the webhook
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -1819,8 +1853,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// enable the host activities webhook
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -1834,8 +1868,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Equal(t, "http://example.com/host_activities_webhook", tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.DestinationURL)
 
 	// a webhook_settings PATCH that omits host_activities_webhook preserves the stored value
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -1843,9 +1877,23 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook)
 	require.True(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
 	require.Equal(t, "http://example.com/host_activities_webhook", tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.DestinationURL)
+	require.NotNil(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+
+	// a PATCH with only host_status_webhook (the fleet settings page) keeps the other webhooks
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		HostStatusWebhook: &fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook2",
+		},
+	}}, http.StatusOK, &tmResp)
+	require.Equal(t, "http://example.com/host_status_webhook2", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostActivitiesWebhook.Enable)
 
 	// enabling with an empty destination URL fails validation
-	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable: true,
 		},
@@ -1854,7 +1902,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
 
 	// enabling with a non-http(s) destination URL fails validation
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "ftp://example.com",
@@ -1863,11 +1911,9 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	errText = extractServerErrorText(res.Body)
 	require.Contains(t, errText, "destination_url must be https or http")
 
-	// explicitly disabling works. webhook_settings is a whole-object
-	// replacement, so keep the failing-policies webhook enabled: the rest of
-	// this test depends on it (webhook vs ticket automation conflicts below).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	// explicitly disabling works
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -1880,8 +1926,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 
 	// an empty host_activities_webhook object passes validation (enable defaults
 	// to false) and replaces the stored value: disabled with the URL cleared
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -1952,8 +1998,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				},
 			},
 		},
-		WebhookSettings: &fleet.TeamWebhookSettings{
-			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{
+			FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 				Enable:         false,
 				DestinationURL: "http://example.com",
 			},
@@ -1981,8 +2027,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, appCfgResp.Integrations.Jira, 2)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -2059,8 +2105,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}, http.StatusOK, &tmResp)
 
 	// enable the webhook now works
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -2136,8 +2182,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				},
 			},
 		},
-		WebhookSettings: &fleet.TeamWebhookSettings{
-			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{
+			FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 				Enable:         false,
 				DestinationURL: "http://example.com",
 			},
@@ -2147,8 +2193,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
@@ -2415,7 +2461,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Zendesk: []*fleet.TeamZendeskIntegration{},
 			Jira:    []*fleet.TeamJiraIntegration{},
 		},
-		WebhookSettings: &fleet.TeamWebhookSettings{},
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{}},
 	}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Config.Integrations.Jira)
 	require.Empty(t, tmResp.Team.Config.Integrations.Zendesk)
@@ -2443,8 +2489,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	}
 
 	// First clear any existing webhook configuration for "No Team"
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable: false,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
@@ -2456,8 +2502,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 
 	// Configure webhook settings for "No Team"
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/no-team-webhook",
 			PolicyIDs:      []uint{1, 2, 3},
@@ -2484,8 +2530,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Update the webhook settings
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         false,
 			DestinationURL: "https://example.com/updated",
 			PolicyIDs:      []uint{4, 5},
@@ -2498,15 +2544,15 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, 200, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Clear the webhook settings
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable: false,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 
 	// Configure the host activities webhook for "No Team"
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/no-team-activities-webhook",
@@ -2526,8 +2572,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, "https://example.com/no-team-activities-webhook", defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.DestinationURL)
 
 	// A webhook_settings PATCH that omits host_activities_webhook preserves the stored value
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable: false,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
@@ -2535,7 +2581,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.True(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
 
 	// Enabling with an invalid destination URL fails validation
-	res := s.Do("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	res := s.Do("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable: true,
 		},
@@ -2544,13 +2590,34 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
 
 	// Explicitly disabling works
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable: false,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
 	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
+
+	// A PATCH with only host_activities_webhook (the hosts page) keeps the failing policies webhook
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/no-team-webhook",
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
