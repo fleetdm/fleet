@@ -186,8 +186,6 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Redis        | Render Key Value             | Starter (256 MB) | 1     |
 | MySQL        | MySQL 8.0 (private service)  | Standard (2GB)   | 1     |
 
-Fleet runs vulnerability processing on the Fleet server, which uses up to 2GB of RAM on top of normal usage. Use the Pro instance type (4GB) for the Fleet service, even with only a few hosts.
-
 To deploy this configuration, see [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render).
 
 
