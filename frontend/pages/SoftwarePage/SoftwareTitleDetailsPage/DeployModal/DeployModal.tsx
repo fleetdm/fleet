@@ -5,6 +5,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import { isMacOS } from "interfaces/platform";
 import {
   getInstallablePlatform,
   ISoftwareTitleDetails,
@@ -59,13 +60,24 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
-  // If a legacy policy stored both flags (invariant violation), Patch when
-  // closed wins the radio and the dropdown stays hidden — carrying "notify"
-  // in state would reveal it the moment the user picked Force patch.
-  const initialEndUserExperience: EndUserExperience =
-    patchPolicy?.notify_before_patching && !patchPolicy?.patch_when_closed
-      ? "notify"
-      : "immediate";
+  const platform = getInstallablePlatform(softwareTitle.source);
+
+  // If a legacy policy stored multiple flags (invariant violation), Patch when
+  // closed wins the radio and the dropdown stays hidden — carrying "notify" or
+  // "deadline" in state would reveal it the moment the user picked Force patch.
+  // Deadline is also the default when nothing is set on macOS, matching the
+  // add form. Non-macOS titles never show the dropdown and never send
+  // patch_deadline/notify_before_patching, so they default to "immediate".
+  const getInitialEndUserExperience = (): EndUserExperience => {
+    if (patchPolicy?.patch_when_closed) {
+      return isMacOS(platform) ? "deadline" : "immediate";
+    }
+    if (patchPolicy?.patch_deadline) return "deadline";
+    if (patchPolicy?.notify_before_patching) return "notify";
+    if (patchPolicy) return "immediate";
+    return isMacOS(platform) ? "deadline" : "immediate";
+  };
+  const initialEndUserExperience = getInitialEndUserExperience();
 
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);
@@ -76,8 +88,6 @@ const DeployModal = ({
     initialEndUserExperience
   );
   const [isSaving, setIsSaving] = useState(false);
-
-  const platform = getInstallablePlatform(softwareTitle.source);
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
 
@@ -141,6 +151,7 @@ const DeployModal = ({
           patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
           patchPolicy.notify_before_patching !==
             patchFlags.notify_before_patching ||
+          (patchPolicy.patch_deadline ?? false) !== patchFlags.patch_deadline ||
           patchPolicy.continuous_automations_enabled !==
             patchFlags.continuous_automations_enabled)
       ) {
@@ -194,9 +205,18 @@ const DeployModal = ({
               patchOption={patchOption}
               platform={platform}
               endUserExperience={endUserExperience}
+              fleetId={teamId}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
-              onSelectPatchOption={setPatchOption}
+              onSelectPatchOption={(next) => {
+                setPatchOption(next);
+                // Picking Force patch (re)defaults the end-user experience to
+                // Deadline per Figma dev note. Non-macOS platforms stay on
+                // "immediate" because they never show the dropdown.
+                if (next === "force" && isMacOS(platform)) {
+                  setEndUserExperience("deadline");
+                }
+              }}
               onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}
               showPatchWhenClosedNotice

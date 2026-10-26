@@ -92,6 +92,9 @@ export const getAutomationNotifiedMessage = (timeBefore?: number): string =>
 export const SKIPPED_INSTALL_NOTIFY_EXPLANATION =
   "The app was open. The end user will be notified before the patch is forced.";
 
+export const SKIPPED_INSTALL_DEADLINE_EXPLANATION =
+  "The app was open. Fleet will notify the end user 1 hour before the patch deadline.";
+
 // Shared with the "End user experience" dropdown — keep in sync.
 export const PATCHING_END_USER_EXPERIENCE_URL =
   "https://fleetdm.com/learn-more-about/patching-end-user-experience";
@@ -102,11 +105,19 @@ export const EXIT_CODES_NEEDING_EUE_LINK: ReadonlySet<number> = new Set([
   101,
 ]);
 
-// Substring the BE appends only on notify_before_patching skips.
+// Substrings the BE appends only on their respective skip variants. Both
+// deadline and notify skips carry "Fleet notifies the end user"; the deadline
+// marker is strictly more specific, so check it first.
 const NOTIFY_SKIP_MARKER = "Fleet notifies the end user";
+const DEADLINE_SKIP_MARKER = "patch deadline";
+export const isPatchDeadlineSkip = (
+  preInstallOutput?: string | null
+): boolean => !!preInstallOutput?.includes(DEADLINE_SKIP_MARKER);
 export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null
-): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
+): boolean =>
+  !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER) &&
+  !isPatchDeadlineSkip(preInstallOutput);
 
 // Legacy activity rows stored only software_titles (string[]); new rows add
 // software with per-team display name overrides. Accept both so callers can

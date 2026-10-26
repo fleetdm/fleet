@@ -141,11 +141,12 @@ const PolicyForm = ({
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [patchOption, setPatchOption] = useState<PatchOption>("manual");
   const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
-    "immediate"
+    "deadline"
   );
   const storedPatchPolicyId = storedPolicy?.id;
   const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
   const storedNotifyBeforePatching = storedPolicy?.notify_before_patching;
+  const storedPatchDeadline = storedPolicy?.patch_deadline;
   const storedInstallSoftwareId =
     storedPolicy?.install_software?.software_title_id;
 
@@ -158,12 +159,21 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
-    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
+    let nextEndUserExperience: EndUserExperience = "deadline";
+    if (storedNotifyBeforePatching) {
+      nextEndUserExperience = "notify";
+    } else if (!storedPatchDeadline) {
+      // No notify, no deadline: this is a stored "Patch immediately" policy.
+      // Deadline-less legacy Force patch policies also land here.
+      nextEndUserExperience = "immediate";
+    }
+    setEndUserExperience(nextEndUserExperience);
   }, [
     isPatchPolicy,
     storedPatchPolicyId,
     storedPatchWhenClosed,
     storedNotifyBeforePatching,
+    storedPatchDeadline,
     storedInstallSoftwareId,
   ]);
 
@@ -766,10 +776,22 @@ const PolicyForm = ({
           renderChildren={(disableChildren) => (
             <PatchOptionSelector
               patchOption={patchOption}
-              onSelectPatchOption={setPatchOption}
+              onSelectPatchOption={(next) => {
+                setPatchOption(next);
+                // Picking Force patch (re)defaults the end-user experience to
+                // Deadline per Figma dev note. Non-macOS platforms never show
+                // the dropdown, so this is a no-op for them.
+                if (
+                  next === "force" &&
+                  storedPolicy?.platform?.includes("darwin")
+                ) {
+                  setEndUserExperience("deadline");
+                }
+              }}
               platform={storedPolicy?.platform}
               endUserExperience={endUserExperience}
               onSelectEndUserExperience={setEndUserExperience}
+              fleetId={automationsTeamId}
               disabled={disableChildren}
             />
           )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
 import CustomLink from "components/CustomLink";
@@ -8,40 +9,53 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner";
+import {
+  formatWeekdayList,
+  IPatchDeadlineSettings,
+} from "interfaces/patch_deadline_settings";
 import { isMacOS, isWindows } from "interfaces/platform";
+import PATHS from "router/paths";
+import patchDeadlineSettingsAPI from "services/entities/patch_deadline_settings";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-deploy-selector";
 
 export type PatchOption = "closed" | "force" | "manual";
-export type EndUserExperience = "immediate" | "notify";
+export type EndUserExperience = "deadline" | "immediate" | "notify";
 
-/** Returns the three policy flags derived from the deploy selector state. */
+/** Returns the four policy flags derived from the deploy selector state. */
 export const getPatchPolicyFlags = (
   patchOption: PatchOption,
-  endUserExperience: EndUserExperience = "immediate"
+  endUserExperience: EndUserExperience = "deadline"
 ) => {
   const notifyActive =
     patchOption === "force" && endUserExperience === "notify";
+  const deadlineActive =
+    patchOption === "force" && endUserExperience === "deadline";
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
-    continuous_automations_enabled: patchOption === "closed" || notifyActive,
+    patch_deadline: deadlineActive,
+    continuous_automations_enabled:
+      patchOption === "closed" || notifyActive || deadlineActive,
   };
 };
 
 const END_USER_EXPERIENCE_LINK = `${LEARN_MORE_ABOUT_BASE_LINK}/patching-end-user-experience`;
 
 const END_USER_EXPERIENCE_OPTIONS: CustomOptionType[] = [
-  { label: "Patch immediately", value: "immediate" },
+  { label: "Deadline", value: "deadline" },
   { label: "Notify before patching", value: "notify" },
+  { label: "Patch immediately", value: "immediate" },
 ];
 
 /**
- * `showLink` is only true when the user could plausibly opt into Notify —
- * i.e. macOS today. On Windows and unknown platforms, Notify is unavailable
- * so the "End user experience" learn-more link would point at a feature the
- * user has no way to reach and gets suppressed.
+ * `showLink` is only true when the user could plausibly opt into Notify or
+ * Deadline — i.e. macOS today. On Windows and unknown platforms, those
+ * variants are unavailable so the "End user experience" learn-more link
+ * would point at a feature the user has no way to reach and gets suppressed.
  */
 const ImmediateBanner = ({ showLink }: { showLink: boolean }) => (
   <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
@@ -78,6 +92,34 @@ const WindowsBanner = () => (
   </InfoBanner>
 );
 
+/** Banner for Force patch -> Deadline. Reads the fleet's days + time from the
+ * patch_deadline_settings API and links to the Library settings page. React
+ * Query dedupes with the settings page via the shared cache key. */
+const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
+  const { data } = useQuery<IPatchDeadlineSettings, Error>(
+    ["patchDeadlineSettings", fleetId],
+    () => patchDeadlineSettingsAPI.getSettings(fleetId),
+    { refetchOnWindowFocus: false }
+  );
+  const daysLabel = formatWeekdayList(data?.days ?? []);
+  const timeLabel = data?.time ? internationalTimeOnlyFormat(data.time) : "";
+  const settingsHref = getPathWithQueryParams(
+    PATHS.SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE,
+    { fleet_id: fleetId }
+  );
+  return (
+    <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+      Patch is done silently when app is closed or forced at{" "}
+      <b>
+        {daysLabel || "---"}
+        {timeLabel ? ` at ${timeLabel}` : ""}
+      </b>{" "}
+      (host&apos;s local time).{" "}
+      <CustomLink url={settingsHref} text="Edit deadline" />
+    </InfoBanner>
+  );
+};
+
 interface ISoftwareDeploySelectorProps {
   forceInstall: boolean;
   patch: boolean;
@@ -94,6 +136,10 @@ interface ISoftwareDeploySelectorProps {
   platform?: string;
   endUserExperience?: EndUserExperience;
   onSelectEndUserExperience?: (value: EndUserExperience) => void;
+  /** Fleet id used by the Deadline banner to fetch the fleet's days + time
+   * and build the "Edit deadline" link. Required to show Deadline details;
+   * when absent the dropdown still works but the banner renders placeholders. */
+  fleetId?: number;
 }
 
 interface IPatchOptionSelectorProps {
@@ -104,6 +150,7 @@ interface IPatchOptionSelectorProps {
   platform?: string;
   endUserExperience?: EndUserExperience;
   onSelectEndUserExperience?: (value: EndUserExperience) => void;
+  fleetId?: number;
 }
 
 export const PatchOptionSelector = ({
@@ -112,8 +159,9 @@ export const PatchOptionSelector = ({
   disabled = false,
   showPatchWhenClosedNotice = false,
   platform,
-  endUserExperience = "immediate",
+  endUserExperience = "deadline",
   onSelectEndUserExperience,
+  fleetId,
 }: IPatchOptionSelectorProps) => {
   const onChangePatchOption = (value: string) =>
     onSelectPatchOption(value as PatchOption);
@@ -135,11 +183,13 @@ export const PatchOptionSelector = ({
     // Windows" one. The widened isMacOS/isWindows both return true for such
     // strings, so precedence matters here.
     if (isMacOS(platform)) {
-      return endUserExperience === "notify" ? (
-        <NotifyBanner />
-      ) : (
-        <ImmediateBanner showLink />
-      );
+      if (endUserExperience === "deadline" && fleetId !== undefined) {
+        return <DeadlineBanner fleetId={fleetId} />;
+      }
+      if (endUserExperience === "notify") {
+        return <NotifyBanner />;
+      }
+      return <ImmediateBanner showLink />;
     }
     if (isWindows(platform)) {
       return <WindowsBanner />;
@@ -221,6 +271,7 @@ const SoftwareDeploySelector = ({
   platform,
   endUserExperience,
   onSelectEndUserExperience,
+  fleetId,
 }: ISoftwareDeploySelectorProps) => {
   return (
     <div className={`form-field ${baseClass}`}>
@@ -252,6 +303,7 @@ const SoftwareDeploySelector = ({
           platform={platform}
           endUserExperience={endUserExperience}
           onSelectEndUserExperience={onSelectEndUserExperience}
+          fleetId={fleetId}
         />
       )}
     </div>

@@ -5,7 +5,10 @@ import {
   PRE_INSTALL_QUERY_FAIL_OUTPUT,
   SKIPPED_INSTALL_DETAILS,
 } from "components/ActivityDetails/InstallDetails/constants";
-import { SKIPPED_INSTALL_NOTIFY_EXPLANATION } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
@@ -414,7 +417,8 @@ describe("getDetailOutputText", () => {
       getDetailOutputText(
         mockActivity({
           status: "error",
-          pre_install_output: "",
+          pre_install_output:
+            "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
           details: {
             policy_id: 123,
             software_title: "1Password",
@@ -424,6 +428,26 @@ describe("getDetailOutputText", () => {
         })
       )
     ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("explains a deadline skip with the deadline sentence", () => {
+    // Deadline skips carry a distinctive pre_install_output substring (the
+    // activity payload doesn't yet distinguish patch_deadline on its own).
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output:
+            "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
   });
 
   it("treats a skip recorded before patch_when_closed existed as patch-when-closed", () => {

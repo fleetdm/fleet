@@ -162,6 +162,7 @@ export interface IPolicyFormData {
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
    * on PATCH clears the pinned package (mirrors `software_title_id`'s unset
