@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   ICertificateAuthority,
+  ICertificateAuthorityType,
   ICertificatesCustomSCEP,
 } from "interfaces/certificates";
 import { IEditCertAuthorityFormData } from "services/entities/certificates";
@@ -381,8 +382,14 @@ export const updateFormData = (
   return newData;
 };
 
-export const getErrorMessage = (err: unknown): JSX.Element => {
+export const getErrorMessage = (
+  err: unknown,
+  caType: ICertificateAuthorityType
+): JSX.Element => {
   return (
-    <>Couldn&apos;t edit certificate authority. {getDisplayErrMessage(err)}</>
+    <>
+      Couldn&apos;t edit certificate authority.{" "}
+      {getDisplayErrMessage(err, caType)}
+    </>
   );
 };

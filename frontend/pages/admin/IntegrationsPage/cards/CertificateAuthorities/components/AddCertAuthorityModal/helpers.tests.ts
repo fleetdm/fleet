@@ -5,7 +5,8 @@ import {
 } from "./helpers";
 
 /** Builds an API error in the shape getErrorReason reads. */
-const apiError = (reason: string) => ({
+const apiError = (reason: string, status?: number) => ({
+  status,
   errors: [{ name: "base", reason }],
 });
 
@@ -115,7 +116,7 @@ describe("AddCertAuthorityModal helpers", () => {
     });
 
     // The server's Google CAS errors name the field or Google setting to fix,
-    // so they're shown as they are.
+    // so its 4xx reasons are shown as they are.
     it.each([
       [
         "Couldn't add certificate authority. The CA pool can only contain letters, numbers, hyphens and underscores.",
@@ -142,7 +143,33 @@ describe("AddCertAuthorityModal helpers", () => {
         '"GOOGLE_WIFI" name is already used by another Google CAS certificate authority. Please choose a different name and try again.',
       ],
     ])("shows the Google CAS error as it is for: %s", (reason, expected) => {
-      expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
+      expect(getDisplayErrMessage(apiError(reason, 422), "google_cas")).toBe(
+        expected
+      );
+    });
+
+    it("falls back to the default error for a Google CAS server error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. Internal server error",
+            500
+          ),
+          "google_cas"
+        )
+      ).toBe("Please try again.");
+    });
+
+    it("doesn't show another CA type's reason as it is", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. The CA pool can only contain letters.",
+            422
+          ),
+          "hydrant"
+        )
+      ).toBe("Please try again.");
     });
 
     it("falls back to the default error for an unrecognized reason", () => {

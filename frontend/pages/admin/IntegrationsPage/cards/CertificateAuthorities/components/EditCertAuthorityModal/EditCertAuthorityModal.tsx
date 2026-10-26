@@ -78,7 +78,9 @@ const EditCertAuthorityModal = ({
       notify.success("Successfully edited certificate authority.");
       onExit();
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, certAuthority.type), {
+        response: e,
+      });
     }
     setIsUpdating(false);
   };

@@ -214,7 +214,7 @@ const AddCertAuthorityModal = ({
       notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, certAuthorityType), { response: e });
     }
     setIsAdding(false);
   };

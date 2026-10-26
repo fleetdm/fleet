@@ -3,7 +3,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import { ICertificateAuthorityType } from "interfaces/certificates";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { getErrorReason } from "interfaces/errors";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { IAddCertAuthorityFormData } from "services/entities/certificates";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -243,25 +243,31 @@ const CA_NOT_FOUND_ERROR =
  */
 const INVALID_URL_PATTERN = /Invalid [\w ]*URL\./;
 
-/**
- * Matches the server's Google CAS errors, which name the field or setting to
- * fix, so they are shown as they are.
- */
-const GOOGLE_CAS_ERROR_PATTERN = /google cas|^google couldn't|^ca pool\b|^the (service account|ca pool|google cloud project id|location)\b/i;
 const SERVER_ERROR_PREFIX = /^Couldn't (add|edit) certificate authority\. /;
 
 /**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
+export const getDisplayErrMessage = (
+  err: unknown,
+  caType?: ICertificateAuthorityType
+): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const rawReason = getErrorReason(err);
   const reason = rawReason.toLowerCase();
   const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
   const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
 
-  if (GOOGLE_CAS_ERROR_PATTERN.test(unprefixedReason)) {
+  // Google CAS errors name the field or Google setting to fix, and the server
+  // writes its 4xx reasons for admins, so they're shown as is.
+  if (
+    caType === "google_cas" &&
+    unprefixedReason &&
+    hasStatusKey(err) &&
+    err.status >= 400 &&
+    err.status < 500
+  ) {
     message = unprefixedReason;
   } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
@@ -304,8 +310,14 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown): JSX.Element => {
+export const getErrorMessage = (
+  err: unknown,
+  caType: ICertificateAuthorityType
+): JSX.Element => {
   return (
-    <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
+    <>
+      Couldn&apos;t add certificate authority.{" "}
+      {getDisplayErrMessage(err, caType)}
+    </>
   );
 };
