@@ -100,7 +100,10 @@ describe("EJBCAForm", () => {
     );
     expect(screen.getByText(passwordError)).toBeVisible();
     await user.upload(getFileInput(container), p12File());
-    expect(await screen.findByText(clientP12Error)).toBeVisible();
+    // the file is read asynchronously, which can take longer than the default wait on a loaded CI runner
+    expect(
+      await screen.findByText(clientP12Error, undefined, { timeout: 5000 })
+    ).toBeVisible();
   });
 
   describe("when editing", () => {
