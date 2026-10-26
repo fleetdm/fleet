@@ -126,13 +126,11 @@ rm -rf starter
 
 > **Warning:** Don't run `generate-gitops --force` inside a `fleetctl new` folder. It overwrites the files it writes but leaves the template's starter fleets in place, so your first sync would create **💻 Workstations** and **📱🔐 Personal mobile devices** alongside your real fleets.
 
-`generate-gitops` keeps secrets, like enroll secrets and integration API keys, out of the files. It leaves a comment where each one belongs and lists them when it finishes. Replace each comment with a variable reference, such as `$ENROLL_SECRET`, and add the real value as a CI secret when you set up the repository.
-
-Read through the export before you push. Fleet treats it as your complete configuration, so anything missing from it is removed on the first sync. Settings that `generate-gitops` can't export yet come out as placeholders that fail the dry run, which stops CI before it changes anything. [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl) lists those gaps and the export's other options.
+Read through the export before you push. Fleet treats it as your complete configuration, so anything missing from it is removed on the first sync. Secrets come out as comments for you to replace with variables, such as `$ENROLL_SECRET`, which you'll add as CI secrets when you set up the repository. Settings the export can't handle yet come out as placeholders that fail the dry run, so CI stops before it changes anything. [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl) covers both, along with the export's other options.
 
 ## Give CI access to Fleet
 
-CI talks to Fleet with an API token. Give it a dedicated API-only user rather than your own account. API-only users can't sign in to the Fleet UI, and their tokens don't expire, so CI keeps working when a person's session times out.
+CI talks to Fleet with an API token. Give it a dedicated API-only user rather than your own account. API-only users can't sign in to the Fleet UI, and their tokens don't expire, so CI keeps working when a person's session times out. The [fleetctl guide](https://fleetdm.com/guides/fleetctl) has more on API-only users.
 
 To create the user in the Fleet UI:
 
@@ -202,7 +200,7 @@ The nightly sync quietly undoes changes made in the UI, which confuses anyone wh
 2. Select **Enable GitOps mode**.
 3. Enter your repository's URL in **Git repository URL**, then save.
 
-If you want to keep managing labels, software, or enroll secrets in the UI, add an exception for them on the same page. See [GitOps mode](https://fleetdm.com/guides/gitops-mode) for what stays editable.
+To keep managing labels, software, or enroll secrets in the UI, see [GitOps mode](https://fleetdm.com/guides/gitops-mode) for exceptions.
 
 ## Protect main before an agent touches it
 
@@ -210,18 +208,20 @@ Your agent pushes branches and opens pull requests with your GitHub login. That'
 
 ### Add a ruleset for main
 
-1. In your repository, go to **Settings**. In the sidebar, under **Code, planning, and automation**, select **Rulesets**.
+1. In your repository, go to **Settings > Rules > Rulesets**.
 2. Select **New ruleset > New branch ruleset**, and name it something like "Protect main".
 3. Set **Enforcement status** to **Active**.
 4. Under **Target branches**, add the default branch.
 5. Leave the **Bypass list** empty. Anyone on it can skip these rules.
 6. Turn on these rules:
    - **Restrict deletions** and **Block force pushes**, so history can't be rewritten.
-   - **Require a pull request before merging**. Under it, set the number of required approvals to 1 if anyone else can review. Also turn on **Dismiss stale pull request approvals when new commits are pushed**, and **Require approval of the most recent reviewable push**.
-   - The rule that requires status checks to pass before merging. Add the **fleet-gitops** check. That's the job that runs the dry run, so a change that fails it can't merge.
+   - **Require a pull request before merging**. Under it, set **Required approvals** to 1 if anyone else can review. Also turn on **Dismiss stale pull request approvals when new commits are pushed**, and **Require approval of the most recent reviewable push**.
+   - **Require status checks to pass**, and add the **fleet-gitops** check. That's the job that runs the dry run, so a change that fails it can't merge.
 7. Save the ruleset.
 
 The approval rule does more than it looks like. GitHub doesn't let pull request authors approve their own pull requests. The agent opens pull requests under your account, so with one required approval, nothing it writes can merge until someone other than you approves it. That includes merges the agent might attempt itself.
+
+This depends on who the pull request's author is. Some agents open pull requests under their own GitHub App instead of your login, like Claude in Slack. With those, the person who asked for the change can approve it alone, so set **Required approvals** to 2 to keep a second reviewer.
 
 If you're the only admin, set approvals to 0. The status check, the force-push block, and the pull request requirement still apply. Without a required approval, though, your login can merge, and so can an agent using it. The instructions and guardrails in the next section are what stop it, so treat a second reviewer as the goal.
 
@@ -249,6 +249,8 @@ In **Settings > Repository > Branch rules**, set **Allowed to push and merge** o
 ## Tell your agent how your team works
 
 The template's `AGENTS.md` already tells agents how the repository is laid out, and never to apply changes themselves. Add the rules for how your team ships changes. Every agent that reads `AGENTS.md` follows them, and Claude reads it through `CLAUDE.md`.
+
+`AGENTS.md` is also where your configuration conventions go, like which Windows CSP you prefer or how new profiles get wired into a fleet. Step 2 of [Build and validate configuration profiles with AI](https://fleetdm.com/guides/build-configuration-profiles-with-ai) covers those. The rules below are about something else: how changes get from the agent to `main`.
 
 Add this section to the end of `AGENTS.md`:
 
@@ -335,11 +337,11 @@ This is where the setup pays off. Instead of looking up YAML keys and osquery ta
 
 To pick up a pull request later, for example to address review comments, start a new session with **Worktree** turned on and ask Claude to check out the pull request's branch.
 
-Using a different agent? The steps are the same: start the change on a fresh branch or worktree, describe what you want, and have the agent open a draft pull request.
+Using a different agent? The steps are the same: start the change on a fresh branch or worktree, describe what you want, and have the agent open a draft pull request. To use Claude without a GitOps repository, see [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet).
 
 ## Review and merge with care
 
-The ruleset makes sure a person merges every change. These habits make sure that person merges the right ones:
+The ruleset makes sure a person merges every change. These habits make sure that person merges the right ones. For profile-specific questions, like overlapping settings or Windows build applicability, see step 6 of [Build and validate configuration profiles with AI](https://fleetdm.com/guides/build-configuration-profiles-with-ai).
 
 - **Read the diff, not just the summary.** The agent's description says what it meant to do. The diff shows what it did.
 - **Read the dry run.** Pay the most attention to anything the dry run deletes or resets. A deletion you didn't expect usually means a key went missing from a file.
@@ -355,7 +357,7 @@ The ruleset makes sure a person merges every change. These habits make sure that
 1. The CI run for your merge passed. On GitHub, run `gh run list` or check the **Actions** tab.
 2. In Fleet, go to **Policies** and select the **💻 Workstations** fleet. The FileVault policy is listed.
 3. Open any policy in the Fleet UI. With GitOps mode on, editing is turned off, and the UI points to your repository.
-4. In the repository's **Settings > Rulesets**, your ruleset shows as **Active**, and the merged pull requests on the **Pull requests** tab show the **fleet-gitops** check.
+4. In the repository's **Settings > Rules > Rulesets**, your ruleset shows as **Active**, and the merged pull requests on the **Pull requests** tab show the **fleet-gitops** check.
 
 ## Troubleshoot
 
