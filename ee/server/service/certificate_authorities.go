@@ -623,10 +623,10 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 
 		// The database compares names without regard to case, so names that differ only by case are the same CA.
-		if _, ok := ejbcaNames[strings.ToLower(ca.Name)]; ok {
+		if _, ok := ejbcaNames[caNameKey(ca.Name)]; ok {
 			return nil, fmtDuplicateCANameError(ca.Name, "ejbca", "EJBCA")
 		}
-		ejbcaNames[strings.ToLower(ca.Name)] = struct{}{}
+		ejbcaNames[caNameKey(ca.Name)] = struct{}{}
 		if err := checkAllNames(ca.Name, "ejbca", "EJBCA"); err != nil {
 			return nil, err
 		}
@@ -678,11 +678,11 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	otherNames := make(map[string]struct{})
 	for name, caTypes := range allNames {
 		if slices.ContainsFunc(caTypes, func(caType string) bool { return caType != "ejbca" }) {
-			otherNames[strings.ToLower(name)] = struct{}{}
+			otherNames[caNameKey(name)] = struct{}{}
 		}
 	}
 	for _, ca := range incoming.EJBCA {
-		if _, shared := otherNames[strings.ToLower(ca.Name)]; shared {
+		if _, shared := otherNames[caNameKey(ca.Name)]; shared {
 			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
 		}
 	}
@@ -878,20 +878,20 @@ func (svc *Service) processEJBCACAs(ctx context.Context, batchOps *fleet.Certifi
 	// Names are matched without regard to case, like the database does, so a rename that only changes the case is an update.
 	incomingNames := make(map[string]struct{}, len(incomingCAs))
 	for _, incoming := range incomingCAs {
-		incomingNames[strings.ToLower(incoming.Name)] = struct{}{}
+		incomingNames[caNameKey(incoming.Name)] = struct{}{}
 	}
 	existingByName := make(map[string]*fleet.EJBCA, len(existingCAs))
 	for _, existing := range existingCAs {
-		if _, ok := incomingNames[strings.ToLower(existing.Name)]; !ok {
+		if _, ok := incomingNames[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), Name: &existing.Name})
 		}
-		existingByName[strings.ToLower(existing.Name)] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	// Note: caller is responsible for ensuring incoming list has no duplicates
 	for i := range incomingCAs {
 		incoming := &incomingCAs[i]
-		existing, found := existingByName[strings.ToLower(incoming.Name)]
+		existing, found := existingByName[caNameKey(incoming.Name)]
 		if found {
 			// An unchanged CA isn't validated, so a client certificate that expired after it was stored doesn't block the other changes.
 			creds, err := parseEJBCAClientP12(ctx, incoming.ClientP12, incoming.Password, errPrefix)
