@@ -62,6 +62,7 @@ const BootstrapPackageUploader = ({
       accept=".pkg"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      gitopsCompatible
     />
   );
 };
