@@ -2037,7 +2037,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	}
 	duplicates := getDuplicateNames(
 		result.Labels, func(l *fleet.LabelSpec) string {
-			return l.Name
+			return nameCollationKey(l.Name)
 		},
 	)
 	if len(duplicates) > 0 {
@@ -2574,7 +2574,7 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 	}
 	duplicates := getDuplicateNames(
 		result.Queries, func(q *fleet.QuerySpec) string {
-			return q.Name
+			return nameCollationKey(q.Name)
 		},
 	)
 	if len(duplicates) > 0 {
@@ -3083,6 +3083,12 @@ func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []s
 		}
 	}
 	return duplicates
+}
+
+// nameCollationKey matches how MySQL compares label and report names (case-insensitive, trailing spaces ignored), so duplicates fail
+// before anything is applied.
+func nameCollationKey(name string) string {
+	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
 func isASCII(s string) bool {
