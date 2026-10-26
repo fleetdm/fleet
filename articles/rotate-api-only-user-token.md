@@ -41,25 +41,13 @@ If the token works, Fleet returns the new user's details, including its `name` a
 
 Then trigger each integration once and confirm it succeeds.
 
-## Delete the old API-only user
+## Step 5: Delete the old API-only user
 
-> **Warning:** Deleting the old user immediately revokes its token. Any integration still using that token stops working. Move every integration to the new token before you delete the old user.
+> Deleting the old user immediately revokes its token. Any integration still using that token stops working. Move every integration to the new token before you delete the old user.
 
-### Fleet UI
-
-1. Go to **Settings > Users**.
+1. Go to **Settings > Users**.  Only Fleet users with the global admin role have access to this page.
 2. Find the old API-only user.
 3. Select **Actions > Delete**, then confirm.
-
-### REST API
-
-Use [Delete user](https://fleetdm.com/docs/rest-api/rest-api#delete-user) with the old user's `id`:
-
-```sh
-curl -X DELETE "https://fleet.example.com/api/v1/fleet/users/<old_user_id>" \
-  -H "Authorization: Bearer <admin_token>"
-```
-
 ## Confirm the old token is revoked
 
 Confirm that the old token no longer works and the new one does.
