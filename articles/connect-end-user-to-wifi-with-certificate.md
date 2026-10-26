@@ -235,7 +235,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
    - `/ca_functionality/create_certificate/`
    - `/ra_functionality/create_end_entity/` and `/ra_functionality/edit_end_entity/`
    - `/endentityprofilesrules/<end entity profile>/create_end_entity/` and `/endentityprofilesrules/<end entity profile>/edit_end_entity/`
-5. If the HTTPS certificate of your EJBCA server isn't signed by a public CA, export the CA certificate in PEM format. You'll add it to Fleet as the trust CA bundle.
+5. If the HTTPS certificate of your EJBCA server isn't signed by a public CA, export the root CA certificate in PEM format, and any intermediate CA certificates that EJBCA doesn't send during the TLS handshake. You'll add them to Fleet as the trust CA bundle.
 6. Note your EJBCA **CA name** (for example, "ManagementCA"), **certificate profile name**, and **end entity profile name**.
 
 > For testing, you can instead add the client certificate as a member of EJBCA's built-in **Super Administrator Role**. It allows everything in EJBCA, so use a role with only the rules above in production.
@@ -249,7 +249,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 4. In **URL**, enter the URL of your EJBCA instance (for example, "https://ejbca.example.com:8443"). It must start with `https://`.
 5. In **Client certificate**, upload the `.p12` file from step 1, and enter its password in **Client certificate password**.
-6. If your EJBCA server needs it, paste the CA certificate (PEM) from step 1 in **Trust CA bundle**. If you leave it empty, Fleet trusts public CAs.
+6. If your EJBCA server needs it, paste the CA certificates (PEM) from step 1 in **Trust CA bundle**. The order doesn't matter. If you leave it empty, Fleet trusts public CAs.
 7. In **CA name**, **Certificate profile name**, and **End entity profile name**, enter the names you noted in step 1.
 8. In **Certificate common name (CN)**, enter the CN for the certificates. You can use [Fleet variables](https://fleetdm.com/guides/fleet-variables), like `$FLEET_VAR_HOST_HARDWARE_SERIAL`.
 9. Optionally, in **End entity username**, enter the username of the end entity that EJBCA creates for each host. If you leave it empty, Fleet uses the CN.

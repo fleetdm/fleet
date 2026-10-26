@@ -1474,7 +1474,7 @@ Can only be configured for "All fleets" (`org_settings`).
 - `url` is the URL of your EJBCA instance (for example, `https://ejbca.example.com:8443`). It must be an `https` URL without a username or password.
 - `client_p12` is the base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. To get the value, run `base64 -i client.p12`, and store the output in an environment variable.
 - `password` is the password of the PKCS#12 file.
-- `trust_ca_bundle` is the PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance (optional). If it's empty, Fleet trusts public CAs.
+- `trust_ca_bundle` is the PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance: the root CA and any intermediate CAs (optional). The order doesn't matter. If it's empty, Fleet trusts public CAs.
 - `certificate_authority_name` is the name of the CA in EJBCA that issues the certificates.
 - `certificate_profile_name` is the name of the certificate profile in EJBCA.
 - `end_entity_profile_name` is the name of the end entity profile in EJBCA.

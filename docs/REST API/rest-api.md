@@ -866,7 +866,7 @@ Object with the following structure:
 | url                              | string  | **Required**. URL of your EJBCA instance, used as base URL for EJBCA REST API requests (for example, `https://ejbca.example.com:8443`). Must be an `https` URL without a username or password. |
 | client_p12                       | string  | **Required**. Base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. Must be under 1 MB and the certificate can't be expired. |
 | password                         | string  | **Required**. The password of the PKCS#12 file. |
-| trust_ca_bundle                  | string  | PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance. If it's empty, Fleet trusts public CAs. |
+| trust_ca_bundle                  | string  | PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance: the root CA and any intermediate CAs. The order doesn't matter. If it's empty, Fleet trusts public CAs. |
 | certificate_authority_name       | string  | **Required**. Name of the CA in EJBCA that issues the certificates (for example, `ManagementCA`). |
 | certificate_profile_name         | string  | **Required**. Name of the certificate profile in EJBCA. |
 | end_entity_profile_name          | string  | **Required**. Name of the end entity profile in EJBCA. |
