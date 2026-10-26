@@ -17,9 +17,11 @@ const baseClass = "file-uploader";
 // `.tar.gz`. Dropped files only expose `file.type` from the OS, which varies
 // (`application/x-gzip`, empty) and often won't exact-match that spec. Mirror
 // the picker by allowing a dropped file whose filename matches a known
-// extension for the MIME spec.
+// extension for the MIME spec. Bare `.gz` is intentionally omitted; the
+// package flow only supports `.tar.gz` archives, and callers that need bare
+// `.gz` would have to opt in explicitly.
 const MIME_EXTENSION_ALIASES: Record<string, readonly string[]> = {
-  "application/gzip": [".tar.gz", ".tgz", ".gz"],
+  "application/gzip": [".tar.gz", ".tgz"],
 };
 
 // The HTML `accept` attribute only filters the native file picker; dropped

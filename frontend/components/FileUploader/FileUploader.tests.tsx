@@ -194,6 +194,29 @@ describe("FileUploader", () => {
     expect(onFileUpload).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects a dropped bare .gz even when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // The package flow doesn't support bare .gz; the alias list intentionally
+    // omits it so the drop fails here instead of surfacing a script-mapping
+    // error further downstream.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("archive.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
   it("still renders the message so existing click-to-upload callers are untouched", () => {
     render(
       <FileUploader
