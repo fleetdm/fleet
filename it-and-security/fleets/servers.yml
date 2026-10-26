@@ -27,6 +27,7 @@ controls:
     deadline_days: null
     grace_period_days: null
   scripts:
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
 policies:
 reports:
 software:
