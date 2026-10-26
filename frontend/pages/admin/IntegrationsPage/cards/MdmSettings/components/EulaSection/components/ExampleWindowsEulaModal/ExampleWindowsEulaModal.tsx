@@ -3,7 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import exampleImage from "../../../../../../../../../../assets/images/windows-eula-example-600x390@2x.png";
+import exampleImage from "../../../../../../../../../assets/images/windows-eula-example-600x390@2x.png";
 
 const baseClass = "example-windows-eula-modal";
 

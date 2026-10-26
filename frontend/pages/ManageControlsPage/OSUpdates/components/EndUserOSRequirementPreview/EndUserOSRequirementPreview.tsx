@@ -3,10 +3,10 @@ import React from "react";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 
-import IOSUpdateScreenshot from "../../../../../../assets/images/ios-updates-preview.png";
-import IPadOSUpdateScreenshot from "../../../../../../assets/images/ipados-updates-preview.png";
-import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
-import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
+import IOSUpdateScreenshot from "../../../../../assets/images/ios-updates-preview.png";
+import IPadOSUpdateScreenshot from "../../../../../assets/images/ipados-updates-preview.png";
+import MacOSUpdateScreenshot from "../../../../../assets/images/macos-updates-preview.png";
+import WindowsUpdateScreenshot from "../../../../../assets/images/windows-nudge-screenshot.png";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-requirement-preview";

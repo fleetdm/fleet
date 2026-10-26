@@ -35,7 +35,11 @@ Authorization: Bearer <your token>
 
 ### Log in
 
-Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
+Authenticates the user with the specified credentials and returns a new API token. Use the token returned from this endpoint to authenticate further API requests.
+
+Each successful request creates a new session with its own token. The `token_expires_at` field shows when the token expires, based on the Fleet server's [session duration](https://fleetdm.com/docs/configuration/fleet-server-configuration#session-duration) setting (default: 5 days).
+
+> For [API-only users](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user), token expiration isn't enforced. The response still includes `token_expires_at`, but the token remains valid after that time.
 
 `POST /api/v1/fleet/login`
 
@@ -68,21 +72,26 @@ Authenticates the user with the specified credentials. Use the token returned fr
 ```json
 {
   "user": {
-    "created_at": "2020-11-13T22:57:12Z",
-    "updated_at": "2020-11-13T22:57:12Z",
+    "created_at": "2026-10-15T06:57:31Z",
+    "updated_at": "2026-10-15T06:57:31Z",
     "id": 1,
     "name": "Jane Doe",
     "email": "janedoe@example.com",
-    "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
+    "api_only": false,
+    "last_login_at": "2026-10-16T01:18:38Z",
+    "last_activity_at": "2026-10-16T01:19:18Z",
     "teams": [],
     "fleets": []
   },
-  "token": "{your token}"
+  "available_teams": [],
+  "token": "{your token}",
+  "token_expires_at": "2026-10-16T01:21:24.714672055Z",
+  "available_fleets": []
 }
 ```
 
@@ -16180,7 +16189,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `hosts_count`. Default is `created_at` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |

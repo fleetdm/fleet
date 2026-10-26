@@ -483,8 +483,20 @@ func (ds *Datastore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, e
 // device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
 // safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.
 func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	if hardwareSerial == "" {
-		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty hardware serial"))
+	return ds.getUnlinkedWindowsEnrolledDeviceBy(ctx, "hardware_serial", hardwareSerial)
+}
+
+// MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID is MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial keyed on
+// the Autopilot device ID the device supplied at enrollment.
+func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	return ds.getUnlinkedWindowsEnrolledDeviceBy(ctx, "ztd_registration_id", ztdRegistrationID)
+}
+
+// getUnlinkedWindowsEnrolledDeviceBy looks up the single unlinked enrollment whose column equals value. column is always a
+// constant from the callers above, and each is indexed.
+func (ds *Datastore) getUnlinkedWindowsEnrolledDeviceBy(ctx context.Context, column, value string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	if value == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty "+column))
 	}
 	stmt := `SELECT
 		id,
@@ -509,15 +521,15 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		updated_at,
 		host_uuid
 		FROM mdm_windows_enrollments
-		WHERE hardware_serial = ? AND host_uuid = ''
+		WHERE ` + column + ` = ? AND host_uuid = ''
 		LIMIT 2`
 
 	var devices []fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, hardwareSerial); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, value); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unlinked windows enrolled device by "+column)
 	}
 	if len(devices) != 1 {
-		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(value))
 	}
 	return &devices[0], nil
 }
@@ -2336,7 +2348,11 @@ SELECT
 		WHEN (%s) THEN '%s'
 		ELSE ''
 	END AS status,
-	COALESCE(client_error, '') as detail,
+	CASE
+		WHEN COALESCE(client_error, '') != '' THEN client_error
+		WHEN hdek.decryptable = 0 AND hdek.base64_encrypted != '' THEN ?
+		ELSE ''
+	END AS detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
 	hd.bitlocker_boot_protector_set,
@@ -2369,7 +2385,7 @@ WHERE
 		ProtectionError   string                     `db:"bitlocker_protection_error"`
 		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.BitLockerKeyUndecryptableDetail, host.ID); err != nil {
 		if err != sql.ErrNoRows {
 			return &fleet.HostMDMDiskEncryption{}, err
 		}
