@@ -1,6 +1,7 @@
 package googlecas
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -8,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -280,13 +282,17 @@ func TestIssueCertificate(t *testing.T) {
 		return fleet.GoogleCASCA{Name: "WIFI", Project: "my-project", Location: "us-central1", CAPool: "my-pool", APIKeyJSON: testServiceAccountKey(t)}
 	}
 
+	const poolLog = "ca_pool=projects/my-project/locations/us-central1/caPools/my-pool"
+
 	t.Run("issues the certificate and reuses the token", func(t *testing.T) {
 		g := newGoogle(t, http.StatusOK)
-		svc, ca := NewService(WithEndpoint(g.srv.URL), WithTokenURL(g.srv.URL+"/token")), newCA(t)
+		var logs bytes.Buffer
+		svc, ca := NewService(WithEndpoint(g.srv.URL), WithTokenURL(g.srv.URL+"/token"), WithLogger(slog.New(slog.NewTextHandler(&logs, nil)))), newCA(t)
 
 		cert, err := svc.IssueCertificate(t.Context(), ca, csr)
 		require.NoError(t, err)
 		require.Equal(t, issuedDER, cert.Raw)
+		require.Contains(t, logs.String(), `msg="Google CAS issued a certificate" `+poolLog+" certificate_name=issued serial=42")
 		require.Equal(t, string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})), g.issueBody["pemCsr"])
 		require.Equal(t, "31536000s", g.issueBody["lifetime"])
 		require.Regexp(t, `^fleet-[0-9a-f-]{36}$`, g.issueQuery.Get("certificateId"))
@@ -392,18 +398,23 @@ func TestIssueCertificate(t *testing.T) {
 		for name, tc := range map[string]struct {
 			der     []byte
 			wantErr string
+			serial  string
 		}{
-			"for another public key":       {otherDER, "different public key"},
-			"for a CA":                     {issued(&x509.Certificate{IsCA: true, BasicConstraintsValid: true}), "can sign other certificates"},
-			"that can sign certificates":   {issued(&x509.Certificate{KeyUsage: x509.KeyUsageCertSign}), "can sign other certificates"},
-			"that can sign CRLs":           {issued(&x509.Certificate{KeyUsage: x509.KeyUsageCRLSign}), "can sign other certificates"},
-			"that can sign OCSP responses": {issued(&x509.Certificate{ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageOCSPSigning}}), "can sign other certificates"},
+			"for another public key":       {otherDER, "different public key", "43"},
+			"for a CA":                     {issued(&x509.Certificate{IsCA: true, BasicConstraintsValid: true}), "can sign other certificates", "44"},
+			"that can sign certificates":   {issued(&x509.Certificate{KeyUsage: x509.KeyUsageCertSign}), "can sign other certificates", "44"},
+			"that can sign CRLs":           {issued(&x509.Certificate{KeyUsage: x509.KeyUsageCRLSign}), "can sign other certificates", "44"},
+			"that can sign OCSP responses": {issued(&x509.Certificate{ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageOCSPSigning}}), "can sign other certificates", "44"},
 		} {
 			t.Run(name, func(t *testing.T) {
 				g := newGoogle(t, http.StatusOK)
 				g.issuedPEM = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: tc.der}))
-				_, err := NewService(WithEndpoint(g.srv.URL), WithTokenURL(g.srv.URL+"/token")).IssueCertificate(t.Context(), newCA(t), csr)
+				var logs bytes.Buffer
+				svc := NewService(WithEndpoint(g.srv.URL), WithTokenURL(g.srv.URL+"/token"), WithLogger(slog.New(slog.NewTextHandler(&logs, nil))))
+				_, err := svc.IssueCertificate(t.Context(), newCA(t), csr)
 				require.ErrorContains(t, err, tc.wantErr)
+				// The pool and serial identify the certificate for revocation, even where Google returns no name.
+				require.Contains(t, logs.String(), `msg="Not returning the certificate Google CAS issued" `+poolLog+" certificate_name=issued serial="+tc.serial)
 			})
 		}
 	})

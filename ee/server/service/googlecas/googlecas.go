@@ -163,9 +163,12 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, s.describeIssueError(ctx, err, ca), "issuing Google CAS certificate")
 	}
-	// A certificate Google issued but Fleet doesn't return stays valid in the pool, so its name is logged for revocation.
+	// A certificate Google issued but Fleet doesn't return stays valid, so it's logged for revocation. DevOps-tier pools keep no
+	// record of their certificates and return no name, so the serial identifies it there.
+	var serial string
 	refuse := func(err error) (*x509.Certificate, error) {
-		s.logger.ErrorContext(ctx, "Not returning the certificate Google CAS issued", "certificate_name", issued.Name, "err", err)
+		s.logger.ErrorContext(ctx, "Not returning the certificate Google CAS issued", "ca_pool", ca.CAPoolResourceName(),
+			"certificate_name", issued.Name, "serial", serial, "err", err)
 		return nil, err
 	}
 	block, _ := pem.Decode([]byte(issued.PemCertificate))
@@ -176,6 +179,7 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 	if err != nil {
 		return refuse(ctxerr.Wrap(ctx, err, "parsing the certificate Google CAS issued"))
 	}
+	serial = cert.SerialNumber.String()
 	// The private key stays on the host, so a certificate for any other key is useless to it and points at a misbehaving CA.
 	if issuedKey, ok := cert.PublicKey.(interface{ Equal(crypto.PublicKey) bool }); !ok || !issuedKey.Equal(csr.PublicKey) {
 		return refuse(ctxerr.New(ctx, "Google CAS issued a certificate for a different public key than the CSR's"))
@@ -184,7 +188,8 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 	if cert.IsCA || cert.KeyUsage&(x509.KeyUsageCertSign|x509.KeyUsageCRLSign) != 0 || slices.Contains(cert.ExtKeyUsage, x509.ExtKeyUsageOCSPSigning) {
 		return refuse(ctxerr.New(ctx, "Google CAS issued a certificate that can sign other certificates. Check the CA pool's issuance policy."))
 	}
-	s.logger.InfoContext(ctx, "Google CAS issued a certificate", "certificate_name", issued.Name, "serial", cert.SerialNumber.String())
+	s.logger.InfoContext(ctx, "Google CAS issued a certificate", "ca_pool", ca.CAPoolResourceName(),
+		"certificate_name", issued.Name, "serial", serial)
 	return cert, nil
 }
 
