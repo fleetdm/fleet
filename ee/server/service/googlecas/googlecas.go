@@ -168,7 +168,7 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 	var serial string
 	refuse := func(err error) (*x509.Certificate, error) {
 		s.logger.ErrorContext(ctx, "Not returning the certificate Google CAS issued", "ca_pool", ca.CAPoolResourceName(),
-			"certificate_name", issued.Name, "serial", serial, "err", err)
+			"certificate_name", issued.Name, "serial", serial)
 		return nil, err
 	}
 	block, _ := pem.Decode([]byte(issued.PemCertificate))

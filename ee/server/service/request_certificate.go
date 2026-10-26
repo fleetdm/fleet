@@ -286,8 +286,9 @@ func (svc *Service) issueGoogleCASCertificate(ctx context.Context, ca fleet.Goog
 	}
 	if err := checkIssuedIdentity(ctx, cert, csr); err != nil {
 		// Google issued it, so it stays valid unless revoked; the pool and serial identify it.
+		// RequestCertificate logs the error.
 		svc.logger.ErrorContext(ctx, "Not returning the certificate Google CAS issued", "ca_pool", ca.CAPoolResourceName(),
-			"serial", cert.SerialNumber.String(), "err", err)
+			"serial", cert.SerialNumber.String())
 		return nil, err
 	}
 	envelope, err := pkcs7.DegenerateCertificate(cert.Raw)
