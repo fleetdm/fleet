@@ -155,8 +155,8 @@ interface IProfileFormProps {
   /** Shows the AI's title and summary in place of the name and description
    * fields. Only when adding. */
   generated?: IGeneratedProfile;
-  /** Rendered under the editor. */
-  belowEditor?: React.ReactNode;
+  /** Rendered under the editor, given whether the profile is being saved. */
+  renderBelowEditor?: (state: { isSubmitting: boolean }) => React.ReactNode;
 }
 
 const ProfileForm = ({
@@ -168,7 +168,7 @@ const ProfileForm = ({
   listPath,
   editing,
   generated,
-  belowEditor,
+  renderBelowEditor,
 }: IProfileFormProps) => {
   const { config } = useContext(AppContext);
   const profile = editing?.profile;
@@ -638,7 +638,7 @@ const ProfileForm = ({
                   : undefined
               }
             />
-            {belowEditor}
+            {renderBelowEditor?.({ isSubmitting })}
           </div>
         )}
       />

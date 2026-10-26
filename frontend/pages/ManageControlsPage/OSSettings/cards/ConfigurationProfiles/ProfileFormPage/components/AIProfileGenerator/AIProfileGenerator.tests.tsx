@@ -358,6 +358,43 @@ describe("AIProfileGenerator", () => {
     ).toMatch(/\.json$/);
   });
 
+  it("keeps a title still being edited when the profile arrives", async () => {
+    renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit name" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "My AirDrop profile" },
+    });
+    // no blur or Enter before the profile replaces the view
+    await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
+    expect(
+      screen.getByRole("heading", { name: "My AirDrop profile" })
+    ).toBeInTheDocument();
+  });
+
+  it("offers Create manually with the result, and disables Retry while saving", async () => {
+    const { user, router } = renderGenerator();
+    const upload = deferred<{ profile_uuid: string }>();
+    jest.mocked(mdmAPI.uploadProfile).mockImplementation(() => upload.promise);
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
+
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create manually" }));
+    expect(router.push).toHaveBeenCalledWith({
+      ...MANUAL_LOCATION,
+      state: { aiTimedOut: false },
+    });
+    await act(async () => upload.resolve({ profile_uuid: "a-new" }));
+  });
+
   it("shows a decline with its reason and a link, and keeps the instructions", async () => {
     renderGenerator();
     typeInstructions("Turn off AirDrop");

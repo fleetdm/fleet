@@ -190,6 +190,24 @@ const AIProfileGenerator = ({
     </TooltipWrapper>
   );
 
+  const renderRetryButton = (isSubmitting: boolean) => (
+    <TooltipWrapper
+      tipContent={sendTooltip ?? "Retry"}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      <Button
+        variant="secondary"
+        icon="refresh"
+        ariaLabel="Retry"
+        // a save in flight would redirect away from the new generation
+        disabled={!canSend || isSubmitting}
+        onClick={onGenerate}
+      />
+    </TooltipWrapper>
+  );
+
   // The profile and its review form.
   if (status === "done" && profile) {
     const nameFromAI = profile.name ?? nameDescription?.name ?? "";
@@ -215,13 +233,16 @@ const AIProfileGenerator = ({
           isDescriptionPending:
             edits.description === undefined && nameDescription === undefined,
         }}
-        belowEditor={
-          <PromptBox
-            value={instructions}
-            onChange={setInstructions}
-            action={renderSendButton("Retry", onGenerate)}
-          />
-        }
+        renderBelowEditor={({ isSubmitting }) => (
+          <>
+            <PromptBox
+              value={instructions}
+              onChange={setInstructions}
+              action={renderRetryButton(isSubmitting)}
+            />
+            {renderCreateManually()}
+          </>
+        )}
       />
     );
   }

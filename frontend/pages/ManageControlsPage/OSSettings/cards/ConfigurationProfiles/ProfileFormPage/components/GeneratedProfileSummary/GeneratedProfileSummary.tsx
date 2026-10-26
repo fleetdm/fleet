@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
 
@@ -47,6 +47,20 @@ const EditableText = ({
 }: IEditableTextProps) => {
   const [draft, setDraft] = useState<string | null>(null);
   const isEditing = draft !== null || !value;
+
+  // An edit still open when the field unmounts, as when the generated profile
+  // replaces this view, is kept rather than dropped.
+  const pendingRef = useRef({ draft, onChange });
+  pendingRef.current = { draft, onChange };
+  useEffect(
+    () => () => {
+      const pending = pendingRef.current;
+      if (pending.draft !== null) {
+        pending.onChange(pending.draft.trim());
+      }
+    },
+    []
+  );
 
   const commit = () => {
     if (draft !== null) {
