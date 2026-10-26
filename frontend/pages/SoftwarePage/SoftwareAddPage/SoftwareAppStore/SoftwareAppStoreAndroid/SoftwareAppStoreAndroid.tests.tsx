@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -139,7 +139,7 @@ describe("SoftwareAppStoreAndroid", () => {
     expect(requestedFleetId).toBe("global");
   });
 
-  it("waits for custom labels before showing the form", async () => {
+  it("shows the form while custom labels load", () => {
     mockServer.use(
       http.get(baseUrl("/labels/summary"), () =>
         HttpResponse.json({ labels: [] })
@@ -159,18 +159,20 @@ describe("SoftwareAppStoreAndroid", () => {
     render(<SoftwareAppStoreAndroid currentTeamId={1} router={router} />);
 
     expect(
-      screen.queryByRole("textbox", { name: "Application ID" })
-    ).not.toBeInTheDocument();
-    expect(
-      await screen.findByRole("textbox", { name: "Application ID" })
+      screen.getByRole("textbox", { name: "Application ID" })
     ).toBeInTheDocument();
   });
 
-  it("shows an error when custom labels fail to load", async () => {
+  it("keeps All hosts usable when custom labels fail to load", async () => {
+    let addAppBody: Record<string, unknown> | undefined;
     mockServer.use(
       http.get(baseUrl("/labels/summary"), () =>
         HttpResponse.json({}, { status: 404 })
-      )
+      ),
+      http.post(baseUrl("/software/app_store_apps"), async ({ request }) => {
+        addAppBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ software_title_id: 7, name: "Gmail" });
+      })
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -183,13 +185,29 @@ describe("SoftwareAppStoreAndroid", () => {
       },
     });
 
-    render(<SoftwareAppStoreAndroid currentTeamId={1} router={router} />);
+    const { user } = render(
+      <SoftwareAppStoreAndroid currentTeamId={1} router={router} />
+    );
 
+    // Custom shows the labels error in place of the label list
+    await user.click(screen.getByRole("radio", { name: "Custom" }));
     expect(
       await screen.findByText(/Something's gone wrong/)
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Add software" })
-    ).not.toBeInTheDocument();
+
+    // All hosts still submits, without labels
+    await user.click(screen.getByRole("radio", { name: "All hosts" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Application ID" }),
+      "com.google.android.gm"
+    );
+    await user.click(screen.getByRole("button", { name: "Add software" }));
+
+    await waitFor(() => expect(addAppBody).toBeDefined());
+    expect(addAppBody).toMatchObject({
+      app_store_id: "com.google.android.gm",
+      platform: "android",
+    });
+    expect(addAppBody).not.toHaveProperty("labels_include_any");
   });
 });

@@ -3,10 +3,8 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
-import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
@@ -142,18 +140,12 @@ const SoftwareAppStoreAndroid = ({
       );
     }
 
-    if (isLoadingLabels) {
-      return <Spinner />;
-    }
-
-    if (isErrorLabels) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
-    }
-
     return (
       <div className={`${baseClass}__content`}>
         <SoftwareAndroidForm
           labels={labels || []}
+          isLoadingLabels={isLoadingLabels}
+          isErrorLabels={isErrorLabels}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareLibrary}
           isLoading={isLoading}

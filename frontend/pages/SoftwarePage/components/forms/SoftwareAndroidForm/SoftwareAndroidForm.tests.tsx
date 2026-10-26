@@ -60,7 +60,7 @@ describe("SoftwareAndroidForm", () => {
     ).toBeVisible();
   });
 
-  it("disables submit for a custom target until a label is selected, then submits the label target", async () => {
+  it("keeps Add software enabled and shows inline errors on submit instead of submitting", async () => {
     const onSubmit = jest.fn();
     const render = createCustomRenderer();
     const { user } = render(
@@ -71,30 +71,75 @@ describe("SoftwareAndroidForm", () => {
       />
     );
     const submitButton = screen.getByRole("button", { name: "Add software" });
-
-    await user.type(
-      screen.getByRole("textbox", { name: "Application ID" }),
-      "com.google.android.gm"
-    );
-    expect(submitButton).toBeEnabled();
-
     await user.click(screen.getByRole("radio", { name: "Custom" }));
-    expect(submitButton).toBeDisabled();
-
-    await user.click(screen.getByRole("checkbox", { name: "Android pilot" }));
     expect(submitButton).toBeEnabled();
 
     await user.click(submitButton);
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        applicationID: "com.google.android.gm",
-        targetType: "Custom",
-        customTarget: "labelsIncludeAny",
-        labelTargets: { "Android pilot": true },
-      })
-    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter an application ID")).toBeInTheDocument();
+    expect(screen.getByText("Select at least one label")).toBeInTheDocument();
   });
+
+  it("clears the label error once a label is selected", async () => {
+    const render = createCustomRenderer();
+    const { user } = render(
+      <SoftwareAndroidForm
+        labels={labels}
+        onSubmit={jest.fn()}
+        onCancel={jest.fn()}
+      />
+    );
+    await user.click(screen.getByRole("radio", { name: "Custom" }));
+    await user.click(screen.getByRole("button", { name: "Add software" }));
+    expect(screen.getByText("Select at least one label")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Android pilot" }));
+
+    expect(
+      screen.queryByText("Select at least one label")
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["Include any", "labelsIncludeAny"],
+    ["Include all", "labelsIncludeAll"],
+    ["Exclude any", "labelsExcludeAny"],
+  ])(
+    "submits a %s target with its labels",
+    async (optionLabel, customTarget) => {
+      const onSubmit = jest.fn();
+      const render = createCustomRenderer();
+      const { user } = render(
+        <SoftwareAndroidForm
+          labels={labels}
+          onSubmit={onSubmit}
+          onCancel={jest.fn()}
+        />
+      );
+
+      await user.type(
+        screen.getByRole("textbox", { name: "Application ID" }),
+        " com.google.android.gm "
+      );
+      await user.click(screen.getByRole("radio", { name: "Custom" }));
+      if (optionLabel !== "Include any") {
+        await user.click(screen.getByRole("option", { name: "Include any" }));
+        await user.click(screen.getByRole("option", { name: optionLabel }));
+      }
+      await user.click(screen.getByRole("checkbox", { name: "Android pilot" }));
+      await user.click(screen.getByRole("button", { name: "Add software" }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          applicationID: "com.google.android.gm",
+          targetType: "Custom",
+          customTarget,
+          labelTargets: { "Android pilot": true },
+        })
+      );
+    }
+  );
 
   it("disables the target options in GitOps mode", () => {
     const render = createCustomRenderer({

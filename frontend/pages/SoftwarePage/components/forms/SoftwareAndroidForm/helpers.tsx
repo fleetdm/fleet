@@ -1,28 +1,24 @@
 // helpers.ts
 
-import {
-  ISoftwareAndroidFormData,
-  IFormValidation,
-} from "./SoftwareAndroidForm";
+import { IFormErrors } from "hooks/useFormValidation";
 
-const generateFormValidation = (formData: ISoftwareAndroidFormData) => {
-  const formValidation: IFormValidation = {
-    isValid: true,
-  };
+import { ISoftwareAndroidFormData } from "./SoftwareAndroidForm";
 
-  if (!formData.applicationID) {
-    formValidation.isValid = false;
+const validate = (formData: ISoftwareAndroidFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+
+  if (!formData.applicationID.trim()) {
+    errors.applicationID = "Enter an application ID";
   }
 
-  // A custom target needs at least one label selected
   if (
     formData.targetType === "Custom" &&
     !Object.values(formData.labelTargets).some(Boolean)
   ) {
-    formValidation.isValid = false;
+    errors.labelTargets = "Select at least one label";
   }
 
-  return formValidation;
+  return errors;
 };
 
-export default generateFormValidation;
+export default validate;

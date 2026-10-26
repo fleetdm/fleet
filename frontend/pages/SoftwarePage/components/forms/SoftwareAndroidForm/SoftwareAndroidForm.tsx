@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { useState } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -7,8 +7,8 @@ import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import useFormValidation from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import {
@@ -23,7 +23,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
 
-import generateFormValidation from "./helpers";
+import validate from "./helpers";
 
 const baseClass = "software-android-form";
 
@@ -38,12 +38,10 @@ export interface ISoftwareAndroidFormData {
   platform: "android";
 }
 
-export interface IFormValidation {
-  isValid: boolean;
-}
-
 interface ISoftwareAndroidFormProps {
   labels: ILabelSummary[] | null;
+  isLoadingLabels?: boolean;
+  isErrorLabels?: boolean;
   softwareAndroidForEdit?: IAppStoreApp; // 4.77 Currently no edit Android functionality
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
@@ -52,6 +50,8 @@ interface ISoftwareAndroidFormProps {
 
 const SoftwareAndroidForm = ({
   labels,
+  isLoadingLabels = false,
+  isErrorLabels = false,
   softwareAndroidForEdit,
   onSubmit,
   isLoading = false,
@@ -59,8 +59,15 @@ const SoftwareAndroidForm = ({
 }: ISoftwareAndroidFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
-  const [formData, setFormData] = useState<ISoftwareAndroidFormData>(
-    softwareAndroidForEdit
+  const {
+    formData,
+    commitFields,
+    getError,
+    getTextFieldProps,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<ISoftwareAndroidFormData>({
+    initialFormData: softwareAndroidForEdit
       ? {
           applicationID: softwareAndroidForEdit.app_store_id || "",
           selfService: softwareAndroidForEdit.self_service || false, // 4.77 Currently unavailable to change
@@ -80,46 +87,22 @@ const SoftwareAndroidForm = ({
           labelTargets: {},
           categories: [],
           platform: "android",
-        }
-  );
-
-  const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: !!softwareAndroidForEdit, // Disables submit before Android application ID is entered
+        },
+    validate,
+    isSubmitting: isLoading,
   });
 
-  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    onSubmit(formData);
-  };
-
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    setFormValidation(generateFormValidation(newFormData));
-  };
-
   const onSelectTargetType = (value: string) => {
-    const newData = { ...formData, targetType: value };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    commitFields({ targetType: value });
   };
 
   const onSelectCustomTargetOption = (value: string) => {
-    const newData = { ...formData, customTarget: value };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    commitFields({ customTarget: value });
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    const newData = {
-      ...formData,
-      labelTargets: { ...formData.labelTargets, [name]: value },
-    };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    commitFields({ labelTargets: { ...formData.labelTargets, [name]: value } });
   };
-
-  const isSubmitDisabled = !formValidation.isValid;
 
   const renderContent = () => {
     // Edit Android does not exist on 4.77
@@ -147,10 +130,7 @@ const SoftwareAndroidForm = ({
                 &quot;https://play.google.com/store/apps/details?id=com.android.chrome&quot;
               </>
             }
-            onChange={onInputChange}
-            name="applicationID"
-            value={formData.applicationID}
-            parseTarget
+            {...getTextFieldProps("applicationID")}
             disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
           />
         </div>
@@ -182,6 +162,9 @@ const SoftwareAndroidForm = ({
           onSelectCustomTarget={onSelectCustomTargetOption}
           onSelectLabel={onSelectLabel}
           labels={labels || []}
+          isLoadingLabels={isLoadingLabels}
+          isErrorLabels={isErrorLabels}
+          error={getError("labelTargets")}
           dropdownHelpText={
             generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
           }
@@ -200,7 +183,7 @@ const SoftwareAndroidForm = ({
   });
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit}>
+    <form className={baseClass} onSubmit={handleSubmit(onSubmit)}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
         <div className={formContentClasses}>
@@ -214,7 +197,7 @@ const SoftwareAndroidForm = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                disabled={disableChildren || isSubmitDisabled}
+                disabled={disableChildren || isSubmitting}
                 isLoading={isLoading}
                 className={`${baseClass}__add-software-btn`}
               >
