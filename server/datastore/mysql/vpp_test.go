@@ -5857,6 +5857,7 @@ func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
 func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	globalToken := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, globalToken)
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "resend-hosts-team"})
 	require.NoError(t, err)
