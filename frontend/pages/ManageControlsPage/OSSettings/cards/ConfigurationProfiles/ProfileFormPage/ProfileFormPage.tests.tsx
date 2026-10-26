@@ -236,6 +236,7 @@ describe("ProfileFormPage", () => {
     setContents(MOBILECONFIG);
     await user.click(submit);
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Mobileconfig")).toBeInTheDocument();
     const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
     expect(args.name).toBe("Custom Apple");
     expect(args.description).toBe("Blocks the camera");
@@ -251,6 +252,7 @@ describe("ProfileFormPage", () => {
     const { user } = renderPage();
 
     setContents(WINDOWS_XML);
+    expect(screen.getByText("Windows")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
@@ -293,6 +295,7 @@ describe("ProfileFormPage", () => {
     expect(screen.getByLabelText("Description")).toHaveValue(
       "Existing description"
     );
+    expect(screen.getByText("Windows")).toBeInTheDocument();
     // fetched as text so JSON profiles aren't re-serialized
     expect(mdmAPI.downloadProfile).toHaveBeenCalledTimes(1);
     expect(mdmAPI.downloadProfile).toHaveBeenCalledWith(
@@ -674,6 +677,7 @@ describe("ProfileFormPage", () => {
     // missing Type, which the server reports for a declaration
     setContents('{"Identifier": "x", "Payload": {}}');
 
+    expect(screen.getByText("Declaration (DDM)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add profile" })).toBeEnabled();
   });
 
@@ -689,6 +693,7 @@ describe("ProfileFormPage", () => {
     );
 
     setContents(`<?xml version="1.0" encoding="UTF-8"?>\n${WINDOWS_XML}`);
+    expect(screen.getByText("Windows")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
@@ -775,6 +780,7 @@ describe("ProfileFormPage", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Profile contents")).toHaveValue(WINDOWS_XML)
     );
+    expect(screen.getByText("Windows")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
@@ -805,6 +811,7 @@ describe("ProfileFormPage", () => {
     expect(
       screen.queryByText(/^Paste a .mobileconfig, declaration/)
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Windows")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));

@@ -53,6 +53,8 @@ export type ProfileContentType =
   | "windows";
 
 interface IProfileContentTypeInfo {
+  /** Shown above the editor. */
+  label: string;
   /** Of the file the upload is sent as, which is how the server routes it. */
   extension: string;
   platform: ProfilePlatform;
@@ -64,21 +66,25 @@ export const PROFILE_CONTENT_TYPES: Record<
   IProfileContentTypeInfo
 > = {
   mobileconfig: {
+    label: "Mobileconfig",
     extension: "mobileconfig",
     platform: "darwin",
     editorMode: "xml",
   },
   declaration: {
+    label: "Declaration (DDM)",
     extension: "json",
     platform: "darwin",
     editorMode: "json",
   },
   android: {
+    label: "Android",
     extension: "json",
     platform: "android",
     editorMode: "json",
   },
   windows: {
+    label: "Windows",
     extension: "xml",
     platform: "windows",
     editorMode: "xml",

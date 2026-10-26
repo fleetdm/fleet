@@ -33,8 +33,8 @@ const validate = (targets: IProfileTargets): IFormErrors => {
   const errors: IFormErrors = {};
   if (
     targets.targetType === "Custom" &&
-    !listNamesFromSelectedLabels(targets.includeLabels).length &&
-    !listNamesFromSelectedLabels(targets.excludeLabels).length
+    listNamesFromSelectedLabels(targets.includeLabels).length < 1 &&
+    listNamesFromSelectedLabels(targets.excludeLabels).length < 1
   ) {
     errors.target = "Select at least one label";
   }
@@ -42,7 +42,7 @@ const validate = (targets: IProfileTargets): IFormErrors => {
 };
 
 interface IEditTargetsModalProps {
-  teamId: number;
+  fleetId: number;
   targets: IProfileTargets;
   /** Shows the targets without letting them change. GitOps mode is always
    * read-only. */
@@ -54,7 +54,7 @@ interface IEditTargetsModalProps {
 
 /** Edits a copy of the targets, so Cancel leaves the profile's untouched. */
 const EditTargetsModal = ({
-  teamId,
+  fleetId,
   targets,
   disabled = false,
   onAddLabel,
@@ -76,8 +76,8 @@ const EditTargetsModal = ({
     isLoading: isLoadingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels", teamId],
-    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
+    ["custom_labels", fleetId],
+    () => labelsAPI.summary(fleetId).then((res) => getCustomLabels(res.labels)),
     DEFAULT_USE_QUERY_OPTIONS
   );
 

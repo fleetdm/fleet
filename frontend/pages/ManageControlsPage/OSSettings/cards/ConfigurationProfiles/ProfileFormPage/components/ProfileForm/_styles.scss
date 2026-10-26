@@ -18,4 +18,12 @@
       display: none;
     }
   }
+
+  // The profile type above the editor is a quiet caption, not a field label.
+  // An error keeps the standard error label.
+  .editor__label:not(.editor__label--error) {
+    font-size: $xx-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+  }
 }

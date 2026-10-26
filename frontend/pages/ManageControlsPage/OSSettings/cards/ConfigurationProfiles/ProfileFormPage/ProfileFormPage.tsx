@@ -131,7 +131,7 @@ const ProfileFormPage = ({
     !profileUUID &&
     !!config &&
     (gitOpsModeEnabled || !canEditProfiles || !isAnyMDMConfigured(config.mdm));
-  // A user with no fleet to manage has no teamId yet, so keep the URL's.
+  // A user with no fleet to manage has no fleet ID yet, so keep the URL's.
   const leaveAddPagePath = getPathWithQueryParams(
     PATHS.CONTROLS_CUSTOM_SETTINGS,
     { fleet_id: isPremiumTier ? teamId ?? location.query.fleet_id : undefined }

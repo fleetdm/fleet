@@ -7,7 +7,7 @@ const baseClass = "profile-bottom-bar";
 
 interface IProfileBottomBarProps {
   targetType: TargetType;
-  teamName?: string;
+  fleetName?: string;
   /** Omit where targets can't be edited, like Fleet Free. */
   onEditTargets?: () => void;
   editTargetsDisabled?: boolean;
@@ -16,7 +16,7 @@ interface IProfileBottomBarProps {
 
 const ProfileBottomBar = ({
   targetType,
-  teamName,
+  fleetName,
   onEditTargets,
   editTargetsDisabled = false,
   submitButton,
@@ -25,10 +25,10 @@ const ProfileBottomBar = ({
     <span className={`${baseClass}__applies-to`}>
       Applies to{" "}
       <b>{targetType === "Custom" ? "hosts in custom targets" : "all hosts"}</b>
-      {teamName && (
+      {fleetName && (
         <>
           {" "}
-          for <b>{teamName}</b>
+          for <b>{fleetName}</b>
         </>
       )}
       .

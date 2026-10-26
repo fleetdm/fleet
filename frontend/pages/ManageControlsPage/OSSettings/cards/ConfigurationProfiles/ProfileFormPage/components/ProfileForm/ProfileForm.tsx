@@ -467,6 +467,11 @@ const ProfileForm = ({
               <Editor
                 {...getTextFieldProps("contents")}
                 name="profile-contents"
+                label={
+                  contentType
+                    ? PROFILE_CONTENT_TYPES[contentType].label
+                    : undefined
+                }
                 ariaLabel="Profile contents"
                 mode={
                   contentType
@@ -502,7 +507,7 @@ const ProfileForm = ({
         )}
         <ProfileBottomBar
           targetType={formData.targetType}
-          teamName={teamName}
+          fleetName={teamName}
           onEditTargets={
             isPremiumTier ? () => setShowEditTargetsModal(true) : undefined
           }
@@ -514,7 +519,7 @@ const ProfileForm = ({
           profile. */}
       {showEditTargetsModal && (
         <EditTargetsModal
-          teamId={teamId}
+          fleetId={teamId}
           targets={{
             targetType: formData.targetType,
             includeMode: formData.includeMode,

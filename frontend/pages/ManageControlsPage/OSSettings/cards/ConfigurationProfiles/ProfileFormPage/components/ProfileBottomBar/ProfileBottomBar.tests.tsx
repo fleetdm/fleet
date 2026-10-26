@@ -10,7 +10,7 @@ describe("ProfileBottomBar", () => {
     renderWithSetup(
       <ProfileBottomBar
         targetType="All hosts"
-        teamName="Workstations"
+        fleetName="Workstations"
         submitButton={<button type="submit">Add profile</button>}
       />
     );
