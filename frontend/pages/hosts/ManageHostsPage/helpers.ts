@@ -38,3 +38,7 @@ export const STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS = FLEET_SCOPED_HOST_FILTER
   (config, param) => ({ ...config, [param]: isAllFleets }),
   {}
 );
+
+/** Hidden columns saved before the fleet rename use the old Fleet column id. */
+export const migrateHiddenHostColumns = (columnIds: string[]) =>
+  columnIds.map((id) => (id === "team_name" ? "fleet_name" : id));

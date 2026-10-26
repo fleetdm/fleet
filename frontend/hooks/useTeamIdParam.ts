@@ -181,7 +181,7 @@ const getUserTeams = ({
 
   return permissions.isOnGlobalTeam(currentUser)
     ? availableTeams
-    : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
+    : filterUserTeamsByRole(currentUser.fleets, permittedAccessByTeamRole);
 };
 
 // Prefer a fleet named "Workstations" (with or without emoji prefix),

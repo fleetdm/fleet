@@ -18,7 +18,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [], // all teams
+    fleets: [], // all teams
   };
 
   const unassignedToken = {
@@ -27,7 +27,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: null, // unassigned
+    fleets: null, // unassigned
   };
 
   const noTeamToken = {
@@ -36,7 +36,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [{ fleet_id: 0, name: "Unassigned" }],
+    fleets: [{ fleet_id: 0, name: "Unassigned" }],
   };
 
   const piratesAndNinjasToken = {
@@ -45,7 +45,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [
+    fleets: [
       { fleet_id: 2, name: "Pirates" },
       { fleet_id: 1, name: "Ninjas" },
     ],
@@ -57,7 +57,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [{ fleet_id: 3, name: "Pandas" }],
+    fleets: [{ fleet_id: 3, name: "Pandas" }],
   };
 
   // Legacy tokens surface as country_code "" until backfill runs, so
@@ -68,7 +68,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "",
-    teams: [{ fleet_id: 4, name: "Penguins" }],
+    fleets: [{ fleet_id: 4, name: "Penguins" }],
   };
 
   const availableTeams = [

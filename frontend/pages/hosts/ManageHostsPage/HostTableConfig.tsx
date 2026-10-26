@@ -202,7 +202,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "fleet_name",
-    id: "team_name", // sort key; the API doesn't accept fleet_name yet
+    id: "fleet_name",
     Cell: (cellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
@@ -841,13 +841,13 @@ const generateAvailableTableHeaders = ({
       if (isFreeTier) {
         if (
           isOnlyObserver &&
-          ["selection", "team_name"].includes(currentColumn.id || "")
+          ["selection", "fleet_name"].includes(currentColumn.id || "")
         ) {
           return columns;
           // skip over column headers that are not shown in free admin/maintainer
         }
         if (
-          currentColumn.id === "team_name" ||
+          currentColumn.id === "fleet_name" ||
           currentColumn.id === "mdm.server_url" ||
           currentColumn.id === "mdm.enrollment_status"
         ) {

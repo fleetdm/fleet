@@ -102,7 +102,7 @@ export interface IScriptBatchSupportedFilters {
   // a search string, not a Fleet.Query
   query?: string;
   label_id?: number;
-  team_id?: number;
+  fleet_id?: number;
   status?: string; // TODO: More defined typing
 }
 interface IRunScriptBatchFormDataBase {

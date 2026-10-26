@@ -241,10 +241,10 @@ const TAGGED_TEMPLATES = {
     return "edited software using fleetctl.";
   },
   editTeamCtlActivityTemplate: (activity: IActivity) => {
-    const count = activity.details?.teams?.length;
-    return count === 1 && activity.details?.teams ? (
+    const count = activity.details?.fleets?.length;
+    return count === 1 && activity.details?.fleets ? (
       <>
-        edited the <b>{activity.details?.teams[0].name}</b> fleet using
+        edited the <b>{activity.details?.fleets[0].name}</b> fleet using
         fleetctl.
       </>
     ) : (
@@ -3254,6 +3254,7 @@ const withFleetDetails = (activity: IActivity): IActivity => {
       ...details,
       fleet_id: details.fleet_id ?? details.team_id,
       fleet_name: details.fleet_name ?? details.team_name,
+      fleets: details.fleets ?? details.teams,
     },
   };
 };

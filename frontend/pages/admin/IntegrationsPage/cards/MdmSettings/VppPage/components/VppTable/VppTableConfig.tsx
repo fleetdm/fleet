@@ -17,7 +17,7 @@ import TeamsCell from "./TeamsCell";
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
 type IRenewDateCellProps = CellProps<IMdmVppToken, IMdmVppToken["renew_date"]>;
-type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
+type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["fleets"]>;
 
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
@@ -121,7 +121,7 @@ export const generateTableConfig = (
     },
 
     {
-      accessor: "teams",
+      accessor: "fleets",
       Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (

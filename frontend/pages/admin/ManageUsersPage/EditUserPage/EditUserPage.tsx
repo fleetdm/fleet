@@ -71,7 +71,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     ITeam[]
   >(["teams"], () => teamsAPI.loadAll(), {
     enabled: !!isPremiumTier,
-    select: (data: ILoadTeamsResponse) => data.teams,
+    select: (data: ILoadTeamsResponse) => data.fleets,
   });
 
   const isLoading =
@@ -127,8 +127,8 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       requestData.mfa_enabled = formData.mfa_enabled;
     if (formData.global_role !== entityData.global_role)
       requestData.global_role = formData.global_role;
-    if (formData.teams && formData.teams.length > 0)
-      requestData.teams = formData.teams;
+    if (formData.fleets && formData.fleets.length > 0)
+      requestData.fleets = formData.fleets;
     if (formData.new_password) requestData.new_password = formData.new_password;
 
     let successMessage = `Successfully edited ${formData.name}`;
@@ -218,7 +218,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             defaultData={{
               name: entityData.name,
               global_role: entityData.global_role,
-              fleets: entityData.teams,
+              fleets: entityData.fleets,
               api_endpoints: (entityData as IUser).api_endpoints,
             }}
             isSubmitting={isSubmitting}
@@ -244,7 +244,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             defaultName={entityData?.name}
             defaultEmail={entityData?.email}
             defaultGlobalRole={entityData?.global_role}
-            defaultTeams={entityData?.teams}
+            defaultTeams={entityData?.fleets}
             serverErrors={formErrors}
             isUpdatingUsers={isSubmitting}
           />

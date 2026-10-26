@@ -197,15 +197,15 @@ export const formatSelectedTargetsForApi = (
   return {
     hosts: hostIds.sort(),
     labels: labelIds.sort(),
-    teams: teamIds.sort(),
+    fleets: teamIds.sort(),
   };
 };
 
 export const formatPackTargetsForApi = (
   targets: ISelectTargetsEntity[]
 ): IPackTargets => {
-  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, team_ids: teams };
+  const { hosts, labels, fleets } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, fleet_ids: fleets };
 };
 
 export const formatScheduledQueryForServer = (

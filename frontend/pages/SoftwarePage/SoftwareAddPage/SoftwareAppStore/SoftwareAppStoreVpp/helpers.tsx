@@ -26,11 +26,11 @@ export const teamHasVPPToken = (
   return tokens.some((token) => {
     // if we've got a non-null, empty array it means the token is available for
     // "All teams"
-    if (token.teams?.length === 0) {
+    if (token.fleets?.length === 0) {
       return true;
     }
 
-    return token.teams?.some((team) => team.fleet_id === currentTeamId);
+    return token.fleets?.some((team) => team.fleet_id === currentTeamId);
   });
 };
 

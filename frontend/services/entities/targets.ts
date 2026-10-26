@@ -15,7 +15,7 @@ interface ITargetsProps {
 const defaultSelected = {
   hosts: [],
   labels: [],
-  teams: [],
+  fleets: [],
 };
 
 export interface ITargetsSearchParams {
