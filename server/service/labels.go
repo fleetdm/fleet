@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 	"slices"
@@ -782,18 +783,28 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
-	// Label names are unique under the name column's collation, so two of these would be upserted into one label.
+	// Label names are unique under the name column's collation, so a spec equal to another spec or to a built-in label under it
+	// would be upserted into that label's row. IsReservedLabelName above only catches case variants of built-in names.
 	regularSpecNames := make([]string, 0, len(regularSpecs))
 	for _, s := range regularSpecs {
 		regularSpecNames = append(regularSpecNames, s.Name)
 	}
-	duplicateIndex, found, err := findDuplicateNameUnderCollation(ctx, svc.ds, regularSpecNames)
+	reservedNames := slices.Sorted(maps.Keys(fleet.ReservedLabelNames()))
+	equalNameGroups, err := svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, append(slices.Clone(regularSpecNames), reservedNames...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking for duplicate label names")
 	}
-	if found {
+	for _, group := range equalNameGroups {
+		// indices past the specs are reserved names, which sort after the spec they collide with
+		if last := group.Indices[len(group.Indices)-1]; last >= len(regularSpecNames) {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "cannot add label '%s' because it conflicts with the name of a built-in label",
+					reservedNames[last-len(regularSpecNames)]),
+				http.StatusUnprocessableEntity,
+			)
+		}
 		return fleet.NewUserMessageError(
-			ctxerr.Errorf(ctx, "Couldn't edit labels. More than one label has the same name: %q", regularSpecNames[duplicateIndex]),
+			ctxerr.Errorf(ctx, "Couldn't edit labels. More than one label has the same name: %q", regularSpecNames[group.Indices[1]]),
 			http.StatusUnprocessableEntity,
 		)
 	}

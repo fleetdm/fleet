@@ -31,6 +31,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 	t.Parallel()
 
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	user := &fleet.User{
 		ID:         3,
 		Email:      "foo@bar.com",
@@ -1024,6 +1025,7 @@ func TestBatchValidateLabels(t *testing.T) {
 func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	user := &fleet.User{
 		ID:         3,
 		Email:      "foo@bar.com",

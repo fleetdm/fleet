@@ -1,1 +1,2 @@
 - Fixed `fleetctl gitops` and the batch APIs accepting configuration profiles, scripts, reports, and labels whose names differ only by letter case, accents, or trailing spaces, and then saving only one of them. These are now rejected as duplicates.
+- Fixed `fleetctl gitops` and the label spec API (`POST /api/latest/fleet/spec/labels`) overwriting a built-in label, such as "All Hosts", when a label's name matched the built-in name except for accents (for example "Àll Hosts"). These labels are now rejected as conflicting with a built-in label.
