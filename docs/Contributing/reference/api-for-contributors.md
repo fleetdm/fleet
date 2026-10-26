@@ -2803,6 +2803,7 @@ for which the user has an observer role.
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
+| exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
 
 #### Example
 
