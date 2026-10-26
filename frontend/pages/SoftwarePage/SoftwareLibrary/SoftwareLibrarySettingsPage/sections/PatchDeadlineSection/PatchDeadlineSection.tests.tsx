@@ -146,8 +146,34 @@ describe("PatchDeadlineSection", () => {
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     expect(
-      await screen.findByText("Pick at least one day")
+      await screen.findByText("Choose at least one day")
     ).toBeInTheDocument();
+  });
+
+  it("shows the Days error immediately on toggle (no Save required) and clears it when a day is re-checked", async () => {
+    mockServer.use(getPatchDeadlineSettingsHandler());
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SectionWrapper />);
+
+    const tuesday = await screen.findByRole("checkbox", { name: "Tuesday" });
+    await waitFor(() => expect(tuesday).toBeChecked());
+    await user.click(tuesday); // uncheck the only day, days = []
+
+    expect(
+      await screen.findByText("Choose at least one day")
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Friday" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Choose at least one day")
+      ).not.toBeInTheDocument()
+    );
   });
 
   it("shows an inline error on blur when the time is malformed", async () => {

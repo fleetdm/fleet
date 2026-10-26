@@ -98,7 +98,7 @@ const PatchDeadlineSection = ({
 
   const validate = (nextDays: Weekday[], nextTime: string): IFieldErrors => {
     const next: IFieldErrors = {};
-    if (nextDays.length === 0) next.days = "Pick at least one day";
+    if (nextDays.length === 0) next.days = "Choose at least one day";
     if (!TIME_PATTERN.test(nextTime)) next.time = "Enter time as HH:MM";
     return next;
   };
@@ -108,9 +108,11 @@ const PatchDeadlineSection = ({
       ? days.filter((d) => d !== key)
       : [...days, key];
     setDays(nextDays);
-    // Any interaction clears a shown error (Fleet validation rule: errors
-    // never (re)appear on keystroke/toggle — only on blur and submit).
-    setErrors((prev) => ({ ...prev, days: undefined }));
+    // Checkboxes commit on change (patterns.md 360): re-validate the group on
+    // every toggle so unchecking the last selected day surfaces the error
+    // immediately, and re-checking any day clears it.
+    const next = validate(nextDays, time);
+    setErrors((prev) => ({ ...prev, days: next.days }));
   };
 
   const updateMutation = useMutation(patchDeadlineSettingsAPI.updateSettings, {
@@ -184,8 +186,8 @@ const PatchDeadlineSection = ({
         variant="tab-panel"
         content={
           <>
-            Add a Fleet-maintained app, and under <strong>Deploy</strong> select{" "}
-            <strong>Patch</strong> &gt; <strong>Force patch</strong> &gt;{" "}
+            Add a macOS Fleet-maintained app, and under <strong>Deploy</strong>{" "}
+            select <strong>Patch</strong> &gt; <strong>Force patch</strong> &gt;{" "}
             <strong>Deadline</strong>.{" "}
             {hasApps && <>Apps with this option are listed below. </>}
             <CustomLink
@@ -217,7 +219,8 @@ const PatchDeadlineSection = ({
                 ariaLabel={w.label}
                 value={days.includes(w.key)}
                 onChange={() => toggleDay(w.key)}
-                disabled={roleDisabled || fieldReadOnly}
+                disabled={roleDisabled}
+                readOnly={fieldReadOnly}
               >
                 {w.label}
               </Checkbox>
