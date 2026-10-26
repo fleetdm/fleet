@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -437,6 +439,10 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	if cfg.CustomAppConfig != nil {
 		return &BadRequestError{Message: `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`}
 	}
+	// Google reads managedConfiguration as a protobuf Struct, which only a JSON object (or null) fits.
+	if managedConfig := bytes.TrimSpace(cfg.ManagedConfiguration); len(managedConfig) > 0 && managedConfig[0] != '{' && !bytes.Equal(managedConfig, []byte("null")) {
+		return &BadRequestError{Message: `Couldn't update configuration. "managedConfiguration" must be a JSON object.`}
+	}
 	emptyEntryErr := func(fieldPath string) error {
 		return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q can't be empty.", fieldPath)}
 	}
@@ -499,6 +505,25 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	if cfg.UserControlSettings == "USER_CONTROL_ALLOWED" && len(seenRoles) > 0 {
 		return &BadRequestError{Message: `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`}
 	}
+	if _, companion := seenRoles["COMPANION_APP"]; companion && cfg.ExtensionConfig != nil {
+		return &BadRequestError{Message: `Couldn't update configuration. "extensionConfig" can't be set for an app with the "COMPANION_APP" role.`}
+	}
+
+	for i, cert := range cfg.SigningKeyCerts {
+		if cert == nil {
+			return emptyEntryErr(fmt.Sprintf("signingKeyCerts.%d", i))
+		}
+		if !isBase64SHA256(cert.SigningKeyCertFingerprintSha256) {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q must be a base64-encoded SHA-256 hash.", fmt.Sprintf("signingKeyCerts.%d.signingKeyCertFingerprintSha256", i))}
+		}
+	}
+	if cfg.ExtensionConfig != nil {
+		for i, fingerprint := range cfg.ExtensionConfig.SigningKeyFingerprintsSha256 {
+			if decoded, err := hex.DecodeString(fingerprint); err != nil || len(decoded) != 32 {
+				return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q must be a 64-character hex SHA-256 hash.", fmt.Sprintf("extensionConfig.signingKeyFingerprintsSha256.%d", i))}
+			}
+		}
+	}
 
 	if cfg.InstallPriority < 0 || cfg.InstallPriority > 10_000 {
 		return &BadRequestError{Message: `Couldn't update configuration. "installPriority" must be between 0 and 10000.`}
@@ -509,6 +534,17 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	}
 
 	return nil
+}
+
+// isBase64SHA256 reports whether s decodes to 32 bytes in any of the base64 forms protobuf JSON
+// accepts for bytes fields.
+func isBase64SHA256(s string) bool {
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if decoded, err := enc.DecodeString(s); err == nil && len(decoded) == 32 {
+			return true
+		}
+	}
+	return false
 }
 
 // androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the

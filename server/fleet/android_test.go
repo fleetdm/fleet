@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
 	"os"
 	"os/exec"
@@ -469,6 +470,92 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`,
 		},
 		{
+			name:        "valid - managedConfiguration null",
+			config:      json.RawMessage(`{"managedConfiguration": null}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - managedConfiguration number",
+			config:      json.RawMessage(`{"managedConfiguration": 5}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "managedConfiguration" must be a JSON object.`,
+		},
+		{
+			name:        "invalid - managedConfiguration array",
+			config:      json.RawMessage(`{"managedConfiguration": [{"key": "value"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "managedConfiguration" must be a JSON object.`,
+		},
+		{
+			name:        "invalid - managedConfiguration string",
+			config:      json.RawMessage(`{"managedConfiguration": "key=value"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "managedConfiguration" must be a JSON object.`,
+		},
+		{
+			name:        "valid - signingKeyCerts base64 fingerprints",
+			config:      json.RawMessage(`{"signingKeyCerts": [{"signingKeyCertFingerprintSha256": "XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+yg="}, {"signingKeyCertFingerprintSha256": "XrLOKRx9In3WhOyD-d3AV3bi_poMTmKSe0WSOD5m-yg"}]}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - signingKeyCerts null entry",
+			config:      json.RawMessage(`{"signingKeyCerts": [null]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0" can't be empty.`,
+		},
+		{
+			name:        "invalid - signingKeyCerts missing fingerprint",
+			config:      json.RawMessage(`{"signingKeyCerts": [{}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
+		},
+		{
+			name:        "invalid - signingKeyCerts fingerprint not base64",
+			config:      json.RawMessage(`{"signingKeyCerts": [{"signingKeyCertFingerprintSha256": "XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+yg="}, {"signingKeyCertFingerprintSha256": "not base64!!"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "signingKeyCerts.1.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
+		},
+		{
+			name:        "invalid - signingKeyCerts fingerprint wrong length",
+			config:      json.RawMessage(`{"signingKeyCerts": [{"signingKeyCertFingerprintSha256": "XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+w=="}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
+		},
+		{
+			name:        "invalid - signingKeyCerts hex fingerprint",
+			config:      json.RawMessage(`{"signingKeyCerts": [{"signingKeyCertFingerprintSha256": "5eb2ce291c7d227dd684ec83f9ddc05776e2fe9a0c4e62927b4592383e66fb28"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
+		},
+		{
+			name:        "valid - extensionConfig hex fingerprint",
+			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["5eb2ce291c7d227dd684ec83f9ddc05776e2fe9a0c4e62927b4592383e66fb28"]}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - extensionConfig fingerprint not hex",
+			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["zz"]}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
+		},
+		{
+			name:        "invalid - extensionConfig base64 fingerprint",
+			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+yg="]}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
+		},
+		{
+			name:        "valid - extensionConfig with another role",
+			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - extensionConfig with COMPANION_APP role",
+			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "COMPANION_APP"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "extensionConfig" can't be set for an app with the "COMPANION_APP" role.`,
+		},
+		{
 			name:        "valid - installPriority bounds",
 			config:      json.RawMessage(`{"installPriority": 10000}`),
 			expectError: false,
@@ -716,9 +803,21 @@ func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
 					value = map[string]any{segment: value}
 				}
 			}
+			var fieldPath []string
+			for i, segment := range segments {
+				fieldPath = append(fieldPath, segment)
+				if _, isArray := arrayPaths[strings.Join(segments[:i+1], ".")]; isArray {
+					fieldPath = append(fieldPath, "0")
+				}
+			}
+			expectedMsg := fmt.Sprintf("Couldn't update configuration. %q is not a supported value for %q.", "NOT_A_SUPPORTED_VALUE", strings.Join(fieldPath, "."))
+			if segments[0] == "customAppConfig" {
+				// customAppConfig is rejected as a whole, so its enums are never reached.
+				expectedMsg = `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`
+			}
 			config, err := json.Marshal(map[string]any{segments[0]: value})
 			require.NoError(t, err)
-			require.Error(t, ValidateAndroidAppConfiguration(config), string(config))
+			require.EqualError(t, ValidateAndroidAppConfiguration(config), expectedMsg, string(config))
 		})
 	}
 }
