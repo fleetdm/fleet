@@ -28567,6 +28567,26 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	// Some unsupervised devices acknowledge the command and reject only the
+	// DeviceName item, with CommandFormatError and no error chain.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", iosFailHost.ID), nil, http.StatusAccepted)
+	runDeviceNameCron()
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosFailDevice.AcknowledgeSettings(cmd.CommandUUID, []map[string]any{
+		{"Item": "DeviceName", "Status": fleet.MDMAppleStatusCommandFormatError},
+	})
+	require.NoError(t, err)
+	failedRow = requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Equal(t, "The device rejected the host name. Apple only renames supervised iPhones and iPads.", failedRow.Detail)
+	require.Zero(t, failedRow.Retries)
+	runDeviceNameCron()
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 	// --- a template resolving past 63 bytes fails without sending a command ---
 	// The fixed text (50 bytes) passes save-time validation, but expanding the
 	// UUID (36 chars) pushes the resolved name over the 63-byte limit — that
