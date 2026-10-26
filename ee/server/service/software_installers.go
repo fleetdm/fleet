@@ -2529,6 +2529,14 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		}
 	}
 
+	activityCreatedAt, err := svc.ds.GetInstalledSoftwareActivityCreatedAt(ctx, res.HostID, res.InstallUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get installed software activity created at")
+	}
+	if err == nil {
+		res.CreatedAt = activityCreatedAt
+	}
+
 	res.EnhanceOutputDetails()
 	return res, nil
 }
@@ -2545,6 +2553,14 @@ func (svc *Service) getDeviceSoftwareInstallResults(ctx context.Context, resultU
 		return nil, ctxerr.Wrap(ctx, err, "get software install result")
 	} else if res.HostID != host.ID { // hosts can't see other hosts' executions
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("HostSoftwareInstallerResult"), "get host software installer results")
+	}
+
+	activityCreatedAt, err := svc.ds.GetInstalledSoftwareActivityCreatedAt(ctx, res.HostID, res.InstallUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get installed software activity created at")
+	}
+	if err == nil {
+		res.CreatedAt = activityCreatedAt
 	}
 
 	res.EnhanceOutputDetails()

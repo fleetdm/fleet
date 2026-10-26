@@ -534,10 +534,11 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
-	// CreatedAt is the time the software installer request was triggered.
+	// CreatedAt is the time the software installer request was triggered. The API returns the time
+	// the "installed software" activity was created instead, when there is one.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
-	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
+	UpdatedAt *time.Time `json:"-" db:"updated_at"`
 	// UserID is the user ID that requested the software installation on that host.
 	UserID *uint `json:"-" db:"user_id"`
 	// InstallScriptExitCode is used internally to determine the output displayed to the user.

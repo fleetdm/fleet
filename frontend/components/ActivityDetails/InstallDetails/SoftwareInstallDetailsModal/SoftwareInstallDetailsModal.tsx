@@ -118,7 +118,6 @@ export const StatusMessage = ({
     software_title,
     software_display_name,
     status,
-    updated_at,
     created_at,
   } = installResult;
   const displayedTitle = getDisplayedSoftwareName(
@@ -135,7 +134,7 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${timeAgo(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`

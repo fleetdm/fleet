@@ -36,6 +36,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareInstallRequests", testSoftwareInstallRequests},
 		{"ListPendingSoftwareInstalls", testListPendingSoftwareInstalls},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
+		{"GetInstalledSoftwareActivityCreatedAt", testGetInstalledSoftwareActivityCreatedAt},
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"CleanupHostSoftwareInstalls", testCleanupHostSoftwareInstalls},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
@@ -1044,6 +1045,62 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			}, *vppSummary)
 		})
 	}
+}
+
+func testGetInstalledSoftwareActivityCreatedAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	activitySvc := NewTestActivityService(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team activity created at"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "activity created at",
+		Source:          "apps",
+		InstallScript:   "echo install",
+		Version:         "1.0",
+		TeamID:          &team.ID,
+		Filename:        "activity_created_at.pkg",
+		StorageID:       "hash_activity_created_at",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "host-activity-created-at", "", "host-activity-created-at-key", "host-activity-created-at-uuid", time.Now(), test.WithTeamID(team.ID))
+
+	installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// get the activity time of a pending install, it should not be found
+	_, err = ds.GetInstalledSoftwareActivityCreatedAt(ctx, host.ID, installUUID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// record the install result and its activity, then move the activity a day into the past
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           installUUID,
+		InstallScriptExitCode: new(0),
+	}, nil)
+	require.NoError(t, err)
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		SoftwareTitle:   "activity created at",
+		SoftwarePackage: "activity_created_at.pkg",
+		InstallUUID:     installUUID,
+		Status:          string(fleet.SoftwareInstalled),
+	})
+	require.NoError(t, err)
+	activityCreatedAt := time.Now().Add(-24 * time.Hour).UTC().Truncate(time.Second)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE activity_past SET created_at = ? WHERE details->>'$.install_uuid' = ?`, activityCreatedAt, installUUID)
+		return err
+	})
+
+	// get the activity time of the finished install, it should match the activity
+	gotActivityCreatedAt, err := ds.GetInstalledSoftwareActivityCreatedAt(ctx, host.ID, installUUID)
+	require.NoError(t, err)
+	require.Equal(t, activityCreatedAt, gotActivityCreatedAt.UTC())
 }
 
 func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
