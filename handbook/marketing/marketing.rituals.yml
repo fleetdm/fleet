@@ -200,7 +200,7 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0"
   dri: "irenareedy"
 -
-  task: "Review competitor exclusion list against LinkedIn Campaign Manager"
+  task: "Competitor list first-impressions (LinkedIn dynamic company list)"
   startedOn: "2026-11-03"
   frequency: "Quarterly"
   description: "For each competitor on the competitor exclusion list, search the company name in the dynamic company list segment builder in LinkedIn Campaign Manager and confirm that it received no paid impressions, clicks, or engagements over the last 30 days. Confirm that every active ad set applies the competitor exclusion list. The first occurrence includes the CEO, the CTO, the Head of GTM Architecture, and the GTM Engineer."
