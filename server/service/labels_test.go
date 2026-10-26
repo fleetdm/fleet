@@ -1501,6 +1501,7 @@ func TestNewLabelFieldValidation(t *testing.T) {
 
 func TestLabelActivities(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	opts := &TestServerOpts{}
 	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	user := &fleet.User{ID: 7, GlobalRole: ptr.String(fleet.RoleAdmin)}

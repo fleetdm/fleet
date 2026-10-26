@@ -429,6 +429,17 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
 			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
+		{
+			payload: []fleet.MDMProfileBatchPayload{
+				{Name: "Beta", Contents: syncMLForTest("./Foo/Bar")},
+				{Name: "beta", Contents: syncMLForTest("./Foo/Baz")},
+			},
+			expectErr: "More than one configuration profile have the same name 'beta'",
+		},
+		{
+			payload:   []fleet.MDMProfileBatchPayload{{Name: "Beta", Contents: mobileconfigForTest("Beta", "I1")}, {Name: "bêta", Contents: winBytes}},
+			expectErr: "More than one configuration profile have the same name 'bêta'",
+		},
 	} {
 		// team profiles
 		res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: p.payload},

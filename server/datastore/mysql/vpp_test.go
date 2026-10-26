@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,7 @@ func TestVPP(t *testing.T) {
 		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
 		{"AppStoreAppConfigurationResendHosts", testAppStoreAppConfigurationResendHosts},
 		{"PastActivityVPPInstallDisplayNameHonorsPlatform", testPastActivityVPPInstallDisplayNameHonorsPlatform},
+		{"DuplicateStringGroupsUnderCollation", testDuplicateStringGroupsUnderCollation},
 	}
 
 	for _, c := range cases {
@@ -5632,4 +5634,35 @@ func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datas
 	require.NoError(t, err)
 	require.NotNil(t, act.SoftwareDisplayName)
 	assert.Equal(t, "QA51285 VPP iPad Name", *act.SoftwareDisplayName)
+}
+
+func testDuplicateStringGroupsUnderCollation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	longName := strings.Repeat("a", 256)
+
+	testCases := []struct {
+		name   string
+		values []string
+		want   []fleet.DuplicateStringGroup
+	}{
+		{name: "no values", values: nil, want: []fleet.DuplicateStringGroup{}},
+		{name: "distinct values", values: []string{"alpha", "beta"}, want: []fleet.DuplicateStringGroup{}},
+		{
+			name:   "case, accents and trailing spaces",
+			values: []string{"alpha", "Beta", "gamma", "bêta", "Gamma", "beta "},
+			want:   []fleet.DuplicateStringGroup{{Indices: []int{1, 3, 5}}, {Indices: []int{2, 4}}},
+		},
+		{
+			name:   "values too long for the column are never duplicates",
+			values: []string{longName, longName + "b", "beta", "Beta"},
+			want:   []fleet.DuplicateStringGroup{{Indices: []int{2, 3}}},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, tc.values)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

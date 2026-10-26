@@ -1215,6 +1215,17 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
+	// apply label specs whose names differ only by case or accent, which are the same name to the database
+	for _, duplicateNames := range [][]string{{name + "_Gamma", name + "_gamma"}, {name + "_gämma", name + "_gamma"}} {
+		res := s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{Name: duplicateNames[0], Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+				{Name: duplicateNames[1], Query: "select 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+			},
+		}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf("More than one label has the same name: %q", duplicateNames[1]))
+	}
+
 	// apply an invalid label spec - invalid platform
 	s.DoJSON(
 		"POST",

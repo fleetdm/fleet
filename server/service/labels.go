@@ -782,16 +782,28 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
+	// Label names are unique under the name column's collation, so two of these would be upserted into one label.
+	regularSpecNames := make([]string, 0, len(regularSpecs))
+	for _, s := range regularSpecs {
+		regularSpecNames = append(regularSpecNames, s.Name)
+	}
+	duplicateIndex, found, err := findDuplicateNameUnderCollation(ctx, svc.ds, regularSpecNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for duplicate label names")
+	}
+	if found {
+		return fleet.NewUserMessageError(
+			ctxerr.Errorf(ctx, "Couldn't edit labels. More than one label has the same name: %q", regularSpecNames[duplicateIndex]),
+			http.StatusUnprocessableEntity,
+		)
+	}
+
 	// Look up which regular specs already exist in the target team scope so we
 	// can emit "created" vs "edited" label activities below. Spec apply can
 	// update multiple edit-relevant fields for regular labels (for example
 	// description, platform, query, label membership type, host vitals criteria,
 	// and manual-label host membership), so we skip the activity only when an
 	// existing label already matches the spec for those fields.
-	regularSpecNames := make([]string, 0, len(regularSpecs))
-	for _, s := range regularSpecs {
-		regularSpecNames = append(regularSpecNames, s.Name)
-	}
 	scopeFilter := fleet.TeamFilter{User: user.User, IncludeObserver: true}
 	if teamID != nil {
 		scopeFilter.TeamID = teamID // filter to fetch team labels only

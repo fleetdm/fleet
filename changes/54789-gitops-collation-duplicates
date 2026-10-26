@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` and the batch APIs accepting configuration profiles, scripts, reports, and labels whose names differ only by letter case, accents, or trailing spaces, and then saving only one of them. These are now rejected as duplicates.
