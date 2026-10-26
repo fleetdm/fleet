@@ -2131,6 +2131,37 @@ func TestGenerateControls(t *testing.T) {
 	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
 	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
 
+	// Setup toggles that are the only non-default setting must still be exported,
+	// otherwise applying the output resets them to their defaults.
+	for _, tc := range []struct {
+		name       string
+		macOSSetup fleet.MacOSSetup
+		key        string
+	}{
+		{"release device manually", fleet.MacOSSetup{EnableReleaseDeviceManually: optjson.SetBool(true)}, "apple_enable_release_device_manually"},
+		{"require all software", fleet.MacOSSetup{RequireAllSoftware: true}, "require_all_software_macos"},
+	} {
+		mdmConfig = fleet.TeamMDM{MacOSSetup: tc.macOSSetup}
+		controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+		require.NoError(t, err, tc.name)
+		verifyControlsHasMacosSetup(t, controlsRaw)
+		controlsYaml, err = yamlMarshalRenamed(controlsRaw)
+		require.NoError(t, err, tc.name)
+		require.Contains(t, string(controlsYaml), tc.key+": true", tc.name)
+	}
+
+	// An explicit lock_end_user_info: false is exported so it doesn't fall back to
+	// the enable_end_user_authentication value on apply.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableEndUserAuthentication: true,
+			LockEndUserInfo:             optjson.SetBool(false),
+		},
+	}
+	controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	require.Equal(t, false, controlsRaw["setup_experience"].(map[string]any)["lock_end_user_info"])
+
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)
 	var teamConfig fleet.TeamConfig

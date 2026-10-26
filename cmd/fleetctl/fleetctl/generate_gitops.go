@@ -1683,6 +1683,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			// If the team has any of these configured, generate the setup_experience section.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
 				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
+					teamMdm.MacOSSetup.EnableReleaseDeviceManually.Value ||
+					teamMdm.MacOSSetup.RequireAllSoftware ||
 					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
 					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
 				setupExperience, err := cmd.generateSetupExperience(teamName, teamMdm, bootstrapPackage, setupScript, enrollmentProfile)
@@ -1749,6 +1751,13 @@ func (cmd *GenerateGitopsCommand) generateSetupExperience(
 		}
 		if ms.EndUserLocalAccountType.Valid && ms.EndUserLocalAccountType.Value != "" {
 			setupExperience[jsonFieldName(msT, "EndUserLocalAccountType")] = ms.EndUserLocalAccountType.Value
+		}
+		// Absent on apply, lock_end_user_info falls back to enable_end_user_authentication.
+		if ms.LockEndUserInfo.Valid {
+			setupExperience[jsonFieldName(msT, "LockEndUserInfo")] = ms.LockEndUserInfo.Value
+		}
+		if ms.RequireAllSoftware {
+			setupExperience[jsonFieldName(msT, "RequireAllSoftware")] = true
 		}
 	}
 
