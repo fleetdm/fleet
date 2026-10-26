@@ -41,6 +41,11 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
 /ee/server/ @fleetdm/go
+# « ee/maintained-apps/ingesters: FMA generator code, only imported by cmd/maintained-apps (not compiled into the server).
+#   Maintainer (allenhouchins) is configured in website/config/custom.js (githubRepoMaintainersByPath).
+#   This entry intentionally has no owners, so *.go above doesn't apply. ee/maintained-apps/maintained_apps.go is
+#   compiled into the server, so it still requires @fleetdm/go.
+/ee/maintained-apps/ingesters/
 /orbit/ @sharon-fdm @lucasmrod @lukeheath
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
