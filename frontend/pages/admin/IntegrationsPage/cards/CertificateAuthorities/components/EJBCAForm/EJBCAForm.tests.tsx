@@ -6,6 +6,12 @@ import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMoc
 import { renderWithSetup } from "test/test-utils";
 
 import EJBCAForm, { EMPTY_EJBCA_FORM_DATA } from "./EJBCAForm";
+import { readFileAsBase64 } from "./helpers";
+
+jest.mock("./helpers", () => {
+  const actual = jest.requireActual("./helpers");
+  return { ...actual, readFileAsBase64: jest.fn(actual.readFileAsBase64) };
+});
 
 const getFileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -124,15 +130,26 @@ describe("EJBCAForm", () => {
     };
 
     it("shows when the stored client certificate expires, and asks for its password only with a new one", async () => {
+      let finishRead: (value: string) => void = noop;
+      (readFileAsBase64 as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            finishRead = resolve;
+          })
+      );
+      const onSubmit = jest.fn();
       const { user, container } = renderWithSetup(
-        <EJBCAForm {...editProps} onSubmit={noop} />
+        <EJBCAForm {...editProps} onSubmit={onSubmit} />
       );
 
       expect(screen.getByText(/expires on January 1, 2099/)).toBeVisible();
       expect(screen.queryByLabelText("Client certificate password")).toBeNull();
 
       await user.upload(getFileInput(container), p12File());
-      // the file is read asynchronously
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      finishRead("AQID");
       expect(
         await screen.findByLabelText("Client certificate password")
       ).toBeVisible();

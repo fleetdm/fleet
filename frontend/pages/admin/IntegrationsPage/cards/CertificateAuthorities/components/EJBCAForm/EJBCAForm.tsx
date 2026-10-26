@@ -76,6 +76,8 @@ const EJBCAForm = ({
   const [p12File, setP12File] = useState<File | null>(null);
   // The number of the latest selection of a file, so that the read of an earlier one can't replace it.
   const latestP12Selection = useRef(0);
+  // A ref, as the fields must stay editable while the file is read.
+  const isReadingP12 = useRef(false);
 
   const {
     getTextFieldProps,
@@ -116,6 +118,7 @@ const EJBCAForm = ({
       // a slower read of an earlier file pick must not replace this one
       latestP12Selection.current += 1;
       const selection = latestP12Selection.current;
+      isReadingP12.current = true;
       try {
         const clientP12 = await readFileAsBase64(file);
         if (selection === latestP12Selection.current) {
@@ -124,6 +127,10 @@ const EJBCAForm = ({
         }
       } catch {
         notify.error("Couldn't read the file. Please try again.");
+      } finally {
+        if (selection === latestP12Selection.current) {
+          isReadingP12.current = false;
+        }
       }
     },
     [commitFields]
@@ -132,9 +139,14 @@ const EJBCAForm = ({
   const onDeleteP12 = () => {
     // allow deleting the file even if its read is still in progress
     latestP12Selection.current += 1;
+    isReadingP12.current = false;
     setP12File(null);
     commitFields({ clientP12: "", password: "" });
   };
+
+  // Saving while the file is still being read would submit the form without it.
+  const submitUnlessReading = (formData: IEJBCAFormData) =>
+    isReadingP12.current ? undefined : onSubmit(formData);
 
   const clientCertInfo =
     isEditing && clientCertExpiresAt
@@ -144,7 +156,7 @@ const EJBCAForm = ({
       : "Fleet uses it to authenticate to EJBCA.";
 
   return (
-    <form className={baseClass} onSubmit={handleSubmit(onSubmit)}>
+    <form className={baseClass} onSubmit={handleSubmit(submitUnlessReading)}>
       <InputField
         label="Name"
         {...getTextFieldProps("name")}
