@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.39.4",
+      "version": "1.40",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.39.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.40') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.apphousekitchen.aldente-pro' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.39.4.dmg",
+      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.40.dmg",
       "install_script_ref": "44c1d833",
       "uninstall_script_ref": "af2a7bce",
-      "sha256": "b2634ae47f5f860fa75f5be0a9ae89b136dbb514003800ed256873f437aa701b",
+      "sha256": "259d7074160f8e3d1b62bb9dc3909dc34cf01af1866ec136e55eb713afa7abb0",
       "default_categories": [
         "Utilities"
       ]

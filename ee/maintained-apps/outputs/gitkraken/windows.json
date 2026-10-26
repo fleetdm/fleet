@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.5.0",
+      "version": "12.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken' AND version_compare(version, '12.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitKraken' AND publisher = 'GitKraken' AND version_compare(version, '12.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gitkraken.exe');"
       },
-      "installer_url": "https://api.gitkraken.dev/releases/production/windows/x64/12.5.0/GitKrakenSetup.exe",
+      "installer_url": "https://api.gitkraken.dev/releases/production/windows/x64/12.6.0/GitKrakenSetup.exe",
       "install_script_ref": "adf8dfd5",
       "uninstall_script_ref": "3ab21490",
-      "sha256": "96c1d2bd9bc639fcce0d537f55b5beeed72632c3f182f95ba0f082532c543676",
+      "sha256": "3cb766c687a1970791688c1afa72eb84686d5dd62aeaa5a3e5b8b4823e867e73",
       "default_categories": [
         "Developer tools"
       ]

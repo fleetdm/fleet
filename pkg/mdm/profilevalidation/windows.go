@@ -85,9 +85,10 @@ func (f *WindowsFormats) UnmarshalJSON(data []byte) error {
 	return unmarshalOneOrMany(data, (*[]WindowsFormat)(f))
 }
 
-// WindowsNode returns the node for a LocURI, or nil if the schema doesn't know it. A "*" segment in
-// the schema matches any one non-empty segment; an exact match wins, then the match with the fewest
-// "*" segments. Paths are compared as written: ./Vendor/MSFT/X and ./Device/Vendor/MSFT/X differ.
+// WindowsNode returns the node for a LocURI, or nil if the schema doesn't know it. Segments compare
+// case-insensitively, as Windows does, and a "*" segment in the schema matches any one non-empty
+// segment; an exact match wins, then the match with the fewest "*" segments. Roots aren't
+// equivalent: ./Vendor/MSFT/X and ./Device/Vendor/MSFT/X differ.
 func (s *ProfileValidationSchema) WindowsNode(locURI string) *WindowsNode {
 	if n := s.Windows[locURI]; n != nil {
 		return n
@@ -95,10 +96,10 @@ func (s *ProfileValidationSchema) WindowsNode(locURI string) *WindowsNode {
 	want := strings.Split(locURI, "/")
 	var best *WindowsNode
 	bestKey, bestStars := "", 0
-	// scans every key on a miss (~8.5k), but splits only "*" keys of the right depth; we can index
-	// those at Parse if lookups get hot.
+	// scans every key on a miss (~8.5k), splitting those of the right depth; index them
+	// folded at Parse if lookups get hot.
 	for key, n := range s.Windows {
-		if !strings.Contains(key, "*") || strings.Count(key, "/") != len(want)-1 {
+		if strings.Count(key, "/") != len(want)-1 {
 			continue
 		}
 		stars, ok := matchWindowsPath(strings.Split(key, "/"), want)
@@ -119,9 +120,12 @@ func matchWindowsPath(pattern, path []string) (stars int, ok bool) {
 	}
 	for i, seg := range pattern {
 		switch {
-		case seg == "*" && path[i] != "":
+		case seg == "*":
+			if path[i] == "" {
+				return 0, false
+			}
 			stars++
-		case seg != path[i]:
+		case !strings.EqualFold(seg, path[i]):
 			return 0, false
 		}
 	}

@@ -1130,6 +1130,15 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				Password:     maskSecret("some-smallstep-password", includeSecrets),
 			},
 		},
+		GoogleCAS: []fleet.GoogleCASCA{
+			{
+				Name:       "some-google-cas-name",
+				Project:    "some-google-cas-project",
+				Location:   "us-central1",
+				CAPool:     "some-google-cas-pool",
+				APIKeyJSON: fleet.GoogleCASKeyJSON(maskSecret(`{"type":"service_account"}`, includeSecrets)),
+			},
+		},
 	}
 
 	return &res, nil

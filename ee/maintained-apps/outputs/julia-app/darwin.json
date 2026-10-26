@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.13.2",
+      "version": "1.13.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia' AND version_compare(bundle_short_version, '1.13.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.Julia' AND version_compare(bundle_short_version, '1.13.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.Julia' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://julialang-s3.julialang.org/bin/mac/aarch64/1.13/julia-1.13.2-macaarch64.dmg",
+      "installer_url": "https://julialang-s3.julialang.org/bin/mac/aarch64/1.13/julia-1.13.3-macaarch64.dmg",
       "install_script_ref": "f45f1e06",
       "uninstall_script_ref": "46924d99",
-      "sha256": "20f1e914f97a5a4325f9fd14b9139f9be5ef060267bf56e1eafa85a1fb0625a3",
+      "sha256": "6d5875aaf9f7a42146ad4b45805a702c39f163a317bd937cb1843b357227259b",
       "default_categories": [
         "Productivity"
       ]

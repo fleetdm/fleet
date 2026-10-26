@@ -27,6 +27,7 @@ type certificateAuthorityWithEncryptedSecrets struct {
 	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
 	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
 	MTLSKeyEncrypted                 []byte `db:"mtls_key_encrypted"`
+	GoogleCASAPIKeyJSONEncrypted     []byte `db:"google_cas_api_key_json_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 }
 
@@ -39,6 +40,13 @@ const ejbcaColumns = `
 		ejbca_certificate_profile_name,
 		ejbca_end_entity_profile_name,
 		ejbca_username_template,`
+
+// googleCASColumns are the Google CAS columns of certificate_authorities, selected after the EJBCA ones.
+const googleCASColumns = `
+		google_cas_project,
+		google_cas_location,
+		google_cas_ca_pool,
+		google_cas_api_key_json_encrypted,`
 
 func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 	stmt := `
@@ -58,7 +66,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		password_encrypted,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,` + ejbcaColumns + `
+		client_secret_encrypted,` + ejbcaColumns + googleCASColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -120,6 +128,13 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			}
 			ca.MTLSKeyPEM = new(string(decryptedMTLSKey))
 		}
+		if ca.GoogleCASAPIKeyJSONEncrypted != nil {
+			decryptedAPIKeyJSON, err := crypto.DecryptAESGCM(ca.GoogleCASAPIKeyJSONEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting Google CAS service account key for certificate authority %d", ca.ID))
+			}
+			ca.GoogleCASAPIKeyJSON = new(string(decryptedAPIKeyJSON))
+		}
 	} else {
 		if ca.APITokenEncrypted != nil {
 			ca.APIToken = ptr.String(fleet.MaskedPassword)
@@ -135,6 +150,9 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		}
 		if ca.MTLSKeyEncrypted != nil {
 			ca.MTLSKeyPEM = new(fleet.MaskedPassword)
+		}
+		if ca.GoogleCASAPIKeyJSONEncrypted != nil {
+			ca.GoogleCASAPIKeyJSON = new(fleet.MaskedPassword)
 		}
 	}
 	if ca.MTLSCertPEM != nil {
@@ -181,7 +199,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		challenge_url,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,` + ejbcaColumns + `
+		client_secret_encrypted,` + ejbcaColumns + googleCASColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -298,7 +316,7 @@ func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names 
 	return nil
 }
 
-const argsCountInsertCertificateAuthority = 22
+const argsCountInsertCertificateAuthority = 26
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -322,7 +340,11 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	ejbca_ca_name,
 	ejbca_certificate_profile_name,
 	ejbca_end_entity_profile_name,
-	ejbca_username_template
+	ejbca_username_template,
+	google_cas_project,
+	google_cas_location,
+	google_cas_ca_pool,
+	google_cas_api_key_json_encrypted
 ) VALUES %s`
 
 const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLICATE KEY UPDATE
@@ -347,7 +369,11 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	ejbca_ca_name = VALUES(ejbca_ca_name),
 	ejbca_certificate_profile_name = VALUES(ejbca_certificate_profile_name),
 	ejbca_end_entity_profile_name = VALUES(ejbca_end_entity_profile_name),
-	ejbca_username_template = VALUES(ejbca_username_template)`
+	ejbca_username_template = VALUES(ejbca_username_template),
+	google_cas_project = VALUES(google_cas_project),
+	google_cas_location = VALUES(google_cas_location),
+	google_cas_ca_pool = VALUES(google_cas_ca_pool),
+	google_cas_api_key_json_encrypted = VALUES(google_cas_api_key_json_encrypted)`
 
 func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPrivateKey string, ca *fleet.CertificateAuthority) ([]interface{}, string, error) {
 	var upns []byte
@@ -356,6 +382,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
 	var encryptedMTLSKey []byte
+	var encryptedGoogleCASAPIKeyJSON []byte
 	var err error
 
 	if ca.CertificateUserPrincipalNames != nil {
@@ -394,6 +421,12 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for new certificate authority")
 		}
 	}
+	if ca.GoogleCASAPIKeyJSON != nil {
+		encryptedGoogleCASAPIKeyJSON, err = crypto.EncryptAESGCM([]byte(*ca.GoogleCASAPIKeyJSON), serverPrivateKey)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting Google CAS service account key for new certificate authority")
+		}
+	}
 
 	args := []interface{}{
 		ca.Type,
@@ -418,6 +451,10 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		ca.EJBCACertificateProfileName,
 		ca.EJBCAEndEntityProfileName,
 		ca.EJBCAUsernameTemplate,
+		ca.GoogleCASProject,
+		ca.GoogleCASLocation,
+		ca.GoogleCASCAPool,
+		encryptedGoogleCASAPIKeyJSON,
 	}
 	placeholders := "(" + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + ")"
 
@@ -900,6 +937,29 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 				}
 				*args = append(*args, upns)
 			}
+		}
+	case string(fleet.CATypeGoogleCAS):
+		for _, f := range []struct {
+			column string
+			value  *string
+		}{
+			{"name", ca.Name},
+			{"google_cas_project", ca.GoogleCASProject},
+			{"google_cas_location", ca.GoogleCASLocation},
+			{"google_cas_ca_pool", ca.GoogleCASCAPool},
+		} {
+			if f.value != nil {
+				updates = append(updates, f.column+" = ?")
+				*args = append(*args, *f.value)
+			}
+		}
+		if ca.GoogleCASAPIKeyJSON != nil {
+			updates = append(updates, "google_cas_api_key_json_encrypted = ?")
+			encryptedAPIKeyJSON, err := crypto.EncryptAESGCM([]byte(*ca.GoogleCASAPIKeyJSON), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting Google CAS service account key for certificate authority")
+			}
+			*args = append(*args, encryptedAPIKeyJSON)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

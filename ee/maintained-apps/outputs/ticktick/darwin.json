@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.2.40",
+      "version": "8.2.41",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TickTick.task.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.TickTick.task.mac' AND version_compare(bundle_short_version, '8.2.40') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.TickTick.task.mac' AND version_compare(bundle_short_version, '8.2.41') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.TickTick.task.mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.ticktick.app/download/mac/TickTick_8.2.40_924.dmg",
+      "installer_url": "https://download.ticktick.app/download/mac/TickTick_8.2.41_925.dmg",
       "install_script_ref": "92de7797",
       "uninstall_script_ref": "b538edb0",
-      "sha256": "8fe12cdb8d5de79afd2dd3289c2489ede058e7102da8cfa5e21ca055fe98c38b",
+      "sha256": "55a996bbd3903a3e11e850eba53b136a9989f8efe941649569fa9c86275e1dc3",
       "default_categories": [
         "Productivity"
       ]
