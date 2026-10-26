@@ -1,0 +1,1 @@
+- Script results returned by the API (and to fleetd) no longer include an internal `team_id` field that was only used for permission checks.
