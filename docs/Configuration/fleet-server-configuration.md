@@ -4035,11 +4035,13 @@ This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed
 
 ### fleet_allow_bootstrap_package_during_migration
 
-> **Deprecated.** Use the **Install during migration** setting in **Controls > Setup experience > Bootstrap package** (`enable_bootstrap_package_during_migration` in the team spec) instead.
+> **Deprecated.** Use the **Install during migration** option in **Controls > Setup experience > Bootstrap package** (`enable_bootstrap_package_during_migration` in [YAML](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) instead. This environment variable will be removed in a future major release.
 
-When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts.
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts assigned to Fleet in Apple Business during MDM migration, including re-enrollment via `sudo profiles renew -type enrollment`. It applies to all fleets, even if **Install during migration** isn't checked. It doesn't affect hosts that turn on MDM manually.
 
-On server startup, if this variable is set, Fleet copies its value to the **Install during migration** setting (fleet-wide default) and logs a deprecation warning. After that, manage the setting in the UI, YAML, or API. If both the variable and the setting are present, the setting wins.
+When you upgrade to Fleet 4.95, if this variable is set, a one-time database migration checks **Install during migration** for every fleet that has a bootstrap package. If your fleets are managed with GitOps, the next GitOps run unchecks the option unless `enable_bootstrap_package_during_migration: true` is in your YAML. While the variable is set, Fleet logs a deprecation warning on startup and installs the bootstrap package during migration either way.
+
+To stop using this variable, check **Install during migration**, or set `enable_bootstrap_package_during_migration: true` in your YAML, for every fleet that has a bootstrap package. Then remove the variable.
 
 This is only supported as an environment variable.
 
