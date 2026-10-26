@@ -102,6 +102,10 @@ func profileValidationBatchMessage(profileName string, f profilevalidation.Findi
 		profileName, profileValidationSentence(f, windows))
 }
 
+// maxLoggedProfileFindings caps the per-profile finding log lines; a hostile
+// profile can produce tens of thousands of findings.
+const maxLoggedProfileFindings = 20
+
 var loadProfileValidationSchemaOnce sync.Once
 
 // currentProfileValidationSchema returns the loaded schema. serve loads it at
@@ -187,12 +191,17 @@ func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profi
 		return nil
 	}
 	v := schema.Version
-	for _, f := range findings {
+	for _, f := range findings[:min(len(findings), maxLoggedProfileFindings)] {
 		svc.logger.Log(ctx, level, "profile schema validation finding",
 			"code", f.Code, "payload_type", f.PayloadType, "key_path", f.KeyPath,
 			"expected", f.Expected, "actual", f.Actual,
 			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict,
 			"apple_release", v.Apple.Release, "windows_release", v.Windows.Release)
+	}
+	if len(findings) > maxLoggedProfileFindings {
+		svc.logger.Log(ctx, level, "profile schema validation findings not logged",
+			"not_logged", len(findings)-maxLoggedProfileFindings, "total", len(findings),
+			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict)
 	}
 	if len(findings) == 0 {
 		return nil
