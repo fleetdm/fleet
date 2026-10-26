@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
@@ -27,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -159,7 +159,7 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 	}
 	// Enterprise-tier pools require a certificate ID that is unique in the location; DevOps-tier pools ignore it.
 	issued, err := client.Projects.Locations.CaPools.Certificates.Create(ca.CAPoolResourceName(), request).
-		CertificateId("fleet-" + uuid.NewString()).Context(ctx).Do()
+		CertificateId("fleet-" + uuid.New().String()).Context(ctx).Do()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, s.describeIssueError(ctx, err, ca), "issuing Google CAS certificate")
 	}
