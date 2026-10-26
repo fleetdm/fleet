@@ -1,0 +1,221 @@
+# Tailscale SSH forwarding ("Tailworm"), reported 2026-10-25. See tailscale-ssh-forwarding.policies.yml.
+- name: Linux - Tailscale SSH forwarding exposure
+  automations_enabled: false
+  description: |
+    Exposure to the October 2026 Tailscale SSH forwarding reports ("Tailworm"): the Tailscale
+    package version, whether tailscaled runs with Tailscale SSH on, whether forwarding is
+    disabled with TS_SSH_DISABLE_FORWARDING, and live signals.
+    Returns one row per finding with the columns finding, item, detail, and status. No row for
+    a finding means it was not found. tailscale_ssh is EXPOSED when Tailscale SSH is on and
+    TS_SSH_DISABLE_FORWARDING isn't set. serve_unix_target, ssh_session, and
+    tailscaled_unix_listener are point-in-time signals worth a look: a serve config that forwards
+    to a Unix socket, a live Tailscale SSH session, and a Unix socket tailscaled listens on
+    outside its own (a remote forward, or a serve target).
+    No fixed Tailscale release as of 2026-10-26.
+    Source: https://tailworm.com/
+  discard_data: false
+  interval: 86400
+  logging: snapshot
+  observer_can_run: true
+  platform: linux
+  query: |
+    WITH td AS (
+      SELECT pid, cmdline FROM processes
+      WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
+    ),
+    args AS (
+      SELECT pid,
+        substr(cmdline, instr(cmdline, '-state=') + 7) || ' ' AS state_arg,
+        substr(cmdline, instr(cmdline, '-statedir=') + 10) || ' ' AS dir_arg,
+        instr(cmdline, '-state=') > 0 AS has_state,
+        instr(cmdline, '-statedir=') > 0 AS has_dir
+      FROM td
+    ),
+    state AS (
+      SELECT pid, CASE
+          WHEN has_state THEN replace(substr(state_arg, 1, instr(state_arg, ' ') - 1), 'tpmseal:', '')
+          WHEN has_dir THEN substr(dir_arg, 1, instr(dir_arg, ' ') - 1) || '/tailscaled.state'
+          ELSE '/var/lib/tailscale/tailscaled.state'
+        END AS path
+      FROM args
+    ),
+    readable AS (
+      -- file_lines aborts the query on a missing path, so only existing files reach it
+      SELECT s.pid, s.path FROM state s WHERE EXISTS (SELECT 1 FROM file f WHERE f.path = s.path)
+    ),
+    entries AS (
+      -- The state file is indented JSON with one base64-encoded value per line
+      SELECT r.pid,
+        substr(l.line, instr(l.line, '"') + 1, instr(l.line, '":') - instr(l.line, '"') - 1) AS key,
+        from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS value
+      FROM readable r JOIN file_lines l ON l.path = r.path
+      WHERE l.line LIKE '%"profile-%' OR l.line LIKE '%"\_serve/%' ESCAPE '\'
+    ),
+    ssh AS (
+      SELECT s.pid, s.path,
+        CASE
+          WHEN NOT EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%') THEN 'unreadable'
+          WHEN EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%'
+                       AND json_extract(e.value, '$.RunSSH') = 1) THEN 'on'
+          ELSE 'off'
+        END AS run_ssh,
+        EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = s.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
+                AND lower(pe.value) IN ('1', 't', 'true')) AS knob
+      FROM state s
+    ),
+    pkg AS (
+      SELECT version FROM deb_packages WHERE name = 'tailscale' AND status = 'install ok installed'
+      UNION ALL
+      SELECT version FROM rpm_packages WHERE name = 'tailscale'
+    )
+    SELECT 'host' AS finding, name AS item, version AS detail, '' AS status FROM os_version
+    UNION ALL
+    SELECT 'tailscale_package', 'tailscale', version,
+      CASE
+        WHEN version_compare(version, '1.98.9') < 0 THEN 'UPDATE: predates the TS-2026-004, -006, and -009 Tailscale SSH fixes'
+        WHEN version_compare(version, '1.104.2') < 0 THEN 'UPDATE: older than 1.104.2'
+        ELSE '1.104.2_OR_LATER'
+      END
+    FROM pkg
+    UNION ALL
+    SELECT 'tailscaled', 'pid ' || pid, cmdline, 'RUNNING' FROM td
+    UNION ALL
+    SELECT 'tailscale_ssh', path,
+      'RunSSH=' || run_ssh || '; TS_SSH_DISABLE_FORWARDING=' || CASE WHEN knob THEN 'set' ELSE 'not set' END,
+      CASE
+        WHEN run_ssh = 'off' THEN 'OFF'
+        WHEN knob THEN 'FORWARDING_DISABLED'
+        WHEN run_ssh = 'on' THEN 'EXPOSED'
+        ELSE 'UNKNOWN: state not readable, treat as EXPOSED'
+      END
+    FROM ssh
+    UNION ALL
+    SELECT 'serve_unix_target', key, substr(value, 1, 500), 'REVIEW: serve forwards to a Unix socket'
+    FROM entries WHERE key LIKE '\_serve/%' ESCAPE '\' AND value LIKE '%"unix:%'
+    UNION ALL
+    -- Tailscale SSH sessions run as children of tailscaled; forwarding-only connections (ssh -N) have none
+    SELECT 'ssh_session', p.name || ' (pid ' || p.pid || ')',
+      'uid=' || p.uid || ' ' || coalesce(u.username, '') || ': ' || substr(p.cmdline, 1, 300), 'ACTIVE'
+    FROM processes p JOIN td ON p.parent = td.pid LEFT JOIN users u ON u.uid = p.uid
+    UNION ALL
+    -- A Unix socket that tailscaled listens on outside its own directory is a remote (-R) forward or a serve target
+    SELECT 'tailscaled_unix_listener', s.path, 'pid ' || s.pid, 'REVIEW'
+    FROM process_open_sockets s JOIN td ON s.pid = td.pid
+    WHERE s.family = 1 AND s.path <> '' AND s.path NOT LIKE '/run/tailscale/%' AND s.path NOT LIKE '/var/run/tailscale/%';
+
+
+- name: macOS - Tailscale SSH forwarding exposure
+  automations_enabled: false
+  description: |
+    Exposure to the October 2026 Tailscale SSH forwarding reports ("Tailworm"). Only the
+    open-source tailscaled (Homebrew or tailscaled install-system-daemon) runs a Tailscale SSH
+    server on macOS. The Tailscale app from the App Store or tailscale.com shows up as
+    tailscale_app and doesn't need the mitigation.
+    Returns one row per finding with the columns finding, item, detail, and status. No row for
+    a finding means it was not found. tailscale_ssh is EXPOSED when Tailscale SSH is on and
+    TS_SSH_DISABLE_FORWARDING isn't set. serve_unix_target, ssh_session, and
+    tailscaled_unix_listener are point-in-time signals worth a look: a serve config that forwards
+    to a Unix socket, a live Tailscale SSH session, and a Unix socket tailscaled listens on
+    outside its own (a remote forward, or a serve target).
+    No fixed Tailscale release as of 2026-10-26.
+    Source: https://tailworm.com/
+  discard_data: false
+  interval: 86400
+  logging: snapshot
+  observer_can_run: true
+  platform: darwin
+  query: |
+    WITH td AS (
+      SELECT pid, cmdline, start_time FROM processes
+      WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
+    ),
+    args AS (
+      SELECT pid,
+        substr(cmdline, instr(cmdline, '-state=') + 7) || ' ' AS state_arg,
+        substr(cmdline, instr(cmdline, '-statedir=') + 10) || ' ' AS dir_arg,
+        instr(cmdline, '-state=') > 0 AS has_state,
+        instr(cmdline, '-statedir=') > 0 AS has_dir
+      FROM td
+    ),
+    state AS (
+      SELECT pid, CASE
+          WHEN has_state THEN substr(state_arg, 1, instr(state_arg, ' ') - 1)
+          WHEN has_dir THEN substr(dir_arg, 1, instr(dir_arg, ' ') - 1) || '/tailscaled.state'
+          ELSE '/Library/Tailscale/tailscaled.state'
+        END AS path
+      FROM args
+    ),
+    readable AS (
+      -- file_lines aborts the query on a missing path, so only existing files reach it
+      SELECT s.pid, s.path FROM state s WHERE EXISTS (SELECT 1 FROM file f WHERE f.path = s.path)
+    ),
+    entries AS (
+      -- The state file is indented JSON with one base64-encoded value per line
+      SELECT r.pid,
+        substr(l.line, instr(l.line, '"') + 1, instr(l.line, '":') - instr(l.line, '"') - 1) AS key,
+        from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')) AS value
+      FROM readable r JOIN file_lines l ON l.path = r.path
+      WHERE l.line LIKE '%"profile-%' OR l.line LIKE '%"\_serve/%' ESCAPE '\'
+    ),
+    env_file AS (
+      SELECT f.mtime,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM file_lines l WHERE l.path = '/etc/tailscale/tailscaled-env.txt'
+            AND trim(substr(l.line, 1, instr(l.line, '=') - 1)) = 'TS_SSH_DISABLE_FORWARDING'
+            AND lower(trim(trim(substr(l.line, instr(l.line, '=') + 1)), '"')) IN ('1', 't', 'true'))
+        THEN 1 ELSE 0 END AS knob
+      FROM file f WHERE f.path = '/etc/tailscale/tailscaled-env.txt'
+    ),
+    ssh AS (
+      SELECT s.pid, s.path,
+        CASE
+          WHEN NOT EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%') THEN 'unreadable'
+          WHEN EXISTS (SELECT 1 FROM entries e WHERE e.pid = s.pid AND e.key LIKE 'profile-%'
+                       AND json_extract(e.value, '$.RunSSH') = 1) THEN 'on'
+          ELSE 'off'
+        END AS run_ssh,
+        CASE
+          WHEN EXISTS (SELECT 1 FROM process_envs pe WHERE pe.pid = s.pid AND pe.key = 'TS_SSH_DISABLE_FORWARDING'
+                       AND lower(pe.value) IN ('1', 't', 'true')) THEN 'set'
+          WHEN EXISTS (SELECT 1 FROM env_file WHERE knob = 1 AND mtime <= td.start_time) THEN 'set'
+          -- tailscaled reads the env file once at startup
+          WHEN EXISTS (SELECT 1 FROM env_file WHERE knob = 1) THEN 'restart pending'
+          ELSE 'not set'
+        END AS knob
+      FROM state s JOIN td USING (pid)
+    )
+    SELECT 'host' AS finding, name AS item, version AS detail, '' AS status FROM os_version
+    UNION ALL
+    SELECT 'tailscale_app', name, bundle_short_version || ' (' || bundle_identifier || ')',
+      'NOT_A_TAILSCALE_SSH_SERVER: the Tailscale app does not run the Tailscale SSH server'
+    FROM apps WHERE bundle_identifier IN ('io.tailscale.ipn.macsys', 'io.tailscale.ipn.macos')
+    UNION ALL
+    SELECT 'homebrew_tailscale', name, version,
+      CASE
+        WHEN version_compare(version, '1.98.9') < 0 THEN 'UPDATE: predates the TS-2026-004, -006, and -009 Tailscale SSH fixes'
+        WHEN version_compare(version, '1.104.2') < 0 THEN 'UPDATE: older than 1.104.2'
+        ELSE '1.104.2_OR_LATER'
+      END
+    FROM homebrew_packages WHERE name = 'tailscale'
+    UNION ALL
+    SELECT 'tailscaled', 'pid ' || pid, cmdline, 'RUNNING' FROM td
+    UNION ALL
+    SELECT 'tailscale_ssh', path, 'RunSSH=' || run_ssh || '; TS_SSH_DISABLE_FORWARDING=' || knob,
+      CASE
+        WHEN run_ssh = 'off' THEN 'OFF'
+        WHEN knob = 'set' THEN 'FORWARDING_DISABLED'
+        WHEN run_ssh = 'on' THEN 'EXPOSED'
+        ELSE 'UNKNOWN: state not readable, treat as EXPOSED'
+      END
+    FROM ssh
+    UNION ALL
+    SELECT 'serve_unix_target', key, substr(value, 1, 500), 'REVIEW: serve forwards to a Unix socket'
+    FROM entries WHERE key LIKE '\_serve/%' ESCAPE '\' AND value LIKE '%"unix:%'
+    UNION ALL
+    SELECT 'ssh_session', p.name || ' (pid ' || p.pid || ')',
+      'uid=' || p.uid || ' ' || coalesce(u.username, '') || ': ' || substr(p.cmdline, 1, 300), 'ACTIVE'
+    FROM processes p JOIN td ON p.parent = td.pid LEFT JOIN users u ON u.uid = p.uid
+    UNION ALL
+    SELECT 'tailscaled_unix_listener', s.path, 'pid ' || s.pid, 'REVIEW'
+    FROM process_open_sockets s JOIN td ON s.pid = td.pid
+    WHERE s.family = 1 AND s.path <> '' AND s.path NOT IN ('/var/run/tailscaled.socket', '/private/var/run/tailscaled.socket');
