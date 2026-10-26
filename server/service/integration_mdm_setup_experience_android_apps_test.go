@@ -1433,3 +1433,162 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 		}, callsFor(policyName), "company owned: %t", companyOwned)
 	}
 }
+
+// Google rejects installConstraint on AVAILABLE apps, so an app configured with one must still
+// let the setup experience, config changes and fleet transfers reach the host.
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroidInstallConstraint() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	s.enableAndroidMDM(t)
+
+	constrainedApp := &fleet.VPPApp{AdamID: "com.constrained", Platform: fleet.AndroidPlatform, Name: "Constrained", BundleIdentifier: "com.constrained", IconURL: "https://example.com/constrained"}
+	otherApp := &fleet.VPPApp{AdamID: "com.other", Platform: fleet.AndroidPlatform, Name: "Other", BundleIdentifier: "com.other", IconURL: "https://example.com/other"}
+	androidApps := []*fleet.VPPApp{constrainedApp, otherApp}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range androidApps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{IconUrl: app.IconURL, Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// sentApps records each app Fleet sends, by host policy; no need for mutex, protected via runWorkerUntilDone
+	sentApps := make(map[string][]*androidmanagement.ApplicationPolicy)
+	recordAndCheck := func(policyName string, appPolicies []*androidmanagement.ApplicationPolicy) error {
+		for _, app := range appPolicies {
+			if app.InstallType == "AVAILABLE" && len(app.InstallConstraint) > 0 {
+				return &googleapi.Error{Code: http.StatusBadRequest, Message: "Invalid installConstraint, not supported with install type AVAILABLE"}
+			}
+		}
+		sentApps[policyName] = append(sentApps[policyName], appPolicies...)
+		return nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if opts.OnlyUpdateApps {
+			if err := recordAndCheck(policyName, policy.Applications); err != nil {
+				return nil, err
+			}
+		}
+		return &androidmanagement.Policy{Version: 1}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		if err := recordAndCheck(policyName, appPolicies); err != nil {
+			return nil, err
+		}
+		return &androidmanagement.Policy{Version: 1}, nil
+	}
+	sentFor := func(host *fleet.Host, packageName string) []*androidmanagement.ApplicationPolicy {
+		var apps []*androidmanagement.ApplicationPolicy
+		for policyName, policyApps := range sentApps {
+			if !strings.HasSuffix(policyName, "/"+host.UUID) {
+				continue
+			}
+			for _, app := range policyApps {
+				if app.PackageName == packageName {
+					apps = append(apps, app)
+				}
+			}
+		}
+		return apps
+	}
+	// a failed job is requeued for a retry, so look for any job error rather than a failed state
+	requireNoJobErrors := func() {
+		var jobErrors []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &jobErrors, "SELECT error FROM jobs WHERE error != ''")
+		})
+		require.Empty(t, jobErrors)
+	}
+
+	const chargingConstraint = `{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}]}`
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID:    constrainedApp.AdamID,
+		Platform:      fleet.AndroidPlatform,
+		Configuration: json.RawMessage(chargingConstraint),
+	}, http.StatusOK, &addAppResp)
+	constrainedTitleID := addAppResp.TitleID
+
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: otherApp.AdamID,
+		Platform:   fleet.AndroidPlatform,
+	}, http.StatusOK, &addAppResp)
+	otherTitleID := addAppResp.TitleID
+
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   0,
+		TitleIDs: []uint{constrainedTitleID, otherTitleID},
+	}, http.StatusOK, &putSetupExperienceSoftwareResponse{})
+	s.runWorkerUntilDoneWithChecks(true)
+
+	personalHost, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-personal", nil, false)
+	companyHost, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-company", nil, true)
+	s.runWorkerUntilDoneWithChecks(true)
+	requireNoJobErrors()
+
+	for _, host := range []*fleet.Host{personalHost, companyHost} {
+		// offered for self-service without the constraint, installed with it
+		var installTypes []string
+		for _, app := range sentFor(host, constrainedApp.AdamID) {
+			installTypes = append(installTypes, app.InstallType)
+			if app.InstallType == "PREINSTALLED" {
+				require.Len(t, app.InstallConstraint, 1)
+				require.Equal(t, "INSTALL_ONLY_WHEN_CHARGING", app.InstallConstraint[0].ChargingConstraint)
+			}
+		}
+		require.ElementsMatch(t, []string{"AVAILABLE", "PREINSTALLED"}, installTypes)
+
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
+			"order_key", "name")
+		require.Len(t, getHostSw.Software, 2)
+		for _, sw := range getHostSw.Software {
+			require.NotNil(t, sw.Status, sw.Name)
+			require.Equal(t, fleet.SoftwareInstallPending, *sw.Status, sw.Name)
+		}
+	}
+
+	// a configuration change sends the app to every host in scope
+	clear(sentApps)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", constrainedTitleID), &updateAppStoreAppRequest{
+		Configuration: json.RawMessage(`{"installConstraint": [{"networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+	}, http.StatusOK, &updateAppStoreAppResponse{})
+	s.runWorkerUntilDoneWithChecks(true)
+	requireNoJobErrors()
+	var configPushes int
+	for _, policyApps := range sentApps {
+		for _, app := range policyApps {
+			if app.PackageName == constrainedApp.AdamID {
+				require.Equal(t, "AUTO_UPDATE_POSTPONED", app.AutoUpdateMode)
+				configPushes++
+			}
+		}
+	}
+	require.Equal(t, 2, configPushes, "one push per host in scope")
+
+	// a fleet transfer sends the destination fleet's apps
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "install constraint fleet"})
+	require.NoError(t, err)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &tm.ID,
+		AppStoreID:    constrainedApp.AdamID,
+		Platform:      fleet.AndroidPlatform,
+		Configuration: json.RawMessage(chargingConstraint),
+	}, http.StatusOK, &addAppStoreAppResponse{})
+	s.runWorkerUntilDoneWithChecks(true)
+
+	clear(sentApps)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm.ID,
+		HostIDs: []uint{personalHost.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+	s.runWorkerUntilDoneWithChecks(true)
+	requireNoJobErrors()
+	require.Len(t, sentFor(personalHost, constrainedApp.AdamID), 1)
+}
