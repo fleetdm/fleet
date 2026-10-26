@@ -1067,6 +1067,39 @@ func TestUninstallScriptQuitsAppCaskDoesNotName(t *testing.T) {
 	require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
 }
 
+// TestUninstallScriptChecksAppAfterSignal covers casks that quit the app and
+// signal it if the quit fails: the signal runs, and the app isn't removed if
+// it's still running afterward.
+func TestUninstallScriptChecksAppAfterSignal(t *testing.T) {
+	strs := func(s ...string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: s}
+	}
+	script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+		{Uninstall: []*brewUninstall{{Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")}}},
+		{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+	}})
+	// send_signal finds the app's PID with launchctl list unless it's unlisted.
+	stubs := `scutil() { echo "  Name : alice"; }
+id() { echo 501; }
+/bin/launchctl() {
+  [[ -z "$unlisted" && "$running" == *" com.example.Foo "* ]] && printf '123\t0\tapplication.com.example.Foo.1.2\n'
+}
+kill() { running=${running/ com.example.Foo / }; }
+`
+	const remove = "sudo rm -rf /Applications//Foo.app"
+
+	out, code := runStubbedUninstallScript(t, stubs+script, "com.example.Foo", "com.example.Foo", "")
+	require.Zero(t, code, out)
+	require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+	require.Contains(t, out, "Successfully signaled PID 123 with signal KILL.")
+	require.Contains(t, out, remove)
+
+	out, code = runStubbedUninstallScript(t, "unlisted=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
+	require.Equal(t, 1, code, out)
+	require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+	require.NotContains(t, out, remove)
+}
+
 // TestUninstallScriptQuitsAppOnce checks where the generated quit goes and when
 // it's left out because the cask already stops the app.
 func TestUninstallScriptQuitsAppOnce(t *testing.T) {
@@ -1156,8 +1189,15 @@ func TestUninstallScriptQuitsAppOnce(t *testing.T) {
 			{Uninstall: []*brewUninstall{{Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")}}},
 			appArtifact,
 		}})
-		require.Empty(t, stoppingQuit.FindAllString(script, -1), script)
-		require.Less(t, strings.Index(script, "quit_application 'com.example.Foo'\n"), strings.Index(script, "send_signal 'KILL'"))
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{"quit_application 'com.example.Foo'\n", "send_signal 'KILL'", quit, removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
 	})
 
 	t.Run("cask signals something else", func(t *testing.T) {
