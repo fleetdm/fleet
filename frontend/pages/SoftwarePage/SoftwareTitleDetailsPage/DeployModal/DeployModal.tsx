@@ -12,6 +12,7 @@ import {
 } from "interfaces/software";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   SoftwareDeploySelector,
@@ -145,14 +146,19 @@ const DeployModal = ({
       } else if (
         patch &&
         patchPolicy &&
+        // Normalize undefined to false on the stored side: legacy policies
+        // (notify_before_patching, patch_deadline) can arrive without the
+        // field at all, and strict !== would otherwise flag undefined vs
+        // false as a change and fire a no-op PATCH.
         (patchOption !== initialPatchOption ||
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
-          patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
-          patchPolicy.notify_before_patching !==
+          (patchPolicy.patch_when_closed ?? false) !==
+            patchFlags.patch_when_closed ||
+          (patchPolicy.notify_before_patching ?? false) !==
             patchFlags.notify_before_patching ||
           (patchPolicy.patch_deadline ?? false) !== patchFlags.patch_deadline ||
-          patchPolicy.continuous_automations_enabled !==
+          (patchPolicy.continuous_automations_enabled ?? false) !==
             patchFlags.continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
@@ -210,12 +216,9 @@ const DeployModal = ({
               onTogglePatch={setPatch}
               onSelectPatchOption={(next) => {
                 setPatchOption(next);
-                // Picking Force patch (re)defaults the end-user experience to
-                // Deadline per Figma dev note. Non-macOS platforms stay on
-                // "immediate" because they never show the dropdown.
-                if (next === "force" && isMacOS(platform)) {
-                  setEndUserExperience("deadline");
-                }
+                setEndUserExperience(
+                  getNextEndUserExperience(next, endUserExperience, platform)
+                );
               }}
               onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}

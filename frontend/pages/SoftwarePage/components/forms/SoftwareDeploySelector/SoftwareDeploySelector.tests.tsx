@@ -10,13 +10,16 @@ import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareDeploySelector, {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
 } from "./SoftwareDeploySelector";
 
 // react-query reads from a shared QueryClient. createCustomRenderer sets up
 // its own per-test client, so the Deadline banner's useQuery resolves against
-// the MSW handler registered just below.
+// the MSW handler registered just below. Register the handler via
+// `mockServer.use(...)` BEFORE `renderSelector(...)` — a handler registered
+// after render won't intercept the first fetch and the query silently 404s.
 const render = createCustomRenderer({ withBackendMock: true });
 
 const renderSelector = (
@@ -81,7 +84,7 @@ describe("SoftwareDeploySelector", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Patch is done silently when app is closed or forced at/i
+        /Patch is done silently when app is closed or forced on/i
       )
     ).toBeInTheDocument();
     expect(
@@ -109,7 +112,7 @@ describe("SoftwareDeploySelector", () => {
     // the "Edit deadline" link stays reachable while the settings page loads.
     expect(
       await screen.findByText(
-        /Patch is done silently when app is closed or forced at/i
+        /Patch is done silently when app is closed or forced on/i
       )
     ).toBeInTheDocument();
     expect(
@@ -222,6 +225,37 @@ describe("SoftwareDeploySelector", () => {
       // flipping force patches off deadline.
       const flags = getPatchPolicyFlags("force");
       expect(flags.patch_deadline).toBe(true);
+    });
+  });
+
+  describe("getNextEndUserExperience", () => {
+    it("preselects deadline when the user picks Force patch on macOS", () => {
+      expect(getNextEndUserExperience("force", "immediate", "darwin")).toBe(
+        "deadline"
+      );
+    });
+
+    it("does NOT flip to deadline on Windows (no dropdown is shown)", () => {
+      // Guards the Windows path across all three call sites — a regression
+      // here would start sending patch_deadline: true on Windows FMAs.
+      expect(getNextEndUserExperience("force", "immediate", "windows")).toBe(
+        "immediate"
+      );
+    });
+
+    it("does NOT flip to deadline on an unknown platform", () => {
+      expect(getNextEndUserExperience("force", "immediate", undefined)).toBe(
+        "immediate"
+      );
+    });
+
+    it("keeps the previous experience on non-Force transitions", () => {
+      expect(getNextEndUserExperience("closed", "notify", "darwin")).toBe(
+        "notify"
+      );
+      expect(getNextEndUserExperience("manual", "deadline", "darwin")).toBe(
+        "deadline"
+      );
     });
   });
 

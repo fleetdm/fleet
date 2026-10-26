@@ -1,5 +1,4 @@
 import React from "react";
-import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
 import CustomLink from "components/CustomLink";
@@ -9,13 +8,10 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner";
-import {
-  formatWeekdayList,
-  IPatchDeadlineSettings,
-} from "interfaces/patch_deadline_settings";
+import usePatchDeadlineSettings from "hooks/usePatchDeadlineSettings";
+import { formatWeekdayList } from "interfaces/patch_deadline_settings";
 import { isMacOS, isWindows } from "interfaces/platform";
 import PATHS from "router/paths";
-import patchDeadlineSettingsAPI from "services/entities/patch_deadline_settings";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
@@ -24,6 +20,22 @@ const baseClass = "software-deploy-selector";
 
 export type PatchOption = "closed" | "force" | "manual";
 export type EndUserExperience = "deadline" | "immediate" | "notify";
+
+/** Picks the end-user experience the dropdown should show when the user
+ * changes the patch option. Deadline is preselected whenever Force patch is
+ * chosen on a macOS target (Figma dev note on #55500). Non-macOS platforms
+ * never render the dropdown, so this is a no-op for them. Any other
+ * transition keeps the user's current choice. */
+export const getNextEndUserExperience = (
+  nextPatchOption: PatchOption,
+  prevEndUserExperience: EndUserExperience,
+  platform: string | undefined
+): EndUserExperience => {
+  if (nextPatchOption === "force" && isMacOS(platform)) {
+    return "deadline";
+  }
+  return prevEndUserExperience;
+};
 
 /** Returns the four policy flags derived from the deploy selector state. */
 export const getPatchPolicyFlags = (
@@ -93,14 +105,10 @@ const WindowsBanner = () => (
 );
 
 /** Banner for Force patch -> Deadline. Reads the fleet's days + time from the
- * patch_deadline_settings API and links to the Library settings page. React
- * Query dedupes with the settings page via the shared cache key. */
+ * patch_deadline_settings API via the shared hook so the Library settings
+ * page and the banner dedupe through the same React Query cache key. */
 const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
-  const { data } = useQuery<IPatchDeadlineSettings, Error>(
-    ["patchDeadlineSettings", fleetId],
-    () => patchDeadlineSettingsAPI.getSettings(fleetId),
-    { refetchOnWindowFocus: false }
-  );
+  const { data } = usePatchDeadlineSettings(fleetId);
   const daysLabel = formatWeekdayList(data?.days ?? []);
   const timeLabel = data?.time ? internationalTimeOnlyFormat(data.time) : "";
   const settingsHref = getPathWithQueryParams(
@@ -109,7 +117,7 @@ const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
   );
   return (
     <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
-      Patch is done silently when app is closed or forced at{" "}
+      Patch is done silently when app is closed or forced on{" "}
       <b>
         {daysLabel || "---"}
         {timeLabel ? ` at ${timeLabel}` : ""}

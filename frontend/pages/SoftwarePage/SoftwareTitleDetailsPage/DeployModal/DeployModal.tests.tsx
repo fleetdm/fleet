@@ -193,6 +193,33 @@ describe("DeployModal", () => {
     );
   });
 
+  it("loads a legacy Force + Immediate policy with Patch immediately selected", async () => {
+    // Regression guard: when deadline shipped, the default for new Force
+    // selections flipped to Deadline. A pre-existing Force + no-flags policy
+    // (every policy saved before this PR) must still load as Patch
+    // immediately — not be silently rewritten to Deadline on open.
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+          notify_before_patching: false,
+          // patch_deadline deliberately omitted — legacy shape.
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    expect(await screen.findByText("Patch immediately")).toBeInTheDocument();
+    expect(screen.queryByText("Deadline")).not.toBeInTheDocument();
+  });
+
   it("loads an existing deadline policy with Deadline selected", async () => {
     renderModal({
       softwarePackage: createMockSoftwarePackage({
@@ -356,7 +383,7 @@ describe("DeployModal", () => {
     );
   });
 
-  it("turns continuous automation off when saving a Force patch policy that has it on", async () => {
+  it("clears stale continuous_automations_enabled when saving a Force + Immediate policy that still has it on", async () => {
     const { user } = renderModal({
       softwarePackage: createMockSoftwarePackage({
         fleet_maintained_app_id: 1,

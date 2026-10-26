@@ -51,6 +51,7 @@ import {
 } from "pages/policies/hooks";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   PatchOptionSelector,
@@ -778,15 +779,13 @@ const PolicyForm = ({
               patchOption={patchOption}
               onSelectPatchOption={(next) => {
                 setPatchOption(next);
-                // Picking Force patch (re)defaults the end-user experience to
-                // Deadline per Figma dev note. Non-macOS platforms never show
-                // the dropdown, so this is a no-op for them.
-                if (
-                  next === "force" &&
-                  storedPolicy?.platform?.includes("darwin")
-                ) {
-                  setEndUserExperience("deadline");
-                }
+                setEndUserExperience(
+                  getNextEndUserExperience(
+                    next,
+                    endUserExperience,
+                    storedPolicy?.platform
+                  )
+                );
               }}
               platform={storedPolicy?.platform}
               endUserExperience={endUserExperience}

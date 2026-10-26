@@ -16,6 +16,7 @@ import { SoftwareCategory } from "interfaces/software";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   PatchOption,
   SoftwareDeploySelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
@@ -229,13 +230,11 @@ const FleetAppDetailsForm = ({
               setFormData((prevData) => ({
                 ...prevData,
                 patchOption,
-                // Picking Force patch (re)defaults the end-user experience to
-                // Deadline per Figma dev note. Non-macOS platforms stay on
-                // "immediate" because they never show the dropdown.
-                endUserExperience:
-                  patchOption === "force" && isMacOS(platform)
-                    ? "deadline"
-                    : prevData.endUserExperience,
+                endUserExperience: getNextEndUserExperience(
+                  patchOption,
+                  prevData.endUserExperience,
+                  platform
+                ),
               }))
             }
             onSelectEndUserExperience={(endUserExperience) =>

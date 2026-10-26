@@ -108,6 +108,11 @@ export const EXIT_CODES_NEEDING_EUE_LINK: ReadonlySet<number> = new Set([
 // Substrings the BE appends only on their respective skip variants. Both
 // deadline and notify skips carry "Fleet notifies the end user"; the deadline
 // marker is strictly more specific, so check it first.
+//
+// TODO: swap to a dedicated `patch_deadline` boolean on `IActivityDetails` once
+// the backend adds it. The current substring check mirrors the BE copy in
+// `server/fleet/software_installer.go:SoftwareInstallerAppOpenDeadlineCopy`
+// — any wording drift there silently breaks this discriminator.
 const NOTIFY_SKIP_MARKER = "Fleet notifies the end user";
 const DEADLINE_SKIP_MARKER = "patch deadline";
 export const isPatchDeadlineSkip = (
