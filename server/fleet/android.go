@@ -431,10 +431,10 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 			return err
 		}
 	}
+	// Google accepts customAppConfig and the KIOSK role only with installType CUSTOM (or
+	// REQUIRED_FOR_SETUP for KIOSK), which Fleet never sends.
 	if cfg.CustomAppConfig != nil {
-		if err := checkEnum("customAppConfig.userUninstallSettings", "customAppConfig.userUninstallSettings", cfg.CustomAppConfig.UserUninstallSettings); err != nil {
-			return err
-		}
+		return &BadRequestError{Message: `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`}
 	}
 	for i, scope := range cfg.DelegatedScopes {
 		if err := checkEnum("delegatedScopes", fmt.Sprintf("delegatedScopes.%d", i), scope); err != nil {
@@ -481,10 +481,16 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 		if role.RoleType == "" || role.RoleType == "ROLE_TYPE_UNSPECIFIED" {
 			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q is required.", fieldPath)}
 		}
+		if role.RoleType == "KIOSK" {
+			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "KIOSK" isn't supported for %q.`, fieldPath)}
+		}
 		if _, dup := seenRoles[role.RoleType]; dup {
 			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. %q is listed more than once in "roles".`, role.RoleType)}
 		}
 		seenRoles[role.RoleType] = struct{}{}
+	}
+	if cfg.UserControlSettings == "USER_CONTROL_ALLOWED" && len(seenRoles) > 0 {
+		return &BadRequestError{Message: `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`}
 	}
 
 	if cfg.InstallPriority < 0 || cfg.InstallPriority > 10_000 {

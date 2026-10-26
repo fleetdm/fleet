@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -304,7 +305,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		// Values Google rejects
 		{
 			name:        "valid - every enum field with a supported value",
-			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "customAppConfig": {"userUninstallSettings": "ALLOW_UNINSTALL_BY_USER"}, "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "COMPANION_APP"}, {"roleType": "KIOSK"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
+			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "COMPANION_APP"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
 			expectError: false,
 		},
 		{
@@ -355,10 +356,10 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "ALLOWED" is not a supported value for "userControlSettings".`,
 		},
 		{
-			name:        "invalid - customAppConfig.userUninstallSettings bad value",
-			config:      json.RawMessage(`{"customAppConfig": {"userUninstallSettings": "NEVER"}}`),
+			name:        "invalid - customAppConfig",
+			config:      json.RawMessage(`{"customAppConfig": {"userUninstallSettings": "ALLOW_UNINSTALL_BY_USER"}}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "NEVER" is not a supported value for "customAppConfig.userUninstallSettings".`,
+			errorMsg:    `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`,
 		},
 		{
 			name:        "invalid - delegatedScopes bad value",
@@ -404,7 +405,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - roles roleType unspecified",
-			config:      json.RawMessage(`{"roles": [{"roleType": "KIOSK"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "roles.1.roleType" is required.`,
 		},
@@ -416,9 +417,26 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - duplicate roles roleType",
-			config:      json.RawMessage(`{"roles": [{"roleType": "KIOSK"}, {"roleType": "KIOSK"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "COMPANION_APP"}]}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "KIOSK" is listed more than once in "roles".`,
+			errorMsg:    `Couldn't update configuration. "COMPANION_APP" is listed more than once in "roles".`,
+		},
+		{
+			name:        "invalid - KIOSK role",
+			config:      json.RawMessage(`{"roles": [{"roleType": "KIOSK"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "KIOSK" isn't supported for "roles.0.roleType".`,
+		},
+		{
+			name:        "valid - USER_CONTROL_ALLOWED without roles",
+			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED"}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - USER_CONTROL_ALLOWED with roles",
+			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED", "roles": [{"roleType": "COMPANION_APP"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`,
 		},
 		{
 			name:        "valid - installPriority bounds",
@@ -603,14 +621,10 @@ func TestValidateUserProvided_SoftwareKeys(t *testing.T) {
 // enum values Google accepts, so androidAppPolicyEnums never rejects a value Google allows.
 func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
 	out, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", "google.golang.org/api").Output()
-	if err != nil {
-		t.Skipf("locating google.golang.org/api: %v", err)
-	}
+	require.NoError(t, err, "locating google.golang.org/api")
 	docPath := filepath.Join(strings.TrimSpace(string(out)), "androidmanagement", "v1", "androidmanagement-api.json")
 	docJSON, err := os.ReadFile(docPath)
-	if err != nil {
-		t.Skipf("reading discovery doc: %v", err)
-	}
+	require.NoError(t, err)
 
 	type property struct {
 		Ref   string    `json:"$ref"`
@@ -625,6 +639,7 @@ func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
 	require.NoError(t, json.Unmarshal(docJSON, &doc))
 
 	discovered := make(map[string][]string)
+	arrayPaths := make(map[string]struct{})
 	var walk func(schema, prefix string, seen map[string]bool)
 	walk = func(schema, prefix string, seen map[string]bool) {
 		if seen[schema] {
@@ -634,6 +649,7 @@ func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
 		seen[schema] = true
 		for name, prop := range doc.Schemas[schema].Properties {
 			if prop.Items != nil {
+				arrayPaths[prefix+name] = struct{}{}
 				prop = *prop.Items
 			}
 			if len(prop.Enum) > 0 {
@@ -649,4 +665,24 @@ func TestAndroidAppPolicyEnumsMatchDiscoveryDoc(t *testing.T) {
 	delete(discovered, "installType")
 
 	require.Equal(t, discovered, androidAppPolicyEnums)
+
+	// Every enum in the table must also be checked, so a field added on a dependency bump isn't
+	// listed here but left unvalidated.
+	for enumPath := range androidAppPolicyEnums {
+		t.Run(enumPath, func(t *testing.T) {
+			segments := strings.Split(enumPath, ".")
+			var value any = "NOT_A_SUPPORTED_VALUE"
+			for i, segment := range slices.Backward(segments) {
+				if _, isArray := arrayPaths[strings.Join(segments[:i+1], ".")]; isArray {
+					value = []any{value}
+				}
+				if i > 0 {
+					value = map[string]any{segment: value}
+				}
+			}
+			config, err := json.Marshal(map[string]any{segments[0]: value})
+			require.NoError(t, err)
+			require.Error(t, ValidateAndroidAppConfiguration(config), string(config))
+		})
+	}
 }
