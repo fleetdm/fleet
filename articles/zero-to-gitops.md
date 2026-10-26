@@ -18,41 +18,42 @@ Fleet's GitOps configuration is declarative. The repository describes the whole 
 
 AI fits in at step 2, and only there. The agent writes changes and opens pull requests. It doesn't merge them, and it never talks to Fleet directly. Everything in this guide is set up to keep it that way. For the longer argument, read [Why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops).
 
+> **Note:** This workflow isn't tied to one AI tool. It works with any agent that can edit files, run Git, and open pull requests, using whichever model your team prefers. The repository's `AGENTS.md` is read by most agents, including Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code. This guide uses Claude for its examples.
+
 ## Prerequisites
 
 - A Fleet instance, and a user with the global admin role.
 - Fleet Premium for the GitOps role and GitOps mode. On Fleet Free, the GitOps user needs the global admin role, and GitOps mode isn't available.
 - A GitHub account that can create a private repository and add Actions secrets. To protect `main` in a private repository, you need GitHub Pro, Team, or Enterprise. GitHub Free doesn't offer rulesets or branch protection for private repositories. On GitLab, you need a project where you have the Maintainer role. Required approvals need GitLab Premium or Ultimate.
-- A Claude Pro, Max, Team, or Enterprise plan, or a Claude Console account, for Claude Code. The free Claude plan doesn't include Claude Code. The repository also works with Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code if your team uses one of those.
+- An AI coding agent. To follow this guide's examples, you need a Claude Pro, Max, Team, or Enterprise plan. The free Claude plan doesn't include Claude Code.
 
 ## Set up your workstation
 
-You'll use four tools: Git, `fleetctl`, the GitHub CLI (`gh`), and Claude Code. `gh` matters more than it looks. Claude Code opens pull requests with `gh`, and Git pushes with your `gh` login, so the way you sign in to `gh` is the way your agent reaches GitHub.
+You'll use four tools: Git, `fleetctl`, the GitHub CLI (`gh`), and the Claude app. `gh` matters more than it looks. Claude and most other agents open pull requests with `gh`, and Git pushes with your `gh` login, so the way you sign in to `gh` is the way your agent reaches GitHub.
 
 ### Install the tools
 
 | Tool | macOS | Windows (PowerShell) | Linux |
 |------|-------|----------------------|-------|
 | Git | `xcode-select --install` | `winget install --id Git.Git -e --source winget` | Your distribution's package manager |
-| fleetctl | `curl -sSL https://fleetdm.com/resources/install-fleetctl.sh \| bash` | Installer from [fleetdm.com/download](https://fleetdm.com/download) | Same as macOS |
+| fleetctl | `.pkg` installer from [fleetdm.com/download](https://fleetdm.com/download) | `.msi` installer from [fleetdm.com/download](https://fleetdm.com/download) | `curl -sSL https://fleetdm.com/resources/install-fleetctl.sh \| bash` |
 | GitHub CLI | `brew install gh` | `winget install --id GitHub.cli --source winget` | [GitHub CLI's Linux instructions](https://github.com/cli/cli/blob/trunk/docs/install_linux.md) |
-| Claude Code | `curl -fsSL https://claude.ai/install.sh \| bash` | `irm https://claude.ai/install.ps1 \| iex` | Same as macOS |
+| Claude app | [claude.ai/download](https://claude.ai/download) | [claude.ai/download](https://claude.ai/download) | [Claude for Linux (beta)](https://code.claude.com/docs/en/desktop-linux) |
 
 A few details are worth knowing:
 
-- The `fleetctl` script installs to `~/.fleetctl`. If that folder isn't on your `PATH` yet, the script prints the `export` line to add to your shell profile. On Windows, the installer puts `fleetctl` in `C:\Program Files\FleetDM\fleetctl` and adds it to your `PATH`.
-- Claude Code's installer updates Claude Code automatically. Homebrew and WinGet installs of Claude Code don't, which is why this guide uses the installer.
+- The `fleetctl` installers for macOS and Windows are signed and add `fleetctl` to your `PATH`. On macOS, it goes in `/usr/local/bin`. On Windows, it goes in `C:\Program Files\FleetDM\fleetctl`. On Linux, the script installs `fleetctl` in `~/.fleetctl` and prints the `export` line to add to your shell profile if that folder isn't on your `PATH` yet.
+- Use Claude Code through the Claude app's **Code** tab. The app adds things the command-line version doesn't have: a diff view you can comment on line by line, pull request and CI status for each session, and parallel sessions side by side. If you prefer the terminal, the [Claude Code CLI](https://code.claude.com/docs/en/setup) works with this guide too.
 - On GitLab, install the GitLab CLI (`glab`) instead of `gh`. See [glab's installation options](https://gitlab.com/gitlab-org/cli/#installation).
 
 > **Note:** On Windows, programs only see an updated `PATH` if they start after the installer finishes. Open a new Windows Terminal window, not just a new tab, before you use the new commands.
 
-Confirm everything is installed:
+Confirm the command-line tools are installed:
 
 ```sh
 git --version
 fleetctl --version
 gh --version
-claude --version
 ```
 
 ### Sign in to GitHub with gh
@@ -78,9 +79,11 @@ gh auth status
 
 On GitLab, run `glab auth login` and choose the web sign-in. See [GitLab's authentication docs](https://docs.gitlab.com/cli/authentication/).
 
-### Sign in to Claude Code
+### Sign in to Claude
 
-Run `claude` in a terminal. The first time, it opens your browser to sign in to your Claude account. Prefer an app? Claude Desktop's **Code** tab works the same way. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet).
+Open the Claude app, sign in with your Claude account, and select the **Code** tab. You'll point it at your repository once the repository exists. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) for more on the **Code** tab.
+
+Using a different agent? Install it and sign in now. The rest of the guide works the same way.
 
 ## Create the repository
 
@@ -245,7 +248,7 @@ In **Settings > Repository > Branch rules**, set **Allowed to push and merge** o
 
 ## Tell your agent how your team works
 
-The template's `AGENTS.md` already tells agents how the repository is laid out, and never to apply changes themselves. Add the rules for how your team ships changes. Every agent that reads `AGENTS.md` follows them, and Claude Code reads it through `CLAUDE.md`.
+The template's `AGENTS.md` already tells agents how the repository is laid out, and never to apply changes themselves. Add the rules for how your team ships changes. Every agent that reads `AGENTS.md` follows them, and Claude reads it through `CLAUDE.md`.
 
 Add this section to the end of `AGENTS.md`:
 
@@ -254,8 +257,9 @@ Add this section to the end of `AGENTS.md`:
 
 - Never commit to `main` or push to it. Start every change on a new branch,
   in its own git worktree, based on the latest `origin/main`.
-  - Claude Code: work in a worktree under `.claude/worktrees/`.
-  - Other agents: `git fetch origin` then
+  - If your tool creates worktrees for you, use them. Claude creates them
+    under `.claude/worktrees/`.
+  - Otherwise, run `git fetch origin` then
     `git worktree add ../it-and-security-<change> -b <change> origin/main`.
 - Use a short branch name that describes the change, such as
   `add-filevault-policy`.
@@ -275,15 +279,17 @@ Add this section to the end of `AGENTS.md`:
   unless a person asks you to.
 ```
 
-A worktree is a separate folder with its own branch, sharing the repository's history. Each change gets its own copy of the files, so an agent can't touch your main checkout, and two changes in progress can't collide. Claude Code creates worktrees in `.claude/worktrees/` at the root of the repository. Add that folder to `.gitignore`, so worktrees don't show up as untracked files:
+A worktree is a separate folder with its own branch, sharing the repository's history. Each change gets its own copy of the files, so an agent can't touch your main checkout, and two changes in progress can't collide. Claude creates worktrees in `.claude/worktrees/` at the root of the repository. Add that folder to `.gitignore`, so worktrees don't show up as untracked files:
 
 ```sh
 echo ".claude/worktrees/" >> .gitignore
 ```
 
-### Add guardrails for Claude Code
+### Add guardrails to your agent
 
-Instructions shape what an agent tries. Claude Code's permission rules decide what it's allowed to run. Create `.claude/settings.json` in the repository with rules that block the commands your instructions already forbid:
+Instructions shape what an agent tries. Permission rules decide what it's allowed to run. Most agents can block specific commands, so check your tool's documentation for its version of the rules below.
+
+For Claude, create `.claude/settings.json` in the repository with rules that block the commands your instructions already forbid. The Claude app and the Claude Code CLI both read this file:
 
 ```json
 {
@@ -300,7 +306,7 @@ Instructions shape what an agent tries. Claude Code's permission rules decide wh
 }
 ```
 
-A deny rule wins over any allow rule, so approving a command later with "Yes, and don't ask again" can't undo it. It's still a seatbelt, not a lock. Deny rules match how a command is written, so a differently worded command can get past them. Claude Code's [permissions docs](https://code.claude.com/docs/en/permissions) cover this, along with hooks for stricter checks. The lock is the ruleset on GitHub.
+A deny rule wins over any allow rule, so approving a command later with "Yes, and don't ask again" can't undo it. It's still a seatbelt, not a lock. Deny rules match how a command is written, so a differently worded command can get past them. Claude's [permissions docs](https://code.claude.com/docs/en/permissions) cover this, along with hooks for stricter checks. The lock is the ruleset on GitHub, which holds no matter which agent you use.
 
 Commit both changes through a pull request, the same way every change will go from now on. This one is a good first test of your ruleset:
 
@@ -318,22 +324,18 @@ Once the **fleet-gitops** check passes, and a teammate approves if your ruleset 
 
 This is where the setup pays off. Instead of looking up YAML keys and osquery tables, you describe what you want, and the agent writes it as a pull request.
 
-1. From the `it-and-security` folder, start Claude Code in a new worktree:
+1. In the Claude app, select the **Code** tab.
+2. Under the prompt box, select the project folder control and choose your `it-and-security` folder. Turn on **Worktree**. Claude works in a new worktree under `.claude/worktrees/`, on its own branch, and leaves your main checkout alone.
+3. Describe the change: "Add a policy that checks FileVault is on for macOS hosts in Workstations. Validate it, then commit, push, and open a draft pull request."
+4. The agent reads `default.yml` and `fleets/workstations.yml`, writes the policy in `platforms/macos/policies/`, and checks the query against Fleet's osquery schema. It runs the skill's validator, commits, pushes the branch, and opens a draft pull request. If `gh` isn't installed, the Claude app offers to install it the first time it opens a pull request.
+5. Review the change in the app's diff view. Comment on any line that needs work and send the comments to Claude, which fixes them in the same session. The pull request appears in the session's **Changes** card, along with the status of its CI checks.
+6. Open the pull request on GitHub with `gh pr view --web`. The **fleet-gitops** check runs the dry run. Select the check's **Details** to read what the change does to Fleet. For this change, that's one new policy.
+7. When you're satisfied, select **Ready for review**, and merge once the ruleset's requirements are met. CI applies the policy to Fleet within a few minutes.
+8. Once the pull request is merged, remove the worktree. Run `git worktree list` to find it, and `git worktree remove <path>` to delete it.
 
-   ```sh
-   claude --worktree add-filevault-policy
-   ```
+To pick up a pull request later, for example to address review comments, start a new session with **Worktree** turned on and ask Claude to check out the pull request's branch.
 
-   Claude Code creates `.claude/worktrees/add-filevault-policy/` on a new branch, `worktree-add-filevault-policy`, from the latest `main`, and works only there. If you haven't run `claude` in this folder before, run it once first and accept the prompt to trust the folder. `--worktree` needs that.
-
-2. Describe the change: "Add a policy that checks FileVault is on for macOS hosts in Workstations. Validate it, then commit, push, and open a draft pull request."
-3. The agent reads `default.yml` and `fleets/workstations.yml`, writes the policy in `platforms/macos/policies/`, and checks the query against Fleet's osquery schema. It runs the skill's validator, commits, pushes the branch, and opens a draft pull request.
-4. Open the pull request with `gh pr view --web`. The **fleet-gitops** check runs the dry run. Select the check's **Details** to read what the change does to Fleet. For this change, that's one new policy.
-5. Review the change. If something's off, ask the agent to fix it in the same session. Its new commits rerun the check.
-6. When you're satisfied, select **Ready for review**, and merge once the ruleset's requirements are met. CI applies the policy to Fleet within a few minutes.
-7. Exit Claude Code. If the branch is merged, let Claude Code remove the worktree when it asks.
-
-To pick up a pull request later, for example to address review comments, start Claude Code in a worktree on that pull request: `claude --worktree "#12"`. Replace `12` with the pull request number.
+Using a different agent? The steps are the same: start the change on a fresh branch or worktree, describe what you want, and have the agent open a draft pull request.
 
 ## Review and merge with care
 
@@ -345,7 +347,7 @@ The ruleset makes sure a person merges every change. These habits make sure that
 - **Look for secrets.** Credentials, enroll secrets, and webhook URLs belong in CI variables, referenced as `$VARIABLE`, never typed into a file.
 - **Keep pull requests small.** One change per pull request is easier to review and easier to undo.
 - **Merge when you can watch.** A merged change reaches devices within minutes. Run `gh run watch` after you merge, and don't merge and walk away.
-- **Don't turn on auto-merge for agent pull requests.** The point is that a person decides when a change ships.
+- **Don't turn on auto-merge for agent pull requests.** That includes **Merge when ready** in the Claude app, which turns on GitHub's auto-merge. The point is that a person decides when a change ships.
 - **Know how to undo it.** Revert the merged pull request with the **Revert** button on GitHub, or `gh pr revert <number>`. The revert is itself a pull request, so it gets the same dry run before it ships. See [Revert a bad change in GitOps](https://fleetdm.com/guides/revert-a-bad-change-in-gitops).
 
 ## Verify
@@ -385,7 +387,7 @@ Check that `FLEET_URL` and `FLEET_API_TOKEN` are set, and that `FLEET_URL` has n
 
 **The dry run fails on a key or value**
 
-The error names the file and key. Check it against the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), or paste the error into Claude Code and ask it to fix the file.
+The error names the file and key. Check it against the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), or paste the error into your agent and ask it to fix the file.
 
 **The first sync stops after `generate-gitops`**
 
@@ -403,6 +405,7 @@ Add `.claude/worktrees/` to `.gitignore`, as described in [Tell your agent how y
 - [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl)
 - [Set up GitOps for staging and production](https://fleetdm.com/guides/set-up-gitops-for-staging-and-production)
 - [Revert a bad change in GitOps](https://fleetdm.com/guides/revert-a-bad-change-in-gitops)
+- [Claude Code in the Claude app](https://code.claude.com/docs/en/desktop)
 - [Claude Code: run parallel sessions with worktrees](https://code.claude.com/docs/en/worktrees)
 - [GitHub: about rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
 
