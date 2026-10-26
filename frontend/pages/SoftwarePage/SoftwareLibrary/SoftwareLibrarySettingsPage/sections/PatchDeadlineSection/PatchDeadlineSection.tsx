@@ -187,8 +187,7 @@ const PatchDeadlineSection = ({
         content={
           <>
             Add a macOS Fleet-maintained app, and under <strong>Deploy</strong>{" "}
-            select{" "}
-            <strong>Patch</strong> &gt; <strong>Force patch</strong> &gt;{" "}
+            select <strong>Patch</strong> &gt; <strong>Force patch</strong> &gt;{" "}
             <strong>Deadline</strong>.{" "}
             {hasApps && <>Apps with this option are listed below. </>}
             <CustomLink
