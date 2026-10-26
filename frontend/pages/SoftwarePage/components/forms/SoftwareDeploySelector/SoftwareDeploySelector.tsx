@@ -1,6 +1,8 @@
 import React from "react";
+import { browserHistory } from "react-router";
 import { SingleValue } from "react-select-5";
 
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
@@ -106,12 +108,17 @@ const WindowsBanner = () => (
 
 /** Banner for Force patch -> Deadline. Reads the fleet's days + time from the
  * patch_deadline_settings API via the shared hook so the Library settings
- * page and the banner dedupe through the same React Query cache key. */
+ * page and the banner dedupe through the same React Query cache key. The
+ * "Edit deadline" action uses browserHistory.push rather than an anchor tag
+ * so navigation stays in-SPA — a hard navigation would spin up a fresh
+ * QueryClient on the settings page, and the settings page's
+ * invalidateQueries(["patchDeadlineSettings", fleetId]) wouldn't reach this
+ * banner on Back (the banner would show stale days/time). */
 const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
   const { data } = usePatchDeadlineSettings(fleetId);
   const daysLabel = formatWeekdayList(data?.days ?? []);
   const timeLabel = data?.time ? internationalTimeOnlyFormat(data.time) : "";
-  const settingsHref = getPathWithQueryParams(
+  const settingsPath = getPathWithQueryParams(
     PATHS.SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE,
     { fleet_id: fleetId }
   );
@@ -123,7 +130,9 @@ const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
         {timeLabel ? ` at ${timeLabel}` : ""}
       </b>{" "}
       (host&apos;s local time).{" "}
-      <CustomLink url={settingsHref} text="Edit deadline" />
+      <Button variant="link" onClick={() => browserHistory.push(settingsPath)}>
+        Edit deadline
+      </Button>
     </InfoBanner>
   );
 };

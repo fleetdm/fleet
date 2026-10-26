@@ -15,6 +15,15 @@ import SoftwareDeploySelector, {
   PatchOption,
 } from "./SoftwareDeploySelector";
 
+// Replace react-router's browserHistory with a jest spy so we can assert the
+// in-SPA push. Any other export (e.g. withRouter) stays unused by this file.
+const mockPush = jest.fn();
+jest.mock("react-router", () => ({
+  browserHistory: {
+    push: (...args: unknown[]) => mockPush(...args),
+  },
+}));
+
 // react-query reads from a shared QueryClient. createCustomRenderer sets up
 // its own per-test client, so the Deadline banner's useQuery resolves against
 // the MSW handler registered just below. Register the handler via
@@ -87,10 +96,36 @@ describe("SoftwareDeploySelector", () => {
         /Patch is done silently when app is closed or forced on/i
       )
     ).toBeInTheDocument();
+    // Rendered as a Button (not <a href>) so navigation stays in-SPA and the
+    // settings page's React Query cache invalidation reaches this banner on
+    // Back. Presence is enough — the push target is covered by the lint-free
+    // `getPathWithQueryParams(...)` call and a round-trip would need a
+    // router-mock renderer.
     expect(
-      screen.getByRole("link", { name: /Edit deadline/i })
-    ).toHaveAttribute(
-      "href",
+      screen.getByRole("button", { name: /Edit deadline/i })
+    ).toBeInTheDocument();
+  });
+
+  it("navigates in-SPA when Edit deadline is clicked", async () => {
+    // Guards against regressing to <CustomLink url=...> — a plain <a href>
+    // hard-navigates and blows away the React Query cache, so when the user
+    // returns via Back the banner shows stale settings even though the
+    // Library settings page invalidated the cache on save.
+    mockPush.mockClear();
+    mockServer.use(getPatchDeadlineSettingsHandler());
+    const { user } = renderSelector({
+      patch: true,
+      patchOption: "force",
+      platform: "darwin",
+      endUserExperience: "deadline",
+      onSelectEndUserExperience: jest.fn(),
+      fleetId: 1,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Edit deadline/i })
+    );
+    expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining(
         "/software/library/settings/patch-deadline?fleet_id=1"
       )
@@ -109,14 +144,14 @@ describe("SoftwareDeploySelector", () => {
     });
 
     // Error state still shows the banner shell with the dashes placeholder so
-    // the "Edit deadline" link stays reachable while the settings page loads.
+    // the "Edit deadline" button stays reachable while the settings page loads.
     expect(
       await screen.findByText(
         /Patch is done silently when app is closed or forced on/i
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Edit deadline/i })
+      screen.getByRole("button", { name: /Edit deadline/i })
     ).toBeInTheDocument();
   });
 
