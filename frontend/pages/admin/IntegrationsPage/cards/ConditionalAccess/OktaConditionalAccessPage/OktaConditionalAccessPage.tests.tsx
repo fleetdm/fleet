@@ -103,6 +103,9 @@ describe("OktaConditionalAccessPage", () => {
       expect(getCopyButton("profile")).toBeEnabled();
     });
     expect(screen.queryByText("Certificate profile")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Replace the placeholder/)
+    ).not.toBeInTheDocument();
 
     const writeTextSpy = jest.spyOn(navigator.clipboard, "writeText");
     await user.click(getCopyButton("profile"));
@@ -122,6 +125,12 @@ describe("OktaConditionalAccessPage", () => {
     });
     expect(getCopyButton("browser profile")).toBeEnabled();
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
+    // The certificate profile is rejected at upload until the placeholder is replaced, so the page says so.
+    expect(
+      screen.getByText(
+        "Replace the placeholder with a global enroll secret before uploading. For GitOps, use a secret variable instead."
+      )
+    ).toBeInTheDocument();
 
     // Spy after render: user-event's setup() replaces navigator.clipboard
     const writeTextSpy = jest.spyOn(navigator.clipboard, "writeText");

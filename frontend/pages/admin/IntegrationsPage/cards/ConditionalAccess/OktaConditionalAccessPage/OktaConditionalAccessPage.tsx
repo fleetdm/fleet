@@ -27,9 +27,15 @@ interface IProfileEditorProps {
   label: string;
   name: string;
   value: string;
+  helpText?: string;
 }
 
-const ProfileEditor = ({ label, name, value }: IProfileEditorProps) => (
+const ProfileEditor = ({
+  label,
+  name,
+  value,
+  helpText,
+}: IProfileEditorProps) => (
   <Editor
     label={label}
     ariaLabel={label.toLowerCase()}
@@ -41,6 +47,7 @@ const ProfileEditor = ({ label, name, value }: IProfileEditorProps) => (
     copyButtonLocation="label"
     wrapEnabled
     maxLines={10}
+    helpText={helpText}
   />
 );
 
@@ -110,6 +117,7 @@ const WindowsProfilesTab = () => {
         label="Certificate profile"
         name="windows-certificate-profile"
         value={windowsProfiles?.scep_profile ?? ""}
+        helpText="Replace the placeholder with a global enroll secret before uploading. For GitOps, use a secret variable instead."
       />
       <ProfileEditor
         label="Browser profile"
