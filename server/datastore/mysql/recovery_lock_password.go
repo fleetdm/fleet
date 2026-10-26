@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -497,6 +498,52 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 	}
 
 	return hostUUIDs, nil
+}
+
+func (ds *Datastore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+	// Every result handler that moves a row to verifying also records its verify command, so
+	// only the upgrade repair (migration 20261026111120) leaves one without. Unlike the set and
+	// clear claims there are no enrollment checks: these rows already passed them, and the cron
+	// soft-deletes rows of unenrolled hosts before this runs.
+	selectStmt := fmt.Sprintf(`
+		SELECT host_uuid, operation_type
+		FROM host_recovery_key_passwords
+		WHERE deleted = 0
+		  AND status = '%s'
+		  AND pending_verify_command_uuid IS NULL
+		LIMIT 500
+		FOR UPDATE
+	`, fleet.MDMDeliveryVerifying)
+
+	var claims []fleet.HostRecoveryLockVerifyClaim
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		claims = nil
+		if err := sqlx.SelectContext(ctx, tx, &claims, selectStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts for recovery lock verify")
+		}
+		for i := range claims {
+			claims[i].VerifyCommandUUID = uuid.NewString()
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_recovery_key_passwords SET pending_verify_command_uuid = ?
+				WHERE host_uuid = ? AND deleted = 0`,
+				claims[i].VerifyCommandUUID, claims[i].HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "claim host for recovery lock verify")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+func (ds *Datastore) UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords SET pending_verify_command_uuid = NULL
+		WHERE host_uuid = ? AND pending_verify_command_uuid = ? AND deleted = 0`,
+		hostUUID, verifyCommandUUID)
+	return ctxerr.Wrap(ctx, err, "unclaim host for recovery lock verify")
 }
 
 // DeleteHostRecoveryLockPassword hard deletes the host's recovery lock password row from the database.

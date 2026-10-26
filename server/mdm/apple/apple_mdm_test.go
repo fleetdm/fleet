@@ -1004,6 +1004,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
@@ -1038,6 +1041,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
@@ -1095,6 +1101,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return map[string]bool{hostUUID: false}, nil
@@ -1151,6 +1160,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return map[string]bool{hostUUID: false}, nil
@@ -1200,6 +1212,22 @@ type mockRecoveryLockCommander struct {
 	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	verifyRecoveryLockFn func(ctx context.Context, hostUUID, cmdUUID string) error
+	verifyClearFn        func(ctx context.Context, hostUUID, cmdUUID string) error
+}
+
+func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyRecoveryLockFn != nil {
+		return m.verifyRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyClearFn != nil {
+		return m.verifyClearFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -1223,6 +1251,63 @@ func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, host
 	return nil
 }
 
+func TestSendRecoveryLockVerifyCommands(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	claims := []fleet.HostRecoveryLockVerifyClaim{
+		{HostUUID: "install-host", OperationType: fleet.MDMOperationTypeInstall, VerifyCommandUUID: "verify-1"},
+		{HostUUID: "remove-host", OperationType: fleet.MDMOperationTypeRemove, VerifyCommandUUID: "verify-2"},
+	}
+
+	t.Run("sends the verify matching each operation", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims, nil
+		}
+		var verified, verifiedClear []string
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				verified = append(verified, hostUUID+"/"+cmdUUID)
+				return nil
+			},
+			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				verifiedClear = append(verifiedClear, hostUUID+"/"+cmdUUID)
+				return nil
+			},
+		}
+
+		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
+		require.Equal(t, []string{"install-host/verify-1"}, verified)
+		require.Equal(t, []string{"remove-host/verify-2"}, verifiedClear)
+		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
+	})
+
+	t.Run("a verify that wasn't enqueued is unclaimed, one whose push failed is kept", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims, nil
+		}
+		var unclaimed []string
+		ds.UnclaimHostForRecoveryLockVerifyFunc = func(ctx context.Context, hostUUID, verifyCommandUUID string) error {
+			unclaimed = append(unclaimed, hostUUID+"/"+verifyCommandUUID)
+			return nil
+		}
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				return errors.New("enqueue failed")
+			},
+			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+			},
+		}
+
+		err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger)
+		require.ErrorContains(t, err, "enqueue failed")
+		require.Equal(t, []string{"install-host/verify-1"}, unclaimed)
+	})
+}
+
 func TestSendClearRecoveryLockCommands(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
@@ -1236,6 +1321,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
@@ -1275,6 +1363,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
