@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.11.2",
+      "version": "6.11.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'fyi.lunar.Lunar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fyi.lunar.Lunar' AND version_compare(bundle_short_version, '6.11.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fyi.lunar.Lunar' AND version_compare(bundle_short_version, '6.11.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'fyi.lunar.Lunar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://files.lunar.fyi/releases/Lunar-6.11.2.dmg",
+      "installer_url": "https://files.lunar.fyi/releases/Lunar-6.11.3.dmg",
       "install_script_ref": "0409bd8f",
       "uninstall_script_ref": "96ed0d36",
-      "sha256": "1a31f8955d152cd22e173c18f577cb3a995fcb0213807a1e481f841bb9194ee8",
+      "sha256": "2fd0961e4d58ad95ee5529f2c6e05d6999cd3fb2d511b77d3cbcbfbdbb74d686",
       "default_categories": [
         "Productivity"
       ]
