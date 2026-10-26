@@ -478,6 +478,8 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		if !slices.Contains(fleetVarsSupportedInAppleConfigProfiles, fleet.FleetVarName(fleetVar)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
@@ -583,6 +585,17 @@ func validatePSSORegistrationTokenVariable(contents string) error {
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
 func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFound) error {
+	return validatePKCS12CAPayload(contents, digiCertVars.CAs(), fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix)
+}
+
+// additionalEJBCAValidation does the same for EJBCA Fleet variables.
+func additionalEJBCAValidation(contents string, ejbcaVars *EJBCAVarsFound) error {
+	return validatePKCS12CAPayload(contents, ejbcaVars.CAs(), fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix)
+}
+
+// validatePKCS12CAPayload checks that, for each CA, the data and password variables are the exact content of a
+// "com.apple.security.pkcs12" payload's PayloadContent and Password.
+func validatePKCS12CAPayload(contents string, cas []string, dataVar, passwordVar fleet.FleetVarName) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
 	contents = variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
 		return base64.StdEncoding.EncodeToString([]byte(match))
@@ -594,11 +607,11 @@ func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFou
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse PKCS12 payload with Fleet variables: %s", err.Error())}
 	}
 	var foundCAs []string
-	passwordPrefix := "FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix)
-	dataPrefix := "FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix)
+	passwordPrefix := "FLEET_VAR_" + string(passwordVar)
+	dataPrefix := "FLEET_VAR_" + string(dataVar)
 	for _, payload := range pkcs12Prof.PayloadContent {
 		if payload.PayloadType == "com.apple.security.pkcs12" {
-			for _, ca := range digiCertVars.CAs() {
+			for _, ca := range cas {
 				// Check for exact match on password and data
 				if payload.Password == "$"+passwordPrefix+ca || payload.Password == "${"+passwordPrefix+ca+"}" {
 					if string(payload.PayloadContent) == "$"+dataPrefix+ca || string(payload.PayloadContent) == "${"+dataPrefix+ca+"}" {
@@ -615,8 +628,8 @@ func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFou
 			}
 		}
 	}
-	if len(foundCAs) < len(digiCertVars.CAs()) {
-		for _, ca := range digiCertVars.CAs() {
+	if len(foundCAs) < len(cas) {
+		for _, ca := range cas {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively.",
 					passwordPrefix+ca, dataPrefix+ca)}
@@ -692,7 +705,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *CustomSCEPV
 		foundCAs = append(foundCAs, ca)
 	}
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
@@ -745,7 +758,7 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		foundCAs = append(foundCAs, ca)
 	}
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 	if len(foundCAs) < len(smallstepVars.CAs()) {
 		for _, ca := range smallstepVars.CAs() {
@@ -867,7 +880,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	}
 
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 
 	// Check for the exact match on challenge and URL
@@ -6811,7 +6824,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		)
 
 		// Load VPP metadata for the software title.
-		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, softwareTitle.ID)
 		switch {
 		case err == nil:
 			// OK
@@ -7308,13 +7321,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		// A Settings command can report per-item failures inside an
 		// acknowledged result; this command carries a single DeviceName item,
 		// so any item-level error means the rename failed.
-		if itemDetail, itemChain, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
-			status = fleet.MDMAppleStatusError
+		if itemStatus, itemDetail, itemChain := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemStatus != "" {
+			status = itemStatus
 			detail = itemDetail
 			errorChain = itemChain
 		}
 	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 		detail = apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+		if detail == "" {
+			detail = "Settings command returned status " + status + "."
+		}
 		errorChain = cmdResult.ErrorChain
 	default:
 		// Idle/NotNow — the command hasn't completed yet; nothing to record.
@@ -7333,7 +7349,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		return nil
 	}
 
-	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail, !isDeviceNotSupervisedError(errorChain))
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail, isDeviceNameErrorRetryable(status, errorChain))
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -7347,9 +7363,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 // deviceNameSettingsItemError inspects a Settings command acknowledgment for
 // per-item statuses: each item in the Settings array of the response can
 // individually report an Error even when the overall command is Acknowledged.
-// It returns a human-readable detail, the item's error chain, and true when any
-// item failed.
-func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, []mdm.ErrorChain, bool) {
+// It returns the failed item's status (empty when no item failed), a
+// human-readable detail, and the item's error chain.
+func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, string, []mdm.ErrorChain) {
 	var ack struct {
 		Settings []struct {
 			Status     string           `plist:"Status"`
@@ -7359,31 +7375,40 @@ func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw [
 	if err := plist.Unmarshal(raw, &ack); err != nil {
 		// A malformed per-item array shouldn't fail the acknowledged command.
 		logger.WarnContext(ctx, "unmarshal Settings command acknowledgment for per-item statuses", "err", err)
-		return "", nil, false
+		return "", "", nil
 	}
 	for _, item := range ack.Settings {
 		if item.Status != "" && item.Status != fleet.MDMAppleStatusAcknowledged {
 			detail := apple_mdm.FmtErrorChain(item.ErrorChain)
 			if detail == "" {
-				detail = "Settings item returned status " + item.Status + "."
+				if item.Status == fleet.MDMAppleStatusCommandFormatError {
+					// Unsupervised iPhones and iPads can reject the rename this
+					// way, with no error chain to explain why.
+					detail = "The device rejected the host name. Apple only renames supervised iPhones and iPads."
+				} else {
+					detail = "Settings item returned status " + item.Status + "."
+				}
 			}
-			return detail, item.ErrorChain, true
+			return item.Status, detail, item.ErrorChain
 		}
 	}
-	return "", nil, false
+	return "", "", nil
 }
 
 // Apple only renames supervised iPhones and iPads, so this rejection can't be
 // fixed by retrying.
 const mdmErrorDeviceNotSupervised = 12026
 
-func isDeviceNotSupervisedError(chain []mdm.ErrorChain) bool {
+func isDeviceNameErrorRetryable(status string, chain []mdm.ErrorChain) bool {
+	if status == fleet.MDMAppleStatusCommandFormatError {
+		return false
+	}
 	for _, e := range chain {
 		if e.ErrorDomain == "MCMDMErrorDomain" && e.ErrorCode == mdmErrorDeviceNotSupervised {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {

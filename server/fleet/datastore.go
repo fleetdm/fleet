@@ -356,7 +356,7 @@ type Datastore interface {
 	ListHostUsers(ctx context.Context, hostID uint) ([]HostUser, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
-	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	SearchHosts(ctx context.Context, filter TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountAllHosts(ctx context.Context) (int, error)
@@ -371,6 +371,7 @@ type Datastore interface {
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
+	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
@@ -1276,6 +1277,10 @@ type Datastore interface {
 	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
 	InitializePolicyViolationDays(ctx context.Context) error
 
+	// IncrementAIGeneratedProfileCount adds one to the cumulative count of configuration profiles generated
+	// for platform ("apple" or "windows") that is reported in usage statistics.
+	IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
 
@@ -1367,6 +1372,10 @@ type Datastore interface {
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// MarkSoftwareAsAITool flags the stored software rows matching the given software (by
+	// checksum) as AI tools. It never clears the flag.
+	MarkSoftwareAsAITool(ctx context.Context, software []Software) error
 
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
 	// 'reported', either inserts, updates or deletes the corresponding entries in the
@@ -3593,9 +3602,9 @@ type Datastore interface {
 	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
 
-	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
-	// given vpp_apps_teams row.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*VPPAppStatusSummary, error)
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary of the given versions of an app in a fleet,
+	// keyed by vpp_apps_teams id. Pass all versions of the app, a host counts once per status across them.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*VPPAppStoreApp) (map[uint]*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -4674,9 +4683,13 @@ type AndroidDatastore interface {
 	// version <= the provided policy version.
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
 
+	// ListHostMDMAndroidVPPAppsLatestFailedInstall lists the Android VPP apps
+	// whose most recent install on the host failed.
+	ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*HostAndroidVPPSoftwareInstall, error)
+
 	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
-	// as verified. This is for Android hosts, where the verification uuid is not important,
-	// so the implementation generates a random one.
+	// as verified, clearing any earlier failure. This is for Android hosts, where the
+	// verification uuid is not important, so the implementation generates a random one.
 	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
 
 	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs
@@ -4852,18 +4865,18 @@ type SecretUsedError struct {
 func (c *SecretUsedError) Error() string {
 	if c.Entity.Type == "script" {
 		return fmt.Sprintf(
-			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
+			"%s is used by the %q script in the %q fleet. Please edit or delete the script and try again.",
 			c.SecretName, c.Entity.Name, c.Entity.TeamName,
 		)
 	}
 	if c.Entity.Type == "host_name_template" {
 		return fmt.Sprintf(
-			"%s is used by the host name template in the %q team. Please edit or clear the host name template and try again.",
+			"%s is used by the host name template in the %q fleet. Please edit or clear the host name template and try again.",
 			c.SecretName, c.Entity.TeamName,
 		)
 	}
 	return fmt.Sprintf(
-		"%s is used by the %q configuration profile in the %q team. Please delete the configuration profile and try again.",
+		"%s is used by the %q configuration profile in the %q fleet. Please delete the configuration profile and try again.",
 		c.SecretName, c.Entity.Name, c.Entity.TeamName,
 	)
 }

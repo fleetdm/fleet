@@ -211,7 +211,7 @@ func TestConfigPollSlowsDownAndReportsFallbackChanges(t *testing.T) {
 	require.GreaterOrEqual(t, srv.count.Load()-before, int32(3))
 }
 
-func TestNudgesDuringBackoff(t *testing.T) {
+func TestNudgesWhileFailing(t *testing.T) {
 	oldRetry := configRetryOnNetworkError
 	configRetryOnNetworkError = time.Millisecond
 	t.Cleanup(func() { configRetryOnNetworkError = oldRetry })
@@ -219,7 +219,7 @@ func TestNudgesDuringBackoff(t *testing.T) {
 	srv := &configServer{}
 	srv.set(nudgedConfig(3600))
 	oc := newNudgeTestClient(t, srv)
-	// Also the backoff base: no retry fires during the test.
+	// Also the retry interval: no retry fires during the test.
 	oc.DefaultConfigPollInterval = time.Hour
 	oc.SetTransportConnectedFunc(func() bool { return true })
 	var receiverRuns atomic.Int32
@@ -229,13 +229,13 @@ func TestNudgesDuringBackoff(t *testing.T) {
 	}))
 	runConfigReceivers(t, oc)
 
-	// A failing receiver puts the loop in backoff, but the server is healthy: nudges are served.
+	// A failing receiver doesn't stop nudges from being served.
 	oc.TriggerConfigRefresh()
 	require.Eventually(t, func() bool { return receiverRuns.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
 	oc.TriggerConfigRefresh()
 	require.Eventually(t, func() bool { return receiverRuns.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
 
-	// Fetching fails: the retry is left to the backoff timer.
+	// Fetching fails: the retry is left to the timer.
 	srv.status.Store(http.StatusInternalServerError)
 	oc.TriggerConfigRefresh()
 	require.Eventually(t, func() bool { return srv.count.Load() == 4 }, 5*time.Second, 10*time.Millisecond) // fetch + its retry

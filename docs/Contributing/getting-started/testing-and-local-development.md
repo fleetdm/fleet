@@ -481,7 +481,7 @@ awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_RE
 
 The following guide assumes you have server dependencies running:
 ```sh
-docker-compose up
+docker compose --profile localstack up
 #
 # (Starts LocalStack with kinesis enabled.)
 #
@@ -1078,6 +1078,16 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- For Dogfood/QA deployments using Terraform, set the environment variable on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`.
 	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
 7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+
+## AI configuration profile autofill
+
+The autofill configuration profile endpoints call the configuration profile generator on `https://fleetdm.com`. To test against a local or preview website instead, start the server in dev mode with `FLEET_DEV_AI_AUTOFILL_BASE_URL` set to the website's base URL:
+
+```sh
+FLEET_DEV_AI_AUTOFILL_BASE_URL="http://localhost:2024" ./build/fleet serve --dev
+```
+
+The variable is ignored without `--dev`. Pointing it at an unreachable URL exercises the AI service failure path.
 
 ## MDM setup and testing
 

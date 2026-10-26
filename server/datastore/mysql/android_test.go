@@ -37,6 +37,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidHostEnrollmentTimes", testUpdateAndroidHostEnrollmentTimes},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"UpdateAndroidHostKeepsDiskMeasurement", testUpdateAndroidHostKeepsDiskMeasurement},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
 		{"UpdateMDMAndroidConfigProfile", testUpdateMDMAndroidConfigProfile},
@@ -857,6 +858,134 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	type diskReport struct {
+		available, percent, total float64
+	}
+	measured := diskReport{available: 95.3, percent: 86.4, total: 110.3}
+	remeasured := diskReport{available: 50, percent: 25, total: 200}
+	notMeasured := diskReport{available: -1, percent: -1, total: 128}
+
+	// A step is a status report or a re-enrollment, each carrying a disk report.
+	type step struct {
+		report     diskReport
+		fromEnroll bool
+	}
+	status := func(r diskReport) step { return step{report: r} }
+	reenroll := func(r diskReport) step { return step{report: r, fromEnroll: true} }
+
+	cases := []struct {
+		name  string
+		steps []step
+		// encryptionOnlyRow seeds a host_disks row holding only encryption data, so its disk
+		// columns are at their 0 defaults rather than a measurement.
+		encryptionOnlyRow bool
+		want              diskReport
+	}{
+		{
+			name:  "re-enrollment without a measurement keeps the last one with its total",
+			steps: []step{status(measured), reenroll(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "status reports after a re-enrollment keep it until the device measures",
+			steps: []step{status(measured), reenroll(notMeasured), status(notMeasured), status(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "a status report without a measurement keeps the last one",
+			steps: []step{status(measured), status(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "a full disk is a measurement and is kept",
+			steps: []step{status(diskReport{available: 0, percent: 0, total: 64}), reenroll(notMeasured)},
+			want:  diskReport{available: 0, percent: 0, total: 64},
+		},
+		{
+			name:  "a measurement after a re-enrollment replaces the kept one and is then kept",
+			steps: []step{status(measured), reenroll(notMeasured), status(remeasured), status(notMeasured)},
+			want:  remeasured,
+		},
+		{
+			name:  "host with no stored disk data records not supported",
+			steps: []step{reenroll(notMeasured)},
+			want:  notMeasured,
+		},
+		{
+			name:              "a row without disk data records not supported and keeps its other columns",
+			steps:             []step{reenroll(notMeasured)},
+			encryptionOnlyRow: true,
+			want:              notMeasured,
+		},
+		{
+			name:  "host that has only reported not supported keeps reporting it",
+			steps: []step{status(notMeasured), reenroll(diskReport{available: -1, percent: -1, total: 256})},
+			want:  diskReport{available: -1, percent: -1, total: 256},
+		},
+		{
+			name:  "a measurement replaces not supported",
+			steps: []step{status(notMeasured), status(measured)},
+			want:  measured,
+		},
+		{
+			name:  "a new measurement replaces the stored one",
+			steps: []step{status(measured), reenroll(remeasured)},
+			want:  remeasured,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			newHost := func(enterpriseSpecificID string) *fleet.AndroidHost {
+				created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+				require.NoError(t, err)
+				return created
+			}
+			report := func(host *fleet.AndroidHost, r diskReport, fromEnroll bool) {
+				host.Host.GigsDiskSpaceAvailable = r.available
+				host.Host.PercentDiskSpaceAvailable = r.percent
+				host.Host.GigsTotalDiskSpace = r.total
+				require.NoError(t, ds.UpdateAndroidHost(ctx, host, fromEnroll, false))
+			}
+			requireDisk := func(hostID uint, want diskReport) {
+				got, err := ds.Host(ctx, hostID)
+				require.NoError(t, err)
+				assert.InDelta(t, want.available, got.GigsDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.percent, got.PercentDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.total, got.GigsTotalDiskSpace, 0.01)
+			}
+
+			host := newHost(fmt.Sprintf("keep-disk-%d", i))
+			// Another host with a measurement, so a write that isn't scoped to the host shows up.
+			otherHost := newHost(fmt.Sprintf("keep-disk-other-%d", i))
+			report(otherHost, measured, false)
+
+			if c.encryptionOnlyRow {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.Host.ID, true, nil))
+			}
+
+			for _, s := range c.steps {
+				report(host, s.report, s.fromEnroll)
+			}
+
+			requireDisk(host.Host.ID, c.want)
+			requireDisk(otherHost.Host.ID, measured)
+
+			if c.encryptionOnlyRow {
+				got, err := ds.Host(ctx, host.Host.ID)
+				require.NoError(t, err)
+				require.NotNil(t, got.DiskEncryptionEnabled)
+				assert.True(t, *got.DiskEncryptionEnabled)
+			}
+		})
+	}
 }
 
 func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {

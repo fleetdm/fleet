@@ -151,6 +151,103 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 }
 
+// MarkSoftwareAsAITool reads first and only updates the rows not yet flagged, so the hourly
+// ingest stays off the writer once a host's rows are flagged. The read goes to the replica on
+// purpose, like applyChangesForNewSoftwareDB: a stale answer either repeats an idempotent update
+// or defers the flag to the host's next ingest.
+func (ds *Datastore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	seen := make(map[string]struct{}, len(software))
+	checksums := make([][]byte, 0, len(software))
+	for _, sw := range software {
+		checksum, err := sw.ComputeRawChecksum()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "compute software checksum")
+		}
+		if _, ok := seen[string(checksum)]; ok {
+			continue
+		}
+		seen[string(checksum)] = struct{}{}
+		checksums = append(checksums, checksum)
+	}
+
+	return common_mysql.BatchProcessSimple(checksums, 500, func(batch [][]byte) error {
+		stmt, args, err := sqlx.In(`SELECT checksum FROM software WHERE checksum IN (?) AND ai_tool = 0`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build select unflagged software query")
+		}
+		var unflagged [][]byte
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &unflagged, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select unflagged software")
+		}
+		if len(unflagged) == 0 {
+			return nil
+		}
+		stmt, args, err = sqlx.In(`UPDATE software SET ai_tool = 1 WHERE checksum IN (?)`, unflagged)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build mark software as ai tool query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			// Not retried, like applyChangesForNewSoftwareDB: this runs on every ingest, so the
+			// host's next refresh flags these rows.
+			if common_mysql.RetryableError(err) {
+				ds.logger.InfoContext(ctx, "retryable error marking software as ai tool, will retry on next agent refresh", "err", err)
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "mark software as ai tool")
+		}
+		return nil
+	})
+}
+
+// aiToolTitleIDs returns the subset of titleIDs that have at least one software row flagged as an
+// AI tool.
+func (ds *Datastore) aiToolTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint) (map[uint]struct{}, error) {
+	result := make(map[uint]struct{})
+	err := common_mysql.BatchProcessSimple(titleIDs, 32000, func(batch []uint) error {
+		stmt, args, err := sqlx.In(`SELECT DISTINCT title_id FROM software WHERE ai_tool = 1 AND title_id IN (?)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build ai tool title ids query")
+		}
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, q, &ids, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select ai tool title ids")
+		}
+		for _, id := range ids {
+			result[id] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// setHostSoftwareAITool fills ai_tool on a page of host software. When the list was filtered to AI
+// tools every title qualifies; otherwise one lookup over the page's title IDs decides.
+func (ds *Datastore) setHostSoftwareAITool(ctx context.Context, aiToolFilter bool, software []*fleet.HostSoftwareWithInstaller) error {
+	switch {
+	case aiToolFilter:
+		for _, s := range software {
+			s.AITool = new(true)
+		}
+	case len(software) > 0:
+		titleIDs := make([]uint, 0, len(software))
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+		}
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get ai tool host software titles")
+		}
+		for _, s := range software {
+			_, ok := aiToolTitles[s.ID]
+			s.AITool = new(ok)
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
@@ -593,6 +690,7 @@ SELECT
     s.arch,
     s.extension_id,
     s.upgrade_code,
+    s.ai_tool,
     hs.last_opened_at
 FROM
     software s
@@ -1629,9 +1727,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Insert software entries
-			const numberOfArgsPerSoftware = 13
+			const numberOfArgsPerSoftware = 14
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
@@ -1647,7 +1745,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					title_id,
 					checksum,
 					application_id,
-					upgrade_code
+					upgrade_code,
+					ai_tool
 				) VALUES %s`,
 				values,
 			)
@@ -1694,6 +1793,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				args = append(
 					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
+					ptr.ValOrZero(sw.AITool),
 				)
 			}
 
@@ -2289,9 +2389,16 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 		args = append(args, pattern, pattern, pattern, pattern)
 	}
 
+	var softwarePredicates []string
 	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "s"); filterSQL != "" {
-		innerSQL += ` AND EXISTS (SELECT 1 FROM software s WHERE s.id = shc.software_id AND ` + filterSQL + `)`
+		softwarePredicates = append(softwarePredicates, filterSQL)
 		args = append(args, filterArgs...)
+	}
+	if opts.AITool {
+		softwarePredicates = append(softwarePredicates, "s.ai_tool = 1")
+	}
+	if len(softwarePredicates) > 0 {
+		innerSQL += ` AND EXISTS (SELECT 1 FROM software s WHERE s.id = shc.software_id AND ` + strings.Join(softwarePredicates, " AND ") + `)`
 	}
 
 	// software_id is the secondary key to make ordering deterministic
@@ -2328,6 +2435,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			s.bundle_identifier,
 			s.extension_id,
 			s.extension_for,
+			s.ai_tool,
 			s.release,
 			s.vendor,
 			s.arch,
@@ -2425,6 +2533,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.bundle_identifier",
 			"s.extension_id",
 			"s.extension_for",
+			"s.ai_tool",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -2599,6 +2708,10 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		ds = ds.Where(goqu.L(filterSQL, filterArgs...))
 	}
 
+	if opts.AITool {
+		ds = ds.Where(goqu.I("s.ai_tool").Eq(1))
+	}
+
 	if opts.WithHostCounts {
 		ds = ds.
 			SelectAppend(
@@ -2615,6 +2728,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.bundle_identifier",
 		"s.extension_id",
 		"s.extension_for",
+		"s.ai_tool",
 		"s.release",
 		"s.vendor",
 		"s.arch",
@@ -2639,6 +2753,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.bundle_identifier",
 			"s.extension_id",
 			"s.extension_for",
+			"s.ai_tool",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -2715,7 +2830,7 @@ func countSoftwareDB(
 
 	// For listing all software, use optimized query starting from software_host_counts
 	// Add joins only if needed for filtering
-	needsSoftwareJoin := opts.ListOptions.MatchQuery != "" || len(opts.TypeFilter) > 0
+	needsSoftwareJoin := opts.ListOptions.MatchQuery != "" || len(opts.TypeFilter) > 0 || opts.AITool
 	needsTitleJoin := opts.ListOptions.MatchQuery != "" // Join software_titles for search by title name
 	needsCVEJoin := opts.VulnerableOnly || opts.ListOptions.MatchQuery != ""
 	needsCVEMetaJoin := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
@@ -2797,6 +2912,10 @@ func countSoftwareDB(
 	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "s"); filterSQL != "" {
 		whereClauses = append(whereClauses, filterSQL)
 		args = append(args, filterArgs...)
+	}
+
+	if opts.AITool {
+		whereClauses = append(whereClauses, "s.ai_tool = 1")
 	}
 
 	// Add all WHERE clauses
@@ -3098,6 +3217,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.version",
 			"s.source",
 			"s.extension_for",
+			"s.ai_tool",
 			"s.bundle_identifier",
 			"s.upgrade_code",
 			"s.release",
@@ -5670,6 +5790,39 @@ func filterSelfServiceOutOfScopeHostSoftware(
 // folder. Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than
 // the SQL) keeps the count and main queries consistent and applies uniformly across software, VPP, and in-house apps. Maps are
 // mutated in place.
+// pruneHostSoftwareByFilters applies the macOS /Applications, type and AI tool filters by pruning
+// the in-memory maps rather than the SQL, which keeps the count and main queries consistent and
+// applies uniformly across software, VPP, and in-house apps. The /Applications filter is ignored
+// for non-macOS hosts.
+func (ds *Datastore) pruneHostSoftwareByFilters(
+	ctx context.Context,
+	host *fleet.Host,
+	opts fleet.HostSoftwareTitleListOptions,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) error {
+	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
+		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	if len(opts.TypeFilter) > 0 {
+		if err := ds.filterHostSoftwareByType(ctx, opts.TypeFilter, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	if opts.AITool {
+		if err := ds.filterHostSoftwareToAITools(ctx, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) filterHostSoftwareToMacOSApplications(
 	ctx context.Context,
 	hostID uint,
@@ -5705,6 +5858,47 @@ func pruneHostSoftwareToTitles(
 	deleteHostSoftwareNotInTitles(byInHouseID, keep)
 }
 
+// hostSoftwareTitleIDs returns the title IDs of every entry in the host software maps.
+func hostSoftwareTitleIDs(
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) map[uint]struct{} {
+	titleIDs := make(map[uint]struct{}, len(bySoftwareTitleID))
+	for titleID := range bySoftwareTitleID {
+		titleIDs[titleID] = struct{}{}
+	}
+	for _, m := range []map[uint]*hostSoftware{bySoftwareID, byInHouseID} {
+		for _, s := range m {
+			titleIDs[s.ID] = struct{}{}
+		}
+	}
+	for _, s := range byVPPAdamID {
+		titleIDs[s.ID] = struct{}{}
+	}
+	return titleIDs
+}
+
+// filterHostSoftwareToAITools drops every title without a software row flagged as an AI tool. Like
+// filterHostSoftwareByType, it prunes the in-memory maps so the count and main queries stay
+// consistent. Maps are mutated in place.
+func (ds *Datastore) filterHostSoftwareToAITools(
+	ctx context.Context,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) error {
+	titleIDs := hostSoftwareTitleIDs(bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID)
+	qualifying, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), slices.Collect(maps.Keys(titleIDs)))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "filter host software to ai tools")
+	}
+	pruneHostSoftwareToTitles(qualifying, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID)
+	return nil
+}
+
 // deleteHostSoftwareNotInTitles deletes the entries whose title ID isn't in keep.
 func deleteHostSoftwareNotInTitles[K comparable](m map[K]*hostSoftware, keep map[uint]struct{}) {
 	maps.DeleteFunc(m, func(_ K, s *hostSoftware) bool {
@@ -5725,18 +5919,7 @@ func (ds *Datastore) filterHostSoftwareByType(
 	byVPPAdamID map[string]*hostSoftware,
 	byInHouseID map[uint]*hostSoftware,
 ) error {
-	titleIDs := make(map[uint]struct{}, len(bySoftwareTitleID))
-	for titleID := range bySoftwareTitleID {
-		titleIDs[titleID] = struct{}{}
-	}
-	for _, m := range []map[uint]*hostSoftware{bySoftwareID, byInHouseID} {
-		for _, s := range m {
-			titleIDs[s.ID] = struct{}{}
-		}
-	}
-	for _, s := range byVPPAdamID {
-		titleIDs[s.ID] = struct{}{}
-	}
+	titleIDs := hostSoftwareTitleIDs(bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID)
 
 	qualifying := make(map[uint]struct{}, len(titleIDs))
 	if len(titleIDs) > 0 {
@@ -6882,22 +7065,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	// Filter to apps installed at the top level of the macOS /Applications
-	// folder. Ignored for non-macOS hosts. Pruning the in-memory maps (rather
-	// than the SQL) keeps the count and main queries consistent and applies
-	// uniformly across software, VPP, and in-house apps.
-	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
-		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
-			byVPPAdamID, byInHouseID); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if len(opts.TypeFilter) > 0 {
-		if err := ds.filterHostSoftwareByType(ctx, opts.TypeFilter, bySoftwareTitleID, bySoftwareID,
-			byVPPAdamID, byInHouseID); err != nil {
-			return nil, nil, err
-		}
+	if err := ds.pruneHostSoftwareByFilters(ctx, host, opts, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID); err != nil {
+		return nil, nil, err
 	}
 
 	var softwareTitleIDs []uint
@@ -7492,6 +7661,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
+	}
+
+	if err := ds.setHostSoftwareAITool(ctx, opts.AITool, software); err != nil {
+		return nil, nil, err
 	}
 
 	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on

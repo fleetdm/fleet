@@ -5,7 +5,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -77,7 +77,7 @@ const GlobalHostStatusWebhook = ({
     if (enableHostStatusWebhook) {
       if (!destination_url) {
         errors.destination_url = "Destination URL must be present";
-      } else if (!validUrl({ url: destination_url })) {
+      } else if (!isValidURL({ url: destination_url })) {
         errors.destination_url = "Destination URL is not a valid URL";
       }
     }

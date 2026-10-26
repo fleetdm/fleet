@@ -517,6 +517,11 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 			return err
 		}
 	}
+	// The insert replaces an existing package, which is logged as a delete followed by the add.
+	replaced, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get existing bootstrap package")
+	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
 	}
@@ -524,6 +529,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		svc.deleteStagedUpload(ctx, stagedUploadID)
 	}
 
+	if replaced != nil {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: replaced.Name, TeamID: ptrTeamId, TeamName: ptrTeamName},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for replaced bootstrap package")
+		}
+	}
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName},

@@ -4,6 +4,7 @@ import React, { useContext, useState } from "react";
 import FileUploader from "components/FileUploader";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
 
@@ -19,6 +20,7 @@ const BootstrapPackageUploader = ({
   onUpload,
 }: IBootstrapPackageUploaderProps) => {
   const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
@@ -62,6 +64,8 @@ const BootstrapPackageUploader = ({
       accept=".pkg"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      gitopsCompatible
+      gitOpsModeEnabled={gitOpsModeEnabled}
     />
   );
 };
