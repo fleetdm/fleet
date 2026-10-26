@@ -491,6 +491,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 			if len(g.Hydrant) > 0 {
 				storedCAs.Hydrant = g.Hydrant
 			}
+			if len(g.GoogleCAS) > 0 {
+				storedCAs.GoogleCAS = g.GoogleCAS
+			}
 		}
 		return nil
 	}

@@ -118,7 +118,17 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 		require.Nil(t, actual.MTLSCertExpiresAt)
 	}
 
+	// Google CAS specific non-secret fields
+	for _, field := range []struct{ expected, actual *string }{
+		{expected.GoogleCASProject, actual.GoogleCASProject},
+		{expected.GoogleCASLocation, actual.GoogleCASLocation},
+		{expected.GoogleCASCAPool, actual.GoogleCASCAPool},
+	} {
+		require.Equal(t, field.expected, field.actual)
+	}
+
 	if expectSecrets {
+		require.Equal(t, expected.GoogleCASAPIKeyJSON, actual.GoogleCASAPIKeyJSON)
 		if expected.MTLSKeyPEM != nil {
 			require.NotNil(t, actual.MTLSKeyPEM)
 			require.Equal(t, *expected.MTLSKeyPEM, *actual.MTLSKeyPEM)
@@ -150,6 +160,12 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 			require.Nil(t, actual.ClientSecret)
 		}
 	} else {
+		if expected.GoogleCASAPIKeyJSON != nil {
+			require.NotNil(t, actual.GoogleCASAPIKeyJSON)
+			require.Equal(t, fleet.MaskedPassword, *actual.GoogleCASAPIKeyJSON)
+		} else {
+			require.Nil(t, actual.GoogleCASAPIKeyJSON)
+		}
 		if expected.MTLSKeyPEM != nil {
 			require.NotNil(t, actual.MTLSKeyPEM)
 			require.Equal(t, fleet.MaskedPassword, *actual.MTLSKeyPEM)
@@ -312,6 +328,26 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		MTLSCertExpiresAt:           &ejbcaNotAfter,
 	}
 
+	// Google CAS CAs. The url column is NOT NULL, so the type stores it empty.
+	googleCASCA1 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-ca-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"sa@my-project.iam.gserviceaccount.com","private_key":"key"}`),
+	}
+	googleCASCA2 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA 2"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project-2"),
+		GoogleCASLocation:   new("europe-west1"),
+		GoogleCASCAPool:     new("my-ca-pool-2"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"sa2@my-project.iam.gserviceaccount.com","private_key":"key2"}`),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		digicertCA2,
@@ -326,6 +362,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		smallstepCA2,
 		ejbcaCA1,
 		ejbcaCA2,
+		googleCASCA1,
+		googleCASCA2,
 	}
 
 	for _, ca := range casToCreate {
@@ -563,6 +601,16 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		CertificateCommonName:       new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
 	}
 
+	googleCASCA1 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-ca-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account"}`),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		hydrantCA1,
@@ -571,6 +619,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		ndesCA1,
 		smallstepCA1,
 		ejbcaCA1,
+		googleCASCA1,
 	}
 
 	caMap := map[fleet.CAType]*fleet.CertificateAuthority{}
@@ -752,6 +801,31 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Nil(t, cleared.TrustCABundlePEM)
 		require.Nil(t, cleared.EJBCAUsernameTemplate)
 		require.Nil(t, cleared.CertificateUserPrincipalNames)
+	})
+
+	t.Run("successfully updates Google CAS CA", func(t *testing.T) {
+		googleCASCA := caMap[fleet.CATypeGoogleCAS]
+
+		// A partial update keeps the fields it doesn't set.
+		update := &fleet.CertificateAuthority{
+			Type:                string(fleet.CATypeGoogleCAS),
+			Name:                new("Updated Google CAS"),
+			GoogleCASCAPool:     new("updated-ca-pool"),
+			GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"new"}`),
+		}
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, googleCASCA.ID, update))
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, googleCASCA.ID, true)
+		require.NoError(t, err)
+		require.Equal(t, "Updated Google CAS", *updatedCA.Name)
+		require.Equal(t, "my-project", *updatedCA.GoogleCASProject)
+		require.Equal(t, "us-central1", *updatedCA.GoogleCASLocation)
+		require.Equal(t, "updated-ca-pool", *updatedCA.GoogleCASCAPool)
+		require.Equal(t, *update.GoogleCASAPIKeyJSON, *updatedCA.GoogleCASAPIKeyJSON)
+
+		maskedCA, err := ds.GetCertificateAuthorityByID(ctx, googleCASCA.ID, false)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MaskedPassword, *maskedCA.GoogleCASAPIKeyJSON)
 	})
 
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
