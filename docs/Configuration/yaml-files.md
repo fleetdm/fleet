@@ -1105,14 +1105,12 @@ org_settings:
 
 The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) in the Fleet UI. When GitOps mode is enabled, many UI features become read-only to ensure that configuration changes are made only via GitOps.
 
-- `gitops_mode_enabled` — when `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL. Requires Fleet Premium.
+- `gitops_mode_enabled` (default: `false`) — when `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL. Requires Fleet Premium.
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
 
 > GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
-
-> If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 
 #### Example
 
@@ -1128,8 +1126,6 @@ org_settings:
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
 - `host_expiry_enabled` (default: `false`)
 - `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
-
-If this setting is not defined in your YAML files, unlike all other settings, it will not get reset to the default values.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -1785,8 +1781,6 @@ org_settings:
 ```
 
 Can only be configured for "All fleets" (`org_settings`).
-
-Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
 ## Tips
 
