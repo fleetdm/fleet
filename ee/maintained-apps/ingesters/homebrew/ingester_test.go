@@ -87,12 +87,20 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "kicad", "mindmanager", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
 				Version: "1.0",
+			}
+
+		case "lm-studio":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "0.4.26,4",
 			}
 
 		case "firefox@developer-edition":
@@ -151,11 +159,16 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
+		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
+		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
+		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
+		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
+		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "4k-stogram", UniqueIdentifier: "com.openmedia.4kstogram", InstallerFormat: "dmg", Name: "4K Stogram", Slug: "4k-stogram/darwin"}},
 		{"", inputApp{Token: "4k-video-downloader", UniqueIdentifier: "com.openmedia.4kvideodownloader", InstallerFormat: "dmg", Name: "4K Video Downloader", Slug: "4k-video-downloader/darwin"}}, //nolint:gosec // G101: cask token, not a credential
@@ -252,6 +265,21 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
+			case "lm-studio":
+				require.Equal(t, "0.4.26+4", out.Version)
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
+					out.Queries.Patched,
+				)
+			case "logitech-g-hub":
+				// lghub.app has no CFBundleShortVersionString, so the patched query
+				// compares CFBundleVersion, which the cask version tracks.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
 			case "swiftdialog":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';", out.Queries.Exists)
 				require.Equal(t,
@@ -272,6 +300,28 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mindjet.mindmanager.26';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "qgis":
+				// QGIS and QGIS LTR share a bundle identifier, so each is scoped to its install path.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "qgis@ltr":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "chatgpt":
+				// ChatGPT reports com.openai.codex since OpenAI rebuilt it on the Codex app;
+				// older installs still report com.openai.chat, so both are matched. The
+				// patched query is generated from the exists query.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
@@ -295,6 +345,16 @@ func TestIngestValidations(t *testing.T) {
 					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
 					out.Queries.Open,
 				)
+			case "qgis":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path LIKE '/Applications/QGIS-final-%.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "qgis@ltr":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
 			case "kicad":
 				// KiCad's editors also run as standalone apps nested in KiCad.app, so they count as open too.
 				require.Equal(t,
@@ -305,6 +365,11 @@ func TestIngestValidations(t *testing.T) {
 				// A running older major must defer patching, same as the current one.
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "chatgpt":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (a.bundle_identifier = 'com.openai.chat' OR (a.bundle_identifier = 'com.openai.codex' AND a.bundle_name = 'ChatGPT')) AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			default:

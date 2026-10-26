@@ -7,7 +7,7 @@ TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   # check if the application is running
@@ -54,7 +54,7 @@ quit_and_track_application() {
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   # Check if the app was running before installation
@@ -122,9 +122,9 @@ if [[ -n "$OLD_BUNDLE_ID" && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
 		relaunch_application "$NEW_BUNDLE_ID"
 		exit 1
 	fi
-	OLD_WAS_RUNNING_VAR="APP_WAS_RUNNING_$(echo "$OLD_BUNDLE_ID" | tr '.-' '__')"
+	OLD_WAS_RUNNING_VAR="APP_WAS_RUNNING_${OLD_BUNDLE_ID//[^[:alnum:]_]/_}"
 	if [[ "${!OLD_WAS_RUNNING_VAR}" == "1" ]]; then
-		export "APP_WAS_RUNNING_$(echo "$NEW_BUNDLE_ID" | tr '.-' '__')=1"
+		export "APP_WAS_RUNNING_${NEW_BUNDLE_ID//[^[:alnum:]_]/_}=1"
 	fi
 fi
 if [ -d "$APPDIR/MindManager.app" ]; then

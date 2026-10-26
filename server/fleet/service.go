@@ -1015,7 +1015,7 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// Returns (nil, nil, "", nil) for non-DEP hosts and hosts whose ABM token was deleted.
 	// If ABM returns an error, dep_device is nil, depError classifies why, and
 	// the original error is logged rather than returned to the caller.
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
@@ -1377,6 +1377,15 @@ type Service interface {
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
+
+	// AutofillConfigProfileNameDescription asks fleetdm.com for a name and
+	// description for a profile described in natural language.
+	AutofillConfigProfileNameDescription(ctx context.Context, instructions, platform string) (name, description string, err error)
+
+	// AutofillConfigProfileContent asks fleetdm.com to generate a profile and
+	// runs the checks Fleet runs when the profile is added to teamID, without
+	// saving it.
+	AutofillConfigProfileContent(ctx context.Context, instructions, platform string, teamID uint) (*AutofilledConfigProfile, error)
 
 	// UpdateMDMConfigProfile updates an existing configuration profile's
 	// contents and/or label targeting in place. Supported for Apple

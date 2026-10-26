@@ -73,7 +73,9 @@ describe("HostHeader", () => {
 
     await user.hover(screen.getByText("Refetch"));
 
-    expect(await screen.findByText(/there's no manual/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/refetch is disabled because/i)
+    ).toBeInTheDocument();
   });
 
   it("disables refetch button when host is offline", () => {

@@ -63,6 +63,12 @@ org_settings:
       name: some-digicert-name
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
+    google_cas:
+    - api_key_json: # TODO: Add your Google CAS service account key JSON here
+      ca_pool: some-google-cas-pool
+      location: us-central1
+      name: some-google-cas-name
+      project: some-google-cas-project
     hydrant:
     - client_id: some-hydrant-client-id
       client_secret: # TODO: Add your Hydrant client secret here
