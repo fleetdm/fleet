@@ -470,6 +470,7 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 		if constraint == nil {
 			return emptyEntryErr(fmt.Sprintf("installConstraint.%d", i))
 		}
+		hasConstraint := false
 		for _, field := range []struct{ name, value string }{
 			{"chargingConstraint", constraint.ChargingConstraint},
 			{"deviceIdleConstraint", constraint.DeviceIdleConstraint},
@@ -478,6 +479,13 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 			if err := checkEnum("installConstraint."+field.name, fmt.Sprintf("installConstraint.%d.%s", i, field.name), field.value); err != nil {
 				return err
 			}
+			// Google treats the UNSPECIFIED value as unset and requires at least one field set.
+			if field.value != "" && !strings.HasSuffix(field.value, "_UNSPECIFIED") {
+				hasConstraint = true
+			}
+		}
+		if !hasConstraint {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q must set at least one constraint.", fmt.Sprintf("installConstraint.%d", i))}
 		}
 	}
 

@@ -423,6 +423,23 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "WIFI" is not a supported value for "installConstraint.0.networkTypeConstraint".`,
 		},
 		{
+			name:        "invalid - installConstraint with no constraint",
+			config:      json.RawMessage(`{"installConstraint": [{}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installConstraint.0" must set at least one constraint.`,
+		},
+		{
+			name:        "invalid - installConstraint with only unspecified constraints",
+			config:      json.RawMessage(`{"installConstraint": [{"chargingConstraint": "CHARGING_CONSTRAINT_UNSPECIFIED", "networkTypeConstraint": "NETWORK_TYPE_CONSTRAINT_UNSPECIFIED"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "installConstraint.0" must set at least one constraint.`,
+		},
+		{
+			name:        "valid - installConstraint with one constraint among unspecified ones",
+			config:      json.RawMessage(`{"installConstraint": [{"chargingConstraint": "CHARGING_CONSTRAINT_UNSPECIFIED", "deviceIdleConstraint": "DEVICE_IDLE_NOT_REQUIRED"}]}`),
+			expectError: false,
+		},
+		{
 			name:        "invalid - two installConstraint entries",
 			config:      json.RawMessage(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}, {"networkTypeConstraint": "INSTALL_ON_ANY_NETWORK"}]}`),
 			expectError: true,
