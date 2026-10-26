@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -378,4 +379,46 @@ func TestAutofillConfigProfileFleetFree(t *testing.T) {
 		_, err = svc.AutofillConfigProfileContent(ctx, "Update Macs to macOS 26.1 by December 15", "apple", 0)
 		requireAutofillError(t, err, "natural_language_instructions", "Fleet Premium", true)
 	})
+}
+
+func TestAutofillConfigProfileUsageStatistics(t *testing.T) {
+	gen := newFakeConfigProfileGenerator(t)
+	svc, ctx, ds := newAutofillTestService(t, fleet.TierPremium, nil)
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+
+	var counted []string
+	var countErr error
+	ds.IncrementAIGeneratedProfileCountFunc = func(ctx context.Context, platform string) error {
+		counted = append(counted, platform)
+		return countErr
+	}
+	declaration := `{"profileType": "ddm", "profile": "{\"Type\": \"com.apple.configuration.passcode.settings\", \"Identifier\": \"com.example.passcode\", \"Payload\": {\"RequirePasscode\": true}}"}`
+
+	gen.respond(http.StatusOK, declaration)
+	_, err := svc.AutofillConfigProfileContent(ctx, "Require a passcode", "apple", 0)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"apple"}, counted)
+
+	// A decline, a failed check, and the name and description endpoint don't count.
+	gen.respond(http.StatusBadRequest, `{"error": "couldNotGenerateProfile", "reason": "No."}`)
+	_, err = svc.AutofillConfigProfileContent(ctx, "Require a passcode", "apple", 0)
+	require.Error(t, err)
+	gen.respond(http.StatusOK, `{"profileType": "ddm", "profile": "{\"Type\": \"com.apple.configuration.package\", \"Identifier\": \"com.example.package\", \"Payload\": {}}"}`)
+	_, err = svc.AutofillConfigProfileContent(ctx, "Install a package", "apple", 0)
+	require.Error(t, err)
+	gen.respond(http.StatusOK, `{"name": "Name", "description": "Description"}`)
+	_, _, err = svc.AutofillConfigProfileNameDescription(ctx, "Require a passcode", "apple")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"apple"}, counted)
+
+	// A counting failure doesn't cost the admin their profile.
+	countErr = errors.New("database is down")
+	gen.respond(http.StatusOK, declaration)
+	profile, err := svc.AutofillConfigProfileContent(ctx, "Require a passcode", "apple", 0)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.AutofillConfigProfileTypeDeclaration, profile.Type)
+	assert.Equal(t, []string{"apple", "apple"}, counted)
 }
