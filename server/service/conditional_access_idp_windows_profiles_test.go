@@ -137,21 +137,26 @@ func TestConditionalAccessGetIdPWindowsProfiles(t *testing.T) {
 		profiles, err := svc.ConditionalAccessGetIdPWindowsProfiles(ctx)
 		require.NoError(t, err)
 
-		// The SCEP profile uploads as a SCEP profile, carries no secret, and leaves the SCEP URL and challenge to delivery.
+		// The SCEP profile carries a placeholder where the admin writes a global enroll secret, so it is rejected as
+		// copied and uploads once the placeholder is replaced. The SCEP URL is left to delivery.
+		require.NotContains(t, profiles.SCEPProfile, "AbC+/12=")
+		require.Contains(t, profiles.SCEPProfile, "<Data>"+conditionalAccessWindowsChallengePlaceholder+"</Data>")
 		scepProfile := &fleet.MDMWindowsConfigProfile{Name: "Okta SCEP", SyncML: []byte(profiles.SCEPProfile)}
 		require.NoError(t, scepProfile.ValidateUserProvided(false))
-		require.NotContains(t, profiles.SCEPProfile, "AbC+/12=")
-		foundVars, err := validateWindowsProfileFleetVariables(profiles.SCEPProfile, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
+		_, err = validateWindowsProfileFleetVariables(profiles.SCEPProfile, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
+		require.ErrorContains(t, err, conditionalAccessChallengeInvalidMsg)
+		withSecret := strings.Replace(profiles.SCEPProfile, conditionalAccessWindowsChallengePlaceholder, "AbC+/12=", 1)
+		foundVars, err := validateWindowsProfileFleetVariables(withSecret, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
 		require.NoError(t, err)
 		slices.Sort(foundVars)
 		require.Equal(t, []string{
 			string(fleet.FleetVarCertificateRenewalID),
-			string(fleet.FleetVarConditionalAccessSCEPChallenge),
 			string(fleet.FleetVarConditionalAccessSCEPURL),
 			string(fleet.FleetVarHostUUID),
 			string(fleet.FleetVarSCEPWindowsCertificateID),
 		}, foundVars)
-		scepData := syncMLTargets(t, profiles.SCEPProfile)
+		scepData := syncMLTargets(t, withSecret)
+		require.Equal(t, "AbC+/12=", scepData[conditionalAccessSCEPInstallPrefix+"Challenge"])
 		require.Equal(t, strings.ToUpper(hex.EncodeToString(thumbprint[:])), scepData[conditionalAccessSCEPInstallPrefix+"CAThumbprint"])
 
 		// The browser profile uploads with no Fleet variables and sets the same Chromium rule the Apple profile writes.
@@ -180,27 +185,6 @@ func TestConditionalAccessGetIdPWindowsProfiles(t *testing.T) {
 			require.Contains(t, browserData, uri)
 			require.Equal(t, wantRule, autoSelectRuleFromPolicyData(t, browserData[uri], browser+"AutoSelectCertificate_Value"), browser)
 		}
-	})
-
-	t.Run("enroll secret Windows can't send as a SCEP challenge", func(t *testing.T) {
-		t.Parallel()
-		_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, certPEM, "https://fleet.example.com", "bad_secret")
-		profiles, err := svc.ConditionalAccessGetIdPWindowsProfiles(ctx)
-		var badReqErr *fleet.BadRequestError
-		require.ErrorAs(t, err, &badReqErr)
-		require.Contains(t, err.Error(), "Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?")
-		require.Nil(t, profiles)
-	})
-
-	t.Run("a later enroll secret Windows can send", func(t *testing.T) {
-		t.Parallel()
-		ds, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, certPEM, "https://fleet.example.com", "bad_secret")
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{{Secret: "bad_secret"}, {Secret: "good-secret"}}, nil
-		}
-		profiles, err := svc.ConditionalAccessGetIdPWindowsProfiles(ctx)
-		require.NoError(t, err)
-		require.NotEmpty(t, profiles.SCEPProfile)
 	})
 
 	// The shared preconditions are covered by the Apple profile tests; this one shows the Windows endpoint applies them.

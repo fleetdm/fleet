@@ -430,8 +430,14 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles()
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
+	// As copied, the SCEP profile still has the challenge placeholder and is rejected.
+	body, headers := generateNewProfileMultipartRequest(t, "OktaSCEP.xml", []byte(profiles.SCEPProfile), s.token,
+		map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+	resp := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	require.Contains(t, extractServerErrorText(resp.Body), `"Challenge" field must contain a global enroll secret`)
+	scepProfile := strings.Replace(profiles.SCEPProfile, conditionalAccessWindowsChallengePlaceholder, "conditional-access-secret", 1)
 	for fileName, contents := range map[string]string{
-		"OktaSCEP.xml":     profiles.SCEPProfile,
+		"OktaSCEP.xml":     scepProfile,
 		"OktaBrowsers.xml": profiles.BrowserProfile,
 	} {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, []byte(contents), s.token,

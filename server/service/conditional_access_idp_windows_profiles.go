@@ -7,18 +7,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
-	"slices"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
+// conditionalAccessWindowsChallengePlaceholder stands in for the global enroll secret in the rendered SCEP profile. An
+// XML comment parses as an empty challenge, so the profile is rejected at upload until the admin replaces it with the
+// secret or a secret variable.
+const conditionalAccessWindowsChallengePlaceholder = "<!-- Replace with a global enroll secret -->"
+
 // Fleet requires a SCEP profile to contain only SCEP nodes and its Enroll Exec, so the browser configuration is a
-// separate profile. The SCEP URL and challenge are Fleet variables filled in at delivery, which makes Fleet track the
-// certificate like a proxied certificate authority's.
+// separate profile. The SCEP URL is a Fleet variable filled in at delivery, which makes Fleet track the certificate like
+// a proxied certificate authority's. The challenge is a global enroll secret the admin writes in.
 const conditionalAccessWindowsSCEPProfileTemplate = `<!-- Fleet conditional access for Okta: SCEP certificate (user store) -->
 <Add>
   <Item>
@@ -37,7 +40,7 @@ const conditionalAccessWindowsSCEPProfileTemplate = `<!-- Fleet conditional acce
   <Item>
     <Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>
     <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-    <Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data>
+    <Data>` + conditionalAccessWindowsChallengePlaceholder + `</Data>
   </Item>
 </Add>
 <Add>
@@ -232,12 +235,6 @@ func (svc *Service) ConditionalAccessGetIdPWindowsProfiles(ctx context.Context) 
 	if err != nil {
 		return nil, err
 	}
-	// The profile doesn't carry the secret, but delivery uses the first global secret Windows can send, so the profile
-	// fails on every host when none is.
-	if !slices.ContainsFunc(in.enrollSecrets, func(s *fleet.EnrollSecret) bool { return microsoft_mdm.IsValidWindowsSCEPChallenge(s.Secret) }) {
-		return nil, &fleet.BadRequestError{Message: microsoft_mdm.ConditionalAccessSCEPChallengeInvalidCharsMessage}
-	}
-
 	thumbprint := sha1.Sum(in.caCert.Raw) //nolint:gosec // CSP CAThumbprint is defined as the SHA-1 hash
 	var scepProfile bytes.Buffer
 	if err := conditionalAccessWindowsSCEPProfileTemplateParsed.Execute(&scepProfile, struct {

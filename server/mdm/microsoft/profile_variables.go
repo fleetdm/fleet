@@ -39,16 +39,6 @@ func IsValidWindowsSCEPChallenge(challenge string) bool {
 // challenge contains characters Windows can't encode as a PrintableString.
 const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
 
-// IsValidWindowsSCEPChallenge reports whether Windows can send challenge as a SCEP challenge password.
-func IsValidWindowsSCEPChallenge(challenge string) bool {
-	return windowsSCEPChallengeRegexp.MatchString(challenge)
-}
-
-// ConditionalAccessSCEPChallengeInvalidCharsMessage explains that every global enroll secret contains characters Windows
-// can't encode as a PrintableString, so none can be the conditional access SCEP challenge.
-const ConditionalAccessSCEPChallengeInvalidCharsMessage = `Every global enroll secret includes characters Windows doesn't support in a SCEP challenge. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
-
-
 // MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
 type MicrosoftProfileProcessingError struct {

@@ -723,8 +723,8 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			host:        &fleet.Host{ID: 123, TeamID: ptr.Uint(1), Platform: "windows"},
 			caPolicyIDs: []uint{10},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10}, Response: "pass"},
-				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
+				{ID: 10, Response: "pass"},
+				{ID: 30, Response: "fail"}, // Not conditional access
 			},
 			wantPlatform:   "windows",
 			wantSession:    true,
