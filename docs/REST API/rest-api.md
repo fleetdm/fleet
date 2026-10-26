@@ -6384,7 +6384,7 @@ _Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/hosts/:id/google_device_id`
 
-Removes the host's device ID in Google and marks the device as unmanaged in Google. Another device can then register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+Removes the host's device ID in Google and marks the device as unmanaged in Google. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
 
 #### Parameters
 
