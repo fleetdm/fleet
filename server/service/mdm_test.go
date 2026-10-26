@@ -3642,7 +3642,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
 
-	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true), nil, false)
+	err := svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, profiles, false, false, new(true), nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])
@@ -3662,20 +3662,20 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["AExclAny"])
 
 	// Test that a bad label doesn't pass validation...
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, false, false, ptr.Bool(true), nil, false)
+	}}, false, false, new(true), nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, true, false, ptr.Bool(true), nil, false)
+	}}, true, false, new(true), nil, false)
 	require.NoError(t, err)
 }
 

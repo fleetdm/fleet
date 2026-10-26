@@ -136,7 +136,7 @@ func TestApplyProfilesSendsDryRunAssumptions(t *testing.T) {
 		t.Run("team "+want, func(t *testing.T) {
 			var q url.Values
 			err := newClient(t, &q).ApplyTeamProfiles("Workstations", profiles,
-				fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}, DryRunAssumptions: assumptions})
+				fleet.ApplyTeamSpecOptions{DryRun: true, DryRunAssumptions: assumptions})
 			require.NoError(t, err)
 			require.Equal(t, want, q.Get("assume_profile_validation"))
 		})
