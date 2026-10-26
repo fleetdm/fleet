@@ -293,7 +293,10 @@ func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Clie
 		return nil, "", ctxerr.Errorf(ctx, msgCertExpired, pair.Leaf.NotAfter.UTC().Format(time.DateOnly))
 	}
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12}
+	// EJBCA Enterprise can ask for the client certificate by renegotiating the TLS 1.2 connection.
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, Renegotiation: tls.RenegotiateOnceAsClient,
+	}
 	if config.TrustCABundlePEM != "" {
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM([]byte(config.TrustCABundlePEM)) {

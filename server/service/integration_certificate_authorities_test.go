@@ -3177,15 +3177,23 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, wifi), "already")
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, lowerCase), "already")
 	for _, tc := range []struct {
-		name     string
-		scepName string
+		name          string
+		scepName      string
+		googleCASName string
 	}{
-		{"custom SCEP", "EJBCA_WIFI"},
-		{"custom SCEP in another case", "ejbca_wifi"},
+		{"custom SCEP", "EJBCA_WIFI", ""},
+		{"custom SCEP in another case", "ejbca_wifi", ""},
+		{"Google CAS", "", "EJBCA_WIFI"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			grouped := fleet.GroupedCertificateAuthorities{
-				EJBCA: []fleet.EJBCA{wifi}, CustomScepProxy: []fleet.CustomSCEPProxyCA{scepSpec(tc.scepName)},
+			grouped := fleet.GroupedCertificateAuthorities{EJBCA: []fleet.EJBCA{wifi}}
+			if tc.scepName != "" {
+				grouped.CustomScepProxy = []fleet.CustomSCEPProxyCA{scepSpec(tc.scepName)}
+			}
+			if tc.googleCASName != "" {
+				grouped.GoogleCAS = []fleet.GoogleCASCA{{
+					Name: tc.googleCASName, Project: "project", Location: "us-central1", CAPool: "pool", APIKeyJSON: `{"type":"service_account"}`,
+				}}
 			}
 			errText := applyCAs(batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: grouped, DryRun: true}, http.StatusBadRequest)
 			require.Contains(t, errText, `"EJBCA_WIFI" name is already used by another certificate authority`)

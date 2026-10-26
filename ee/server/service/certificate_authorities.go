@@ -674,18 +674,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// the name of an EJBCA CA can't be shared with a CA of another type
-	otherNames := make(map[string]struct{})
-	for name, caTypes := range allNames {
-		if slices.ContainsFunc(caTypes, func(caType string) bool { return caType != "ejbca" }) {
-			otherNames[caNameKey(name)] = struct{}{}
-		}
-	}
-	for _, ca := range incoming.EJBCA {
-		if _, shared := otherNames[caNameKey(ca.Name)]; shared {
-			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
-		}
-	}
 	// preprocess google cas, in place so the trimmed values are what gets stored
 	for i := range incoming.GoogleCAS {
 		ca := &incoming.GoogleCAS[i]
@@ -696,6 +684,18 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 		if err := checkAllNames(ca.Name, "google_cas", "Google CAS"); err != nil {
 			return nil, err
+		}
+	}
+	// the name of an EJBCA CA can't be shared with a CA of another type
+	otherNames := make(map[string]struct{})
+	for name, caTypes := range allNames {
+		if slices.ContainsFunc(caTypes, func(caType string) bool { return caType != "ejbca" }) {
+			otherNames[caNameKey(name)] = struct{}{}
+		}
+	}
+	for _, ca := range incoming.EJBCA {
+		if _, shared := otherNames[caNameKey(ca.Name)]; shared {
+			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
 		}
 	}
 	// preprocess ndes
