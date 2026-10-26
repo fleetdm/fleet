@@ -54,6 +54,8 @@
 		<dict>
 			<key>PayloadType</key>
 			<string>com.apple.associated-domains</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.apple.associated-domains.4D68D4CF-1250-4FF4-AFFB-1176DB539C49</string>
 			<key>PayloadUUID</key>

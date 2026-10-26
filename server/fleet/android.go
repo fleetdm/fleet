@@ -46,18 +46,38 @@ type MDMAndroidConfigProfile struct {
 // associated error messages when they are included
 var AndroidForbiddenJSONKeys = map[string]string{
 	"statusReportingSettings":       `Android configuration profile can't include "statusReportingSettings" setting. To get host vitals, use Get host endpoint: https://fleetdm.com/docs/rest-api/rest-api#get-host`,
-	"applications":                  `Android configuration profile can't include "applications" setting. Software management is coming soon.`,
-	"appFunctions":                  `Android configuration profile can't include "appFunctions" setting. Software management is coming soon.`,
-	"playStoreMode":                 `Android configuration profile can't include "playStoreMode" setting. Software management is coming soon.`,
-	"installAppsDisabled":           `Android configuration profile can't include "installAppsDisabled" setting. Software management is coming soon.`,
-	"uninstallAppsDisabled":         `Android configuration profile can't include "uninstallAppsDisabled" setting. Software management is coming soon.`,
-	"blockApplicationsEnabled":      `Android configuration profile can't include "blockApplicationsEnabled" setting. Software management is coming soon.`,
-	"appAutoUpdatePolicy":           `Android configuration profile can't include "appAutoUpdatePolicy" setting. Software management is coming soon.`,
+	"applications":                  androidSoftwareKeyErrPremium("applications"),
+	"appFunctions":                  androidSoftwareKeyErrPremium("appFunctions"),
+	"playStoreMode":                 androidSoftwareKeyErrPremium("playStoreMode"),
+	"installAppsDisabled":           androidSoftwareKeyErrPremium("installAppsDisabled"),
+	"uninstallAppsDisabled":         androidSoftwareKeyErrPremium("uninstallAppsDisabled"),
+	"blockApplicationsEnabled":      androidSoftwareKeyErrPremium("blockApplicationsEnabled"),
+	"appAutoUpdatePolicy":           androidSoftwareKeyErrPremium("appAutoUpdatePolicy"),
 	"kioskCustomLauncherEnabled":    `Android configuration profile can't include "kioskCustomLauncherEnabled" setting. Currently, only personal hosts are supported.`,
 	"kioskCustomization":            `Android configuration profile can't include "kioskCustomization" setting. Currently, only personal hosts are supported.`,
 	"persistentPreferredActivities": `Android configuration profile can't include "persistentPreferredActivities" setting. Currently, only personal hosts are supported.`,
 	"setupActions":                  `Android configuration profile can't include "setupActions" setting. Currently, setup experience customization isn't supported.`,
 	"encryptionPolicy":              `Android configuration profile can't include "encryptionPolicy" setting. Currently, disk encryption isn't supported.`,
+}
+
+// AndroidSoftwareJSONKeysFree are the software management keys from AndroidForbiddenJSONKeys with the
+// error messages shown instead for non-Premium licenses, since software management is Premium only.
+var AndroidSoftwareJSONKeysFree = map[string]string{
+	"applications":             androidSoftwareKeyErrFree("applications"),
+	"appFunctions":             androidSoftwareKeyErrFree("appFunctions"),
+	"playStoreMode":            androidSoftwareKeyErrFree("playStoreMode"),
+	"installAppsDisabled":      androidSoftwareKeyErrFree("installAppsDisabled"),
+	"uninstallAppsDisabled":    androidSoftwareKeyErrFree("uninstallAppsDisabled"),
+	"blockApplicationsEnabled": androidSoftwareKeyErrFree("blockApplicationsEnabled"),
+	"appAutoUpdatePolicy":      androidSoftwareKeyErrFree("appAutoUpdatePolicy"),
+}
+
+func androidSoftwareKeyErrPremium(key string) string {
+	return fmt.Sprintf(`Android configuration profile can't include %q setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`, key)
+}
+
+func androidSoftwareKeyErrFree(key string) string {
+	return fmt.Sprintf(`Android configuration profile can't include %q setting. Android software management is Fleet Premium only.`, key)
 }
 
 // AndroidPremiumOnlyJSONKeys are keys that may not be included in user-provided Android
@@ -88,6 +108,12 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return errors.New("JSON profile is empty")
 	}
 	for key := range profileKeyMap {
+		if !isPremium {
+			if errMsg, ok := AndroidSoftwareJSONKeysFree[key]; ok {
+				return errors.New(errMsg)
+			}
+		}
+
 		if errMsg, ok := AndroidForbiddenJSONKeys[key]; ok {
 			return errors.New(errMsg)
 		}

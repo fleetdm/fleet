@@ -287,8 +287,8 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
 		return []*fleet.VPPAppStoreApp{{Name: "Bar", Configuration: appConfiguration}}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		return map[uint]*fleet.VPPAppStatusSummary{0: {}}, nil
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -550,8 +550,12 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{ID: id, Name: "Foo", VPPAppsCount: 1}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		summaries := make(map[uint]*fleet.VPPAppStatusSummary, len(versions))
+		for _, v := range versions {
+			summaries[v.VPPAppsTeamsID] = &fleet.VPPAppStatusSummary{}
+		}
+		return summaries, nil
 	}
 	var versionTokenID *uint
 	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {

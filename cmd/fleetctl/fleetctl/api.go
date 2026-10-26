@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -143,10 +142,6 @@ func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Wri
 
 	if cc.Address == "" {
 		return nil, errors.New("set the Fleet API address with: fleetctl config set --address https://fleet.example.com")
-	}
-
-	if runtime.GOOS == "windows" && cc.RootCA == "" && !cc.TLSSkipVerify {
-		return nil, errors.New("Windows clients must configure rootca (secure) or tls-skip-verify (insecure)")
 	}
 
 	if debug {

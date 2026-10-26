@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -118,7 +119,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, nil, fleet.ErrMissingLicense
 	}
 
@@ -137,6 +138,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
 		return nil, nil, err
+	}
+	// ai_tool is Fleet Premium, so it's omitted on Free. That also hides software flagged before a
+	// downgrade, since the flag is never reset in the database.
+	if !lic.IsPremium() {
+		for i := range softwares {
+			softwares[i].AITool = nil
+		}
 	}
 
 	return softwares, meta, nil
@@ -221,6 +229,9 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
+	if !license.IsPremium(ctx) {
+		software.AITool = nil
+	}
 
 	return software, nil
 }
@@ -279,7 +290,7 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return 0, fleet.ErrMissingLicense
 	}
 

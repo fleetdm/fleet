@@ -19,12 +19,6 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
 
-
-### Marketing assets
-
-The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
-
-
 ### Press boilerplate text
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
@@ -134,12 +128,29 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 > LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
-### Promote a post on LinkedIn
+### Review competitor exclusion list
 
-1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
-2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
-3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
-4. Launch campaign once approved.
+Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update competitor database"](https://fleetdm.com/handbook/marketing#update-competitor-database)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
+
+1. For each competitor on the competitor exclusion list, search the company name in the [dynamic company list segment builder](https://www.linkedin.com/campaignmanager/accounts/509911695/companies/?businessId=personal&companyNameSearch=tanium&crmFilters=%7B%22openOpportunityCountFilter%22%3A%22ALL%22%2C%22pipelineValueFilter%22%3A%22ALL%22%2C%22revenueWonFilter%22%3A%22ALL%22%2C%22closedLostValueFilter%22%3A%22ALL%22%7D&lookbackWindow=LAST_30_DAYS) in LinkedIn Campaign Manager (the example link searches "tanium"; change `companyNameSearch` to the competitor's name).
+2. Confirm that the competitor received no paid impressions, clicks, or engagements over the last 30 days.
+3. If a competitor did, find the active ad sets that skipped the exclusion list and fix them. Add any missing company to the list.
+
+
+### Promote a workshop on LinkedIn
+
+1. Create an ad set under ["Drives"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D). Name it with an ISO date prefix, the type of workshop, and the city (e.g., "2026-10-03 - Apple certified (Denver)").
+2. Set the goal to "Engagement" and don't set an end date. Marketing turns off the ad set manually when it's no longer needed.
+3. Click "Next."
+4. Under "What you're marketing," clear all selections so it shows "No specified offering."
+5. Under "Saved audiences," select "See all audiences" and load "anyone.local." This audience includes customers, because customers should see workshop ads too.
+6. Under "Location," clear the default (Canada and United States) and search for the workshop's city. Select the city's metro area, plus its state and the surrounding states. For example, for a Denver workshop, select "Denver Metro," Colorado, Wyoming, New Mexico, and Utah, which gives a target audience size of 5,400+.
+7. Keep the language set to English. Leave every other audience setting at its default, except uncheck "Enable Audience Expansion."
+8. Turn off "LinkedIn Audience Network."
+9. Set a daily budget of $50.
+10. Under "Additional options," select "Manual bidding" and uncheck "Enable bid adjustments for high-value clicks." Ignore LinkedIn's suggested bid, which is usually high. Start at $1 and check the results. For a small, highly targeted workshop audience, go up to $2.
+11. Keep the "Single image" ad format and leave everything else at its defaults, then click "Next."
+12. Finish and launch the ad set by following the ["LinkedIn workshop promotion"](https://docs.google.com/document/d/1Zgs093felMMJHNkYUZafLWoSsePPmg2ofl0zUYljx5Q/edit) steps (private Google doc).
 
 
 ### Settle event strategy

@@ -1,0 +1,8 @@
+{
+  "name": "GitHub Copilot",
+  "slug": "github-copilot-app/darwin",
+  "unique_identifier": "com.github.githubapp",
+  "token": "github-copilot-app",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

@@ -86,7 +86,7 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
@@ -112,6 +112,11 @@ func (svc *Service) ListSoftwareTitles(
 	})
 	if err != nil {
 		return nil, 0, nil, err
+	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
 	}
 
 	return titles, count, meta, nil
@@ -291,12 +296,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
+			summaries, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, versions)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+			}
 			for _, meta := range versions {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, meta.VPPAppsTeamsID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
-				}
-				meta.Status = summary
+				meta.Status = summaries[meta.VPPAppsTeamsID]
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {
@@ -358,6 +363,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
 
 	return software, nil
 }

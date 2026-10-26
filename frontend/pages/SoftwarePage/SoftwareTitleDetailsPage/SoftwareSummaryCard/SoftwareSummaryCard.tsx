@@ -424,7 +424,6 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           headerPills={headerPills}
-          isAppleVpp={isAppleVpp}
           fleetMaintainedAppSlug={fleetMaintainedAppSlug}
           appStoreId={appStoreId}
           vppToken={

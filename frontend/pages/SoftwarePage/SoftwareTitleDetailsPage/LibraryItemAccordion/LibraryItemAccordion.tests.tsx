@@ -762,11 +762,10 @@ describe("LibraryItemAccordion", () => {
         /configuration failed to apply/i
       );
 
-      // Info-outline tooltip collapses to a Play Store one-liner on Android.
       await expectInfoTooltip(
         user,
         container,
-        /latest status from the Google Play Store/i
+        /latest status from setup experience\. doesn't include apps installed via self service\./i
       );
     });
   });
