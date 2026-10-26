@@ -2416,12 +2416,14 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		apps = append(apps, app)
 	}
 
-	// Flag the affected installs of the iOS and iPadOS versions for the configuration cron
+	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
+	// host's latest install can be of another version with the same configuration
 	if len(appleAppTeamIDs) > 0 {
 		const markConfigurationResendStmt = `
-		UPDATE host_vpp_software_installs
-		SET needs_resend = 1
-		WHERE host_id IN (?) AND vpp_app_team_id IN (?) AND canceled = 0
+		UPDATE host_vpp_software_installs hvsi
+		JOIN vpp_apps_teams vat ON vat.adam_id = hvsi.adam_id AND vat.platform = hvsi.platform
+		SET hvsi.needs_resend = 1
+		WHERE hvsi.host_id IN (?) AND vat.id IN (?) AND hvsi.canceled = 0
 `
 		var markStmt string
 		var markArgs []any

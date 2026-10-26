@@ -1864,6 +1864,31 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.NoError(t, err)
 		require.Equal(t, []string{"username-after"}, runCronAndAcknowledge(t, device))
 	})
+
+	t.Run("transferring a host then changing its IdP username re-sends the configuration", func(t *testing.T) {
+		team := newFleet(t)
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+		require.NoError(t, err)
+		scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "moved-username-before"})
+		require.NoError(t, err)
+		otherScimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "moved-username-after"})
+		require.NoError(t, err)
+		version := addVersion(t, team.ID, "Old fleet", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		addVersion(t, otherTeam.ID, "New fleet", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		host, device := newHost(t, team.ID)
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"moved-username-before"}, installApp(t, host, device, version.TitleID))
+
+		// move the host to the other fleet whose version has the same configuration, the host should get nothing
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
+		require.Empty(t, runCronAndAcknowledge(t, device))
+
+		// link the host to another IdP user, the host should get the other fleet's configuration with the new username
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, otherScimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"moved-username-after"}, runCronAndAcknowledge(t, device))
+	})
 }
 
 func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
