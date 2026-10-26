@@ -1,4 +1,4 @@
-# Connect your AI tool to Fleet's MCP server
+# Connect your AI tool to Fleet
 
 Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
 
@@ -102,9 +102,9 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
 - [Why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops)
 - [Fleet's GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
 
-<meta name="articleTitle" value="Connect your AI tool to Fleet's MCP server">
+<meta name="articleTitle" value="Connect your AI tool to Fleet">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="description" value="Pick the setup guide for Claude, Codex, GitHub Copilot, or Gemini, then ask questions about your fleet with Fleet's MCP server.">
+<meta name="description" value="Pick the setup guide for Claude, Codex, GitHub Copilot, or Gemini, then ask questions about your fleet with Fleet.">
