@@ -1,6 +1,6 @@
 # Connect your AI tool to Fleet's MCP server
 
-Fleet's MCP server lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
+Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 32px 0px;">
 <a href="https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Claude</a>
