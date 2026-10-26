@@ -3,10 +3,13 @@
 package sshd_config
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+	"unicode/utf8"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/stretchr/testify/assert"
@@ -180,6 +183,52 @@ func TestDumpConfigSpecCantForceLegacy(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "port 22\n", out)
 	assert.Len(t, calls(), n+1, "a spec-less dump should run -G once")
+}
+
+func TestSSHDErrorSanitizesSpec(t *testing.T) {
+	t.Parallel()
+	sshd, _ := writeFakeSSHD(t, echoSSHD)
+
+	spec := "x\n\x1b[31mforged log line" + strings.Repeat("A", 5000)
+	_, err := dumpConfig(t.Context(), sshd, spec)
+	require.Error(t, err)
+
+	msg := err.Error()
+	assert.Contains(t, msg, "Invalid test mode specification x ?[31mforged log line")
+	assert.NotContains(t, msg, "\n")
+	assert.NotContains(t, msg, "\x1b")
+	// The command and sshd's output are each capped.
+	assert.LessOrEqual(t, utf8.RuneCountInString(msg), 2*(maxErrorDetail+len("..."))+len(": "))
+}
+
+// slowSSHD takes long enough for a caller to give up while it runs.
+const slowSSHD = `#!/bin/sh
+echo "$*" >> "$(dirname "$0")/calls"
+sleep 1
+echo "port 22"
+`
+
+func TestLoadConfigCanceled(t *testing.T) {
+	sshd, calls := writeFakeSSHD(t, slowSSHD)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := loadConfig(ctx, sshd, "")
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, calls(), "a canceled query shouldn't start sshd")
+
+	ctx, cancel = context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = loadConfig(ctx, sshd, "")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(start), 900*time.Millisecond, "a canceled caller should stop waiting")
+
+	// The shared run still finishes and serves the next caller.
+	entries, err := loadConfig(t.Context(), sshd, "")
+	require.NoError(t, err)
+	assert.Equal(t, []configEntry{{"port", "22"}}, entries)
+	assert.Equal(t, []string{"-G"}, calls())
 }
 
 func TestRunSSHDEmptyEnvironment(t *testing.T) {

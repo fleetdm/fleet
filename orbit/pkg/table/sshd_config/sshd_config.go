@@ -74,7 +74,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 // loadConfig returns the parsed configuration for spec, reusing a dump up to
 // cacheTTL old and sharing one sshd run among concurrent callers. Errors aren't
-// cached, so a fixed configuration shows up on the next query.
+// cached, so a fixed configuration shows up on the next query. A canceled
+// caller stops waiting, but a run already started finishes for the others.
 func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntry, error) {
 	key := sshd.id + "\x00" + spec
 
@@ -85,9 +86,14 @@ func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntr
 		return cached.entries, nil
 	}
 
-	v, err, _ := inFlight.Do(key, func() (any, error) {
-		// Callers waiting on this run shouldn't fail because the first one was
-		// canceled; sshdTimeout still bounds it.
+	// A canceled query starts no more sshd runs.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	ch := inFlight.DoChan(key, func() (any, error) {
+		// The run is shared, so one caller's cancellation mustn't fail the
+		// others; sshdTimeout still bounds it.
 		output, err := dumpConfig(context.WithoutCancel(ctx), sshd, spec)
 		if err != nil {
 			return nil, err
@@ -105,11 +111,17 @@ func loadConfig(ctx context.Context, sshd sshdBinary, spec string) ([]configEntr
 		cache[key] = cachedConfig{entries: entries, expires: now.Add(cacheTTL)}
 		return entries, nil
 	})
-	if err != nil {
-		return nil, err
+
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		entries, _ := res.Val.([]configEntry)
+		return entries, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	entries, _ := v.([]configEntry)
-	return entries, nil
 }
 
 // connectionSpecs returns the distinct values of every equality constraint on

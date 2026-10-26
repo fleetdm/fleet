@@ -1,7 +1,9 @@
 package sshd_config
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +30,16 @@ func TestParseConfig(t *testing.T) {
 	}, parseConfig(output))
 
 	assert.Empty(t, parseConfig(""))
+}
+
+func TestSanitizeDetail(t *testing.T) {
+	assert.Equal(t, "a b c", sanitizeDetail(" a\nb\r\n\tc "))
+	assert.Equal(t, "?[31mred ?bell", sanitizeDetail("\x1b[31mred \abell"))
+	assert.Equal(t, "Invalid test mode specification usér", sanitizeDetail("Invalid test mode specification usér\n"))
+
+	long := sanitizeDetail(strings.Repeat("é", maxErrorDetail+100))
+	assert.Equal(t, strings.Repeat("é", maxErrorDetail)+"...", long)
+	assert.True(t, utf8.ValidString(long))
 }
 
 func TestUnsupportedFlag(t *testing.T) {

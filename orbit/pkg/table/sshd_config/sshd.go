@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/rs/zerolog/log"
 )
@@ -146,14 +147,36 @@ func runSSHD(ctx context.Context, sshdPath string, args []string) (string, strin
 	return stdout.String(), stderr.String(), err
 }
 
+// maxErrorDetail caps each part of a query error, in runes.
+const maxErrorDetail = 512
+
 // sshdError reports what sshd printed, since the exit status alone ("exit
 // status 255") says nothing about which line of the configuration is wrong.
+// The command and sshd's output can both contain the query's connection spec,
+// so they are sanitized before they reach query results and logs.
 func sshdError(sshdPath string, args []string, stderr string, err error) error {
-	command := sshdPath + " " + strings.Join(args, " ")
-	if msg := strings.TrimSpace(stderr); msg != "" {
-		return fmt.Errorf("%s: %s", command, strings.Join(strings.Fields(msg), " "))
+	command := sanitizeDetail(sshdPath + " " + strings.Join(args, " "))
+	if msg := sanitizeDetail(stderr); msg != "" {
+		return fmt.Errorf("%s: %s", command, msg)
 	}
 	return fmt.Errorf("%s: %w", command, err)
+}
+
+// sanitizeDetail replaces non-printable characters such as terminal escapes
+// with '?', collapses whitespace including newlines to single spaces, and
+// truncates to maxErrorDetail runes.
+func sanitizeDetail(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || unicode.IsPrint(r) {
+			return r
+		}
+		return '?'
+	}, s)
+	s = strings.Join(strings.Fields(s), " ")
+	if runes := []rune(s); len(runes) > maxErrorDetail {
+		s = string(runes[:maxErrorDetail]) + "..."
+	}
+	return s
 }
 
 // parseConfig splits sshd's "keyword value" dump into entries, in the order
