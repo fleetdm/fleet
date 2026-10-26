@@ -1270,6 +1270,9 @@ org_settings:
       - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
         domain: fleetdm.com
         impersonated_user_email: admin@example.com
+    google_conditional_access:
+      - customer_id: C01234abc
+        admin_email: fleet-admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -1291,7 +1294,7 @@ org_settings:
 
 At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Okta or Microsoft Entra connected.)
 
-`conditional_access_enabled` only applies to the [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) and [Microsoft Entra](https://fleetdm.com/guides/entra-conditional-access-integration) integrations. Google conditional access doesn't use it.
+`conditional_access_enabled` only applies to the [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) and [Microsoft Entra](https://fleetdm.com/guides/entra-conditional-access-integration) integrations. Google conditional access (`google_conditional_access`) doesn't use it.
 
 ```yaml
 integrations:
@@ -1319,6 +1322,19 @@ Connecting Google Workspace populates identity provider (IdP) host vitals direct
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
 - `domain` is your Google Workspace primary domain (default: `""`).
 - `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
+
+Can be configured for "All fleets" (`org_settings`).
+
+#### google_conditional_access
+
+_Available in Fleet Premium._
+
+Turning on Google conditional access marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+- `customer_id` is your Google customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings** (default: `""`).
+- `admin_email` is the email of the Google Workspace admin Fleet uses to mark hosts as managed (default: `""`).
+
+To turn off Google conditional access, remove `google_conditional_access`.
 
 Can be configured for "All fleets" (`org_settings`).
 
