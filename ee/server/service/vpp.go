@@ -2063,7 +2063,9 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 // Check this many iOS and iPadOS hosts per run, the next run continues after the last one
 const appStoreAppConfigurationReconcileBatchSize = 1000
 
-func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger) error {
+func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, retryCounter fleet.SoftwareInstallAttemptCounter,
+	logger *slog.Logger,
+) error {
 	if !license.IsPremium(ctx) {
 		return nil
 	}
@@ -2136,8 +2138,8 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 
 		for titleID, versions := range versionsByTitleID {
 			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
-			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, titleID, versions, versionByID, installByHostIDByTitleID[titleID],
-				vppToken.Token, hostByID)
+			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, retryCounter, logger, fleetID, titleID, versions, versionByID,
+				installByHostIDByTitleID[titleID], vppToken.Token, hostByID)
 			if err != nil {
 				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", titleID, "err", err)
 			}
@@ -2161,7 +2163,8 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	return nil
 }
 
-func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint,
+func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, retryCounter fleet.SoftwareInstallAttemptCounter,
+	logger *slog.Logger, fleetID uint, titleID uint,
 	versions []*fleet.VPPAppStoreApp, versionByID map[uint]*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPSoftwareInstall, vppToken string,
 	hostByID map[uint]fleet.Host,
 ) error {
@@ -2171,6 +2174,8 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
 	var includedHostIDs map[uint]struct{}
 	var hostIDsWithRecentFailedInstall map[uint]struct{}
+	var hostIDsWithFailedInstall map[uint]struct{}
+	var retries int
 	var vppApp *fleet.VPPApp
 	for _, version := range versions {
 		if len(hostIDsWithoutVersion) == 0 {
@@ -2236,6 +2241,16 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			return ctxerr.Wrapf(ctx, err, "get hosts with a recent failed install of app store app version %d", version.VPPAppsTeamsID)
 		}
 
+		// Count a send to a host whose install of this version failed in the timeout window and after the configuration last changed as a retry
+		retriedSince := time.Now().Add(-fleet.VPPAutomaticInstallRetryTimeout)
+		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(retriedSince) {
+			retriedSince = version.ConfigurationUpdatedAt.Truncate(time.Second)
+		}
+		hostIDsWithFailedInstall, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, retriedSince, hostIDs)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get hosts with a failed install of app store app version %d", version.VPPAppsTeamsID)
+		}
+
 		// Skip a version deleted since the versions were read
 		vppApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &fleetID, titleID, version.VPPAppsTeamsID)
 		if err != nil {
@@ -2247,6 +2262,20 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		for _, hostID := range hostIDs {
 			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
+			}
+			// Skip a host retried MaxVPPAutomaticInstallRetries times until its count expires, and count this retry otherwise
+			if _, failedBefore := hostIDsWithFailedInstall[hostID]; failedBefore && retryCounter != nil {
+				retries, err = retryCounter.CountAttempts(ctx, hostID, version.VPPAppsTeamsID)
+				if err != nil {
+					logger.WarnContext(ctx, "failed to count app store app configuration retries", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
+				}
+				if retries >= fleet.MaxVPPAutomaticInstallRetries {
+					continue
+				}
+				_, err = retryCounter.RecordAttempt(ctx, hostID, version.VPPAppsTeamsID, fleet.VPPAutomaticInstallRetryTimeout)
+				if err != nil {
+					logger.WarnContext(ctx, "failed to record app store app configuration retry", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
+				}
 			}
 			host := hostByID[hostID]
 			_, err = vppInstaller.InstallVPPAppPostValidation(ctx, &host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{

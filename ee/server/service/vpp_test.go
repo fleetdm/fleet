@@ -942,6 +942,26 @@ type testAppStoreAppDatastore struct {
 	queueInstalls         bool
 	rejectedHostIDs       map[uint]struct{}
 	sentVersionByHostID   map[uint]uint
+
+	retriesByHostAndVersion map[[2]uint]int
+}
+
+func (f *testAppStoreAppDatastore) RecordAttempt(ctx context.Context, hostID uint, versionID uint, expireIn time.Duration) (int, error) {
+	f.retriesByHostAndVersion[[2]uint{hostID, versionID}]++
+	return f.retriesByHostAndVersion[[2]uint{hostID, versionID}], nil
+}
+
+func (f *testAppStoreAppDatastore) CountAttempts(ctx context.Context, hostID uint, versionID uint) (int, error) {
+	return f.retriesByHostAndVersion[[2]uint{hostID, versionID}], nil
+}
+
+func (f *testAppStoreAppDatastore) ResetAttempts(ctx context.Context, hostID uint, versionID uint) error {
+	delete(f.retriesByHostAndVersion, [2]uint{hostID, versionID})
+	return nil
+}
+
+func (f *testAppStoreAppDatastore) ResetInstallerAttempts(ctx context.Context, versionIDs []uint) error {
+	return nil
 }
 
 func (f *testAppStoreAppDatastore) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
@@ -1027,6 +1047,8 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			tokenByFleetID:        map[uint]*fleet.VPPTokenDB{},
 			queuedVersionByHostID: map[uint]uint{},
 			rejectedHostIDs:       map[uint]struct{}{},
+
+			retriesByHostAndVersion: map[[2]uint]int{},
 		}
 		f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -1204,7 +1226,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 	reconcile := func(f *testAppStoreAppDatastore, ctx context.Context) (map[uint]uint, error) {
 		tick(f)
 		f.sentVersionByHostID = map[uint]uint{}
-		err := ReconcileAppStoreAppConfigurations(ctx, f.ds, f, slog.New(slog.DiscardHandler))
+		err := ReconcileAppStoreAppConfigurations(ctx, f.ds, f, f, slog.New(slog.DiscardHandler))
 		return f.sentVersionByHostID, err
 	}
 
@@ -1628,6 +1650,53 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 
 		// move the rejection two hours back and run the cron, the host should get version 10
 		f.failedInstalls[0].CreatedAt = time.Now().Add(-2 * time.Hour)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install that keeps failing is retried twice, then waits until its retry count expires", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		f.now = time.Now().Truncate(time.Second)
+		f.rejectedHostIDs[1] = struct{}{}
+
+		// run the cron with the app out of Apple Business, the install should be rejected and not counted as a retry
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Zero(t, f.retriesByHostAndVersion[[2]uint{1, 10}])
+
+		// move the failed installs two hours back and run the cron twice, each install should be rejected and counted as a retry
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Equal(t, 2, f.retriesByHostAndVersion[[2]uint{1, 10}])
+
+		// add the app back to Apple Business, move the failed installs two hours back and run the cron, the host should get nothing since it was retried twice
+		delete(f.rejectedHostIDs, 1)
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// expire the retry count and run the cron, the host should get version 10
+		delete(f.retriesByHostAndVersion, [2]uint{1, 10})
 		sent, err = reconcile(f, ctx)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]uint{1: 10}, sent)

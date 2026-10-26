@@ -273,6 +273,9 @@ const (
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 	// Time to wait between auto-update or configuration resend attempts (1 hour)
 	VPPAutomaticInstallWaitSeconds = 3600
+	MaxVPPAutomaticInstallRetries  = 2
+	// Time to wait after reaching maximum failed attempts
+	VPPAutomaticInstallRetryTimeout = 24 * time.Hour
 )
 
 type AppStoreAppUpdatePayload struct {

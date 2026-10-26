@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1760,7 +1761,8 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 	runCronAndAcknowledge := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
 		s.runWorkerUntilDone()
 		premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		err := eeservice.ReconcileAppStoreAppConfigurations(premiumCtx, s.ds, s.fleetSvc.(fleet.AppleMDMVPPInstaller), s.logger)
+		retryCounter := redis_install_attempts.NewTest(t, s.redisPool, redis_install_attempts.AppStoreAppPrefix)
+		err := eeservice.ReconcileAppStoreAppConfigurations(premiumCtx, s.ds, s.fleetSvc.(fleet.AppleMDMVPPInstaller), retryCounter, s.logger)
 		require.NoError(t, err)
 		s.runWorkerUntilDone()
 		return acknowledgeCommands(t, device)

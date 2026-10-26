@@ -118,7 +118,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool, redis_install_attempts.SoftwareInstallerPrefix)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
