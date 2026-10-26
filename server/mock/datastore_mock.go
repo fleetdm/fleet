@@ -254,7 +254,7 @@ type ListHostUsersFunc func(ctx context.Context, hostID uint) ([]fleet.HostUser,
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error)
 
 type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
 
@@ -7313,11 +7313,11 @@ func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
-func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, filter, query, omit...)
+	return s.SearchHostsFunc(ctx, filter, query, excludeMobile, omit...)
 }
 
 func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {

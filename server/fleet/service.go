@@ -505,7 +505,8 @@ type Service interface {
 	//	- matchQuery is the query SQL
 	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
 	//	- excludedHostIDs is an optional list of IDs to omit from the search
-	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
+	//	- excludeMobileHosts omits iOS, iPadOS, and Android hosts (used by the live report target picker)
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
