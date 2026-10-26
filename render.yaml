@@ -1,6 +1,6 @@
 services:
   - name: fleet
-    plan: pro # Vulnerability processing spikes memory past the 2 GB that standard provides
+    plan: pro
     type: web
     runtime: image
     image:
