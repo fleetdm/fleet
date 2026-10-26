@@ -98,7 +98,7 @@ const PatchDeadlineSection = ({
 
   const validate = (nextDays: Weekday[], nextTime: string): IFieldErrors => {
     const next: IFieldErrors = {};
-    if (nextDays.length === 0) next.days = "Pick at least one day";
+    if (nextDays.length === 0) next.days = "Choose at least one day";
     if (!TIME_PATTERN.test(nextTime)) next.time = "Enter time as HH:MM";
     return next;
   };
@@ -186,7 +186,8 @@ const PatchDeadlineSection = ({
         variant="tab-panel"
         content={
           <>
-            Add a Fleet-maintained app, and under <strong>Deploy</strong> select{" "}
+            Add a macOS Fleet-maintained app, and under <strong>Deploy</strong>{" "}
+            select{" "}
             <strong>Patch</strong> &gt; <strong>Force patch</strong> &gt;{" "}
             <strong>Deadline</strong>.{" "}
             {hasApps && <>Apps with this option are listed below. </>}
