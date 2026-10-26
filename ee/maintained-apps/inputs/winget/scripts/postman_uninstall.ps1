@@ -133,15 +133,18 @@ try {
             $arguments = $matches[2].Trim()
         }
         if ($arguments -notmatch '(?i)(^|\s)(-s|--silent)($|\s)') { $arguments = "$arguments -s".Trim() }
+        $hasUninstaller = $exePath -and (Test-Path -LiteralPath $exePath)
 
         # The uninstall string comes from a hive the user can write to, so only act
         # on that user's own Postman folder.
         $installDir = ""
         if ($exePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $exePath -Parent)) } catch {} }
         $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq "Postman"
-        if ($isAppDir -and $entry.Sid) {
+        if ($entry.Sid) {
             $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
-            $isAppDir = $profilePath -and $installDir -eq (Join-Path $profilePath "AppData\Local\Postman")
+            $userAppDir = if ($profilePath) { Join-Path $profilePath "AppData\Local\Postman" } else { "" }
+            if (-not $hasUninstaller) { $installDir = $userAppDir }
+            $isAppDir = $userAppDir -and $installDir -eq $userAppDir
         }
         if ($isAppDir) {
             Get-Process -ErrorAction SilentlyContinue |
@@ -149,7 +152,7 @@ try {
                 Stop-Process -Force -ErrorAction SilentlyContinue
         }
 
-        if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
+        if (-not $hasUninstaller) {
             Write-Host "  Uninstaller is missing; removing what's left of this copy."
             if ($isAppDir -and (Test-Path -LiteralPath $installDir) -and -not (Remove-AppDir $installDir)) {
                 if ($exitCode -eq 0) { $exitCode = 1 }
@@ -160,19 +163,25 @@ try {
         }
 
         Write-Host "  Uninstall command: $exePath $arguments"
-        if ($entry.Sid) {
-            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
-        } else {
-            $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru
-            # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
-            $null = $process.Handle
-            if ($process.WaitForExit($timeoutSeconds * 1000)) {
-                $result = $process.ExitCode
+        # Caught here so one copy's failure doesn't skip the others.
+        try {
+            if ($entry.Sid) {
+                $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
             } else {
-                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                Write-Host "  Timed out waiting for the uninstaller."
-                $result = 1460  # ERROR_TIMEOUT
+                $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru -ErrorAction Stop
+                # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+                $null = $process.Handle
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
             }
+        } catch {
+            Write-Host "  Could not run the uninstaller: $_"
+            $result = 1
         }
         Write-Host "  Uninstall exit code: $result"
         if ($result -ne 0) {
