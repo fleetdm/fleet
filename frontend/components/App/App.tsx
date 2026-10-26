@@ -12,6 +12,7 @@ import PolicyProvider from "context/policy";
 import QueryProvider from "context/query";
 import TableProvider from "context/table";
 import useDeepEffect from "hooks/useDeepEffect";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import ErrorPageLayout from "layouts/ErrorPageLayout";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
@@ -21,6 +22,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 import page_titles from "router/page_titles";
 import PATHS from "router/paths";
+import certificatesAPI from "services/entities/certificates";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
 import mdmAndroidAPI from "services/entities/mdm_android";
@@ -69,6 +71,16 @@ export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   return earliest.toISOString();
 };
 
+/** The earliest client certificate expiry of the EJBCA certificate authorities, or "" when there is none. */
+export const getEarliestEJBCACertExpiry = (
+  certAuthorities: ICertificateAuthorityPartial[]
+): string => {
+  const records = certAuthorities
+    .filter((ca) => ca.type === "ejbca" && ca.mtls_cert_expires_at)
+    .map((ca) => ({ renew_date: ca.mtls_cert_expires_at as string }));
+  return records.length ? getEarliestExpiry(records) : "";
+};
+
 const baseClass = "app";
 
 const App = ({ children, location, router }: IAppProps): JSX.Element => {
@@ -90,6 +102,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     setABMExpiry,
     setAPNsExpiry,
     setVppExpiry,
+    setEJBCAExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
     setHostCount,
@@ -190,6 +203,20 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         !!isPremiumTier,
       onSuccess: ({ vpp_tokens }) => {
         vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
+      },
+    }
+  );
+
+  // Get the client certificate expiry of the EJBCA certificate authorities. This shares its cache with the
+  // certificate authorities page, so adding, editing, or deleting one updates the banner.
+  useQuery(
+    "certAuthorities",
+    () => certificatesAPI.getCertificateAuthoritiesList(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!isPremiumTier,
+      onSuccess: ({ certificate_authorities }) => {
+        setEJBCAExpiry(getEarliestEJBCACertExpiry(certificate_authorities));
       },
     }
   );

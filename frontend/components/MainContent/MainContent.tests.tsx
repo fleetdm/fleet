@@ -15,16 +15,24 @@ const GRAPH_BANNER_TEXT =
   "permissions. Windows Autopilot devices won't sync to Fleet as pending " +
   "hosts. Users with the admin role in Fleet can update the credential.";
 
+const EJBCA_EXPIRED_TEXT = /client certificate of an EJBCA certificate authority \(CA\) has expired/i;
+const EJBCA_EXPIRING_TEXT = /client certificate of an EJBCA certificate authority \(CA\) is less than 30 days from expiration/i;
+
 const renderMainContent = ({
   credentialInvalid = false,
   isVppExpired = false,
+  isEJBCACertExpired = false,
+  willEJBCACertExpire = false,
+  isPremiumTier = true,
 } = {}) => {
   const render = createCustomRenderer({
     context: {
-      // Every banner but the APNs one sits inside MainContent's premium gate; these all assume premium.
+      // Every banner but the APNs one sits inside MainContent's premium gate.
       app: {
-        isPremiumTier: true,
+        isPremiumTier,
         isVppExpired,
+        isEJBCACertExpired,
+        willEJBCACertExpire,
         config: createMockConfig({
           mdm: createMockMdmConfig({
             microsoft_graph_credential_invalid: credentialInvalid,
@@ -59,6 +67,37 @@ describe("MainContent app-wide banners", () => {
     expect(
       screen.getByText(/Volume Purchasing Program \(VPP\) content token/i)
     ).toBeInTheDocument();
+  });
+
+  it("shows the EJBCA banner when a client certificate has expired, or is about to", () => {
+    const { unmount } = renderMainContent({ isEJBCACertExpired: true });
+    expect(screen.getByText(EJBCA_EXPIRED_TEXT)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Update EJBCA" })).toHaveAttribute(
+      "href",
+      "/settings/integrations/certificate-authorities"
+    );
+    unmount();
+
+    renderMainContent({ willEJBCACertExpire: true });
+    expect(screen.getByText(EJBCA_EXPIRING_TEXT)).toBeInTheDocument();
+  });
+
+  it("shows the EJBCA banner below the VPP banner and above the Microsoft Graph one", () => {
+    const { unmount } = renderMainContent({
+      isEJBCACertExpired: true,
+      isVppExpired: true,
+    });
+    expect(screen.queryByText(EJBCA_EXPIRED_TEXT)).not.toBeInTheDocument();
+    unmount();
+
+    renderMainContent({ isEJBCACertExpired: true, credentialInvalid: true });
+    expect(screen.getByText(EJBCA_EXPIRED_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(GRAPH_BANNER_TEXT)).not.toBeInTheDocument();
+  });
+
+  it("does not show the EJBCA banner on Fleet Free", () => {
+    renderMainContent({ isEJBCACertExpired: true, isPremiumTier: false });
+    expect(screen.queryByText(EJBCA_EXPIRED_TEXT)).not.toBeInTheDocument();
   });
 });
 

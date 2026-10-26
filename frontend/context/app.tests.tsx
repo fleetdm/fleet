@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 
 import createMockUser from "__mocks__/userMock";
 import { renderWithSetup } from "test/test-utils";
@@ -109,5 +109,44 @@ describe("AppProvider - setABMExpiry", () => {
     expect(screen.getByTestId("org-names")).toHaveTextContent(
       "Acme Inc., Fleet Device Management Inc."
     );
+  });
+});
+
+const EJBCAExpiryConsumer = ({ expiry }: { expiry: string }) => {
+  const {
+    setEJBCAExpiry,
+    isEJBCACertExpired,
+    willEJBCACertExpire,
+  } = useContext(AppContext);
+  useEffect(() => {
+    setEJBCAExpiry(expiry);
+  }, [expiry, setEJBCAExpiry]);
+  return (
+    <div data-testid="ejbca">
+      {String(isEJBCACertExpired)} {String(willEJBCACertExpire)}
+    </div>
+  );
+};
+
+describe("AppProvider - setEJBCAExpiry", () => {
+  const daysFromNow = (days: number) =>
+    new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+  it.each([
+    ["no certificate authority", "", "false false"],
+    ["a certificate that expired", daysFromNow(-1), "true false"],
+    [
+      "a certificate that expires within 30 days",
+      daysFromNow(10),
+      "false true",
+    ],
+    ["a certificate that expires later", daysFromNow(90), "false false"],
+  ])("flags %s", (_, expiry, want) => {
+    renderWithSetup(
+      <AppProvider>
+        <EJBCAExpiryConsumer expiry={expiry} />
+      </AppProvider>
+    );
+    expect(screen.getByTestId("ejbca")).toHaveTextContent(want);
   });
 });
