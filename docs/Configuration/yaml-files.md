@@ -502,7 +502,7 @@ controls:
         subject_name: CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   setup_experience: # Available in Fleet Premium
-    bootstrap_package: https://example.org/bootstrap_package.pkg
+    macos_bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
@@ -603,7 +603,7 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
-- `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
+- `macos_bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
@@ -623,7 +623,7 @@ Please use the platform-specific `apple_settings.managed_local_account_settings`
 
 ```yaml
 setup_experience:
-  bootstrap_package: "https://your-storage/package.pkg"
+  macos_bootstrap_package: "https://your-storage/package.pkg"
   macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
