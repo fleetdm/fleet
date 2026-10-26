@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"slices"
 	"time"
 
@@ -30,7 +29,6 @@ type SoftwareWorker struct {
 	AndroidModule    android.Service
 	Log              *slog.Logger
 	AndroidBatchSize int
-	VPPInstaller     fleet.AppleMDMVPPInstaller
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -45,8 +43,8 @@ const (
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
-	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"
-	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch"
+	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"       // deprecated
+	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch" // deprecated
 )
 
 type softwareWorkerArgs struct {
@@ -78,12 +76,7 @@ type softwareWorkerArgs struct {
 	// for which the app to make unavailable applies.
 	HostUUIDToPolicyID map[string]string `json:"host_uuid_to_policy_id,omitempty"`
 
-	FleetID                 uint                            `json:"fleet_id,omitempty"`
-	Platform                fleet.InstallableDevicePlatform `json:"platform,omitempty"`
-	ConfigChangedAppTeamIDs []uint                          `json:"config_changed_app_team_ids,omitempty"` //nolint:apiparamcheck // "team" is from the vpp_apps_teams table, not a fleet
-	VersionLabelsChanged    bool                            `json:"version_labels_changed,omitempty"`
-	// HostIDs is empty for every host of the fleet.
-	HostIDs []uint `json:"host_ids,omitempty"`
+	VersionLabelsChanged bool `json:"version_labels_changed,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -156,11 +149,10 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			args.EnterpriseName,
 		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
-	case resendVPPAppConfigurationTask:
-		return ctxerr.Wrapf(ctx, v.resendVPPAppConfiguration(ctx, args), "running %s task", resendVPPAppConfigurationTask)
-
-	case resendVPPAppConfigurationBatchTask:
-		return ctxerr.Wrapf(ctx, v.resendVPPAppConfigurationBatch(ctx, args), "running %s task", resendVPPAppConfigurationBatchTask)
+	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
+		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
+		// kept here in case some pending jobs are still in the queue.
+		return nil
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
@@ -988,178 +980,6 @@ func QueueMakeAndroidAppAvailableForHostsJob(ctx context.Context, ds fleet.Datas
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queue batch for make android app available for hosts")
 		}
-	}
-	return nil
-}
-
-func QueueResendVPPAppConfigurationJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
-	args := &softwareWorkerArgs{
-		Task:                    resendVPPAppConfigurationTask,
-		ApplicationID:           appID.AdamID,
-		Platform:                appID.Platform,
-		FleetID:                 fleetID,
-		ConfigChangedAppTeamIDs: configChangedAppTeamIDs,
-		VersionLabelsChanged:    versionLabelsChanged,
-		HostIDs:                 hostIDs,
-	}
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
-	return nil
-}
-
-func (v *SoftwareWorker) resendVPPAppConfiguration(ctx context.Context, args softwareWorkerArgs) error {
-	// This task only queues installs. Leave hosts alone when every version of the app is deleted or the host is in
-	// scope for no version, a configuration re-send never removes the app from a host.
-	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
-	}
-	versions, err := v.Datastore.GetAppStoreAppVersionsByTeamAndTitleID(ctx, args.FleetID, app.TitleID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app versions for configuration resend")
-	}
-	installedVersionByHostID, err := v.Datastore.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, args.FleetID, args.HostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list hosts with app store app installs")
-	}
-
-	installedHostIDs := slices.Collect(maps.Keys(installedVersionByHostID))
-
-	// Give each host the first version that includes it, versions are ordered by id. The batches install the version picked here.
-	hostIDsByVersionID := make(map[uint][]uint, len(versions))
-	assignedHostIDs := make(map[uint]struct{}, len(installedVersionByHostID))
-	var includedHostIDs map[uint]struct{}
-	for _, version := range versions {
-		includedHostIDs, err = v.Datastore.GetIncludedHostIDMapForVPPAppHosts(ctx, version.VPPAppsTeamsID, installedHostIDs)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get hosts in scope of vpp app version %d", version.VPPAppsTeamsID)
-		}
-		for hostID, installedVersionID := range installedVersionByHostID {
-			_, assigned := assignedHostIDs[hostID]
-			if assigned {
-				continue
-			}
-			_, included := includedHostIDs[hostID]
-			if !included {
-				continue
-			}
-			assignedHostIDs[hostID] = struct{}{}
-
-			switch {
-			// Re-send to hosts whose version's configuration changed
-			case slices.Contains(args.ConfigChangedAppTeamIDs, version.VPPAppsTeamsID):
-			// Re-send to hosts whose label scoping now gives them a different version than the one installed
-			case args.VersionLabelsChanged && !ptr.Equal(installedVersionID, &version.VPPAppsTeamsID):
-			// Re-send to hosts whose installed version was deleted and whose label scoping gives them another version
-			case len(args.ConfigChangedAppTeamIDs) == 0 && installedVersionID == nil:
-			default:
-				continue
-			}
-			hostIDsByVersionID[version.VPPAppsTeamsID] = append(hostIDsByVersionID[version.VPPAppsTeamsID], hostID)
-		}
-	}
-
-	// Queue staggered batch jobs per version so each job installs one version on a bounded number of hosts
-	var batchIndex int
-	for _, version := range versions {
-		hostIDs := hostIDsByVersionID[version.VPPAppsTeamsID]
-		slices.Sort(hostIDs)
-		for batchHostIDs := range slices.Chunk(hostIDs, defaultAndroidBatchSize) {
-			batchArgs := args
-			batchArgs.Task = resendVPPAppConfigurationBatchTask
-			batchArgs.AppTeamID = version.VPPAppsTeamsID
-			batchArgs.HostIDs = batchHostIDs
-			delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
-			_, err = QueueJobWithDelay(ctx, v.Datastore, softwareWorkerJobName, &batchArgs, delay)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queue batch for resend vpp app configuration")
-			}
-			batchIndex++
-		}
-	}
-	return nil
-}
-
-func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, args softwareWorkerArgs) error {
-	if v.VPPInstaller == nil {
-		// should be unreachable
-		return errors.New("VPP installer not configured")
-	}
-
-	// Skip the batch when its version was deleted after it was queued, a configuration re-send never removes the app
-	app, err := v.Datastore.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, args.ApplicationID, args.Platform, &args.FleetID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get vpp app for configuration resend")
-	}
-	vppApp, err := v.Datastore.GetVPPAppByTeamAndTitleID(ctx, &args.FleetID, app.TitleID, args.AppTeamID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-		return ctxerr.Wrapf(ctx, err, "get vpp app version %d", args.AppTeamID)
-	}
-
-	// Skip hosts with an install of this version that hasn't activated yet, it reads the configuration when it activates.
-	// A retry of this batch skips the hosts it already queued, unless their install activated in between, which only
-	// happens when activity.fleet_initiated_release_per_minute is 0.
-	hostIDsWithUnactivatedInstall, err := v.Datastore.GetHostIDsWithUnactivatedVPPAppInstall(ctx, args.AppTeamID, args.HostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get hosts with unactivated vpp app install")
-	}
-
-	var retryHostIDs []uint
-	var host *fleet.Host
-	var token string
-	for _, hostID := range args.HostIDs {
-		_, installUnactivated := hostIDsWithUnactivatedInstall[hostID]
-		if installUnactivated {
-			continue
-		}
-		host, err = v.Datastore.Host(ctx, hostID)
-		if err != nil {
-			if fleet.IsNotFound(err) {
-				continue
-			}
-			return ctxerr.Wrapf(ctx, err, "get host %d", hostID)
-		}
-		// Skip hosts that left the fleet after the batch was queued
-		if ptr.ValOrZero(host.TeamID) != args.FleetID {
-			continue
-		}
-
-		token, err = v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-		if err == nil {
-			_, err = v.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
-				ForConfigurationResend: true,
-			})
-		}
-		if err != nil {
-			// Skip hosts that can't take the install, such as hosts without MDM or a license, and retry the batch for
-			// other failures, such as an error from Apple
-			var clientErr fleet.ErrWithIsClientError
-			if errors.As(err, &clientErr) && clientErr.IsClientError() {
-				v.Log.WarnContext(ctx, "skipping vpp app configuration resend for host", "host_id", hostID, "adam_id", app.AdamID, "err", err)
-				continue
-			}
-			v.Log.ErrorContext(ctx, "resend vpp app configuration", "host_id", hostID, "adam_id", app.AdamID, "err", err)
-			retryHostIDs = append(retryHostIDs, hostID)
-		}
-	}
-	if len(retryHostIDs) > 0 {
-		return ctxerr.Errorf(ctx, "resend vpp app configuration failed for hosts %v", retryHostIDs)
 	}
 	return nil
 }
