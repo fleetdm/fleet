@@ -108,9 +108,11 @@ const PatchDeadlineSection = ({
       ? days.filter((d) => d !== key)
       : [...days, key];
     setDays(nextDays);
-    // Any interaction clears a shown error (Fleet validation rule: errors
-    // never (re)appear on keystroke/toggle — only on blur and submit).
-    setErrors((prev) => ({ ...prev, days: undefined }));
+    // Checkboxes commit on change (patterns.md 360): re-validate the group on
+    // every toggle so unchecking the last selected day surfaces the error
+    // immediately, and re-checking any day clears it.
+    const next = validate(nextDays, time);
+    setErrors((prev) => ({ ...prev, days: next.days }));
   };
 
   const updateMutation = useMutation(patchDeadlineSettingsAPI.updateSettings, {

@@ -137,6 +137,7 @@ const SoftwareLibrarySettingsPage = ({
         activeItem={currentSection.urlSection}
         CurrentCard={
           <CurrentCard
+            key={fleetId}
             router={router}
             location={location}
             fleetId={fleetId}
