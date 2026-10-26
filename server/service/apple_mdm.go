@@ -3914,13 +3914,18 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
-	var schema *profilevalidation.ProfileValidationSchema
-	if appCfg.MDM.EnableProfileValidation {
-		schema = currentProfileValidationSchema()
-	}
 	var teamID uint
 	if tmID != nil {
 		teamID = *tmID
+	}
+	// only new or changed profiles are validated, matched by identifier
+	var schema *profilevalidation.ProfileValidationSchema
+	var stored *fleet.MDMProfileChecksums
+	if appCfg.MDM.EnableProfileValidation {
+		schema = currentProfileValidationSchema()
+		if stored, err = svc.ds.GetMDMProfileChecksums(ctx, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get stored profile checksums")
+		}
 	}
 
 	// any duplicate identifier or name in the provided set results in an error
@@ -3977,7 +3982,8 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				))
 		}
 
-		if appCfg.MDM.EnableProfileValidation {
+		sum := md5.Sum(prof) //nolint:gosec // content comparison, not security
+		if stored != nil && !bytes.Equal(stored.AppleByIdentifier[mdmProf.Identifier], sum[:]) {
 			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
 			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),

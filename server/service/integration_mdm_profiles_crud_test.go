@@ -18,6 +18,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -2517,5 +2518,74 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 
 		setValidation(false)
 		appleBatch([][]byte{bad}, http.StatusNoContent)
+	})
+
+	t.Run("batch validates only new or changed profiles", func(t *testing.T) {
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-batch-team-2"})
+		require.NoError(t, err)
+		apple := badApple("pv nn apple", "com.example.pv.netnew")
+		decl := badDecl("com.example.pv.netnewdecl")
+		win := badWin()
+		stored := []fleet.MDMProfileBatchPayload{
+			{Name: "pv nn apple", Contents: apple},
+			{Name: "pv-nn-decl", Contents: decl},
+			{Name: "pv-nn-win", Contents: win},
+		}
+		setValidation(false)
+		batch(stored, http.StatusNoContent)
+		setValidation(true)
+
+		// unchanged invalid profiles are accepted
+		batch(stored, http.StatusNoContent)
+
+		// one byte changed is validated
+		changed := slices.Clone(stored)
+		changed[0].Contents = append(slices.Clone(apple), '\n')
+		errMsg := batch(changed, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv nn apple": "allowAirDrop" expects a boolean.`)
+
+		// a match in another fleet doesn't count
+		res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: stored}, http.StatusUnprocessableEntity,
+			"fleet_id", fmt.Sprint(otherTeam.ID))
+		require.Contains(t, extractServerErrorText(res.Body), `"pv nn apple": "allowAirDrop" expects a boolean.`)
+
+		// a renamed declaration is new
+		renamedDecl := slices.Clone(stored)
+		renamedDecl[1].Name = "pv-nn-decl-renamed"
+		errMsg = batch(renamedDecl, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv-nn-decl-renamed": "MinimumLength" expects a number.`)
+
+		// a renamed Apple profile with the same identifier isn't
+		renamedApple := slices.Clone(stored)
+		renamedApple[0].Name = "pv nn apple renamed"
+		batch(renamedApple, http.StatusNoContent)
+	})
+
+	t.Run("deprecated Apple batch validates only new or changed profiles", func(t *testing.T) {
+		teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-a"})
+		require.NoError(t, err)
+		teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-b"})
+		require.NoError(t, err)
+		appleBatch := func(teamID uint, profiles [][]byte, wantStatus int) string {
+			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
+				"fleet_id", fmt.Sprint(teamID))
+			if wantStatus != http.StatusNoContent {
+				return extractServerErrorText(res.Body)
+			}
+			return ""
+		}
+		bad := badApple("pv depr netnew", "com.example.pv.deprnetnew")
+		setValidation(false)
+		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
+		setValidation(true)
+
+		// unchanged is accepted
+		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
+		// one byte changed is validated
+		errMsg := appleBatch(teamA.ID, [][]byte{append(slices.Clone(bad), '\n')}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
+		// a match in another fleet doesn't count
+		errMsg = appleBatch(teamB.ID, [][]byte{bad}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
 	})
 }

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5" //nolint:gosec // content comparison, not security
 	"errors"
 	"fmt"
 	"slices"
@@ -205,9 +207,10 @@ func profileValidationUserError(err error, edit bool) error {
 	return fleet.NewInvalidArgumentError("profile", msg)
 }
 
-// validateBatchProfileSchemas runs lenient validation over a batch when the
-// setting is on, in payload order and against one schema snapshot, and returns
-// the first finding with the GitOps copy. Apple content is secret-expanded.
+// validateBatchProfileSchemas runs lenient validation over a batch's new or
+// changed profiles when the setting is on, in payload order and against one
+// schema snapshot, and returns the first finding with the GitOps copy. Apple
+// content is secret-expanded.
 func (svc *Service) validateBatchProfileSchemas(
 	ctx context.Context,
 	appCfg *fleet.AppConfig,
@@ -221,8 +224,28 @@ func (svc *Service) validateBatchProfileSchemas(
 	if !appCfg.MDM.EnableProfileValidation {
 		return nil
 	}
+	// Only new or changed content is validated, compared unexpanded against what
+	// the fleet stores, matched the way the datastore matches on save.
+	stored, err := svc.ds.GetMDMProfileChecksums(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get stored profile checksums")
+	}
 	schema := currentProfileValidationSchema()
 	for i, rawProfile := range raw {
+		sum := md5.Sum(rawProfile.Contents) //nolint:gosec // content comparison, not security
+		var storedSum []byte
+		switch {
+		case appleProfiles[i] != nil:
+			storedSum = stored.AppleByIdentifier[appleProfiles[i].Identifier]
+		case appleDecls[i] != nil:
+			storedSum = stored.DeclarationsByName[strings.ToLower(appleDecls[i].Name)]
+		case windowsProfiles[i] != nil:
+			storedSum = stored.WindowsByName[windowsProfiles[i].Name]
+		}
+		if bytes.Equal(storedSum, sum[:]) {
+			continue
+		}
+
 		var err error
 		var name string
 		switch {

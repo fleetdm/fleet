@@ -670,6 +670,39 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
+func (ds *Datastore) GetMDMProfileChecksums(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+	const stmt = `
+SELECT 'a' AS kind, identifier AS ` + "`key`" + `, checksum FROM mdm_apple_configuration_profiles WHERE team_id = ?
+UNION ALL
+SELECT 'd', name, UNHEX(MD5(raw_json)) FROM mdm_apple_declarations WHERE team_id = ?
+UNION ALL
+SELECT 'w', name, checksum FROM mdm_windows_configuration_profiles WHERE team_id = ?`
+	var rows []struct {
+		Kind     string `db:"kind"`
+		Key      string `db:"key"`
+		Checksum []byte `db:"checksum"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, teamID, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm profile checksums")
+	}
+	res := &fleet.MDMProfileChecksums{
+		AppleByIdentifier:  map[string][]byte{},
+		DeclarationsByName: map[string][]byte{},
+		WindowsByName:      map[string][]byte{},
+	}
+	for _, r := range rows {
+		switch r.Kind {
+		case "a":
+			res.AppleByIdentifier[r.Key] = r.Checksum
+		case "d":
+			res.DeclarationsByName[strings.ToLower(r.Key)] = r.Checksum
+		case "w":
+			res.WindowsByName[r.Key] = r.Checksum
+		}
+	}
+	return res, nil
+}
+
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updates fleet.MDMProfilesUpdates, err error) {
