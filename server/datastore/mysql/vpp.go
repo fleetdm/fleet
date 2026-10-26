@@ -3859,38 +3859,23 @@ ORDER BY vat.id
 	return versionsByTitleIDByFleetID, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
-	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPSoftwareInstall)
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
 	if len(hostIDs) == 0 {
 		return installByHostIDByTitleID, nil
 	}
 
-	// Read the latest install of each app on each of the hosts that's still on the fleet and has the app in its inventory. Start
-	// from the hosts so only each host's latest installs are read, not the app's whole install history. Filter out failed
-	// installs since the host still has the version from the install before it. Read the queued install in the same query, so
-	// an install activated while the cron runs shows up as either queued or installed.
-	const stmt = `
+	// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
+	const latestInstallsStmt = `
 SELECT
 	app.title_id,
 	h.id AS host_id,
 	latest.vpp_app_team_id,
 	latest.created_at,
-	latest.needs_resend,
-	(
-		SELECT vaua.vpp_app_team_id
-		FROM
-			upcoming_activities ua
-			JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
-		WHERE
-			ua.host_id = h.id AND
-			ua.activated_at IS NULL AND
-			vaua.adam_id = app.adam_id AND
-			vaua.platform = app.platform
-		ORDER BY ua.created_at DESC, ua.id DESC
-		LIMIT 1
-	) AS queued_vpp_app_team_id
+	latest.needs_resend
 FROM
 	hosts h
+	-- iOS and iPadOS apps are separate titles, so pair each host only with the fleet's apps of its own platform
 	JOIN (
 		SELECT DISTINCT va.title_id, va.adam_id, va.platform
 		FROM
@@ -3898,6 +3883,7 @@ FROM
 			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 		WHERE vat.global_or_team_id = ? AND vat.platform IN (?)
 	) app ON app.platform = h.platform
+	-- canceled and failed installs didn't change the app on the host, so read the latest install that wasn't either
 	JOIN LATERAL (
 		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
 		FROM host_vpp_software_installs hvsi
@@ -3923,24 +3909,72 @@ WHERE
 			s.title_id = app.title_id
 	)
 `
-	query, args, err := sqlx.In(stmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
+	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(latestInstallsStmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
-	var installs []struct {
+
+	// Only the newest upcoming install of an app matters, so read them oldest first and let the loop below keep the last one
+	const upcomingInstallsStmt = `
+SELECT
+	va.title_id,
+	ua.host_id,
+	vaua.vpp_app_team_id AS upcoming_vpp_app_team_id
+FROM
+	upcoming_activities ua
+	JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	JOIN vpp_apps va ON va.adam_id = vaua.adam_id AND va.platform = vaua.platform
+WHERE
+	ua.host_id IN (?) AND
+	ua.activated_at IS NULL
+ORDER BY ua.created_at, ua.id
+`
+	upcomingInstallsQuery, upcomingInstallsArgs, err := sqlx.In(upcomingInstallsStmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list host app store app upcoming installs query")
+	}
+
+	var latestInstalls []struct {
 		TitleID uint `db:"title_id"`
 		fleet.HostVPPSoftwareInstall
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
+	var upcomingInstalls []struct {
+		TitleID uint `db:"title_id"`
+		fleet.HostVPPInstallWithUpcoming
+	}
+	// An install activated between two separate reads would show up as neither upcoming nor installed and be sent again, so read
+	// both in one read-only transaction that sees a single snapshot
+	err = ds.withReadTx(ctx, func(tx platform_mysql.DBReadTx) error {
+		err := sqlx.SelectContext(ctx, tx, &latestInstalls, latestInstallsQuery, latestInstallsArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host app store app install versions")
+		}
+		err = sqlx.SelectContext(ctx, tx, &upcomingInstalls, upcomingInstallsQuery, upcomingInstallsArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host app store app upcoming installs")
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
+		return nil, err
 	}
 
-	for _, install := range installs {
-		if installByHostIDByTitleID[install.TitleID] == nil {
-			installByHostIDByTitleID[install.TitleID] = make(map[uint]fleet.HostVPPSoftwareInstall)
+	for _, latestInstall := range latestInstalls {
+		if installByHostIDByTitleID[latestInstall.TitleID] == nil {
+			installByHostIDByTitleID[latestInstall.TitleID] = make(map[uint]fleet.HostVPPInstallWithUpcoming)
 		}
-		installByHostIDByTitleID[install.TitleID][install.HostID] = install.HostVPPSoftwareInstall
+		installByHostIDByTitleID[latestInstall.TitleID][latestInstall.HostID] = fleet.HostVPPInstallWithUpcoming{
+			HostVPPSoftwareInstall: latestInstall.HostVPPSoftwareInstall,
+		}
+	}
+	// Return a queued install from upcoming activities if one exists, to avoid requeuing the same app version
+	for _, upcomingInstall := range upcomingInstalls {
+		latestInstall, hasInstall := installByHostIDByTitleID[upcomingInstall.TitleID][upcomingInstall.HostID]
+		if !hasInstall {
+			continue
+		}
+		latestInstall.UpcomingVPPAppTeamID = upcomingInstall.UpcomingVPPAppTeamID
+		installByHostIDByTitleID[upcomingInstall.TitleID][upcomingInstall.HostID] = latestInstall
 	}
 	return installByHostIDByTitleID, nil
 }

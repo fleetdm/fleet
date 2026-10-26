@@ -5465,7 +5465,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		installByHostID := installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
 		require.Equal(t, new(app.AppTeamID), installByHostID[hostWithActivatedInstall.ID].VPPAppTeamID)
-		require.Nil(t, installByHostID[hostWithActivatedInstall.ID].QueuedVPPAppTeamID)
+		require.Nil(t, installByHostID[hostWithActivatedInstall.ID].UpcomingVPPAppTeamID)
 		require.NotContains(t, installByHostID, hostWithoutApp.ID)
 
 		// verify the first version, then fail the MDM command for the other version, the host should be returned with the first version
@@ -5544,7 +5544,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
 		require.Equal(t, new(app.AppTeamID), installByHostID[hostWithFailedVerification.ID].VPPAppTeamID)
-		require.Equal(t, new(otherVersion.AppTeamID), installByHostID[hostWithFailedVerification.ID].QueuedVPPAppTeamID)
+		require.Equal(t, new(otherVersion.AppTeamID), installByHostID[hostWithFailedVerification.ID].UpcomingVPPAppTeamID)
 
 		// get the hosts with a failed install of the other version in the last hour, the two hosts whose verification failed should be returned
 		failedHostIDs := []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID}

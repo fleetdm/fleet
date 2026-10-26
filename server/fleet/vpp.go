@@ -241,8 +241,11 @@ type HostVPPSoftwareInstall struct {
 	VPPAppTeamID         *uint      `db:"vpp_app_team_id"`
 	CreatedAt            time.Time  `db:"created_at"`
 	NeedsResend          bool       `db:"needs_resend"`
-	// QueuedVPPAppTeamID is the version of the host's newest install of the app that's queued and not activated yet
-	QueuedVPPAppTeamID *uint `db:"queued_vpp_app_team_id"`
+}
+
+type HostVPPInstallWithUpcoming struct {
+	HostVPPSoftwareInstall
+	UpcomingVPPAppTeamID *uint `db:"upcoming_vpp_app_team_id"`
 }
 
 type HostVPPSoftwareInstallLite struct {

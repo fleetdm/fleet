@@ -1090,25 +1090,25 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			}
 			return versionsByTitleIDByFleetID, nil
 		}
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
-			installByHostID := make(map[uint]fleet.HostVPPSoftwareInstall)
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+			installByHostID := make(map[uint]fleet.HostVPPInstallWithUpcoming)
 			for _, hostID := range hostIDs {
 				if _, inInventory := f.inventoryHostIDs[hostID]; !inInventory || ptr.ValOrZero(hostByID(f, hostID).TeamID) != fleetID {
 					continue
 				}
 				for _, install := range f.installs {
 					if install.HostID == hostID {
-						installByHostID[hostID] = install
+						installByHostID[hostID] = fleet.HostVPPInstallWithUpcoming{HostVPPSoftwareInstall: install}
 					}
 				}
 				install, installed := installByHostID[hostID]
 				queuedVersionID, queued := f.queuedVersionByHostID[hostID]
 				if installed && queued {
-					install.QueuedVPPAppTeamID = &queuedVersionID
+					install.UpcomingVPPAppTeamID = &queuedVersionID
 					installByHostID[hostID] = install
 				}
 			}
-			return map[uint]map[uint]fleet.HostVPPSoftwareInstall{1: installByHostID}, nil
+			return map[uint]map[uint]fleet.HostVPPInstallWithUpcoming{1: installByHostID}, nil
 		}
 		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 			version := versionByID(f, vppAppTeamID)
@@ -1811,7 +1811,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			return versionsByTitleIDByFleetID, err
 		}
 		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
 			installByHostIDByTitleID, err := installs(ctx, fleetID, hostIDs, platforms)
 			installByHostIDByTitleID[2] = installByHostIDByTitleID[1]
 			return installByHostIDByTitleID, err
@@ -1878,7 +1878,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			return tokens(ctx, teamID)
 		}
 		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
 			if fleetID == 6 {
 				return nil, errors.New("read failed")
 			}

@@ -3590,10 +3590,9 @@ type Datastore interface {
 	// configuration change time.
 	GetAppStoreAppVersionsByFleetAndTitle(ctx context.Context, platforms []InstallableDevicePlatform) (AppStoreAppVersionsByFleetAndTitleID, error)
 
-	// ListHostAppStoreAppInstallVersions returns, for each App Store app of the platforms on the fleet and each of hostIDs that's on
-	// the fleet and whose inventory has the app, its latest install of the app that didn't fail and the version of its newest queued
-	// install of the app, indexed by software title id and then host id.
-	ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []InstallableDevicePlatform) (map[uint]map[uint]HostVPPSoftwareInstall, error)
+	// ListHostAppStoreAppInstallVersions returns, for each App Store app a host has in inventory, the host's latest install that didn't
+	// fail and its upcoming install in upcoming_activities if there is one, indexed by software title id and then host id.
+	ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []InstallableDevicePlatform) (map[uint]map[uint]HostVPPInstallWithUpcoming, error)
 
 	// ListIOSAndIPadOSMDMHostsAfterID returns up to limit iOS and iPadOS hosts with MDM on whose id is after afterHostID,
 	// ordered by id, with only their id, uuid, serial number, platform and fleet.

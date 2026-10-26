@@ -2111,7 +2111,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	}
 
 	var vppToken *fleet.VPPTokenDB
-	var installByHostIDByTitleID map[uint]map[uint]fleet.HostVPPSoftwareInstall
+	var installByHostIDByTitleID map[uint]map[uint]fleet.HostVPPInstallWithUpcoming
 	for fleetID, hostIDs := range hostIDsByFleetID {
 		// Skip fleets that can't install App Store apps until their VPP token is added or renewed
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, &fleetID)
@@ -2165,7 +2165,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 
 func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, retryCounter fleet.SoftwareInstallAttemptCounter,
 	logger *slog.Logger, fleetID uint, titleID uint,
-	versions []*fleet.VPPAppStoreApp, versionByID map[uint]*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPSoftwareInstall, vppToken string,
+	versions []*fleet.VPPAppStoreApp, versionByID map[uint]*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPInstallWithUpcoming, vppToken string,
 	hostByID map[uint]fleet.Host,
 ) error {
 	var err error
@@ -2202,8 +2202,8 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		var hostIDs []uint
 		for hostID := range includedHostIDs {
 			install := installByHostID[hostID]
-			// Leave the host to its queued install of this version, which reads the current configuration when it activates
-			if ptr.Equal(install.QueuedVPPAppTeamID, &version.VPPAppsTeamsID) {
+			// Leave the host to its upcoming install of this version, which reads the current configuration when it activates
+			if ptr.Equal(install.UpcomingVPPAppTeamID, &version.VPPAppsTeamsID) {
 				continue
 			}
 			switch {
