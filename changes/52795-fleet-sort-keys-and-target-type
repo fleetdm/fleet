@@ -1,0 +1,1 @@
+- The API now accepts `fleet_id` and `fleet_name` as `order_key` values (alongside the existing `team_id` and `team_name`) when listing hosts, labels, reports, policies, and configuration profiles, and accepts `"fleet"` as a target type.
