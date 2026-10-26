@@ -277,6 +277,7 @@ module.exports.custom = {
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
+    'cmd/maintained-apps/validate': 'allenhouchins',
     'pkg/patch_policy': 'allenhouchins',
 
     // Other brandfronts

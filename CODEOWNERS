@@ -46,6 +46,10 @@ go.mod @fleetdm/go
 #   This entry intentionally has no owners, so *.go above doesn't apply. ee/maintained-apps/maintained_apps.go is
 #   compiled into the server, so it still requires @fleetdm/go.
 /ee/maintained-apps/ingesters/
+# « cmd/maintained-apps/validate: FMA validator run by the test-fma-* workflows. Standalone package main that nothing
+#   imports (not compiled into the server or fleetctl). Maintainer (allenhouchins) is configured in website/config/custom.js
+#   (githubRepoMaintainersByPath). This entry intentionally has no owners, so *.go and /cmd/ above don't apply.
+/cmd/maintained-apps/validate/
 /orbit/ @sharon-fdm @lucasmrod @lukeheath
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
