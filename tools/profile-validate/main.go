@@ -1,5 +1,5 @@
-// Command profile-validate checks Apple profiles and declarations against the embedded profile
-// validation schema, for running ad hoc over the repo's profiles.
+// Command profile-validate checks Apple profiles and declarations and Windows profiles against the
+// embedded profile validation schema, for running ad hoc over the repo's profiles.
 //
 //	go run ./tools/profile-validate [-strict] [paths...]
 //
@@ -8,8 +8,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,7 +28,7 @@ import (
 var defaultPaths = []string{"it-and-security", "docs/solutions", "ee/cis"}
 
 func main() {
-	strict := flag.Bool("strict", false, "also report unknown types, unknown keys, and envelope problems")
+	strict := flag.Bool("strict", false, "also report unknown types, keys, and LocURIs, envelope problems, and Windows format and scope disagreements")
 	flag.Parse()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -52,7 +54,7 @@ func main() {
 	}
 }
 
-// run validates every Apple profile and declaration under paths, writes one line per finding to
+// run validates every profile and declaration under paths, writes one line per finding to
 // out, and returns how many findings there were. A file that can't be read as a profile is logged
 // and skipped: the repo has profiles with GitOps environment variables that fleetctl expands
 // before upload.
@@ -87,7 +89,7 @@ func run(ctx context.Context, logger *slog.Logger, out io.Writer, s *profilevali
 				return err
 			}
 			got, err := validate(data, mode)
-			if errors.Is(err, errNotApple) {
+			if errors.Is(err, errNotProfile) {
 				return nil
 			}
 			files++
@@ -123,10 +125,11 @@ func run(ctx context.Context, logger *slog.Logger, out io.Writer, s *profilevali
 	return findings, nil
 }
 
-var errNotApple = errors.New("not an Apple declaration")
+var errNotProfile = errors.New("not a profile")
 
-// validatorFor picks the validator from the file name: .mobileconfig is a profile and .json a
-// declaration, unless its Type isn't com.apple.* (the same trees hold Android and other JSON).
+// validatorFor picks the validator from the file name: .mobileconfig is an Apple profile, .json a
+// declaration unless its Type isn't com.apple.* (the same trees hold Android and other JSON), and
+// .xml a Windows profile if it has a <LocURI> (the same trees hold other XML).
 func validatorFor(s *profilevalidation.ProfileValidationSchema, path string) func([]byte, profilevalidation.Mode) ([]profilevalidation.Finding, error) {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".mobileconfig":
@@ -141,9 +144,28 @@ func validatorFor(s *profilevalidation.ProfileValidationSchema, path string) fun
 				return s.ValidateAppleDeclaration(data, mode)
 			}
 			if t, _ := head.Type.(string); !strings.HasPrefix(t, "com.apple.") {
-				return nil, errNotApple
+				return nil, errNotProfile
 			}
 			return s.ValidateAppleDeclaration(data, mode)
+		}
+	case ".xml":
+		return func(data []byte, mode profilevalidation.Mode) ([]profilevalidation.Finding, error) {
+			decoder := xml.NewDecoder(bytes.NewReader(data))
+			hasLocURI := false
+			for {
+				token, err := decoder.Token()
+				if err != nil {
+					break
+				}
+				if element, ok := token.(xml.StartElement); ok && element.Name.Local == "LocURI" {
+					hasLocURI = true
+					break
+				}
+			}
+			if !hasLocURI {
+				return nil, errNotProfile
+			}
+			return s.ValidateWindowsProfile(data, mode)
 		}
 	}
 	return nil
