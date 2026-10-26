@@ -5347,6 +5347,26 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 	})
 }
 
+func TestGitOpsEnableProfileValidation(t *testing.T) {
+	t.Run("omitted sets true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = false
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = true
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_profile_validation_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 

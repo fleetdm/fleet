@@ -196,6 +196,7 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -216,7 +217,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil || c.EnableProfileValidation != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -1339,6 +1340,11 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
 		multiError = multierror.Append(multiError, fmt.Errorf(
 			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+		))
+	}
+	if controlsTop.EnableProfileValidation != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		multiError = multierror.Append(multiError, fmt.Errorf(
+			"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
 		))
 	}
 	controlsFilePath := yamlFilename

@@ -5,8 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +54,7 @@ func TestApplyProfilesBatchErrorNamesProfile(t *testing.T) {
 
 	t.Run("no-team profiles name the failing profile", func(t *testing.T) {
 		client := newClient(t, invalidBody)
-		err := client.ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{}, false)
+		err := client.ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{}, nil)
 		require.ErrorContains(t, err, `profile "bitlocker"`)
 	})
 
@@ -60,7 +63,7 @@ func TestApplyProfilesBatchErrorNamesProfile(t *testing.T) {
 			"message": "Validation Failed",
 			"errors":  []map[string]string{{"name": "mdm", "reason": "cannot set custom settings: Windows MDM is not configured"}},
 		})
-		err := client.ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{}, false)
+		err := client.ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{}, nil)
 		require.Error(t, err)
 		require.NotContains(t, err.Error(), `profile "`)
 		require.ErrorContains(t, err, "Windows MDM is not configured")
@@ -108,4 +111,62 @@ func TestRewrapProfileBatchNameErr(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyProfilesSendsDryRunAssumptions(t *testing.T) {
+	t.Parallel()
+
+	newClient := func(t *testing.T, query *url.Values) *Client {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			*query = r.URL.Query()
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		t.Cleanup(srv.Close)
+		client, err := NewClient(srv.URL, true, "", "")
+		require.NoError(t, err)
+		client.SetToken("test-token")
+		return client
+	}
+	profiles := []fleet.MDMProfileBatchPayload{{Name: "p", Contents: []byte("<Replace/>")}}
+
+	for _, v := range []bool{true, false} {
+		assumptions := &fleet.TeamSpecsDryRunAssumptions{EnableProfileValidation: optjson.SetBool(v)}
+		want := strconv.FormatBool(v)
+
+		t.Run("team "+want, func(t *testing.T) {
+			var q url.Values
+			err := newClient(t, &q).ApplyTeamProfiles("Workstations", profiles,
+				fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}, DryRunAssumptions: assumptions})
+			require.NoError(t, err)
+			require.Equal(t, want, q.Get("assume_profile_validation"))
+		})
+
+		t.Run("no team "+want, func(t *testing.T) {
+			var q url.Values
+			err := newClient(t, &q).ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{DryRun: true}, assumptions)
+			require.NoError(t, err)
+			require.Equal(t, want, q.Get("assume_profile_validation"))
+		})
+	}
+
+	t.Run("not sent without assumption", func(t *testing.T) {
+		var q url.Values
+		require.NoError(t, newClient(t, &q).ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{}, nil))
+		require.False(t, q.Has("assume_profile_validation"))
+		require.NoError(t, newClient(t, &q).ApplyTeamProfiles("Workstations", profiles, fleet.ApplyTeamSpecOptions{}))
+		require.False(t, q.Has("assume_profile_validation"))
+	})
+
+	t.Run("no team keeps assume_enabled only when true", func(t *testing.T) {
+		var q url.Values
+		err := newClient(t, &q).ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{},
+			&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(true)})
+		require.NoError(t, err)
+		require.Equal(t, "true", q.Get("assume_enabled"))
+
+		err = newClient(t, &q).ApplyNoTeamProfiles(profiles, fleet.ApplySpecOptions{},
+			&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(false)})
+		require.NoError(t, err)
+		require.False(t, q.Has("assume_enabled"))
+	})
 }

@@ -2801,7 +2801,7 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			Hidden:           p.Hidden,
 		}
 	}
-	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, nil, false); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
 	return batchModifyMDMConfigProfilesResponse{}, nil
@@ -2812,12 +2812,14 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID        *uint                        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName      *string                      `json:"-" query:"team_name,optional" renameto:"fleet_name"`
-	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
-	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume Windows MDM is enabled; honored on dry run only
-	Profiles      backwardsCompatProfilesParam `json:"profiles"`
-	NoCache       bool                         `json:"-" query:"no_cache,optional"`
+	TeamID        *uint   `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName      *string `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	DryRun        bool    `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
+	AssumeEnabled *bool   `json:"-" query:"assume_enabled,optional"` // if true, assume Windows MDM is enabled; honored on dry run only
+	// the incoming mdm.enable_profile_validation from GitOps; honored on dry run only
+	AssumeProfileValidation *bool                        `json:"-" query:"assume_profile_validation,optional"`
+	Profiles                backwardsCompatProfilesParam `json:"profiles"`
+	NoCache                 bool                         `json:"-" query:"no_cache,optional"`
 }
 
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
@@ -2880,7 +2882,7 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 		return batchSetMDMProfilesResponse{Err: fleet.NewInvalidArgumentError("profiles", "profiles is required")}, nil
 	}
 	if err := svc.BatchSetMDMProfiles(
-		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled, req.NoCache,
+		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled, req.AssumeProfileValidation, req.NoCache,
 	); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
@@ -2895,6 +2897,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	dryRun bool,
 	skipBulkPending bool,
 	assumeEnabled *bool,
+	assumeProfileValidation *bool,
 	noCache bool,
 ) error {
 	var err error
@@ -2945,6 +2948,10 @@ func (svc *Service) BatchSetMDMProfiles(
 	// assume_enabled is only honored on dry runs
 	if dryRun && assumeEnabled != nil {
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
+	}
+	// dry run doesn't save config, so GitOps passes the incoming toggle
+	if dryRun && assumeProfileValidation != nil {
+		appCfg.MDM.EnableProfileValidation = *assumeProfileValidation
 	}
 
 	lic, err := svc.License(ctx)
