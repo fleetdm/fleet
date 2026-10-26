@@ -4,8 +4,10 @@
  * A reporter rather than an `after` hook: mocha prints its failure list once every hook has finished, so
  * anything a hook logged would end up buried above a run's worth of failing profiles.
  *
- * The run passes once every profile type reaches a 95% success rate.  Tests that make no generation, which
- * have no profile type, are not tallied: any one of them failing fails the run.
+ * The run passes once every profile type reaches a 95% success rate, and, when any requests were routed,
+ * once 95% of them went where they should.  Routing is tallied apart from the profile types rather than
+ * added into the total, since a request routed the wrong way already fails as a generation.  Tests that
+ * make no generation and route nothing are not tallied: any one of them failing fails the run.
  */
 const Mocha = require('mocha');
 const { EVENT_TEST_PASS, EVENT_TEST_FAIL, EVENT_RUN_END } = Mocha.Runner.constants;
@@ -23,10 +25,20 @@ class ProfileGeneratorSummaryReporter extends Mocha.reporters.Spec {
     super(runner, options);
 
     let tallyByProfileType = {};
-    let failedTestsWithoutAProfileType = 0;
+    let routing = { ran: 0, correct: 0, wrongRoutes: {} };
+    let failedTestsThatAreNotTallied = 0;
     let tally = (test, outcome)=>{
+      if(test.routing) {
+        routing.ran++;
+        if(test.routing.expected === test.routing.actual) {
+          routing.correct++;
+        } else {
+          let wrongRoute = `${test.routing.expected} -> ${test.routing.actual}`;
+          routing.wrongRoutes[wrongRoute] = (routing.wrongRoutes[wrongRoute] || 0) + 1;
+        }
+      }
       if(!test.profileType) {
-        if(outcome === 'failed') { failedTestsWithoutAProfileType++; }
+        if(outcome === 'failed' && !test.routing) { failedTestsThatAreNotTallied++; }
         return;
       }
       tallyByProfileType[test.profileType] = tallyByProfileType[test.profileType] || { passed: 0, failed: 0 };
@@ -53,17 +65,27 @@ class ProfileGeneratorSummaryReporter extends Mocha.reporters.Spec {
         let label = PLATFORM_BY_PROFILE_TYPE[profileType] ? `${profileType} (${PLATFORM_BY_PROFILE_TYPE[profileType]})` : profileType;
         lines.push(`    ${label.padEnd(22)} ${String(ran).padStart(4)} ran   ${String(passed).padStart(4)} passed   ${percent(passed, ran).padStart(6)} success rate`);
       }
-      this.passesSuccessThreshold = typesBelowThreshold.length === 0 && failedTestsWithoutAProfileType === 0;
+      let routingIsBelowThreshold = routing.ran > 0 && routing.correct / routing.ran < 0.95;
+      this.passesSuccessThreshold = typesBelowThreshold.length === 0 && !routingIsBelowThreshold && failedTestsThatAreNotTallied === 0;
+
+      let routingLines = '';
+      if(routing.ran > 0) {
+        routingLines =
+          `    ${'routing (Apple, Fleet)'.padEnd(22)} ${String(routing.ran).padStart(4)} ran   ${String(routing.correct).padStart(4)} correct  ${percent(routing.correct, routing.ran).padStart(6)} accuracy\n` +
+          Object.keys(routing.wrongRoutes).sort().map((wrongRoute)=>{ return `      expected ${wrongRoute}: ${routing.wrongRoutes[wrongRoute]}\n`; }).join('') +
+          '\n';
+      }
 
       console.log(
         '\n  ==== Profile generator summary ====\n\n' +
         (lines.length ? lines.join('\n') : '    (no generations ran)') + '\n' +
         `    ${'total'.padEnd(22)} ${String(totalRan).padStart(4)} ran   ${String(totalPassed).padStart(4)} passed   ${percent(totalPassed, totalRan).padStart(6)} success rate\n\n` +
+        routingLines +
         (typesBelowThreshold.length === 0 ?
           '  Every profile type meets the 95% threshold.\n\n' :
           `  Below the 95% threshold: ${typesBelowThreshold.join(', ')}.\n\n`) +
-        (failedTestsWithoutAProfileType > 0 ? `  ${failedTestsWithoutAProfileType} test(s) that make no generation failed.\n\n` : '') +
-        '  Note: Android is not implemented in the profile generator yet, Android profiles should be generated using Claude Code.\n'
+        (routingIsBelowThreshold ? '  Routing is below the 95% threshold.\n\n' : '') +
+        (failedTestsThatAreNotTallied > 0 ? `  ${failedTestsThatAreNotTallied} test(s) that make no generation failed.\n\n` : '')
       );
     });
   }

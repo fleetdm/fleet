@@ -331,10 +331,11 @@
     display: flex;
     flex-direction: row;
     gap: 32px;
-    margin-bottom: 48px;
+    margin-bottom: 64px;
   }
   [purpose='feature'] {
-    width: 33.3%;
+    // Subtract the row's two gaps so a two-item row lines up with the three-item rows above it.
+    width: calc(~'(100% - 64px) / 3');
     padding-right: 24px;
     h4 {
       color: #192147;

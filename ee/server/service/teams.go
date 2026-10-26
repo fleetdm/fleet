@@ -217,15 +217,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
-		// A nil HostActivitiesWebhook means "not provided", so preserve the
-		// stored value: existing callers PATCH webhook_settings with only the
-		// webhook they manage (e.g. the policies page sends just
-		// failing_policies_webhook) and must not clear this one. Disabling is
-		// explicit: send the object with enable_host_activities_webhook: false.
-		if payload.WebhookSettings.HostActivitiesWebhook == nil {
-			payload.WebhookSettings.HostActivitiesWebhook = team.Config.WebhookSettings.HostActivitiesWebhook
-		}
-		team.Config.WebhookSettings = *payload.WebhookSettings
+		applyTeamWebhookSettings(&team.Config.WebhookSettings, payload.WebhookSettings)
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -2691,24 +2683,13 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		len(applyUpon.CustomSettings) > 0 &&
 		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
 
-	macOSDiskEncryptionOn := (setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value) ||
-		(setFields["enable_escrow_disk_encryption_key"] && applyUpon.EnableEscrowDiskEncryptionKey.Value)
-
-	if customSettingsChanged || macOSDiskEncryptionOn {
-		field := "custom_settings"
-		switch {
-		case setFields["custom_settings"]:
-		case setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value:
-			field = "enable_disk_encryption"
-		default:
-			field = "enable_escrow_disk_encryption_key"
-		}
-		if !appCfg.MDM.EnabledAndConfigured {
-			// TODO: Address potential edge cases when teams that previously utilized MDM features
-			// are edited later edited when MDM disabled
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("apple_settings.%s", field),
-				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
+	// macOS disk encryption isn't gated on Apple MDM, matching the disk encryption endpoint, so a
+	// Windows-only MDM org can apply its own generate-gitops export.
+	if customSettingsChanged && !appCfg.MDM.EnabledAndConfigured {
+		// TODO: Address potential edge cases when teams that previously utilized MDM features
+		// are edited later edited when MDM disabled
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.custom_settings",
+			`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
 	return setFields, nil
@@ -2986,13 +2967,28 @@ func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.C
 	return nil
 }
 
+// applyTeamWebhookSettings replaces only the webhooks present in the payload:
+// each UI page PATCHes just the webhook it manages and must not clear the
+// others. Disabling is explicit, by sending the webhook with enable: false.
+func applyTeamWebhookSettings(dst *fleet.TeamWebhookSettings, src *fleet.TeamSpecWebhookSettings) {
+	if src.HostStatusWebhook != nil {
+		dst.HostStatusWebhook = src.HostStatusWebhook
+	}
+	if src.FailingPoliciesWebhook != nil {
+		dst.FailingPoliciesWebhook = *src.FailingPoliciesWebhook
+	}
+	if src.HostActivitiesWebhook != nil {
+		dst.HostActivitiesWebhook = src.HostActivitiesWebhook
+	}
+}
+
 // validateTeamWebhookSettings validates webhook settings for teams and default team config
-func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.TeamWebhookSettings) error {
+func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.TeamSpecWebhookSettings) error {
 	if webhookSettings == nil {
 		return nil
 	}
 
-	if webhookSettings.FailingPoliciesWebhook.Enable {
+	if webhookSettings.FailingPoliciesWebhook != nil && webhookSettings.FailingPoliciesWebhook.Enable {
 		if webhookSettings.FailingPoliciesWebhook.DestinationURL == "" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("webhook_settings.failing_policies_webhook.destination_url", "destination URL is required when webhook is enabled"))
 		}
@@ -3029,10 +3025,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
-		if payload.WebhookSettings.HostActivitiesWebhook == nil {
-			payload.WebhookSettings.HostActivitiesWebhook = config.WebhookSettings.HostActivitiesWebhook
-		}
-		config.WebhookSettings = *payload.WebhookSettings
+		applyTeamWebhookSettings(&config.WebhookSettings, payload.WebhookSettings)
 	}
 
 	// Apply integrations if provided
