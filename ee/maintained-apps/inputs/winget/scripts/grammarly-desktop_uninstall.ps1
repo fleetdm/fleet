@@ -1,130 +1,174 @@
-# Grammarly registers per user, so its uninstall entry lives in a user hive
-# rather than under HKLM, and the uninstaller has to run as that user for the
-# entry to go away with the files. Only the logged-in user's hive is searched,
-# since that is the account the uninstaller runs as. Uninstall.exe also
-# relaunches itself from a temp copy and exits immediately, so removal is only
-# done once the entry is gone.
+# Grammarly installs per user, so this script runs each signed-in user's
+# uninstaller as that user. A copy belonging to a user who isn't signed in
+# can't be removed and fails the uninstall. Uninstall.exe relaunches itself
+# from a temp copy and exits immediately, so a copy only counts as removed
+# once its uninstall entry is gone.
 
-$softwareName = "Grammarly for Windows"
-
+$displayName = "Grammarly for Windows"
+$publisher = "Grammarly Inc."
+$taskName = "fleet-uninstall-grammarly"
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$timeoutSeconds = 600
 $exitCode = 0
-$taskName = $null
 
-function Get-GrammarlyEntry {
-    param([string]$Sid, [string]$DisplayName)
-    $roots = @(
-        "Registry::HKEY_USERS\$Sid\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-        "Registry::HKEY_USERS\$Sid\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-    )
+function Get-GrammarlyEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
+
+    $entries = @()
     foreach ($root in $roots) {
         foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
-            if ($key.DisplayName -eq $DisplayName) { return $key }
+            if ($key.DisplayName -ne $displayName -or $key.Publisher -ne $publisher) { continue }
+
+            # S-1-5-21 is a local or AD user and S-1-12-1 an Entra ID user. Other
+            # hives belong to service accounts and users can't write to them.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
+
+            $entries += [PSCustomObject]@{
+                KeyPath = $sub.PSPath
+                Sid     = $sid
+                Command = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
         }
     }
-    return $null
+    return $entries
+}
+
+# Registry hives of users who aren't signed in aren't loaded, so find their
+# copies by the app in their profiles instead.
+function Get-SignedOutInstalls {
+    foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+        $sid = $profileKey.PSChildName
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath) { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $profilePath "AppData\Local\Grammarly\DesktopIntegrations\Grammarly.Desktop.exe"))) { continue }
+        try {
+            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            $sid
+        }
+    }
+}
+
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
+
+    try {
+        $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
+
+        $startDate = Get-Date
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
+        Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName
+            $state = (Get-ScheduledTask -TaskName $taskName).State
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the uninstall task to finish."
+                return 1460  # ERROR_TIMEOUT
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 try {
-
-$explorer = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Select-Object -First 1
-if (-not $explorer) {
-    Write-Host "No logged-in user found. Grammarly is installed per user and cannot be removed now."
-    Exit 1
-}
-$userName = ($explorer | Invoke-CimMethod -MethodName GetOwner).User
-$userSid = ($explorer | Invoke-CimMethod -MethodName GetOwnerSid).Sid
-if (-not $userName -or -not $userSid) {
-    Write-Host "Could not resolve the logged-in user."
-    Exit 1
-}
-
-$entry = Get-GrammarlyEntry -Sid $userSid -DisplayName $softwareName
-if (-not $entry) {
-    Write-Host "Uninstall entry not found for '$softwareName' under user $userName."
-    Exit 1
-}
-
-$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
-
-# Defensive parser for the three UninstallString shapes:
-#   "C:\Users\me\AppData\Local\Grammarly\...\Uninstall.exe" /S -> quoted
-#   C:\path with spaces\Uninstall.exe /S                       -> unquoted with spaces
-#   MsiExec.exe /X{GUID}                                       -> bare token
-$uninstallPath = $null
-if ($uninstallCommand -match '^\s*"([^"]+)"') {
-    $uninstallPath = $matches[1]
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
-    $uninstallPath = $matches[1]
-} elseif ($uninstallCommand -match '^\s*(\S+)') {
-    $uninstallPath = $matches[1]
-}
-
-if (-not $uninstallPath -or -not (Test-Path $uninstallPath)) {
-    Write-Host "Uninstaller not found at: $uninstallPath"
-    Exit 1
-}
-
-Write-Host "Uninstall command: $uninstallPath /S"
-
-# /S is the NSIS silent switch
-$action = New-ScheduledTaskAction -Execute "$uninstallPath" -Argument "/S"
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
-$task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings
-
-$taskName = "fleet-uninstall-grammarly"
-Register-ScheduledTask "$taskName" -InputObject $task -User "$userName"
-
-$lastRun = (Get-ScheduledTaskInfo -TaskName "$taskName").LastRunTime
-Start-ScheduledTask -TaskName "$taskName" -TaskPath "\"
-
-# The uninstaller can exit before the first poll, so treat an advanced
-# LastRunTime as proof it ran rather than waiting to observe "Running".
-$started = $false
-$deadline = (Get-Date).AddSeconds(120)
-while ((Get-Date) -lt $deadline) {
-    $info = Get-ScheduledTaskInfo -TaskName "$taskName"
-    if ((Get-ScheduledTask -TaskName "$taskName").State -eq "Running" -or $info.LastRunTime -ne $lastRun) {
-        $started = $true
-        break
+    # Left behind only if an install was interrupted.
+    if (Get-ScheduledTask -TaskName "fleet-install-grammarly" -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName "fleet-install-grammarly" -Confirm:$false -ErrorAction SilentlyContinue
     }
-    Start-Sleep -Seconds 1
-}
-if (-not $started) { Throw "Scheduled task never started." }
 
-$deadline = (Get-Date).AddSeconds(600)
-while ((Get-ScheduledTask -TaskName "$taskName").State -eq "Running") {
-    if ((Get-Date) -ge $deadline) { Throw "Timed-out waiting for the uninstaller to complete." }
-    Write-Host "Waiting for the uninstaller to complete..."
-    Start-Sleep -Seconds 10
-}
+    foreach ($entry in @(Get-GrammarlyEntries)) {
+        Write-Host "Removing Grammarly ($($entry.KeyPath))"
+        $exePath = ""
+        $arguments = ""
+        if ($entry.Command -match '^\s*"([^"]+)"\s*(.*)$') {
+            $exePath = $matches[1]
+            $arguments = $matches[2].Trim()
+        } elseif ($entry.Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+            $exePath = $matches[1]
+            $arguments = $matches[2].Trim()
+        }
+        if ($arguments -cnotmatch '(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
 
-# The relaunched copy keeps working after the task exits, so wait for the
-# uninstall entry to disappear before reporting success.
-$deadline = (Get-Date).AddSeconds(180)
-while (Get-GrammarlyEntry -Sid $userSid -DisplayName $softwareName) {
-    if ((Get-Date) -ge $deadline) {
-        Write-Host "'$softwareName' is still registered 180s after the uninstaller finished."
-        $exitCode = 1
-        break
+        if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
+            Write-Host "  Uninstaller is missing: $($entry.Command)"
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
+
+        Write-Host "  Uninstall command: $exePath $arguments"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
+        } else {
+            $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru
+            # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+            $null = $process.Handle
+            if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                $result = $process.ExitCode
+            } else {
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the uninstaller."
+                $result = 1460  # ERROR_TIMEOUT
+            }
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($result -ne 0) {
+            if ($exitCode -eq 0) { $exitCode = $result }
+            continue
+        }
+
+        for ($waited = 0; $waited -lt 180 -and (Test-Path $entry.KeyPath); $waited += 5) { Start-Sleep -Seconds 5 }
     }
-    Write-Host "Waiting for '$softwareName' to be removed..."
-    Start-Sleep -Seconds 5
-}
 
-if ($exitCode -eq 0) { Write-Host "'$softwareName' removed." }
+    $remaining = @(Get-GrammarlyEntries)
+    $signedOut = @(Get-SignedOutInstalls)
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: Grammarly is still registered at:"
+        $remaining | ForEach-Object { Write-Host "  $($_.KeyPath)" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($signedOut.Count -gt 0) {
+        Write-Host "Grammarly is still installed for users who aren't signed in: $($signedOut -join ', '). Run the uninstall again while they're signed in."
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($exitCode -eq 0) {
+        Write-Host "Grammarly removed."
+    }
 
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Error running uninstaller: $_"
     $exitCode = 1
-} finally {
-    # An AtLogOn task left registered would run the uninstaller again at the
-    # next logon, so remove it even when the wait above failed.
-    if ($taskName -and (Get-ScheduledTask -TaskName "$taskName" -ErrorAction SilentlyContinue)) {
-        Write-Host "Removing ScheduledTask: $taskName."
-        Unregister-ScheduledTask -TaskName "$taskName" -Confirm:$false
-    }
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

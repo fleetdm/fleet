@@ -1,173 +1,190 @@
-$softwareName = "Brave"
+# Brave is installed per user, so this script runs each signed-in user's
+# uninstaller as that user. A copy belonging to a user who isn't signed in
+# can't be removed and fails the uninstall. Browsing data in each user's
+# profile is left in place.
 
-# Script to uninstall software as the current logged-in user.
-$userScript = @'
-
-# Define acceptable/expected exit codes
-$ExpectedExitCodes = @(0, 19)
-
-$softwareName = "Brave"
-
-# Using the exact software name here is recommended to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
-
-# Some uninstallers require additional flags to run silently.
-# Each uninstaller might use a different argument (usually it's "/S" or "/s")
-$uninstallArgs = "--force-uninstall"
-
-$uninstallCommand = ""
+$displayName = "Brave"
+$publisher = "Brave Software Inc"
+$taskName = "fleet-uninstall-brave"
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$timeoutSeconds = 600
+$successCodes = @(0, 19)  # 19 means the uninstall succeeded
 $exitCode = 0
 
-try {
+function Get-BraveEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-$userKey = `
- 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-[array]$uninstallKeys = Get-ChildItem `
-    -Path @($userKey) `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if ($key.DisplayName -ne $displayName -or $key.Publisher -ne $publisher) { continue }
 
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar
-    # software
-    if ($key.DisplayName -like $softwareNameLike) {
-        $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
-        }
+            # S-1-5-21 is a local or AD user and S-1-12-1 an Entra ID user. Other
+            # hives belong to service accounts and users can't write to them.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" --uninstall --silent
-        # Split the command and args
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
+            $entries += [PSCustomObject]@{
+                KeyPath = $sub.PSPath
+                Sid     = $sid
+                Command = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
             }
-            $uninstallCommand = $splitArgs[1]
         }
-        Write-Host "Uninstall command: $uninstallCommand"
-        Write-Host "Uninstall args: $uninstallArgs"
+    }
+    return $entries
+}
 
-        $processOptions = @{
-            FilePath = $uninstallCommand
-            PassThru = $true
-            Wait = $true
+# Registry hives of users who aren't signed in aren't loaded, so find their
+# copies by the browser in their profiles instead.
+function Get-SignedOutInstalls {
+    foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+        $sid = $profileKey.PSChildName
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath) { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $profilePath "AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"))) { continue }
+        try {
+            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            $sid
         }
-        if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = "$uninstallArgs"
-        }
-
-        # Start the process and track the exit code
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
-
-        # Prints the exit code
-        Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled.
-        break
     }
 }
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstaller for '$softwareName' not found."
-    $exitCode = 1
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
+
+    try {
+        $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
+
+        $startDate = Get-Date
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
+        Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName
+            $state = (Get-ScheduledTask -TaskName $taskName).State
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the uninstall task to finish."
+                return 1460  # ERROR_TIMEOUT
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
 
-} catch {
-    Write-Host "Error: $_"
-    $exitCode = 1
-}
-
-# Treat acceptable exit codes as success
-if ($ExpectedExitCodes -contains $exitCode) {
-    Exit 0
-} else {
-    Exit $exitCode
-}
-'@
-
-$exitCode = 0
-
-# Create a script in a public folder so that it can be accessed by all users.
-$uninstallScriptPath = "${env:PUBLIC}/uninstall-$softwareName.ps1"
-$taskName = "fleet-uninstall-$softwareName"
 try {
-    Set-Content -Path $uninstallScriptPath -Value $userScript -Force
-
-    # Task properties. The task will be started by the logged in user
-    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
-        -Argument "$uninstallScriptPath"
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
-
-    # Create a task object with the properties defined above
-    $task = New-ScheduledTask -Action $action -Trigger $trigger `
-        -Settings $settings
-
-    # Register the task
-    Register-ScheduledTask "$taskName" -InputObject $task -User "$userName"
-
-    # keep track of the start time to cancel if taking too long to start
-    $startDate = Get-Date
-
-    # Start the task now that it is ready
-    Start-ScheduledTask -TaskName "$taskName" -TaskPath "\"
-
-    # Wait for the task to be running
-    $state = (Get-ScheduledTask -TaskName "$taskName").State
-    Write-Host "ScheduledTask is '$state'"
-
-    while ($state  -ne "Running") {
-        Write-Host "ScheduledTask is '$state'. Waiting to uninstall..."
-
-        $endDate = Get-Date
-        $elapsedTime = New-Timespan -Start $startDate -End $endDate
-        if ($elapsedTime.TotalSeconds -gt 120) {
-            Throw "Timed-out waiting for scheduled task state."
-        }
-
-        Start-Sleep -Seconds 1
-        $state = (Get-ScheduledTask -TaskName "$taskName").State
+    # Left behind only if an install was interrupted.
+    if (Get-ScheduledTask -TaskName "fleet-install-brave" -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName "fleet-install-brave" -Confirm:$false -ErrorAction SilentlyContinue
     }
 
-    # Wait for the task to be done
-    $state = (Get-ScheduledTask -TaskName "$taskName").State
-    while ($state  -eq "Running") {
-        Write-Host "ScheduledTask is '$state'. Waiting for .exe to complete..."
+    foreach ($entry in @(Get-BraveEntries)) {
+        Write-Host "Removing Brave ($($entry.KeyPath))"
+        $exePath = ""
+        $arguments = ""
+        if ($entry.Command -match '^\s*"([^"]+)"\s*(.*)$') {
+            $exePath = $matches[1]
+            $arguments = $matches[2].Trim()
+        } elseif ($entry.Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+            $exePath = $matches[1]
+            $arguments = $matches[2].Trim()
+        }
+        if ($arguments -notmatch '(?i)(^|\s)--force-uninstall($|\s)') { $arguments = "$arguments --force-uninstall".Trim() }
 
-        $endDate = Get-Date
-        $elapsedTime = New-Timespan -Start $startDate -End $endDate
-        if ($elapsedTime.TotalSeconds -gt 120) {
-            Throw "Timed-out waiting for scheduled task state."
+        # The uninstall string comes from a hive the user can write to, so only act
+        # on that user's own Brave folder.
+        $appDir = ""
+        if ($exePath) { try { $appDir = [System.IO.Path]::GetFullPath((Join-Path (Split-Path $exePath -Parent) "..\..")) } catch {} }
+        $isAppDir = $appDir -like "*\BraveSoftware\Brave-Browser\Application"
+        if ($isAppDir -and $entry.Sid) {
+            $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
+            $isAppDir = $profilePath -and $appDir -eq (Join-Path $profilePath "AppData\Local\BraveSoftware\Brave-Browser\Application")
+        }
+        # The uninstaller closes Brave itself, but fails if a closing process still
+        # holds a file it's deleting.
+        if ($isAppDir) {
+            for ($waited = 0; $waited -lt 30; $waited++) {
+                $running = @(Get-Process -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Path -and $_.Path.StartsWith("$appDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+                if ($running.Count -eq 0) { break }
+                $running | Stop-Process -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 1
+            }
         }
 
-        Start-Sleep -Seconds 10
-        $state = (Get-ScheduledTask -TaskName "$taskName").State
+        if (-not $exePath -or -not (Test-Path -LiteralPath $exePath)) {
+            Write-Host "  Uninstaller is missing: $($entry.Command)"
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
+
+        Write-Host "  Uninstall command: $exePath $arguments"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $exePath -Arguments $arguments
+        } else {
+            $process = Start-Process -FilePath $exePath -ArgumentList $arguments -NoNewWindow -PassThru
+            # Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+            $null = $process.Handle
+            if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                $result = $process.ExitCode
+            } else {
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the uninstaller."
+                $result = 1460  # ERROR_TIMEOUT
+            }
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($successCodes -notcontains $result -and $exitCode -eq 0) { $exitCode = $result }
+    }
+
+    $remaining = @(Get-BraveEntries)
+    $signedOut = @(Get-SignedOutInstalls)
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: Brave is still registered at:"
+        $remaining | ForEach-Object { Write-Host "  $($_.KeyPath)" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($signedOut.Count -gt 0) {
+        Write-Host "Brave is still installed for users who aren't signed in: $($signedOut -join ', '). Run the uninstall again while they're signed in."
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($exitCode -eq 0) {
+        Write-Host "Brave removed."
     }
 
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Error running uninstaller: $_"
     $exitCode = 1
-} finally {
-    # Remove task
-    Write-Host "Removing ScheduledTask: $taskName."
-    Unregister-ScheduledTask -TaskName "$taskName" -Confirm:$false
-
-    # Remove user script
-    Remove-Item -Path $uninstallScriptPath -Force
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
