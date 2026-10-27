@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.7.19",
+      "version": "5.7.22",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.' AND version_compare(version, '5.7.19') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fellow' AND publisher = 'Fellow Insights Inc.' AND version_compare(version, '5.7.22') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'fellow.exe');"
       },
-      "installer_url": "https://cdn.fellow.app/desktop/5.7.19/win32/stable/x64/Fellow-5.7.19.exe",
+      "installer_url": "https://cdn.fellow.app/desktop/5.7.22/win32/stable/x64/Fellow-5.7.22.exe",
       "install_script_ref": "55129045",
       "uninstall_script_ref": "b5606129",
-      "sha256": "dc2435492b81bb3c6a89b17f09e5dd3132fd9e19325eb2d9a7084274c389061f",
+      "sha256": "1b05ee8d507b989cd52c6481a45afdbcc8e1d73e809e73229c389edda2de39ab",
       "default_categories": [
         "Communication"
       ]
