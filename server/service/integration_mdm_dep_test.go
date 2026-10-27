@@ -3151,6 +3151,8 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		return map[string]*push.Response{}, nil
 	}
 
+	// a wiped device keeps its UDID when it re-enrolls
+	deviceUUID := strings.ToUpper(uuid.NewString())
 	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
 		// the device must be known from ABM before it may enroll via ADE
 		s.runDEPSchedule()
@@ -3158,6 +3160,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		// Enroll the host via ADE
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.UUID = deviceUUID
 		mdmDevice.SerialNumber = devices[0].SerialNumber
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)

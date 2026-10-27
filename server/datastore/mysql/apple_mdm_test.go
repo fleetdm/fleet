@@ -120,6 +120,8 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
+		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
+		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -14919,4 +14921,129 @@ func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
 			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
 	})
 	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
+}
+
+func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, 'lock-ref', 'darwin')`, enrolled.ID)
+		return err
+	})
+	lockRef := func() *string {
+		var ref *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &ref, `SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, enrolled.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return ref
+	}
+
+	// a check-in from a different UUID claiming the enrolled host's serial leaves the host and its pending lock alone
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "other-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeNone)
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+	assert.Equal(t, enrolled.HardwareSerial, host.HardwareSerial)
+	assert.Equal(t, "darwin", host.Platform)
+	assert.Equal(t, new("lock-ref"), lockRef())
+
+	// the enrolled device itself can still check in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: enrolled.UUID, HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "new-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "new-uuid", host.UUID)
+}
+
+func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	// pre-created from Apple Business, not enrolled yet
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "pending",
+		OsqueryHostID:  new("pending"),
+		NodeKey:        new("pending"),
+		UUID:           "pending-uuid",
+		HardwareSerial: "pending-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	challengeCount := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_apple_scep_challenges`)
+		})
+		return n
+	}
+	newChallenge := func(uuid, serial string) error {
+		_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeADE, UUID: &uuid, Serial: &serial,
+		}, time.Hour)
+		return err
+	}
+
+	// another UUID claiming the enrolled host's serial gets no challenge
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, newChallenge("other-uuid", enrolled.HardwareSerial), &conflictErr)
+	require.Zero(t, challengeCount())
+
+	require.NoError(t, newChallenge(enrolled.UUID, enrolled.HardwareSerial))
+	require.NoError(t, newChallenge("new-uuid", "pending-serial"))
+	_, err = ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(uuid.NewString()),
+	}, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, 3, challengeCount())
+
+	// once MDM is turned off, a new UUID can get one
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
 }

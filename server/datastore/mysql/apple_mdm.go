@@ -1709,8 +1709,47 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
+		// The host may have been matched by the self-reported serial, and updateMDMAppleHostDB rewrites its UUID,
+		// so a host that's still enrolled under another UUID is left as is.
+		var enrolledUUID string
+		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
+			SELECT h.uuid FROM hosts h
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+			WHERE h.id = ? AND h.uuid != ?
+			LIMIT 1`, enrolledHostInfo.ID, mdmHost.UUID); {
+		case err == nil:
+			logger.InfoContext(ctx, "refusing MDM check-in: serial is enrolled under another UUID",
+				"serial", mdmHost.HardwareSerial, "claimed_uuid", mdmHost.UUID, "enrolled_uuid", enrolledUUID)
+			return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "checking whether the matched host is enrolled under another UUID")
+		}
 		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
 	}
+}
+
+func errSerialEnrolledUnderAnotherUUID() error {
+	return &fleet.ConflictError{
+		Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+	}
+}
+
+// enrolledUUIDForSerial returns the UUID of a host with the serial that's enrolled under a UUID other than uuid, or ""
+// if there's none.
+func enrolledUUIDForSerial(ctx context.Context, q sqlx.QueryerContext, serial, uuid string) (string, error) {
+	var enrolledUUID string
+	err := sqlx.GetContext(ctx, q, &enrolledUUID, `
+		SELECT h.uuid FROM hosts h
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+		WHERE h.hardware_serial = ? AND h.uuid != ?
+		LIMIT 1`, serial, uuid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+	}
+	return enrolledUUID, nil
 }
 
 func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
@@ -2091,20 +2130,14 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 
 		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
 		// a host that's still enrolled under another UUID.
-		var enrolledUUID string
-		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
-			SELECT h.uuid FROM hosts h
-			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
-			WHERE h.hardware_serial = ? AND h.uuid != ?
-			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
-		case err == nil:
+		enrolledUUID, err := enrolledUUIDForSerial(ctx, tx, deviceInfo.Serial, deviceInfo.UDID)
+		if err != nil {
+			return err
+		}
+		if enrolledUUID != "" {
 			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
 				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
-			return ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
-			})
-		case !errors.Is(err, sql.ErrNoRows):
-			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+			return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
 		}
 
 		toInsert := []hostToCreateFromMDM{
@@ -9564,6 +9597,19 @@ WHERE host_uuid = ? AND profile_uuid = ?`,
 }
 
 func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	// The serial and UUID come from the device's MachineInfo, whose signature doesn't vouch for them, and the
+	// enrollment certificate is bound to them. Don't issue one for the serial of a host enrolled under another UUID.
+	if serial, uuid := ptr.ValOrZero(info.Serial), ptr.ValOrZero(info.UUID); serial != "" && uuid != "" {
+		enrolledUUID, err := enrolledUUIDForSerial(ctx, ds.writer(ctx), serial, uuid)
+		if err != nil {
+			return "", err
+		}
+		if enrolledUUID != "" {
+			ds.logger.InfoContext(ctx, "refusing Apple SCEP challenge: serial is enrolled under another UUID",
+				"purpose", info.Purpose, "serial", serial, "claimed_uuid", uuid, "enrolled_uuid", enrolledUUID)
+			return "", ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
+		}
+	}
 	return newAppleSCEPChallengeDB(ctx, ds.writer(ctx), info, ttl)
 }
 
