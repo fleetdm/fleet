@@ -95,6 +95,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -519,6 +520,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "new microsoft compliance proxy")
 	}
 
+	// Like the Entra proxy, available to every instance and gated on the license at the service layer.
+	conditionalAccessGoogleProxy, err := conditional_access_google_proxy.New(
+		config.GoogleConditionalAccess.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new google conditional access proxy")
+	}
+
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
@@ -591,6 +607,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		scepConfigMgr,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		conditionalAccessGoogleProxy,
+		service.NewConditionalAccessGoogleClient,
 		redis_key_value.New(redisPool),
 		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,

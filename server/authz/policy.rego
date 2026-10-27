@@ -1526,6 +1526,17 @@ allow {
 }
 
 ##
+# Google conditional access
+##
+# Global admins can delete the Google conditional access integration. Connecting
+# and editing go through the app config, which has its own rule.
+allow {
+  object.type == "conditional_access_google"
+  subject.global_role == admin
+  action == write
+}
+
+##
 # Microsoft Graph credentials
 ##
 # Global admins and gitops can read and write Microsoft Graph credentials.

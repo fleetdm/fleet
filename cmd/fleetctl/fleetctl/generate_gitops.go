@@ -1008,6 +1008,17 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		// generated free-tier GitOps so the example stays valid on reapply.
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
+			delete(result, "google_conditional_access")
+		}
+		// The server never returns this key, so it is a placeholder even in insecure mode.
+		if gca, ok := result["google_conditional_access"]; ok && gca != nil {
+			for _, intg := range gca.([]any) {
+				intg.(map[string]any)["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google conditional access service account key JSON here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "integrations.google_conditional_access.api_key_json",
+				})
+			}
 		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})

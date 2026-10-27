@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -98,6 +99,101 @@ func TestValidateGoogleWorkspaceIntegrations(t *testing.T) {
 			assert.True(t, found, "expected error on field %q, got %v", c.wantField, invalid.Errors)
 		})
 	}
+}
+
+func TestValidateGoogleConditionalAccessIntegrations(t *testing.T) {
+	validKey := func() GoogleCalendarApiKey {
+		return GoogleCalendarApiKey{Values: map[string]string{
+			GoogleCalendarEmail:      "svc@project.iam.gserviceaccount.com",
+			GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+		}}
+	}
+	maskedKey := func() GoogleCalendarApiKey {
+		var k GoogleCalendarApiKey
+		k.SetMasked()
+		return k
+	}
+	entry := func(customerID, adminEmail string, key GoogleCalendarApiKey) *GoogleConditionalAccessIntegration {
+		return &GoogleConditionalAccessIntegration{CustomerID: customerID, AdminEmail: adminEmail, ApiKey: key}
+	}
+
+	cases := []struct {
+		name      string
+		intgs     []*GoogleConditionalAccessIntegration
+		keyStored bool
+		wantField string // empty means no error expected
+	}{
+		{name: "valid", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com", validKey())}},
+		{name: "valid with surrounding spaces", intgs: []*GoogleConditionalAccessIntegration{entry(" C01234abc ", " admin@example.com ", validKey())}},
+		{name: "empty list", intgs: nil},
+		{
+			name:      "more than one entry",
+			intgs:     []*GoogleConditionalAccessIntegration{entry("C01234abc", "a@example.com", validKey()), entry("C05678def", "b@example.com", validKey())},
+			wantField: "integrations.google_conditional_access",
+		},
+		{name: "customer ID without C prefix", intgs: []*GoogleConditionalAccessIntegration{entry("01234abc", "admin@example.com", validKey())}, wantField: "integrations.google_conditional_access.customer_id"},
+		{name: "customer ID too short", intgs: []*GoogleConditionalAccessIntegration{entry("C012", "admin@example.com", validKey())}, wantField: "integrations.google_conditional_access.customer_id"},
+		{name: "customer ID with a path", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc/../x", "admin@example.com", validKey())}, wantField: "integrations.google_conditional_access.customer_id"},
+		{name: "invalid admin email", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "not-an-email", validKey())}, wantField: "integrations.google_conditional_access.admin_email"},
+		{name: "admin email with display name", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "Admin <admin@example.com>", validKey())}, wantField: "integrations.google_conditional_access.admin_email"},
+		{name: "new entry without key", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com", GoogleCalendarApiKey{})}, wantField: "integrations.google_conditional_access.api_key_json"},
+		{name: "new entry with masked key", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com", maskedKey())}, wantField: "integrations.google_conditional_access.api_key_json"},
+		{name: "existing entry with masked key", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com", maskedKey())}, keyStored: true},
+		{name: "existing entry with omitted key", intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com", GoogleCalendarApiKey{})}, keyStored: true},
+		{
+			name: "key missing client_email",
+			intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com",
+				GoogleCalendarApiKey{Values: map[string]string{GoogleCalendarPrivateKey: "key"}})},
+			keyStored: true,
+			wantField: "integrations.google_conditional_access.api_key_json.client_email",
+		},
+		{
+			name: "key with blank private_key",
+			intgs: []*GoogleConditionalAccessIntegration{entry("C01234abc", "admin@example.com",
+				GoogleCalendarApiKey{Values: map[string]string{GoogleCalendarEmail: "svc@example.com", GoogleCalendarPrivateKey: "  "}})},
+			wantField: "integrations.google_conditional_access.api_key_json.private_key",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			invalid := &InvalidArgumentError{}
+			ValidateGoogleConditionalAccessIntegrations(c.intgs, c.keyStored, invalid)
+			if c.wantField == "" {
+				require.False(t, invalid.HasErrors(), "expected no validation errors, got: %v", invalid)
+				for _, intg := range c.intgs {
+					require.Equal(t, "C01234abc", intg.CustomerID)
+					require.Equal(t, "admin@example.com", intg.AdminEmail)
+				}
+				return
+			}
+			require.True(t, invalid.HasErrors(), "expected a validation error for field %q", c.wantField)
+			var fields []string
+			for _, e := range invalid.Errors {
+				fields = append(fields, e.name)
+			}
+			require.Contains(t, fields, c.wantField)
+		})
+	}
+}
+
+func TestGoogleConditionalAccessObfuscateAndClone(t *testing.T) {
+	ac := &AppConfig{}
+	ac.Integrations.GoogleConditionalAccess = []*GoogleConditionalAccessIntegration{{
+		CustomerID: "C01234abc",
+		AdminEmail: "admin@example.com",
+		ApiKey:     GoogleCalendarApiKey{Values: map[string]string{GoogleCalendarPrivateKey: "secret"}},
+	}}
+
+	clone := ac.Copy()
+	require.NotNil(t, clone)
+	clone.Integrations.GoogleConditionalAccess[0].ApiKey.Values[GoogleCalendarPrivateKey] = "changed"
+	require.Equal(t, "secret", ac.Integrations.GoogleConditionalAccess[0].ApiKey.Values[GoogleCalendarPrivateKey])
+
+	ac.Obfuscate()
+	b, err := json.Marshal(ac.Integrations.GoogleConditionalAccess[0])
+	require.NoError(t, err)
+	require.JSONEq(t, `{"customer_id":"C01234abc","admin_email":"admin@example.com","api_key_json":"********"}`, string(b))
 }
 
 func TestGoogleWorkspaceObfuscateAndClone(t *testing.T) {

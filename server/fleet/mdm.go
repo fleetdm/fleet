@@ -1303,6 +1303,10 @@ const (
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
 	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
+	// MDMAssetGoogleConditionalAccessServiceAccountKey is the customer's service
+	// account JSON for Google conditional access. Stored here (encrypted) rather
+	// than in the AppConfig JSON so the API never returns it.
+	MDMAssetGoogleConditionalAccessServiceAccountKey MDMAssetName = "google_conditional_access_service_account_key" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {

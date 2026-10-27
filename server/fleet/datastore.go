@@ -4207,6 +4207,20 @@ type Datastore interface {
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Google conditional access
+
+	// ConditionalAccessGoogleCreateIntegration stores a connected Google conditional access integration.
+	// Only one integration is supported, so this replaces any existing one.
+	ConditionalAccessGoogleCreateIntegration(ctx context.Context, customerID, proxyServerSecret, oauthClientID string) error
+	// ConditionalAccessGoogleGet returns the Google conditional access integration.
+	// Returns a NotFoundError error if there's none.
+	ConditionalAccessGoogleGet(ctx context.Context) (*ConditionalAccessGoogleIntegration, error)
+	// ConditionalAccessGoogleSetSetupError sets (or clears, with nil) the integration's setup error.
+	ConditionalAccessGoogleSetSetupError(ctx context.Context, setupError *string) error
+	// ConditionalAccessGoogleDelete deletes the Google conditional access integration.
+	ConditionalAccessGoogleDelete(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Microsoft Compliance Partner
 
 	// ConditionalAccessMicrosoftCreateIntegration creates the Conditional Access integration on the datastore.

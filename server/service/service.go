@@ -18,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -26,6 +27,8 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
@@ -72,6 +75,9 @@ type Service struct {
 	digiCertService   fleet.DigiCertService
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+
+	conditionalAccessGoogleProxy         ConditionalAccessGoogleProxy
+	conditionalAccessGoogleClientFactory ConditionalAccessGoogleClientFactory
 
 	keyValueStore         fleet.KeyValueStore
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter
@@ -150,6 +156,29 @@ type ConditionalAccessMicrosoftProxy interface {
 	GetMessageStatus(ctx context.Context, tenantID string, secret string, messageID string) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error)
 }
 
+// ConditionalAccessGoogleProxy is the interface of fleetdm.com's Google conditional access API.
+type ConditionalAccessGoogleProxy interface {
+	// Create registers the Fleet server for the Google customer ID.
+	Create(ctx context.Context, customerID string) (*conditional_access_google_proxy.CreateResponse, error)
+	// Delete deletes the registration. Returns a fleet.IsNotFound error if it doesn't exist.
+	Delete(ctx context.Context, customerID, secret string) error
+}
+
+// ConditionalAccessGoogleClient is the Cloud Identity API, acting as the customer's admin.
+type ConditionalAccessGoogleClient interface {
+	// CheckDelegation verifies the service account can manage the customer's devices as the admin.
+	CheckDelegation(ctx context.Context) error
+}
+
+// ConditionalAccessGoogleClientFactory builds a ConditionalAccessGoogleClient. It is injected so tests can supply a fake.
+type ConditionalAccessGoogleClientFactory func(ctx context.Context, serviceAccountJSON []byte, adminEmail, customerID string) (ConditionalAccessGoogleClient, error)
+
+// NewConditionalAccessGoogleClient is the default ConditionalAccessGoogleClientFactory.
+func NewConditionalAccessGoogleClient(ctx context.Context, serviceAccountJSON []byte, adminEmail, customerID string) (ConditionalAccessGoogleClient, error) {
+	return conditional_access_google.NewClient(ctx, serviceAccountJSON, adminEmail, customerID,
+		dev_mode.Env("FLEET_DEV_GOOGLE_CLOUD_IDENTITY_ENDPOINT"))
+}
+
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
 	return svc.geoIP.Lookup(ctx, ip)
 }
@@ -198,6 +227,8 @@ func NewService(
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
+	conditionalAccessGoogleProxy ConditionalAccessGoogleProxy,
+	conditionalAccessGoogleClientFactory ConditionalAccessGoogleClientFactory,
 	keyValueStore fleet.KeyValueStore,
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	androidSvc android.Service,
@@ -248,17 +279,19 @@ func NewService(
 		scepConfigService:    scepConfigService,
 		digiCertService:      digiCertService,
 
-		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
-		keyValueStore:                   keyValueStore,
-		configETagStateOnce:             new(sync.Once),
-		configETagErrLast:               new(atomic.Int64),
-		installAttemptCounter:           installAttemptCounter,
-		androidSvc:                      androidSvc,
-		orgLogoStore:                    orgLogoStore,
-		packConfigCache:                 packConfigCache,
-		queryReportReadSem:              queryReportReadSem,
-		queryReportWriteLimit:           config.Osquery.MaxConcurrentQueryReportWrites,
-		queryReportWriteFallbackSem:     make(chan struct{}, queryReportWriteFallbackLimit),
+		conditionalAccessMicrosoftProxy:      conditionalAccessProxy,
+		conditionalAccessGoogleProxy:         conditionalAccessGoogleProxy,
+		conditionalAccessGoogleClientFactory: conditionalAccessGoogleClientFactory,
+		keyValueStore:                        keyValueStore,
+		configETagStateOnce:                  new(sync.Once),
+		configETagErrLast:                    new(atomic.Int64),
+		installAttemptCounter:                installAttemptCounter,
+		androidSvc:                           androidSvc,
+		orgLogoStore:                         orgLogoStore,
+		packConfigCache:                      packConfigCache,
+		queryReportReadSem:                   queryReportReadSem,
+		queryReportWriteLimit:                config.Osquery.MaxConcurrentQueryReportWrites,
+		queryReportWriteFallbackSem:          make(chan struct{}, queryReportWriteFallbackLimit),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

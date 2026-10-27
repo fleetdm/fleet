@@ -1749,6 +1749,47 @@ func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
 }
 
+func TestGenerateOrgSettingsGoogleConditionalAccess(t *testing.T) {
+	for _, insecure := range []bool{false, true} {
+		t.Run(fmt.Sprintf("insecure=%t", insecure), func(t *testing.T) {
+			fleetClient := &MockClient{}
+			appConfig, err := fleetClient.GetAppConfig()
+			require.NoError(t, err)
+			intg := &fleet.GoogleConditionalAccessIntegration{CustomerID: "C01234abc", AdminEmail: "fleet-admin@example.com"}
+			intg.ApiKey.SetMasked()
+			appConfig.Integrations.GoogleConditionalAccess = []*fleet.GoogleConditionalAccessIntegration{intg}
+
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			flagSet.Bool("insecure", insecure, "")
+			cmd := &GenerateGitopsCommand{
+				Client:       fleetClient,
+				CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+			}
+			orgSettingsRaw, err := cmd.generateOrgSettings()
+			require.NoError(t, err)
+			b, err := yamlMarshalRenamed(orgSettingsRaw)
+			require.NoError(t, err)
+			var orgSettings map[string]any
+			require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+			entries := orgSettings["integrations"].(map[string]any)["google_conditional_access"].([]any)
+			require.Len(t, entries, 1)
+			entry := entries[0].(map[string]any)
+			require.Equal(t, "C01234abc", entry["customer_id"])
+			require.Equal(t, "fleet-admin@example.com", entry["admin_email"])
+			// The key can't be read back from the server, so it's always a placeholder.
+			require.Contains(t, entry["api_key_json"], "GITOPS_COMMENT")
+			require.Contains(t, cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.google_conditional_access.api_key_json",
+			})
+		})
+	}
+}
+
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}

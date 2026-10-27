@@ -2430,6 +2430,12 @@ func (c *Client) DoGitOps(
 		} else if gwList, ok := gw.([]any); ok && allGoogleWorkspaceEntriesEmpty(gwList) {
 			integrations.(map[string]any)["google_workspace"] = []any{}
 		}
+		// Same for Google conditional access: removing it from YAML disconnects it.
+		if gca, ok := integrations.(map[string]any)["google_conditional_access"]; !ok || gca == nil {
+			integrations.(map[string]any)["google_conditional_access"] = []any{}
+		} else if gcaList, ok := gca.([]any); ok && allGoogleWorkspaceEntriesEmpty(gcaList) {
+			integrations.(map[string]any)["google_conditional_access"] = []any{}
+		}
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
