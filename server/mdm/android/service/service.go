@@ -959,6 +959,30 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return nil // no-op for non-Android hosts
 	}
 
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, and
+	// the resulting transient "wiping" status is reported as a pending unenroll for BYO Android (see suppressAndroidBYODWipeStatus).
+	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
+	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
+	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
+	}
+	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	if isBYO {
+		// A work-profile wipe already in flight (from an earlier Unenroll or Wipe) will unenroll the host when it comes online,
+		// so another one would only leave an extra WIPE pending on AMAPI. Read from the primary so a quick second request
+		// sees the first one's wipe_ref.
+		lockWipe, err := svc.fleetDS.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host lock/wipe status for android unenrollment")
+		}
+		if lockWipe.IsPendingWipe() {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.CantUnenrollPendingUnenrollMessage}, "unenroll android host")
+		}
+	}
+
 	// Resolve Android device and enterprise
 	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
 	if err != nil {
@@ -980,28 +1004,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
-	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, and
-	// the resulting transient "wiping" status is reported as a pending unenroll for BYO Android (see suppressAndroidBYODWipeStatus).
-	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
-	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
-	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
-	}
-	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
-
 	if isBYO {
-		// A work-profile wipe already in flight (from an earlier Unenroll or Wipe) will unenroll the host when it comes online,
-		// so another one would only leave an extra WIPE pending on AMAPI.
-		lockWipe, err := svc.fleetDS.GetHostLockWipeStatus(ctx, host)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting host lock/wipe status for android unenrollment")
-		}
-		if lockWipe.IsPendingWipe() {
-			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.CantUnenrollPendingUnenrollMessage}, "unenroll android host")
-		}
-
 		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 			Type:       string(android.MDMAndroidCommandTypeWipe),
 			WipeParams: &androidmanagement.WipeParams{},

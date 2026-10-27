@@ -4,7 +4,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-import { hasStatusKey } from "interfaces/errors";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import {
   isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
@@ -66,9 +66,8 @@ const UnenrollMdmModal = ({
       // so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
         notify.error(
-          isAndroid(hostPlatform)
-            ? "Couldn't unenroll. This host already has a pending unenroll."
-            : "Couldn't turn off MDM. This host already has MDM turned off.",
+          (isAndroid(hostPlatform) && getErrorReason(unenrollMdmError)) ||
+            "Couldn't turn off MDM. This host already has MDM turned off.",
           { response: unenrollMdmError }
         );
         onSuccess();

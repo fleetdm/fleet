@@ -30,21 +30,32 @@ describe("UnenrollMdmModal", () => {
     jest.resetAllMocks();
   });
 
+  const conflictWithReason = (reason: string) => ({
+    status: 409,
+    response: { data: { errors: [{ name: "base", reason }] } },
+  });
+
   it.each([
     {
+      case: "android shows the server's reason",
       platform: "android",
       enrollmentStatus: "On (personal)" as const,
-      message: "Couldn't unenroll. This host already has a pending unenroll.",
+      conflict: conflictWithReason(
+        "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
+      ),
+      message:
+        "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online.",
     },
     {
+      case: "ios says MDM is already off",
       platform: "ios",
       enrollmentStatus: "On (manual)" as const,
+      conflict: conflictWithReason("ignored"),
       message: "Couldn't turn off MDM. This host already has MDM turned off.",
     },
   ])(
-    "explains a 409 for $platform and refreshes the page",
-    async ({ platform, enrollmentStatus, message }) => {
-      const conflict = { status: 409 };
+    "explains a 409 and refreshes the page: $case",
+    async ({ platform, enrollmentStatus, conflict, message }) => {
       (mdmAPI.unenrollHostFromMdm as jest.Mock).mockRejectedValue(conflict);
       const render = createCustomRenderer();
       const { user } = render(
