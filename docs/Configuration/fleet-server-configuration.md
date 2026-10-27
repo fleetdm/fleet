@@ -3866,7 +3866,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-Before Fleet 4.95.0, Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server_private_key), so replacing or renewing the certificate doesn't affect them.
+Before Fleet 4.95.0, Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server-private-key), so replacing or renewing the certificate doesn't affect them.
 
 Fleet re-encrypts keys escrowed by an earlier version with `server_private_key` automatically, starting ten minutes after the upgraded server starts. This requires both `server_private_key` and this certificate and key. If the configured certificate and key can't decrypt one of these keys, the host shows "Enforcing" and escrows a new key when it comes online.
 
