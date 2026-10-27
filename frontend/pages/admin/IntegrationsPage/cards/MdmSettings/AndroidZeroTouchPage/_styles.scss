@@ -42,6 +42,21 @@
     font-weight: $bold;
   }
 
+  &__dpc-extras {
+    position: relative;
+  }
+
+  &__loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $loading-overlay;
+    border-radius: $border-radius;
+    z-index: 1;
+  }
+
   &__dpc-extras-code {
     background-color: $core-fleet-white;
     color: $core-fleet-black;

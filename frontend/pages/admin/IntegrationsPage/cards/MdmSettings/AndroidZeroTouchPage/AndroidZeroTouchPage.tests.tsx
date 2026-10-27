@@ -191,7 +191,7 @@ describe("AndroidZeroTouchPage", () => {
     expect(screen.queryByText(/token-for-fleet-0/)).toBeNull();
   });
 
-  test("shows the spinner while refetching a previously viewed fleet", async () => {
+  test("keeps the previous DPC extras under the spinner while refetching", async () => {
     let resolveRefetch: (value: Record<string, unknown>) => void = () =>
       undefined;
     const getConfig = jest
@@ -229,8 +229,11 @@ describe("AndroidZeroTouchPage", () => {
     await selectFleet("Unassigned");
 
     expect(await screen.findByTestId("spinner")).toBeVisible();
-    expect(screen.queryByText(/unassigned-1/)).toBeNull();
+    expect(screen.getByText(/unassigned-1/)).toBeInTheDocument();
     expect(getFleetPicker()).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Copy DPC extras" })
+    ).toBeDisabled();
     expect(getConfig).toHaveBeenCalledTimes(3);
 
     resolveRefetch({ token: "unassigned-2" });
