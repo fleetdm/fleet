@@ -746,17 +746,17 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		TitleIDs: []uint{app1TitleID, app2TitleID},
 	}, http.StatusOK, &putResp)
 
-	s.createAndEnrollAndroidDevice(t, "test-android", nil, false)
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "test-android", nil, false)
 
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have (in any order due to staggered job queuing):
-	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
 	// - cleared the host policy's apps (from the host enrollment)
 	// - added the Fleet agent to the host's policy (from the host enrollment, via prepareHostSpecificPolicy)
 	// - replaced the host's app list with all apps available (for self-service) and the Fleet agent, from the host enrollment
 	// - installed the apps, from the host enrollment
-	require.Len(t, patchAppsPolicies, 6)
+	// The PATCH config changes send nothing, the Android app reconciler cron sends configuration changes.
+	require.Len(t, patchAppsPolicies, 4)
 
 	type appCall struct {
 		PackageName          string
@@ -779,10 +779,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}
 	require.Equal(t, 2, fleetAgentCount, "fleet agent should be added at enrollment and kept when the app list is replaced")
 	require.ElementsMatch(t, []appCall{
-		// app1 made available individually (from PATCH config change)
-		{app1.VPPAppID.AdamID, "AVAILABLE", `{"key":1}`},
-		// app2 made available individually (from PATCH config change)
-		{app2.VPPAppID.AdamID, "AVAILABLE", `{"key":2}`},
 		// app1+app2 made available during enrollment (self-service)
 		{app1.VPPAppID.AdamID, "AVAILABLE", `{"key":1}`},
 		{app2.VPPAppID.AdamID, "AVAILABLE", `{"key":2}`},
@@ -792,6 +788,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}, appCalls)
 
 	patchAppsPolicies = nil
+
+	// the device reports applying its own policy, so later app changes are sent to it
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE host_id = ?`, host.UUID, host.ID)
+		return err
+	})
 
 	// add app3 to Fleet
 	addAppResp = addAppStoreAppResponse{}

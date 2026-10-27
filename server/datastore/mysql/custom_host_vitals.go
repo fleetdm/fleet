@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -349,7 +348,7 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 			return ctxerr.Wrap(ctx, err, "resend device name for custom host vital value change")
 		}
 
-		// Queue a re-push of the Android managed app configurations that reference the vital.
+		// Flag the Android app configurations that reference the vital for the Android app reconciler.
 		if err := resendAndroidAppConfigsForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend android app configs for custom host vital value change")
 		}
@@ -367,8 +366,7 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 //
 // Unlike the IdP resend, this deliberately omits certificate templates: a
 // vital can't reach them (they only take fleet_variables). Android managed app
-// config is handled separately by resendAndroidAppConfigsForCustomHostVital,
-// which has no status row to reset.
+// config is handled separately by resendAndroidAppConfigsForCustomHostVital.
 func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
 	var hostUUID string
 	if err := sqlx.GetContext(ctx, tx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hostID); err != nil {
@@ -491,148 +489,52 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
-// Re-pushes the Android managed app configurations in the host's fleet that reference $FLEET_HOST_VITAL_<vitalID>.
-// App config delivery is driven by the software worker rather than the profile reconciler,
-// so the resend is a queued job instead of a status reset.
-// It queues the host-scoped batch task, not the team-wide make_android_app_available, since a vital is set per host,
-// so a team-wide re-push would hit every host in the fleet on every value change.
+// Flags the host's Android apps whose configuration references $FLEET_HOST_VITAL_<vitalID>, so the Android app
+// reconciler sends them with the new value.
 func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID,
-		`SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id for app config resend")
-	}
-
-	var host struct {
-		UUID           string `db:"uuid"`
-		GlobalOrTeamID uint   `db:"global_or_team_id"`
-	}
-	if err := sqlx.GetContext(ctx, tx, &host,
-		`SELECT uuid, COALESCE(team_id, 0) AS global_or_team_id FROM hosts WHERE id = ? AND platform = 'android'`, hostID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Not an Android host, so it has no managed app config.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android host for app config resend")
-	}
-
 	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
 
-	const selectStmt = `SELECT adam_id AS application_id, configuration, id AS app_team_id
-		FROM vpp_apps_teams
-		WHERE global_or_team_id = ? AND platform = 'android' AND INSTR(configuration, ?) > 0`
-
+	const selectStmt = `
+SELECT
+	vat.id AS app_team_id,
+	vat.configuration
+FROM
+	host_android_software_installs hasi
+	JOIN vpp_apps_teams vat ON vat.id = hasi.vpp_app_team_id
+WHERE
+	hasi.host_id = ? AND
+	INSTR(vat.configuration, ?) > 0
+`
 	var candidates []struct {
-		ApplicationID string `db:"application_id"`
-		Configuration string `db:"configuration"`
 		AppTeamID     uint   `db:"app_team_id"`
+		Configuration string `db:"configuration"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &candidates, selectStmt,
-		host.GlobalOrTeamID, varName); err != nil {
+	err := sqlx.SelectContext(ctx, tx, &candidates, selectStmt, hostID, varName)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "select android app configs referencing custom host vital")
 	}
 
-	type matchedApp struct {
-		applicationID string
-		appTeamID     uint
-	}
-	var matched []matchedApp
 	var appTeamIDs []uint
-	for _, c := range candidates {
-		if !fleet.ContainsVar(c.Configuration, varName) {
+	for _, candidate := range candidates {
+		if !fleet.ContainsVar(candidate.Configuration, varName) {
 			continue
 		}
-		matched = append(matched, matchedApp{applicationID: c.ApplicationID, appTeamID: c.AppTeamID})
-		appTeamIDs = append(appTeamIDs, c.AppTeamID)
+		appTeamIDs = append(appTeamIDs, candidate.AppTeamID)
 	}
-	if len(matched) == 0 {
-		return nil
-	}
-
-	// An app scoped away from this host by labels isn't available on it, so it
-	// must not be pushed. Skip versions that aren't the host's version too, the host
-	// gets the configuration of its own version. The worker's batch task takes the
-	// hosts it is given without re-checking scope, hence the check here.
-	policyIDByAppTeam, err := androidHostPolicyIDsForApps(ctx, tx, hostID, host.GlobalOrTeamID, appTeamIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get android policy ids for app config resend")
-	}
-	if len(policyIDByAppTeam) == 0 {
-		return nil
-	}
-
-	const insertJob = `INSERT INTO jobs (name, args, state, error) VALUES (?, ?, 'queued', '')`
-	for _, m := range matched {
-		policyID, inScope := policyIDByAppTeam[m.appTeamID]
-		if !inScope {
-			continue
-		}
-		args, err := json.Marshal(map[string]any{
-			"task":                   "make_android_app_available_batch",
-			"application_id":         m.applicationID,
-			"app_team_id":            m.appTeamID,
-			"enterprise_name":        "enterprises/" + enterpriseID,
-			"app_config_changed":     true,
-			"host_uuid_to_policy_id": map[string]string{host.UUID: policyID},
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal job args for android app config resend")
-		}
-		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert android app config resend job")
-		}
-	}
-
-	return nil
-}
-
-// androidHostPolicyIDsForApps returns the host's applied Android policy ID for
-// each of the given app versions that is the host's version of its app, keyed by
-// vpp_apps_teams row id. The host's version is the first-added one it is in scope
-// for, other versions are absent. Single-host counterpart of
-// getIncludedHostUUIDMapForSoftware, which answers the same question for every
-// host in one app's fleet; here the scope filter correlates to the outer
-// vat.id so every app resolves in one query rather than one query each.
-func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID, globalOrTeamID uint, appTeamIDs []uint) (map[uint]string, error) {
 	if len(appTeamIDs) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	stmt := fmt.Sprintf(`SELECT vat.id AS app_team_id, COALESCE(ad.applied_policy_id, '') AS policy_id
-		FROM hosts h
-		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
-		JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.id IN (?)
-		WHERE h.id = ? AND h.platform = 'android' AND EXISTS (%s)
-			AND NOT EXISTS (
-				SELECT 1 FROM vpp_apps_teams earlier_vat
-				WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
-					AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
-					AND EXISTS (%s)
-			)`,
-		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "vat.id"),
-		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
-
-	stmt, args, err := sqlx.In(stmt, globalOrTeamID, appTeamIDs, hostID)
+	updateStmt, updateArgs, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1 WHERE host_id = ? AND vpp_app_team_id IN (?)`,
+		hostID, appTeamIDs)
 	if err != nil {
-		return nil, err
+		return ctxerr.Wrap(ctx, err, "prepare mark android app resend for custom host vital")
 	}
-
-	var rows []struct {
-		AppTeamID uint   `db:"app_team_id"`
-		PolicyID  string `db:"policy_id"`
+	_, err = tx.ExecContext(ctx, updateStmt, updateArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "mark android app resend for custom host vital")
 	}
-	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-		return nil, err
-	}
-
-	policyIDs := make(map[uint]string, len(rows))
-	for _, r := range rows {
-		policyIDs[r.AppTeamID] = r.PolicyID
-	}
-	return policyIDs, nil
+	return nil
 }
 
 func (ds *Datastore) GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {

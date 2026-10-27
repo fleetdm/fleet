@@ -953,6 +953,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		// about them.
 		if policy != nil && *policy == host.UUID {
 			svc.verifyDevicePolicy(ctx, host.UUID, device)
+			err = svc.fleetDS.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, device.AppliedPolicyVersion)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to verify android software installs", "host_uuid", host.UUID, "err", err)
+			}
 		}
 		svc.verifyDeviceSoftware(ctx, host.Host, device, fromEnroll)
 	} else if fromEnroll {
@@ -1081,7 +1085,7 @@ func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseNam
 		return
 	}
 	// Don't hold the Pub/Sub push on quota errors, this is best-effort.
-	if err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+	if _, err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
 		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
 	}
 }

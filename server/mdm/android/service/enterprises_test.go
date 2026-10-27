@@ -186,6 +186,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.DeleteZeroTouchEnrollmentTokensFunc = func(_ context.Context) error {
 		return nil
 	}
+	ds.DataStore.SetHostAndroidSoftwareInstallsVerifiedFunc = func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error {
+		return nil
+	}
 	ds.DataStore.NewAndroidPolicyRequestFunc = func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 		return nil
 	}

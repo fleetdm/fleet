@@ -1907,27 +1907,29 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 // SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
 
 		var apiErr error
 		policy := &androidmanagement.Policy{Applications: appPolicies}
 		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
-			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
 		}
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {

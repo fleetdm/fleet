@@ -3640,6 +3640,41 @@ type Datastore interface {
 	// checked. 0 starts the next run from the first host.
 	SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error
 
+	// ListAndroidHostsOnHostPolicyAfterID returns up to limit enrolled Android hosts whose device is on its host policy and
+	// whose id is after afterHostID, ordered by id, with only their id, uuid, serial number, platform and fleet.
+	ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, afterHostID uint, limit int) ([]*Host, error)
+
+	// GetAndroidAppReconcileCursor returns the id of the last host the Android app reconciler cron checked, or 0 to start
+	// from the first host.
+	GetAndroidAppReconcileCursor(ctx context.Context) (uint, error)
+
+	// SetAndroidAppReconcileCursor sets the id of the last host the Android app reconciler cron checked. 0 starts the next
+	// run from the first host.
+	SetAndroidAppReconcileCursor(ctx context.Context, cursor uint) error
+
+	// GetAndroidHostIDsWithPendingSetupExperienceInstall returns the hosts among hostIDs that have a setup experience
+	// install that isn't verified or failed yet.
+	GetAndroidHostIDsWithPendingSetupExperienceInstall(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error)
+
+	// ListHostAndroidSoftwareInstalls returns the host_android_software_installs rows of hostIDs.
+	ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*HostAndroidSoftwareInstall, error)
+
+	// ReplaceHostAndroidSoftwareInstalls sets the host's host_android_software_installs rows to installs, deleting the
+	// rows of other apps, and writes a log_android_software_installs row for every row it sets or deletes.
+	ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
+
+	// SetHostAndroidSoftwareInstallsRequestFailed sets every row of the host to failed and flagged for resend, with the
+	// version of installs for their apps. It writes a log_android_software_installs row for every row of installs.
+	SetHostAndroidSoftwareInstallsRequestFailed(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
+
+	// UpdateHostAndroidSoftwareInstallVersions sets the version of the host's rows of installs, and writes a
+	// log_android_software_installs row for each.
+	UpdateHostAndroidSoftwareInstallVersions(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
+
+	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows that were sent
+	// in appliedPolicyVersion or before to verified, and writes a log_android_software_installs row for each.
+	SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
+
 	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
 	// app version created at or after since.
 	GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)

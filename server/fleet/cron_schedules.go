@@ -91,6 +91,9 @@ const (
 	// CronAppStoreAppConfigurationReconciler installs iOS and iPadOS App Store apps again on hosts whose latest install didn't send
 	// the configuration of the version they should have. Runs every 1 minute.
 	CronAppStoreAppConfigurationReconciler CronScheduleName = "app_store_app_configuration_reconciler"
+	// CronAndroidAppReconciler replaces the app list in the policy of Android hosts whose apps in scope, versions or
+	// configurations changed since Fleet last sent it. Runs every 1 minute.
+	CronAndroidAppReconciler CronScheduleName = "android_app_reconciler"
 )
 
 type CronSchedulesService interface {

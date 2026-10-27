@@ -3,11 +3,14 @@ package profiles
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -281,4 +284,134 @@ func TestJsonEscapeString(t *testing.T) {
 			require.Equal(t, tt.expected, jsonEscapeString(tt.input))
 		})
 	}
+}
+
+// A host that can't supply a referenced value must not take the rest of its
+// batch down with it: the other hosts still get their app config, and the job
+// succeeds rather than burning its retries.
+func TestIsUnresolvableAndroidAppConfigForHost(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"missing vital value", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}, true},
+		{"wrapped missing vital value", fmt.Errorf("substitute: %w", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}), true},
+		{"unresolvable fleet var", &UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}, true},
+		{"wrapped unresolvable fleet var", fmt.Errorf("substitute: %w", &UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}), true},
+		{"unrelated error", errors.New("db is down"), false},
+		{"nil", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, IsUnresolvableAndroidAppConfigForHost(c.err))
+		})
+	}
+}
+
+func TestBuildAndroidApplicationPolicies(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("app with full configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "com.example.app", policies[0].PackageName)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		require.JSONEq(t, `{"key": "value"}`, string(policies[0].ManagedConfiguration))
+		require.Equal(t, "WORK_PROFILE_WIDGETS_ALLOWED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("app without configuration clears previously applied settings", func(t *testing.T) {
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Empty(t, policies[0].ManagedConfiguration)
+		require.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("partial configuration leaves other fields unset", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("other ApplicationPolicy fields are passed through", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+		}
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "AUTO_UPDATE_HIGH_PRIORITY", policies[0].AutoUpdateMode)
+		assert.EqualValues(t, 42, policies[0].MinimumVersionCode)
+		require.Len(t, policies[0].PermissionGrants, 1)
+		assert.Equal(t, "android.permission.CAMERA", policies[0].PermissionGrants[0].Permission)
+		assert.Equal(t, "GRANT", policies[0].PermissionGrants[0].Policy)
+	})
+
+	t.Run("stored packageName and installType never override Fleet's values", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"packageName": "com.example.other", "installType": "KIOSK"}`),
+		}
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "PREINSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "com.example.app", policies[0].PackageName)
+		assert.Equal(t, "PREINSTALLED", policies[0].InstallType)
+	})
+
+	t.Run("installConstraint is sent only for installs Google starts", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}], "autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		cases := []struct {
+			installType    string
+			wantConstraint bool
+		}{
+			{installType: "AVAILABLE", wantConstraint: false},
+			{installType: "PREINSTALLED", wantConstraint: true},
+			{installType: "FORCE_INSTALLED", wantConstraint: true},
+		}
+		for _, c := range cases {
+			t.Run(c.installType, func(t *testing.T) {
+				policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, c.installType)
+				require.NoError(t, err)
+				require.Len(t, policies, 1)
+				assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+				if c.wantConstraint {
+					require.Len(t, policies[0].InstallConstraint, 1)
+					assert.Equal(t, "INSTALL_ONLY_WHEN_CHARGING", policies[0].InstallConstraint[0].ChargingConstraint)
+				} else {
+					assert.Empty(t, policies[0].InstallConstraint)
+				}
+			})
+		}
+	})
+
+	t.Run("each app gets its own configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.configured": []byte(`{"autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.configured", "com.example.unconfigured"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 2)
+		assert.Equal(t, "com.example.configured", policies[0].PackageName)
+		assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+		assert.Empty(t, policies[0].WorkProfileWidgets)
+		assert.Equal(t, "com.example.unconfigured", policies[1].PackageName)
+		assert.Empty(t, policies[1].AutoUpdateMode)
+		assert.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[1].WorkProfileWidgets)
+	})
 }

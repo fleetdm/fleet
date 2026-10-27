@@ -3292,3 +3292,33 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 
 	return s, nil
 }
+
+func newAndroidAppReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	androidModule android.Service,
+	redisPool fleet.RedisPool,
+	androidBatchSize int,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAndroidAppReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AndroidAppListPrefix)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_apps", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return android_svc.ReconcileApps(workCtx, ds, androidModule, retryCounter, logger, androidBatchSize)
+		}),
+	)
+
+	return s, nil
+}

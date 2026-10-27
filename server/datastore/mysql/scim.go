@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -2356,8 +2355,8 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 }
 
 // queueManagedConfigResendJobs finds app store app configs that reference any of
-// the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values, or sets a flag for VPP apps.
+// the affected fleet variables and flags the affected hosts' installs so the
+// reconciler crons send the configuration with the updated values.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2406,14 +2405,14 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	var apps []affectedApp
+	var androidAppTeamIDs []uint
 	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
 		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
 			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		apps = append(apps, app)
+		androidAppTeamIDs = append(androidAppTeamIDs, app.AppTeamID)
 	}
 
 	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
@@ -2437,40 +2436,23 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		}
 	}
 
-	if len(apps) == 0 {
+	if len(androidAppTeamIDs) == 0 {
 		return nil
 	}
 
-	// Get the enterprise name from the DB.
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// No enterprise configured — nothing to do.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id")
-	}
-	enterpriseName := "enterprises/" + enterpriseID
-
-	// Insert a job for each affected app config.
-	const insertJob = `
-	INSERT INTO jobs (name, args, state, error)
-	VALUES (?, ?, 'queued', '')
+	// Flag the affected Android apps for the Android app reconciler
+	const markAndroidResendStmt = `
+	UPDATE host_android_software_installs
+	SET needs_resend = 1
+	WHERE host_id IN (?) AND vpp_app_team_id IN (?)
 `
-	for _, app := range apps {
-		args, err := json.Marshal(map[string]any{
-			"task":               "make_android_app_available",
-			"application_id":     app.ApplicationID,
-			"app_team_id":        app.AppTeamID,
-			"enterprise_name":    enterpriseName,
-			"app_config_changed": true,
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
-		}
-		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
-		}
+	markStmt, markArgs, err := sqlx.In(markAndroidResendStmt, hostIDs, androidAppTeamIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare mark android app resend")
+	}
+	_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "mark android app resend")
 	}
 
 	return nil

@@ -268,6 +268,28 @@ type HostAndroidVPPSoftwareInstall struct {
 	CreatedAt         *time.Time `db:"created_at"` // read-only, the column is nullable
 }
 
+// HostAndroidSoftwareInstall is the app Fleet last put in an Android host's policy, one per host and app.
+type HostAndroidSoftwareInstall struct {
+	ID              uint      `db:"id"`
+	HostID          uint      `db:"host_id"`
+	AdamID          string    `db:"adam_id"`
+	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
+	Status          string    `db:"status"`
+	InPolicyVersion *int64    `db:"in_policy_version"`
+	NeedsResend     bool      `db:"needs_resend"`
+	PolicyBuiltAt   time.Time `db:"policy_built_at"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
+}
+
+const (
+	AndroidSoftwareInstallStatusPending  = "pending"
+	AndroidSoftwareInstallStatusVerified = "verified"
+	AndroidSoftwareInstallStatusFailed   = "failed"
+	// AndroidSoftwareInstallStatusRemoved is only written to log_android_software_installs.
+	AndroidSoftwareInstallStatusRemoved = "removed"
+)
+
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
