@@ -158,12 +158,15 @@ const AIProfileGenerator = ({
     });
   };
 
-  const renderCreateManually = () => (
+  // Disabled while a save is in flight, whose completion would redirect away from
+  // the manual view.
+  const renderCreateManually = (isSubmitting = false) => (
     <Button
       variant="subdued"
       icon="arrow"
       iconPosition="right"
       className={`${baseClass}__create-manually`}
+      disabled={isSubmitting}
       onClick={() => {
         generation.stop();
         goToManual();
@@ -240,7 +243,7 @@ const AIProfileGenerator = ({
               onChange={setInstructions}
               action={renderRetryButton(isSubmitting)}
             />
-            {renderCreateManually()}
+            {renderCreateManually(isSubmitting)}
           </>
         )}
       />

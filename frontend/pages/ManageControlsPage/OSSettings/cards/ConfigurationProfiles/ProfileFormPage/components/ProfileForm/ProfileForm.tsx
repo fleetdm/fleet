@@ -445,7 +445,10 @@ const ProfileForm = ({
           disabled ||
           !isPlatformMDMEnabled ||
           isSubmitting ||
-          (!isEdit && !hasContents)
+          (!isEdit && !hasContents) ||
+          // a save before they arrive would drop the generated name and summary
+          !!generated?.isNamePending ||
+          !!generated?.isDescriptionPending
         }
       >
         {isEdit ? "Update profile" : "Add profile"}

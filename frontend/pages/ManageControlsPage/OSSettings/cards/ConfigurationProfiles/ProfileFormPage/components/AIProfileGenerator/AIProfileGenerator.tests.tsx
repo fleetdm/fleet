@@ -381,18 +381,41 @@ describe("AIProfileGenerator", () => {
     jest.mocked(mdmAPI.uploadProfile).mockImplementation(() => upload.promise);
     typeInstructions("Turn off AirDrop");
     clickGenerate();
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
     await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
 
     expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Create manually" })
+    ).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Create manually" }));
-    expect(router.push).toHaveBeenCalledWith({
-      ...MANUAL_LOCATION,
-      state: { aiTimedOut: false },
-    });
+    // its completion would redirect away from the manual view
+    expect(
+      screen.getByRole("button", { name: "Create manually" })
+    ).toBeDisabled();
+    expect(router.push).not.toHaveBeenCalled();
     await act(async () => upload.resolve({ profile_uuid: "a-new" }));
+  });
+
+  it("keeps Add profile disabled until a declaration's name and summary arrive", async () => {
+    renderGenerator();
+    typeInstructions("Require a passcode");
+    clickGenerate();
+    await act(async () => content.resolve(DECLARATION_RESPONSE));
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeDisabled();
+
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeEnabled();
+  });
+
+  it("enables Add profile when the name request fails", async () => {
+    renderGenerator();
+    typeInstructions("Require a passcode");
+    clickGenerate();
+    await act(async () => content.resolve(DECLARATION_RESPONSE));
+    await act(async () => nameDescription.reject(apiError("base", "x")));
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeEnabled();
   });
 
   it("shows a decline with its reason and a link, and keeps the instructions", async () => {
