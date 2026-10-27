@@ -6,7 +6,7 @@ Fleet Device Management is the open-core company behind the leading AI-native de
 
 Fleet is dedicated to:
 - 🔌 giving IT admins the time to transform themselves into 5x AI engineers, cutting [KTLO](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32) so they can build the future. With AI and human review, you can one-shot entire IT projects in minutes.
-- 🪟 unbundling the Microsoft suite. Customers choose their own IdP, EDR, office suite, and other tools, and keep tight integration with all of them.
+- 🪟 unbundling the Microsoft suite and dispelling misconceptions about what is and isn't possible. Customers should choose the right IdP, MDM, EDR, and office suite for their needs, not their vendors'.
 - 🐧 remaining the best Linux management option on the market and the premier solution for managing every distro, deskside hardware, and new devices like ARM PCs and NVIDIA's DGX series.
 
 With Fleet, customers reduce maintenance effort by 50-80%, speed up employee onboarding by 98% (often down to under 5-10 minutes), and cut onboarding tickets and errors from 80-90% to less than 1%, compared with Intune, Jamf, Ivanti, and Workspace ONE.
