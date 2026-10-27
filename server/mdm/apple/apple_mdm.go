@@ -2124,7 +2124,7 @@ func sendRecoveryLockCommandsWithCommander(
 
 // sendRecoveryLockVerifyCommands sends the verify step for hosts whose SetRecoveryLock was
 // acknowledged without the result handler sending it, which the upgrade repair in migration
-// 20261026111120 leaves behind.
+// 20261027131010 leaves behind.
 func sendRecoveryLockVerifyCommands(
 	ctx context.Context,
 	ds fleet.Datastore,

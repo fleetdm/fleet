@@ -502,7 +502,7 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 
 func (ds *Datastore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 	// Every result handler that moves a row to verifying also records its verify command, so
-	// only the upgrade repair (migration 20261026111120) leaves one without. Unlike the set and
+	// only the upgrade repair (migration 20261027131010) leaves one without. Unlike the set and
 	// clear claims there are no enrollment checks: these rows already passed them, and the cron
 	// soft-deletes rows of unenrolled hosts before this runs.
 	selectStmt := fmt.Sprintf(`

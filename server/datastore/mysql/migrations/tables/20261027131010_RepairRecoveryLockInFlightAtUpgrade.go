@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261026111120, Down_20261026111120)
+	MigrationClient.AddMigration(Up_20261027131010, Down_20261027131010)
 }
 
 type recoveryLockInFlightAtUpgrade struct {
@@ -16,12 +16,12 @@ type recoveryLockInFlightAtUpgrade struct {
 	status      sql.NullString
 }
 
-// Up_20261026111120 repairs recovery lock rows that had a SetRecoveryLock in flight when the
+// Up_20261027131010 repairs recovery lock rows that had a SetRecoveryLock in flight when the
 // server was upgraded from a version before 20260902091843. Those versions didn't record which
 // command a row was waiting on, and that migration added the columns empty, so the device's
 // result matches no row and the host stays pending forever. Only those versions leave a pending
 // row with none of the command UUIDs set.
-func Up_20261026111120(tx *sql.Tx) error {
+func Up_20261027131010(tx *sql.Tx) error {
 	inFlightRows, err := selectRecoveryLockInFlightAtUpgrade(tx)
 	if err != nil {
 		return err
@@ -122,6 +122,6 @@ func selectRecoveryLockInFlightAtUpgrade(tx *sql.Tx) ([]recoveryLockInFlightAtUp
 	return inFlightRows, nil
 }
 
-func Down_20261026111120(tx *sql.Tx) error {
+func Down_20261027131010(tx *sql.Tx) error {
 	return nil
 }

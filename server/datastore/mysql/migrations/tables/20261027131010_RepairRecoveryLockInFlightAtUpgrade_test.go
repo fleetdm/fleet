@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261026111120(t *testing.T) {
+func TestUp_20261027131010(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const plist = `<?xml version="1.0"?><plist/>`

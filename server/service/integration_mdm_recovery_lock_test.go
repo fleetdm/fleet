@@ -1408,7 +1408,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		t.Helper()
 		tx, err := s.ds.TestPrimaryDB().BeginTx(t.Context(), nil)
 		require.NoError(t, err)
-		require.NoError(t, tables.Up_20261026111120(tx))
+		require.NoError(t, tables.Up_20261027131010(tx))
 		require.NoError(t, tx.Commit())
 	}
 
