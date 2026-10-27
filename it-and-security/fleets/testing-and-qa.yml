@@ -114,5 +114,17 @@ software:
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
     - slug: claude/darwin # Claude for macOS
-      self_service: true  
+      self_service: true
     # Windows apps
+    - slug: slack/windows # Slack for Windows
+      self_service: true
+      setup_experience: true
+    - slug: zoom/windows # Zoom for Windows
+      self_service: true
+      setup_experience: true
+    - slug: google-chrome/windows # Google Chrome for Windows
+      self_service: true
+      setup_experience: true
+    - slug: claude/windows # Claude for Windows
+      self_service: true
+      setup_experience: true
