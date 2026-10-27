@@ -48,35 +48,7 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 		s.fireActivityWebhook(ctx, user, activity, detailsBytes, timestamp, webhookConfig.DestinationURL)
 	}
 
-	// Fire the per-fleet host activities webhooks if the activity is linked to
-	// hosts and any of those hosts' fleets has the webhook enabled.
-	if ah, ok := activity.(types.ActivityHosts); ok {
-		if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
-			hooks, err := s.providers.GetHostActivitiesWebhooks(ctx, hostIDs)
-			if err != nil {
-				// transient failure here must not fail the surrounding operation recording the activity.
-				s.logger.ErrorContext(ctx, "get host activities webhooks",
-					slog.String("activity", activity.ActivityName()), slog.String("err", err.Error()))
-				// Discard partial results: an incomplete hook list could
-				// deliver to some fleets and silently miss others.
-				hooks = nil
-			}
-			// Per-fleet payloads carry host_ids for activities whose stored
-			// details don't already identify their hosts (batch automation
-			// activities). The list is injected at fire time only — batches can
-			// span thousands of hosts, so storing it would bloat every affected
-			// host's feed response and expose the full batch to any user who
-			// can read one of its hosts — and each delivery gets only the host
-			// IDs belonging to the fleet(s) behind its destination, so one
-			// fleet's endpoint never sees another fleet's hosts. The global
-			// webhook payload above is intentionally left as stored (matching
-			// its pre-existing format).
-			for _, hook := range hooks {
-				webhookDetails := s.detailsWithHostIDs(ctx, activity.ActivityName(), detailsBytes, hook.HostIDs)
-				s.fireActivityWebhook(ctx, user, activity, webhookDetails, timestamp, hook.DestinationURL)
-			}
-		}
-	}
+	s.fireHostActivitiesWebhooks(ctx, user, []api.ActivityDetails{activity}, [][]byte{detailsBytes}, timestamp)
 
 	// Activate the next upcoming activity if requested by the activity type.
 	// This is done before storing to avoid holding a DB transaction open during
@@ -108,14 +80,13 @@ func marshalActivityDetails(ctx context.Context, activity api.ActivityDetails) (
 }
 
 // NewActivities creates one activity record per item of activities and fires their webhooks. The webhook settings are resolved once
-// for the whole batch, which is what makes it much cheaper than calling NewActivity in a loop.
+// for the whole batch.
 func (s *Service) NewActivities(ctx context.Context, user *api.User, activities []api.ActivityDetails) error {
 	if len(activities) == 0 {
 		return nil
 	}
 
 	detailsBytes := make([][]byte, len(activities))
-	var hostIDs []uint
 	for i, activity := range activities {
 		if aa, ok := activity.(types.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
 			return ctxerr.Errorf(ctx, "activity %s activates the next upcoming activity, which NewActivities does not support",
@@ -126,9 +97,6 @@ func (s *Service) NewActivities(ctx context.Context, user *api.User, activities 
 			return err
 		}
 		detailsBytes[i] = details
-		if ah, ok := activity.(types.ActivityHosts); ok {
-			hostIDs = append(hostIDs, ah.HostIDs()...)
-		}
 	}
 	timestamp := time.Now()
 
@@ -142,43 +110,61 @@ func (s *Service) NewActivities(ctx context.Context, user *api.User, activities 
 		}
 	}
 
-	if len(hostIDs) > 0 {
-		hooks, err := s.providers.GetHostActivitiesWebhooks(ctx, hostIDs)
-		if err != nil {
-			// transient failure here must not fail the surrounding operation recording the activities.
-			s.logger.ErrorContext(ctx, "get host activities webhooks", slog.String("err", err.Error()))
-			hooks = nil
-		}
-		activitiesByHost := make(map[uint][]int)
-		for i, activity := range activities {
-			if ah, ok := activity.(types.ActivityHosts); ok {
-				for _, id := range ah.HostIDs() {
-					activitiesByHost[id] = append(activitiesByHost[id], i)
-				}
-			}
-		}
-		for _, hook := range hooks {
-			// each delivery gets only the host IDs of this activity that belong to the destination's fleet(s).
-			hostIDsByActivity := make(map[int][]uint)
-			var order []int
-			for _, id := range hook.HostIDs {
-				for _, i := range activitiesByHost[id] {
-					if _, seen := hostIDsByActivity[i]; !seen {
-						order = append(order, i)
-					}
-					hostIDsByActivity[i] = append(hostIDsByActivity[i], id)
-				}
-			}
-			for _, i := range order {
-				webhookDetails := s.detailsWithHostIDs(ctx, activities[i].ActivityName(), detailsBytes[i], hostIDsByActivity[i])
-				s.fireActivityWebhook(ctx, user, activities[i], webhookDetails, timestamp, hook.DestinationURL)
-			}
-		}
-	}
+	s.fireHostActivitiesWebhooks(ctx, user, activities, detailsBytes, timestamp)
 
 	ctx = context.WithValue(ctx, types.ActivityWebhookContextKey, true)
 
 	return s.store.NewActivities(ctx, user, activities, detailsBytes, timestamp)
+}
+
+// fireHostActivitiesWebhooks fires the per-fleet host activities webhooks for activities linked to hosts whose fleets have the webhook
+// enabled. detailsBytes[i] holds the stored details of activities[i].
+//
+// Per-fleet payloads carry host_ids for activities whose stored details don't already identify their hosts (batch automation
+// activities). The list is injected at fire time only: batches can span thousands of hosts, so storing it would bloat every affected
+// host's feed response and expose the full batch to any user who can read one of its hosts. Each delivery gets only the host IDs
+// belonging to the fleet(s) behind its destination, so one fleet's endpoint never sees another fleet's hosts. The global webhook
+// payload is intentionally left as stored (matching its pre-existing format).
+func (s *Service) fireHostActivitiesWebhooks(
+	ctx context.Context, user *api.User, activities []api.ActivityDetails, detailsBytes [][]byte, timestamp time.Time,
+) {
+	var hostIDs []uint
+	activitiesByHost := make(map[uint][]int)
+	for i, activity := range activities {
+		if ah, ok := activity.(types.ActivityHosts); ok {
+			for _, id := range ah.HostIDs() {
+				hostIDs = append(hostIDs, id)
+				activitiesByHost[id] = append(activitiesByHost[id], i)
+			}
+		}
+	}
+	if len(hostIDs) == 0 {
+		return
+	}
+
+	hooks, err := s.providers.GetHostActivitiesWebhooks(ctx, hostIDs)
+	if err != nil {
+		// A transient failure here must not fail the surrounding operation recording the activities. Partial results are discarded:
+		// an incomplete hook list could deliver to some fleets and silently miss others.
+		s.logger.ErrorContext(ctx, "get host activities webhooks", slog.String("err", err.Error()))
+		return
+	}
+	for _, hook := range hooks {
+		hostIDsByActivity := make(map[int][]uint)
+		var order []int
+		for _, id := range hook.HostIDs {
+			for _, i := range activitiesByHost[id] {
+				if _, seen := hostIDsByActivity[i]; !seen {
+					order = append(order, i)
+				}
+				hostIDsByActivity[i] = append(hostIDsByActivity[i], id)
+			}
+		}
+		for _, i := range order {
+			webhookDetails := s.detailsWithHostIDs(ctx, activities[i].ActivityName(), detailsBytes[i], hostIDsByActivity[i])
+			s.fireActivityWebhook(ctx, user, activities[i], webhookDetails, timestamp, hook.DestinationURL)
+		}
+	}
 }
 
 // detailsWithHostIDs returns the details to use in one per-fleet host
