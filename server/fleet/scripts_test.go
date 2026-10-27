@@ -472,7 +472,7 @@ func TestUserMessage(t *testing.T) {
 }
 
 func TestHostScriptResultTeamIDOnlyForAuthorization(t *testing.T) {
-	hsr := HostScriptResult{HostID: 1, TeamID: ptr.Uint(3)}
+	hsr := HostScriptResult{HostID: 1, TeamID: new(uint(3))}
 
 	// The team id is not part of the API/JSON result...
 	b, err := json.Marshal(hsr)
@@ -483,7 +483,7 @@ func TestHostScriptResultTeamIDOnlyForAuthorization(t *testing.T) {
 	// ...but the authorization policy still gets it.
 	extra, err := hsr.ExtraAuthz()
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(3), extra["team_id"])
+	require.Equal(t, new(uint(3)), extra["team_id"])
 
 	extra, err = HostScriptResult{}.ExtraAuthz()
 	require.NoError(t, err)
