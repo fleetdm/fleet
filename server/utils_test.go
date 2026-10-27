@@ -11,7 +11,7 @@ import (
 )
 
 func TestMaskSecretURLParams(t *testing.T) {
-	secretKeywords := []string{"secret", "token", "key", "password"}
+	secretKeywords := []string{"secret", "token", "key", "password", "signature", "credential"}
 	mask := "MASKED"
 
 	type testCase struct {
@@ -101,6 +101,20 @@ func TestMaskURLError(t *testing.T) {
 		require.Equal(t, e, masked)
 		require.EqualError(t, masked, "GET \"https://example.com?the_secret=MASKED\": not found")
 		require.NotContains(t, masked.Error(), "42")
+	})
+
+	t.Run("presigned URL credential and signature", func(t *testing.T) {
+		rawURL := "https://storage.googleapis.com/bucket/dev-prefix/uploads/0b8f1f0e-6c1d-4a39-9d57-3f1f2a9c7e11" +
+			"?X-Amz-Algorithm=AWS4-HMAC-SHA256" +
+			"&X-Amz-Credential=GOOG1EEXAMPLEACCESSKEY%2F20261026%2Fauto%2Fs3%2Faws4_request" +
+			"&X-Amz-Date=20261026T120000Z&X-Amz-Expires=21600" +
+			"&X-Amz-SignedHeaders=content-length%3Bhost&x-id=PutObject" +
+			"&X-Amz-Signature=3f5a9c0d1e2b4a6c8d7e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4"
+		e := &url.Error{Op: "Put", URL: rawURL, Err: errors.New("connection reset")}
+		masked := MaskURLError(e)
+		require.NotContains(t, masked.Error(), "GOOG1EEXAMPLEACCESSKEY")
+		require.NotContains(t, masked.Error(), "3f5a9c0d1e2b4a6c")
+		require.Contains(t, masked.Error(), "X-Amz-Expires=21600")
 	})
 }
 

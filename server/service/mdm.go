@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto"
 	"crypto/tls"
@@ -3308,36 +3309,40 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration, androidProfiles map[int]*fleet.MDMAndroidConfigProfile,
 ) error {
-	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
-	// ".mobileconfig" or ".json" or ".xml"
-	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls)+len(androidProfiles))
+	// profile names must be unique regardless of platform, as checked by the single profile upload paths
+	type namedProfile struct {
+		field   string
+		index   int
+		name    string
+		wrapMsg string
+	}
+	profiles := make([]namedProfile, 0, len(appleProfiles)+len(windowsProfiles)+len(appleDecls)+len(androidProfiles))
 	for i, p := range appleProfiles {
-		if _, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
-			return ctxerr.Wrap(ctx, err, "duplicate mobileconfig profile by name")
-		}
-		extByName[p.Name] = ".mobileconfig"
+		profiles = append(profiles, namedProfile{field: "appleProfiles", index: i, name: p.Name, wrapMsg: "duplicate mobileconfig profile by name"})
 	}
 	for i, p := range windowsProfiles {
-		if _, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
-			return ctxerr.Wrap(ctx, err, "duplicate xml by name")
-		}
-		extByName[p.Name] = ".xml"
+		profiles = append(profiles, namedProfile{field: "windowsProfiles", index: i, name: p.Name, wrapMsg: "duplicate xml by name"})
 	}
 	for i, p := range appleDecls {
-		if _, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name))
-			return ctxerr.Wrap(ctx, err, "duplicate json by name")
-		}
-		extByName[p.Name] = ".json"
+		profiles = append(profiles, namedProfile{field: "appleDecls", index: i, name: p.Name, wrapMsg: "duplicate json by name"})
 	}
 	for i, p := range androidProfiles {
-		if _, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("androidProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
-			return ctxerr.Wrap(ctx, err, "duplicate json by name")
-		}
-		extByName[p.Name] = ".json"
+		profiles = append(profiles, namedProfile{field: "androidProfiles", index: i, name: p.Name, wrapMsg: "duplicate json by name"})
+	}
+	slices.SortFunc(profiles, func(a, b namedProfile) int { return cmp.Compare(a.index, b.index) })
+
+	names := make([]string, 0, len(profiles))
+	for _, p := range profiles {
+		names = append(names, p.name)
+	}
+	duplicateIndex, found, err := findDuplicateNameUnderCollation(ctx, svc.ds, names)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for duplicate profile names")
+	}
+	if found {
+		duplicate := profiles[duplicateIndex]
+		err := fleet.NewInvalidArgumentError(fmt.Sprintf("%s[%d]", duplicate.field, duplicate.index), fmtDuplicateNameErrMsg(duplicate.name))
+		return ctxerr.Wrap(ctx, err, duplicate.wrapMsg)
 	}
 
 	return nil
