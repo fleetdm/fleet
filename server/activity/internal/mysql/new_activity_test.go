@@ -269,8 +269,9 @@ func testNewActivitiesBulk(t *testing.T, env *testEnv) {
 		for i := range hostCount {
 			hostIDs[i] = env.InsertHost(t, fmt.Sprintf("bulk-%d.local", i), nil)
 			activities[i] = hostActivity{
-				dummyActivity: dummyActivity{name: "bulk_ran_command", details: map[string]any{"host_id": float64(hostIDs[i])}},
-				hostIDs:       []uint{hostIDs[i]},
+				name:    "bulk_ran_command",
+				details: map[string]any{"host_id": float64(hostIDs[i])},
+				hostIDs: []uint{hostIDs[i]},
 			}
 			details[i] = mustJSON(t, map[string]any{"host_id": float64(hostIDs[i])})
 		}
@@ -285,7 +286,7 @@ func testNewActivitiesBulk(t *testing.T, env *testEnv) {
 			require.NotNil(t, acts[0].Details)
 			var got map[string]any
 			require.NoError(t, json.Unmarshal(*acts[0].Details, &got))
-			assert.Equal(t, float64(hostIDs[i]), got["host_id"], "activity linked to the wrong host")
+			assert.InDelta(t, float64(hostIDs[i]), got["host_id"], 0, "activity linked to the wrong host")
 			require.NotNil(t, acts[0].ActorEmail)
 			assert.Equal(t, "bulk@example.com", *acts[0].ActorEmail)
 		}

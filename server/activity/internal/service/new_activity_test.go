@@ -798,13 +798,13 @@ func TestNewActivities(t *testing.T) {
 	t.Run("stores the batch once and resolves host webhooks once", func(t *testing.T) {
 		ds := &bulkMockDatastore{}
 		providers := &newActivityMockProviders{
-			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+			mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{},
 		}
 		svc := newTestService(ds, providers)
 
 		activities := []api.ActivityDetails{
-			hostActivity{simpleActivity: simpleActivity{Name: "a"}, hostIDs: []uint{1}},
-			hostActivity{simpleActivity: simpleActivity{Name: "b"}, hostIDs: []uint{2}},
+			hostActivity{Name: "a", hostIDs: []uint{1}},
+			hostActivity{Name: "b", hostIDs: []uint{2}},
 			simpleActivity{Name: "c"},
 		}
 		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
@@ -821,7 +821,7 @@ func TestNewActivities(t *testing.T) {
 	t.Run("empty batch is a no-op", func(t *testing.T) {
 		ds := &bulkMockDatastore{}
 		svc := newTestService(ds, &newActivityMockProviders{
-			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+			mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{},
 		})
 		require.NoError(t, svc.NewActivities(t.Context(), user, nil))
 		assert.Zero(t, ds.calls)
@@ -830,7 +830,7 @@ func TestNewActivities(t *testing.T) {
 	t.Run("activators are rejected", func(t *testing.T) {
 		ds := &bulkMockDatastore{}
 		svc := newTestService(ds, &newActivityMockProviders{
-			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+			mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{},
 		})
 		err := svc.NewActivities(t.Context(), user, []api.ActivityDetails{activatorActivity{hostID: 1, cmdUUID: "x"}})
 		require.Error(t, err)
@@ -857,21 +857,19 @@ func TestNewActivities(t *testing.T) {
 
 		ds := &bulkMockDatastore{}
 		providers := &newActivityMockProviders{
-			mockDataProviders: mockDataProviders{
-				mockUserProvider: &mockUserProvider{},
-				mockHostProvider: &mockHostProvider{},
-				hostWebhooks: []activity.HostActivitiesWebhook{
-					{DestinationURL: srv.URL + "/fleet-a", HostIDs: []uint{1}},
-					{DestinationURL: srv.URL + "/fleet-b", HostIDs: []uint{2}},
-				},
+			mockUserProvider: &mockUserProvider{},
+			mockHostProvider: &mockHostProvider{},
+			hostWebhooks: []activity.HostActivitiesWebhook{
+				{DestinationURL: srv.URL + "/fleet-a", HostIDs: []uint{1}},
+				{DestinationURL: srv.URL + "/fleet-b", HostIDs: []uint{2}},
 			},
 		}
 		svc := newTestServiceWithWebhook(ds, providers)
 
 		activities := []api.ActivityDetails{
-			hostActivity{simpleActivity: simpleActivity{Name: "a"}, hostIDs: []uint{1}},
-			hostActivity{simpleActivity: simpleActivity{Name: "b"}, hostIDs: []uint{2}},
-			hostActivity{simpleActivity: simpleActivity{Name: "c"}, hostIDs: []uint{3}},
+			hostActivity{Name: "a", hostIDs: []uint{1}},
+			hostActivity{Name: "b", hostIDs: []uint{2}},
+			hostActivity{Name: "c", hostIDs: []uint{3}},
 		}
 		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
 
