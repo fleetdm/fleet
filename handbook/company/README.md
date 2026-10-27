@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet is AI-native device management that turns IT admins into 5x AI engineers. It is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet is AI-native device management that gives IT admins the power to transform themselves into 5x AI engineers. It is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to:
 - 🔌 cutting KTLO so IT teams spend their time building the future. Customers like NVIDIA, large retailers, and airlines run on Fleet. With AI and human review, IT teams can one-shot entire IT projects in minutes.
