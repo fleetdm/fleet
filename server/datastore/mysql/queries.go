@@ -23,6 +23,7 @@ var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":         "q.id",
 	"name":       "q.name",
 	"team_id":    "q.team_id",
+	"fleet_id":   "q.team_id",
 	"created_at": "q.created_at",
 	"updated_at": "q.updated_at",
 }
