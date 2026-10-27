@@ -301,6 +301,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityDisabledVPP{},
 		fleet.ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 		fleet.ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+		fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{},
+		fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{},
 		fleet.ActivityTypeAddedConditionalAccessOkta{},
 		fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		fleet.ActivityTypeEnabledConditionalAccessAutomations{},

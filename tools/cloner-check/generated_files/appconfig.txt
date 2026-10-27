@@ -118,6 +118,10 @@ github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleWorkspace	[]*fleet.G
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleConditionalAccess	[]*fleet.GoogleConditionalAccessIntegration
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	CustomerID	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	AdminEmail	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	ApiKey	fleet.GoogleCalendarApiKey
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPIntrospectionURLs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
@@ -262,6 +266,8 @@ github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Contents	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ConditionalAccess	*fleet.ConditionalAccessSettings
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	MicrosoftEntraTenantID	string
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	MicrosoftEntraConnectionConfigured	bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	GoogleCustomerID	string
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	GoogleConnectionConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaIDPID	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertionConsumerServiceURL	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String

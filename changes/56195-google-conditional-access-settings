@@ -1,0 +1,1 @@
+- Added Google conditional access settings (`integrations.google_conditional_access`) to connect Fleet to Google Workspace with a customer ID, admin email, and service account key, manageable through GitOps, and `DELETE /api/v1/fleet/conditional-access/google` to disconnect it.

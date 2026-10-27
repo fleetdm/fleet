@@ -2410,6 +2410,14 @@ type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
 
 type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
+type ConditionalAccessGoogleCreateIntegrationFunc func(ctx context.Context, customerID string, proxyServerSecret string, oauthClientID string) error
+
+type ConditionalAccessGoogleGetFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error)
+
+type ConditionalAccessGoogleSetSetupErrorFunc func(ctx context.Context, setupError *string) error
+
+type ConditionalAccessGoogleDeleteFunc func(ctx context.Context) error
+
 type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
 
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
@@ -6203,6 +6211,18 @@ type DataStore struct {
 
 	CleanupExpiredChallengesFunc        CleanupExpiredChallengesFunc
 	CleanupExpiredChallengesFuncInvoked bool
+
+	ConditionalAccessGoogleCreateIntegrationFunc        ConditionalAccessGoogleCreateIntegrationFunc
+	ConditionalAccessGoogleCreateIntegrationFuncInvoked bool
+
+	ConditionalAccessGoogleGetFunc        ConditionalAccessGoogleGetFunc
+	ConditionalAccessGoogleGetFuncInvoked bool
+
+	ConditionalAccessGoogleSetSetupErrorFunc        ConditionalAccessGoogleSetSetupErrorFunc
+	ConditionalAccessGoogleSetSetupErrorFuncInvoked bool
+
+	ConditionalAccessGoogleDeleteFunc        ConditionalAccessGoogleDeleteFunc
+	ConditionalAccessGoogleDeleteFuncInvoked bool
 
 	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
 	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
@@ -14877,6 +14897,34 @@ func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error)
 	s.CleanupExpiredChallengesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupExpiredChallengesFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessGoogleCreateIntegration(ctx context.Context, customerID string, proxyServerSecret string, oauthClientID string) error {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleCreateIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleCreateIntegrationFunc(ctx, customerID, proxyServerSecret, oauthClientID)
+}
+
+func (s *DataStore) ConditionalAccessGoogleGet(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleGetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleGetFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessGoogleSetSetupError(ctx context.Context, setupError *string) error {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleSetSetupErrorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleSetSetupErrorFunc(ctx, setupError)
+}
+
+func (s *DataStore) ConditionalAccessGoogleDelete(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleDeleteFunc(ctx)
 }
 
 func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string, proxyServerSecret string) error {

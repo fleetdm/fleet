@@ -117,6 +117,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 			}
 		}
+		if mockDS.ConditionalAccessGoogleGetFunc == nil {
+			mockDS.ConditionalAccessGoogleGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+				return nil, &notFoundError{}
+			}
+		}
 		// Config reads hydrate the Windows enrollment default fleet from its config row.
 		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
 			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
@@ -311,6 +316,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
 	}
 
+	// Test servers never reach Google unless a test injects a factory.
+	conditionalAccessGoogleClientFactory := ConditionalAccessGoogleClientFactory(noopConditionalAccessGoogleClientFactory)
+	var conditionalAccessGoogleProxy ConditionalAccessGoogleProxy
+	if len(opts) > 0 {
+		if opts[0].ConditionalAccessGoogleClientFactory != nil {
+			conditionalAccessGoogleClientFactory = opts[0].ConditionalAccessGoogleClientFactory
+		}
+		conditionalAccessGoogleProxy = opts[0].ConditionalAccessGoogleProxy
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -335,6 +350,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		conditionalAccessGoogleProxy,
+		conditionalAccessGoogleClientFactory,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,
@@ -1710,4 +1727,12 @@ func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.W
 
 func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
 	return noopGraphClient{}, nil
+}
+
+type noopConditionalAccessGoogleClient struct{}
+
+func (noopConditionalAccessGoogleClient) CheckDelegation(context.Context) error { return nil }
+
+func noopConditionalAccessGoogleClientFactory(context.Context, []byte, string, string) (ConditionalAccessGoogleClient, error) {
+	return noopConditionalAccessGoogleClient{}, nil
 }

@@ -139,11 +139,13 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				}
 			},
 		},
-		SoftwareInstallStore:            softwareInstallStore,
-		SoftwareTitleIconStore:          softwareTitleIconStore,
-		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
-		DBConns:                         s.dbConns,
-		FleetConfig:                     &fleetCfg,
+		SoftwareInstallStore:                 softwareInstallStore,
+		SoftwareTitleIconStore:               softwareTitleIconStore,
+		ConditionalAccessMicrosoftProxy:      mockedConditionalAccessMicrosoftProxyInstance,
+		ConditionalAccessGoogleProxy:         mockedConditionalAccessGoogleInstance,
+		ConditionalAccessGoogleClientFactory: mockedConditionalAccessGoogleInstance.clientFactory,
+		DBConns:                              s.dbConns,
+		FleetConfig:                          &fleetCfg,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = slog.New(slog.DiscardHandler)

@@ -104,6 +104,28 @@ func TestAuthorizeAppConfig(t *testing.T) {
 	})
 }
 
+func TestAuthorizeConditionalAccessGoogle(t *testing.T) {
+	t.Parallel()
+
+	// Only global admins can write (the DELETE endpoint); connecting goes through the app config.
+	intg := &fleet.ConditionalAccessGoogleIntegration{}
+	cases := []authTestCase{
+		{user: nil, object: intg, action: write, allow: false},
+		{user: test.UserAdmin, object: intg, action: write, allow: true},
+	}
+	for _, u := range []*fleet.User{
+		test.UserNoRoles, test.UserMaintainer, test.UserObserver, test.UserObserverPlus, test.UserTechnician, test.UserGitOps,
+		test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1, test.UserTeamObserverTeam1, test.UserTeamObserverPlusTeam1,
+		test.UserTeamGitOpsTeam1, test.UserTeamTechnicianTeam1,
+	} {
+		cases = append(cases, authTestCase{user: u, object: intg, action: write, allow: false})
+	}
+	for _, u := range []*fleet.User{nil, test.UserAdmin, test.UserMaintainer, test.UserTeamAdminTeam1} {
+		cases = append(cases, authTestCase{user: u, object: intg, action: read, allow: false})
+	}
+	runTestCases(t, cases)
+}
+
 func TestAuthorizeSession(t *testing.T) {
 	t.Parallel()
 

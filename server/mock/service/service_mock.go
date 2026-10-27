@@ -985,6 +985,10 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
+type ConditionalAccessGoogleGetFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error)
+
+type ConditionalAccessGoogleDeleteFunc func(ctx context.Context) error
+
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
@@ -2493,6 +2497,12 @@ type Service struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	ConditionalAccessGoogleGetFunc        ConditionalAccessGoogleGetFunc
+	ConditionalAccessGoogleGetFuncInvoked bool
+
+	ConditionalAccessGoogleDeleteFunc        ConditionalAccessGoogleDeleteFunc
+	ConditionalAccessGoogleDeleteFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -5962,6 +5972,20 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGoogleGet(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleGetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleGetFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGoogleDelete(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessGoogleDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGoogleDeleteFunc(ctx)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

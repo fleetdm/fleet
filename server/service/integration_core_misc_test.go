@@ -637,4 +637,14 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
 		http.StatusPaymentRequired, &d)
+
+	// Google conditional access can't be set or deleted on Fleet Free, but clearing the setting is allowed.
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"integrations": {"google_conditional_access": [{
+		"customer_id": "C01234abc",
+		"admin_email": "admin@example.com",
+		"api_key_json": {"client_email": "sa@example.com", "private_key": "key"}
+	}]}}`), http.StatusUnprocessableEntity)
+	s.Require().Contains(extractServerErrorText(res.Body), ErrMissingLicense.Error())
+	s.Do("DELETE", "/api/latest/fleet/conditional-access/google", nil, http.StatusPaymentRequired)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"integrations": {"google_conditional_access": []}}`), http.StatusOK)
 }

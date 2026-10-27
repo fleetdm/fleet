@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/mail"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -486,12 +488,26 @@ type GoogleWorkspaceIntegration struct {
 	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
 }
 
+// GoogleConditionalAccessIntegration marks company-owned iOS, iPadOS, and Android
+// hosts as managed in Google. The service account key is stored encrypted in
+// mdm_config_assets and never in the app config JSON: ApiKey is only populated on
+// the way in (PATCH) and masked on the way out (GET).
+type GoogleConditionalAccessIntegration struct {
+	// CustomerID is the Google Workspace customer ID, e.g. "C01234abc".
+	CustomerID string `json:"customer_id"`
+	// AdminEmail is the Workspace admin the service account impersonates.
+	AdminEmail string `json:"admin_email"`
+	// ApiKey holds the service account JSON, delegated for the cloud-identity.devices scope.
+	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira            []*JiraIntegration            `json:"jira"`
-	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
-	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
-	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
+	Jira                    []*JiraIntegration                    `json:"jira"`
+	Zendesk                 []*ZendeskIntegration                 `json:"zendesk"`
+	GoogleCalendar          []*GoogleCalendarIntegration          `json:"google_calendar"`
+	GoogleWorkspace         []*GoogleWorkspaceIntegration         `json:"google_workspace,omitempty"`
+	GoogleConditionalAccess []*GoogleConditionalAccessIntegration `json:"google_conditional_access,omitempty"`
 	// CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted
 	// to vouch for certificate requests. Closed by default: while empty, no IdP credentials are
 	// accepted. Once populated, credentials are mandatory and the endpoint must be listed. URLs are
@@ -769,6 +785,49 @@ func ValidateGoogleWorkspaceIntegrations(intgs []*GoogleWorkspaceIntegration, in
 		intg.ImpersonatedUserEmail = strings.TrimSpace(intg.ImpersonatedUserEmail)
 		if intg.ImpersonatedUserEmail == "" {
 			invalid.Append("integrations.google_workspace.impersonated_user_email", "impersonated_user_email is required")
+		}
+	}
+}
+
+// googleCustomerIDRegexp matches a Google Workspace customer ID. The ID ends up
+// in Cloud Identity resource names, so only alphanumerics are accepted.
+var googleCustomerIDRegexp = regexp.MustCompile(`^C[A-Za-z0-9]{6,}$`)
+
+// ValidateGoogleConditionalAccessIntegrations validates the Google conditional
+// access integration: a single entry, a customer ID, an admin email, and a
+// service account key. A masked or omitted key is accepted only when keyStored
+// is true, because the stored key is kept in that case.
+func ValidateGoogleConditionalAccessIntegrations(intgs []*GoogleConditionalAccessIntegration, keyStored bool, invalid *InvalidArgumentError) {
+	if len(intgs) > 1 {
+		invalid.Append("integrations.google_conditional_access", "integrating with >1 Google customer is not supported.")
+	}
+	for _, intg := range intgs {
+		intg.CustomerID = strings.TrimSpace(intg.CustomerID)
+		if !googleCustomerIDRegexp.MatchString(intg.CustomerID) {
+			invalid.Append("integrations.google_conditional_access.customer_id",
+				`customer_id must be a Google customer ID starting with "C", e.g. "C01234abc"`)
+		}
+		intg.AdminEmail = strings.TrimSpace(intg.AdminEmail)
+		if addr, err := mail.ParseAddress(intg.AdminEmail); err != nil || addr.Address != intg.AdminEmail {
+			invalid.Append("integrations.google_conditional_access.admin_email", "admin_email must be a valid email address")
+		}
+
+		if intg.ApiKey.IsEmpty() || intg.ApiKey.IsMasked() {
+			if !keyStored {
+				invalid.Append("integrations.google_conditional_access.api_key_json", "api_key_json is required")
+			}
+			continue
+		}
+		for _, field := range []string{GoogleCalendarEmail, GoogleCalendarPrivateKey} {
+			v := strings.TrimSpace(intg.ApiKey.Values[field])
+			if v == "" {
+				invalid.Append(
+					"integrations.google_conditional_access.api_key_json."+field,
+					fmt.Sprintf("%s is required", field),
+				)
+				continue
+			}
+			intg.ApiKey.Values[field] = v
 		}
 	}
 }

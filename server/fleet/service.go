@@ -1702,6 +1702,10 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	// ConditionalAccessGoogleGet returns the Google conditional access integration, or nil if there's none.
+	ConditionalAccessGoogleGet(ctx context.Context) (*ConditionalAccessGoogleIntegration, error)
+	// ConditionalAccessGoogleDelete disconnects Google conditional access and clears its settings.
+	ConditionalAccessGoogleDelete(ctx context.Context) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access

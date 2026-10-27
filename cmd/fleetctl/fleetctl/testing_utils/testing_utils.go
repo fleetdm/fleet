@@ -100,6 +100,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
+	ds.ConditionalAccessGoogleGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+		return nil, &notFoundError{}
+	}
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}

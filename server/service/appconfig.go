@@ -172,6 +172,17 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
 	}
 
+	googleIntegration, err := svc.ConditionalAccessGoogleGet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	appConfig.ConditionalAccess.GoogleCustomerID = ""
+	appConfig.ConditionalAccess.GoogleConnectionConfigured = false
+	if googleIntegration != nil {
+		appConfig.ConditionalAccess.GoogleCustomerID = googleIntegration.CustomerID
+		appConfig.ConditionalAccess.GoogleConnectionConfigured = googleIntegration.SetupDone
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -796,6 +807,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Google conditional access: the service account key is never persisted in the
+	// AppConfig JSON (it's stored encrypted in mdm_config_assets), and saving changed
+	// settings connects to Google and fleetdm.com.
+	googleCAUpdate, err := svc.planGoogleConditionalAccessUpdate(ctx,
+		newAppConfig.Integrations.GoogleConditionalAccess, oldAppConfig.Integrations.GoogleConditionalAccess,
+		appConfig, lic, invalid)
+	if err != nil {
+		return nil, err
+	}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -1191,6 +1212,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	if err := svc.verifyGoogleConditionalAccess(ctx, googleCAUpdate); err != nil {
+		return nil, err
+	}
+
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
 	if windowsEnrollmentDefined {
 		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
@@ -1366,6 +1391,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
 		}
+	}
+
+	if err := svc.applyGoogleConditionalAccess(ctx, googleCAUpdate); err != nil {
+		return nil, err
 	}
 
 	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.

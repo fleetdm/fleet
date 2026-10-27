@@ -316,6 +316,9 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
+	ds.ConditionalAccessGoogleGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	// Setup experience
 	ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {

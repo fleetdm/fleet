@@ -212,6 +212,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
 	}
 
+	// Test servers never reach Google unless a test injects a factory.
+	conditionalAccessGoogleClientFactory := service.ConditionalAccessGoogleClientFactory(noopConditionalAccessGoogleClientFactory)
+	var conditionalAccessGoogleProxy service.ConditionalAccessGoogleProxy
+	if len(opts) > 0 {
+		if opts[0].ConditionalAccessGoogleClientFactory != nil {
+			conditionalAccessGoogleClientFactory = opts[0].ConditionalAccessGoogleClientFactory
+		}
+		conditionalAccessGoogleProxy = opts[0].ConditionalAccessGoogleProxy
+	}
+
 	svc, err := service.NewService(
 		ctx,
 		ds,
@@ -236,6 +246,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		conditionalAccessGoogleProxy,
+		conditionalAccessGoogleClientFactory,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,
@@ -328,4 +340,12 @@ func (noopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]
 
 func noopMicrosoftGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
 	return noopMicrosoftGraphClient{}, nil
+}
+
+type noopConditionalAccessGoogleClient struct{}
+
+func (noopConditionalAccessGoogleClient) CheckDelegation(context.Context) error { return nil }
+
+func noopConditionalAccessGoogleClientFactory(context.Context, []byte, string, string) (service.ConditionalAccessGoogleClient, error) {
+	return noopConditionalAccessGoogleClient{}, nil
 }

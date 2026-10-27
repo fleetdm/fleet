@@ -96,6 +96,11 @@ type ConditionalAccessSettings struct {
 	// for "Conditional access" on Entra and Fleet.
 	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
 
+	// GoogleCustomerID and GoogleConnectionConfigured mirror the
+	// google_conditional_access_integrations row, like the Entra fields.
+	GoogleCustomerID           string `json:"google_customer_id"`
+	GoogleConnectionConfigured bool   `json:"google_connection_configured"`
+
 	// Okta conditional access settings - using optjson for partial updates
 	// All four fields must be set together or all must be empty.
 	OktaIDPID                       optjson.String `json:"okta_idp_id"`
@@ -1257,6 +1262,10 @@ func (c *AppConfig) Obfuscate() {
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
 	}
+	// The key lives in mdm_config_assets whenever the entry exists, so always mask.
+	for _, gcaIntegration := range c.Integrations.GoogleConditionalAccess {
+		gcaIntegration.ApiKey.SetMasked()
+	}
 	// Integrations.CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs are deliberately not masked: no secret,
 	// just URLs and public OAuth client IDs.
 	// The Apple account provisioning IdP client secret lives in
@@ -1367,6 +1376,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			if len(g.ApiKey.Values) > 0 {
 				clone.Integrations.GoogleWorkspace[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
 				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
+			}
+		}
+	}
+	if len(c.Integrations.GoogleConditionalAccess) > 0 {
+		clone.Integrations.GoogleConditionalAccess = make([]*GoogleConditionalAccessIntegration, len(c.Integrations.GoogleConditionalAccess))
+		for i, g := range c.Integrations.GoogleConditionalAccess {
+			gca := *g
+			clone.Integrations.GoogleConditionalAccess[i] = &gca
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleConditionalAccess[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleConditionalAccess[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
 	}

@@ -249,6 +249,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
 
+		stats.GoogleConditionalAccessConfigured, err = ds.googleConditionalAccessConfigured(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "google conditional access configured")
+		}
+
 		stats.ResultLogDestination = config.Osquery.ResultLogPlugin
 		stats.StatusLogDestination = config.Osquery.StatusLogPlugin
 		stats.AuditLogDestination = config.Activity.AuditLogPlugin
@@ -437,6 +442,21 @@ func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context) (bool
 			return false, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	return integration.SetupDone, nil
+}
+
+func (ds *Datastore) googleConditionalAccessConfigured(ctx context.Context) (bool, error) {
+	// Gate on the current license tier, like entraConditionalAccessConfigured.
+	if !license.IsPremium(ctx) {
+		return false, nil
+	}
+	integration, err := ds.ConditionalAccessGoogleGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "failed to load the google conditional access integration")
 	}
 	return integration.SetupDone, nil
 }
