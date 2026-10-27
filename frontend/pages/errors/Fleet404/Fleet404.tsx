@@ -4,7 +4,7 @@ import Button from "components/buttons/Button";
 import { SUPPORT_LINK } from "utilities/constants";
 
 // @ts-ignore
-import illustration from "../../../../assets/images/404.png";
+import illustration from "../../../assets/images/404.png";
 
 const baseClass = "fleet-404";
 

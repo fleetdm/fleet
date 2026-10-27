@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -432,6 +434,55 @@ func TestWindowsTOSRedirectURIAllowed(t *testing.T) {
 			require.Equal(t, tc.want, windowsTOSRedirectURIAllowed(tc.redirectURI))
 		})
 	}
+}
+
+func TestGetMDMWindowsTOSContent(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	svc, _ := newTestService(t, new(mock.DataStore), nil, nil)
+	render := func(t *testing.T, serveCSP bool, redirectURI string) (string, http.Header) {
+		var content string
+		var err error
+		h := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content, err = svc.GetMDMWindowsTOSContent(r.Context(), redirectURI, "req-id")
+		}))
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		require.NoError(t, err)
+		return content, rec.Header()
+	}
+
+	for _, tc := range []struct {
+		name        string
+		redirectURI string
+	}{
+		{"ms-appx-web", "ms-appx-web://Microsoft.AAD.BrokerPlugin"},
+		{"ms-aadj-redir", "ms-aadj-redir://auth/mdm"},
+		{"https", "https://enroll.example.com/continue"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			content, _ := render(t, true, tc.redirectURI)
+			require.Contains(t, content, `href="`+tc.redirectURI+`?IsAccepted=true&amp;OpaqueBlob=req-id"`)
+			// CSP blocks inline scripts and event handlers, so accepting must not rely on them.
+			require.NotContains(t, content, "<script")
+			require.NotContains(t, strings.ToLower(content), "onclick")
+		})
+	}
+
+	t.Run("CSP enabled", func(t *testing.T) {
+		content, header := render(t, true, "ms-aadj-redir://auth/mdm")
+		nonce := regexp.MustCompile(`style-src 'self' 'nonce-([^']+)'`).FindStringSubmatch(header.Get("Content-Security-Policy"))
+		require.Len(t, nonce, 2)
+		require.Contains(t, content, `<style nonce="`+nonce[1]+`">`)
+	})
+
+	t.Run("CSP disabled", func(t *testing.T) {
+		content, header := render(t, false, "ms-aadj-redir://auth/mdm")
+		require.Empty(t, header.Get("Content-Security-Policy"))
+		require.Contains(t, content, `<style nonce="disabled">`)
+	})
 }
 
 func TestValidSyncMLCmdXml(t *testing.T) {

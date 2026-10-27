@@ -1162,6 +1162,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if googleCAS, ok := result["google_cas"]; ok && googleCAS != nil {
+			for _, intg := range googleCAS.([]any) {
+				intg.(map[string]any)["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google CAS service account key JSON here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.google_cas.api_key_json",
+				})
+			}
+		}
 	}
 
 	return result, nil
@@ -1923,11 +1932,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "Description"):                  policy.Description,
 			jsonFieldName(t, "Resolution"):                   policy.Resolution,
 			jsonFieldName(t, "Platform"):                     policy.Platform,
-			jsonFieldName(t, "Critical"):                     policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
-			jsonFieldName(t, "Hidden"):                       policy.Hidden,
+		}
+		if cmd.AppConfig.License.IsPremium() {
+			policySpec[jsonFieldName(t, "Critical")] = policy.Critical
+			policySpec[jsonFieldName(t, "Hidden")] = policy.Hidden
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {

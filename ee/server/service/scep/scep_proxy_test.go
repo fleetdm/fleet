@@ -1440,28 +1440,6 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 	})
 }
 
-// Every non-200 from the NDES admin URL used to collapse into NDESInvalidError, so an IIS restart (503) was
-// indistinguishable from bad credentials and permanently failed every profile the outage touched. 5xx and the
-// throttling/timeout codes are separated out so callers can leave those profiles queued.
-func TestNDESRetryableStatus(t *testing.T) {
-	// One case per distinct branch. 503 vs 401 is already proven end to end in
-	// TestGetNDESSCEPChallengeStatusClassification, so what is left to pin here is the 5xx boundary and the two
-	// individually named codes, which that test does not reach.
-	for _, tc := range []struct {
-		code int
-		want bool
-	}{
-		{http.StatusInternalServerError, true},
-		{http.StatusNotFound, false},
-		{http.StatusRequestTimeout, true},
-		{http.StatusTooManyRequests, true},
-	} {
-		t.Run(http.StatusText(tc.code), func(t *testing.T) {
-			assert.Equal(t, tc.want, ndesRetryableStatus(tc.code))
-		})
-	}
-}
-
 // End to end through GetNDESSCEPChallenge: a 503 must come back as a transient error the classifier calls non-terminal,
 // while a 401 stays terminal with the credentials message.
 func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {

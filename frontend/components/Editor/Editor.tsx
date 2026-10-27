@@ -34,6 +34,10 @@ export interface IEditorProps {
   labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
+  /** Visually and functionally disables the editor: forces `readOnly` and
+   * applies the shared greyed-out treatment (opacity + grayscale). Use for
+   * form-field-style disabled states (e.g. gitops mode). */
+  disabled?: boolean;
   /**
    * Help text to display below the editor.
    */
@@ -104,6 +108,7 @@ const Editor = ({
   value,
   defaultValue,
   readOnly = false,
+  disabled = false,
   enableCopy = false,
   copyButtonLocation = "overlay",
   wrapEnabled = false,
@@ -123,6 +128,7 @@ const Editor = ({
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
+    [`${baseClass}--disabled`]: disabled,
   });
 
   // Track the editor's displayed content so copy works for uncontrolled
@@ -233,13 +239,18 @@ const Editor = ({
         fontSize={14}
         theme="fleet"
         width="100%"
-        readOnly={readOnly}
+        readOnly={readOnly || disabled}
         minLines={minLines}
         maxLines={maxLines}
         showPrintMargin={showPrintMargin}
         placeholder={placeholder}
         editorProps={{ $blockScrolling: Infinity }}
-        setOptions={{ textInputAriaLabel: ariaLabel ?? label }}
+        setOptions={{
+          textInputAriaLabel: ariaLabel ?? label,
+          // Fleet doesn't serve Ace's worker-*.js scripts and validates content
+          // itself, so the JSON/XML syntax workers would only 404.
+          useWorker: false,
+        }}
         value={value}
         defaultValue={defaultValue}
         tabSize={2}
