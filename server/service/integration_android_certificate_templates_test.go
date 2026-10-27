@@ -142,7 +142,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      new("1"),
 		},
 	}
 	androidHostInput.SetNodeKey("android/" + hostUUID)
@@ -210,7 +210,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      new("1"),
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
