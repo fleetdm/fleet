@@ -4732,13 +4732,16 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
-func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
 	const (
 		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 	)
 
+	var resentCerts []fleet.ActivityTypeResentCertificate
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+
 		// Only a device-reported mapping takes its SCIM link with it, or the
 		// device-asserted link would outlive the manual value. The caller then
 		// links the user matching the new value.
@@ -4748,24 +4751,66 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			hostID, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "check for Entra join device mapping")
 		}
+		// A linked SCIM user supplies the IdP username, and adding or removing
+		// the link resends the profiles that use it.
+		var hadSCIMUser bool
+		if err := sqlx.GetContext(ctx, tx, &hadSCIMUser,
+			`SELECT EXISTS (SELECT 1 FROM host_scim_user WHERE host_id = ?)`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check for host SCIM user mapping")
+		}
+		// the IdP username variables resolve from the mappings replaced below
+		var prevUsernames []string
+		if err := sqlx.SelectContext(ctx, tx, &prevUsernames,
+			`SELECT email FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`,
+			hostID, fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
+			return ctxerr.Wrap(ctx, err, "get existing IDP usernames")
+		}
+		if len(prevUsernames) == 0 {
+			// no mapping resolves the same as an empty one
+			prevUsernames = []string{""}
+		}
+		usernameChanged := slices.ContainsFunc(prevUsernames, func(prev string) bool {
+			return !strings.EqualFold(prev, email)
+		})
 		// the manual mapping replaces the authenticated and device-reported ones
 		if _, err := tx.ExecContext(ctx, delStmt, hostID,
 			fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
 		if hadEntraJoin {
-			if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			certs, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 			}
+			resentCerts = append(resentCerts, certs...)
 		}
 
 		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 
+		if !hadSCIMUser && usernameChanged {
+			// without a SCIM user, the IdP username variables resolve to this value
+			vars := []fleet.FleetVarName{
+				fleet.FleetVarHostEndUserIDPUsername,
+				fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			}
+			certs, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
+			if err != nil {
+				return err
+			}
+			if err := triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID}, vars); err != nil {
+				return err
+			}
+			resentCerts = append(resentCerts, certs...)
+		}
+
 		return nil
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {

@@ -428,7 +428,9 @@ type Datastore interface {
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
-	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// When the host has no SCIM user, it resends the profiles that use the IdP username.
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
