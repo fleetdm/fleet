@@ -82,6 +82,12 @@
     padding: 0;
   }
 
+  // The design's Status/Error red, not the alert button's brighter one.
+  &__stop.button--alert:not(:hover):not(:active) {
+    background-color: $ui-error;
+    border-color: $ui-error;
+  }
+
   // Solid gray whatever the reason, not the faded variant color.
   &__action-button.button--disabled {
     opacity: 1;
