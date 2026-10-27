@@ -2891,12 +2891,31 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
+		uuidBefore := host.UUID
 		if err := query.IngestFunc(ctx, svc.logger, host, rows); err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
+		}
+		if uuidBefore == "" && host.UUID != "" {
+			svc.unsetUUIDOwnedByAnotherMDMHost(ctx, host)
 		}
 	}
 
 	return nil
+}
+
+func (svc *Service) unsetUUIDOwnedByAnotherMDMHost(ctx context.Context, host *fleet.Host) {
+	mdmHostID, err := svc.ds.OtherMDMHostIDWithUUID(ctx, host.UUID, host.ID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "checking reported host UUID against MDM hosts", "err", err, "host_id", host.ID)
+		ctxerr.Handle(ctx, err)
+		host.UUID = ""
+		return
+	}
+	if mdmHostID != 0 {
+		svc.logger.WarnContext(ctx, "ignoring a reported UUID that belongs to another MDM host",
+			"host_id", host.ID, "reported_uuid", host.UUID, "mdm_host_id", mdmHostID)
+		host.UUID = ""
+	}
 }
 
 // filterPolicyResults filters out policies that aren't configured for webhook automation.
