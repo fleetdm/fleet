@@ -118,7 +118,11 @@ describe("DeleteHostModal", () => {
   });
 
   it("pluralizes the per-platform copy for a same-platform selection", () => {
-    renderModal({ selectedHostIds: [1, 2, 3], platform: "ipados" });
+    renderModal({
+      selectedHostIds: [1, 2, 3],
+      platform: "ipados",
+      isMdmEnrolledInFleet: true,
+    });
     expect(screen.getByText("3 hosts")).toBeVisible();
     expect(
       screen.getByText(
@@ -170,7 +174,11 @@ describe("DeleteHostModal", () => {
   });
 
   it("renders the iOS and iPadOS copy", () => {
-    renderModal({ hostName: "iPad", platform: "ipados" });
+    renderModal({
+      hostName: "iPad",
+      platform: "ipados",
+      isMdmEnrolledInFleet: true,
+    });
     expect(
       screen.getByText(
         "This will remove all host data from Fleet. It won't remove data from the host."

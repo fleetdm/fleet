@@ -4,7 +4,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import { AppContext } from "context/app";
-import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
@@ -15,6 +15,8 @@ import {
 } from "interfaces/platform";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import strUtils from "utilities/strings";
+
+import { getMobileReEnrollAction } from "./helpers";
 
 const baseClass = "delete-host-modal";
 
@@ -138,21 +140,24 @@ const DeleteHostModal = ({
       return null;
     }
     if (isIPadOrIPhone(platform) || isAndroid(platform)) {
-      // Company-owned Android hosts have no Unenroll action, only Wipe.
-      const action =
-        isAndroid(platform) && !isAndroidBYO(mdmEnrollmentStatus ?? null)
-          ? "wipe"
-          : "unenroll";
+      const action = getMobileReEnrollAction(
+        platform,
+        !!isMdmEnrolledInFleet,
+        mdmEnrollmentStatus ?? null
+      );
       return (
         <>
           <p>
             {removeAllDataSentence(" from Fleet")} It won&apos;t remove data
             from {isPlural ? "the hosts" : "the host"}.
+            {!action && <> {learnMoreLink}</>}
           </p>
-          <p>
-            {theseHosts} will re-enroll unless you {action} {them} first.{" "}
-            {learnMoreLink}
-          </p>
+          {action && (
+            <p>
+              {theseHosts} will re-enroll unless you {action} {them} first.{" "}
+              {learnMoreLink}
+            </p>
+          )}
         </>
       );
     }

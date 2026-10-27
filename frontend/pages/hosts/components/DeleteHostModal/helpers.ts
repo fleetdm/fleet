@@ -1,5 +1,9 @@
 import { IHost } from "interfaces/host";
-import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isAndroidBYO,
+  isAndroidCOBO,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
@@ -35,11 +39,30 @@ const deleteCopyGroup = (platform: string): DeleteCopyGroup => {
 };
 
 /**
+ * What an admin must do before deleting an iOS, iPadOS, or Android host so it
+ * doesn't re-enroll. Null when MDM is off or the Android ownership isn't
+ * confirmed, so the modal doesn't tell admins to wipe a personal device.
+ * Company-owned Android hosts have no Unenroll action, only Wipe.
+ */
+export const getMobileReEnrollAction = (
+  platform: string,
+  isMdmEnrolledInFleet: boolean,
+  mdmEnrollmentStatus: MdmEnrollmentStatus | null
+): "wipe" | "unenroll" | null => {
+  if (isAndroid(platform)) {
+    if (isAndroidCOBO(mdmEnrollmentStatus)) return "wipe";
+    if (isAndroidBYO(mdmEnrollmentStatus)) return "unenroll";
+    return null;
+  }
+  return isMdmEnrolledInFleet ? "unenroll" : null;
+};
+
+/**
  * Returns the platform and MDM state shared by every selected host, so the
  * delete modal can show the per-platform copy. Returns undefined when the
  * selection is mixed, in which case the modal falls back to the generic bulk
- * copy. MDM state only changes the copy for macOS and Android, so it is
- * ignored for other platforms.
+ * copy. MDM state only changes the copy for macOS, iOS, iPadOS, and Android,
+ * so it is ignored for other platforms.
  */
 export const getSharedDeleteHostTarget = (
   hosts: IHost[]
@@ -61,10 +84,18 @@ export const getSharedDeleteHostTarget = (
     if (deleteCopyGroup(host.platform) !== group) {
       return false;
     }
-    if (group === "android") {
+    if (group === "android" || group === "ios") {
       return (
-        isAndroidBYO(host.mdm?.enrollment_status ?? null) ===
-        isAndroidBYO(target.mdmEnrollmentStatus)
+        getMobileReEnrollAction(
+          host.platform,
+          !!host.mdm?.connected_to_fleet,
+          host.mdm?.enrollment_status ?? null
+        ) ===
+        getMobileReEnrollAction(
+          target.platform,
+          target.isMdmEnrolledInFleet,
+          target.mdmEnrollmentStatus
+        )
       );
     }
     if (group !== "macos") {
