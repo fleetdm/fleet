@@ -29,7 +29,7 @@ import {
 } from "../HostSoftwareLibrary/helpers";
 
 /** Written as `types` on a macOS host when nothing is selected, since an absent
- * `types` re-applies the "macOS app" default. parseSoftwareTypesParam drops it
+ * `types` re-applies the "App (macOS)" default. parseSoftwareTypesParam drops it
  * as an unknown key, leaving an empty selection. */
 export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
 

@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -9,7 +11,71 @@ import (
 )
 
 func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
-	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
+
+	t.Run("ejbca", func(t *testing.T) {
+		grouped, err := ValidateCertificateAuthoritiesSpec(map[string]any{
+			"ejbca": []any{map[string]any{
+				"name": "ejbca", "url": "https://ejbca.example.com", "client_p12": "p12", "password": "pw", "trust_ca_bundle": "bundle",
+				"certificate_authority_name": "ca", "certificate_profile_name": "cert", "end_entity_profile_name": "entity",
+				"certificate_common_name": "cn", "username_template": "user", "certificate_user_principal_names": []any{"upn"},
+			}},
+		})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{{
+			Name: "ejbca", URL: "https://ejbca.example.com", ClientP12: "p12", Password: "pw", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+			CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+		}}, grouped.EJBCA)
+
+		grouped, err = ValidateCertificateAuthoritiesSpec(map[string]any{})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{}, grouped.EJBCA)
+	})
+}
+
+// fullEJBCA returns an EJBCA CA with every field set, other than the PKCS#12 and its password, which are only inputs.
+func fullEJBCA() EJBCA {
+	return EJBCA{
+		ID: 1, Name: "ejbca", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+		CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+		CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+	}
+}
+
+func TestEJBCAEquals(t *testing.T) {
+	base := fullEJBCA()
+	same := base
+	same.ID, same.ClientP12, same.Password = 2, "p12", "pw"
+	require.True(t, base.Equals(&same))
+
+	// Every other field counts. A field that is added without being set in fullEJBCA, or compared, fails here.
+	typ := reflect.TypeFor[EJBCA]()
+	for i := range typ.NumField() {
+		name := typ.Field(i).Name
+		if slices.Contains([]string{"ID", "ClientP12", "Password"}, name) {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			changed := base
+			reflect.ValueOf(&changed).Elem().Field(i).SetZero()
+			require.False(t, base.Equals(&changed))
+		})
+	}
+}
+
+func TestEJBCACertificateAuthority(t *testing.T) {
+	full := fullEJBCA()
+	stored := full.CertificateAuthority()
+	require.Equal(t, string(CATypeEJBCA), stored.Type)
+	require.Equal(t, full, stored.EJBCA())
+
+	// The empty optional fields are stored as NULL.
+	minimal := EJBCA{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"}
+	stored = minimal.CertificateAuthority()
+	require.Equal(t, minimal, stored.EJBCA())
+	require.Nil(t, stored.TrustCABundlePEM)
+	require.Nil(t, stored.EJBCAUsernameTemplate)
+	require.Nil(t, stored.CertificateUserPrincipalNames)
 }
 
 func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
@@ -404,5 +470,36 @@ func TestGoogleCASCAEquals(t *testing.T) {
 		c := a
 		change(&c)
 		require.False(t, a.Equals(&c))
+	}
+}
+
+func TestCertificateAuthorityGoogleCASCA(t *testing.T) {
+	full := func() CertificateAuthority {
+		return CertificateAuthority{
+			ID: 7, Type: string(CATypeGoogleCAS), Name: new("GOOGLE_WIFI"), URL: new(""),
+			GoogleCASProject: new("p"), GoogleCASLocation: new("l"), GoogleCASCAPool: new("c"), GoogleCASAPIKeyJSON: new("k"),
+		}
+	}
+	ca := full()
+	got, err := ca.GoogleCASCA()
+	require.NoError(t, err)
+	require.Equal(t, GoogleCASCA{ID: 7, Name: "GOOGLE_WIFI", Project: "p", Location: "l", CAPool: "c", APIKeyJSON: "k"}, got)
+
+	for name, tc := range map[string]struct {
+		change  func(*CertificateAuthority)
+		wantErr string
+	}{
+		"another type":   {func(ca *CertificateAuthority) { ca.Type = string(CATypeHydrant) }, "is not a Google CAS certificate authority"},
+		"no project":     {func(ca *CertificateAuthority) { ca.GoogleCASProject = nil }, "does not have a Google Cloud project ID configured"},
+		"empty location": {func(ca *CertificateAuthority) { ca.GoogleCASLocation = new("") }, "does not have a location configured"},
+		"no CA pool":     {func(ca *CertificateAuthority) { ca.GoogleCASCAPool = nil }, "does not have a CA pool configured"},
+		"no key":         {func(ca *CertificateAuthority) { ca.GoogleCASAPIKeyJSON = nil }, "does not have a service account key configured"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ca := full()
+			tc.change(&ca)
+			_, err := ca.GoogleCASCA()
+			require.ErrorContains(t, err, tc.wantErr)
+		})
 	}
 }

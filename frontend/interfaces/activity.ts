@@ -84,6 +84,9 @@ export enum ActivityType {
   AddedCustomESTProxy = "added_custom_est_proxy",
   DeletedCustomESTProxy = "deleted_custom_est_proxy",
   EditedCustomESTProxy = "edited_custom_est_proxy",
+  AddedGoogleCAS = "added_google_cas",
+  DeletedGoogleCAS = "deleted_google_cas",
+  EditedGoogleCAS = "edited_google_cas",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -680,6 +683,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted certificate authority (CA): custom EST",
   [ActivityType.EditedCustomESTProxy]:
     "Edited certificate authority (CA): custom EST",
+  [ActivityType.AddedGoogleCAS]: "Added certificate authority (CA): Google CAS",
+  [ActivityType.DeletedGoogleCAS]:
+    "Deleted certificate authority (CA): Google CAS",
+  [ActivityType.EditedGoogleCAS]:
+    "Edited certificate authority (CA): Google CAS",
   [ActivityType.CreatedAndroidProfile]: "Added configuration profile: Android",
   [ActivityType.DeletedAndroidProfile]:
     "Deleted configuration profile: Android",

@@ -187,6 +187,33 @@ func (c *CertificateAuthority) EJBCA() EJBCA {
 	return ejbca
 }
 
+// CertificateAuthority returns the stored form of the EJBCA CA. The required fields are always set, and the empty optional username
+// template, trust bundle, and UPN list are stored as NULL.
+func (e *EJBCA) CertificateAuthority() *CertificateAuthority {
+	ca := &CertificateAuthority{
+		ID:                          e.ID,
+		Type:                        string(CATypeEJBCA),
+		Name:                        &e.Name,
+		URL:                         &e.URL,
+		MTLSCertPEM:                 &e.MTLSCertPEM,
+		MTLSKeyPEM:                  &e.MTLSKeyPEM,
+		EJBCACAName:                 &e.CertificateAuthorityName,
+		EJBCACertificateProfileName: &e.CertificateProfileName,
+		EJBCAEndEntityProfileName:   &e.EndEntityProfileName,
+		CertificateCommonName:       &e.CertificateCommonName,
+	}
+	if e.TrustCABundlePEM != "" {
+		ca.TrustCABundlePEM = &e.TrustCABundlePEM
+	}
+	if e.UsernameTemplate != "" {
+		ca.EJBCAUsernameTemplate = &e.UsernameTemplate
+	}
+	if len(e.CertificateUserPrincipalNames) > 0 {
+		ca.CertificateUserPrincipalNames = &e.CertificateUserPrincipalNames
+	}
+	return ca
+}
+
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
 // their credentials in different fields.
 func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
@@ -224,6 +251,34 @@ func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
 		URL:      *c.URL,
 		Username: *username,
 		Password: *password,
+	}, nil
+}
+
+// GoogleCASCA returns the Google CAS settings of a Google CAS CA, which needs all of them to issue a certificate.
+func (c *CertificateAuthority) GoogleCASCA() (GoogleCASCA, error) {
+	if CAType(c.Type) != CATypeGoogleCAS {
+		return GoogleCASCA{}, fmt.Errorf("Certificate authority of type %s is not a Google CAS certificate authority.", c.Type)
+	}
+	for _, field := range []struct {
+		value *string
+		label string
+	}{
+		{c.GoogleCASProject, "Google Cloud project ID"},
+		{c.GoogleCASLocation, "location"},
+		{c.GoogleCASCAPool, "CA pool"},
+		{c.GoogleCASAPIKeyJSON, "service account key"},
+	} {
+		if field.value == nil || *field.value == "" {
+			return GoogleCASCA{}, fmt.Errorf("Certificate authority does not have a %s configured.", field.label)
+		}
+	}
+	return GoogleCASCA{
+		ID:         c.ID,
+		Name:       ptr.ValOrZero(c.Name),
+		Project:    *c.GoogleCASProject,
+		Location:   *c.GoogleCASLocation,
+		CAPool:     *c.GoogleCASCAPool,
+		APIKeyJSON: GoogleCASKeyJSON(*c.GoogleCASAPIKeyJSON),
 	}, nil
 }
 
@@ -657,7 +712,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
-	EJBCA           []EJBCA                `json:"-"` // not exported or applied by GitOps yet, so it is kept out of the spec until it can be
+	EJBCA           []EJBCA                `json:"ejbca"`
 	GoogleCAS       []GoogleCASCA          `json:"google_cas"`
 }
 
@@ -884,6 +939,22 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep cannot be parsed: %w", err)
 		}
 		groupedCAs.Smallstep = smallstepData
+	}
+
+	if ejbcaCA, ok := spec.(map[string]any)["ejbca"]; !ok || ejbcaCA == nil {
+		groupedCAs.EJBCA = []EJBCA{}
+	} else {
+		// We unmarshal EJBCA integration into its dedicated type for additional validation
+		ejbcaJSON, err := json.Marshal(ejbcaCA)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be marshalled into JSON: %w", err)
+		}
+		var ejbcaData []EJBCA
+		err = json.Unmarshal(ejbcaJSON, &ejbcaData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be parsed: %w", err)
+		}
+		groupedCAs.EJBCA = ejbcaData
 	}
 
 	if googleCAS, ok := spec.(map[string]any)["google_cas"]; !ok || googleCAS == nil {
