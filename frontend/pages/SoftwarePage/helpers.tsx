@@ -446,11 +446,73 @@ export const buildSelectedLabelsArray = (
     .filter(([, selected]) => selected)
     .map(([name]) => name);
 
+/** Variables that are valid in configuration profiles but NOT in managed
+ * configuration (iOS/iPadOS App Store app configuration, Android managed
+ * configuration). */
+const PROFILE_ONLY_VARIABLE_PATTERNS = [
+  /^NDES_SCEP_(CHALLENGE|PROXY_URL)$/,
+  /^CUSTOM_SCEP_(CHALLENGE|PROXY_URL)_/,
+  /^SCEP_RENEWAL_ID$/,
+  /^DIGICERT_(DATA|PASSWORD)_/,
+  /^SCEP_WINDOWS_CERTIFICATE_ID$/,
+  /^SMALLSTEP_SCEP_(CHALLENGE|PROXY_URL)_/,
+];
+
+const isProfileOnlyVariable = (varNameWithoutPrefix: string): boolean =>
+  PROFILE_ONLY_VARIABLE_PATTERNS.some((p) => p.test(varNameWithoutPrefix));
+
+const rewriteUnsupportedFleetVarReason = (reason: string): string | null => {
+  const match = reason.match(/\$FLEET_VAR_(\w+)/);
+  if (!match) return null;
+  const [fullVarName, varNameWithoutPrefix] = match;
+  if (isProfileOnlyVariable(varNameWithoutPrefix)) {
+    return `Couldn't edit. Variable "${fullVarName}" isn't supported in managed configuration. It can only be used in configuration profiles.`;
+  }
+  return `Couldn't edit. Variable "${fullVarName}" doesn't exist.`;
+};
+
+const rewriteMissingFleetSecretReason = (reason: string): string | null => {
+  const regex = /"\$FLEET_SECRET_\w+"/g;
+  const varNames: string[] = [];
+  let m = regex.exec(reason);
+  while (m) {
+    varNames.push(m[0].replace(/"/g, ""));
+    m = regex.exec(reason);
+  }
+  if (varNames.length === 0) return null;
+  const plural = varNames.length > 1 ? "s" : "";
+  const verb = varNames.length > 1 ? "don't" : "doesn't";
+  const quoted = varNames.map((v) => `"${v}"`).join(", ");
+  return `Couldn't edit. Variable${plural} ${quoted} ${verb} exist.`;
+};
+
+/** Rewrites the backend's raw `$FLEET_VAR_` / `$FLEET_SECRET_` error reasons
+ * into user-facing copy. Returns `null` when the reason isn't a variable
+ * error, so callers can fall back to the raw reason or their own default. The
+ * BE validates FLEET_VAR variables one at a time and returns on the first
+ * unsupported one; FLEET_SECRET errors can carry multiple names. */
+export const rewriteVariableErrorReason = (reason: string): string | null => {
+  if (
+    reason.includes("unsupported variable") &&
+    reason.includes("$FLEET_VAR_")
+  ) {
+    return rewriteUnsupportedFleetVarReason(reason);
+  }
+  if (
+    reason.includes("missing from database") &&
+    reason.includes("$FLEET_SECRET_")
+  ) {
+    return rewriteMissingFleetSecretReason(reason);
+  }
+  return null;
+};
+
 /** Routes a submit error from the Add/Edit version modals: the backend's
- * duplicate-version-name conflict goes to the Name field; anything else
- * surfaces the server's reason in the toast (e.g. an unknown managed-config
- * key or unsupported `$FLEET_VAR_`), falling back to the generic message
- * only when the server returned no reason. */
+ * duplicate-version-name conflict goes to the Name field; `$FLEET_VAR_` /
+ * `$FLEET_SECRET_` errors are rewritten the same way Edit configuration does;
+ * anything else surfaces the server's reason in the toast (e.g. an unknown
+ * managed-config key), falling back to the generic message only when the
+ * server returned no reason. */
 export const routeVersionNameError = (
   e: unknown,
   setServerErrors: (errs: IFormErrors | null) => void,
@@ -459,9 +521,10 @@ export const routeVersionNameError = (
   const reason = getErrorReason(e);
   if (reason?.toLowerCase().includes("a version named")) {
     setServerErrors({ name: reason });
-  } else {
-    notify.error(reason || fallbackMsg, { response: e });
+    return;
   }
+  const rewritten = reason ? rewriteVariableErrorReason(reason) : null;
+  notify.error(rewritten || reason || fallbackMsg, { response: e });
 };
 
 /** Fans a `labelTargets` map into the three `labels_*` API fields. `onInactive`
