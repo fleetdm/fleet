@@ -1029,10 +1029,8 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 
 // applyHostSpecificPolicy records that the host's device applied its host-specific policy.
 func applyHostSpecificPolicy(t *testing.T, ds fleet.Datastore, host *fleet.AndroidHost) {
-	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE host_id = ?`, host.Host.UUID, host.Host.ID)
-		return err
-	})
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, ds.UpdateAndroidHost(t.Context(), host, false, false))
 }
 
 func createNonAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.Host {
