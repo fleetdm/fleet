@@ -2081,6 +2081,7 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2626,6 +2627,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 
 func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3422,6 +3424,7 @@ func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
 
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -3777,6 +3780,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			mockDuplicateStringGroupsExactMatch(ds)
 			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 			teamID = new(uint(1))
 			if c.freeTier {
@@ -4135,6 +4139,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
 			"",
+		},
+		{
+			"android software setting without premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+		},
+		{
+			"android software setting with premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",

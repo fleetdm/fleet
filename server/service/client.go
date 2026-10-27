@@ -839,6 +839,9 @@ func (c *Client) ApplyGroup(
 			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
 			// this HTTP request gets routed to another Fleet server.
 			profilesSpecOptions.NoCache = true
+			warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig,
+				&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(assumeEnabled)},
+				nil, fleet.DisplayNameNoTeam, fileContents, logfn)
 			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
@@ -847,6 +850,7 @@ func (c *Client) ApplyGroup(
 			} else {
 				logfn("[+] applied MDM profiles\n")
 			}
+			warnDeletedWindowsProfiles()
 		}
 	}
 
@@ -1152,9 +1156,12 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
+					warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig, teamProfilesOpts.DryRunAssumptions,
+						&teamID, tmName, profs, logfn)
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
+					warnDeletedWindowsProfiles()
 				}
 			}
 		}
@@ -3417,8 +3424,8 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	// Apply webhook settings for "No Team"
 	// If webhook_settings are not specified, they will be applied as disabled to clear existing settings
 	teamPayload := fleet.TeamPayload{
-		WebhookSettings: &fleet.TeamWebhookSettings{
-			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{
+			FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 				Enable: false,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
@@ -3431,7 +3438,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	if config.TeamSettings != nil {
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
 			fpw := extractFailingPoliciesWebhook(webhookSettings)
-			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = &fpw
 			teamPayload.WebhookSettings.HostActivitiesWebhook = extractHostActivitiesWebhook(webhookSettings)
 		}
 	}
@@ -3990,7 +3997,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					patchTeamID = *config.TeamID
 				}
 				if err := c.PatchFleet(patchTeamID, fleet.TeamPayload{
-					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
+					WebhookSettings: &fleet.TeamSpecWebhookSettings{FailingPoliciesWebhook: &fpw},
 				}); err != nil {
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
 				}

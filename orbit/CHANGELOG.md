@@ -1,3 +1,10 @@
+## 1.62.1 (Oct 22, 2026)
+
+* Security fix: this release stops fleetd from trusting the certificates affected by the eMudhra intermediate CA key compromise. We recommend updating all hosts.
+  * Orbit now updates the `certs.pem` CA bundle that osquery uses to connect to Fleet to the version embedded in orbit. Previously, hosts kept the bundle from the `fleetctl` version that built their package. Hosts that use `--fleet-certificate` are not affected.
+  * Removed the emSign ECC Root CA - G3, emSign Root CA - C1, and emSign ECC Root CA - C3 root certificates from the CA bundle embedded in Orbit, matching curl's CA bundle, following the eMudhra intermediate CA key compromise.
+  * Updated Go to 1.27.3.
+
 ## 1.62.0 (Oct 19, 2026)
 
 * Fixed an Orbit crash loop on hosts that were deleted from Fleet while offline: a failed device token rotation at startup is now logged instead of exiting, so Orbit can re-enroll.

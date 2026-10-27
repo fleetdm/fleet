@@ -131,6 +131,13 @@ module.exports = {
         hostCountsByPlatform.iPadOS,
         hostCountsByPlatform.Android,
         hostCountsByPlatform.ChromeOS,
+        statistics.numHostsFleetMDMEnrolledMacOS,
+        statistics.numHostsFleetMDMEnrolledWindows,
+        statistics.ssoConfiguredFleetUsers,
+        statistics.ssoConfiguredEndUsers,
+        statistics.idpSCIMConfigured,
+        statistics.idpGoogleWorkspaceConfigured,
+        statistics.mdmAndroidEnabled,
       ]);
     }//∞
 
@@ -151,6 +158,8 @@ module.exports = {
       'Okta conditional access configured', 'Conditional access enabled',
       'Conditional access bypass disabled', 'Entra conditional access configured',
       'macOS hosts', 'Windows hosts', 'Linux hosts', 'iOS hosts', 'iPadOS hosts', 'Android hosts', 'ChromeOS hosts',
+      'macOS hosts enrolled in Fleet MDM', 'Windows hosts enrolled in Fleet MDM', 'SSO configured (Fleet users)',
+      'SSO configured (end users)', 'IdP SCIM configured', 'IdP Google Workspace configured', 'Android MDM',
     ];
 
     let { google } = require('googleapis');

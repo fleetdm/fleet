@@ -14,7 +14,7 @@ import hostAPI from "services/entities/hosts";
 import { SUPPORT_LINK } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
-import LaptopMac from "../../../../../assets/images/laptop-mac.png";
+import LaptopMac from "../../../../assets/images/laptop-mac.png";
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
