@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet Device Management is the open-core company behind the leading open-source device management platform for Windows, Apple, Linux, Android, and more. Today, Fleet enrolls millions of laptops and servers at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to:
 - 🔌 AI-native device management that gives IT admins the power to transform themselves into 5x AI engineers, cutting KTLO so IT teams spend their time building the future. With AI and human review, IT teams can one-shot entire IT projects in minutes.
