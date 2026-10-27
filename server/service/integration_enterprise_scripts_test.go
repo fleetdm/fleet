@@ -102,6 +102,14 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
+	// the team/fleet id is only used for authorization, it isn't in the response
+	rawRes := s.Do("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK)
+	rawBody, err := io.ReadAll(rawRes.Body)
+	rawRes.Body.Close()
+	require.NoError(t, err)
+	require.NotContains(t, string(rawBody), "team_id")
+	require.NotContains(t, string(rawBody), "fleet_id")
+
 	// an async script doesn't care about timeouts
 	now := time.Now()
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
