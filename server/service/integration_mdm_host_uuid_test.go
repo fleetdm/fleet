@@ -84,19 +84,26 @@ func (s *integrationMDMTestSuite) TestEnrollWithUUIDOfAnotherMDMHost() {
 					s.requireOnlyHostWithUUID(t, host)
 				})
 
-				t.Run("osquery enroll, then report the UUID", func(t *testing.T) {
-					nodeKey := s.enrollOsqueryWithoutUUID(t, secret.secret, uuid.NewString(), host.Platform)
+				for _, report := range []struct {
+					name       string
+					systemInfo map[string]string
+				}{
+					{"osquery enroll, then report the UUID", map[string]string{"uuid": host.UUID}},
+					{"osquery enroll, then report the UUID with an invalid CPU count", map[string]string{"uuid": host.UUID, "cpu_physical_cores": "invalid"}},
+				} {
+					t.Run(report.name, func(t *testing.T) {
+						nodeKey := s.enrollOsqueryWithoutUUID(t, secret.secret, uuid.NewString(), host.Platform)
+						report.systemInfo["hardware_serial"] = mdmtest.RandSerialNumber()
 
-					s.postNoAuth(t, "/api/osquery/distributed/write", SubmitDistributedQueryResultsRequest{
-						NodeKey: nodeKey,
-						Results: map[string][]map[string]string{
-							"fleet_detail_query_system_info": {{"uuid": host.UUID, "hardware_serial": mdmtest.RandSerialNumber()}},
-						},
-						Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0},
-					}, http.StatusOK)
+						s.postNoAuth(t, "/api/osquery/distributed/write", SubmitDistributedQueryResultsRequest{
+							NodeKey:  nodeKey,
+							Results:  map[string][]map[string]string{"fleet_detail_query_system_info": {report.systemInfo}},
+							Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0},
+						}, http.StatusOK)
 
-					s.requireOnlyHostWithUUID(t, host)
-				})
+						s.requireOnlyHostWithUUID(t, host)
+					})
+				}
 
 				t.Run("orbit enroll", func(t *testing.T) {
 					s.postNoAuth(t, "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{

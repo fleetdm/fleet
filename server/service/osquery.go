@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/agentws"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -2892,11 +2893,12 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 
 	if query.IngestFunc != nil {
 		uuidBefore := host.UUID
-		if err := query.IngestFunc(ctx, svc.logger, host, rows); err != nil {
-			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
-		}
+		err := query.IngestFunc(ctx, svc.logger, host, rows)
 		if uuidBefore == "" && host.UUID != "" {
 			svc.unsetUUIDOwnedByAnotherMDMHost(ctx, host)
+		}
+		if err != nil {
+			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 	}
 
@@ -2904,7 +2906,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 }
 
 func (svc *Service) unsetUUIDOwnedByAnotherMDMHost(ctx context.Context, host *fleet.Host) {
-	mdmHostID, err := svc.ds.OtherMDMHostIDWithUUID(ctx, host.UUID, host.ID)
+	mdmHostID, err := svc.ds.OtherMDMHostIDWithUUID(ctxdb.RequirePrimary(ctx, true), host.UUID, host.ID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "checking reported host UUID against MDM hosts", "err", err, "host_id", host.ID)
 		ctxerr.Handle(ctx, err)
