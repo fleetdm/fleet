@@ -68,9 +68,17 @@
     align-self: flex-end;
   }
 
-  &__action-button {
+  // Sizes per the design: Send is smaller than the standard 36px icon
+  // button that Retry already is.
+  &__send {
     width: 32px;
     height: 32px;
+    padding: 0;
+  }
+
+  &__stop {
+    width: 36px;
+    height: 36px;
     padding: 0;
   }
 
