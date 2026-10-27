@@ -9,7 +9,7 @@ Fleet is dedicated to:
 - 🪟 unbundling the Microsoft suite. Customers choose their own IdP, EDR, office suite, and other tools, and keep tight integration with all of them.
 - 🐧 Linux, ARM PCs, and deskside computing. Fleet is the best Linux management option on the market and the premier solution for managing new NVIDIA DGX hardware.
 
-Compared with Intune, Jamf, Ivanti, and Workspace ONE, Fleet reduces maintenance effort by 50-80%, speeds up employee onboarding by 98% (often down to under 5-10 minutes), and cuts onboarding tickets and errors from 80-90% to less than 1%.
+With Fleet, IT and security teams reduce maintenance effort by 50-80%, speed up employee onboarding by 98% (often down to under 5-10 minutes), and cut onboarding tickets and errors from 80-90% to less than 1%, compared with Intune, Jamf, Ivanti, and Workspace ONE.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
