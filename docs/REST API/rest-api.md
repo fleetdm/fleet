@@ -7794,7 +7794,7 @@ Add a dynamic or manual label.
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name        | string | body | **Required**. The label's name. A global label's name can't match any global or fleet label's name.                                                                                                                                        |
+| name        | string | body | **Required**. The label's name. A global label's name can't match any global or fleet-level label's name.                                                                                                                                        |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
@@ -7866,7 +7866,7 @@ Updates the specified label. Note: Label queries, platforms, and fleets are immu
 | Name        | Type    | In   | Description                   |
 | ----------- | ------- | ---- | ----------------------------- |
 | id          | integer | path | **Required**. The label's id. |
-| name        | string  | body | The label's name. A fleet label's name must be unique within that fleet and can't match a global label's name. A global label's name can't match any global or fleet label's name. |
+| name        | string  | body | The label's name. A fleet label's name must be unique within that fleet and can't match a global label's name. A global label's name can't match any global or fleet-level label's name. |
 | description | string  | body | The label's description.      |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
 | host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
