@@ -28,7 +28,7 @@ Follow instructions to [create an new API-only user](https://fleetdm.com/guides/
 Replace the old token with the new one everywhere it's used: secrets managers, CI variables, identity provider settings (for example, Okta SCIM provisioning), and fleetctl contexts.
 
 
-## Verify the new token
+## Step 4: Verify the new token
 
 Before you delete the old user, confirm the new token works:
 
