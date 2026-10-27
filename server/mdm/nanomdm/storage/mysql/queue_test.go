@@ -83,27 +83,6 @@ func TestStoreCommandReportNotForEnrollment(t *testing.T) {
 		require.Zero(t, countResults(t, otherID, missingUUID))
 	})
 
-	t.Run("inactive queue entry is not reported", func(t *testing.T) {
-		_, err := s.db.ExecContext(
-			ctx,
-			`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`,
-			queuedID, cmdUUID,
-		)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_, _ = s.db.ExecContext(
-				context.Background(),
-				`UPDATE nano_enrollment_queue SET active = 1 WHERE id = ? AND command_uuid = ?`,
-				queuedID, cmdUUID,
-			)
-		})
-
-		r := &mdm.Request{EnrollID: &mdm.EnrollID{Type: mdm.Device, ID: queuedID}, Context: ctx}
-		result := &mdm.CommandResults{CommandUUID: cmdUUID, Status: "Acknowledged", Raw: []byte("<?xml>")}
-		require.ErrorIs(t, s.StoreCommandReport(r, result), sql.ErrNoRows)
-		require.Zero(t, countResults(t, queuedID, cmdUUID))
-	})
-
 	t.Run("identical re-report is accepted", func(t *testing.T) {
 		r := &mdm.Request{EnrollID: &mdm.EnrollID{Type: mdm.Device, ID: queuedID}, Context: ctx}
 		result := &mdm.CommandResults{CommandUUID: cmdUUID, Status: "Acknowledged", Raw: []byte("<?xml>")}

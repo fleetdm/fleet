@@ -148,7 +148,7 @@ func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 	// ensure there's a matching queued command for this enrollment
 	matchingRow := m.db.QueryRowContext(
 		r.Context,
-		`SELECT 1 FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ? AND active = 1`,
+		`SELECT 1 FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`,
 		r.ID,
 		result.CommandUUID,
 	)
