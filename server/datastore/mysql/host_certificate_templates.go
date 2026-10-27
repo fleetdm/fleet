@@ -443,23 +443,25 @@ func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.
 // certificate templates in 'pending' status ready for delivery (both install and remove operations).
 // Hosts whose device has not yet applied its host-specific policy are excluded: that policy may
 // not exist in AMAPI yet, and the setup experience delivers the certificates once it creates it.
+// Results are ordered by host UUID and start after afterHostUUID (empty for the first page).
 func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	ctx context.Context,
-	offset int,
+	afterHostUUID string,
 	limit int,
 ) ([]string, error) {
 	stmt := fmt.Sprintf(`
 		SELECT DISTINCT hct.host_uuid
 		FROM host_certificate_templates hct
-		JOIN hosts h ON h.uuid = hct.host_uuid AND h.platform = 'android'
+		JOIN hosts h ON h.uuid = hct.host_uuid
 		JOIN android_devices ad ON ad.host_id = h.id AND ad.applied_policy_id = hct.host_uuid
 		WHERE hct.status = '%s'
+		  AND hct.host_uuid > ?
 		  AND (hct.retry_count = 0 OR hct.retry_count > %d OR hct.updated_at <= NOW() - INTERVAL CAST(POW(2, hct.retry_count - 1) * 30 AS UNSIGNED) SECOND)
 		ORDER BY hct.host_uuid
-		LIMIT ? OFFSET ?
+		LIMIT ?
 	`, fleet.CertificateTemplatePending, fleet.MaxCertificateInstallRetries)
 	var hostUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, afterHostUUID, limit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
 	}
 	return hostUUIDs, nil
