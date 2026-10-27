@@ -3531,6 +3531,7 @@ None.
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
 - [Update human-device mapping](#update-human-device-mapping)
+- [Update host's Google device ID](#update-hosts-google-device-id)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -4136,6 +4137,8 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
+For iOS, iPadOS, and Android hosts, `google_device_id` is the host's device ID in Google. It's `""` until it's set with [Update host's Google device ID](#update-hosts-google-device-id).
+
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 
@@ -4486,6 +4489,7 @@ Returns the information of the specified host.
     "hardware_model": "iPhone15,2",
     "hardware_version": "iPhone 15 Pro",
     "hardware_serial": "F2LXX1XXXXXX",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "computer_name": "Anna's iPhone",
     "timezone": null,
     "display_name": "Anna's iPhone",
@@ -4820,6 +4824,7 @@ Returns the information of the specified host.
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
+    "google_device_id": "8f2e6b1c-4d3a-4c9e-b7a5-1e0f9d2c3b4a",
     "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
     "display_name": "Anna Chao's Google Pixel 9",
@@ -5292,6 +5297,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_model": "iPhone15,2",
     "hardware_version": "iPhone 15 Pro",
     "hardware_serial": "F2LXX1XXXXXX",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "computer_name": "John's iPhone",
     "timezone": null,
     "public_ip": "",
@@ -5578,6 +5584,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
+    "google_device_id": "8f2e6b1c-4d3a-4c9e-b7a5-1e0f9d2c3b4a",
     "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
     "display_name": "Anna Chao's Google Pixel 9",
@@ -6281,6 +6288,62 @@ Updates the email for the data source in the human-device mapping. This source c
 }
 ```
 
+
+### Update host's Google device ID
+
+_Available in Fleet Premium_
+
+`PUT /api/v1/fleet/hosts/:id/google_device_id`
+
+Sets the host's device ID in Google. Use this to tie an iOS, iPadOS, or Android host to its device in Google before you mark that device as managed in Google. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+Once set, the ID can't be changed to a different value. If the host already has a different `google_device_id`, Fleet returns `409`. This way, if someone copies a company-owned device's link to a personal device, the personal device can't take over the host. To remove the ID, set it to `""`.
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                                   |
+| ---------------- | ------- | ---- | ------------------------------------------------------------- |
+| id               | integer | path | **Required**. The host's `id`.                                 |
+| google_device_id | string  | body | **Required**. The host's device ID in Google. Set to `""` to remove it. |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/1/google_device_id`
+
+##### Request body
+
+```json
+{
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+##### Conflict response
+
+`Status: 409`
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This host already has a different Google device ID."
+    }
+  ]
+}
+```
 
 ### Get host's device health report
 
@@ -7001,6 +7064,25 @@ The host will only return a key if its disk encryption status is "Verified." Get
   }
 }
 ```
+
+##### Key can't be decrypted
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet has a key for the host but can't decrypt it. For a Windows host that Fleet has asked to escrow a new key, the reason says so, as in this example.
+
+```json
+{
+  "message": "Unprocessable Entity",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Couldn't decrypt the disk encryption key. The host will escrow a new one when it comes online."
+    }
+  ]
+}
+```
+
 ### Get host's Recovery Lock password
 
 Retrieves the Recovery Lock password for a host.
@@ -8676,11 +8758,11 @@ Update a configuration profile to target hosts with specific labels.
 
 ```json
 {
-  "warning": "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings#removal-behavior"
+  "warning": "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See https://fleetdm.com/learn-more-about/removal-behavior"
 }
 ```
 
-> The `warning` field is only returned when deleting a **Windows** configuration profile. The warning is informational and the profile is successfully deleted regardless. For CSPs that don't support `<Delete>`, Fleet skips the command and the setting remains on the device at its last value but is no longer enforced. See [Removal behavior](https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings#removal-behavior) for more information.
+> The `warning` field is only returned when deleting a **Windows** configuration profile. The warning is informational and the profile is successfully deleted regardless. Some settings may remain on hosts at their last configured value but are no longer enforced by Fleet. See [Removal behavior](https://fleetdm.com/guides/custom-os-settings#removal-behavior) for more information.
 
 ---
 
