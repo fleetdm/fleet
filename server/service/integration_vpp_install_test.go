@@ -64,7 +64,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1195,7 +1195,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.setSkipWorkerJobs(t)
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1430,7 +1430,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	}
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1528,7 +1528,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 
 	// a different team can batch-add the two installers without conflict
 	newTeamResp = teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 2")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 2")}, http.StatusOK, &newTeamResp)
 	team2 := newTeamResp.Team
 
 	batchResponse = batchSetSoftwareInstallersResponse{}
@@ -1556,7 +1556,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 
 	// a different team can batch-add the two VPP apps without conflict
 	newTeamResp = teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 3")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 3")}, http.StatusOK, &newTeamResp)
 	team3 := newTeamResp.Team
 
 	var tokenResp getVPPTokensResponse
@@ -2074,7 +2074,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	})
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("IPA Conflict Team")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("IPA Conflict Team")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -2110,7 +2110,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 
 	// Test Case 2: Add VPP iOS app first, then try to upload IPA with same bundle ID
 	var newTeamResp2 teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("IPA Conflict Team 2")}, http.StatusOK, &newTeamResp2)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("IPA Conflict Team 2")}, http.StatusOK, &newTeamResp2)
 	team2 := newTeamResp2.Team
 
 	var tokenResp getVPPTokensResponse
@@ -2136,7 +2136,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	}, http.StatusOK, "")
 
 	var newTeamResp3 teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("IPA Conflict Team 3")}, http.StatusOK, &newTeamResp3)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("IPA Conflict Team 3")}, http.StatusOK, &newTeamResp3)
 	team3 := newTeamResp3.Team
 
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
@@ -2699,7 +2699,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 
 	// Create a team and a VPP token on it.
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 	s.setVPPTokenForTeam(team.ID)
 
@@ -2762,7 +2762,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	s.setSkipWorkerJobs(t)
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: ptr.String("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
