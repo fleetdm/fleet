@@ -1,5 +1,6 @@
 import {
   ICertificateAuthorityPartial,
+  ICertificatesGoogleCAS,
   ICertificatesNDES,
   IHostCertificate,
 } from "interfaces/certificates";
@@ -75,6 +76,23 @@ export const createMockNDESCertAuthority = (
   overrides?: Partial<ICertificatesNDES>
 ): ICertificatesNDES => {
   return { ...DEFAULT_NDES_CERT_AUTHORITY_MOCK, ...overrides };
+};
+
+const DEFAULT_GOOGLE_CAS_CERT_AUTHORITY_MOCK: ICertificatesGoogleCAS = {
+  id: 7,
+  type: "google_cas",
+  name: "GOOGLE_WIFI",
+  project: "my-project",
+  location: "us-central1",
+  ca_pool: "my-ca-pool",
+  // the API returns the key masked
+  api_key_json: UNCHANGED_PASSWORD_API_RESPONSE,
+};
+
+export const createMockGoogleCASCertAuthority = (
+  overrides?: Partial<ICertificatesGoogleCAS>
+): ICertificatesGoogleCAS => {
+  return { ...DEFAULT_GOOGLE_CAS_CERT_AUTHORITY_MOCK, ...overrides };
 };
 
 export const createMockCertificateAuthorityPartial = (

@@ -2809,14 +2809,16 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedDigicert:
     case ActivityType.AddedHydrant:
     case ActivityType.AddedCustomESTProxy:
-    case ActivityType.AddedSmallstep: {
+    case ActivityType.AddedSmallstep:
+    case ActivityType.AddedGoogleCAS: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
     case ActivityType.DeletedHydrant:
     case ActivityType.DeletedCustomESTProxy:
-    case ActivityType.DeletedSmallstep: {
+    case ActivityType.DeletedSmallstep:
+    case ActivityType.DeletedGoogleCAS: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
@@ -2825,7 +2827,8 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedDigicert:
     case ActivityType.EditedHydrant:
     case ActivityType.EditedCustomESTProxy:
-    case ActivityType.EditedSmallstep: {
+    case ActivityType.EditedSmallstep:
+    case ActivityType.EditedGoogleCAS: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
