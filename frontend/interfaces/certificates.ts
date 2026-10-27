@@ -97,13 +97,25 @@ export interface ICertificatesCustomEST {
   password: string;
 }
 
+export interface ICertificatesGoogleCAS {
+  id?: number;
+  type?: "google_cas";
+  name: string;
+  project: string;
+  location: string;
+  ca_pool: string;
+  /** The service account key file's JSON. The API returns it masked. */
+  api_key_json: string;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
   | "custom_scep_proxy"
   | "hydrant"
   | "smallstep"
-  | "custom_est_proxy";
+  | "custom_est_proxy"
+  | "google_cas";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
@@ -112,7 +124,8 @@ export type ICertificateAuthority =
   | ICertificatesHydrant
   | ICertificatesCustomSCEP
   | ICertificatesSmallstep
-  | ICertificatesCustomEST;
+  | ICertificatesCustomEST
+  | ICertificatesGoogleCAS;
 
 export const isNDESCertAuthority = (
   integration: ICertificateAuthority
@@ -179,6 +192,16 @@ export const isCustomESTCertAuthority = (
   );
 };
 
+export const isGoogleCASCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesGoogleCAS => {
+  return (
+    "project" in integration &&
+    "ca_pool" in integration &&
+    "api_key_json" in integration
+  );
+};
+
 export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial[] => {
   return [
     {
@@ -210,6 +233,11 @@ export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial
       id: 6,
       name: "Test Custom EST Proxy",
       type: "custom_est_proxy",
+    },
+    {
+      id: 7,
+      name: "Test Google CAS",
+      type: "google_cas",
     },
   ];
 };

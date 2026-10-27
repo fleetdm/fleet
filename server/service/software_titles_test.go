@@ -298,8 +298,7 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 		user *fleet.User
 		// canReadInstaller is whether the role holds installable_entity read.
 		canReadInstaller bool
-		// installersWithoutTeam is whether omitting the fleet still returns
-		// installer data, which needs read on the "no team" scope it resolves to.
+		// installersWithoutTeam is whether the role can read the "no team" scope.
 		installersWithoutTeam bool
 	}{
 		{
@@ -418,20 +417,14 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			}
 			require.Equal(t, "Bar", title.AppStoreApp.Name)
 
-			// Omitting the fleet must not fail, or a title's existence becomes
-			// guessable; the "no team" installer data is what gets withheld.
+			// get the title without a fleet, the request should succeed without any installer data
 			ds.TeamExistsFuncInvoked = false
 			noTeamTitle, err := svc.SoftwareTitleByID(ctx, 1, nil)
 			require.NoError(t, err)
 			require.False(t, ds.TeamExistsFuncInvoked)
-			if tc.installersWithoutTeam {
-				require.NotNil(t, noTeamTitle.SoftwarePackage)
-				require.Len(t, noTeamTitle.Packages, 1)
-			} else {
-				require.Nil(t, noTeamTitle.SoftwarePackage)
-				require.Empty(t, noTeamTitle.Packages)
-				require.Nil(t, noTeamTitle.AppStoreApp)
-			}
+			require.Nil(t, noTeamTitle.SoftwarePackage)
+			require.Empty(t, noTeamTitle.Packages)
+			require.Nil(t, noTeamTitle.AppStoreApp)
 
 			// An explicit "no team" is authorized up front, so it still fails.
 			_, err = svc.SoftwareTitleByID(ctx, 1, new(uint(0)))

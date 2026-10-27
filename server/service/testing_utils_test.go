@@ -214,7 +214,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool, redis_install_attempts.SoftwareInstallerPrefix)
 			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
@@ -769,6 +769,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
+	rootMux.Handle("/enroll/next-steps", ServeEndUserEnrollNextSteps("", logger, false))
+	rootMux.Handle("/enroll/next-steps/", ServeEndUserEnrollNextSteps("", logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))

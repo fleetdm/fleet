@@ -4418,6 +4418,34 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.Len(t, hostsByIdentifier, 1)
 	assert.Equal(t, hostsByIdentifier[0], hosts[2].ID)
 
+	noSerialHost, err := ds.NewHost(t.Context(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("osq.no-serial"),
+		NodeKey:         new("nk.no-serial"),
+		UUID:            "uuid.no-serial",
+		Hostname:        "no-serial.local",
+	})
+	require.NoError(t, err)
+	// like a host ingested from ABM that hasn't enrolled yet
+	_, err = ds.NewHost(t.Context(), &fleet.Host{
+		HardwareSerial: "hws.pending",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	for _, blankIdentifiers := range [][]string{{""}, {" "}, {"", " ", "\t"}} {
+		hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, blankIdentifiers)
+		require.NoError(t, err)
+		assert.Empty(t, hostsByIdentifier, "identifiers %q", blankIdentifiers)
+	}
+
+	hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, []string{"", "no-serial.local", " "})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{noSerialHost.ID}, hostsByIdentifier)
+
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
@@ -5170,8 +5198,8 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 			// resolves the title to this installer when status composition kicks in.
 			res, err := q.ExecContext(ctx,
 				`INSERT INTO software_installers
-					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
-				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', '', 1)`,
 				titleID, storageID+".pkg", storageID, scriptID, scriptID)
 			if err != nil {
 				return err
@@ -5327,6 +5355,54 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	}, 1)
 	require.Equal(t, host2.ID, hosts[0].ID)
 	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// list the hosts of the title with a version of another app, with and without a status, the version should be rejected
+	var otherAppVersion uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('ivv-other-adam', 'darwin', 'ivv-other', '1.0')`)
+		if err != nil {
+			return err
+		}
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('ivv-other-adam', 'darwin', 0, 'Other')`)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherAppVersion = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	failed := fleet.SoftwareFailed
+	var badRequestErr *fleet.BadRequestError
+	_, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion, SoftwareStatusFilter: &failed})
+	require.ErrorAs(t, err, &badRequestErr)
+
+	// list the hosts of the title with a package of another title, with and without a status, the package should be rejected
+	var otherTitleInstaller uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, extension_for) VALUES ('ivv-other-title', 'apps', '')`)
+		if err != nil {
+			return err
+		}
+		otherTitleID, _ := res.LastInsertId()
+		res, err = q.ExecContext(ctx,
+			`INSERT INTO software_installers
+				(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+			VALUES (?, 'ivv-other.pkg', '1.0', 'darwin', 'ivv-storage-other', ?, ?, '', '', '', 1)`,
+			otherTitleID, scriptID, scriptID)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherTitleInstaller = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	linkInstall(host1.ID, otherTitleInstaller)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller, SoftwareStatusFilter: &installed})
+	require.ErrorAs(t, err, &badRequestErr)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
