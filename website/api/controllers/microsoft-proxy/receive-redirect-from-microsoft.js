@@ -138,6 +138,9 @@ module.exports = {
       // A 409 means a partner compliance policy already exists. Microsoft can also answer the create with a 204 and an empty body, with the new policy only in the Location header.
       // In both cases, send a request to get all policies and use the existing policy.
       if(!createPolicyResponse || !createPolicyResponse.body) {
+        if(createPolicyResponse) {// On a 409, .tolerate() without a handler resolves to undefined, so there's no response to log.
+          sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+        }
         createPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'GET',
           url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
@@ -145,6 +148,10 @@ module.exports = {
             'Authorization': `Bearer ${manageApiAccessToken}`,
             'Content-Type': 'application/json'
           }
+        }).intercept(async (err)=>{
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+          sails.log.warn(`An error occurred when getting the compliance policies of a Microsoft compliance tenant (entra tenant id: ${informationAboutThisTenant.entraTenantId}). Full error: ${require('util').inspect(err, {depth: 3})}`);
+          return {redirect: fleetInstanceUrlToRedirectTo };
         });
       }
 
