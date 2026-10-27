@@ -356,6 +356,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.softwareInstallerStore = softwareInstallerStore
 	if localS3Enabled {
 		s.stagedUploadStore = s3test.SetupStagedUploadStore(s.T(), "integration-tests", "")
+		fleetCfg.S3.SoftwareInstallersSignedURL = true
+		fleetCfg.S3.SoftwareInstallersBucket = "integration-tests"
 	}
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = svc_scep.NewSCEPConfigService(serverLogger, scepTimeout).(*svc_scep.SCEPConfigService)

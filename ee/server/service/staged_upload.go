@@ -53,7 +53,7 @@ func (svc *Service) CreateStagedUpload(ctx context.Context, target fleet.StagedU
 
 // openStagedUpload copies a staged upload into a temp file the caller must close.
 func (svc *Service) openStagedUpload(ctx context.Context, uploadID string) (*fleet.TempFileReader, error) {
-	if svc.stagedUploadStore == nil {
+	if svc.stagedUploadStore == nil || !svc.config.S3.SoftwareInstallersSignedURL || svc.config.S3.SoftwareInstallersBucket == "" {
 		return nil, &fleet.BadRequestError{Message: stagedUploadUnavailableMsg}
 	}
 	// The id becomes part of the object key, so only accept the ids Fleet hands out.
