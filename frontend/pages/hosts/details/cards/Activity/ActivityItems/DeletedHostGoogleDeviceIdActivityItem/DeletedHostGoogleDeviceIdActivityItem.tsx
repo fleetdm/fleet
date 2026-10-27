@@ -10,10 +10,7 @@ const DeletedHostGoogleDeviceIdActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      deleted the Google device ID <b>
-        {activity.details?.google_device_id}
-      </b>{" "}
-      from this host.
+      unmarked this host as company-owned in Google.
     </ActivityItem>
   );
 };

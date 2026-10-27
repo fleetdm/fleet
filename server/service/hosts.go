@@ -2977,11 +2977,16 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if !changed {
 		return nil
 	}
-	return svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
+	// The binding is already saved and a retry is a no-op that logs nothing, so the error carries the
+	// change to keep a trail of it.
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		GoogleDeviceID:  googleDeviceID,
-	})
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity for setting host %d google device id %q", host.ID, googleDeviceID)
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3028,11 +3033,15 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 	if !deleted {
 		return nil
 	}
-	return svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedHostGoogleDeviceID{
+	// Same as when setting it: a retry finds nothing to delete, so the error keeps the trail.
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedHostGoogleDeviceID{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		GoogleDeviceID:  removed,
-	})
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity for deleting host %d google device id %q", host.ID, removed)
+	}
+	return nil
 }
 
 func (svc *Service) authorizeHostGoogleDeviceID(ctx context.Context, hostID uint) (*fleet.Host, error) {

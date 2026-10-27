@@ -691,9 +691,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        set the Google device ID for{" "}
-        <b>{activity.details?.host_display_name}</b> to{" "}
-        <b>{activity.details?.google_device_id}</b>.
+        marked <b>{activity.details?.host_display_name}</b> as company-owned in
+        Google.
       </>
     );
   },
@@ -701,10 +700,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the Google device ID <b>
-          {activity.details?.google_device_id}
-        </b>{" "}
-        from <b>{activity.details?.host_display_name}</b>.
+        unmarked <b>{activity.details?.host_display_name}</b> as company-owned
+        in Google.
       </>
     );
   },

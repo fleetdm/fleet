@@ -10,8 +10,7 @@ const SetHostGoogleDeviceIdActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      set the Google device ID for this host to{" "}
-      <b>{activity.details?.google_device_id}</b>.
+      marked this host as company-owned in Google.
     </ActivityItem>
   );
 };

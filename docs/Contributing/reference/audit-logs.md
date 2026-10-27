@@ -3133,7 +3133,7 @@ This activity contains the following fields:
 
 ## set_host_google_device_id
 
-Generated when a host is bound to its device ID in Google, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
+Generated when a host is marked as company-owned in Google by saving its Google device ID, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -3152,7 +3152,7 @@ This activity contains the following fields:
 
 ## deleted_host_google_device_id
 
-Generated when a user removes a host's device ID in Google. Not generated when the host has no Google device ID.
+Generated when a user unmarks a host as company-owned in Google by removing its Google device ID. Not generated when the host has no Google device ID.
 
 This activity contains the following fields:
 - "host_id": ID of the host.

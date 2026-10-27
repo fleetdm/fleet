@@ -51,10 +51,15 @@ func testHostGoogleDeviceIDSetAndGet(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "device-a", id)
 
-	// same value again is idempotent
-	changed, err = ds.SetHostGoogleDeviceID(ctx, host.ID, "device-a")
+	// same value again is idempotent, in any casing, and keeps the stored spelling
+	for _, same := range []string{"device-a", "DEVICE-A"} {
+		changed, err = ds.SetHostGoogleDeviceID(ctx, host.ID, same)
+		require.NoError(t, err)
+		require.False(t, changed)
+	}
+	id, err = ds.GetHostGoogleDeviceID(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, changed)
+	require.Equal(t, "device-a", id)
 
 	// a different value is refused and the stored one is kept
 	_, err = ds.SetHostGoogleDeviceID(ctx, host.ID, "device-b")

@@ -16,15 +16,16 @@ describe("SetHostGoogleDeviceIdActivityItem", () => {
     },
   });
 
-  it("renders the actor and the Google device ID", () => {
+  it("renders the actor and the Google marking", () => {
     render(
       <SetHostGoogleDeviceIdActivityItem activity={activity} tab="past" />
     );
 
     expect(screen.getByText("Test User")).toBeVisible();
-    expect(screen.getByText(/set the Google device ID/i)).toBeVisible();
     expect(
-      screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      screen.getByText("marked this host as company-owned in Google.", {
+        exact: false,
+      })
     ).toBeVisible();
   });
 

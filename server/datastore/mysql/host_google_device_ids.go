@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -22,19 +21,25 @@ func (ds *Datastore) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goo
 		return false, ctxerr.Wrap(ctx, err, "inserting host google device id")
 	}
 
-	// Either key can collide: the host's own row tells which one did.
-	stored, err := ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), hostID)
-	if err != nil {
-		return false, err
+	// Either key can collide: the host's own row tells which one did. MySQL compares the IDs so a
+	// casing-only difference counts as the same ID, like it does for the unique key.
+	var stored struct {
+		ID   string `db:"google_device_id"`
+		Same bool   `db:"same"`
 	}
-	switch stored {
-	case googleDeviceID:
-		return false, nil
-	case "":
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &stored,
+		`SELECT google_device_id, google_device_id = ? AS same FROM host_google_device_ids WHERE host_id = ?`,
+		googleDeviceID, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
 		return false, fleet.NewInvalidArgumentError("google_device_id", "This Google device ID is already used by another host.").
 			WithStatus(http.StatusConflict)
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "reading host google device id after duplicate")
+	case stored.Same:
+		return false, nil
 	default:
-		return false, &fleet.HostGoogleDeviceIDConflictError{StoredID: stored}
+		return false, &fleet.HostGoogleDeviceIDConflictError{StoredID: stored.ID}
 	}
 }
 

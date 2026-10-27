@@ -636,8 +636,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
-  set_host_google_device_id: "Set Google device ID",
-  deleted_host_google_device_id: "Deleted Google device ID",
+  set_host_google_device_id: "Marked as company-owned in Google",
+  deleted_host_google_device_id: "Unmarked as company-owned in Google",
   rotated_host_recovery_lock_password:
     "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",

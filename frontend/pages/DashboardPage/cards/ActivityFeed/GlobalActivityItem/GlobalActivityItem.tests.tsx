@@ -886,13 +886,12 @@ describe("Activity Feed", () => {
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("set the Google device ID for", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("marked", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
     expect(
-      screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      screen.getByText("as company-owned in Google.", { exact: false })
     ).toBeInTheDocument();
+    expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
   });
 
   it("renders a 'deleted_host_google_device_id' type activity", () => {
@@ -905,12 +904,10 @@ describe("Activity Feed", () => {
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("deleted the Google device ID", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("unmarked", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
     expect(
-      screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      screen.getByText("as company-owned in Google.", { exact: false })
     ).toBeInTheDocument();
   });
 
