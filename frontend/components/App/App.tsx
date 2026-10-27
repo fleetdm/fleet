@@ -257,6 +257,11 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         return true;
       }
       authToken.remove();
+      // AuthenticatedRoutes handles 401s with an SPA redirect; a reload here
+      // would lose the session-expired notice and the page to return to.
+      if ((error as { status?: number })?.status === 401) {
+        return true;
+      }
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
@@ -273,9 +278,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   ]);
 
   useEffect(() => {
-    // Skip on `/logout`: this request races the session-destroy call, and
-    // a 401 back here triggers the hard-reload branch below, which flashes
-    // the viewport white in dark mode.
+    // Skip on `/logout`: this request races the session-destroy call.
     if (
       authToken.get() &&
       !location?.pathname.includes("/device/") &&

@@ -4290,7 +4290,6 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
-	var aerr fleet.AlreadyExistsError
 
 	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{}, nil)
 	require.Error(t, err)
@@ -4308,8 +4307,9 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.NoError(t, err)
 
+	// inserting for a fleet that already has a package replaces it in place
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
-	require.ErrorAs(t, err, &aerr)
+	require.NoError(t, err)
 
 	content2 := []byte("content")
 	hasher2 := sha256.New()
@@ -4342,6 +4342,34 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake", nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bytes)
+
+	// replacing with a different package swaps the metadata, content, and token
+	content3 := []byte("new content")
+	hasher3 := sha256.New()
+	hasher3.Write(content3)
+	bp1New := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name() + "-new",
+		Sha256: hasher3.Sum(nil),
+		Bytes:  content3,
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1New, nil)
+	require.NoError(t, err)
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, bp1New.Name, meta.Name)
+	require.Equal(t, bp1New.Sha256, meta.Sha256)
+	require.Equal(t, bp1New.Token, meta.Token)
+	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1New.Token, nil)
+	require.NoError(t, err)
+	require.Equal(t, content3, bytes.Bytes)
+	_, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token, nil)
+	require.ErrorAs(t, err, &nfe)
+	// other fleets are untouched
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 2)
+	require.NoError(t, err)
+	require.Equal(t, bp2.Token, meta.Token)
 
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 	require.NoError(t, err)
@@ -9767,7 +9795,6 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
-	var aerr fleet.AlreadyExistsError
 
 	hashContent := func(content string) []byte {
 		h := sha256.New()
@@ -9801,9 +9828,9 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
 	require.NoError(t, err)
 
-	// try to store bp1 again, fails as it already exists
+	// storing bp1 again replaces it in place
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
-	require.ErrorAs(t, err, &aerr)
+	require.NoError(t, err)
 
 	// associate bp2 with team id 2
 	bp2 := &fleet.MDMAppleBootstrapPackage{
@@ -9956,11 +9983,34 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, bp3.Bytes, bpContent.Bytes)
 
+	// replacing the DB-stored package with one on S3 clears the DB content
+	bp4 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(3),
+		Name:   "bp4",
+		Sha256: hashContent("bp4"),
+		Bytes:  []byte("bp4"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp4, pkgStore)
+	require.NoError(t, err)
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 3)
+	require.NoError(t, err)
+	bpMatchesWithoutContent(bp4, meta)
+	var dbBytesLen int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &dbBytesLen,
+		`SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = 3`))
+	require.Zero(t, dbBytesLen)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp4.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp4.Bytes, bpContent.Bytes)
+	_, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	require.ErrorAs(t, err, &nfe)
+
 	// it can be deleted without problem
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 3)
 	require.NoError(t, err)
 
-	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp4.Token, pkgStore)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bpContent)
 }

@@ -42,7 +42,7 @@ quit_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
@@ -50,21 +50,21 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -161,18 +161,61 @@ trash() {
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
   local rand="$(jot -r 1 0 99999)"
+  local trash=""
 
-  # replace ~ with /Users/$logged_in_user
-  if [[ "$target_file" == ~* ]]; then
-    target_file="/Users/$logged_in_user${target_file:1}"
+  # At the login window there's no user Trash to move files into, so user
+  # paths are skipped and system paths are deleted outright. Removal is
+  # best-effort and never fails the uninstall.
+  if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
+    if [[ "$target_file" == ~* ]]; then
+      echo "Not logged into a non-root GUI; skipping $target_file."
+      return
+    fi
+  else
+    # replace ~ with /Users/$logged_in_user
+    if [[ "$target_file" == ~* ]]; then
+      target_file="/Users/$logged_in_user${target_file:1}"
+    fi
+    trash="/Users/$logged_in_user/.Trash"
   fi
 
-  local trash="/Users/$logged_in_user/.Trash"
+  # If the target contains glob characters, expand it and remove each match.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
+    local matched=false
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
+      matched=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      if [[ -z "$trash" ]]; then
+        rm -rf "$file" || echo "Failed to remove $file."
+      else
+        # The per-match counter keeps matches that share a basename from
+        # overwriting each other in the trash.
+        mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+      fi
+    done < <(compgen -G "$target_file" 2>/dev/null)
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
   local file_name="$(basename "${target_file}")"
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
+    if [[ -z "$trash" ]]; then
+      rm -rf "$target_file" || echo "Failed to remove $target_file."
+    else
+      mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+    fi
   else
     echo "$target_file doesn't exist."
   fi
@@ -189,7 +232,7 @@ remove_launchctl_service 'org.gpgtools.macgpg2.shutdown-gpg-agent'
 remove_launchctl_service 'org.gpgtools.macgpg2.updater'
 remove_launchctl_service 'org.gpgtools.updater'
 quit_application 'com.apple.mail'
-quit_application 'org.gpgtools.gpgkeychain'
+quit_application 'org.gpgtools.gpgkeychain' || exit 1
 quit_application 'org.gpgtools.gpgkeychainaccess'
 quit_application 'org.gpgtools.gpgmail.upgrader'
 quit_application 'org.gpgtools.gpgservices'
@@ -206,7 +249,7 @@ fi
 
 if [ -n "$UNINSTALLER_PATH" ] && [ -f "$UNINSTALLER_PATH" ]; then
   echo "Running GPG Suite Uninstaller from: $UNINSTALLER_PATH"
-  (cd /Users/$LOGGED_IN_USER && sudo "$UNINSTALLER_PATH") || echo "GPG Suite Uninstaller failed, continuing with manual removal"
+  (cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /; sudo "$UNINSTALLER_PATH") || echo "GPG Suite Uninstaller failed, continuing with manual removal"
 else
   echo "GPG Suite Uninstaller not found, performing manual removal"
   # Explicitly remove the app bundle to ensure it's gone
@@ -227,15 +270,15 @@ sudo rm -rf '/private/etc/manpaths.d/MacGPG2'
 sudo rm -rf '/private/etc/paths.d/MacGPG2'
 sudo rm -rf '/private/tmp/gpg-agent'
 sudo rm -rf '/usr/local/MacGPG2'
-trash $LOGGED_IN_USER '~/Library/Application Support/GPGTools'
-trash $LOGGED_IN_USER '~/Library/Caches/org.gpgtools.gpg*'
-trash $LOGGED_IN_USER '~/Library/Containers/com.apple.mail/Data/Library/Frameworks/Libmacgpg.framework'
-trash $LOGGED_IN_USER '~/Library/Containers/com.apple.mail/Data/Library/Preferences/org.gpgtools.*'
-trash $LOGGED_IN_USER '~/Library/Frameworks/Libmacgpg.framework'
-trash $LOGGED_IN_USER '~/Library/HTTPStorages/org.gpgtools.*'
-trash $LOGGED_IN_USER '~/Library/LaunchAgents/org.gpgtools.*'
-trash $LOGGED_IN_USER '~/Library/Mail/Bundles/GPGMail.mailbundle'
-trash $LOGGED_IN_USER '~/Library/PreferencePanes/GPGPreferences.prefPane'
-trash $LOGGED_IN_USER '~/Library/Preferences/org.gpgtools.*'
-trash $LOGGED_IN_USER '~/Library/Services/GPGServices.service'
+trash "$LOGGED_IN_USER" '~/Library/Application Support/GPGTools'
+trash "$LOGGED_IN_USER" '~/Library/Caches/org.gpgtools.gpg*'
+trash "$LOGGED_IN_USER" '~/Library/Containers/com.apple.mail/Data/Library/Frameworks/Libmacgpg.framework'
+trash "$LOGGED_IN_USER" '~/Library/Containers/com.apple.mail/Data/Library/Preferences/org.gpgtools.*'
+trash "$LOGGED_IN_USER" '~/Library/Frameworks/Libmacgpg.framework'
+trash "$LOGGED_IN_USER" '~/Library/HTTPStorages/org.gpgtools.*'
+trash "$LOGGED_IN_USER" '~/Library/LaunchAgents/org.gpgtools.*'
+trash "$LOGGED_IN_USER" '~/Library/Mail/Bundles/GPGMail.mailbundle'
+trash "$LOGGED_IN_USER" '~/Library/PreferencePanes/GPGPreferences.prefPane'
+trash "$LOGGED_IN_USER" '~/Library/Preferences/org.gpgtools.*'
+trash "$LOGGED_IN_USER" '~/Library/Services/GPGServices.service'
 
