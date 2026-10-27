@@ -1709,20 +1709,23 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
-		// The host may have been matched by the self-reported serial, and updateMDMAppleHostDB rewrites its UUID,
-		// so a host that's still enrolled under another UUID is left as is.
-		var enrolledUUID string
-		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
-			SELECT h.uuid FROM hosts h
-			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
-			WHERE h.id = ? AND h.uuid != ?
-			LIMIT 1`, enrolledHostInfo.ID, mdmHost.UUID); {
-		case err == nil:
-			logger.InfoContext(ctx, "refusing MDM check-in: serial is enrolled under another UUID",
-				"serial", mdmHost.HardwareSerial, "claimed_uuid", mdmHost.UUID, "enrolled_uuid", enrolledUUID)
-			return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
-		case !errors.Is(err, sql.ErrNoRows):
-			return ctxerr.Wrap(ctx, err, "checking whether the matched host is enrolled under another UUID")
+		// A host matched by the self-reported serial gets its UUID rewritten by updateMDMAppleHostDB, so the serial
+		// mustn't be enrolled under another UUID. Hosts can share a serial, and the match picks the lowest ID, so
+		// every host with the serial is checked, not just the matched one.
+		var matchedUUID string
+		if err := sqlx.GetContext(ctx, tx, &matchedUUID, `SELECT uuid FROM hosts WHERE id = ?`, enrolledHostInfo.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get matched host uuid")
+		}
+		if matchedUUID != mdmHost.UUID {
+			enrolledUUID, err := enrolledUUIDForSerial(ctx, tx, mdmHost.HardwareSerial, mdmHost.UUID)
+			if err != nil {
+				return err
+			}
+			if enrolledUUID != "" {
+				logger.InfoContext(ctx, "refusing MDM check-in: serial is enrolled under another UUID",
+					"serial", mdmHost.HardwareSerial, "claimed_uuid", mdmHost.UUID, "enrolled_uuid", enrolledUUID)
+				return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
+			}
 		}
 		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
 	}

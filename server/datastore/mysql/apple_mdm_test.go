@@ -14986,6 +14986,37 @@ func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
 	host, err = ds.HostLite(ctx, enrolled.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "new-uuid", host.UUID)
+
+	newHost := func(name, uuid, serial string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname: name, OsqueryHostID: new(name), NodeKey: new(name),
+			UUID: uuid, HardwareSerial: serial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// the serial match picks the lowest ID, so an older host with the serial that isn't enrolled doesn't hide the
+	// enrolled one
+	stale := newHost("stale", "stale-uuid", "shared-serial")
+	nanoEnroll(t, ds, newHost("shared-enrolled", "shared-enrolled-uuid", "shared-serial"), false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "claiming-uuid", HardwareSerial: "shared-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone)
+	require.ErrorAs(t, err, &conflictErr)
+	host, err = ds.HostLite(ctx, stale.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "stale-uuid", host.UUID)
+
+	// a device matched by its own UUID checks in even if another host with its serial is enrolled
+	own := newHost("own", "own-uuid", "own-serial")
+	nanoEnroll(t, ds, newHost("own-duplicate", "own-duplicate-uuid", "own-serial"), false)
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: own.UUID, HardwareSerial: "own-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, own.ID)
+	require.NoError(t, err)
+	assert.Equal(t, own.UUID, host.UUID)
 }
 
 func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
