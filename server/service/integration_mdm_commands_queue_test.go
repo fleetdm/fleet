@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -693,4 +694,77 @@ func (s *integrationMDMTestSuite) TestAppleMDMCommandCleanup() {
 	cmd, err = iphone.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestAppleCustomCommandRejectsHostSecretVariables() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	rawCmd := func(cmdUUID, command string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+%s
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, command, cmdUUID)
+	}
+	commands := map[string]string{
+		"RotateFileVaultKey": `        <key>RequestType</key>
+        <string>RotateFileVaultKey</string>
+        <key>KeyType</key>
+        <string>personal</string>
+        <key>FileVaultUnlock</key>
+        <dict>
+            <key>Password</key>
+            <string>` + fleet.HostSecretPlaceholder(fleet.HostSecretFileVaultKey) + `</string>
+        </dict>`,
+		"VerifyRecoveryLock": `        <key>RequestType</key>
+        <string>VerifyRecoveryLock</string>
+        <key>Password</key>
+        <string>${` + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword + `}</string>`,
+		"Settings": `        <key>RequestType</key>
+        <string>Settings</string>
+        <key>Settings</key>
+        <array>
+            <dict>
+                <key>Item</key>
+                <string>DeviceName</string>
+                <key>DeviceName</key>
+                <string>` + fleet.HostSecretPlaceholder(fleet.HostSecretMDMUnlockToken) + `</string>
+            </dict>
+        </array>`,
+	}
+
+	for name, command := range commands {
+		for _, endpoint := range []string{"/api/latest/fleet/commands/run", "/api/latest/fleet/mdm/apple/enqueue"} {
+			t.Run(name+" "+endpoint, func(t *testing.T) {
+				cmdUUID := uuid.NewString()
+				encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd(cmdUUID, command)))
+				var body any = &runMDMCommandRequest{Command: encoded, HostUUIDs: []string{mdmDevice.UUID}}
+				if endpoint == "/api/latest/fleet/mdm/apple/enqueue" {
+					body = enqueueMDMAppleCommandRequest{Command: encoded, DeviceIDs: []string{mdmDevice.UUID}}
+				}
+				res := s.Do("POST", endpoint, body, http.StatusBadRequest)
+				assert.Contains(t, extractServerErrorText(res.Body), "is reserved")
+
+				s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCommandResultsResponse{}, "command_uuid", cmdUUID)
+				cmd, err := mdmDevice.Idle()
+				require.NoError(t, err)
+				require.Nil(t, cmd)
+			})
+		}
+	}
 }
