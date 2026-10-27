@@ -423,10 +423,10 @@ func (s *integrationTestSuite) TestLabels() {
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
 			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
-			"team_id", "fleet_id", "policy_updated_at", "public_ip",
+			"fleet_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name", "fleet_name",
+			"last_restarted_at", "timezone", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
@@ -982,11 +982,11 @@ func (s *integrationTestSuite) TestLabels() {
 			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
-			"last_enrolled_at", "refetch_critical_queries_until", "team_id", "fleet_id",
+			"last_enrolled_at", "refetch_critical_queries_until", "fleet_id",
 			"policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name", "fleet_name",
+			"last_restarted_at", "timezone", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
@@ -1032,13 +1032,13 @@ func (s *integrationTestSuite) TestLabels() {
 		})
 
 		// Cursor pagination (`after`) injects the order_key into the WHERE
-		// clause; SELECT-list aliases like team_name would error there. Verify
-		// that paging through team_name with a cursor returns the expected
+		// clause; SELECT-list aliases like fleet_name would error there. Verify
+		// that paging through fleet_name with a cursor returns the expected
 		// hosts and does not error.
-		t.Run("team_name with after cursor", func(t *testing.T) {
+		t.Run("fleet_name with after cursor", func(t *testing.T) {
 			var resp listHostsResponse
 			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
-				"order_key", "team_name", "order_direction", "asc",
+				"order_key", "fleet_name", "order_direction", "asc",
 				"after", teamA.Name, "per_page", "10")
 			require.Len(t, resp.Hosts, 2)
 			assert.Equal(t, sortHosts[1].ID, resp.Hosts[0].ID)

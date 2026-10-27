@@ -2329,7 +2329,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.Uint(1),
 			ptr.String("team"),
 			nil,
-			"cannot specify both team_id and team_name",
+			"cannot specify both fleet_id and fleet_name",
 			false,
 		},
 		{

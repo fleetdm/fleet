@@ -432,35 +432,33 @@ func TestGetExclusionZones(t *testing.T) {
 
 func TestRewriteNewToOldKeys(t *testing.T) {
 	t.Run("accepts old keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"query_id":1,"query_name":"myreport"}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.ActivityTypeCreatedSavedQuery{})
 		require.NoError(t, err)
 
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
+		var a fleet.ActivityTypeCreatedSavedQuery
+		require.NoError(t, json.Unmarshal(result, &a))
+		assert.Equal(t, "myreport", a.Name)
 	})
 
 	t.Run("accepts new keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","fleet":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"report_id":1,"report_name":"myreport"}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.ActivityTypeCreatedSavedQuery{})
 		require.NoError(t, err)
 
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
+		var a fleet.ActivityTypeCreatedSavedQuery
+		require.NoError(t, json.Unmarshal(result, &a))
+		assert.Equal(t, "myreport", a.Name)
 	})
 
 	t.Run("errors if both old and new keys provided", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"old","fleet":"new"}`)
-		_, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"query_name":"old","report_name":"new"}`)
+		_, _, err := rewriteNewToOldKeys(raw, fleet.ActivityTypeCreatedSavedQuery{})
 		require.Error(t, err)
 		var conflictErr *endpointer.AliasConflictError
 		require.ErrorAs(t, err, &conflictErr)
-		assert.Equal(t, "team", conflictErr.Old)
-		assert.Equal(t, "fleet", conflictErr.New)
+		assert.Equal(t, "query_name", conflictErr.Old)
+		assert.Equal(t, "report_name", conflictErr.New)
 	})
 }
 

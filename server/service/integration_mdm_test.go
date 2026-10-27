@@ -1805,7 +1805,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	require.NoError(t, err)
 
 	// add the team_id field
-	err = w.WriteField("team_id", fmt.Sprint(pkg.TeamID))
+	err = w.WriteField("fleet_id", fmt.Sprint(pkg.TeamID))
 	require.NoError(t, err)
 
 	w.Close()
@@ -2309,7 +2309,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	if expectedAppleSummary != nil {

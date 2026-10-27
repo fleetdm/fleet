@@ -324,7 +324,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, err)
 
 	agg = getAggregatedMacadminsDataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "fleet_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
 	require.Empty(t, agg.Macadmins.MunkiIssues)
@@ -332,7 +332,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Empty(t, agg.Macadmins.MDMSolutions)
 
 	agg = getAggregatedMacadminsDataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "fleet_id", "9999999")
 
 	// Hardcode response type because we are using a custom json marshaling so
 	// using getHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
@@ -543,12 +543,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 58)         // total number of cols
-	// Validate that both team_id and fleet_id columns are present.
-	assert.Contains(t, rows[0], "team_id")
+	assert.Len(t, rows[0], 56)         // total number of cols
+	// Validate that the fleet columns are present, and the old team ones are not.
 	assert.Contains(t, rows[0], "fleet_id")
-	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
+	assert.NotContains(t, rows[0], "team_id")
+	assert.NotContains(t, rows[0], "team_name")
 
 	// hardware_marketing_name is emitted right after hardware_model, shifting
 	// every subsequent column index by one.
@@ -575,17 +575,17 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// valid format, some columns
 	res = s.DoRaw(
 		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
-		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,team_id,team_name",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,fleet_id,fleet_name",
 	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Contains(t, rows[0], "hostname") // first row contains headers
-	assert.Contains(t, rows[0], "team_id")
 	assert.Contains(t, rows[0], "fleet_id")
-	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
+	assert.NotContains(t, rows[0], "team_id")
+	assert.NotContains(t, rows[0], "team_name")
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header, "X-Content-Type-Options")
@@ -1558,7 +1558,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 
 	// same results with team_id=0
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "fleet_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 2)
 	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
@@ -1635,7 +1635,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 58)         // total number of cols
+	assert.Len(t, rows1[0], 56)         // total number of cols
 
 	var (
 		idIdx     int
@@ -1665,7 +1665,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 58)         // total number of cols
+	assert.Len(t, rows2[0], 56)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

@@ -90,7 +90,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 
 	// Filter to specific team
 	listResp = fleet.ListLabelsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(team1.ID))
 	foundTeamLabel = false
 	for _, lbl := range listResp.Labels {
 		if lbl.ID == team1LabelID {
@@ -105,7 +105,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 
 	// Filter to global only (team_id=0) should not include team labels
 	listResp = fleet.ListLabelsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "fleet_id", "0")
 	for _, lbl := range listResp.Labels {
 		require.Nil(t, lbl.TeamID, "global-only filter should not return team labels")
 	}
@@ -149,7 +149,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 		},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/spec/labels?team_id=%d", team1.ID), fleet.ApplyLabelSpecsRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/spec/labels?fleet_id=%d", team1.ID), fleet.ApplyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                teamLabelName,
@@ -182,7 +182,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.Equal(t, team1.ID, *getSpecResp.Spec.TeamID)
 
 	// Filter specs to specific team
-	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "fleet_id", fmt.Sprint(team1.ID))
 	foundTeamLabel = false
 	for _, spec := range specsResp.Specs {
 		if spec.Name == teamLabelName {
@@ -196,7 +196,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.True(t, foundTeamLabel, "team1 label spec should be in filtered list")
 
 	// Filter specs to global only (team_id=0)
-	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "fleet_id", "0")
 	for _, spec := range specsResp.Specs {
 		require.Nil(t, spec.TeamID, "global-only filter should not return team labels")
 	}

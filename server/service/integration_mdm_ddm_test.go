@@ -736,7 +736,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 			"labels": labelNames,
 		}
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, identifier+".json", declarationForTest(identifier), s.token, fields,
@@ -1760,7 +1760,7 @@ WHERE name = ?`
 		{Name: "BadDecl.json", Contents: badDecl},
 	}}
 	badRes := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", badReq, http.StatusBadRequest,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 	errMsg := extractServerErrorText(badRes.Body)
 	require.Contains(t, errMsg, "$FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM")
 
@@ -1772,7 +1772,7 @@ WHERE name = ?`
 		{Name: "Plain.json", Contents: declPlain},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	// Verify raw JSON stored as-is (variables not expanded in storage)
 	dbDeclUUID := getDeclaration(t, "VarUUID.json")
@@ -1855,7 +1855,7 @@ WHERE name = ?`
 		{Name: "NewDecl.json", Contents: newDecl},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithNew, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	dbNewDecl := getDeclaration(t, "NewDecl.json")
 	assert.Contains(t, string(dbNewDecl.RawJSON), "new-stuff")
@@ -1896,7 +1896,7 @@ WHERE name = ?`
 
 	// new decl is not in profilesReq, so it will be deleted
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	s.awaitTriggerProfileSchedule(t)
 
@@ -1932,7 +1932,7 @@ WHERE name = ?`
 	// === No resend on no-op GitOps batch upload ===
 
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	s.awaitTriggerProfileSchedule(t)
 
@@ -2013,7 +2013,7 @@ WHERE name = ?`
 
 	// Verify stable state: no-op batch upload triggers no commands for anyone
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 	s.awaitTriggerProfileSchedule(t)
 	checkNoCommands(mdmDevice1)
 	checkNoCommands(mdmDevice2)
@@ -2072,7 +2072,7 @@ WHERE name = ?`
 		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithIdp, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	dbDeclIdpUsername := getDeclaration(t, "VarIdpUsername.json")
 
@@ -2161,7 +2161,7 @@ WHERE name = ?`
 		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqVarRemoved, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	// Re-read the declaration from DB — content and token should have changed
 	dbDeclUUIDUpdated := getDeclaration(t, "VarUUID.json")

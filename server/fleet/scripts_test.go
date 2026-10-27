@@ -483,10 +483,10 @@ func TestHostScriptResultTeamIDOnlyForAuthorization(t *testing.T) {
 	// ...but the authorization policy still gets it.
 	extra, err := hsr.ExtraAuthz()
 	require.NoError(t, err)
-	require.Equal(t, new(uint(3)), extra["team_id"])
+	require.Equal(t, new(uint(3)), extra["fleet_id"])
 
 	extra, err = HostScriptResult{}.ExtraAuthz()
 	require.NoError(t, err)
-	require.Contains(t, extra, "team_id")
-	require.Nil(t, extra["team_id"])
+	require.Contains(t, extra, "fleet_id")
+	require.Nil(t, extra["fleet_id"])
 }

@@ -1345,7 +1345,6 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	require.NotNil(t, gotMDM.AppleSettings)
 	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
-	require.Nil(t, gotMDM.MacOSSettings, "the response uses the apple_settings name only")
 	require.NotNil(t, gotMDM.WindowsSettings)
 	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)
@@ -1623,7 +1622,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	prof.TeamID = &tm.ID
 	require.NoError(t, err)
 
-	// filtering by the "team_id" query param
+	// filtering by the "fleet_id" query param
 	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
 
 	var expectedTeamDiskEncryptionSummary fleet.MDMDiskEncryptionSummary
@@ -1714,7 +1713,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
+		http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(team.ID), "fleet_name", team.Name)
 
 	// the configuration profile is still there
 	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -2219,7 +2218,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	if checkFileVaultSummary {

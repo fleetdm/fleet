@@ -116,14 +116,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 
 	// list team queries
 	var listQueriesResp fleet.ListQueriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, 1, listQueriesResp.Count)
 	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)

@@ -199,7 +199,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		"email":                       t.Name() + "_svc@example.com",
 		"password":                    test.GoodPassword,
 		"global_role":                 "",
-		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":                      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 		"api_only":                    true,
 		"admin_forced_password_reset": false,
 	}, http.StatusUnprocessableEntity, &createResp)
@@ -218,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	var selfModResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
 		"global_role": "",
-		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 	}, http.StatusUnprocessableEntity, &selfModResp)
 
 	plantedEmail := t.Name() + "_planted@example.com"
@@ -238,7 +238,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	s.token = s.getTestToken(planted.Email, test.GoodPassword)
 
 	var labelsResp fleet.ListLabelsResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "fleet_id", fmt.Sprint(otherTeam.ID))
 	labelsResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
 	for _, lbl := range labelsResp.Labels {
@@ -281,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	})
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
-		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+		"fleets": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
 	}, http.StatusForbidden, &modResp)
 	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
 	require.NoError(t, err)
@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}

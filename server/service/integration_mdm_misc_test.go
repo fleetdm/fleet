@@ -1382,7 +1382,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
 			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
 		},
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Create in-house app in team t1 that references l1t1.
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1731,7 +1731,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1739,7 +1739,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1747,7 +1747,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile with a label on the same team (should succeed).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1757,7 +1757,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l1t1.Name},
 				},
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -2060,7 +2060,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	wantSha := sha256.Sum256(signedPkg)
 	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
 	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"bootstrap_package_name": "staged.pkg", "fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
 
 	// software package add and edit

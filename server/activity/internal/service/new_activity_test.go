@@ -99,7 +99,7 @@ type hostActivityMalformedIDs struct {
 }
 
 type aliasedActivity struct {
-	TeamID uint `json:"team_id" renameto:"fleet_id"`
+	Value uint `json:"old_value" renameto:"new_value"`
 }
 
 func (a aliasedActivity) ActivityName() string { return "aliased_test" }
@@ -168,16 +168,16 @@ func TestNewActivityDuplicatesAliasedJSONKeys(t *testing.T) {
 	}
 	svc := newTestService(ds, providers)
 
-	err := svc.NewActivity(t.Context(), nil, aliasedActivity{TeamID: 42})
+	err := svc.NewActivity(t.Context(), nil, aliasedActivity{Value: 42})
 	require.NoError(t, err)
 
 	require.True(t, ds.newActivityCalled)
 
-	// Details should contain both team_id and fleet_id
+	// Details should contain both the old and the new key
 	var details map[string]any
 	require.NoError(t, json.Unmarshal(ds.lastDetails, &details))
-	assert.Equal(t, float64(42), details["team_id"])
-	assert.Equal(t, float64(42), details["fleet_id"])
+	assert.InDelta(t, 42, details["old_value"], 0)
+	assert.InDelta(t, 42, details["new_value"], 0)
 }
 
 func TestNewActivityCallsActivator(t *testing.T) {

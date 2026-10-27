@@ -1366,7 +1366,7 @@ func TestAuthorizeHost(t *testing.T) {
 
 // TestAuthorizeActivityHost verifies that the bounded-context activity.Host
 // type is serialized with the json field names the OPA policy expects
-// (object.team_id, object.id). Without those tags, team-scoped users get a
+// (object.fleet_id, object.id). Without those tags, team-scoped users get a
 // 403 when listing host past activities (issue #46009).
 func TestAuthorizeActivityHost(t *testing.T) {
 	t.Parallel()
@@ -3421,7 +3421,7 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	{
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, fleet.RoleAdmin, subject["global_role"])
-		assert.Nil(t, subject["teams"])
+		assert.Nil(t, subject["fleets"])
 	}
 
 	subject, err = jsonToInterface(&fleet.User{
@@ -3434,11 +3434,11 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	{
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, nil, subject["global_role"])
-		assert.Len(t, subject["teams"], 2)
-		assert.Equal(t, fleet.RoleObserver, subject["teams"].([]interface{})[0].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("3"), subject["teams"].([]interface{})[0].(map[string]interface{})["id"])
-		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
+		assert.Len(t, subject["fleets"], 2)
+		assert.Equal(t, fleet.RoleObserver, subject["fleets"].([]any)[0].(map[string]any)["role"])
+		assert.Equal(t, json.Number("3"), subject["fleets"].([]any)[0].(map[string]any)["id"])
+		assert.Equal(t, fleet.RoleMaintainer, subject["fleets"].([]any)[1].(map[string]any)["role"])
+		assert.Equal(t, json.Number("42"), subject["fleets"].([]any)[1].(map[string]any)["id"])
 	}
 }
 

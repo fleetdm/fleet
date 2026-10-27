@@ -338,7 +338,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Configure webhook for "No Team" - only include pol1 and pol2
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
@@ -376,7 +376,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Test that we can configure and retrieve the "No Team" webhook settings
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -592,7 +592,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "DummyApp",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -657,7 +657,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -699,7 +699,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "Fleet osquery",
-		"team_id", fmt.Sprintf("%d", team2.ID),
+		"fleet_id", fmt.Sprintf("%d", team2.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -729,7 +729,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "App123",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].AppStoreApp)
@@ -751,7 +751,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "Foobar",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.Nil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -1255,7 +1255,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Get the software title and installer ID
 	var resp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &resp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+		http.StatusOK, &resp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	softwareTitleID := resp.SoftwareTitles[0].ID
@@ -1731,7 +1731,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -1795,7 +1795,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "vim",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -1873,14 +1873,14 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprint(inclAllTeam.ID),
+		"fleet_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	rubyInclAllTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyInclAllDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "fleet_id", fmt.Sprint(inclAllTeam.ID))
 	require.NotNil(t, rubyInclAllDetail.SoftwareTitle)
 	require.NotNil(t, rubyInclAllDetail.SoftwareTitle.SoftwarePackage)
 	rubyInclAllInstallerID := rubyInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -1939,14 +1939,14 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "vim",
-		"team_id", fmt.Sprint(inclAllTeam.ID),
+		"fleet_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	vimInclAllTitleID := resp.SoftwareTitles[0].ID
 
 	var vimInclAllDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "fleet_id", fmt.Sprint(inclAllTeam.ID))
 	require.NotNil(t, vimInclAllDetail.SoftwareTitle)
 	require.NotNil(t, vimInclAllDetail.SoftwareTitle.SoftwarePackage)
 	vimInclAllInstallerID := vimInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -2074,7 +2074,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -3407,7 +3407,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
-		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+		"query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
@@ -3582,7 +3582,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
-		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+		"query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
@@ -3744,7 +3744,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	}, http.StatusOK, "")
 
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
 
@@ -3936,7 +3936,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 	}, http.StatusOK, "")
 
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 
 	var installerID uint

@@ -22,7 +22,7 @@ type packResponse struct {
 	// IDs of hosts which were explicitly selected.
 	HostIDs  []uint `json:"host_ids"`
 	LabelIDs []uint `json:"label_ids"`
-	TeamIDs  []uint `json:"team_ids" renameto:"fleet_ids"`
+	TeamIDs  []uint `json:"fleet_ids"`
 }
 
 func userIsGitOpsOnly(ctx context.Context) (bool, error) {

@@ -62,7 +62,7 @@ type HostTargets struct {
 	// LabelIDs is the IDs of labels to be targeted.
 	LabelIDs []uint `json:"labels"`
 	// TeamIDs is the IDs of teams to be targeted.
-	TeamIDs []uint `json:"teams" renameto:"fleets"`
+	TeamIDs []uint `json:"fleets"`
 }
 
 type TargetType int
@@ -80,7 +80,7 @@ func (t TargetType) String() string {
 	case TargetHost:
 		return "host"
 	case TargetTeam:
-		return "team"
+		return "fleet"
 	default:
 		return fmt.Sprintf("unknown: %d", t)
 	}
@@ -92,7 +92,7 @@ func ParseTargetType(s string) (TargetType, error) {
 		return TargetLabel, nil
 	case "host":
 		return TargetHost, nil
-	case "team", "fleet":
+	case "fleet":
 		return TargetTeam, nil
 	default:
 		return 0, fmt.Errorf("invalid TargetType: %s", s)

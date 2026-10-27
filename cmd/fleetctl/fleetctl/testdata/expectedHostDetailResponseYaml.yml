@@ -85,7 +85,6 @@ spec:
     query: select 1 from osquery_info where start_time > 1;
     resolution: Some resolution
     response: passes
-    team_id: 1
     updated_at: "0001-01-01T00:00:00Z"
     type: "dynamic"
   - author_email: alice@example.com
@@ -106,7 +105,6 @@ spec:
     platform: ""
     query: select 1 from osquery_info where start_time > 1;
     response: fails
-    team_id: null
     updated_at: "0001-01-01T00:00:00Z"
     type: "dynamic"
   policy_updated_at: "0001-01-01T00:00:00Z"
@@ -120,8 +118,6 @@ spec:
   software: []
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
-  team_id: null
-  team_name: null
   timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0

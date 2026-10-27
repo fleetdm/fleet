@@ -53,9 +53,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -165,7 +165,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// Add a profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	devices := []godep.Device{
 		{
@@ -238,9 +238,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -290,7 +290,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 
 	// custom profile, expected by the enroll/release helper
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	device := godep.Device{
 		Model:        "iPhone 16 Pro",
@@ -378,7 +378,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 		"manual_agent_install":           false,
 	}
 	if opts.TeamID != nil {
-		payload["team_id"] = *opts.TeamID
+		payload["fleet_id"] = *opts.TeamID
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)

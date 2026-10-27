@@ -153,7 +153,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
-		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+		"fleet_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
 	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
 	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)

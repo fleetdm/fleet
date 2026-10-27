@@ -27,7 +27,7 @@ func (r GetQueryResponse) Error() error { return r.Err }
 type ListQueriesRequest struct {
 	ListOptions ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID         uint `query:"fleet_id,optional"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
@@ -49,7 +49,7 @@ func (r ListQueriesResponse) Error() error { return r.Err }
 
 type GetQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 	// ListOptions supports page, per_page, order_key, order_direction and query.
 	// Results are paginated only when per_page is set; otherwise all rows are returned.
 	ListOptions ListOptions `url:"list_options"`
@@ -188,7 +188,7 @@ func (r GetQuerySpecsResponse) Error() error { return r.Err }
 
 type GetQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID uint   `query:"fleet_id,optional"`
 }
 
 type GetQuerySpecResponse struct {

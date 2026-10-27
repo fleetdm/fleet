@@ -490,7 +490,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "fleet_id":null}`, batchRes.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -522,7 +522,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Check with the list endpoint
 	var batchListResp fleet.BatchScriptExecutionListResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?fleet_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, uint(2), batchListResp.Count)
 	require.True(t, batchListResp.Meta.HasNextResults)
@@ -532,7 +532,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumTargeted)
 	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumPending)
 
-	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?fleet_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, uint(2), batchListResp.Count)
 	require.False(t, batchListResp.Meta.HasNextResults)
@@ -562,7 +562,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	// individual script executions don't get added to the global feed, only the batch job
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "team_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "fleet_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -599,7 +599,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "fleet_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
@@ -610,7 +610,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Queue again this time using a filter
 	filters := map[string]any{
-		"team_id": 0,
+		"fleet_id": 0,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
@@ -621,7 +621,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "fleet_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
 }
@@ -1038,7 +1038,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	noTeamScriptID := newScriptResp.ScriptID
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": null, "fleet_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
 
 	// get the script
 	var getScriptResp fleet.GetScriptResponse
@@ -1114,7 +1114,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// team id does not exist
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The fleet does not exist.")
@@ -1125,25 +1125,25 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with existing name for this time for a team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	tmScriptID := newScriptResp.ScriptID
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// create a windows script
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.ps1", tm.Name, tm.ID, tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.ps1", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// get team's script
 	getScriptResp = fleet.GetScriptResponse{}
@@ -1166,7 +1166,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// script already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
@@ -1174,7 +1174,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with a different name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
@@ -1182,7 +1182,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	require.NotEqual(t, tmScriptID, newScriptResp.ScriptID)
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// Update a script
 	updateScriptRep := fleet.UpdateScriptResponse{}
@@ -1193,7 +1193,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.Equal(t, tmScriptID, updateScriptRep.ScriptID)
-	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
+	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// Download the updated script
 	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
@@ -1213,11 +1213,11 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// delete the no-team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNoContent)
-	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
+	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": null, "fleet_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
 
 	// delete the initial team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusNoContent)
-	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
+	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// delete a non-existing script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNotFound)
@@ -1311,7 +1311,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 			var listResp fleet.ListScriptsResponse
 			queryArgs := c.queries
 			if c.teamID != nil {
-				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+				queryArgs = append(queryArgs, "fleet_id", fmt.Sprint(*c.teamID))
 			}
 			s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, queryArgs...)
 
@@ -1951,16 +1951,16 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	saveAndCheckScripts := func(team *fleet.Team, scripts []fleet.ScriptPayload) {
 		var teamID *uint
 		teamIDStr := ""
-		teamActivity := `{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`
+		teamActivity := `{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`
 		if team != nil {
 			teamID = &team.ID
 			teamIDStr = fmt.Sprint(team.ID)
-			teamActivity = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name)
+			teamActivity = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name)
 		}
 
 		// create, check activities, and check scripts response
 		var scriptsBatchResponse fleet.BatchSetScriptsResponse
-		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "team_id", teamIDStr)
+		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "fleet_id", teamIDStr)
 		s.lastActivityMatches(
 			fleet.ActivityTypeEditedScript{}.ActivityName(),
 			teamActivity,
@@ -1970,7 +1970,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 
 		// check that the right values got stored in the db
 		var listResp fleet.ListScriptsResponse
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", teamIDStr)
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", teamIDStr)
 		require.Len(t, listResp.Scripts, len(scripts))
 
 		got := make([]fleet.ScriptPayload, len(scripts))
@@ -1999,17 +1999,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
-		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
+		http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID), "fleet_name", tm.Name)
 
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
-		http.StatusNotFound, "team_name", uuid.New().String())
+		http.StatusNotFound, "fleet_name", uuid.New().String())
 
 	// duplicate script names
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1.sh", ScriptContents: []byte("foo")},
 		{Name: "N1.sh", ScriptContents: []byte("bar")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// script names that differ by case and accent are the same name to the database
 	res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
@@ -2021,17 +2021,17 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	// invalid script name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1", ScriptContents: []byte("foo")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// empty script name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "", ScriptContents: []byte("foo")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// invalid secret
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N2.sh", ScriptContents: []byte("echo $FLEET_SECRET_INVALID")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// successfully apply a scripts for the team
 	saveAndCheckScripts(tm, []fleet.ScriptPayload{
@@ -2093,7 +2093,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	// create a saved script execution request
 	var newScriptResp fleet.CreateScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -2235,23 +2235,23 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
 		for _, dryRun := range []string{"true", "false"} {
 			res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 				{Name: "vars.sh", ScriptContents: []byte(unsupportedVarContents)},
-			}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
+			}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
 			require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg, "dry_run=%s", dryRun)
 		}
 
 		// supported variables pass a dry run without being saved
 		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
-		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+		}}, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID), "dry_run", "true")
 		var listResp fleet.ListScriptsResponse
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm.ID))
 		require.Empty(t, listResp.Scripts)
 
 		// and are saved unexpanded on a real apply
 		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
-		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		}}, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm.ID))
 		require.Len(t, listResp.Scripts, 1)
 		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", listResp.Scripts[0].ID), nil, http.StatusOK, "alt", "media")
 		b, err := io.ReadAll(res.Body)

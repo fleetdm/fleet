@@ -215,7 +215,7 @@ type AppleBM struct {
 	OrgName      string    `json:"org_name"`
 	MDMServerURL string    `json:"mdm_server_url"`
 	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_team" renameto:"default_fleet"`
+	DefaultTeam  string    `json:"default_fleet"`
 }
 
 func (a AppleBM) AuthzType() string {
@@ -258,15 +258,15 @@ type ABMToken struct {
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 }
 
 type AppleCSR struct {
@@ -305,7 +305,7 @@ type MDMIdPAccount struct {
 
 type MDMAppleBootstrapPackage struct {
 	Name      string    `json:"name"`
-	TeamID    uint      `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID    uint      `json:"fleet_id" db:"team_id"`
 	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
@@ -521,8 +521,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
-	Platform string `json:"platform"`                    // Platform of the targeted host
+	TeamID   *uint  `json:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"` // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -790,7 +790,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -802,7 +802,7 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
+	TeamID      *uint  `json:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
@@ -1516,13 +1516,13 @@ type VPPTokenDB struct {
 	// uploaded; may be empty for tokens uploaded before this field was added,
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
-	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	Teams       []TeamTuple `json:"fleets"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 	Name string `json:"name"`
 }
 

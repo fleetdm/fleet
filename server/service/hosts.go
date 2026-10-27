@@ -1048,7 +1048,7 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID       *uint   `query:"fleet_id,optional"`
 	Platform     *string `query:"platform,optional"`
 	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
@@ -1349,7 +1349,7 @@ func (svc *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int)
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint  `json:"fleet_id"`
 	HostIDs []uint `json:"hosts"`
 }
 
@@ -1553,7 +1553,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint                   `json:"fleet_id"`
 	Filters *map[string]interface{} `json:"filters"`
 }
 
@@ -3230,7 +3230,7 @@ type getHostMDMSummaryResponse struct {
 }
 
 type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID   *uint  `query:"fleet_id,optional"`
 	Platform string `query:"platform,optional"`
 }
 
@@ -3334,7 +3334,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getAggregatedMacadminsDataResponse struct {
@@ -3494,9 +3494,6 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
-			// Add the aliased fields for team_id and team_name.
-			h.FleetID = h.TeamID
-			h.FleetName = h.TeamName
 		}
 	}
 
@@ -3673,14 +3670,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
 			}
-			// If team_id / team_name are requested, also include their aliases.
-			// TODO: clean up in Fleet 5.
-			if rawCol == "team_id" {
-				cols = append(cols, "fleet_id")
-			}
-			if rawCol == "team_name" {
-				cols = append(cols, "fleet_name")
-			}
 		}
 	}
 	if len(cols) == 0 {
@@ -3720,7 +3709,7 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint   `query:"fleet_id,optional"`
 	Platform           *string `query:"platform,optional"`
 	Name               *string `query:"os_name,optional"`
 	Version            *string `query:"os_version,optional"`
@@ -4078,7 +4067,7 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 
 type getOSVersionRequest struct {
 	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint `query:"fleet_id,optional"`
 	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 
@@ -4555,7 +4544,7 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
-		case "fleet_id", "team_id":
+		case "fleet_id":
 			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID

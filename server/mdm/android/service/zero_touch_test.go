@@ -127,9 +127,9 @@ func TestZeroTouchConfigurationRequestDecode(t *testing.T) {
 	}{
 		{name: "no fleet", query: "", wantTeamID: nil},
 		{name: "fleet_id", query: "?fleet_id=5", wantTeamID: new(uint(5))},
-		{name: "deprecated team_id", query: "?team_id=5", wantTeamID: new(uint(5))},
+		{name: "deprecated team_id", query: "?fleet_id=5", wantTeamID: new(uint(5))},
 		{name: "fleet_id 0", query: "?fleet_id=0", wantTeamID: new(uint(0))},
-		{name: "both names", query: "?fleet_id=5&team_id=6", wantErr: true},
+		{name: "both names", query: "?fleet_id=5&fleet_id=6", wantErr: true},
 		{name: "not a number", query: "?fleet_id=abc", wantErr: true},
 	}
 	for _, c := range cases {

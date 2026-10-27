@@ -58,7 +58,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]any{"team_id": float64(team1.ID)},
+		Filters: &map[string]any{"fleet_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -229,7 +229,7 @@ func (s *integrationTestSuite) TestTechnicianCannotDeleteHostsOnFree() {
 		[]fleet.UserTeam{{Team: *team, Role: fleet.RoleTechnician}})
 	defer func() { s.token = s.getTestAdminToken() }()
 
-	teamFilter := &map[string]any{"team_id": float64(team.ID)}
+	teamFilter := &map[string]any{"fleet_id": float64(team.ID)}
 
 	s.token = globalTechnician
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusPaymentRequired)
@@ -707,7 +707,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "fleet_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host2.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -1202,14 +1202,14 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
 
 	// team filter, no host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team2.ID))
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
 	require.Empty(t, resp.Platforms)
 	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
@@ -1218,7 +1218,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(1), resp.AllLinuxCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.AllLinuxCount)
@@ -1321,7 +1321,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
 			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
 		0,
 	)
@@ -1351,7 +1351,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
 			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
 		0,
 	)
@@ -1383,7 +1383,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
 			tm2.ID, tm2.Name, tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
 		0,
 	)
@@ -1453,7 +1453,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
+		fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
 			hosts[1].ID, hosts[1].DisplayName()),
 		0,
 	)

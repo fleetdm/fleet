@@ -727,7 +727,7 @@ func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error) {
 	if maybeTmID != nil && maybeTmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 
 	var teamID *uint

@@ -6,11 +6,10 @@ import (
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// Every team_* order key must also be accepted as fleet_*, sorting the same way.
-func TestOrderKeysAcceptFleetNames(t *testing.T) {
+// The order keys use the fleet names, not the old team names.
+func TestOrderKeysUseFleetNames(t *testing.T) {
 	allowlists := map[string]common_mysql.OrderKeyAllowlist{
 		"labels":          labelsAllowedOrderKeys,
 		"hostsInLabel":    hostsInLabelAllowedOrderKeys,
@@ -22,15 +21,16 @@ func TestOrderKeysAcceptFleetNames(t *testing.T) {
 	}
 	for name, allowlist := range allowlists {
 		t.Run(name, func(t *testing.T) {
-			for key, expr := range allowlist {
-				if !strings.HasPrefix(key, "team_") {
-					continue
-				}
-				fleetKey := "fleet_" + strings.TrimPrefix(key, "team_")
-				got, ok := allowlist[fleetKey]
-				require.True(t, ok, "missing %q alongside %q", fleetKey, key)
-				assert.Equal(t, expr, got, fleetKey)
+			for key := range allowlist {
+				assert.False(t, strings.HasPrefix(key, "team_"), "old team order key %q", key)
 			}
 		})
 	}
+	assert.Contains(t, hostAllowedOrderKeys, "fleet_id")
+	assert.Contains(t, hostAllowedOrderKeys, "fleet_name")
+	assert.Contains(t, policyAllowedOrderKeys, "fleet_id")
+	assert.Contains(t, queryAllowedOrderKeys, "fleet_id")
+	assert.Contains(t, labelsAllowedOrderKeys, "fleet_id")
+	assert.Contains(t, hostsInLabelAllowedOrderKeys, "fleet_name")
+	assert.Contains(t, mdmConfigProfilesAllowedOrderKeys, "fleet_id")
 }

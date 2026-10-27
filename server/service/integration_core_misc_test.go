@@ -301,7 +301,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
-		"team_id", "1",
+		"fleet_id", "1",
 	)
 
 	// a request with a premium vulnerability filter returns a license error

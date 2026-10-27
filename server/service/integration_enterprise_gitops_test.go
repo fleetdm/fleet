@@ -880,11 +880,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	// Listing software titles for the team it owns is allowed.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Listing software titles globally (no team) is forbidden for team gitops.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
 	// Listing software titles for a team it does not own is forbidden.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t2.ID))
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {

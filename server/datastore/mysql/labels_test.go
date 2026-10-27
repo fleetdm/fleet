@@ -4248,7 +4248,7 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"label_membership_type",
 		"author_id",
 		"criteria",
-		"team_id",
+		"fleet_id",
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
