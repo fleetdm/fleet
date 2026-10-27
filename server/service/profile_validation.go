@@ -252,11 +252,11 @@ func (svc *Service) validateBatchProfileSchemas(
 		var storedSum []byte
 		switch {
 		case appleProfiles[i] != nil:
-			storedSum = stored.AppleByIdentifier[appleProfiles[i].Identifier]
+			storedSum = stored.AppleByIdentifier[strings.ToLower(appleProfiles[i].Identifier)]
 		case appleDecls[i] != nil:
 			storedSum = stored.DeclarationsByName[strings.ToLower(appleDecls[i].Name)]
 		case windowsProfiles[i] != nil:
-			storedSum = stored.WindowsByName[windowsProfiles[i].Name]
+			storedSum = stored.WindowsByName[strings.ToLower(windowsProfiles[i].Name)]
 		}
 		if bytes.Equal(storedSum, sum[:]) {
 			continue

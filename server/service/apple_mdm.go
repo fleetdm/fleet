@@ -3983,7 +3983,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 
 		sum := md5.Sum(prof) //nolint:gosec // content comparison, not security
-		if stored != nil && !bytes.Equal(stored.AppleByIdentifier[mdmProf.Identifier], sum[:]) {
+		if stored != nil && !bytes.Equal(stored.AppleByIdentifier[strings.ToLower(mdmProf.Identifier)], sum[:]) {
 			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
 			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),

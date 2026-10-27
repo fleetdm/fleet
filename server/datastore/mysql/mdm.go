@@ -693,11 +693,11 @@ SELECT 'w', name, checksum FROM mdm_windows_configuration_profiles WHERE team_id
 	for _, r := range rows {
 		switch r.Kind {
 		case "a":
-			res.AppleByIdentifier[r.Key] = r.Checksum
+			res.AppleByIdentifier[strings.ToLower(r.Key)] = r.Checksum
 		case "d":
 			res.DeclarationsByName[strings.ToLower(r.Key)] = r.Checksum
 		case "w":
-			res.WindowsByName[r.Key] = r.Checksum
+			res.WindowsByName[strings.ToLower(r.Key)] = r.Checksum
 		}
 	}
 	return res, nil

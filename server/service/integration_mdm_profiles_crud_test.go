@@ -1859,7 +1859,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 `
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return []byte(tmpl)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -2560,6 +2560,11 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		renamedApple := slices.Clone(stored)
 		renamedApple[0].Name = "pv nn apple renamed"
 		batch(renamedApple, http.StatusNoContent)
+
+		// a case-only Windows rename is the same profile (the name's unique key is case-insensitive)
+		caseRenamed := slices.Clone(stored)
+		caseRenamed[2].Name = "PV-NN-WIN"
+		batch(caseRenamed, http.StatusNoContent)
 	})
 
 	t.Run("deprecated Apple batch validates only new or changed profiles", func(t *testing.T) {

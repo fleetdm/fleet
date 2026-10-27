@@ -3167,8 +3167,8 @@ type Datastore interface {
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// GetMDMProfileChecksums returns the MD5 of each Apple profile, declaration,
-	// and Windows profile stored for the team (0 for no team), keyed the way
-	// BatchSetMDMProfiles matches incoming profiles.
+	// and Windows profile stored for the team (0 for no team), keyed (lowercased)
+	// the way BatchSetMDMProfiles matches incoming profiles.
 	GetMDMProfileChecksums(ctx context.Context, teamID uint) (*MDMProfileChecksums, error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.

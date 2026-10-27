@@ -7043,13 +7043,13 @@ func testGetMDMProfileChecksums(t *testing.T, ds *Datastore) {
 	noTeam, err := ds.GetMDMProfileChecksums(ctx, 0)
 	require.NoError(t, err)
 	require.Equal(t, map[string][]byte{"checksums.noteam": md5Of(noTeamApple.Mobileconfig)}, noTeam.AppleByIdentifier)
-	// declaration names are lowercased, matching how the batch upsert compares them
+	// keys are lowercased, matching the columns' case-insensitive unique keys
 	require.Equal(t, map[string][]byte{"decl-noteam": md5Of(noTeamDecl.RawJSON)}, noTeam.DeclarationsByName)
-	require.Equal(t, map[string][]byte{"W-NoTeam": md5Of(noTeamWin.SyncML)}, noTeam.WindowsByName)
+	require.Equal(t, map[string][]byte{"w-noteam": md5Of(noTeamWin.SyncML)}, noTeam.WindowsByName)
 
 	forTeam, err := ds.GetMDMProfileChecksums(ctx, team.ID)
 	require.NoError(t, err)
 	require.Equal(t, map[string][]byte{"checksums.team": md5Of(teamApple.Mobileconfig)}, forTeam.AppleByIdentifier)
 	require.Equal(t, map[string][]byte{"decl-team": md5Of(teamDecl.RawJSON)}, forTeam.DeclarationsByName)
-	require.Equal(t, map[string][]byte{"W-Team": md5Of(teamWin.SyncML)}, forTeam.WindowsByName)
+	require.Equal(t, map[string][]byte{"w-team": md5Of(teamWin.SyncML)}, forTeam.WindowsByName)
 }
