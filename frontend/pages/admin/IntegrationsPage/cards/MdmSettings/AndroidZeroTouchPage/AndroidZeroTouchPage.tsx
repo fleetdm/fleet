@@ -171,6 +171,7 @@ const AndroidZeroTouchPage = () => {
             name="android-zero-touch-name"
             value={selectedFleetName}
             readOnly
+            disabled={isFetching}
             inputOptions={{ "aria-label": "Name" }}
             helpText={
               <>

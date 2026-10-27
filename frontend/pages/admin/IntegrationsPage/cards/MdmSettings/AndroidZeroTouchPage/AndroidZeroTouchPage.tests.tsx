@@ -277,6 +277,9 @@ describe("AndroidZeroTouchPage", () => {
     expect(await screen.findByTestId("spinner")).toBeVisible();
     expect(getFleetPicker()).toBeDisabled();
     expect(screen.getByRole("button", { name: "Copy name" })).toBeDisabled();
+    expect(getNameField().closest(".input-field")).toHaveClass(
+      "input-field--disabled"
+    );
     expect(
       screen.getByRole("button", { name: "Copy DPC extras" })
     ).toBeDisabled();
