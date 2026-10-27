@@ -804,7 +804,7 @@ labels:
     hosts: []
     label_membership_type: manual`
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate label names: [testlabel]")
+	assert.ErrorContains(t, err, "duplicate label names: [TestLabel]")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {

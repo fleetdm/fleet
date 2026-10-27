@@ -2035,10 +2035,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Labels, func(l *fleet.LabelSpec) string {
-			return nameCollationKey(l.Name)
-		},
+			return l.Name
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
@@ -2572,10 +2572,10 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Queries, func(q *fleet.QuerySpec) string {
-			return nameCollationKey(q.Name)
-		},
+			return q.Name
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
@@ -3067,19 +3067,29 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {
-	// We are using the allKeys map as a set here. True means the item is a duplicate.
-	allKeys := make(map[string]bool)
+	return getDuplicateNamesBy(slice, getComparableString, func(name string) string { return name })
+}
+
+// getDuplicateNamesBy groups items by key(getName(item)) and reports the first name as written for each group with duplicates.
+func getDuplicateNamesBy[T any](slice []T, getName func(T) string, key func(string) string) []string {
+	// idx is the position in duplicates, or -1 if the key hasn't been reported yet.
+	type entry struct {
+		name string
+		idx  int
+	}
+	seen := make(map[string]entry)
 	var duplicates []string
 	for _, item := range slice {
-		name := getComparableString(item)
-		if isDuplicate, exists := allKeys[name]; exists {
-			// If this name hasn't already been marked as a duplicate.
-			if !isDuplicate {
-				duplicates = append(duplicates, name)
-			}
-			allKeys[name] = true
-		} else {
-			allKeys[name] = false
+		name := getName(item)
+		k := key(name)
+		e, exists := seen[k]
+		if !exists {
+			seen[k] = entry{name: name, idx: -1}
+			continue
+		}
+		if e.idx == -1 {
+			duplicates = append(duplicates, e.name)
+			seen[k] = entry{name: e.name, idx: len(duplicates) - 1}
 		}
 	}
 	return duplicates
