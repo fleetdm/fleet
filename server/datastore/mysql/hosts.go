@@ -18,6 +18,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4243,6 +4244,10 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
+	return ds.deleteHostsWithProgress(ctx, ids, nil)
+}
+
+func (ds *Datastore) deleteHostsWithProgress(ctx context.Context, ids []uint, progress func(transaction, totalDeleted int)) error {
 	for i := 0; i < len(ids); i += hostsDeleteBatchSize {
 		start := i
 		end := i + hostsDeleteBatchSize
@@ -4255,6 +4260,9 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 		})
 		if err != nil {
 			return err
+		}
+		if progress != nil {
+			progress(i/hostsDeleteBatchSize+1, end)
 		}
 	}
 	return nil
@@ -4322,6 +4330,7 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 	if batchSize <= 0 {
 		return nil, ctxerr.Errorf(ctx, "expired hosts batch size must be positive, got %d", batchSize)
 	}
+	seenTimeRange, hasSeenTimeRange := ctx.Value(expiredHostsSeenTimeRangeContextKey{}).(expiredHostsSeenTimeRange)
 
 	ac, err := appConfigDB(ctx, ds.reader(ctx))
 	if err != nil {
@@ -4354,7 +4363,6 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 			teamsUsingCustomExpiry[team.ID] = team.Config.HostExpirySettings.HostExpiryWindow
 		}
 	}
-
 	// Usual clean up queries used to be like this:
 	// DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
 	// This means a full table scan for hosts, and for big deployments, that's not ideal
@@ -4373,6 +4381,17 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
 	// host_dep_assignments table. Windows Autopilot pending hosts need the same protection for the same reason.
+	findHostsWithOSQuerySeenTimeSql := `SELECT h.id FROM host_seen_times hst FORCE INDEX (idx_host_seen_times_seen_time)
+		STRAIGHT_JOIN hosts h ON h.id = hst.host_id
+		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
+		LEFT JOIN host_autopilot_devices had ON h.id = had.host_id
+		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
+		LEFT JOIN nano_seen_times nst ON nst.id = ne.id
+		WHERE hst.seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)
+			AND (nst.seen_time IS NULL OR nst.seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
+			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)
+			AND (had.host_id IS NULL OR had.deleted_at IS NOT NULL)`
+
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
@@ -4422,9 +4441,47 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 	var allIdsToDelete []uint
 	hostIDToExpiryWindow := make(map[uint]int)
 	lastHostIDByScope := make([]uint, len(expiredHostScopes))
+	indexedScopesExhausted := make([]bool, len(expiredHostScopes))
 	// A scope that returned fewer rows than requested has no more expired
-	// hosts, so later passes skip it rather than re-running the scan.
+	// hosts from this indexed path, so later passes skip it.
 	exhaustedScopes := make([]bool, len(expiredHostScopes))
+	queryExpiredHostsWithOSQuerySeenTime := func(scopeIndex, limit int) error {
+		if limit <= 0 || indexedScopesExhausted[scopeIndex] {
+			return nil
+		}
+
+		scope := expiredHostScopes[scopeIndex]
+		sqlQuery := findHostsWithOSQuerySeenTimeSql + scope.querySuffix
+		args := []any{scope.expiryWindow, scope.expiryWindow}
+		args = append(args, scope.args[1:]...)
+		if len(allIdsToDelete) > 0 {
+			sqlQuery += " AND h.id NOT IN (?)"
+			args = append(args, allIdsToDelete)
+		}
+		if hasSeenTimeRange {
+			sqlQuery += " AND hst.seen_time >= ? AND hst.seen_time < ?"
+			args = append(args, seenTimeRange.start, seenTimeRange.end)
+		}
+		sqlQuery += " ORDER BY hst.seen_time, h.id LIMIT ?"
+		args = append(args, limit)
+		sqlQuery, args, err := sqlx.In(sqlQuery, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building indexed query to get expired host ids")
+		}
+
+		var ids []uint
+		if err := ds.writer(ctx).SelectContext(ctx, &ids, sqlQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting expired hosts by OSQuery seen time")
+		}
+		for _, id := range ids {
+			hostIDToExpiryWindow[id] = scope.expiryWindow
+		}
+		allIdsToDelete = append(allIdsToDelete, ids...)
+		if len(ids) < limit {
+			indexedScopesExhausted[scopeIndex] = true
+		}
+		return nil
+	}
 	queryExpiredHosts := func(scopeIndex, limit int) error {
 		if limit <= 0 || exhaustedScopes[scopeIndex] {
 			return nil
@@ -4436,6 +4493,10 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 		if lastHostIDByScope[scopeIndex] > 0 {
 			sqlQuery += " AND h.id > ?"
 			args = append(args, lastHostIDByScope[scopeIndex])
+		}
+		if len(allIdsToDelete) > 0 {
+			sqlQuery += " AND h.id NOT IN (?)"
+			args = append(args, allIdsToDelete)
 		}
 		sqlQuery += " ORDER BY h.id LIMIT ?"
 		args = append(args, limit)
@@ -4461,8 +4522,9 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 		return nil
 	}
 
-	// Reserve part of the batch for each expiry scope so a large global backlog
-	// does not consume the entire batch before custom-expiry teams are considered.
+	// Try the indexed OSQuery timestamp first. Most hosts have this timestamp;
+	// applying the complete expiry checks after the range scan keeps this fast
+	// path equivalent while avoiding a hosts-table scan when it fills the batch.
 	remainingReservedBudget := batchSize
 	for scopeIndex := range expiredHostScopes {
 		scopesLeft := len(expiredHostScopes) - scopeIndex
@@ -4474,30 +4536,45 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 			break
 		}
 
-		if err := queryExpiredHosts(scopeIndex, reservedLimit); err != nil {
+		if err := queryExpiredHostsWithOSQuerySeenTime(scopeIndex, reservedLimit); err != nil {
 			return nil, err
 		}
 		remainingReservedBudget -= reservedLimit
 	}
-
-	// Fill unused capacity from scopes that still have more expired hosts.
 	remainingBatchSize := batchSize - len(allIdsToDelete)
 	for scopeIndex := range expiredHostScopes {
 		if remainingBatchSize <= 0 {
 			break
 		}
-
 		previousCount := len(allIdsToDelete)
-		if err := queryExpiredHosts(scopeIndex, remainingBatchSize); err != nil {
+		if err := queryExpiredHostsWithOSQuerySeenTime(scopeIndex, remainingBatchSize); err != nil {
 			return nil, err
 		}
 		remainingBatchSize -= len(allIdsToDelete) - previousCount
 	}
 
+	if !hasSeenTimeRange {
+		// Fill any capacity left by hosts without an OSQuery seen-time row using the
+		// full expiry query, which also handles MDM-only and never-seen hosts.
+		for scopeIndex := range expiredHostScopes {
+			if remainingBatchSize <= 0 {
+				break
+			}
+
+			previousCount := len(allIdsToDelete)
+			if err := queryExpiredHosts(scopeIndex, remainingBatchSize); err != nil {
+				return nil, err
+			}
+			remainingBatchSize -= len(allIdsToDelete) - previousCount
+		}
+	}
+
 	// Get host details before deletion for activity creation
 	var hostsToDelete []*fleet.Host
 	if len(allIdsToDelete) > 0 {
-		hostsToDelete, err = ds.ListHostsLiteByIDs(ctx, allIdsToDelete)
+		// Candidate IDs were selected on the primary, so read their details from
+		// the primary too; a lagging replica could omit them and silently skip deletion.
+		hostsToDelete, err = ds.ListHostsLiteByIDs(ctxdb.RequirePrimary(ctx, true), allIdsToDelete)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host details for expired hosts")
 		}
@@ -4506,10 +4583,18 @@ func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int
 	// Only delete hosts whose details were loaded so the returned slice is an
 	// exact record of what this batch removed; a host that disappeared in
 	// between was deleted (and its activity recorded) by someone else.
+	hostIDs := make([]uint, 0, len(hostsToDelete))
 	for _, host := range hostsToDelete {
-		if err := ds.DeleteHost(ctx, host.ID); err != nil {
-			return nil, err
+		hostIDs = append(hostIDs, host.ID)
+	}
+	if err := ds.deleteHostsWithProgress(ctx, hostIDs, func(transaction, totalDeleted int) {
+		workerID := 0
+		if hasSeenTimeRange {
+			workerID = seenTimeRange.workerID
 		}
+		ds.logger.InfoContext(ctx, "committed expired host deletion transaction", "worker", workerID, "transaction", transaction, "transaction_hosts", min(hostsDeleteBatchSize, len(hostIDs)-(transaction-1)*hostsDeleteBatchSize), "total_deleted", totalDeleted, "batch_hosts", len(hostIDs))
+	}); err != nil {
+		return nil, err
 	}
 
 	// Return host details for activity creation
