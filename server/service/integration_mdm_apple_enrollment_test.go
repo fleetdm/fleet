@@ -1982,9 +1982,9 @@ func (s *integrationMDMTestSuite) TestAppleCheckinWithSerialOfHostEnrolledUnderA
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostB.ID), nil, http.StatusOK, &deleteHostResponse{})
 
 		deviceB.SerialNumber = hostA.HardwareSerial
-		authErr := deviceB.Authenticate()
-		tokenErr := deviceB.TokenUpdate(false)
-		t.Logf("Authenticate: %v, TokenUpdate: %v", authErr, tokenErr)
+		require.ErrorContains(t, deviceB.Authenticate(), "409")
+		// the check-in that follows doesn't change the host either
+		_ = deviceB.TokenUpdate(false)
 
 		assert.Equal(t, before, getIdentity(hostA.ID))
 		assert.Equal(t, lockRef, pendingLockRef(hostA.ID))
@@ -2019,11 +2019,14 @@ func (s *integrationMDMTestSuite) TestAppleCheckinWithSerialOfHostEnrolledUnderA
 		lockRef := pendingLockRef(hostA.ID)
 		require.NotNil(t, lockRef)
 
-		enrollErr := adueDevice.Enroll()
-		t.Logf("Enroll: %v", enrollErr)
+		// the device enrolls as a host of its own
+		require.NoError(t, adueDevice.Enroll())
 
 		assert.Equal(t, before, getIdentity(hostA.ID))
 		assert.Equal(t, lockRef, pendingLockRef(hostA.ID))
-		assert.Equal(t, []hostIdentity{before}, hostsWithSerial(hostA.HardwareSerial))
+		assert.ElementsMatch(t, []hostIdentity{
+			before,
+			{UUID: adueDevice.EnrollmentID(), HardwareSerial: adueDevice.EnrollmentID(), Platform: "ios"},
+		}, hostsWithSerial(hostA.HardwareSerial))
 	})
 }

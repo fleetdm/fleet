@@ -1698,9 +1698,16 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
 	}
 
+	// An account-driven user enrollment's serial is its enrollment ID, chosen by the device, so it's never matched
+	// against other hosts' serials.
+	matchSerial := mdmHost.HardwareSerial
+	if personalType == fleet.PersonalEnrollmentTypeAccountDriven {
+		matchSerial = ""
+	}
+
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "", "")
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, matchSerial, "", "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
@@ -1735,6 +1742,20 @@ func errSerialEnrolledUnderAnotherUUID() error {
 	return &fleet.ConflictError{
 		Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
 	}
+}
+
+func (ds *Datastore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error) {
+	// A device with a host of its own is matched by its UUID, like ingestMDMAppleDeviceFromCheckinDB does, never by
+	// its serial.
+	var ownHost bool
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &ownHost,
+		`SELECT EXISTS(SELECT 1 FROM hosts WHERE osquery_host_id = ?)`, uuid); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for the device's own host")
+	}
+	if ownHost {
+		return "", nil
+	}
+	return enrolledUUIDForSerial(ctx, ds.writer(ctx), serial, uuid)
 }
 
 // enrolledUUIDForSerial returns the UUID of a host with the serial that's enrolled under a UUID other than uuid, or ""

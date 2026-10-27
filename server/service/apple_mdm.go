@@ -5502,9 +5502,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		PersonalEnrollmentType: personalType,
 	}); err != nil {
 		svc.logger.WarnContext(r.Context, "could not reset Apple mdm information", "UDID", m.UDID, "EnrollmentID", m.EnrollmentID, "err", err)
-		if _, ok := errors.AsType[*fleet.ConflictError](err); ok {
-			return nano_service.NewHTTPStatusError(http.StatusConflict, err)
-		}
 		return err
 	}
 

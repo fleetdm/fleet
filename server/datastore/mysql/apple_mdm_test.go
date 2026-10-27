@@ -122,6 +122,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
 		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
 		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
+		{"GetAppleSerialEnrolledUnderAnotherUUID", testGetAppleSerialEnrolledUnderAnotherUUID},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -15017,6 +15018,26 @@ func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
 	host, err = ds.HostLite(ctx, own.ID)
 	require.NoError(t, err)
 	assert.Equal(t, own.UUID, host.UUID)
+
+	// an account-driven user enrollment isn't matched by serial, even to a host that isn't enrolled yet
+	pending := newHost("pending", "pending-uuid", "enrollment-id")
+	adue := &fleet.Host{UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios"}
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	host, err = ds.HostLite(ctx, pending.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "pending-uuid", host.UUID)
+	assert.Equal(t, "darwin", host.Platform)
+	countByUUID := func(uuid string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM hosts WHERE uuid = ?`, uuid)
+		})
+		return n
+	}
+	require.Equal(t, 1, countByUUID("enrollment-id"))
+	// and it finds its own host again on the next check-in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	require.Equal(t, 1, countByUUID("enrollment-id"))
 }
 
 func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
@@ -15077,4 +15098,46 @@ func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
+}
+
+func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "enrolled", OsqueryHostID: new("enrolled-uuid"), NodeKey: new("enrolled"),
+		UUID: "enrolled-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	got, err := ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Equal(t, "enrolled-uuid", got)
+
+	// the enrolled device itself, and a serial nobody has
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "enrolled-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "unknown-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// a device with a host of its own is matched by its UUID
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname: "own", OsqueryHostID: new("own-uuid"), NodeKey: new("own"),
+		UUID: "own-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "own-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// once MDM is turned off, the serial is free
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
 }
