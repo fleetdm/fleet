@@ -19,11 +19,11 @@ curl "https://fleet.example.com/api/v1/fleet/users?query=test-api-user" \
 
 Note the old user's `id` from the response. You'll need it to delete the user later.
 
-## Create the new API-only user
+## Step 2: Create the new API-only user
 
 Follow instructions to [create an new API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) and give the new user a name that tells the two users apart, for example `test-api-user (2026-10)`. 
 
-## Update your integrations
+## Step 3: Update your integrations
 
 Replace the old token with the new one everywhere it's used: secrets managers, CI variables, identity provider settings (for example, Okta SCIM provisioning), and fleetctl contexts.
 
