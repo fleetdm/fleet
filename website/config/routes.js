@@ -1319,6 +1319,7 @@ module.exports.routes = {
 
   'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
+  'GET /partner': '/partners',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
