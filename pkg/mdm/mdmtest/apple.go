@@ -1194,6 +1194,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// AcknowledgeSettings acknowledges a Settings command and reports a per-item
+// result for each entry in settings. A device can acknowledge the command while
+// individual items fail.
+func (c *TestAppleMDMClient) AcknowledgeSettings(cmdUUID string, settings []map[string]any) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"Settings":     settings,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 // AcknowledgeVerifyRecoveryLock acknowledges a VerifyRecoveryLock command and reports the
 // device's verdict. A device acknowledges the command whether or not the password matched
 // and answers in PasswordVerified, so an acknowledgment alone says nothing about the lock.

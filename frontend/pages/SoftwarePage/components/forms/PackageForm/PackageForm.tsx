@@ -165,6 +165,10 @@ interface IPackageFormProps {
 const ACCEPTED_EXTENSIONS =
   ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.py,.ipa";
 
+// Matches the FileUploader's drop-rejection fallback so picker and drop
+// report the same copy when a user picks a type the installer can't handle.
+const UNSUPPORTED_FILE_TYPE_ERROR = "File type isn't supported";
+
 const PackageForm = ({
   labels,
   showSchemaButton = false,
@@ -220,6 +224,7 @@ const PackageForm = ({
     isValid: false,
     software: { isValid: false },
   });
+  const [uploaderError, setUploaderError] = useState<string | null>(null);
 
   // GitOps mode hides the target selector, so a "Custom" target with no labels
   // can never be satisfied: the picker that would fix it isn't rendered, and
@@ -277,32 +282,25 @@ const PackageForm = ({
         setFormData(newData);
 
         setFormValidation(generateFormValidation(newData));
+        setUploaderError(null);
       } else {
+        // The picker's `accept` filter can let unsupported types through
+        // (e.g. Chrome's `application/gzip` table includes bare `.gz`), so
+        // mirror the uploader's inline "File type isn't supported" rather
+        // than toasting the raw script-mapping error.
         let newDefaultInstallScript: string;
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
-        } catch (e) {
-          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
-            response: {
-              data: {
-                message: e instanceof Error ? e.message : String(e),
-              },
-            },
-          });
+        } catch {
+          setUploaderError(UNSUPPORTED_FILE_TYPE_ERROR);
           return;
         }
 
         let newDefaultUninstallScript: string;
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
-        } catch (e) {
-          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
-            response: {
-              data: {
-                message: e instanceof Error ? e.message : String(e),
-              },
-            },
-          });
+        } catch {
+          setUploaderError(UNSUPPORTED_FILE_TYPE_ERROR);
           return;
         }
 
@@ -314,6 +312,7 @@ const PackageForm = ({
         };
         setFormData(newData);
         setFormValidation(generateFormValidation(newData));
+        setUploaderError(null);
       }
     }
   };
@@ -557,6 +556,7 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+          internalError={uploaderError ?? undefined}
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />

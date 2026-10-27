@@ -3,16 +3,14 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
 const (
@@ -26,7 +24,7 @@ const (
 
 // validateEJBCA checks a new EJBCA CA, reads the client certificate and key out of its PKCS#12, and verifies the connection to EJBCA.
 func (svc *Service) validateEJBCA(ctx context.Context, ca *fleet.EJBCA, errPrefix string) error {
-	if err := validateCAName(ca.Name, errPrefix); err != nil {
+	if err := validateEJBCAName(ca.Name, errPrefix); err != nil {
 		return err
 	}
 	if err := validateURL(ca.URL, "EJBCA", errPrefix); err != nil {
@@ -48,6 +46,15 @@ func (svc *Service) validateEJBCA(ctx context.Context, ca *fleet.EJBCA, errPrefi
 	return svc.verifyEJBCA(ctx, *ca, errPrefix)
 }
 
+// validateEJBCAName checks the name like any CA's, and also reserves NDES in any case: an EJBCA name can't be shared with another CA, and
+// the name of the NDES CA is fixed, so an EJBCA CA with it would stop NDES from being configured later.
+func validateEJBCAName(name, errPrefix string) error {
+	if strings.EqualFold(name, "NDES") {
+		return fleet.NewInvalidArgumentError("name", errPrefix+"CA name cannot be NDES")
+	}
+	return validateCAName(name, errPrefix)
+}
+
 // validateEJBCAFields checks the fields that make up an EJBCA CA's enrollment settings, whether it is new or the result of an update.
 func validateEJBCAFields(ca *fleet.EJBCA, errPrefix string) error {
 	for _, field := range []struct{ name, label, value string }{
@@ -59,6 +66,9 @@ func validateEJBCAFields(ca *fleet.EJBCA, errPrefix string) error {
 		if strings.TrimSpace(field.value) == "" {
 			return fleet.NewInvalidArgumentError(field.name, fmt.Sprintf("%sThe %s cannot be empty.", errPrefix, field.label))
 		}
+	}
+	if ca.UsernameTemplate != "" && strings.TrimSpace(ca.UsernameTemplate) == "" {
+		return fleet.NewInvalidArgumentError("username_template", errPrefix+"The username template cannot be only spaces.")
 	}
 	for _, field := range []struct{ name, label, value string }{
 		{"certificate_authority_name", "EJBCA CA name", ca.CertificateAuthorityName},
@@ -73,47 +83,39 @@ func validateEJBCAFields(ca *fleet.EJBCA, errPrefix string) error {
 		}
 	}
 
-	if err := validateEJBCAVariables("certificate_common_name", "common name", ca.CertificateCommonName, errPrefix); err != nil {
+	if err := validateCAFleetVariables("certificate_common_name", "CA Common Name (CN)", ca.CertificateCommonName,
+		fleet.FleetVarsSupportedInEJBCA, errPrefix); err != nil {
 		return err
 	}
-	if err := validateEJBCAVariables("username_template", "username template", ca.UsernameTemplate, errPrefix); err != nil {
+	if err := validateCAFleetVariables("username_template", "EJBCA Username Template", ca.UsernameTemplate, fleet.FleetVarsSupportedInEJBCA,
+		errPrefix); err != nil {
 		return err
 	}
-	return validateEJBCAUserPrincipalNames(ca.CertificateUserPrincipalNames, errPrefix)
-}
-
-// validateEJBCAVariables rejects a Fleet variable in the value that EJBCA fields don't support.
-func validateEJBCAVariables(field, label, value, errPrefix string) error {
-	for _, fleetVar := range variables.Find(value) {
-		if !slices.Contains(fleet.FleetVarsSupportedInEJBCA, fleet.FleetVarName(fleetVar)) {
-			return fleet.NewInvalidArgumentError(field, fmt.Sprintf("%sFLEET_VAR_%s is not allowed in the %s.", errPrefix, fleetVar, label))
-		}
-	}
-	return nil
-}
-
-// validateEJBCAUserPrincipalNames allows at most one UPN, like DigiCert.
-func validateEJBCAUserPrincipalNames(upns []string, errPrefix string) error {
-	if len(upns) == 0 {
-		return nil
-	}
-	if len(upns) > 1 {
-		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
-			fmt.Sprintf("%sCurrently, only one item can be added to certificate_user_principal_names.", errPrefix))
-	}
-	if strings.TrimSpace(upns[0]) == "" {
-		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
-			fmt.Sprintf("%sThe user principal name cannot be empty if specified.", errPrefix))
-	}
-	if utf8.RuneCountInString(upns[0]) > ejbcaMaxFieldLength {
-		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
-			fmt.Sprintf("%sThe user principal name cannot be longer than %d characters.", errPrefix, ejbcaMaxFieldLength))
-	}
-	return validateEJBCAVariables("certificate_user_principal_names", "user principal name", upns[0], errPrefix)
+	return validateCAUserPrincipalNames(ca.CertificateUserPrincipalNames, "EJBCA", fleet.FleetVarsSupportedInEJBCA, ejbcaMaxFieldLength, errPrefix)
 }
 
 // readEJBCAClientP12 reads the client certificate chain and key out of a base64 PKCS#12 and rejects a certificate that isn't valid now.
 func readEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix string) (*ejbca.ClientCredentials, error) {
+	creds, err := parseEJBCAClientP12(ctx, p12Base64, password, errPrefix)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	if now.After(creds.Leaf.NotAfter) {
+		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
+			"%sThe client certificate expired on %s. Upload a client certificate that hasn't expired.",
+			errPrefix, creds.Leaf.NotAfter.UTC().Format(time.DateOnly)))
+	}
+	if now.Before(creds.Leaf.NotBefore) {
+		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
+			"%sThe client certificate isn't valid until %s. Upload a client certificate that is valid now.",
+			errPrefix, creds.Leaf.NotBefore.UTC().Format(time.DateOnly)))
+	}
+	return creds, nil
+}
+
+// parseEJBCAClientP12 reads the client certificate chain and key out of a base64 PKCS#12, whether or not the certificate is valid now.
+func parseEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix string) (*ejbca.ClientCredentials, error) {
 	if strings.TrimSpace(p12Base64) == "" {
 		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sThe client certificate PKCS#12 cannot be empty.", errPrefix))
 	}
@@ -130,21 +132,14 @@ func readEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix stri
 
 	creds, err := ejbca.ParseClientP12(ctx, p12, password)
 	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("client_p12", errPrefix+err.Error())
+		field := "client_p12"
+		if errors.Is(err, ejbca.ErrP12Password) {
+			field = "password"
+		}
+		return nil, fleet.NewInvalidArgumentError(field, errPrefix+err.Error())
 	}
 	if len(creds.CertPEM) > ejbcaMaxPEMLength {
 		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sThe client certificate chain is too large.", errPrefix))
-	}
-	now := time.Now()
-	if now.After(creds.Leaf.NotAfter) {
-		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
-			"%sThe client certificate expired on %s. Upload a client certificate that hasn't expired.",
-			errPrefix, creds.Leaf.NotAfter.UTC().Format(time.DateOnly)))
-	}
-	if now.Before(creds.Leaf.NotBefore) {
-		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
-			"%sThe client certificate isn't valid until %s. Upload a client certificate that is valid now.",
-			errPrefix, creds.Leaf.NotBefore.UTC().Format(time.DateOnly)))
 	}
 	return creds, nil
 }
@@ -181,21 +176,7 @@ func (svc *Service) updateEJBCA(
 		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sThe password can only be set with client_p12.", errPrefix))
 	}
 
-	merged := fleet.EJBCA{
-		Name:                     ptr.ValOrZero(oldCA.Name),
-		URL:                      ptr.ValOrZero(oldCA.URL),
-		MTLSCertPEM:              ptr.ValOrZero(oldCA.MTLSCertPEM),
-		MTLSKeyPEM:               ptr.ValOrZero(oldCA.MTLSKeyPEM),
-		TrustCABundlePEM:         ptr.ValOrZero(oldCA.TrustCABundlePEM),
-		CertificateAuthorityName: ptr.ValOrZero(oldCA.EJBCACAName),
-		CertificateProfileName:   ptr.ValOrZero(oldCA.EJBCACertificateProfileName),
-		EndEntityProfileName:     ptr.ValOrZero(oldCA.EJBCAEndEntityProfileName),
-		CertificateCommonName:    ptr.ValOrZero(oldCA.CertificateCommonName),
-		UsernameTemplate:         ptr.ValOrZero(oldCA.EJBCAUsernameTemplate),
-	}
-	if oldCA.CertificateUserPrincipalNames != nil {
-		merged.CertificateUserPrincipalNames = *oldCA.CertificateUserPrincipalNames
-	}
+	merged := oldCA.EJBCA()
 	overrides := []struct {
 		field  *string
 		update *string
@@ -219,7 +200,7 @@ func (svc *Service) updateEJBCA(
 	}
 
 	if u.Name != nil {
-		if err := validateCAName(merged.Name, errPrefix); err != nil {
+		if err := validateEJBCAName(merged.Name, errPrefix); err != nil {
 			return nil, err
 		}
 	}

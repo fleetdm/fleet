@@ -235,13 +235,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := "fleet-osquery.msi"
-	if opt.CustomOutfile != "" {
-		filename = opt.CustomOutfile
-	}
-	if opt.Architecture == ArchArm64 {
-		filename = "fleet-osquery-arm64.msi"
-	}
+	filename := msiFilename(opt)
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
@@ -251,6 +245,16 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
+}
+
+func msiFilename(opt Options) string {
+	if opt.CustomOutfile != "" {
+		return opt.CustomOutfile
+	}
+	if opt.Architecture == ArchArm64 {
+		return "fleet-osquery-arm64.msi"
+	}
+	return "fleet-osquery.msi"
 }
 
 func checkWine(wineChecked bool) error {

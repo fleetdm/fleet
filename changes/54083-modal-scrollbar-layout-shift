@@ -1,0 +1,1 @@
+- Fixed the page behind a modal shifting sideways when the modal opened on a page with a visible scrollbar.
