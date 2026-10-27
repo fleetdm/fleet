@@ -224,7 +224,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.True(t, appConfig.Integrations.GoogleConditionalAccess[0].ApiKey.IsEmpty())
 
 	// Saving the same settings again (with the key, masked, or omitted) or leaving the setting
-	// out makes no Google or fleetdm.com call and logs nothing.
+	// out makes no Google or fleetdm.com call and logs nothing. The response reports the
+	// connection like GET does, so the UI doesn't show it as disconnected after an unrelated save.
 	for _, payload := range []json.RawMessage{
 		googleConditionalAccessPayload(t, entry("C01234abc", "admin@example.com", key)),
 		googleConditionalAccessPayload(t, entry("C01234abc", "admin@example.com", fleet.MaskedPassword)),
@@ -232,7 +233,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 		json.RawMessage(`{"integrations": {"google_conditional_access": null}}`),
 		json.RawMessage(`{"org_info": {"org_name": "Fleet"}}`),
 	} {
-		s.Do("PATCH", "/api/latest/fleet/config", payload, http.StatusOK)
+		var patchRes struct {
+			ConditionalAccess fleet.ConditionalAccessSettings `json:"conditional_access"`
+		}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", payload, http.StatusOK, &patchRes)
+		require.Equal(t, "C01234abc", patchRes.ConditionalAccess.GoogleCustomerID)
+		require.True(t, patchRes.ConditionalAccess.GoogleConnectionConfigured)
 	}
 	checks, creates, deletes = m.counts()
 	require.Equal(t, 1, checks)

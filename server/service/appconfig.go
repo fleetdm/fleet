@@ -150,38 +150,17 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	// Add Microsoft Entra settings from the integration table to appConfig.ConditionalAccess
+	// Add Microsoft Entra and Google settings from the integration tables to appConfig.ConditionalAccess
 	// (Okta settings are already in appConfig.ConditionalAccess from the database)
-	conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
+	entraIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	// Always initialize ConditionalAccess so it's never nil (even when empty)
-	if appConfig.ConditionalAccess == nil {
-		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
-	}
-
-	// Set or clear Microsoft Entra fields based on integration status
-	if conditionalAccessIntegration != nil {
-		appConfig.ConditionalAccess.MicrosoftEntraTenantID = conditionalAccessIntegration.TenantID
-		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = conditionalAccessIntegration.SetupDone
-	} else {
-		// Clear Entra fields when integration is deleted
-		appConfig.ConditionalAccess.MicrosoftEntraTenantID = ""
-		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
-	}
-
 	googleIntegration, err := svc.ConditionalAccessGoogleGet(ctx)
 	if err != nil {
 		return nil, err
 	}
-	appConfig.ConditionalAccess.GoogleCustomerID = ""
-	appConfig.ConditionalAccess.GoogleConnectionConfigured = false
-	if googleIntegration != nil {
-		appConfig.ConditionalAccess.GoogleCustomerID = googleIntegration.CustomerID
-		appConfig.ConditionalAccess.GoogleConnectionConfigured = googleIntegration.SetupDone
-	}
+	setConditionalAccessConnectionFields(appConfig, entraIntegration, googleIntegration)
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
@@ -353,6 +332,51 @@ type modifyAppConfigRequest struct {
 	DryRun    bool `json:"-" query:"dry_run,optional"`   // if true, apply validation but do not save changes
 	Overwrite bool `json:"-" query:"overwrite,optional"` // if true, overwrite any existing settings with the incoming ones
 	json.RawMessage
+}
+
+// setConditionalAccessConnectionFields sets the read-only conditional access fields that
+// mirror the Entra and Google integration tables, clearing them when there is no integration.
+func setConditionalAccessConnectionFields(
+	appConfig *fleet.AppConfig,
+	entra *fleet.ConditionalAccessMicrosoftIntegration,
+	google *fleet.ConditionalAccessGoogleIntegration,
+) {
+	// Always initialize ConditionalAccess so it's never nil (even when empty)
+	if appConfig.ConditionalAccess == nil {
+		appConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
+	}
+	ca := appConfig.ConditionalAccess
+	ca.MicrosoftEntraTenantID, ca.MicrosoftEntraConnectionConfigured = "", false
+	if entra != nil {
+		ca.MicrosoftEntraTenantID, ca.MicrosoftEntraConnectionConfigured = entra.TenantID, entra.SetupDone
+	}
+	ca.GoogleCustomerID, ca.GoogleConnectionConfigured = "", false
+	if google != nil {
+		ca.GoogleCustomerID, ca.GoogleConnectionConfigured = google.CustomerID, google.SetupDone
+	}
+}
+
+// loadConditionalAccessConnectionFields is setConditionalAccessConnectionFields for the
+// PATCH config response. It reads the datastore directly because the caller may be allowed
+// to write the config but not to read it (gitops role), which the authorized getters require.
+func (svc *Service) loadConditionalAccessConnectionFields(ctx context.Context, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo) error {
+	var (
+		entra  *fleet.ConditionalAccessMicrosoftIntegration
+		google *fleet.ConditionalAccessGoogleIntegration
+		err    error
+	)
+	if lic != nil && lic.IsPremium() {
+		entra, err = svc.ds.ConditionalAccessMicrosoftGet(ctx)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load microsoft conditional access integration")
+		}
+		google, err = svc.ds.ConditionalAccessGoogleGet(ctx)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load google conditional access integration")
+		}
+	}
+	setConditionalAccessConnectionFields(appConfig, entra, google)
+	return nil
 }
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1613,6 +1637,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 	obfuscatedAppConfig.Obfuscate()
+	if err := svc.loadConditionalAccessConnectionFields(ctxdb.RequirePrimary(ctx, true), obfuscatedAppConfig, lic); err != nil {
+		return nil, err
+	}
 
 	newAgentOptions := ""
 	if obfuscatedAppConfig.AgentOptions != nil {

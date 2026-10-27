@@ -225,6 +225,10 @@ export interface IConfig {
     // Microsoft Entra
     microsoft_entra_tenant_id: string;
     microsoft_entra_connection_configured: boolean;
+    // Google, mirrored from the integration's connection state. Settings live
+    // under `integrations.google_conditional_access`.
+    google_customer_id?: string;
+    google_connection_configured?: boolean;
     // Okta
     okta_idp_id: string;
     okta_assertion_consumer_service_url: string;
@@ -387,6 +391,13 @@ export const isEntraConditionalAccessConfigured = (
   return (
     config?.conditional_access?.microsoft_entra_connection_configured ?? false
   );
+};
+
+/** Check if Google conditional access is connected */
+export const isGoogleConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  return config?.conditional_access?.google_connection_configured ?? false;
 };
 
 /** Check if any conditional access provider is configured (Okta or Entra) */

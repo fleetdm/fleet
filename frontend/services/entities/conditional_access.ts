@@ -23,6 +23,9 @@ const conditionalAccessService = {
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
   },
+  deleteGoogleConditionalAccess: () => {
+    return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_GOOGLE);
+  },
   getIdpAppleProfile: (): Promise<string> => {
     return sendRequest(
       "GET",

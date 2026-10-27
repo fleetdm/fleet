@@ -29,14 +29,23 @@ import {
 import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
+import GoogleConditionalAccessCard from "./components/GoogleConditionalAccessCard";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
 
 const baseClass = "conditional-access";
 
+type ConditionalAccessProvider = "microsoft-entra" | "okta" | "google";
+
+const PROVIDER_NAMES: Record<ConditionalAccessProvider, string> = {
+  "microsoft-entra": "Microsoft Entra",
+  okta: "Okta",
+  google: "Google",
+};
+
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
-  provider: "microsoft-entra" | "okta";
+  provider: ConditionalAccessProvider;
   config: IConfig | null;
 }
 
@@ -49,17 +58,16 @@ const DeleteConditionalAccessModal = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const providerName =
-    provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
+  const providerName = PROVIDER_NAMES[provider];
 
-  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
-  // while this confirmation is open, block the write here so a stale open
-  // modal can't bypass the card-level gate. Entra deletion hits a separate
-  // table, not AppConfig, so leave it alone.
-  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+  // Okta and Google settings live in AppConfig (GitOps-managed). If GitOps
+  // flips on while this confirmation is open, block the write here so a stale
+  // open modal can't bypass the card-level gate. Entra deletion hits a
+  // separate table, not AppConfig, so leave it alone.
+  const blockedByGitOps = provider !== "microsoft-entra" && gitOpsModeEnabled;
 
   const handleDelete = async () => {
-    if (oktaBlockedByGitOps) {
+    if (blockedByGitOps) {
       return;
     }
     setIsDeleting(true);
@@ -67,6 +75,9 @@ const DeleteConditionalAccessModal = ({
       let updatedConfig;
       if (provider === "microsoft-entra") {
         await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
+        updatedConfig = await configAPI.loadAll();
+      } else if (provider === "google") {
+        await conditionalAccessAPI.deleteGoogleConditionalAccess();
         updatedConfig = await configAPI.loadAll();
       } else {
         // For Okta, clear all fields via config API
@@ -97,8 +108,16 @@ const DeleteConditionalAccessModal = ({
     setIsDeleting(false);
   };
 
-  const copy =
-    provider === "microsoft-entra" ? (
+  let copy: React.ReactNode;
+  if (provider === "google") {
+    copy = (
+      <p>
+        Fleet will stop marking devices as managed in Google. Devices already
+        marked stay managed.
+      </p>
+    );
+  } else if (provider === "microsoft-entra") {
+    copy = (
       <>
         <p>
           Before you delete, first unblock all end users.{" "}
@@ -113,7 +132,9 @@ const DeleteConditionalAccessModal = ({
           Entra.
         </p>
       </>
-    ) : (
+    );
+  } else {
+    copy = (
       <>
         <p>
           Before you delete, first unblock all end users.{" "}
@@ -129,6 +150,7 @@ const DeleteConditionalAccessModal = ({
         </p>
       </>
     );
+  }
 
   return (
     <Modal
@@ -143,7 +165,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting || oktaBlockedByGitOps}
+          disabled={isDeleting || blockedByGitOps}
         >
           Delete
         </Button>
@@ -179,9 +201,10 @@ const ConditionalAccess = () => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
-  const [providerToDelete, setProviderToDelete] = useState<
-    "microsoft-entra" | "okta" | null
-  >(null);
+  const [
+    providerToDelete,
+    setProviderToDelete,
+  ] = useState<ConditionalAccessProvider | null>(null);
 
   // Bypass disabled state
   const [bypassDisabled, setBypassDisabled] = useState(
@@ -336,6 +359,10 @@ const ConditionalAccess = () => {
 
   const handleOktaDelete = () => {
     setProviderToDelete("okta");
+  };
+
+  const handleGoogleDelete = () => {
+    setProviderToDelete("google");
   };
 
   const handleSaveBypassSettings = async (evt: React.FormEvent) => {
@@ -514,6 +541,7 @@ const ConditionalAccess = () => {
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
         {renderEntraContent()}
+        <GoogleConditionalAccessCard onDelete={handleGoogleDelete} />
       </div>
     );
   };

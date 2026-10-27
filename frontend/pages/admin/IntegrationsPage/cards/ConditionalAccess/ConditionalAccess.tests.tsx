@@ -1,11 +1,18 @@
-import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import React from "react";
+import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockConfig from "__mocks__/configMock";
+import { notify } from "components/ToastNotification";
 import { AppContext, IAppContext, initialState } from "context/app";
+import { IConfig } from "interfaces/config";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -38,6 +45,17 @@ const updateConfigHandler = http.patch(baseUrl("/config"), () => {
     })
   );
 });
+
+// The Google card renders its own fields and Save button inline, so scope
+// queries to the open modal or to the bypass form.
+const modal = () =>
+  within(document.querySelector(".modal__modal_container") as HTMLElement);
+const endUserExperience = () =>
+  within(
+    document.querySelector(
+      ".conditional-access__end-user-experience"
+    ) as HTMLElement
+  );
 
 // Helper to create a config with empty conditional access settings
 const createEmptyConditionalAccessConfig = () =>
@@ -129,11 +147,11 @@ describe("Conditional access", () => {
       await user.click(connectButtons[1]);
 
       // Fill in tenant ID
-      const input = screen.getByRole("textbox");
+      const input = modal().getByRole("textbox");
       await user.type(input, TEST_TENANT_ID);
 
       // Submit form
-      const saveButton = screen.getByRole("button", { name: "Save" });
+      const saveButton = modal().getByRole("button", { name: "Save" });
       await user.click(saveButton);
 
       // Should show the "continue in new tab" message
@@ -205,7 +223,7 @@ describe("Conditional access", () => {
       });
 
       // Fill in text fields. textboxes[0] is the read-only User scope profile.
-      const textboxes = screen.getAllByRole("textbox");
+      const textboxes = modal().getAllByRole("textbox");
       await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
       await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
       await user.type(textboxes[3], "https://example.com"); // Audience URI
@@ -231,7 +249,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       });
 
       // Submit form
-      const saveButton = screen.getByRole("button", { name: "Save" });
+      const saveButton = modal().getByRole("button", { name: "Save" });
       await user.click(saveButton);
 
       // Should show success message and close modal
@@ -266,7 +284,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      const textboxes = screen.getAllByRole("textbox");
+      const textboxes = modal().getAllByRole("textbox");
       await user.type(textboxes[1], TEST_OKTA_IDP_ID);
       await user.type(textboxes[2], "https://example.com/acs");
       await user.type(textboxes[3], "https://example.com");
@@ -290,7 +308,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         expect(screen.getByText("certificate.pem")).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(modal().getByRole("button", { name: "Save" }));
       await waitFor(() => {
         expect(capturedBody?.conditional_access?.okta_certificate).toBe(
           certificateContent
@@ -548,7 +566,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       });
       expect(bypassCheckbox).toHaveAttribute("aria-disabled", "true");
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(
+        endUserExperience().getByRole("button", { name: "Save" })
+      ).toBeDisabled();
 
       // Okta renders first, Entra second.
       const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
@@ -608,7 +628,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await user.click(
         screen.getByRole("checkbox", { name: "bypassDisabled" })
       );
-      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+      expect(
+        endUserExperience().getByRole("button", { name: "Save" })
+      ).toBeEnabled();
 
       // Flip GitOps on. bypassDisabled state persists via useState across the rerender,
       // so the unchanged-form guard still evaluates false. Save must disable solely
@@ -616,7 +638,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       rerender(
         <Harness app={{ isPremiumTier: true, config: gitopsOnConfig }} />
       );
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(
+        endUserExperience().getByRole("button", { name: "Save" })
+      ).toBeDisabled();
     });
 
     it("Leaves Connect buttons enabled under GitOps so users can view the modal", () => {
@@ -691,7 +715,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(modal().getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
     it("Leaves the Entra modal fully functional under GitOps (OAuth is the only path, YAML can't set the tenant)", async () => {
@@ -733,11 +757,11 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         ).toBeInTheDocument();
       });
 
-      expect(screen.getByRole("textbox")).toBeEnabled();
+      expect(modal().getByRole("textbox")).toBeEnabled();
       // Validation also disables Save when the field is empty, so type first to
       // isolate the GitOps gating assertion.
-      await user.type(screen.getByRole("textbox"), "test-tenant-id");
-      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+      await user.type(modal().getByRole("textbox"), "test-tenant-id");
+      expect(modal().getByRole("button", { name: "Save" })).toBeEnabled();
     });
 
     it("Disables Okta delete confirmation if GitOps turns on while it's open", async () => {
@@ -802,6 +826,166 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         name: "Delete",
       });
       deleteButtonsAfter.forEach((btn) => expect(btn).toBeDisabled());
+    });
+  });
+
+  describe("Google", () => {
+    const GOOGLE_CUSTOMER_ID = "C01234abc";
+    const GOOGLE_ADMIN_EMAIL = "fleet-admin@example.com";
+
+    const createGoogleConfig = (
+      connected: boolean,
+      overrides?: Partial<IConfig>
+    ) => {
+      const config = createEmptyConditionalAccessConfig();
+      return createMockConfig({
+        conditional_access: {
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+          bypass_disabled: false,
+          microsoft_entra_tenant_id: TEST_TENANT_ID,
+          microsoft_entra_connection_configured: true,
+          google_customer_id: connected ? GOOGLE_CUSTOMER_ID : "",
+          google_connection_configured: connected,
+        },
+        integrations: {
+          ...config.integrations,
+          google_conditional_access: connected
+            ? [
+                {
+                  customer_id: GOOGLE_CUSTOMER_ID,
+                  admin_email: GOOGLE_ADMIN_EMAIL,
+                  api_key_json: "********",
+                },
+              ]
+            : undefined,
+        },
+        ...overrides,
+      });
+    };
+
+    const renderStateful = (initialConfig: IConfig) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      });
+      const Harness = () => {
+        const [config, setConfig] = useState<IConfig | null>(initialConfig);
+        return (
+          <QueryClientProvider client={client}>
+            <AppContext.Provider
+              value={{
+                ...initialState,
+                isPremiumTier: true,
+                config,
+                setConfig,
+              }}
+            >
+              <ConditionalAccess />
+            </AppContext.Provider>
+          </QueryClientProvider>
+        );
+      };
+      return { user: userEvent.setup(), ...rtlRender(<Harness />) };
+    };
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("Renders the Google card form beside Okta and Entra", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: { isPremiumTier: true, config: createGoogleConfig(false) },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      expect(screen.getByText("Google")).toBeInTheDocument();
+      expect(screen.getByLabelText("Google customer ID")).toBeInTheDocument();
+      expect(screen.getByLabelText("Admin email")).toBeInTheDocument();
+      expect(screen.getByLabelText("Service account key")).toBeInTheDocument();
+    });
+
+    it("Deletes the connection through the modal and returns to the form", async () => {
+      const successSpy = jest.spyOn(notify, "success");
+      let deleteCalled = false;
+      mockServer.use(
+        http.delete(baseUrl("/conditional-access/google"), () => {
+          deleteCalled = true;
+          return HttpResponse.json({});
+        }),
+        http.get(baseUrl("/config"), () =>
+          HttpResponse.json(createGoogleConfig(false))
+        )
+      );
+      const { user } = renderStateful(createGoogleConfig(true));
+
+      expect(
+        screen.getByText(`Google customer ID: ${GOOGLE_CUSTOMER_ID}`)
+      ).toBeInTheDocument();
+      // Entra renders first, Google second.
+      await user.click(screen.getAllByRole("button", { name: "Delete" })[1]);
+      expect(
+        modal().getByText(
+          "Fleet will stop marking devices as managed in Google. Devices already marked stay managed."
+        )
+      ).toBeInTheDocument();
+
+      await user.click(modal().getByRole("button", { name: "Delete" }));
+
+      expect(
+        await screen.findByLabelText("Google customer ID")
+      ).toBeInTheDocument();
+      expect(deleteCalled).toBe(true);
+      expect(successSpy).toHaveBeenCalledWith(
+        "Successfully disconnected from Google."
+      );
+    });
+
+    it("Disables Google Delete under GitOps and leaves Entra Delete enabled", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createGoogleConfig(true, {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://github.com/example/fleet-gitops",
+                exceptions: { labels: false, software: false, secrets: true },
+              },
+            }),
+          },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      const [entraDelete, googleDelete] = screen.getAllByRole("button", {
+        name: "Delete",
+      });
+      expect(entraDelete).toBeEnabled();
+      expect(googleDelete).toBeDisabled();
+    });
+
+    it("Doesn't render the Google card on Fleet Free", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: { isPremiumTier: false, config: createGoogleConfig(false) },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      expect(
+        screen.getByText(/This feature is included in Fleet Premium/i)
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Google")).not.toBeInTheDocument();
     });
   });
 
@@ -879,7 +1063,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const { user } = await renderOktaModal();
 
       // textboxes[0] is the readonly Editor; [1] is IdP ID.
-      const textboxes = screen.getAllByRole("textbox");
+      const textboxes = modal().getAllByRole("textbox");
       await user.type(textboxes[1], "x");
       await user.clear(textboxes[1]);
 
@@ -889,7 +1073,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Shows the IdP ID error on blur of a dirty-then-empty field", async () => {
       const { user } = await renderOktaModal();
 
-      const textboxes = screen.getAllByRole("textbox");
+      const textboxes = modal().getAllByRole("textbox");
       await user.type(textboxes[1], "x");
       await user.clear(textboxes[1]);
       // Blur by tabbing to the next field.
@@ -901,7 +1085,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Clears the IdP ID error on focus after it was shown", async () => {
       const { user } = await renderOktaModal();
 
-      const textboxes = screen.getAllByRole("textbox");
+      const textboxes = modal().getAllByRole("textbox");
       await user.type(textboxes[1], "x");
       await user.clear(textboxes[1]);
       await user.tab();
@@ -915,7 +1099,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Reveals every field's error on submit of an empty form", async () => {
       const { user } = await renderOktaModal();
 
-      const saveButton = screen.getByRole("button", { name: "Save" });
+      const saveButton = modal().getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);
 
@@ -951,7 +1135,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         ).toBeInTheDocument();
       });
 
-      const saveButton = screen.getByRole("button", { name: "Save" });
+      const saveButton = modal().getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);
 
@@ -996,8 +1180,8 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         ).toBeInTheDocument();
       });
 
-      await user.type(screen.getByRole("textbox"), "not-a-guid");
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.type(modal().getByRole("textbox"), "not-a-guid");
+      await user.click(modal().getByRole("button", { name: "Save" }));
 
       expect(
         await screen.findByText("Enter a valid tenant ID (GUID format)")
