@@ -1928,6 +1928,12 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  configuredGoogleConditionalAccess: () => (
+    <> configured Google conditional access.</>
+  ),
+  deletedGoogleConditionalAccess: () => (
+    <> deleted Google conditional access configuration.</>
+  ),
   addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
@@ -3060,6 +3066,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.ConfiguredGoogleConditionalAccess: {
+      return TAGGED_TEMPLATES.configuredGoogleConditionalAccess();
+    }
+    case ActivityType.DeletedGoogleConditionalAccess: {
+      return TAGGED_TEMPLATES.deletedGoogleConditionalAccess();
     }
     case ActivityType.AddedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.addedConditionalAccessOkta();

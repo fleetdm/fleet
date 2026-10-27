@@ -3647,4 +3647,28 @@ describe("opt-in configuration profile activities", () => {
       "End user uninstalled the opt-in Wi-Fi profile on Foo Host."
     );
   });
+
+  it("renders an added_conditional_access_integration_google activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ConfiguredGoogleConditionalAccess,
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(container).toHaveTextContent(
+      "Test User configured Google conditional access."
+    );
+  });
+
+  it("renders a deleted_conditional_access_integration_google activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedGoogleConditionalAccess,
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+    expect(container).toHaveTextContent(
+      "Test User deleted Google conditional access configuration."
+    );
+  });
 });

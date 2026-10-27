@@ -89,11 +89,19 @@ export interface IGlobalGoogleWorkspaceIntegration {
   api_key_json: Record<string, string>;
 }
 
+export interface IGlobalGoogleConditionalAccessIntegration {
+  customer_id: string;
+  admin_email: string;
+  // "********" when a key is stored
+  api_key_json?: Record<string, string> | string;
+}
+
 // reality is that IZendeskJiraIntegrations are optional – should be something like `extends
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   google_workspace?: IGlobalGoogleWorkspaceIntegration[];
+  google_conditional_access?: IGlobalGoogleConditionalAccessIntegration[];
   // whether or not conditional access is enabled for "No team"
   conditional_access_enabled?: boolean;
 }
