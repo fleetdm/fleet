@@ -2040,8 +2040,7 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	// The enrollments come from the command's results, or from its queue when it has no results yet, and every join after that is on
-	// the full (enrollment_id, command_uuid) key. Joining the queue on command_uuid alone reads every queue row of a command that was
-	// sent to many hosts, once per result row.
+	// the full (enrollment_id, command_uuid) key.
 	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
 	var queueHostFilter, resultsHostFilter string
 	var args []any
