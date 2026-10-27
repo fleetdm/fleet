@@ -520,14 +520,7 @@ const buildCommandsItems = (
                         label: "Add fleet",
                         group: "Commands" as const,
                         path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
-                        keywords: [
-                          "new fleet",
-                          "add fleet",
-                          "team",
-                          "create team",
-                          "add team",
-                          "new team",
-                        ],
+                        keywords: ["new fleet", "add fleet", "create fleet"],
                       },
                     ]
                   : []),
