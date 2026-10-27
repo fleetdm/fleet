@@ -796,13 +796,13 @@ software:
 ```yaml
 - url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   labels_exclude_any:
     - IT test fleet
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   categories:
     - "💻 Productivity"
@@ -952,6 +952,18 @@ software:
             - Test
           configuration:
             path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
+    - path: ../lib/software/zoom.app-store-app.yml
+```
+
+`lib/software/zoom.app-store-app.yml`
+
+```yaml
+- app_store_id: "546505307"
+  platform: ios
+  categories:
+    - "👬 Communication"
+  configuration:
+    path: zoom-config.xml
 ```
 
 ### fleet_maintained_apps
