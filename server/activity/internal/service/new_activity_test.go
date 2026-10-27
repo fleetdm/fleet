@@ -876,7 +876,7 @@ func TestNewActivities(t *testing.T) {
 		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
 
 		want := map[string]any{"/fleet-a": []any{float64(1)}, "/fleet-b": []any{float64(2)}}
-		for range want {
+		for range 2 {
 			select {
 			case <-time.After(3 * time.Second):
 				t.Fatal("timeout waiting for host activities webhooks")

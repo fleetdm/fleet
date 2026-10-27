@@ -149,28 +149,29 @@ func (s *Service) NewActivities(ctx context.Context, user *api.User, activities 
 			s.logger.ErrorContext(ctx, "get host activities webhooks", slog.String("err", err.Error()))
 			hooks = nil
 		}
-		for _, hook := range hooks {
-			hookHostIDs := make(map[uint]struct{}, len(hook.HostIDs))
-			for _, id := range hook.HostIDs {
-				hookHostIDs[id] = struct{}{}
-			}
-			for i, activity := range activities {
-				ah, ok := activity.(types.ActivityHosts)
-				if !ok {
-					continue
-				}
-				// each delivery gets only the host IDs of this activity that belong to the destination's fleet(s).
-				var activityHostIDs []uint
+		activitiesByHost := make(map[uint][]int)
+		for i, activity := range activities {
+			if ah, ok := activity.(types.ActivityHosts); ok {
 				for _, id := range ah.HostIDs() {
-					if _, ok := hookHostIDs[id]; ok {
-						activityHostIDs = append(activityHostIDs, id)
+					activitiesByHost[id] = append(activitiesByHost[id], i)
+				}
+			}
+		}
+		for _, hook := range hooks {
+			// each delivery gets only the host IDs of this activity that belong to the destination's fleet(s).
+			hostIDsByActivity := make(map[int][]uint)
+			var order []int
+			for _, id := range hook.HostIDs {
+				for _, i := range activitiesByHost[id] {
+					if _, seen := hostIDsByActivity[i]; !seen {
+						order = append(order, i)
 					}
+					hostIDsByActivity[i] = append(hostIDsByActivity[i], id)
 				}
-				if len(activityHostIDs) == 0 {
-					continue
-				}
-				webhookDetails := s.detailsWithHostIDs(ctx, activity.ActivityName(), detailsBytes[i], activityHostIDs)
-				s.fireActivityWebhook(ctx, user, activity, webhookDetails, timestamp, hook.DestinationURL)
+			}
+			for _, i := range order {
+				webhookDetails := s.detailsWithHostIDs(ctx, activities[i].ActivityName(), detailsBytes[i], hostIDsByActivity[i])
+				s.fireActivityWebhook(ctx, user, activities[i], webhookDetails, timestamp, hook.DestinationURL)
 			}
 		}
 	}

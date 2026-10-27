@@ -66,6 +66,9 @@ func (ds *Datastore) NewActivities(
 		return ctxerr.New(ctx, "activities and details must have the same length")
 	}
 
+	// The batch is not atomic: each chunk commits on its own, and the webhooks have already been sent by the service. A failure
+	// reports how many activities were saved before it.
+	//
 	// Each row is inserted on its own because the ids of a multi-row insert are not guaranteed to be consecutive (it depends on
 	// innodb_autoinc_lock_mode), and the host links need them. Batching the inserts in a transaction and the host links in one
 	// statement removes the commit and lookup cost that dominates a call to NewActivity.
@@ -85,7 +88,7 @@ func (ds *Datastore) NewActivities(
 			return insertActivityHosts(ctx, tx, links)
 		}, ds.logger)
 		if err != nil {
-			return err
+			return ctxerr.Wrapf(ctx, err, "new activities: %d of %d saved before failing chunk", start, len(activities))
 		}
 	}
 	return nil
