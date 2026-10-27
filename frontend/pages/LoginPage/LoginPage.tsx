@@ -158,6 +158,18 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           setPendingEmail(true);
         }
 
+        // The API's rate limit message ("limit exceeded, retry after: 2s") is
+        // meant for API clients, so it's replaced here.
+        if ((response as { status: number }).status === 429) {
+          notify.error(
+            "Too many login attempts. Wait a moment and try again.",
+            {
+              response,
+            }
+          );
+          return false;
+        }
+
         const { base } = formatErrorResponse(response);
         if (base) {
           notify.error(base, { response });
