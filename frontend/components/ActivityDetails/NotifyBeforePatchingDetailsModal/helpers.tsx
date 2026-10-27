@@ -105,14 +105,15 @@ export const EXIT_CODES_NEEDING_EUE_LINK: ReadonlySet<number> = new Set([
   101,
 ]);
 
-// Substrings the BE appends only on their respective skip variants. Both
-// deadline and notify skips carry "Fleet notifies the end user"; the deadline
-// marker is strictly more specific, so check it first.
+// Single-install-result path only (SoftwareInstallDetailsModal). That endpoint
+// runs EnhanceOutputDetails before serializing, so pre_install_query_output
+// carries the full "The app was open..." copy. Both deadline and notify
+// variants include "Fleet notifies the end user"; the deadline marker is
+// strictly more specific, so check it first.
 //
-// TODO: swap to a dedicated `patch_deadline` boolean on `IActivityDetails` once
-// the backend adds it. The current substring check mirrors the BE copy in
-// `server/fleet/software_installer.go:SoftwareInstallerAppOpenDeadlineCopy`
-// — any wording drift there silently breaks this discriminator.
+// Activity-feed consumers must NOT use these — the automation activities
+// endpoint returns raw pre_install_output (empty on skips). Use the dedicated
+// `patch_deadline` and `notify_before_patching` booleans on IActivityDetails.
 const NOTIFY_SKIP_MARKER = "Fleet notifies the end user";
 const DEADLINE_SKIP_MARKER = "patch deadline";
 export const isPatchDeadlineSkip = (

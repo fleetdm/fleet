@@ -2542,8 +2542,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				PolicyID:            hsi.PolicyID,
 				PolicyName:          policyName,
 				FromSetupExperience: fromSetupExperience,
-				SkippedInstall:      isAppOpenSkip,
-				PatchWhenClosed:     hsi.PatchWhenClosed,
+				SkippedInstall:       isAppOpenSkip,
+				PatchWhenClosed:      hsi.PatchWhenClosed,
+				NotifyBeforePatching: hsi.NotifyBeforePatching,
+				PatchDeadline:        hsi.PatchDeadline,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

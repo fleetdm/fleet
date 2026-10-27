@@ -409,12 +409,14 @@ export interface IActivityDetails {
   self_service?: boolean;
   self_service_category_id?: number | null;
   self_service_category_name?: string | null;
-  /** Set on a patch-when-closed skip (the app was open); `status` is then
-   * `failed_install`. */
+  /** Set on any app-open skip (patch-when-closed, notify-before-patching, or
+   * deadline); `status` is then `failed_install`. */
   skipped_install?: boolean;
-  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
-   * because notify before patching did not ship until then. */
+  /** The three skip variants are mutually exclusive. All undefined on legacy
+   * skip rows (pre-4.93 for patch_when_closed; pre-4.94 for the other two). */
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;

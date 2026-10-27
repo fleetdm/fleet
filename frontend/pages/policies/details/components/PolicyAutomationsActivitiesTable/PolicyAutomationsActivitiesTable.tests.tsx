@@ -413,12 +413,51 @@ describe("getDetailOutputText", () => {
   });
 
   it("explains a notify-before-patching skip with the notification sentence", () => {
+    // pre_install_output is empty on this endpoint — the booleans discriminate.
     expect(
       getDetailOutputText(
         mockActivity({
           status: "error",
-          pre_install_output:
-            "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            notify_before_patching: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("explains a deadline skip with the deadline sentence", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            patch_deadline: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
+  });
+
+  // Legacy fallback: on activity rows written before the booleans landed,
+  // patch_when_closed === false still implies notify (deadline didn't exist
+  // yet in that window).
+  it("falls back to notify copy when only patch_when_closed:false is present", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
           details: {
             policy_id: 123,
             software_title: "1Password",
@@ -428,26 +467,6 @@ describe("getDetailOutputText", () => {
         })
       )
     ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
-  });
-
-  it("explains a deadline skip with the deadline sentence", () => {
-    // Deadline skips carry a distinctive pre_install_output substring (the
-    // activity payload doesn't yet distinguish patch_deadline on its own).
-    expect(
-      getDetailOutputText(
-        mockActivity({
-          status: "error",
-          pre_install_output:
-            "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.",
-          details: {
-            policy_id: 123,
-            software_title: "1Password",
-            skipped_install: true,
-            patch_when_closed: false,
-          },
-        })
-      )
-    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
   });
 
   it("treats a skip recorded before patch_when_closed existed as patch-when-closed", () => {

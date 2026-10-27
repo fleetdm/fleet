@@ -1457,6 +1457,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			stmt = `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`
 		case "notify_before_patching":
 			stmt = `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`
+		case "patch_deadline":
+			stmt = `UPDATE policies SET patch_deadline = 1 WHERE id = ?`
 		}
 		if stmt != "" {
 			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1534,6 +1536,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 		require.True(t, act.PatchWhenClosed, "a skip must record which patch option its install ran under")
+		require.False(t, act.NotifyBeforePatching)
+		require.False(t, act.PatchDeadline)
 
 		// The host software list must surface the skip so the UI can render "Patch
 		// skipped" instead of "Failed" for the row (issue #52297).
@@ -1621,6 +1625,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 		require.False(t, act.PatchWhenClosed, "a notify before patching skip records patch_when_closed false")
+		require.True(t, act.NotifyBeforePatching, "the activity payload must carry notify_before_patching so the automation activities table can tell notify from deadline")
+		require.False(t, act.PatchDeadline)
 
 		// The two patch options are told apart by the pre-install output the details modal shows.
 		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
@@ -1630,6 +1636,33 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		res.EnhanceOutputDetails()
 		require.NotNil(t, res.PreInstallQueryOutput)
 		require.Equal(t, fleet.SoftwareInstallerAppOpenNotifyCopy, *res.PreInstallQueryOutput)
+	})
+
+	t.Run("patch deadline -> activity carries patch_deadline so the automation activities table shows deadline copy", func(t *testing.T) {
+		host := test.NewHost(t, ds, "deadline-host", "10.0.0.6", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_deadline"), true)
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.True(t, act.SkippedInstall)
+		require.False(t, act.PatchWhenClosed)
+		require.False(t, act.NotifyBeforePatching)
+		require.True(t, act.PatchDeadline, "the activity payload must carry patch_deadline — the automation activities endpoint returns raw pre_install_output (empty on skips), so a boolean is the only reliable discriminator")
+
+		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+		require.NoError(t, err)
+		require.True(t, res.PatchDeadline)
+		require.False(t, res.PatchWhenClosed)
+		require.False(t, res.NotifyBeforePatching)
 	})
 
 	patchNotificationsForHost := func(t *testing.T, hostID uint) []string {
