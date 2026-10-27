@@ -3988,6 +3988,8 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
+To get the number of Linux hosts, use the [Count hosts](#count-hosts) endpoint with `label_id` set to the ID of the built-in "All Linux" label. You can find this ID in `builtin_labels` in the response below.
+
 `GET /api/v1/fleet/host_summary`
 
 #### Parameters
