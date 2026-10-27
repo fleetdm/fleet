@@ -223,46 +223,68 @@ describe("ManageHostsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the no enroll secrets banner but keeps Add hosts when one-time enroll secrets are on", async () => {
-    setupHandlers(0);
-    mockServer.use(
-      http.get(baseUrl("/spec/enroll_secret"), () => {
-        return HttpResponse.json({ spec: { secrets: [] } });
-      }),
-      http.get(baseUrl("/config/certificate"), () => {
-        return HttpResponse.json({ certificate_chain: "" });
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          ...mockAppContext,
-          config: createMockConfig({
-            auth: { use_one_time_enroll_secrets: true },
-          }),
-        },
+  it.each([
+    {
+      name: "Apple",
+      auth: { mdm_apple_one_time_enroll_secrets: true },
+      modalText: /only apple hosts that automatically enroll/i,
+    },
+    {
+      name: "Windows",
+      auth: { mdm_windows_one_time_enroll_secrets: true },
+      modalText: /only windows hosts that automatically enroll/i,
+    },
+    {
+      name: "Apple and Windows",
+      auth: {
+        mdm_apple_one_time_enroll_secrets: true,
+        mdm_windows_one_time_enroll_secrets: true,
       },
-    });
+      modalText: /only hosts that automatically enroll via apple's automated device enrollment \(ADE\), microsoft entra ID, or autopilot/i,
+    },
+  ])(
+    "hides the no enroll secrets banner but keeps Add hosts when $name one-time enroll secrets are on",
+    async ({ auth, modalText }) => {
+      setupHandlers(0);
+      mockServer.use(
+        http.get(baseUrl("/spec/enroll_secret"), () => {
+          return HttpResponse.json({ spec: { secrets: [] } });
+        }),
+        http.get(baseUrl("/config/certificate"), () => {
+          return HttpResponse.json({ certificate_chain: "" });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            config: createMockConfig({ auth }),
+          },
+        },
+      });
 
-    const { user } = render(
-      <ManageHostsPage {...(createMockProps() as any)} />
-    );
+      const { user } = render(
+        <ManageHostsPage {...(createMockProps() as any)} />
+      );
 
-    expect(await screen.findByText("No hosts")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/you have no enroll secrets\./i)
-    ).not.toBeInTheDocument();
+      expect(await screen.findByText("No hosts")).toBeInTheDocument();
 
-    const headerWrap = screen
-      .getByRole("button", { name: "Hosts page settings" })
-      .closest(".manage-hosts__button-wrap");
-    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+      const headerWrap = screen
+        .getByRole("button", { name: "Hosts page settings" })
+        .closest(".manage-hosts__button-wrap");
+      await user.click(
+        within(headerWrap as HTMLElement).getByText("Add hosts")
+      );
 
-    expect(
-      await screen.findByText(/only apple hosts that automatically enroll/i)
-    ).toBeInTheDocument();
-  });
+      expect(await screen.findByText(modalText)).toBeInTheDocument();
+      // The modal's no-secret state proves the secrets request finished, so
+      // the only "no enroll secrets" message left is the modal's, not the banner's.
+      expect(screen.getAllByText(/you have no enroll secrets\./i)).toHaveLength(
+        1
+      );
+    }
+  );
 
   it("renders the settings gear menu with its options", async () => {
     setupHandlers(0);
@@ -387,6 +409,66 @@ describe("ManageHostsPage", () => {
     }
   });
 
+  it("sends the App Store app version filter from the URL with the host list and count requests", async () => {
+    let listedVersionId: string | null = null;
+    let countedVersionId: string | null = null;
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      http.get(baseUrl("/hosts"), ({ request }) => {
+        listedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ hosts: [] });
+      }),
+      http.get(baseUrl("/hosts/count"), ({ request }) => {
+        countedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ count: 0 });
+      })
+    );
+
+    const premiumAdminContext = {
+      ...mockAppContext,
+      isPremiumTier: true,
+      isFreeTier: false,
+      availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+      setCurrentTeam: jest.fn(),
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: premiumAdminContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search:
+          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5",
+        hash: "",
+        query: {
+          fleet_id: "1",
+          software_title_id: "12",
+          software_status: "failed",
+          app_store_app_version_id: "5",
+        },
+      },
+    });
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // open the hosts page filtered by an App Store app version, both requests should filter by that version
+    await waitFor(() => expect(listedVersionId).toBe("5"));
+    await waitFor(() => expect(countedVersionId).toBe("5"));
+  });
+
   it("renders filtered empty state with enabled controls", async () => {
     setupHandlers(0);
     const render = createCustomRenderer({
@@ -497,6 +579,63 @@ describe("ManageHostsPage", () => {
       screen.getByRole("button", { name: /edit columns/i })
     ).not.toBeDisabled();
   });
+
+  it.each([
+    { tier: "Free", isPremiumTier: false, hasSelection: false },
+    { tier: "Premium", isPremiumTier: true, hasSelection: true },
+  ])(
+    "offers host selection for bulk delete to a technician on Fleet $tier: $hasSelection",
+    async ({ isPremiumTier, hasSelection }) => {
+      setupHandlers(1, [
+        {
+          id: 1,
+          hostname: "test-host",
+          display_name: "test-host",
+          status: "online",
+          platform: "darwin",
+          team_id: null,
+          issues: { total_issues_count: 0, failing_policies_count: 0 },
+        },
+      ]);
+      mockServer.use(
+        http.get(baseUrl("/fleets"), () => {
+          return HttpResponse.json({
+            teams: [{ id: 1, name: "Team 1", description: "" }],
+          });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            isPremiumTier,
+            isFreeTier: !isPremiumTier,
+            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+            setCurrentTeam: jest.fn(),
+            isGlobalAdmin: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      // Free redirects away any fleet_id; Premium waits for a valid one.
+      const fleetId = isPremiumTier ? "1" : undefined;
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: fleetId ? `?fleet_id=${fleetId}` : "",
+          hash: "",
+          query: fleetId ? { fleet_id: fleetId } : {},
+        },
+      });
+      render(<ManageHostsPage {...(props as any)} />);
+
+      expect(await screen.findByText("1 host")).toBeInTheDocument();
+      expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
+    }
+  );
 
   it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
     const mockHost = {

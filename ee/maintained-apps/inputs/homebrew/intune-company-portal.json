@@ -4,5 +4,6 @@
   "token": "intune-company-portal",
   "installer_format": "pkg",
   "slug": "intune-company-portal/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

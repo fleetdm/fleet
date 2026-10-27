@@ -132,6 +132,14 @@ func (s *Service) FailNotificationsForHost(ctx context.Context, hostID uint, rea
 	return nil
 }
 
+func (s *Service) SetNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	err := s.ds.SetEndUserNotificationPayload(ctx, notificationUUID, payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification payload")
+	}
+	return nil
+}
+
 func (s *Service) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
 	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, status, reason, whereStatusIn)
 	if err != nil {

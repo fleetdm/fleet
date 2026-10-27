@@ -1,0 +1,8 @@
+{
+  "name": "Vorssaint",
+  "slug": "vorssaint/darwin",
+  "unique_identifier": "com.vorssaint.utils",
+  "token": "vorssaint",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

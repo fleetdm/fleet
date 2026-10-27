@@ -38,6 +38,7 @@ module.exports = {
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -78,7 +79,10 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Webapps.html#create
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
-      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = (sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] || 0) + 1;// Count this request for the per-enterprise-per-minute total logged in api/hooks/custom/index.js.
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;      let _rtKey = androidEnterpriseId + ':create_webapp';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'create_webapp'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let createWebAppResponse = await androidManagementConnection.enterprises.webApps.create({
         parent: `enterprises/${androidEnterpriseId}`,
         requestBody: {
@@ -90,10 +94,11 @@ module.exports = {
         },
       });
       return createWebAppResponse.data;
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept({ status: 400 }, (err) => {
       return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept({status: 403}, ()=>{

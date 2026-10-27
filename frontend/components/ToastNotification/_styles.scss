@@ -2,11 +2,10 @@
 // <ToastCard/> via toast.custom(), so all card styling below is ours.
 
 $toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
-$toast-notification-width: 500px;
 
 .toast-notification {
-  // Sonner sizes each toast <li> from --width on the wrapper.
-  --width: #{$toast-notification-width};
+  // --width is set via the Toaster's `style` prop in ToastNotification.tsx.
+  // The card's min-width picks it up via var(--width) below.
 
   // Sonner sets an inline height at mount and never re-measures, so the card
   // can't grow when our panel expands. Force auto so it grows with content.
@@ -20,7 +19,7 @@ $toast-notification-width: 500px;
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-    min-width: $toast-notification-width;
+    min-width: var(--width);
     padding: $pad-smedium $pad-medium;
     // Faint accent wash over white, fading out by the midpoint.
     background: linear-gradient(

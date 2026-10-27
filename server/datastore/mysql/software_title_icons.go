@@ -151,8 +151,10 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			in_house_apps.id AS in_house_app_id,
 			vpp_apps.adam_id AS adam_id,
 			vpp_apps_teams.id AS vpp_app_team_id,
+			COALESCE(vpp_apps_teams.name, '') AS version_name,
 			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
+			COALESCE(stdn.display_name, '') AS software_display_name,
 			COALESCE(software_installers.filename, in_house_apps.filename) AS filename,
 			teams.name AS team_name,
 			COALESCE(teams.id, 0) AS team_id,
@@ -167,9 +169,13 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 		LEFT JOIN in_house_apps ON in_house_apps.title_id = software_titles.id
 			AND in_house_apps.global_or_team_id = software_title_icons.team_id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id
-			AND vpp_apps_teams.platform = vpp_apps.platform
-			AND vpp_apps_teams.global_or_team_id = software_title_icons.team_id
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vpp_apps.adam_id AND vat2.platform = vpp_apps.platform AND vat2.global_or_team_id = software_title_icons.team_id
+		)
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = software_titles.id
+			AND stdn.team_id = software_title_icons.team_id
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)

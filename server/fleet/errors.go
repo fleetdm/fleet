@@ -29,6 +29,7 @@ var (
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
 	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
+	MyDeviceURLNotEnrolledMessage                = "The My device page isn't available until this host enrolls in MDM."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
@@ -43,6 +44,8 @@ var (
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
 	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// Args: the Fleet-maintained app name.
+	FleetMaintainedAppManifestUnreachableMessage = "Fleet couldn't fetch the manifest for %s. Please try again."
 	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
 	// download timeout is exceeded (context.DeadlineExceeded).
 	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
@@ -521,11 +524,22 @@ func (e OrbitError) IsClientError() bool {
 	return code >= 400 && code < 500
 }
 
+// OrbitIDPAuthRequiredMessage is matched verbatim by fleetd to decide it must
+// open the IdP sign-in window, so it must not change.
+const OrbitIDPAuthRequiredMessage = "END_USER_AUTH_REQUIRED"
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
-		Message: "END_USER_AUTH_REQUIRED",
+		Message: OrbitIDPAuthRequiredMessage,
 		code:    http.StatusUnauthorized,
 	}
+}
+
+// IsOrbitIDPAuthRequired reports whether err is the response EnrollOrbit
+// returns when the device's end user must authenticate before enrolling.
+func IsOrbitIDPAuthRequired(err error) bool {
+	orbitErr, ok := errors.AsType[*OrbitError](err)
+	return ok && orbitErr.Message == OrbitIDPAuthRequiredMessage
 }
 
 // Messages that may be surfaced by the server or the fleetctl client.
@@ -571,6 +585,12 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables
@@ -598,6 +618,38 @@ func (e ConflictError) Error() string {
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
+
+// EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
+// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
+type EJBCANameInUseError struct {
+	Name string
+}
+
+func (e EJBCANameInUseError) Error() string {
+	return fmt.Sprintf("%q name is already used by another certificate authority, and the name of an EJBCA certificate authority can't be shared. "+
+		"Please choose a different name and try again.", e.Name)
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e EJBCANameInUseError) StatusCode() int {
+	return http.StatusConflict
+}
+
+// CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
+// serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
+// Retry-After tells callers such as curl --retry when to try again.
+type CertificateAuthorityTransientError struct {
+	Message           string
+	RetryAfterSeconds int
+}
+
+func (e CertificateAuthorityTransientError) Error() string { return e.Message }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e CertificateAuthorityTransientError) StatusCode() int { return http.StatusServiceUnavailable }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e CertificateAuthorityTransientError) RetryAfter() int { return e.RetryAfterSeconds }
 
 // LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
 // handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
@@ -655,3 +707,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."

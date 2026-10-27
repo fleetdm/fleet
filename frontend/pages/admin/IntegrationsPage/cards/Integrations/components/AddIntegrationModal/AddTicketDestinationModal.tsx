@@ -18,7 +18,7 @@ interface IAddTicketDestinationModalProps {
   onSubmit: (
     integrationSubmitData: IIntegration[],
     integrationDestination: string
-  ) => void;
+  ) => void | Promise<unknown>;
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }
@@ -55,6 +55,7 @@ const AddTicketDestinationModal = ({
         {!testingConnection && (
           <>
             <DropdownWrapper
+              ariaLabel="Select ticket destination"
               name="destination"
               label="Ticket destination"
               onChange={onDestinationChange}

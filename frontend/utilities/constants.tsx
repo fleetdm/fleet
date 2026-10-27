@@ -98,6 +98,7 @@ export const MAX_ENTITY_CHAR_LENGTH = 255;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.24.0 +", value: "5.24.0" },
   { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
@@ -381,6 +382,13 @@ export const MDM_STATUS_TOOLTIP: Record<
     <span>
       Enrolled with a manual enrollment profile as a company-owned device. IT
       admins can wipe this device and enforce all MDM restrictions.
+    </span>
+  ),
+  "On (personal)": (
+    <span>
+      Enrolled via a Managed Apple Account (Account-driven User Enrollment) or
+      Android work profile as a personal (BYOD) device. IT admins cannot wipe
+      this device or lock the end user out.
     </span>
   ),
   "On (manual - personal)": (

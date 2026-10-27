@@ -40,9 +40,38 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
-/server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
-/orbit/ @fleetdm/go
+/orbit/ @sharon-fdm @lucasmrod @lukeheath
+
+# Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
+/orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
+/orbit/pkg/luks/               @sharon-fdm @lucasmrod @georgekarrv
+/orbit/pkg/profiles/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/setup_experience/   @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/useraction/         @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/execuser/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/scripts/            @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
+/orbit/pkg/installer/          @sharon-fdm @lucasmrod @cdcme @georgekarrv
+/orbit/pkg/managedaccount/     @sharon-fdm @lucasmrod @getvictor
+/orbit/pkg/keystore/           @sharon-fdm @lucasmrod @getvictor
+/orbit/pkg/windows/            @sharon-fdm @lucasmrod @getvictor
+
+# Orbit paths that are low risk (tables, UI dialogs, build tools)
+/orbit/changes/                @fleetdm/go
+/orbit/pkg/table/              @fleetdm/go
+/orbit/cmd/fleetd_tables/      @fleetdm/go
+/orbit/pkg/augeas/             @fleetdm/go
+/orbit/pkg/dataflatten/        @fleetdm/go
+/orbit/pkg/cryptoinfo/         @fleetdm/go
+/orbit/cmd/desktop/            @fleetdm/go
+/orbit/cmd/fetch_cert/         @fleetdm/go
+/orbit/pkg/dialog/             @fleetdm/go
+/orbit/pkg/swiftdialog/        @fleetdm/go
+/orbit/pkg/kdialog/            @fleetdm/go
+/orbit/pkg/zenity/             @fleetdm/go
+/orbit/pkg/go-paniclog/        @fleetdm/go
+/orbit/pkg/lvm/                @fleetdm/go
+/orbit/tools/                  @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -57,9 +86,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
-/charts/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
-/terraform/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
+/infrastructure/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro @fsahinler
+/charts/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro @fsahinler
+/terraform/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro @fsahinler
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -67,7 +96,9 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @AdamBaali @ddribeiro
+# « docs/solutions: DRI (ddribeiro) is configured in website/config/custom.js (githubRepoDRIByPath), not here.
+#   This entry intentionally has no owners, so no one is a required reviewer and /docs above doesn't apply.
+/docs/solutions
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
@@ -75,9 +106,9 @@ go.mod @fleetdm/go
 /docs/Contributing/reference/audit-logs.md              @rachaelshaw
 /docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
-/render.yaml                                            @rfairburn
+/render.yaml                                            @rfairburn @fsahinler
 /it-and-security                                        @allenhouchins
-/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn # « Infra: active notification of changes to IP Allowlists
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @fsahinler # « Infra: active notification of changes to IP Allowlists
 /openspec                                               @lukeheath
 /website/package-lock.json                              @eashaw
 

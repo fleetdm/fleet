@@ -61,7 +61,7 @@
       "name": "4K Video Downloader",
       "slug": "4k-video-downloader/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.4kdownload.ApplicationDirectories",
+      "unique_identifier": "com.openmedia.4kvideodownloader",
       "description": "4K Video Downloader is a free video downloader."
     },
     {
@@ -76,7 +76,7 @@
       "slug": "4k-youtube-to-mp3/darwin",
       "platform": "darwin",
       "unique_identifier": "com.openmedia.4kyoutubetomp3",
-      "description": "4K YouTube to MP3 is a turn YouTube links into MP3 files."
+      "description": "4K YouTube to MP3 is a tool to turn YouTube links into MP3 files."
     },
     {
       "name": "7-zip",
@@ -112,13 +112,6 @@
       "platform": "darwin",
       "unique_identifier": "com.ableton.live",
       "description": "Ableton Live Suite is a sound and music editor."
-    },
-    {
-      "name": "Abstract",
-      "slug": "abstract/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.elasticprojects.abstract-desktop",
-      "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
       "name": "Acorn",
@@ -852,7 +845,7 @@
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.avast.AvastSecureBrowser",
+      "unique_identifier": "com.avast.browser",
       "description": "Avast Secure Browser is a web browser focusing on privacy."
     },
     {
@@ -2396,13 +2389,6 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
-      "name": "Debookee",
-      "slug": "debookee/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.iwaxx.Debookee",
-      "description": "Debookee is a network traffic analyser."
-    },
-    {
       "name": "Deckset",
       "slug": "deckset/darwin",
       "platform": "darwin",
@@ -2427,7 +2413,7 @@
       "name": "Default Folder X",
       "slug": "default-folder-x/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.stclairsoft.DefaultFolderX6",
+      "unique_identifier": "com.stclairsoft.DefaultFolderX5",
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
@@ -3250,6 +3236,13 @@
       "description": "FastScripts is a tool for running time-saving scripts."
     },
     {
+      "name": "Fathom",
+      "slug": "fathom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "video.fathom.electron",
+      "description": "Fathom is a tool for recording and transcribing video conferences."
+    },
+    {
       "name": "Fellow",
       "slug": "fellow/darwin",
       "platform": "darwin",
@@ -3519,7 +3512,7 @@
       "name": "ForkLift",
       "slug": "forklift/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.binarynights.ForkLift-4",
+      "unique_identifier": "com.binarynights.ForkLift",
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
@@ -3752,6 +3745,13 @@
       "platform": "darwin",
       "unique_identifier": "ag.zigz.GitFinder",
       "description": "GitFinder is a git client with Finder integration."
+    },
+    {
+      "name": "GitHub Copilot",
+      "slug": "github-copilot-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.githubapp",
+      "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
     },
     {
       "name": "GitHub Copilot for Xcode",
@@ -4062,6 +4062,20 @@
       "description": "Grids is an instagram desktop application."
     },
     {
+      "name": "Grok Bot",
+      "slug": "grok-bot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anysphere.sand",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
+      "name": "Grok Bot",
+      "slug": "grok-bot/windows",
+      "platform": "windows",
+      "unique_identifier": "Grok Bot",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
       "name": "Groove OmniDialer",
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
@@ -4102,6 +4116,13 @@
       "platform": "windows",
       "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Handy",
+      "slug": "handy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pais.handy",
+      "description": "Handy is a speech to text application."
     },
     {
       "name": "Harmony SASE",
@@ -4195,6 +4216,13 @@
       "description": "Home Assistant is a companion app for Home Assistant home automation software."
     },
     {
+      "name": "Homebrew",
+      "slug": "homebrew-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "sh.brew.app",
+      "description": "Homebrew is the official graphical app for managing Homebrew packages."
+    },
+    {
       "name": "Homerow",
       "slug": "homerow/darwin",
       "platform": "darwin",
@@ -4235,13 +4263,6 @@
       "platform": "darwin",
       "unique_identifier": "com.netsoft.Hubstaff",
       "description": "Hubstaff is a work time tracker."
-    },
-    {
-      "name": "Huly",
-      "slug": "huly/darwin",
-      "platform": "darwin",
-      "unique_identifier": "hc.hcengineering.Huly",
-      "description": "Huly is an All-in-One Project Management Platform."
     },
     {
       "name": "HWMonitor",
@@ -4804,6 +4825,13 @@
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
+      "name": "KiCad",
+      "slug": "kicad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kicad.kicad",
+      "description": "KiCad is an electronics design automation suite for schematic capture and PCB layout."
+    },
+    {
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
@@ -4944,6 +4972,13 @@
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
+      "name": "Lenovo SUHelper",
+      "slug": "lenovo-suhelper/windows",
+      "platform": "windows",
+      "unique_identifier": "SUHelper",
+      "description": "SUHelper is a Lenovo utility that gives IT administrators more control over how Lenovo System Update updates their devices."
+    },
+    {
       "name": "Lenovo System Update",
       "slug": "lenovo-system-update/windows",
       "platform": "windows",
@@ -5021,11 +5056,11 @@
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
-      "name": "lo-rain",
-      "slug": "lo-rain/darwin",
+      "name": "LM Studio",
+      "slug": "lm-studio/darwin",
       "platform": "darwin",
-      "unique_identifier": "lo.cafe.lo-rain",
-      "description": "lo-rain is an app that makes it rain no matter where you are, even over your apps."
+      "unique_identifier": "ai.elementlabs.lmstudio",
+      "description": "LM Studio is an app to discover, download, and run local LLMs."
     },
     {
       "name": "Local",
@@ -5068,6 +5103,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech G HUB",
+      "slug": "logitech-g-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.ghub",
+      "description": "Logitech G HUB is software for customizing Logitech G gaming gear."
     },
     {
       "name": "Logitech Unifying Software",
@@ -5388,7 +5430,7 @@
       "name": "Mellel",
       "slug": "mellel/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.redlex.mellel6",
+      "unique_identifier": "com.redlex.mellel.mac",
       "description": "Mellel is an advanced word processor built for long and complex documents."
     },
     {
@@ -6085,13 +6127,6 @@
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
     },
     {
-      "name": "NotchNook",
-      "slug": "notchnook/darwin",
-      "platform": "darwin",
-      "unique_identifier": "lo.cafe.NotchNook",
-      "description": "NotchNook is a handy utility to manage and customize the notch area."
-    },
-    {
       "name": "Notepad++",
       "slug": "notepad++/windows",
       "platform": "windows",
@@ -6216,6 +6251,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nvidia.nvidia-sync",
       "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
+    },
+    {
+      "name": "NVM for Windows",
+      "slug": "nvm-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "NVM for Windows",
+      "description": "NVM for Windows is a version manager for installing and switching between multiple Node.js versions."
     },
     {
       "name": "OBS",
@@ -6524,6 +6566,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kagi.kagimacOS",
       "description": "Orion is a WebKit-based web browser."
+    },
+    {
+      "name": "Outset",
+      "slug": "outset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.macadmins.Outset",
+      "description": "Outset is a tool that processes packages and scripts during boot, login, or on demand."
     },
     {
       "name": "P4V",
@@ -7191,6 +7240,34 @@
       "description": "QEMU is an open-source machine emulator and virtualizer."
     },
     {
+      "name": "QGIS",
+      "slug": "qgis/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS",
+      "slug": "qgis/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS LTR",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
@@ -7506,13 +7583,6 @@
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
     },
     {
-      "name": "RingCentral",
-      "slug": "ringcentral/windows",
-      "platform": "windows",
-      "unique_identifier": "RingCentral",
-      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
-    },
-    {
       "name": "Rive",
       "slug": "rive/darwin",
       "platform": "darwin",
@@ -7567,6 +7637,13 @@
       "platform": "darwin",
       "unique_identifier": "tech.rocketman.ChoicesPackager",
       "description": "Rocketman Choices Packager is a utility for customising installer package choices."
+    },
+    {
+      "name": "Rowel",
+      "slug": "rowel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.rowel.desktop",
+      "description": "Rowel is an offline-first password manager, formerly known as Swifty."
     },
     {
       "name": "Royal TSX",
@@ -8171,6 +8248,13 @@
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
+      "name": "Splashtop Streamer",
+      "slug": "splashtop-streamer/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Streamer",
+      "description": "Splashtop Streamer is used to connect to and control computers."
+    },
+    {
       "name": "Splice",
       "slug": "splice/darwin",
       "platform": "darwin",
@@ -8402,6 +8486,13 @@
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
     },
     {
+      "name": "Superhuman Docs",
+      "slug": "superhuman-docs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superhuman.CodaApp.Desktop",
+      "description": "Superhuman Docs is a desktop client for team documents."
+    },
+    {
       "name": "Superhuman",
       "slug": "superhuman/darwin",
       "platform": "darwin",
@@ -8463,13 +8554,6 @@
       "platform": "darwin",
       "unique_identifier": "au.csiro.dialog",
       "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
-    },
-    {
-      "name": "Swifty",
-      "slug": "swifty/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.swifty",
-      "description": "Swifty is an offline password manager tool."
     },
     {
       "name": "Swish",
@@ -9067,11 +9151,11 @@
       "description": "Unity Hub is a management tool for Unity."
     },
     {
-      "name": "UPDF",
-      "slug": "updf/darwin",
+      "name": "UnnaturalScrollWheels",
+      "slug": "unnaturalscrollwheels/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.superace.updf.mac",
-      "description": "UPDF is a PDF editor."
+      "unique_identifier": "com.theron.UnnaturalScrollWheels",
+      "description": "UnnaturalScrollWheels is a utility that inverts the scroll direction of physical scroll wheels independently of the trackpad."
     },
     {
       "name": "Upscayl",
@@ -9326,6 +9410,13 @@
       "description": "VoiceInk is a voice to text app."
     },
     {
+      "name": "Vorssaint",
+      "slug": "vorssaint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vorssaint.utils",
+      "description": "Vorssaint is a menu bar toolkit with keep-awake, system monitor and volume mixer."
+    },
+    {
       "name": "VPN Tracker 365",
       "slug": "vpn-tracker-365/darwin",
       "platform": "darwin",
@@ -9487,6 +9578,13 @@
       "description": "WeekToDo is a weekly planner app focused on privacy."
     },
     {
+      "name": "WezTerm",
+      "slug": "wezterm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.wez.wezterm",
+      "description": "WezTerm is a GPU-accelerated, cross-platform terminal emulator and multiplexer."
+    },
+    {
       "name": "WhatRoute",
       "slug": "whatroute/darwin",
       "platform": "darwin",
@@ -9520,6 +9618,13 @@
       "platform": "darwin",
       "unique_identifier": "ui.wifiman-desktop",
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
+    },
+    {
+      "name": "Willow Voice",
+      "slug": "willow-voice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seewillow.WillowMac",
+      "description": "Willow Voice is an AI-powered voice dictation and writing assistant."
     },
     {
       "name": "WinDirStat",
@@ -9912,6 +10017,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom for Government",
+      "slug": "zoom@government/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos",
+      "description": "Zoom for Government is the ZoomGov release of the Zoom video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zotero",

@@ -103,7 +103,7 @@ func windowsHostProfilesByName(t *testing.T, ds fleet.Datastore, hostUUID string
 func linkWindowsHostToMDMEnrollment(t *testing.T, ds fleet.Datastore, fleetServerURL string, host *fleet.Host, d *mdmtest.TestWindowsMDMClient) {
 	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), host.UUID, d.DeviceID)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 }
 
 // windowsProfileRetries returns the host's retry count for one profile, which must stay at zero for a profile the
@@ -309,7 +309,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 
 		// The user signs out, then the profile is unassigned.
 		reportLoginStatus(t, d, fleet.WindowsMDMLoginStatusNone)
-		setTeamProfiles(tm.ID, nil)
+		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{})
 
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err = d.StartManagementSession()
@@ -351,7 +351,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 		require.Contains(t, windowsHostProfilesByName(t, s.ds, host.UUID), "user-scoped")
 
 		// Unassigning a held profile resolves without contacting the device: nothing was ever written.
-		setTeamProfiles(tm.ID, nil)
+		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{})
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err = d.StartManagementSession()
 		require.NoError(t, err)

@@ -1,13 +1,15 @@
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React from "react";
+import React, { useRef } from "react";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
@@ -112,8 +114,12 @@ const ProfileListItem = ({
     name,
     platform,
     scope,
+    hidden,
   } = profile;
   const subClass = "list-item";
+
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const isNameTruncated = useCheckTruncatedElement(nameRef);
 
   // iOS/iPadOS don't support user channels, so never show the user-scope icon
   // for them (matches the host details OS settings table).
@@ -155,22 +161,44 @@ const ProfileListItem = ({
         <div className={`${subClass}__info`}>
           <div className={`${baseClass}__title-row`}>
             <TooltipWrapper
-              tipContent={`UUID: ${profile.profile_uuid}`}
+              tipContent={
+                <>
+                  {isNameTruncated && (
+                    <>
+                      Name: <b className={`${baseClass}__full-name`}>{name}</b>
+                      <br />
+                    </>
+                  )}
+                  {profile.payload_display_name && (
+                    <>
+                      PayloadDisplayName: <b>{profile.payload_display_name}</b>
+                      <br />
+                    </>
+                  )}
+                  UUID: <b>{profile.profile_uuid}</b>
+                </>
+              }
               underline={false}
               position="top"
               showArrow
             >
-              <span className={`${subClass}__title`}>{name}</span>
+              <span className={`${subClass}__title`} ref={nameRef}>
+                {name}
+              </span>
             </TooltipWrapper>
             {isUserScoped && (
+              <Tag size="xsmall" tooltip="Scoped to the user channel">
+                User-scoped
+              </Tag>
+            )}
+            {hidden && (
               <TooltipWrapper
-                className={`${baseClass}__scope-tooltip`}
-                tipContent="Scoped to the user channel."
-                underline={false}
+                tipContent="Hidden from end user"
                 position="top"
+                underline={false}
                 showArrow
               >
-                <Icon name="user" />
+                <Icon name="eye-slash" color="ui-fleet-black-33" />
               </TooltipWrapper>
             )}
           </div>

@@ -9,9 +9,11 @@ import (
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
-	stderrPath string //nolint:structcheck,unused
+	stderrPath string //nolint:unused
 	timeout    time.Duration
 	user       string
+	// xdgSessionEnv is only used on Linux.
+	xdgSessionEnv bool
 }
 
 // Option allows configuring the application.
@@ -42,6 +44,14 @@ func WithTimeout(duration time.Duration) Option {
 func WithUser(user string) Option {
 	return func(a *eopts) {
 		a.user = user
+	}
+}
+
+// WithXDGSessionEnv sets XDG_RUNTIME_DIR and XDG_SESSION_TYPE for the login user's
+// GUI session, which sudo otherwise resets. Currently only supported on Linux.
+func WithXDGSessionEnv() Option {
+	return func(a *eopts) {
+		a.xdgSessionEnv = true
 	}
 }
 

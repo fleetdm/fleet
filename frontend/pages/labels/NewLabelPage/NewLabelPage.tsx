@@ -150,6 +150,9 @@ const NewLabelPage = ({
   const [formErrors, setFormErrors] = useState<INewLabelFormValidation>({
     isValid: true,
   });
+  // Kept out of formErrors because a syntax error doesn't block saving, as in
+  // the report and policy editors.
+  const [querySyntaxError, setQuerySyntaxError] = useState<string | null>(null);
 
   const {
     name,
@@ -424,8 +427,12 @@ const NewLabelPage = ({
   };
 
   const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    const { error } = validateQuery(queryString);
-    return error || null;
+    // A blank query is reported by formErrors as a required field instead.
+    if (!queryString.trim()) {
+      setQuerySyntaxError(null);
+      return;
+    }
+    setQuerySyntaxError(validateQuery(queryString).error);
   }, 500);
 
   const onQueryChange = (newQuery: string) => {
@@ -499,7 +506,7 @@ const NewLabelPage = ({
         return (
           <>
             <SQLEditor
-              error={formErrors.labelQuery?.message}
+              error={formErrors.labelQuery?.message || querySyntaxError}
               name="query"
               onChange={onQueryChange}
               onBlur={onInputBlur}

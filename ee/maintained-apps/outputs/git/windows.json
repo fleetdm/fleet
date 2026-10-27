@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.55.0.3",
+      "version": "2.56.0.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community' AND version_compare(version, '2.55.0.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community' AND version_compare(version, '2.56.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'git.exe');"
       },
-      "installer_url": "https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/Git-2.55.0.3-64-bit.exe",
+      "installer_url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.3/Git-2.56.0.3-64-bit.exe",
       "install_script_ref": "64df8252",
       "uninstall_script_ref": "3233086c",
-      "sha256": "af12577d0fdff74243a5988197aa49b957d5044edc17004f6ddf0768996f1dca",
+      "sha256": "dc6d3db061999136e139f31376c5582a9ed6f36a4ea12f15e54ad7fa2bfc0bf2",
       "default_categories": [
         "Developer tools"
       ]

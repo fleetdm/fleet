@@ -56,7 +56,11 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSettings	fleet.MacOSSettin
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Paths	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Description	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Activation	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	SelfService	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Hidden	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
@@ -186,3 +190,14 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Configuration	fleet
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AutoUpdateEnabled	*bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AutoUpdateStartTime	*string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AutoUpdateEndTime	*string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Versions	[]fleet.TeamSpecAppStoreAppVersion
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	SelfService	bool
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	LabelsIncludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	LabelsIncludeAll	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	Categories	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	Configuration	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	AutoUpdateEnabled	*bool
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	AutoUpdateStartTime	*string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreAppVersion	AutoUpdateEndTime	*string

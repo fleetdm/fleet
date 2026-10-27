@@ -13,6 +13,12 @@ script makes sure the calendar has:
 A release day is labeled **`minor release`** when the version ends in `.0` and
 **`patch release`** otherwise (e.g. `4.89.0` is minor, `4.89.1` is a patch).
 
+Fleetd releases are synced too, from milestones titled `fleetd-vX.Y.Z`: each
+gets a single `Release day: fleetd - X.Y.Z` event on its due date. Fleetd
+milestones get **only** a Release day event — no RC or Develop events. Since
+fleetd milestones usually share their due date with a Fleet minor, matching is
+done within each product separately.
+
 The script proposes changes by default (dry-run). Pass `--apply` to write
 changes back to the calendar.
 

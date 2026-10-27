@@ -72,6 +72,20 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:windows:*:*", cpe)
 
+	// Android apps are tagged with target_sw=android.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Vendor Product-1", Version: "1.2.3", ApplicationID: new("com.vendor.product1"), Source: "android_apps",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:android:*:*", cpe)
+
+	// The Android OS package gets no CPE, even when its name matches one.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Vendor Product-1", Version: "1.2.3", ApplicationID: new("android"), Source: "android_apps",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Empty(t, cpe)
+
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
@@ -502,6 +516,9 @@ func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	require.Contains(t, excludedSources[0], "ios_apps")
 	require.Contains(t, excludedSources[0], "ipados_apps")
 	require.Contains(t, excludedSources[0], "go_binaries")
+	require.Contains(t, excludedSources[0], "ai_clis")
+	require.Contains(t, excludedSources[0], "mcp_servers")
+	require.Contains(t, excludedSources[0], "ai_skills")
 }
 
 // TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
@@ -678,7 +695,25 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.5",
 				Vendor:           "",
 				BundleIdentifier: "com.adobe.mas.lightroomCC",
-			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			// NVD distinguishes Lightroom from Lightroom Classic only by sw_edition, so without an
+			// explicit edition each app would match the other's CVEs.
+			software: fleet.Software{
+				Name:             "Adobe Lightroom.app",
+				Source:           "apps",
+				Version:          "9.5",
+				BundleIdentifier: "com.adobe.lightroomCC",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:9.5:*:*:*:desktop:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Adobe Lightroom Classic.app",
+				Source:           "apps",
+				Version:          "15.4.1",
+				BundleIdentifier: "com.adobe.LightroomClassicCC7",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:15.4.1:*:*:*:classic:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1544,6 +1579,21 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.8.0",
 			}, cpe: "",
 		},
+		// 2026-09-28: there are no entries for the bash python package at the NVD dataset, only GNU bash.
+		{
+			software: fleet.Software{
+				Name:    "bash",
+				Source:  "python_packages",
+				Version: "0.6",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "python3-bash",
+				Source:  "python_packages",
+				Version: "0.6",
+			}, cpe: "",
+		},
 		{ // checks vendor/product matching based on bundle name, including EAPs
 			software: fleet.Software{
 				Name:             "GoLand EAP.app",
@@ -2111,6 +2161,34 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Name:    "teamcity",
 				Source:  "homebrew_packages",
 				Version: "1.2.1",
+			},
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:          "VLC",
+				ApplicationID: new("org.videolan.vlc"),
+				Source:        "android_apps",
+				Version:       "3.6.5",
+			},
+			cpe: "cpe:2.3:a:videolan:vlc:3.6.5:*:*:*:*:android:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:          "Chrome",
+				ApplicationID: new("com.android.chrome"),
+				Source:        "android_apps",
+				Version:       "155.0.8059.81",
+			},
+			cpe: "cpe:2.3:a:google:chrome:155.0.8059.81:*:*:*:*:android:*:*",
+		},
+		{
+			// The Android OS package; OS vulnerabilities come from the Android OSV artifacts.
+			software: fleet.Software{
+				Name:          "Android System",
+				ApplicationID: new("android"),
+				Source:        "android_apps",
+				Version:       "16",
 			},
 			cpe: "",
 		},

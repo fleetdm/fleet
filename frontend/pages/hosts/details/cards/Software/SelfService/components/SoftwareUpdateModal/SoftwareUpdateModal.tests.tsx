@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
-import { createMockHostSoftware } from "__mocks__/hostMock";
+import {
+  createMockHostSoftware,
+  createMockHostSoftwarePackage,
+} from "__mocks__/hostMock";
 import { renderWithSetup } from "test/test-utils";
 
 import SoftwareUpdateModal from "./SoftwareUpdateModal";
@@ -39,6 +42,27 @@ describe("SoftwareUpdateModal", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledTimes(1); // shouldn't increment from previous
+  });
+
+  it("shows 'Close' button and hides Update/Cancel when disableUpdate is true", () => {
+    const mockSoftware = createMockHostSoftware();
+
+    render(
+      <SoftwareUpdateModal
+        hostDisplayName="Test Host"
+        software={mockSoftware}
+        onExit={noop}
+        onUpdate={noop}
+        disableUpdate
+      />
+    );
+    expect(
+      screen.queryByRole("button", { name: "Update" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   it("shows 'Close' button and not update/cancel when status is pending_install", () => {
@@ -198,5 +222,93 @@ describe("SoftwareUpdateModal", () => {
     );
     expect(screen.queryByText(/Current version:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Current versions:/i)).not.toBeInTheDocument();
+  });
+
+  describe("multiple copies of a macOS app", () => {
+    const makeVersion = (version: string, path: string) => ({
+      version,
+      bundle_identifier: "com.tinyspeck.slackmacgap",
+      last_opened_at: "2024-06-01T00:00:00Z",
+      vulnerabilities: [],
+      installed_paths: [path],
+    });
+    const renderModal = (
+      overrides: Parameters<typeof createMockHostSoftware>[0]
+    ) =>
+      render(
+        <SoftwareUpdateModal
+          hostDisplayName="Test Host"
+          software={createMockHostSoftware({
+            display_name: "Slack",
+            software_package: createMockHostSoftwarePackage({
+              version: "2.0.0",
+            }),
+            ...overrides,
+          })}
+          onExit={noop}
+          onUpdate={noop}
+          isDeviceUser
+        />
+      );
+    const MULTIPLE_COPIES = /are installed, and updating only replaces the original version in the Applications folder/;
+
+    it("explains that only the version in Applications is updated", () => {
+      renderModal({
+        installed_versions: [
+          makeVersion("1.0.0", "/Applications/Slack.app"),
+          makeVersion("2.0.0", "/Applications/Slack 2.app"),
+        ],
+      });
+      expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /If this update keeps showing, delete the other versions/
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("counts copies of the same version at different paths", () => {
+      renderModal({
+        installed_versions: [
+          {
+            ...makeVersion("1.0.0", "/Applications/Slack.app"),
+            installed_paths: [
+              "/Applications/Slack.app",
+              "/Users/test/Downloads/Slack.app",
+            ],
+          },
+        ],
+      });
+      expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
+    });
+
+    it("does not show the note for a single copy", () => {
+      renderModal({
+        installed_versions: [makeVersion("1.0.0", "/Applications/Slack.app")],
+      });
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
+    });
+
+    it("does not show the note for non-macOS software", () => {
+      renderModal({
+        source: "programs",
+        installed_versions: [
+          makeVersion("2.0.0", "C:\\Program Files\\Slack"),
+          makeVersion("1.0.0", "C:\\Users\\test\\Slack"),
+        ],
+      });
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
+    });
+
+    it("does not show the note while the update is pending", () => {
+      renderModal({
+        status: "pending_install",
+        installed_versions: [
+          makeVersion("1.0.0", "/Applications/Slack.app"),
+          makeVersion("2.0.0", "/Applications/Slack 2.app"),
+        ],
+      });
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
+    });
   });
 });

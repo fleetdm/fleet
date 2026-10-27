@@ -1,8 +1,10 @@
 import { AxiosResponse } from "axios";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
 import FileUploader from "components/FileUploader";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
 
@@ -17,6 +19,8 @@ const BootstrapPackageUploader = ({
   currentTeamId,
   onUpload,
 }: IBootstrapPackageUploaderProps) => {
+  const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
@@ -37,7 +41,11 @@ const BootstrapPackageUploader = ({
     }
 
     try {
-      await mdmAPI.uploadBootstrapPackage(file, currentTeamId);
+      await mdmAPI.uploadBootstrapPackage(
+        file,
+        currentTeamId,
+        config?.staged_upload_available
+      );
       notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
@@ -56,6 +64,8 @@ const BootstrapPackageUploader = ({
       accept=".pkg"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      gitopsCompatible
+      gitOpsModeEnabled={gitOpsModeEnabled}
     />
   );
 };

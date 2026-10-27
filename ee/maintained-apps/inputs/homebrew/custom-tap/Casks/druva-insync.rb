@@ -11,7 +11,7 @@ cask "druva-insync" do
     skip "Druva does not expose a parseable version feed; bump manually"
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   pkg "Install inSync.pkg"
 

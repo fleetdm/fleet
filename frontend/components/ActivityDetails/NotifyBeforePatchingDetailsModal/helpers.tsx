@@ -1,6 +1,9 @@
 import React from "react";
 
-import { INotifyActivityStatus } from "interfaces/activity";
+import {
+  INotifyActivityStatus,
+  INotifySoftwareTitle,
+} from "interfaces/activity";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 // Loose input — details.status is typed as `string | undefined` on
@@ -18,14 +21,34 @@ const TRUNCATED_INLINE_COUNT = 3;
 export const DEFERRED_SENTENCE =
   "Another notification was displayed. Fleet will try again on the next policy run.";
 
+// Reused across exit codes with the same retry cadence. Short-retry codes
+// re-fire on the next policy run (~2 minutes); no-retry codes come from
+// Fleet-side misconfiguration that won't clear on its own.
+const RETRY_NEXT_RUN = "Fleet will try again on the next policy run.";
+const RETRY_LATER = "Fleet will try again later.";
+const NO_RETRY = "Fleet won't try again.";
+
+// Shown for any failure exit code the notification script can return but that
+// isn't enumerated below (server-side default is EndUserNotificationReasonUnexpectedFailure,
+// short-retry).
+export const UNEXPECTED_FAILURE_COPY = `The notification failed unexpectedly. ${RETRY_NEXT_RUN}`;
+
 // Keyed by script exit code. The 0 entry is the offline caveat shown on
-// success; non-zero entries are failure reasons.
+// success; non-zero entries are failure reasons. Keep in sync with the
+// server-side map in server/notifications/internal/service/record_outcome.go.
 export const COPY_BY_EXIT_CODE: Record<number, string> = {
   0: "If the host is offline when the patch is forced, Fleet skips the patch. When the host comes back online Fleet notifies the end user again and the patch is forced 1 hour later.",
-  30: "The notification couldn't load. Fleet will try again on the next policy run.",
-  31: "The notification couldn't load. Fleet will try again on the next policy run.",
-  41: "The screen was locked so the end user couldn't see the notification. Fleet will try again on the next policy run.",
+  2: `The notification command was invalid. ${NO_RETRY}`,
+  20: `The notification couldn't be sent because of an internal configuration error. ${NO_RETRY}`,
+  30: `The notification couldn't load. ${RETRY_NEXT_RUN}`,
+  31: `The notification couldn't load. ${RETRY_NEXT_RUN}`,
+  40: `The end user wasn't logged in. ${RETRY_NEXT_RUN}`,
+  41: `The screen was locked so the end user couldn't see the notification. ${RETRY_NEXT_RUN}`,
+  42: `No display was connected. ${RETRY_NEXT_RUN}`,
   [DEFERRED_EXIT_CODE]: DEFERRED_SENTENCE,
+  70: `Fleet Desktop had an internal error. ${RETRY_NEXT_RUN}`,
+  [-2]: `Scripts are disabled on the host. ${RETRY_LATER}`,
+  [-5]: `Fleet couldn't build the notification URL. ${RETRY_LATER}`,
   100: "The Fleet Desktop app is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
   101: "The Fleet Desktop app v1.5.0 is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
 };
@@ -44,7 +67,10 @@ export const getCaveatMessage = (
   if (exitCode === null || exitCode === undefined) return null;
   // Mirror guard: exit 0 is the success caveat; don't show it next to a red icon.
   if (isFailure && exitCode === 0) return null;
-  return COPY_BY_EXIT_CODE[exitCode] ?? null;
+  if (COPY_BY_EXIT_CODE[exitCode]) return COPY_BY_EXIT_CODE[exitCode];
+  // Mirror the server's unexpected-failure default so a non-zero exit code the
+  // frontend doesn't recognize still gets a reason line instead of "---".
+  return isFailure ? UNEXPECTED_FAILURE_COPY : null;
 };
 
 // Shared react-query retry: give up on 404, otherwise retry up to 3 times.
@@ -82,31 +108,42 @@ export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null
 ): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
 
+// Legacy activity rows stored only software_titles (string[]); new rows add
+// software with per-team display name overrides. Accept both so callers can
+// pass `details.software ?? details.software_titles` without branching.
+export type NotifyTitleInput = string | INotifySoftwareTitle;
+
+export const toSoftwareTitle = (
+  input: NotifyTitleInput
+): INotifySoftwareTitle =>
+  typeof input === "string" ? { title: input } : input;
+
 // Bold titles, Oxford comma. Inline all when ≤ INLINE_APP_LIMIT; past that
 // truncate to 3 + ", and N more apps". Returns null on empty input.
-// TODO(BE contract): software_titles is currently string[]; if BE emits
-// objects with display_name, swap this to render the display name.
-export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
+export const renderNotifyTitleList = (
+  titles: NotifyTitleInput[]
+): React.ReactNode => {
   if (titles.length === 0) return null;
-  const bold = (name: string) => (
-    <strong>{getDisplayedSoftwareName(name)}</strong>
+  const items = titles.map(toSoftwareTitle);
+  const bold = (item: INotifySoftwareTitle) => (
+    <strong>{getDisplayedSoftwareName(item.title, item.display_name)}</strong>
   );
-  if (titles.length === 1) return bold(titles[0]);
-  if (titles.length === 2) {
+  if (items.length === 1) return bold(items[0]);
+  if (items.length === 2) {
     return (
       <>
-        {bold(titles[0])} and {bold(titles[1])}
+        {bold(items[0])} and {bold(items[1])}
       </>
     );
   }
-  if (titles.length <= INLINE_APP_LIMIT) {
-    const head = titles.slice(0, -1);
-    const tail = titles[titles.length - 1];
+  if (items.length <= INLINE_APP_LIMIT) {
+    const head = items.slice(0, -1);
+    const tail = items[items.length - 1];
     return (
       <>
-        {head.map((t, i) => (
-          <React.Fragment key={t}>
-            {bold(t)}
+        {head.map((item, i) => (
+          <React.Fragment key={item.title_id ?? item.title}>
+            {bold(item)}
             {i < head.length - 1 ? ", " : ", and "}
           </React.Fragment>
         ))}
@@ -116,8 +153,8 @@ export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
   }
   // When truncating past INLINE_APP_LIMIT, always name the first N inline;
   // overflow is always ≥ 2, so no pluralize needed.
-  const shown = titles.slice(0, TRUNCATED_INLINE_COUNT);
-  const overflow = titles.length - TRUNCATED_INLINE_COUNT;
+  const shown = items.slice(0, TRUNCATED_INLINE_COUNT);
+  const overflow = items.length - TRUNCATED_INLINE_COUNT;
   return (
     <>
       {bold(shown[0])}, {bold(shown[1])}, {bold(shown[2])}, and {overflow} more

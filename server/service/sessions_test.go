@@ -102,11 +102,15 @@ func TestSessionAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "listing sessions must not refresh them")
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "inspecting a session must not refresh it")
 
 			err = svc.DeleteSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailWrite, err)
@@ -318,6 +322,10 @@ func (a *testAuth) AssertionAttributes() []fleet.SAMLAttribute {
 func (a *testAuth) RawResponse() []byte {
 	return nil
 }
+
+func (a *testAuth) AssertionID() string { return "" }
+
+func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
 
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)

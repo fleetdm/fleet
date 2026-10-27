@@ -1,0 +1,7 @@
+.host-lifecycle-section {
+  // "Host expiry window" is a sub-setting of the "Host expiry" checkbox above
+  // it; indent it to align with the checkbox's label rather than its icon.
+  &__host-expiry-window {
+    margin-left: $pad-large;
+  }
+}

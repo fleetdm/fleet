@@ -8,6 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
 | VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
+| Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
 
 
@@ -21,7 +22,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The IT department is directly responsible for dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
+The IT department is directly responsible for dogfooding, internal frameworks and schemas, equipment management, and internal IT support. For Content Specialist responsibilities, see the [Marketing](https://fleetdm.com/handbook/marketing#team) page.
 
 
 ### Register a domain for Fleet
@@ -33,12 +34,14 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 
 As soon as an offer is accepted, Fleet provides laptops for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time, [utilizing existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less) whenever possible.
 
+- Before buying a new device, [check warehouse inventory](https://fleetdm.com/handbook/it#check-warehouse-inventory) for one that's ready to ship.
+
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). See [**Fleet Hardware Tiers — 2026 Models**](https://docs.google.com/document/d/1SjTP_qHvQkIEgLdP8-c3AGvyZJ_IxFNrIBbMq9N9WlQ/edit?tab=t.0) for the recommended laptop tier, by department.
 
   - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business (AB).
 
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries where Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
@@ -54,7 +57,7 @@ On the morning of a new team member's first day, IT sends them the Google Logins
 
 Upon receiving any device, follow these steps to process incoming equipment.
 1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
-2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+2. Visually inspect equipment and all related components (e.g. laptop charger) for damage.
 3. Remove any stickers and clean devices and components.
 4. Using the device's charger, plug in the device.
 5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
@@ -79,14 +82,24 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
 
-### Monitor compliance tests
+### Check warehouse inventory
 
-1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
-2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
-3. Click on a test, then click on "Tasks".  
-4. Click on "Create task." Then, "Create GitHub issue."
-5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-it" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+Fleet uses [Retriever](https://helloretriever.com) to store and ship devices from the Fleet IT warehouse. Each device Retriever handles shows a **Warehouse status** host vital in [dogfood](https://dogfood.fleetdm.com/dashboard), which updates daily. Devices that Retriever hasn't handled don't have a status.
+
+To see devices that are ready to ship, open **Hosts** in [dogfood](https://dogfood.fleetdm.com/hosts/manage) and filter by the **Warehouse: Ready for deployment** label. To request one, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md).
+
+| Warehouse status | What it means |
+|:--|:--|
+| Ready For Deployment | In the warehouse and available. |
+| Device Received, Provisioning | Arrived at the warehouse and is being checked or set up. Not available yet. |
+| In Repair, Requires Service, Input Required | In the warehouse but needs repair, service, or a decision from IT before it can ship. |
+| Administrative Hold, Legal Hold | Held in the warehouse and can't ship. |
+| To Be Retired | Marked for retirement and won't ship. |
+| Deployment Requested, Deployment In Transit | Requested for a Fleetie or on its way to one. |
+| Deployed | With a Fleetie. |
+| Label Generated, Retrieval In Transit, Return Initiated | A return is underway or the device is on its way back to the warehouse. |
+| Not Returned, Lost In Transit | The device didn't make it back to the warehouse. |
+| Disposal Initiated, Delivered For Disposal, Disposed, Device Resold, Returned To Vendor, Transferred Ownership, Returned | No longer in Fleet's inventory, or on its way out. |
 
 
 ### Review third-party app access requests
@@ -227,6 +240,9 @@ Please see [handbook/people#convert-a-fleetie-to-a-consultant](https://fleetdm.c
 
 ##### Review Fleet's US company benefits
 Please see [handbook/people#review-Fleets-us-company-benefits](https://fleetdm.com/handbook/people#review-Fleets-us-company-benefits)
+
+##### Monitor compliance tests
+Please see [handbook/people#monitor-compliance-tests](https://fleetdm.com/handbook/people#monitor-compliance-tests)
 
 
 <meta name="maintainedBy" value="allenhouchins">

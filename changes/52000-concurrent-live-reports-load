@@ -1,0 +1,2 @@
+* Fixed Fleet slowing down or becoming unresponsive when many live reports run at the same time.
+* Fixed closed live reports holding a Redis connection open for up to an hour.

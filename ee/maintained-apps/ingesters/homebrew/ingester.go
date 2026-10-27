@@ -151,6 +151,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
+	if input.Token == "lm-studio" {
+		// App reports "0.4.26+4"; the cask says "0.4.26,4".
+		out.Version = strings.ReplaceAll(cask.Version, ",", "+")
+	}
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
@@ -163,6 +167,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';",
 			out.UniqueIdentifier,
 		)
+	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s;", out.UniqueIdentifier, pathFilter)
+	}
+	if input.Token == "chatgpt" {
+		// The patch policy generated below inherits this match.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
 	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
@@ -194,7 +206,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(input, &cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
@@ -310,6 +322,33 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "wezterm" {
+		// WezTerm.app ships a placeholder CFBundleShortVersionString ("0.1.0") and
+		// CFBundleVersion ("1") in every release, so no version comparison can work.
+		// The input is frozen, so identify the release by its code-directory hashes
+		// (arm64, x86_64) for 20240203-110809-5046fc22 instead; any other build
+		// counts as outdated.
+		out.Queries.Patched = "SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');"
+	}
+	if input.Token == "logitech-g-hub" {
+		// lghub.app ships without a CFBundleShortVersionString, so bundle_short_version
+		// is empty and the default patch policy can never pass. The cask version
+		// matches CFBundleVersion.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	switch input.Token {
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
+		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
+		// which version_compare sorts below the cask version even for x.y.0 releases;
+		// CFBundleVersion carries the full cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare
 		// version ("R" is duplicated in some builds and not others, e.g.
@@ -356,8 +395,53 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 
 	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
+	switch input.Token {
+	case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+		// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	case "kicad":
+		// KiCad's editors (PCB Editor, Schematic Editor, ...) can also run as their own apps nested in KiCad.app/Contents/Applications.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	case "chatgpt":
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
+			chatGPTBundleMatch("a."),
+		)
+	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// Only this channel's copy counts as open; the other channel doesn't block its install.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.%s AND a.bundle_executable != '');",
+			out.UniqueIdentifier, pathFilter,
+		)
+	}
 
 	return out, nil
+}
+
+// qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
+// both report the org.qgis.qgis3 bundle identifier.
+var qgisPathFilters = map[string]string{
+	"qgis":     "path LIKE '/Applications/QGIS-final-%.app'",
+	"qgis@ltr": "path = '/Applications/QGIS-LTR.app'",
+}
+
+// chatGPTBundleMatch matches the ChatGPT app under both of its bundle identifiers.
+// OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex
+// while hosts that haven't updated still report com.openai.chat. The discontinued
+// Codex.app also reports com.openai.codex, so that identifier only counts when the
+// bundle is named ChatGPT. Callers must parenthesize it before adding conditions.
+func chatGPTBundleMatch(alias string) string {
+	return fmt.Sprintf(
+		"%[1]sbundle_identifier = 'com.openai.chat' OR (%[1]sbundle_identifier = 'com.openai.codex' AND %[1]sbundle_name = 'ChatGPT')",
+		alias,
+	)
 }
 
 var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)

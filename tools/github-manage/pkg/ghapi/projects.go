@@ -265,6 +265,13 @@ func FindFieldValueByName(projectID int, fieldName, search string) (string, erro
 	if err != nil {
 		return "", err
 	}
+	// Exact match wins so e.g. "S" doesn't resolve to "XXS" via the
+	// substring fallback (kept for emoji-decorated option names).
+	for _, option := range field.Options {
+		if strings.EqualFold(option.Name, search) {
+			return option.Name, nil
+		}
+	}
 	for _, option := range field.Options {
 		if strings.Contains(strings.ToLower(option.Name), strings.ToLower(search)) {
 			return option.Name, nil

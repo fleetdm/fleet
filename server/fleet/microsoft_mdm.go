@@ -583,7 +583,7 @@ func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 		msg.MapContextItems = contextMap
 	}
 
-	itemVal, ok := (msg.MapContextItems)[item]
+	itemVal, ok := msg.MapContextItems[item]
 	if !ok {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}
@@ -942,7 +942,9 @@ type MDMWindowsEnrolledDevice struct {
 	MDMEnrollClientVersion string `db:"enroll_client_version"`
 	MDMNotInOOBE           bool   `db:"not_in_oobe"`
 	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment
-	ZTDRegistrationID       string                          `db:"ztd_registration_id"`
+	ZTDRegistrationID string `db:"ztd_registration_id"`
+	// EntraDeviceID is the Entra device ID signed into the access token of an Entra enrollment, empty for other enrollments.
+	EntraDeviceID           string                          `db:"entra_device_id"`
 	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
@@ -968,8 +970,15 @@ type MDMWindowsEnrolledDevice struct {
 	HardwareSerial *string `db:"hardware_serial"`
 	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
-	CreatedAt          time.Time  `db:"created_at"`
-	UpdatedAt          time.Time  `db:"updated_at"`
+	// DeletedHostTeamID is set when the enrollment's host was deleted. It is cleared when the host is linked again.
+	DeletedHostTeamID *uint `db:"deleted_host_team_id"`
+	// FleetdPresentAt is when fleetd was first seen present for this enrollment, and nil until it has been or after its host is deleted.
+	FleetdPresentAt *time.Time `db:"fleetd_present_at"`
+	CreatedAt       time.Time  `db:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at"`
+
+	// LinkedHostID is the host that has HostUUID
+	LinkedHostID *uint `db:"linked_host_id"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
@@ -1149,6 +1158,34 @@ const FleetInternalCmdIDPrefix = "fleet-internal-"
 // windows_mdm_commands.
 func IsFleetInternalCmdID(cmdID string) bool {
 	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
+}
+
+// WindowsSCEPStatusProbeCmdUUIDPrefix marks the queued <Get> commands that read a proxied SCEP profile's
+// ClientCertificateInstall status after the host ACKs the install.
+const WindowsSCEPStatusProbeCmdUUIDPrefix = "scep-status-"
+
+// WindowsSCEPStatusProbeDelay is how long a SCEP status probe stays queued before it is sent, which gives the device's
+// SCEP enrollment time to finish and spaces consecutive probes.
+const WindowsSCEPStatusProbeDelay = 30 * time.Second
+
+// IsWindowsSCEPStatusProbeCmdUUID reports whether a Windows MDM command is a SCEP status probe.
+func IsWindowsSCEPStatusProbeCmdUUID(cmdUUID string) bool {
+	return strings.HasPrefix(cmdUUID, WindowsSCEPStatusProbeCmdUUIDPrefix)
+}
+
+// WindowsESPReleaseCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial finalize's
+// Replace and each retry).
+const WindowsESPReleaseCmdIDPrefix = "esp-release-"
+
+// ValidateWindowsMDMCommandID rejects a CmdID that starts with a prefix Fleet reserves for the commands it sends itself.
+// Fleet recognizes those commands by their CmdID, and a command an admin runs keeps the CmdID it was given.
+func ValidateWindowsMDMCommandID(cmdID string) error {
+	for _, prefix := range []string{FleetInternalCmdIDPrefix, WindowsSCEPStatusProbeCmdUUIDPrefix, WindowsESPReleaseCmdIDPrefix} {
+		if strings.HasPrefix(cmdID, prefix) {
+			return NewInvalidArgumentError("command", fmt.Sprintf("CmdID can't start with %q. This prefix is reserved for commands Fleet sends.", prefix))
+		}
+	}
+	return nil
 }
 
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
@@ -1713,6 +1750,7 @@ type HostMDMWindowsProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
@@ -1725,6 +1763,8 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
+		SelfService:   false,
+		Hidden:        p.Hidden,
 	}
 }
 

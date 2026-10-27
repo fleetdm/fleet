@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.03",
+      "version": "26.05",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.03') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.05') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('7zfm.exe','7zg.exe'));"
       },
-      "installer_url": "https://www.7-zip.org/a/7z2603-x64.msi",
+      "installer_url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "cd80dc1f",
-      "sha256": "c0680064d698a62dd4a5a47f403db356a6531a5473e4c4b1d090ea2590513926",
+      "sha256": "3fe4ab99fa15629c652944309a2b2bc6e41fc933fc6b63f5df1ebcf3aea68263",
       "default_categories": [
         "Productivity"
       ],

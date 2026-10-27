@@ -5,6 +5,7 @@ Contributor docs for Fleet's Apple (macOS, iOS, iPadOS) MDM feature area.
 ## Architecture
 
 - [Apple MDM architecture](apple-mdm-architecture.md)
+- [Apple MDM command lifecycle and cleanup](apple-mdm-command-lifecycle.md)
 - [Apple declarative device management (DDM)](apple-declarative-device-management.md)
 - [Automated device enrollment (ADE)](automated-device-enrollment.md)
 - [Apple account-driven user enrollment](apple-account-driven-user-enrollment.md)

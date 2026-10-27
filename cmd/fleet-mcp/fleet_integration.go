@@ -187,14 +187,24 @@ func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 }
 
 // fleetErrMsg renders a Fleet API error.
-// It prefers Fleet's structured "message" field and, for non-JSON bodies,
-// falls back to a bounded <120 char snippet rather than dumping the full response body
+// It prefers Fleet's structured "message" field, followed by any errors[].reason (where validation
+// errors explain what was wrong), and, for non-JSON bodies, falls back to a bounded <120 char
+// snippet rather than dumping the full response body
 func fleetErrMsg(status int, body []byte) string {
 	var parsed struct {
 		Message string `json:"message"`
+		Errors  []struct {
+			Reason string `json:"reason"`
+		} `json:"errors"`
 	}
 	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
-		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+		msg := parsed.Message
+		for _, e := range parsed.Errors {
+			if e.Reason != "" && e.Reason != parsed.Message {
+				msg += ": " + e.Reason
+			}
+		}
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, msg)
 	}
 	snippet := strings.TrimSpace(string(body))
 	if snippet == "" {
@@ -556,6 +566,8 @@ type SoftwareTitle struct {
 	Versions      []SoftwareVersion `json:"versions,omitempty"`
 	Browser       string            `json:"browser,omitempty"`
 	ExtensionFor  string            `json:"extension_for,omitempty"`
+	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
+	AITool *bool `json:"ai_tool,omitempty"`
 }
 
 type HostSoftwareInstalledVersion struct {
@@ -566,11 +578,13 @@ type HostSoftwareInstalledVersion struct {
 }
 
 type HostSoftware struct {
-	ID                uint                           `json:"id"`
-	Name              string                         `json:"name"`
-	Source            string                         `json:"source"`
-	BundleIdentifier  string                         `json:"bundle_identifier,omitempty"`
-	ExtensionFor      string                         `json:"extension_for,omitempty"`
+	ID               uint   `json:"id"`
+	Name             string `json:"name"`
+	Source           string `json:"source"`
+	BundleIdentifier string `json:"bundle_identifier,omitempty"`
+	ExtensionFor     string `json:"extension_for,omitempty"`
+	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
+	AITool            *bool                          `json:"ai_tool,omitempty"`
 	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions,omitempty"`
 }
 
@@ -608,9 +622,14 @@ func matchesSoftwareSource(rowSource, want string) bool {
 	return strings.EqualFold(rowSource, want)
 }
 
-// source is filtered client-side (not a server-side param on this endpoint);
+// matchesAITool also guards Fleet servers that predate the ai_tool param and ignore it.
+func matchesAITool(rowAITool *bool, aiTool string) bool {
+	return aiTool != "true" || (rowAITool != nil && *rowAITool)
+}
+
+// source and extensionFor are filtered client-side (not server-side params on this endpoint);
 // perPage caps the merged result.
-func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
+func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, aiTool, source, extensionFor string, perPage int) ([]HostSoftware, bool, error) {
 	const apiPerPage = 500
 	out := make([]HostSoftware, 0, perPage)
 	for page := 0; ; page++ {
@@ -626,6 +645,9 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 		}
 		if v := strings.TrimSpace(vulnerable); v != "" {
 			params.Set("vulnerable", v)
+		}
+		if v := strings.TrimSpace(aiTool); v != "" {
+			params.Set("ai_tool", v)
 		}
 
 		endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/software?%s", hostID, params.Encode())
@@ -654,7 +676,8 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 
 		shortPage := len(result.Software) < apiPerPage
 		for _, row := range result.Software {
-			if !matchesSoftwareSource(row.Source, source) {
+			if !matchesSoftwareSource(row.Source, source) || !matchesSoftwareSource(row.ExtensionFor, extensionFor) ||
+				!matchesAITool(row.AITool, aiTool) {
 				continue
 			}
 			out = append(out, row)
@@ -673,7 +696,7 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 	return out, false, nil
 }
 
-func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source string, perPage int) ([]SoftwareTitle, bool, error) {
+func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, aiTool, source, extensionFor string, perPage int) ([]SoftwareTitle, bool, error) {
 	var teamIDStr string
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
@@ -705,15 +728,26 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		if v := strings.TrimSpace(vulnerable); v != "" {
 			params.Set("vulnerable", v)
 		}
+		if v := strings.TrimSpace(aiTool); v != "" {
+			params.Set("ai_tool", v)
+		}
+		// Fleet matches source and extension_for case-sensitively and every accepted value is lowercase,
+		// so lowercasing keeps both args case-insensitive like the per-host filter.
+		if src := strings.ToLower(strings.TrimSpace(source)); src != "" {
+			params.Set("source", src)
+		}
+		if ext := strings.ToLower(strings.TrimSpace(extensionFor)); ext != "" {
+			params.Set("extension_for", ext)
+		}
 
 		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+params.Encode(), nil)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to fetch software titles: %w", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			status := resp.StatusCode
+			errBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 			resp.Body.Close()
-			return nil, false, fmt.Errorf("failed to fetch software titles: status code %d", status)
+			return nil, false, fmt.Errorf("failed to fetch software titles: %s", fleetErrMsg(resp.StatusCode, errBody))
 		}
 
 		var result struct {
@@ -727,7 +761,9 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 
 		shortPage := len(result.SoftwareTitles) < apiPerPage
 		for _, row := range result.SoftwareTitles {
-			if !matchesSoftwareSource(row.Source, source) {
+			// Fleet servers that predate the source and extension_for params ignore them.
+			if !matchesSoftwareSource(row.Source, source) || !matchesSoftwareSource(row.ExtensionFor, extensionFor) ||
+				!matchesAITool(row.AITool, aiTool) {
 				continue
 			}
 			out = append(out, row)

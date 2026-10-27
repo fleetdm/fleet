@@ -1,0 +1,1 @@
+- Fixed tooltips in modals opened from the dashboard activity feed, such as the performance impact tooltip in the report modal, appearing away from the text they describe.

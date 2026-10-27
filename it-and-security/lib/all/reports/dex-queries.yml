@@ -99,6 +99,7 @@
       si.cpu_brand,
 
       CASE
+        WHEN ci.model LIKE '%Apple M6%'               THEN 'apple_m6'
         WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
         WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
         WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'
@@ -791,4 +792,156 @@
   interval: 3600
   platform: darwin,linux,windows
   automations_enabled: true
+  logging: snapshot
+- name: DEX - AI governance - AI tools per host
+  description: Every AI tool fleetd's ai_tools table finds on the host (desktop apps, agent CLIs, IDE plugins, browser extensions, MCP servers, live AI connections, and agent instruction files), packed into one row per host so Fleet's 1,000-row report limit doesn't cut hosts off. Read by the AI governance DEX dashboard. Needs fleetd 1.59.0 or later.
+  query: |
+    SELECT
+      COUNT(*) AS tool_count,
+      json_group_array(json_object(
+        'type', type, 'category', category, 'name', name, 'identifier', identifier,
+        'version', version, 'source', source, 'location', location, 'endpoint', endpoint,
+        'path', path, 'risk_flags', risk_flags, 'running', running, 'detail', detail
+      )) AS tools
+    FROM ai_tools;
+  interval: 3600
+  platform: darwin,linux,windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Sustainability - Mac energy
+  description: Energy the Mac has used since it booted, from the power telemetry Apple silicon Macs keep in AppleSmartBattery (laptops and desktops), plus the current system power draw. The dashboard turns the difference between two readings into kWh. Read by the Sustainability DEX dashboard. Needs fleetd for the ioreg table.
+  query: |
+    SELECT
+      (SELECT total_seconds FROM uptime)                                  AS uptime_s,
+      (SELECT state FROM battery)                                         AS power_source,
+      (SELECT ROUND(CAST(value AS REAL), 2) FROM power_sensors WHERE key = 'PSTR')
+                                                                          AS system_watts,
+      MAX(CASE WHEN key = 'AccumulatedSystemLoad' THEN CAST(value AS INTEGER) END)
+                                                                          AS energy_mj,
+      MAX(CASE WHEN key = 'SystemLoad' THEN CAST(value AS INTEGER) END)   AS load_mw
+    FROM ioreg
+    WHERE n = 'AppleSmartBattery' AND r = 1 AND query = '*/PowerTelemetryData';
+  interval: 3600
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Sustainability - Mac sleep settings
+  description: Sleep and display sleep timers on AC and battery power, what's keeping the Mac awake right now, and how many times it has slept since boot. Read by the Sustainability DEX dashboard. Needs fleetd for the pmset table.
+  query: |
+    SELECT
+      json_extract(c.json_result, '$."AC Power:".sleep')                  AS ac_sleep,
+      json_extract(c.json_result, '$."AC Power:".displaysleep')           AS ac_displaysleep,
+      json_extract(c.json_result, '$."AC Power:".powernap')               AS ac_powernap,
+      json_extract(c.json_result, '$."AC Power:".womp')                   AS ac_womp,
+      json_extract(c.json_result, '$."Battery Power:".sleep')             AS battery_sleep,
+      json_extract(c.json_result, '$."Battery Power:".displaysleep')      AS battery_displaysleep,
+      json_extract(c.json_result, '$."Battery Power:".lowpowermode')      AS battery_lowpowermode,
+      json_extract(g.json_result, '$."Currently in use:".sleep')          AS sleep_now,
+      json_extract(g.json_result, '$."Currently in use:".displaysleep')   AS displaysleep_now,
+      (SELECT CAST(substr(j.key, instr(j.key, ':') + 1) AS INTEGER)
+       FROM pmset s, json_each(s.json_result) j
+       WHERE s.getting = 'stats' AND j.key LIKE 'Sleep Count:%')         AS sleep_count,
+      (SELECT CAST(substr(j.key, instr(j.key, ':') + 1) AS INTEGER)
+       FROM pmset s, json_each(s.json_result) j
+       WHERE s.getting = 'stats' AND j.key LIKE 'User Wake Count:%')      AS user_wake_count
+    FROM pmset c, pmset g
+    WHERE c.getting = 'custom' AND g.getting = '';
+  interval: 14400
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Sustainability - Windows power
+  description: Power draw while on battery, effective sleep and display-off timeouts for the active power plan (Group Policy or MDM first, then the plan's own value, then the OEM and Windows defaults, because Windows only stores a value once it's changed), Fast Startup, and sleep events in the last 30 days (Kernel-Power 42, and 506 on Modern Standby PCs). Read by the Sustainability DEX dashboard.
+  query: |
+    WITH
+    scheme AS (
+      SELECT data AS guid FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\ActivePowerScheme'
+    ),
+    vals AS (
+      SELECT lower(path) AS p, data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\%\238c9fa8-0aad-41ed-83f4-97be242c8f20\29f6c1db-86da-48c5-9fdb-f2b67b1f44da\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\%\7516b95f-f776-4464-8c53-06167f40cc99\3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\238c9fa8-0aad-41ed-83f4-97be242c8f20\29f6c1db-86da-48c5-9fdb-f2b67b1f44da\DefaultPowerSchemeValues\%\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\7516b95f-f776-4464-8c53-06167f40cc99\3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e\DefaultPowerSchemeValues\%\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Power\PowerSettings\%\%'
+    ),
+    setting(name, sub, guid) AS (
+      VALUES ('sleep', '238c9fa8-0aad-41ed-83f4-97be242c8f20', '29f6c1db-86da-48c5-9fdb-f2b67b1f44da'),
+             ('display', '7516b95f-f776-4464-8c53-06167f40cc99', '3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e')
+    ),
+    source(name, idx) AS (VALUES ('ac', 'acsettingindex'), ('dc', 'dcsettingindex')),
+    effective AS (
+      SELECT st.name || '_' || so.name AS k, COALESCE(
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\software\policies\microsoft\power\powersettings\' || st.guid || '\' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\user\powerschemes\' || lower(sc.guid) || '\' || st.sub || '\' || st.guid || '\' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\powersettings\' || st.sub || '\' || st.guid || '\defaultpowerschemevalues\' || lower(sc.guid) || '\prov' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\powersettings\' || st.sub || '\' || st.guid || '\defaultpowerschemevalues\' || lower(sc.guid) || '\' || so.idx)
+      ) AS v
+      FROM setting st, source so, scheme sc
+    ),
+    events AS (
+      SELECT
+        SUM(datetime >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-30 days')) AS sleeps_30d,
+        MAX(datetime)                                                      AS last_sleep
+      FROM windows_eventlog
+      WHERE channel = 'System' AND eventid IN (42, 506) AND provider_name = 'Microsoft-Windows-Kernel-Power'
+    )
+    SELECT
+      (SELECT guid FROM scheme)                                           AS power_plan,
+      (SELECT v FROM effective WHERE k = 'sleep_ac')                      AS sleep_ac_s,
+      (SELECT v FROM effective WHERE k = 'sleep_dc')                      AS sleep_dc_s,
+      (SELECT v FROM effective WHERE k = 'display_ac')                    AS display_ac_s,
+      (SELECT v FROM effective WHERE k = 'display_dc')                    AS display_dc_s,
+      (SELECT data FROM registry
+       WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Power\HiberbootEnabled')
+                                                                          AS fast_startup,
+      (SELECT state FROM battery)                                         AS power_source,
+      (SELECT CASE WHEN amperage < 0 THEN ROUND(voltage / 1000.0 * -amperage / 1000.0, 2) END FROM battery)
+                                                                          AS discharge_watts,
+      COALESCE((SELECT sleeps_30d FROM events), 0)                        AS sleeps_30d,
+      (SELECT last_sleep FROM events)                                     AS last_sleep;
+  interval: 3600
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Sustainability - Linux power
+  description: Whether sleep is disabled in systemd, GNOME's automatic suspend setting for the first desktop user, whether the computer has a battery, and power sensor readings (the amdgpu sensor reports package power on AMD APUs). Read by the Sustainability DEX dashboard. Needs fleetd for the file_lines and dconf_read tables.
+  query: |
+    WITH u AS (
+      SELECT username FROM users
+      WHERE uid >= 1000 AND uid < 60000 AND shell NOT LIKE '%nologin' AND shell NOT LIKE '%false'
+      ORDER BY uid LIMIT 1
+    )
+    SELECT
+      (SELECT load_state FROM systemd_units WHERE id = 'sleep.target')    AS sleep_target,
+      (SELECT load_state FROM systemd_units WHERE id = 'suspend.target')  AS suspend_target,
+      (SELECT active_state FROM systemd_units WHERE id = 'graphical.target')
+                                                                          AS graphical,
+      CASE WHEN (SELECT username FROM u) IS NOT NULL THEN
+        (SELECT value FROM dconf_read WHERE username = (SELECT username FROM u)
+         AND key = '/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type')
+      END                                                                 AS gnome_sleep_ac_type,
+      CASE WHEN (SELECT username FROM u) IS NOT NULL THEN
+        (SELECT value FROM dconf_read WHERE username = (SELECT username FROM u)
+         AND key = '/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-timeout')
+      END                                                                 AS gnome_sleep_ac_timeout,
+      (SELECT COUNT(*) FROM file_lines
+       WHERE path LIKE '/sys/class/power_supply/%/uevent' AND line = 'POWER_SUPPLY_TYPE=Battery')
+                                                                          AS batteries,
+      (SELECT json_group_object(path, line) FROM file_lines WHERE path LIKE '/sys/class/hwmon/hwmon%/name')
+                                                                          AS hwmon_names,
+      (SELECT json_group_object(path, line) FROM file_lines WHERE path LIKE '/sys/class/hwmon/hwmon%/power1_average')
+                                                                          AS hwmon_power;
+  interval: 3600
+  platform: linux
+  automations_enabled: false
   logging: snapshot

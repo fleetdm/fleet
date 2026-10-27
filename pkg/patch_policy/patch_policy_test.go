@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,6 +51,15 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '139.0.0') < 0);",
 		},
 		{
+			name: "windows from exists query keyed on MSI product code",
+			p: patch_policy.PolicyData{
+				Platform:    "windows",
+				Version:     "26.002.21931",
+				ExistsQuery: "SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.002.21931') < 0);",
+		},
+		{
 			name: "codex-cli portable install OR precedence and file_version",
 			p: patch_policy.PolicyData{
 				Platform: "windows",
@@ -68,6 +78,38 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			require.Equal(t, tt.want, query)
 		})
 	}
+}
+
+func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
+	const payload = "x' UNION SELECT 1 FROM shadow --"
+
+	generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:         "darwin",
+		SoftwareTitle:    payload,
+		BundleIdentifier: payload,
+		Version:          payload,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'' UNION SELECT 1 FROM shadow --' "+
+		"AND version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);", generated.Query)
+	require.Equal(t, "macOS - "+payload+" up to date", generated.Name)
+
+	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:      "windows",
+		SoftwareTitle: payload,
+		Version:       payload,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'x'' UNION SELECT 1 FROM shadow --' "+
+		"AND version_compare(version, 'x'' UNION SELECT 1 FROM shadow --') < 0);", generated.Query)
+
+	query, err := patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		ExistsQuery: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
+		Version:     payload,
+	})
+	require.NoError(t, err)
+	require.Contains(t, query, "version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);")
 }
 
 func TestGenerateOpenQuery(t *testing.T) {
@@ -102,6 +144,15 @@ func TestGenerateOpenQuery(t *testing.T) {
 
 	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
+
+	// the unified 64-bit Acrobat app runs as Acrobat.exe for both Pro and Reader
+	for _, title := range []string{"Adobe Acrobat Pro", "Adobe Acrobat Reader"} {
+		got = patch_policy.GenerateOpenQuery("windows", "", title)
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');", got, title)
+	}
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
 
 	// Unknown platform yields no query.
 	// every Firefox channel and architecture ships firefox.exe

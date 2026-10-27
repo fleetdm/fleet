@@ -410,7 +410,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
 	s.setSkipWorkerJobs(t)
 
 	host, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// enqueue two upcoming script-run activities
@@ -788,7 +788,7 @@ func (s *integrationMDMTestSuite) TestCancelHostMDMCommandIOS() {
 	}
 
 	// emulate DEP enrollment so the host can be locked
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*host}, abmTok.ID, nil))
 
 	readLockRef := func() string {
@@ -936,8 +936,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
 	s.Require().NoError(s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*iosHost, *iPadOSHost}, abmTok.ID, nil))
 
 	for _, tc := range []struct {
@@ -1215,7 +1215,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 	// create an MDM-enrolled Windows host
 	winHost, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// set its MDM data so it shows as MDM-enrolled in the backend
-	err := s.ds.SetOrUpdateMDMData(ctx, winHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	err := s.ds.SetOrUpdateMDMData(ctx, winHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	linuxHost := createOrbitEnrolledHost(t, "linux", "lock_unlock_linux", s.ds)
 
@@ -1462,4 +1462,26 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	require.Len(t, commandResultResp.Results, 1)
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
 	require.NotNil(t, commandResultResp.Results[0].Result)
+
+	// Once the device checks out, the request must be rejected without queuing a
+	// command or logging an activity, even though the unlock token is still stored.
+	require.NoError(t, iosMDMClient.Checkout())
+	lastActID := s.lastActivityMatches("", "", 0)
+
+	countQueuedClearPasscode := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &n, `
+				SELECT COUNT(*) FROM nano_enrollment_queue neq
+				JOIN nano_commands nc ON nc.command_uuid = neq.command_uuid
+				WHERE neq.id = ? AND nc.request_type = ?`, iosMDMClient.UUID, fleet.AppleMDMCommandTypeClearPasscode)
+		})
+		return n
+	}
+	queuedBefore := countQueuedClearPasscode()
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), "doesn't have MDM turned on")
+	s.lastActivityMatches("", "", lastActID)
+	require.Equal(t, queuedBefore, countQueuedClearPasscode())
 }

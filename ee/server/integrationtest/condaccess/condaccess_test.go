@@ -1,17 +1,16 @@
 package condaccess
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/smallstep/scep"
@@ -141,7 +140,7 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert.URIs[0].String())
 
 	// Verify certificate is stored in database and linked to host
-	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec,G115
+	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
 	require.NoError(t, err)
 	assert.Equal(t, host.ID, hostID)
 
@@ -172,9 +171,8 @@ func testInvalidChallenge(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Try to enroll with invalid challenge
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithChallenge(t, s, host.UUID, "invalid-secret")
-	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP returns HTTP 200 even for failures")
-	require.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail with invalid challenge")
+	cert, err := requestSCEPCertificateWithChallenge(t, s, host.UUID, "invalid-secret")
+	requireSCEPFailure(t, err, "SCEP request should fail with invalid challenge")
 	require.Nil(t, cert, "Certificate should not be issued with invalid challenge")
 }
 
@@ -186,9 +184,8 @@ func testMissingUUID(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Try to enroll without UUID in SAN URI
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithoutUUID(t, s, testEnrollmentSecret)
-	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP returns HTTP 200 even for failures")
-	require.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail without UUID")
+	cert, err := requestSCEPCertificateWithoutUUID(t, s, testEnrollmentSecret)
+	requireSCEPFailure(t, err, "SCEP request should fail without UUID")
 	require.Nil(t, cert, "Certificate should not be issued without UUID in SAN URI")
 
 	// Verify no certificate was stored
@@ -205,153 +202,77 @@ func testNonExistentHost(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Try to enroll with UUID for a host that doesn't exist
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", testEnrollmentSecret)
-	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP returns HTTP 200 even for failures")
-	require.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail for non-existent host")
+	cert, err := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", testEnrollmentSecret)
+	requireSCEPFailure(t, err, "SCEP request should fail for non-existent host")
 	require.Nil(t, cert, "Certificate should not be issued for non-existent host")
 }
 
 // Helper functions
 
-func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {
-	// Create temporary RSA key for SCEP envelope (required by SCEP protocol)
-	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Create self-signed certificate for SCEP protocol using RSA key
-	deviceCertTemplate := x509.Certificate{
-		Subject: pkix.Name{
-			CommonName: commonName,
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	deviceCertDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertTemplate,
-		&deviceCertTemplate,
-		&tempRSAKey.PublicKey,
-		tempRSAKey,
-	)
-	require.NoError(t, err)
-
-	deviceCert, err := x509.ParseCertificate(deviceCertDerBytes)
-	require.NoError(t, err)
-	return tempRSAKey, deviceCert
-}
-
 func requestSCEPCertificate(t *testing.T, s *Suite, hostUUID string, challenge string) *x509.Certificate {
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithChallenge(t, s, hostUUID, challenge)
-	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP request should succeed")
-	require.Equal(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "SCEP request should succeed")
+	t.Helper()
+	cert, err := requestSCEPCertificateWithChallenge(t, s, hostUUID, challenge)
+	require.NoError(t, err, "SCEP request should succeed")
 	return cert
 }
 
-func requestSCEPCertificateWithChallenge(t *testing.T, s *Suite, hostUUID string, challenge string) (*http.Response, *scep.PKIMessage, *x509.Certificate) {
+func requestSCEPCertificateWithChallenge(t *testing.T, s *Suite, hostUUID string, challenge string) (*x509.Certificate, error) {
+	t.Helper()
 	deviceURI, err := url.Parse("urn:device:apple:uuid:" + hostUUID)
 	require.NoError(t, err)
 
 	return requestSCEPCertificateWithOptions(t, s, []*url.URL{deviceURI}, challenge)
 }
 
-func requestSCEPCertificateWithoutUUID(t *testing.T, s *Suite, challenge string) (*http.Response, *scep.PKIMessage, *x509.Certificate) {
+func requestSCEPCertificateWithoutUUID(t *testing.T, s *Suite, challenge string) (*x509.Certificate, error) {
+	t.Helper()
 	return requestSCEPCertificateWithOptions(t, s, nil, challenge)
 }
 
-func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, challenge string) (*http.Response, *scep.PKIMessage, *x509.Certificate) {
-	ctx := context.Background()
+// requestSCEPCertificateWithOptions enrolls a CSR with the given SAN URIs against the conditional
+// access SCEP server. A request the server declines fails with an enrollment.RejectedError.
+func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, challenge string) (*x509.Certificate, error) {
+	t.Helper()
+	ctx := t.Context()
 
-	// Generate RSA key pair for the device (conditional access uses RSA, not ECC)
+	// Conditional access uses RSA, not ECC
 	deviceKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
-
-	// Create SCEP client
-	scepURL := fmt.Sprintf("%s/api/fleet/conditional_access/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
-	require.NoError(t, err)
-
-	// Get CA certificate
-	resp, _, err := scepClient.GetCACert(ctx, "")
-	require.NoError(t, err)
-	caCerts, err := x509.ParseCertificates(resp)
-	require.NoError(t, err)
-	require.NotEmpty(t, caCerts)
-
-	// Create CSR template with SAN URI
-	hostIdentifier := "test-device"
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
-				CommonName: hostIdentifier,
+				CommonName: "test-device",
 			},
 			URIs:               uris,
 			SignatureAlgorithm: x509.SHA256WithRSA,
 		},
 		ChallengePassword: challenge,
 	}
-
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, deviceKey)
 	require.NoError(t, err)
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, hostIdentifier)
-
-	// Create SCEP PKI message
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey,
-		SignerCert:  deviceCert,
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
+	scepClient, err := scepclient.New(s.Server.URL+"/api/fleet/conditional_access/scep", s.Logger)
 	require.NoError(t, err)
-
-	// Send PKI operation request using HTTP client directly to capture response
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", scepURL+"?operation=PKIOperation", strings.NewReader(string(msg.Raw)))
+	caCerts, err := enrollment.FetchCACerts(ctx, scepClient)
 	require.NoError(t, err)
-	httpReq.Header.Set("Content-Type", "application/x-pki-message")
-
-	httpResp, err := http.DefaultClient.Do(httpReq)
+	signerKey, signerCert, err := enrollment.NewEphemeralSigner(csr.Subject)
 	require.NoError(t, err)
-	defer httpResp.Body.Close()
+	return enrollment.Enroll(ctx, scepClient, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  signerKey,
+		SignerCert: signerCert,
+		Logger:     s.Logger,
+	})
+}
 
-	// For rate limit errors, we expect HTTP 429 and should return immediately
-	if httpResp.StatusCode == http.StatusTooManyRequests {
-		return httpResp, nil, nil
-	}
-
-	// For other errors, fail the test
-	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Expected HTTP 200 but got %s", httpResp.Status)
-
-	// Read response body
-	respBytes, err := io.ReadAll(httpResp.Body)
-	require.NoError(t, err)
-
-	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
-	require.NoError(t, err)
-
-	// Check for SCEP-level failure
-	if pkiMsgResp.PKIStatus != scep.SUCCESS {
-		return httpResp, pkiMsgResp, nil
-	}
-
-	// Decrypt PKI envelope using RSA key
-	err = pkiMsgResp.DecryptPKIEnvelope(deviceCert, tempRSAKey)
-	require.NoError(t, err)
-
-	// Verify we got a certificate
-	require.NotNil(t, pkiMsgResp.CertRepMessage)
-	require.NotNil(t, pkiMsgResp.CertRepMessage.Certificate)
-
-	cert := pkiMsgResp.CertRepMessage.Certificate
-	return httpResp, pkiMsgResp, cert
+// requireSCEPFailure asserts that err is a FAILURE CertRep.
+func requireSCEPFailure(t *testing.T, err error, msg string) {
+	t.Helper()
+	rejected, ok := errors.AsType[enrollment.RejectedError](err)
+	require.True(t, ok, "%s, got %v", msg, err)
+	require.Equal(t, scep.FAILURE, rejected.Status, msg)
 }
 
 // testCertificateRotation tests the grace period behavior during certificate rotation.

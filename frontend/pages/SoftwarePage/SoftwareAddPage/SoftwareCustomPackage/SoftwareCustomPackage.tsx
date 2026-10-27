@@ -58,7 +58,7 @@ const SoftwareCustomPackage = ({
   isSidePanelOpen,
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
@@ -121,6 +121,7 @@ const SoftwareCustomPackage = ({
       } = await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
+        directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
           // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the

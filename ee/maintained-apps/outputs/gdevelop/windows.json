@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.282",
+      "version": "5.6.285",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team' AND version_compare(version, '5.6.282') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GDevelop' AND publisher = 'GDevelop Team' AND version_compare(version, '5.6.285') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gdevelop.exe');"
       },
-      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.282/GDevelop-5-Setup-5.6.282.exe",
+      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.285/GDevelop-5-Setup-5.6.285.exe",
       "install_script_ref": "01cf10cc",
       "uninstall_script_ref": "7ab32cde",
-      "sha256": "2e43682c9782fd8d598e2d4d0ffdb69dcaab5685e2f49330082a22105b475d5a",
+      "sha256": "8b8321c9819fe667beff68aecccbc2ae8f081909956f9149d3920564d29bad4c",
       "default_categories": [
         "Productivity"
       ]
