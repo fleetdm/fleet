@@ -35,8 +35,10 @@ import (
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/autopilot"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -1022,6 +1024,12 @@ func orbitAction(c *cli.Context) error {
 		ComputerName:   osqueryHostInfo.ComputerName,
 		HardwareModel:  osqueryHostInfo.HardwareModel,
 	}
+	// Lets Fleet match the device to its pending Autopilot host exactly, which the serial cannot do reliably.
+	if autopilotDeviceID, err := autopilot.RegistrationID(); err != nil {
+		log.Debug().Err(err).Msg("read autopilot device id")
+	} else {
+		orbitHostInfo.AutopilotDeviceID = autopilotDeviceID
+	}
 
 	if runtime.GOOS == "darwin" {
 		// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
@@ -1223,7 +1231,13 @@ func orbitAction(c *cli.Context) error {
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else {
-			certPath = filepath.Join(c.String("root-dir"), "certs.pem")
+			// Only the Fleet-shipped bundle is refreshed; a --fleet-certificate (fleet.pem) is never touched.
+			if updated, err := cabundle.Refresh(c.String("root-dir")); err != nil {
+				log.Error().Err(err).Msg("refresh CA bundle, keeping the installed one")
+			} else if updated {
+				log.Info().Msg("updated CA bundle to the version embedded in orbit")
+			}
+			certPath = filepath.Join(c.String("root-dir"), cabundle.FileName)
 			if exists, err := file.Exists(certPath); err == nil && exists {
 				_, err = certificate.LoadPEM(certPath)
 				if err != nil {
@@ -1757,7 +1771,11 @@ func orbitAction(c *cli.Context) error {
 			NodeKeyFunc:        orbitClient.GetNodeKey,
 			Client:             orbitClient,
 			Cache:              wstransport.NewQueryCache(),
+			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
+			OnConnect:          orbitClient.TransportConnected,
+			OnDisconnect:       orbitClient.TransportDisconnected,
 		})
+		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
 		addSubsystem(&g, "websocket transport", wsManager)
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
 	}
@@ -2875,14 +2893,19 @@ func openBrowserWindow(browserURL string) error {
 
 		// Bare names are resolved by the user's login shell (execuser runs
 		// `sudo -i`), which also covers non-FHS layouts such as NixOS.
+		// xdg-open comes first so the user's default browser is honored; firefox
+		// is only a fallback for minimal images that ship without xdg-utils.
 		browserBin := "xdg-open"
-		if _, err := exec.LookPath("firefox"); err == nil {
-			browserBin = "firefox"
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			if _, err := exec.LookPath("firefox"); err == nil {
+				browserBin = "firefox"
+			}
 		}
 
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
 		opts = append(opts, execuser.WithArg(browserURL, ""))
+		opts = append(opts, execuser.WithXDGSessionEnv())
 		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
 		if _, err := execuser.Run(browserBin, opts...); err != nil {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)

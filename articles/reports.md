@@ -87,23 +87,25 @@ The report may take several seconds to complete because Fleet has to wait for th
 
 ## Schedule a report
 
-Fleet allows you to schedule reports to run at a set interval. By default, reports that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
+Fleet allows you to schedule reports to run at a set interval. Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 
-To create a scheduled report, set the interval to a value other than "Never" when [creating a report](#create-a-report). If the report has already been created, select the report and then select **Edit report** to set the interval.
+Reports run at target moments (rather than at an interval starting after the report is saved). On a host that never sleeps, the target moments line up with the clock in UTC. While a host sleeps, its report schedule pauses, so on a laptop the target moments shift later after each sleep.
 
-The interval counts time that Fleet's agent (fleetd) runs on the host, not calendar time, meaning the interval only moves forward while the host is awake.
-
-An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
-
-While a host sleeps, its report schedule pauses. This means a laptop that's only awake 8 hours a day will run an "Every day" report every 3 days.
-
-A host also has to be awake and running Fleet at a target moment to report in. A host that is usually off at its target moment, like a desktop shut down for the evening in a less-compatible timezone, can go a long time without new results.
+| Interval | Host that never sleeps (UTC) | Laptop awake 9 to 5 |
+| :--------- | :----------------------------- | :------------------- |
+| Every 5 minutes | :00, :05, :10, and so on | :00, :05, :10, and so on during the workday (about 96 times a day) |
+| Every 10 minutes | :00, :10, :20, and so on | :00, :10, :20, and so on during the workday (about 48 times a day) |
+| Every 15 minutes | :00, :15, :30, and :45 | :00, :15, :30, and :45 during the workday (about 32 times a day) |
+| Every 30 minutes | :00 and :30 | :00 and :30 during the workday (about 16 times a day) |
+| Every hour | On the hour (11:00, 12:00, 13:00, and so on) | On the hour during the workday (about 8 times a day) |
+| Every 6 hours | 00:00, 06:00, 12:00, and 18:00 | 4 times every 3 workdays |
+| Every 12 hours | 00:00 and 12:00 | 2 times every 3 workdays |
+| Every day | Midnight (4pm Pacific, 7pm Eastern, or 9am in Tokyo) | Every third workday |
+| Every week | Thursday at midnight (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo) | About once a month |
 
 Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
-Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
-
-How to configure automations in bulk:
+### Managing automations in bulk
 
 *Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage report automations.*
 
@@ -113,9 +115,10 @@ How to configure automations in bulk:
 
 3. Check the box next to the queries you want to send data to your log destination, and select **Save**. (The interval that queries run at is set when a report is created.)
 
-> Note: When viewing a specific [fleet](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected fleet will be listed. When configuring automations for all hosts, only global reports will be listed.
+> Note: When viewing a specific [fleet](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only reports that belong to the selected fleet will be listed. When configuring automations for all hosts, only global reports will be listed.
 
-### Further reading
+
+## Further reading
 
 - [REST API documentation for reports](https://fleetdm.com/docs/rest-api/rest-api#reports)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)

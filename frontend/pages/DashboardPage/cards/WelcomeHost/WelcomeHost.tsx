@@ -13,8 +13,8 @@ import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import { timeAgo } from "utilities/date_format";
 
-import LaptopMac from "../../../../../assets/images/laptop-mac.png";
-import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
+import LaptopMac from "../../../../assets/images/laptop-mac.png";
+import SlackButton from "../../../../assets/images/slack-button-get-help.png";
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;

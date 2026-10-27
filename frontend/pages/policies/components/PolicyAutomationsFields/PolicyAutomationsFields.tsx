@@ -17,6 +17,7 @@ import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
@@ -739,7 +740,8 @@ const PolicyAutomationsFields = forwardRef<
                   <td className={`${baseClass}__row-trailing`}>
                     {row.isDisabled ? (
                       <span className={`${baseClass}__row-disabled-hint`}>
-                        Not enabled for {fleetName}
+                        Not enabled for{" "}
+                        <TooltipTruncatedText value={fleetName} />
                       </span>
                     ) : (
                       row.picker

@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -418,10 +420,12 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 }
 
 func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
-	setupCtx := func(wsEnabled bool) (fleet.Service, context.Context) {
+	setupCtx := func(wsEnabled, orbitConfigEnabled bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.WebSocket.TransportEnabled = wsEnabled
+		cfg.WebSocket.OrbitConfigEnabled = orbitConfigEnabled
+		cfg.WebSocket.OrbitConfigPollInterval = 5 * time.Minute
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
@@ -463,15 +467,41 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 	}
 
 	t.Run("enabled", func(t *testing.T) {
-		svc, ctx := setupCtx(true)
+		svc, ctx := setupCtx(true, false)
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, cfg.WebSocketTransport)
 		require.True(t, cfg.WebSocketTransport.Enabled)
+		// No orbit config nudges, so orbit keeps its default poll interval.
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+	})
+
+	t.Run("orbit config nudges send the poll interval", func(t *testing.T) {
+		svc, ctx := setupCtx(true, true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Equal(t, new(300), cfg.WebSocketTransport.OrbitConfigPollInterval)
+	})
+
+	t.Run("onboarding hosts keep the default poll interval", func(t *testing.T) {
+		svc, ctx := setupCtx(true, true)
+		host, _ := hostctx.FromContext(ctx)
+		host.LastEnrolledAt = time.Now().Add(-time.Minute)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+
+		host.LastEnrolledAt = time.Now().Add(-2 * time.Hour)
+		host.OsqueryHostID = nil
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
 	})
 
 	t.Run("disabled omits the directive", func(t *testing.T) {
-		svc, ctx := setupCtx(false)
+		svc, ctx := setupCtx(false, false)
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.Nil(t, cfg.WebSocketTransport)
@@ -2701,6 +2731,30 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
 
+func TestRetryPolicyAutomationScript(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	host := &fleet.Host{ID: 42}
+	hsr := &fleet.HostScriptResult{
+		ScriptID:        new(uint(12)),
+		PolicyID:        new(uint(34)),
+		ScriptContentID: 56,
+		ScriptContents:  "echo original contents",
+		AttemptNumber:   new(1),
+	}
+	ds.NewHostScriptExecutionRequestFunc = func(_ context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+		require.Equal(t, host.ID, request.HostID)
+		require.Equal(t, hsr.ScriptID, request.ScriptID)
+		require.Equal(t, hsr.PolicyID, request.PolicyID)
+		require.Equal(t, hsr.ScriptContentID, request.ScriptContentID)
+		require.Equal(t, hsr.ScriptContents, request.ScriptContents)
+		return nil, nil
+	}
+
+	require.NoError(t, svc.retryPolicyAutomationScript(t.Context(), host, hsr))
+	require.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
+}
+
 func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T) {
 	ds := new(mock.Store)
 	opts := &TestServerOpts{SkipCreateTestUsers: true}
@@ -2778,4 +2832,21 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+}
+
+func TestRecordOrbitConfigFallbackChanges(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	r := httptest.NewRequest(http.MethodPost, "/api/fleet/orbit/config", nil)
+	r.Header.Set(fleet.OrbitConfigFallbackChangesHeader, "extensions, notifications.run_setup_experience,bogus,notifications.bogus")
+	ctx := orbitConfigFallbackChangesContext(t.Context(), r)
+	recordOrbitConfigFallbackChanges(ctx, logger, 42)
+	require.Contains(t, logs.String(), "fields=\"[extensions notifications.run_setup_experience]\"")
+
+	// No header, nothing recorded.
+	logs.Reset()
+	ctx = orbitConfigFallbackChangesContext(t.Context(), httptest.NewRequest(http.MethodPost, "/api/fleet/orbit/config", nil))
+	recordOrbitConfigFallbackChanges(ctx, logger, 42)
+	require.Empty(t, logs.String())
 }

@@ -4,7 +4,7 @@ import { Link } from "react-router";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
-import FleetIcon from "../../../../assets/images/fleet-avatar-24x24@2x.png";
+import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
 
 interface ILogoOnlyNavProps {
   /** When set, the logo links to this path. */

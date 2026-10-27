@@ -54,6 +54,8 @@ func TestMDMApple(t *testing.T) {
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
+		{"NewAppleSCEPChallenge", testNewAppleSCEPChallenge},
+		{"RotateMDMAppleAutomaticEnrollmentToken", testRotateMDMAppleAutomaticEnrollmentToken},
 		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
 		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
 		{"CleanupAppleSCEPChallenges", testCleanupAppleSCEPChallenges},
@@ -70,6 +72,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
+		{"TestExpandHostSecretsSCEPRenewalChallenge", testExpandHostSecretsSCEPRenewalChallenge},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
@@ -134,6 +137,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
@@ -4286,7 +4290,6 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
-	var aerr fleet.AlreadyExistsError
 
 	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{}, nil)
 	require.Error(t, err)
@@ -4304,8 +4307,9 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.NoError(t, err)
 
+	// inserting for a fleet that already has a package replaces it in place
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
-	require.ErrorAs(t, err, &aerr)
+	require.NoError(t, err)
 
 	content2 := []byte("content")
 	hasher2 := sha256.New()
@@ -4338,6 +4342,34 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake", nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bytes)
+
+	// replacing with a different package swaps the metadata, content, and token
+	content3 := []byte("new content")
+	hasher3 := sha256.New()
+	hasher3.Write(content3)
+	bp1New := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name() + "-new",
+		Sha256: hasher3.Sum(nil),
+		Bytes:  content3,
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1New, nil)
+	require.NoError(t, err)
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, bp1New.Name, meta.Name)
+	require.Equal(t, bp1New.Sha256, meta.Sha256)
+	require.Equal(t, bp1New.Token, meta.Token)
+	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1New.Token, nil)
+	require.NoError(t, err)
+	require.Equal(t, content3, bytes.Bytes)
+	_, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token, nil)
+	require.ErrorAs(t, err, &nfe)
+	// other fleets are untouched
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 2)
+	require.NoError(t, err)
+	require.Equal(t, bp2.Token, meta.Token)
 
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 	require.NoError(t, err)
@@ -9763,7 +9795,6 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
-	var aerr fleet.AlreadyExistsError
 
 	hashContent := func(content string) []byte {
 		h := sha256.New()
@@ -9797,9 +9828,9 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
 	require.NoError(t, err)
 
-	// try to store bp1 again, fails as it already exists
+	// storing bp1 again replaces it in place
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, pkgStore)
-	require.ErrorAs(t, err, &aerr)
+	require.NoError(t, err)
 
 	// associate bp2 with team id 2
 	bp2 := &fleet.MDMAppleBootstrapPackage{
@@ -9952,11 +9983,34 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, bp3.Bytes, bpContent.Bytes)
 
+	// replacing the DB-stored package with one on S3 clears the DB content
+	bp4 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(3),
+		Name:   "bp4",
+		Sha256: hashContent("bp4"),
+		Bytes:  []byte("bp4"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp4, pkgStore)
+	require.NoError(t, err)
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 3)
+	require.NoError(t, err)
+	bpMatchesWithoutContent(bp4, meta)
+	var dbBytesLen int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &dbBytesLen,
+		`SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = 3`))
+	require.Zero(t, dbBytesLen)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp4.Token, pkgStore)
+	require.NoError(t, err)
+	require.Equal(t, bp4.Bytes, bpContent.Bytes)
+	_, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	require.ErrorAs(t, err, &nfe)
+
 	// it can be deleted without problem
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 3)
 	require.NoError(t, err)
 
-	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp3.Token, pkgStore)
+	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp4.Token, pkgStore)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bpContent)
 }
@@ -10719,6 +10773,74 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, enrolled.UUID, host.UUID)
+
+	// the enrolled device itself can re-enroll
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, "new-uuid", host.UUID)
+
+	// so can the serial of a deleted host
+	deleted, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "deleted",
+		OsqueryHostID:  new("deleted"),
+		NodeKey:        new("deleted"),
+		UUID:           "deleted-uuid",
+		HardwareSerial: "deleted-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, deleted, false)
+	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// and a device that was never enrolled
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -11091,6 +11213,12 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			name:                 "Custom SCEP",
 			caName:               "test-ca",
 			caType:               fleet.CAConfigCustomSCEPProxy,
+			challengeRetrievedAt: nil,
+		},
+		{
+			name:                 "EJBCA",
+			caName:               "ejbca",
+			caType:               fleet.CAConfigEJBCA,
 			challengeRetrievedAt: nil,
 		},
 	}
@@ -14067,6 +14195,31 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 		require.True(t, fleet.IsNotFound(err), "no IdP account and no manual mapping: link must not survive")
 	})
 
+	t.Run("manual IdP mapping over an ADE account survives SCEP renewal only", func(t *testing.T) {
+		for _, scepRenewal := range []bool{true, false} {
+			host := newDarwinHost(t, fmt.Sprintf("uuid-ade-override-%v", scepRenewal))
+			associateIdPAccount(t, host, fmt.Sprintf("staging-%v@example.com", scepRenewal))
+			realUser := fmt.Sprintf("real-%v@example.com", scepRenewal)
+			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser))
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+
+			var emails []fleet.HostDeviceMapping
+			require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &emails,
+				`SELECT email, source FROM host_emails WHERE host_id = ?`, host.ID))
+			require.Len(t, emails, 1)
+			if scepRenewal {
+				require.Equal(t, fleet.HostDeviceMapping{Email: realUser, Source: fleet.DeviceMappingIDP}, emails[0])
+			} else {
+				// a real re-enrollment re-authenticates, so the IdP account replaces the manual mapping
+				require.Equal(t, fleet.HostDeviceMapping{
+					Email:  fmt.Sprintf("staging-%v@example.com", scepRenewal),
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				}, emails[0])
+			}
+		}
+	})
+
 	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-ade-handoff")
 		firstUserID := newScimUser(t, "first@example.com")
@@ -14401,6 +14554,132 @@ func testMDMAppleDEPEnrollmentChallenges(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testRotateMDMAppleAutomaticEnrollmentToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	const jobName = "test_profile_update"
+	newJob := func() *fleet.Job {
+		args := json.RawMessage(`{"task":"update_all_profiles"}`)
+		return &fleet.Job{Name: jobName, Args: &args, State: fleet.JobStateQueued}
+	}
+	queuedJobs := func() int {
+		t.Helper()
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM jobs WHERE name = ?`, jobName)
+		})
+		return n
+	}
+
+	// a failed rotation queues no job
+	_, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, newJob())
+	require.True(t, fleet.IsNotFound(err), err)
+	require.Zero(t, queuedJobs())
+
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-0",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	manual, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "manual-token",
+		Type:  fleet.MDMAppleEnrollmentTypeManual,
+	})
+	require.NoError(t, err)
+
+	requireTokenValid := func(token string, valid bool) {
+		t.Helper()
+		prof, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+		if !valid {
+			require.True(t, fleet.IsNotFound(err), "token %s: %v", token, err)
+			return
+		}
+		require.NoError(t, err, "token %s", token)
+		require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, prof.Type)
+	}
+	previousToken := func() (*string, *time.Time) {
+		var row struct {
+			PreviousToken          *string    `db:"previous_token"`
+			PreviousTokenExpiresAt *time.Time `db:"previous_token_expires_at"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT previous_token, previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		})
+		return row.PreviousToken, row.PreviousTokenExpiresAt
+	}
+
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "", time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", -time.Hour, newJob())
+	require.Error(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", time.Hour, nil)
+	require.Error(t, err)
+	require.Zero(t, queuedJobs())
+	requireTokenValid("token-0", true)
+
+	// rotate with a grace period
+	expiresAt, err := ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-1", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	require.Equal(t, 1, queuedJobs())
+	require.NotNil(t, expiresAt)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *expiresAt, time.Minute)
+	prev, prevExpiresAt := previousToken()
+	require.NotNil(t, prev)
+	require.NotNil(t, prevExpiresAt)
+	require.Equal(t, "token-0", *prev)
+	require.Equal(t, *expiresAt, *prevExpiresAt)
+	requireTokenValid("token-1", true)
+	requireTokenValid("token-0", true)
+	// binary collation still applies to the previous token
+	requireTokenValid("TOKEN-0", false)
+
+	// the manual profile's token is untouched
+	gotManual, err := ds.GetMDMAppleEnrollmentProfileByToken(ctx, "manual-token")
+	require.NoError(t, err)
+	require.Equal(t, manual.Type, gotManual.Type)
+
+	// the previous token stops working once it expires
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_enrollment_profiles SET previous_token_expires_at = NOW(6) - INTERVAL 1 SECOND WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+	requireTokenValid("token-0", false)
+	requireTokenValid("token-1", true)
+
+	// rotating again during a grace period replaces the previous token
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-2", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-3", 24*time.Hour, newJob())
+	require.NoError(t, err)
+	requireTokenValid("token-3", true)
+	requireTokenValid("token-2", true)
+	requireTokenValid("token-1", false)
+
+	// no grace period revokes the previous token immediately
+	expiresAt, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-4", 0, newJob())
+	require.NoError(t, err)
+	require.Nil(t, expiresAt)
+	prev, prevExpiresAt = previousToken()
+	require.Nil(t, prev)
+	require.Nil(t, prevExpiresAt)
+	requireTokenValid("token-4", true)
+	requireTokenValid("token-3", false)
+
+	// re-creating the automatic profile leaves the previous token alone
+	_, err = ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, "token-5", time.Hour, newJob())
+	require.NoError(t, err)
+	_, err = ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Token: "token-6",
+		Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
+	})
+	require.NoError(t, err)
+	prev, _ = previousToken()
+	require.NotNil(t, prev)
+	require.Equal(t, "token-4", *prev)
+	requireTokenValid("token-6", true)
+	requireTokenValid("token-4", true)
+}
+
 // insertAppleSCEPChallenge inserts a row whose expires_at and consumed_at are offsets from the DB's NOW(6),
 // so tests don't depend on the client and server clocks agreeing. A nil consumedOffset leaves the row unconsumed.
 func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, purpose fleet.AppleMDMCertPurpose, expiresOffset time.Duration, consumedOffset *time.Duration) {
@@ -14417,6 +14696,125 @@ func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, pur
 			int64(expiresOffset/time.Second), consumed, consumed)
 		return err
 	})
+}
+
+func testExpandHostSecretsSCEPRenewalChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	doc := `<string>` + fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge) + `</string>`
+	expand := func(t *testing.T, enrollmentID string) string {
+		t.Helper()
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, enrollmentID)
+		require.NoError(t, err)
+		challenge := strings.TrimSuffix(strings.TrimPrefix(expanded, "<string>"), "</string>")
+		require.NotEmpty(t, challenge)
+		require.NotContains(t, challenge, fleet.HostSecretPrefix)
+		return challenge
+	}
+	enroll := func(t *testing.T, enrollmentID string) {
+		t.Helper()
+		nanoEnroll(t, ds, &fleet.Host{UUID: enrollmentID, Platform: "darwin"}, false)
+	}
+	setRow := func(t *testing.T, challenge, set string) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_scep_challenges SET `+set+` WHERE challenge = ?`, challenge)
+			return err
+		})
+	}
+
+	// the device channel ID is the UDID for device enrollments and the EnrollmentID for ADUE
+	for _, enrollmentID := range []string{"device-udid", "adue-enrollment-id"} {
+		enroll(t, enrollmentID)
+		challenge := expand(t, enrollmentID)
+
+		// re-deliveries return the same challenge
+		require.Equal(t, challenge, expand(t, enrollmentID))
+
+		var row struct {
+			fleet.AppleSCEPChallengeInfo
+			SecondsLeft int64 `db:"seconds_left"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid,
+				TIMESTAMPDIFF(SECOND, NOW(6), expires_at) AS seconds_left FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		})
+		require.Equal(t, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeSCEPRenewal, UUID: new(enrollmentID)}, row.AppleSCEPChallengeInfo)
+		require.InDelta(t, fleet.AppleSCEPRenewalChallengeTTL.Seconds(), row.SecondsLeft, 5)
+
+		// a consumed challenge is replaced
+		info, err := ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Equal(t, fleet.AppleMDMCertPurposeSCEPRenewal, info.Purpose)
+		next := expand(t, enrollmentID)
+		require.NotEqual(t, challenge, next)
+
+		// so is an expired one
+		setRow(t, next, "expires_at = NOW(6) - INTERVAL 1 SECOND")
+		require.NotEqual(t, next, expand(t, enrollmentID))
+	}
+
+	// a challenge isn't shared between enrollments
+	enroll(t, "other-udid")
+	require.NotEqual(t, expand(t, "device-udid"), expand(t, "other-udid"))
+
+	// an enrollment Fleet doesn't know isn't given a challenge
+	_, err := ds.ExpandHostSecrets(ctx, doc, "unknown-enrollment")
+	require.Error(t, err)
+
+	// concurrent deliveries to the same enrollment create a single challenge
+	enroll(t, "concurrent-udid")
+	const workers = 10
+	results := make([]string, workers)
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Go(func() {
+			expanded, err := ds.ExpandHostSecrets(ctx, doc, "concurrent-udid")
+			assert.NoError(t, err)
+			results[i] = expanded
+		})
+	}
+	wg.Wait()
+	for _, r := range results {
+		require.Equal(t, results[0], r)
+	}
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_scep_challenges WHERE host_uuid = ?`, "concurrent-udid")
+	})
+	require.Equal(t, 1, count)
+}
+
+func testNewAppleSCEPChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE}, 0)
+	require.Error(t, err)
+
+	device := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE, UUID: new("udid"), Serial: new("serial")}
+	first, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	second, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	require.NotEmpty(t, first)
+	require.NotEqual(t, first, second)
+
+	var secondsLeft int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &secondsLeft,
+			`SELECT TIMESTAMPDIFF(SECOND, NOW(6), expires_at) FROM mdm_apple_scep_challenges WHERE challenge = ?`, first)
+	})
+	require.InDelta(t, time.Hour.Seconds(), secondsLeft, 5)
+
+	info, err := ds.ConsumeAppleSCEPChallenge(ctx, first)
+	require.NoError(t, err)
+	require.Equal(t, device, *info)
+
+	adue := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new("idp-account")}
+	challenge, err := ds.NewAppleSCEPChallenge(ctx, adue, time.Hour)
+	require.NoError(t, err)
+	info, err = ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+	require.NoError(t, err)
+	require.Equal(t, adue, *info)
 }
 
 func testConsumeAppleSCEPChallenge(t *testing.T, ds *Datastore) {
