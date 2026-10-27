@@ -33,3 +33,21 @@ func statOwner(_ string, fi os.FileInfo) (uid, username string, ok bool) {
 // is the OS's own record of a *user* — no separate source is needed to
 // establish who a home belongs to. Only Windows has one (see owner_windows.go).
 func platformHomes() []Home { return nil }
+
+// Owns reports whether the open file described by fi belongs to the home's
+// user. Ownership is the kernel's record, so a link planted in the home can't
+// make another account's file pass as this user's.
+func (h Home) Owns(_ *os.File, fi os.FileInfo) bool {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	return ok && strconv.FormatUint(uint64(st.Uid), 10) == h.UID
+}
+
+// Owner returns the owning uid and account name of path, without following a
+// final symlink.
+func Owner(path string) (uid, username string, ok bool) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return "", "", false
+	}
+	return statOwner(path, fi)
+}

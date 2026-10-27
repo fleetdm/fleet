@@ -1,0 +1,133 @@
+name: ai_agent_sessions
+notes: |-
+  This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).
+
+  - One row per session of an AI coding agent: Claude Code, GitHub Copilot CLI, Cursor CLI, Codex CLI, and Gemini CLI. Sub-agent activity is counted in the session that started it.
+  - Only metadata is reported, so this table is safe to schedule. Conversation content is in `ai_agent_session_messages`.
+  - Sessions whose transcript was written in the last 30 days are reported by default. A `>` or `>=` constraint on `ended_at` replaces that window, and a `<` or `<=` constraint alone reports all history.
+  - Every home directory on the host is scanned (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`). Agents configured to keep their files elsewhere through an environment variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `COPILOT_HOME`, `GEMINI_CLI_HOME`, `CURSOR_DATA_DIR`) aren't found, because fleetd can't see users' environments.
+  - Agent coverage differs: Cursor records no model or token usage; Gemini CLI records no version, organization, or plan; sessions Gemini CLI only kept in `logs.json` have prompts only. Claude Code on Bedrock or Vertex reports the provider's model names (e.g. `us.anthropic.claude-…`).
+  - Transcripts are parsed once and cached until they change, so repeated queries only read new activity. One query reads at most 4 GiB of transcripts; what wasn't reached is read by the next query.
+  - Only files owned by the home directory's user are read, so a link planted in one user's home can't report another user's sessions under their name.
+  - The account columns come from the agent's own config files, which the user can edit; they are not an authenticated identity.
+description: AI coding agent sessions found in users' home directories, with the account each agent is signed in with and how much it did.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  List the latest AI agent sessions on the host.
+
+  ```
+  SELECT agent, username, account_username, project_path, started_at, duration_seconds, tool_calls FROM ai_agent_sessions;
+  ```
+
+  Find agents signed in with a personal account rather than the company's.
+
+  ```
+  SELECT DISTINCT agent, username, account_username, account_type, account_organization FROM ai_agent_sessions WHERE account_organization != 'Acme';
+  ```
+
+  Total token usage per agent over the last week.
+
+  ```
+  SELECT agent, SUM(input_tokens + cache_read_tokens) AS input, SUM(output_tokens) AS output FROM ai_agent_sessions WHERE ended_at > (strftime('%s', 'now') - 7 * 86400) GROUP BY agent;
+  ```
+columns:
+  - name: agent
+    description: "The agent: `claude_code`, `copilot_cli`, `cursor`, `codex_cli`, or `gemini_cli`."
+    type: text
+    required: false
+  - name: session_id
+    description: The agent's identifier for the session.
+    type: text
+    required: false
+  - name: username
+    description: The local account whose home directory holds the session.
+    type: text
+    required: false
+  - name: account_username
+    description: The account the agent is signed in with, from the agent's own config. An email address for Claude Code, Codex CLI, Gemini CLI, and Cursor; the GitHub username for Copilot CLI. Empty when unknown.
+    type: text
+    required: false
+  - name: account_type
+    description: "How the agent authenticates. Claude Code: `subscription`, `console`, `anthropic`, or a third-party provider (`bedrock`, `vertex`, `foundry`, `gateway`, `anthropic_aws`, `anthropic_google_cloud`, `bedrock_mantle`). Codex CLI: its `auth_mode` (`chatgpt`, `apikey`, …), or the session's model provider when it isn't OpenAI. Gemini CLI: `google`, `api_key`, `vertex`, or the auth type it records. Copilot CLI: `github` or `enterprise`. Empty for Cursor."
+    type: text
+    required: false
+  - name: account_organization
+    description: The organization the account belongs to, when the agent records one (Claude Code, Copilot CLI, Cursor).
+    type: text
+    required: false
+  - name: account_plan
+    description: The agent's own plan value, unchanged (e.g. `claude_team` for Claude Code, `plus` or `team` for Codex CLI, `business` for Copilot CLI).
+    type: text
+    required: false
+  - name: project_path
+    description: The directory the session was started in.
+    type: text
+    required: false
+  - name: git_branch
+    description: The git branch the session was on, when the agent records it.
+    type: text
+    required: false
+  - name: git_repository
+    description: The git repository, when the agent records it.
+    type: text
+    required: false
+  - name: agent_version
+    description: The agent version that wrote the session.
+    type: text
+    required: false
+  - name: model
+    description: The model that served the session.
+    type: text
+    required: false
+  - name: started_at
+    description: When the session started, as a Unix timestamp. 0 when unknown.
+    type: bigint
+    required: false
+  - name: ended_at
+    description: When the session was last active, as a Unix timestamp.
+    type: bigint
+    required: false
+  - name: duration_seconds
+    description: Seconds between `started_at` and `ended_at`. 0 when either is unknown.
+    type: bigint
+    required: false
+  - name: user_messages
+    description: Prompts the user typed. Tool results, sub-agent instructions, and text the agent injects aren't counted.
+    type: bigint
+    required: false
+  - name: assistant_messages
+    description: Responses from the model, including sub-agents'.
+    type: bigint
+    required: false
+  - name: tool_calls
+    description: Tool calls the agent made, including sub-agents'. These are the `tool_use` rows of `ai_agent_session_messages`.
+    type: bigint
+    required: false
+  - name: input_tokens
+    description: Input tokens, not counting cache reads.
+    type: bigint
+    required: false
+  - name: output_tokens
+    description: Output tokens.
+    type: bigint
+    required: false
+  - name: cache_read_tokens
+    description: Input tokens read from the prompt cache.
+    type: bigint
+    required: false
+  - name: cache_write_tokens
+    description: Input tokens written to the prompt cache.
+    type: bigint
+    required: false
+  - name: transcript_path
+    description: The session's transcript file.
+    type: text
+    required: false
+  - name: transcript_size_bytes
+    description: Size of the session's transcript files, sub-agents' included.
+    type: bigint
+    required: false

@@ -69,6 +69,13 @@ func OpenRegular(path string) (*os.File, error) {
 	return f, nil
 }
 
+// ChangeTime returns the change time of the open file f, whose stat is fi, or
+// the zero time where the platform doesn't expose one. Only the kernel sets it,
+// so it changes on any rewrite, even one that restores the modification time.
+func ChangeTime(f *os.File, fi os.FileInfo) time.Time {
+	return changeTime(f, fi)
+}
+
 // minCachedHashBytes is the size from which SHA256 results are cached. Agent
 // binaries run to hundreds of MiB and are re-hashed on every hourly query;
 // small config and instruction files are cheaper to re-read than to track.

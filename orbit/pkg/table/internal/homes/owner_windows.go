@@ -319,3 +319,33 @@ func longPathName(path string) string {
 	}
 	return windows.UTF16ToString(buf[:n])
 }
+
+// Owns reports whether the open file f belongs to the home's user, read from
+// the handle so the check can't be raced by swapping the path. As with
+// diskConsistent, a group or service owner (BUILTIN\Administrators on admin
+// profiles) says nothing about the user and is accepted; a different user
+// account's file is refused.
+func (h Home) Owns(f *os.File, _ os.FileInfo) bool {
+	sd, err := windows.GetSecurityInfo(windows.Handle(f.Fd()), windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION)
+	if err != nil {
+		return false
+	}
+	owner, _, err := sd.Owner()
+	if err != nil || owner == nil {
+		return false
+	}
+	if owner.String() == h.UID {
+		return true
+	}
+	_, isUser := userAccountForSID(owner)
+	return !isUser
+}
+
+// Owner returns the owning SID and account name of path, when a user owns it.
+func Owner(path string) (uid, username string, ok bool) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return "", "", false
+	}
+	return statOwner(path, fi)
+}

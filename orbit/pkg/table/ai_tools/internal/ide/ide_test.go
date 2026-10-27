@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 func write(t *testing.T, path, content string) {
