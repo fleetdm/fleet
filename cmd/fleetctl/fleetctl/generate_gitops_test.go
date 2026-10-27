@@ -1130,6 +1130,19 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				Password:     maskSecret("some-smallstep-password", includeSecrets),
 			},
 		},
+		EJBCA: []fleet.EJBCA{
+			{
+				Name:                          "some-ejbca-name",
+				URL:                           "https://some-ejbca-url.com",
+				TrustCABundlePEM:              "-----BEGIN CERTIFICATE-----\nsome-ejbca-trust-bundle\n-----END CERTIFICATE-----\n",
+				CertificateAuthorityName:      "some-ejbca-certificate-authority-name",
+				CertificateProfileName:        "some-ejbca-certificate-profile-name",
+				EndEntityProfileName:          "some-ejbca-end-entity-profile-name",
+				CertificateCommonName:         "some-ejbca-certificate-common-name",
+				UsernameTemplate:              "some-ejbca-username-template",
+				CertificateUserPrincipalNames: []string{"some-ejbca-certificate-user-principal-name"},
+			},
+		},
 		GoogleCAS: []fleet.GoogleCASCA{
 			{
 				Name:       "some-google-cas-name",

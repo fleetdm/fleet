@@ -595,7 +595,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -644,7 +644,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
 			ejbcaService,

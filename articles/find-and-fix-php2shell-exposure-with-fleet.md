@@ -85,6 +85,9 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
     ),
     fixed AS (
       SELECT name, pkg, v, substr(v, 1, 3) AS branch,
+        -- Ubuntu security updates always carry "ubuntu" in the version; a GA sync build like
+        -- 8.3.6-0maysync1 does not, and version_compare can't order it against the fixed build
+        (platform = 'ubuntu' AND NOT sury AND NOT upstream AND v NOT LIKE '%ubuntu%') AS ga_build,
         CASE
           -- packages.sury.org and ppa:ondrej/php ship upstream version numbers (EOL branches: patched revisions)
           WHEN sury THEN CASE substr(v, 1, 3)
@@ -155,6 +158,7 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
       SELECT 1 FROM fixed
       -- version_compare treats "9+ubuntu22" as one token and longer tokens win, so turn + and _ into dots first
       WHERE CASE WHEN fixed IS NULL THEN 1
+                 WHEN ga_build THEN 1
                  WHEN version_compare(replace(replace(v, '+', '.'), '_', '.'), replace(replace(fixed, '+', '.'), '_', '.')) < 0 THEN 1
                  ELSE 0 END = 1
     );
@@ -299,12 +303,15 @@ On Linux, add this policy. It passes when the host has no PHP configuration dire
     )
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM conf_dirs d
-      WHERE NOT EXISTS (
-        SELECT 1 FROM file f
-        JOIN file_lines l ON l.path = f.path
-        WHERE f.path = d.path || '/99-php2shell-mitigation.ini'
-          AND l.line LIKE 'session.upload_progress.enabled%0%'
-      )
+      -- file_lines aborts the query when the path doesn't exist, and a JOIN lets SQLite reach it
+      -- before the file check, so CASE confirms the drop-in exists before reading it
+      WHERE CASE
+              WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = d.path || '/99-php2shell-mitigation.ini') THEN 1
+              WHEN NOT EXISTS (SELECT 1 FROM file_lines l
+                               WHERE l.path = d.path || '/99-php2shell-mitigation.ini'
+                                 AND l.line LIKE 'session.upload_progress.enabled%0%') THEN 1
+              ELSE 0
+            END = 1
     );
   critical: false
   description: >-

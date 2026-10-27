@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261026092108(t *testing.T) {
+func TestUp_20261027034724(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_SET(
@@ -41,7 +41,7 @@ func TestUp_20261026092108(t *testing.T) {
 	assertStored(t)
 }
 
-func TestUp_20261026092108_NoMDMObject(t *testing.T) {
+func TestUp_20261027034724_NoMDMObject(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_REMOVE(json_value, '$.mdm') WHERE id = 1`)

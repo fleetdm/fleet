@@ -8195,6 +8195,21 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			wantDetail: "The device is not supervised.",
 		},
 		{
+			name:       "per-item CommandFormatError without an error chain fails without retry",
+			status:     fleet.MDMAppleStatusAcknowledged,
+			raw:        settingsAck(fleet.MDMAppleStatusCommandFormatError, nil),
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "The device rejected the host name. Apple only renames supervised iPhones and iPads.",
+		},
+		{
+			name:          "per-item error without an error chain reports the item status and is retried",
+			status:        fleet.MDMAppleStatusAcknowledged,
+			raw:           settingsAck(fleet.MDMAppleStatusError, nil),
+			wantStatus:    fleet.MDMDeliveryFailed,
+			wantDetail:    "Settings item returned status Error.",
+			wantRetryable: true,
+		},
+		{
 			name:          "command error fails with the apple error chain and is retried",
 			status:        fleet.MDMAppleStatusError,
 			errorChain:    []mdm.ErrorChain{{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"}},
@@ -8208,6 +8223,12 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			errorChain: []mdm.ErrorChain{{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."}},
 			wantStatus: fleet.MDMDeliveryFailed,
 			wantDetail: "The device is not supervised.",
+		},
+		{
+			name:       "command format error without an error chain fails without retry",
+			status:     fleet.MDMAppleStatusCommandFormatError,
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "Settings command returned status CommandFormatError.",
 		},
 		{
 			name:         "stale result for a superseded command is ignored",

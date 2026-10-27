@@ -91,6 +91,22 @@ org_settings:
       name: some-digicert-name
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
+    ejbca:
+    - certificate_authority_name: some-ejbca-certificate-authority-name
+      certificate_common_name: some-ejbca-certificate-common-name
+      certificate_profile_name: some-ejbca-certificate-profile-name
+      certificate_user_principal_names:
+      - some-ejbca-certificate-user-principal-name
+      client_p12: # TODO: Add your EJBCA client certificate PKCS#12 (base64) here
+      end_entity_profile_name: some-ejbca-end-entity-profile-name
+      name: some-ejbca-name
+      password: # TODO: Add your EJBCA client certificate PKCS#12 password here
+      trust_ca_bundle: |
+        -----BEGIN CERTIFICATE-----
+        some-ejbca-trust-bundle
+        -----END CERTIFICATE-----
+      url: https://some-ejbca-url.com
+      username_template: some-ejbca-username-template
     google_cas:
     - api_key_json: # TODO: Add your Google CAS service account key JSON here
       ca_pool: some-google-cas-pool
