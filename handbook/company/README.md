@@ -13,7 +13,7 @@ Compared with Intune, Jamf, Ivanti, and Workspace ONE, Fleet reduces maintenance
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
-> "If our grandchildren are going to be monitored all the time, at least let's set the precedent that they're monitored with open-source software, like Signal Messenger or Mozilla Firefox."
+> "If our grandchildren are going to be monitored all the time, at least let's set the precedent that they're monitored with open-source software."
 >
 > Mike McNeil, CEO
 
