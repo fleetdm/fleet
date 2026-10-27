@@ -7461,7 +7461,7 @@ Adds manual labels to a host.
 
 | Name   | Type    | In   | Description                  |
 | ------ | ------- | ---- | ---------------------------- |
-| labels | array   | body | The list of label names to add to the host. |
+| labels | array   | body | The list of label names to add to the host. Names can refer to global labels or labels in the host's fleet. |
 
 
 #### Example
@@ -7490,7 +7490,7 @@ Removes manual labels from a host.
 
 | Name   | Type    | In   | Description                  |
 | ------ | ------- | ---- | ---------------------------- |
-| labels | array   | body | The list of label names to delete from the host. |
+| labels | array   | body | The list of label names to delete from the host. Names can refer to global labels or labels in the host's fleet. |
 
 
 #### Example
@@ -7794,7 +7794,7 @@ Add a dynamic or manual label.
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
+| name        | string | body | **Required**. The label's name. A global label's name can't match any global or fleet label's name.                                                                                                                                        |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
@@ -7866,7 +7866,7 @@ Updates the specified label. Note: Label queries, platforms, and fleets are immu
 | Name        | Type    | In   | Description                   |
 | ----------- | ------- | ---- | ----------------------------- |
 | id          | integer | path | **Required**. The label's id. |
-| name        | string  | body | The label's name.             |
+| name        | string  | body | The label's name. A fleet label's name must be unique within that fleet and can't match a global label's name. A global label's name can't match any global or fleet label's name. |
 | description | string  | body | The label's description.      |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
 | host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
@@ -8278,9 +8278,10 @@ Deletes the label specified by name.
 
 #### Parameters
 
-| Name | Type   | In   | Description                     |
-| ---- | ------ | ---- | ------------------------------- |
-| name | string | path | **Required**. The label's name. |
+| Name     | Type    | In    | Description                     |
+| -------- | ------- | ----- | ------------------------------- |
+| name     | string  | path  | **Required**. The label's name. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet the label belongs to. If omitted, deletes the global label with the specified name. |
 
 #### Example
 
@@ -13347,7 +13348,7 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. If a label name matches labels in more than one fleet, all matching labels the user can access are selected. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
