@@ -14,6 +14,10 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 2. Open your Terminal, run `fleetctl new`, and follow instructions in the output.
 
+## Use AI
+
+This repository includes an `AGENTS.md` and a `fleet-gitops` skill so AI coding agents can write policies, reports, software, and configuration profiles for you and validate them before a pull request. The skill lives in `.agents/skills/`, where Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code discover it; Claude Code finds it through `.claude/skills/` and reads `AGENTS.md` through `CLAUDE.md`. Some agents ask you to trust the repository's skills the first time. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) to get started, with or without GitOps.
+
 ## Tips
 
 The action (GitHub) or pipeline (GitLab) runs will fail until you add `FLEET_URL` and `FLEET_API_TOKEN` as [secrets (GitHub)](#github) or [CI/CD variables (GitLab)](#gitlab).

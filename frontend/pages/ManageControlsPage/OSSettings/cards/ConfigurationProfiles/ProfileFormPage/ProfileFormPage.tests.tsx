@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
@@ -213,9 +214,8 @@ describe("ProfileFormPage", () => {
   it("keeps Add profile disabled until there's a profile, reports unrecognized contents on submit, then uploads", async () => {
     const { user, router } = renderPage();
 
-    expect(
-      screen.getByRole("heading", { name: "Add profile" })
-    ).toBeInTheDocument();
+    // the add page goes straight into the profile, per the design
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
     const submit = screen.getByRole("button", { name: "Add profile" });
     // per the design, the empty add page is the one disabled state
     expect(submit).toBeDisabled();
@@ -381,15 +381,86 @@ describe("ProfileFormPage", () => {
     ).toBeDisabled();
   });
 
-  it("refuses users who aren't admins or maintainers", () => {
+  it("refuses to edit for users who aren't admins or maintainers", () => {
     renderPage(
-      undefined,
+      existingProfile.profile_uuid,
       makeRenderer({ isGlobalAdmin: false, isGlobalTechnician: true })
     );
     expect(
       screen.getByText("You don't have permission to edit profiles.")
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  });
+
+  describe("leaving the add page", () => {
+    const noMDM = {
+      ...mdmConfig,
+      enabled_and_configured: false,
+      windows_enabled_and_configured: false,
+      android_enabled_and_configured: false,
+    };
+
+    it.each([
+      ["in GitOps mode", makeRenderer({}, true)],
+      [
+        "for a technician",
+        makeRenderer({ isGlobalAdmin: false, isGlobalTechnician: true }),
+      ],
+      ["with no MDM on", makeRenderer({}, false, noMDM)],
+    ])("goes to the profiles list %s", async (_, customRender) => {
+      const { router } = renderPage(undefined, customRender);
+
+      await waitFor(() =>
+        expect(router.replace).toHaveBeenCalledWith(
+          "/controls/os-settings/configuration-profiles"
+        )
+      );
+      expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    });
+
+    it("keeps the fleet when going back to the list", async () => {
+      mockUseTeamIdParam.mockReturnValue({
+        currentTeamId: 1,
+        currentTeamName: "Workstations",
+        teamIdForApi: 1,
+        userTeams: [createMockTeamSummary({ id: 1, name: "Workstations" })],
+        handleTeamChange: jest.fn(),
+      });
+      const { router } = renderPage(
+        undefined,
+        makeRenderer({ isPremiumTier: true }, true),
+        { fleet_id: "1" }
+      );
+
+      await waitFor(() =>
+        expect(router.replace).toHaveBeenCalledWith(
+          "/controls/os-settings/configuration-profiles?fleet_id=1"
+        )
+      );
+    });
+
+    it("stays with only Android MDM on", () => {
+      const { router } = renderPage(
+        undefined,
+        makeRenderer({}, false, {
+          ...noMDM,
+          android_enabled_and_configured: true,
+        })
+      );
+
+      expect(screen.getByLabelText("Name")).toBeEnabled();
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("never leaves the edit page, which can still be viewed", async () => {
+      const { router } = renderPage(
+        existingProfile.profile_uuid,
+        makeRenderer({}, true, noMDM)
+      );
+
+      expect(await screen.findByText("Edit profile")).toBeInTheDocument();
+      expect(router.replace).not.toHaveBeenCalled();
+    });
   });
 
   it("reports a blank name on an existing profile instead of saving it", async () => {
@@ -425,54 +496,145 @@ describe("ProfileFormPage", () => {
     expect(mdmAPI.updateProfile).not.toHaveBeenCalled();
   });
 
-  it("shows the Target selector on Premium and reports a custom target without labels", async () => {
-    const { user } = renderPage(
-      undefined,
-      makeRenderer({
-        isPremiumTier: true,
-        currentTeam: createMockTeamSummary({ id: 1, name: "Workstations" }),
-        availableTeams: [
-          createMockTeamSummary({ id: 1, name: "Workstations" }),
+  describe("Edit targets", () => {
+    const premiumRender = makeRenderer({ isPremiumTier: true });
+
+    beforeEach(() => {
+      mockUseTeamIdParam.mockReturnValue({
+        currentTeamId: 1,
+        currentTeamName: "Workstations",
+        teamIdForApi: 1,
+        userTeams: [createMockTeamSummary({ id: 1, name: "Workstations" })],
+        handleTeamChange: jest.fn(),
+      });
+      jest.mocked(labelsAPI.summary).mockResolvedValue({
+        labels: [
+          createMockLabel({ id: 1, name: "Engineering" }),
+          createMockLabel({ id: 2, name: "Contractors" }),
         ],
-      })
-    );
-    expect(await screen.findByText("Target")).toBeInTheDocument();
-    setContents(WINDOWS_XML);
-    const submit = screen.getByRole("button", { name: "Add profile" });
-    await waitFor(() => expect(submit).toBeEnabled());
+      });
+    });
 
-    await user.click(screen.getByLabelText("Custom"));
-    expect(screen.getByText(/Applies to/)).toHaveTextContent(
-      "hosts in custom targets"
-    );
-    expect(submit).toBeEnabled();
-    await user.click(submit);
-    expect(screen.getByText("Select at least one label")).toBeInTheDocument();
-    expect(mdmAPI.uploadProfile).not.toHaveBeenCalled();
+    const appliesTo = () => screen.getByText(/Applies to/);
 
-    // going back to All hosts makes the error irrelevant
-    await user.click(screen.getByLabelText("All hosts"));
-    expect(
-      screen.queryByText("Select at least one label")
-    ).not.toBeInTheDocument();
-  });
+    it("saves the targets chosen in the modal with the profile", async () => {
+      const { user } = renderPage(undefined, premiumRender);
+      expect(appliesTo()).toHaveTextContent(
+        "Applies to all hosts for Workstations."
+      );
+      setContents(WINDOWS_XML);
 
-  it("disables the add form when no MDM is turned on", () => {
-    renderPage(
-      undefined,
-      makeRenderer({}, false, {
-        ...mdmConfig,
-        enabled_and_configured: false,
-        windows_enabled_and_configured: false,
-        android_enabled_and_configured: false,
-      })
-    );
-    expect(screen.getByLabelText("Name")).toBeDisabled();
-    expect(screen.getByLabelText("Upload a profile")).toBeDisabled();
-    expect(screen.getByLabelText("Profile contents")).toHaveAttribute(
-      "readonly"
-    );
-    expect(screen.getByRole("button", { name: "Add profile" })).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      await user.click(screen.getByLabelText("Custom"));
+      await user.click(
+        await screen.findByRole("checkbox", { name: "Engineering" })
+      );
+      await user.click(screen.getByRole("button", { name: "Done" }));
+
+      expect(
+        screen.queryByRole("button", { name: "Done" })
+      ).not.toBeInTheDocument();
+      expect(appliesTo()).toHaveTextContent(
+        "Applies to hosts in custom targets for Workstations."
+      );
+
+      await user.click(screen.getByRole("button", { name: "Add profile" }));
+      await waitFor(() =>
+        expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0];
+      expect(args.teamId).toBe(1);
+      expect(args.labelsIncludeAny).toEqual(["Engineering"]);
+    });
+
+    it("keeps the targets as they were on Cancel", async () => {
+      const { user } = renderPage(undefined, premiumRender);
+
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      await user.click(screen.getByLabelText("Custom"));
+      await user.click(
+        await screen.findByRole("checkbox", { name: "Engineering" })
+      );
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(appliesTo()).toHaveTextContent("Applies to all hosts");
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      expect(screen.getByLabelText("All hosts")).toBeChecked();
+    });
+
+    it("shows an existing profile's targets read-only when its MDM is off", async () => {
+      jest
+        .spyOn(configProfileAPI, "getConfigProfile")
+        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+      const { user } = renderPage(
+        existingProfile.profile_uuid,
+        makeRenderer({ isPremiumTier: true }, false, {
+          ...mdmConfig,
+          windows_enabled_and_configured: false,
+        }),
+        { fleet_id: "1" }
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText("Name")).toHaveValue("Existing Windows")
+      );
+
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      expect(screen.getByLabelText("Custom")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
+    });
+
+    it("opens with an existing profile's targets and replaces them on save", async () => {
+      jest.spyOn(configProfileAPI, "getConfigProfile").mockResolvedValue({
+        ...existingProfile,
+        team_id: 1,
+        labels_exclude_any: [{ name: "Contractors", id: 2 }],
+      });
+      const { user } = renderPage(existingProfile.profile_uuid, premiumRender, {
+        fleet_id: "1",
+      });
+      await waitFor(() =>
+        expect(screen.getByLabelText("Name")).toHaveValue("Existing Windows")
+      );
+      expect(appliesTo()).toHaveTextContent("hosts in custom targets");
+
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      expect(screen.getByLabelText("Custom")).toBeChecked();
+      await user.click(screen.getByLabelText("All hosts"));
+      await user.click(screen.getByRole("button", { name: "Done" }));
+      await user.click(screen.getByRole("button", { name: "Update profile" }));
+
+      await waitFor(() =>
+        expect(mdmAPI.updateProfile).toHaveBeenCalledTimes(1)
+      );
+      const args = jest.mocked(mdmAPI.updateProfile).mock.calls[0][0];
+      expect(args.labelsExcludeAny).toBeUndefined();
+      expect(args.profile).toBeUndefined();
+    });
+
+    it("shows the targets read-only in GitOps mode", async () => {
+      jest
+        .spyOn(configProfileAPI, "getConfigProfile")
+        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+      const { user } = renderPage(
+        existingProfile.profile_uuid,
+        makeRenderer({ isPremiumTier: true }, true),
+        { fleet_id: "1" }
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText("Name")).toHaveValue("Existing Windows")
+      );
+
+      await user.click(screen.getByRole("button", { name: "Edit targets" }));
+      expect(screen.getByLabelText("Custom")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
+    });
+
+    it("isn't offered on Free", () => {
+      renderPage();
+      expect(
+        screen.queryByRole("button", { name: "Edit targets" })
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("blocks adding a pasted profile whose platform's MDM is off", async () => {
@@ -813,18 +975,7 @@ describe("ProfileFormPage", () => {
     expect(args.file.name).toBe("New profile.xml");
   });
 
-  it("goes back to the profiles list on Cancel", async () => {
-    const { user, router } = renderPage();
-
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(router.push).toHaveBeenCalledTimes(1);
-    expect(router.push).toHaveBeenCalledWith(
-      "/controls/os-settings/configuration-profiles"
-    );
-  });
-
-  describe("Deploy", () => {
+  describe("Advanced options", () => {
     const premiumRender = makeRenderer({ isPremiumTier: true });
     const appleProfile: IMdmProfile = {
       ...existingProfile,
@@ -835,6 +986,11 @@ describe("ProfileFormPage", () => {
       self_service: true,
     };
 
+    const advancedOptionsButton = () =>
+      screen.queryByRole("button", { name: "Advanced options" });
+    const openAdvancedOptions = async (
+      user: ReturnType<typeof renderPage>["user"]
+    ) => user.click(advancedOptionsButton() as HTMLElement);
     const hiddenCheckbox = () =>
       screen.queryByRole("checkbox", { name: "Hide from end user" });
     const chooseDeploy = async (
@@ -845,27 +1001,38 @@ describe("ProfileFormPage", () => {
       // the options have no option role
       await user.click(await screen.findByText(option));
     };
-    // DropdownWrapper remounts its input on every render, which closes an
-    // open menu, so let the labels query settle before opening it.
-    const waitForEditForm = async () => {
+    const waitForEditForm = async (name: string) => {
       await waitFor(() =>
-        expect(screen.getByLabelText("Name")).toHaveValue("Existing Apple")
+        expect(screen.getByLabelText("Name")).toHaveValue(name)
       );
-      await waitFor(() => expect(labelsAPI.summary).toHaveBeenCalled());
+      // DropdownWrapper remounts its input on every render, which closes an
+      // open menu, so let the page settle before opening it.
       await act(async () => {
         await Promise.resolve();
       });
     };
 
+    it("appears on add once there's a profile, closed", async () => {
+      renderPage(undefined, premiumRender);
+      expect(advancedOptionsButton()).not.toBeInTheDocument();
+
+      setContents(WINDOWS_XML);
+      expect(advancedOptionsButton()).toBeInTheDocument();
+      expect(screen.queryByText("Deploy")).not.toBeInTheDocument();
+    });
+
     it("offers self-service for a .mobileconfig and never sends it hidden", async () => {
       const { user } = renderPage(undefined, premiumRender);
       setContents(MOBILECONFIG);
+      await openAdvancedOptions(user);
 
       expect(screen.getByText("Force install")).toBeInTheDocument();
       await user.click(hiddenCheckbox() as HTMLElement);
+      expect(hiddenCheckbox()).toHaveAttribute("aria-checked", "true");
 
       await chooseDeploy(user, "End user initiated (manual)");
-      expect(hiddenCheckbox()).not.toBeInTheDocument();
+      expect(hiddenCheckbox()).toHaveAttribute("aria-checked", "false");
+      expect(hiddenCheckbox()).toHaveAttribute("aria-disabled", "true");
 
       await user.click(screen.getByRole("button", { name: "Add profile" }));
       await waitFor(() =>
@@ -891,6 +1058,7 @@ describe("ProfileFormPage", () => {
       };
 
       await upload(MOBILECONFIG, "Opt-in.mobileconfig");
+      await openAdvancedOptions(user);
       await chooseDeploy(user, "End user initiated (manual)");
       await upload(WINDOWS_XML, "Firewall.xml");
       await upload(MOBILECONFIG, "Opt-in.mobileconfig");
@@ -908,6 +1076,7 @@ describe("ProfileFormPage", () => {
     it("is force-only for other types, which can still be hidden", async () => {
       const { user } = renderPage(undefined, premiumRender);
       setContents(WINDOWS_XML);
+      await openAdvancedOptions(user);
 
       expect(screen.getByText("Force install")).toBeInTheDocument();
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -922,11 +1091,10 @@ describe("ProfileFormPage", () => {
       expect(args.hidden).toBe(true);
     });
 
-    it("sends neither flag on Free", async () => {
+    it("isn't offered on Free, which sends neither flag", async () => {
       const { user } = renderPage();
       setContents(MOBILECONFIG);
-      expect(screen.queryByText("Deploy")).not.toBeInTheDocument();
-      expect(hiddenCheckbox()).not.toBeInTheDocument();
+      expect(advancedOptionsButton()).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Add profile" }));
       await waitFor(() =>
@@ -937,17 +1105,17 @@ describe("ProfileFormPage", () => {
       expect(args.hidden).toBeUndefined();
     });
 
-    it("seeds an edit from the profile and saves a deploy-only change without a file", async () => {
+    it("opens on an edit that isn't on the defaults and saves a deploy-only change without a file", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
         .mockResolvedValue(appleProfile);
       jest.spyOn(mdmAPI, "downloadProfile").mockResolvedValue(MOBILECONFIG);
       const { user } = renderPage(appleProfile.profile_uuid, premiumRender);
-      await waitForEditForm();
+      await waitForEditForm("Existing Apple");
       expect(
         screen.getByText("End user initiated (manual)")
       ).toBeInTheDocument();
-      expect(hiddenCheckbox()).not.toBeInTheDocument();
+      expect(hiddenCheckbox()).toHaveAttribute("aria-disabled", "true");
 
       await chooseDeploy(user, "Force install");
       await user.click(hiddenCheckbox() as HTMLElement);
@@ -962,16 +1130,45 @@ describe("ProfileFormPage", () => {
       expect(args.hidden).toBe(true);
     });
 
+    it("lets a hidden Windows profile be unhidden", async () => {
+      jest
+        .spyOn(configProfileAPI, "getConfigProfile")
+        .mockResolvedValue({ ...existingProfile, hidden: true });
+      const { user } = renderPage(existingProfile.profile_uuid, premiumRender);
+      await waitForEditForm("Existing Windows");
+
+      expect(hiddenCheckbox()).toHaveAttribute("aria-checked", "true");
+      await user.click(hiddenCheckbox() as HTMLElement);
+      await user.click(screen.getByRole("button", { name: "Update profile" }));
+
+      await waitFor(() =>
+        expect(mdmAPI.updateProfile).toHaveBeenCalledTimes(1)
+      );
+      expect(jest.mocked(mdmAPI.updateProfile).mock.calls[0][0].hidden).toBe(
+        false
+      );
+    });
+
+    it("starts closed on an edit on the defaults", async () => {
+      renderPage(existingProfile.profile_uuid, premiumRender);
+      await waitForEditForm("Existing Windows");
+
+      expect(advancedOptionsButton()).toBeInTheDocument();
+      expect(hiddenCheckbox()).not.toBeInTheDocument();
+    });
+
     it("disables both controls in GitOps mode", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
         .mockResolvedValue({ ...appleProfile, self_service: false });
       jest.spyOn(mdmAPI, "downloadProfile").mockResolvedValue(MOBILECONFIG);
-      renderPage(
+      const { user } = renderPage(
         appleProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, true)
       );
-      await waitForEditForm();
+      await waitForEditForm("Existing Apple");
+      await openAdvancedOptions(user);
+
       expect(screen.getByText("Force install")).toBeInTheDocument();
       expect(screen.getByRole("combobox")).toBeDisabled();
       expect(hiddenCheckbox()).toHaveAttribute("aria-disabled", "true");

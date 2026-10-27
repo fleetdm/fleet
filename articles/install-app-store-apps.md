@@ -18,6 +18,10 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
+> If the developer drops support for a platform (e.g., removes the iPad version), Fleet still shows that platform on fleets where the app was already added, but other fleets can only add the currently supported platforms. To match what Apple currently supports, delete the app from the fleet and add it again.
+>
+> If you install the app on an iPad from a fleet where iPadOS is still listed, Apple installs the iPhone-only version, which runs in compatibility mode (the iPhone layout scaled up for iPad).
+
 ### Google Play (Android)
 
 > Before using Fleet to manage Google Play Store apps, you must first [turn on Android MDM](https://fleetdm.com/guides/android-mdm-setup). Once you've completed that setup, you can follow the directions below for each app.
@@ -136,7 +140,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Managed configuration
 
-Currently, only the `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 

@@ -6,5 +6,6 @@
   "slug": "itsycal/darwin",
   "default_categories": [
     "Utilities"
-  ]
+  ],
+  "frozen": true
 }

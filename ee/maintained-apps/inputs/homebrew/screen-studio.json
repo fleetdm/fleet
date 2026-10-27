@@ -3,6 +3,7 @@
   "unique_identifier": "com.timpler.screenstudio",
   "token": "screen-studio",
   "installer_format": "zip",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/screen-studio-install.sh",
   "slug": "screen-studio/darwin",
   "default_categories": [
     "Productivity"

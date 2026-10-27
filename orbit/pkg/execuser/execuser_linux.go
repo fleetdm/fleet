@@ -41,7 +41,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		return nil, errors.New("missing user")
 	}
 
-	args, env, err := getConfigForCommand(opts.user, path)
+	args, env, err := getConfigForCommand(opts.user, path, opts.xdgSessionEnv)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
@@ -251,7 +251,7 @@ func getDisplayVariableForSession(userID string, displaySessionType userpkg.GuiS
 	return waylandDisplay
 }
 
-func getConfigForCommand(user string, path string) (args []string, env []string, err error) {
+func getConfigForCommand(user string, path string, xdgSessionEnv bool) (args []string, env []string, err error) {
 	// Get user ID
 	userID, err := getUserID(user)
 	if err != nil {
@@ -300,6 +300,17 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		args = []string{"-n", "-i", "-u", user, "-H"}
 	}
 	env = make([]string, 0)
+
+	// sudo resets the environment. Without XDG_RUNTIME_DIR a relative WAYLAND_DISPLAY
+	// can't be resolved to a socket, and without XDG_SESSION_TYPE Chromium-based
+	// browsers fall back to X11, which Xwayland rejects without the session's
+	// XAUTHORITY ("Missing X server or $DISPLAY").
+	if xdgSessionEnv {
+		env = append(env,
+			"XDG_RUNTIME_DIR=/run/user/"+userID,
+			"XDG_SESSION_TYPE="+userDisplaySession.Type.String(),
+		)
+	}
 
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
 		env = append(env, "WAYLAND_DISPLAY="+display)

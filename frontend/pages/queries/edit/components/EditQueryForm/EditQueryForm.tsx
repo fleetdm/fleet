@@ -95,7 +95,7 @@ interface IEditQueryFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: string } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     // queryError should be truthy at this point
@@ -567,6 +567,7 @@ const EditQueryForm = ({
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
+                    from: "edit",
                     host_id: hostId,
                     fleet_id: apiTeamIdForQuery,
                   })
@@ -640,7 +641,12 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={baseClass} autoComplete="off">
+        {/* No submit button, so Enter in the name field would navigate. */}
+        <form
+          className={baseClass}
+          autoComplete="off"
+          onSubmit={(evt) => evt.preventDefault()}
+        >
           {isExistingQuery ? (
             <div className={`${baseClass}__page-header`}>
               <h1 className={`${baseClass}__page-title`}>Edit report</h1>
@@ -882,6 +888,7 @@ const EditQueryForm = ({
                   }
                   router.push(
                     getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
+                      from: "edit",
                       host_id: hostId,
                       fleet_id: currentTeamId,
                     })

@@ -1019,7 +1019,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	}
 
 	if deleted, _ := res.RowsAffected(); deleted == 0 {
-		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, *teamID)
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
 	}
 
@@ -1307,9 +1307,9 @@ SELECT
 FROM
     mdm_apple_enrollment_profiles
 WHERE
-    token = ?
+    token = ? OR (previous_token = ? AND previous_token_expires_at > NOW(6))
 `,
-		token,
+		token, token,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
@@ -1317,6 +1317,57 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by token")
 	}
 	return &enrollment, nil
+}
+
+func (ds *Datastore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (*time.Time, error) {
+	if newToken == "" {
+		return nil, ctxerr.New(ctx, "new automatic enrollment token is required")
+	}
+	if gracePeriod < 0 {
+		return nil, ctxerr.New(ctx, "grace period can't be negative")
+	}
+	if profileUpdateJob == nil {
+		return nil, ctxerr.New(ctx, "profile update job is required")
+	}
+
+	var previousTokenExpiresAt *time.Time
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// MySQL evaluates single-table UPDATE assignments left to right, so
+		// previous_token gets the token being replaced.
+		const rotateStmt = `
+UPDATE mdm_apple_enrollment_profiles
+SET
+    previous_token = IF(? > 0, token, NULL),
+    previous_token_expires_at = IF(? > 0, NOW(6) + INTERVAL ? MICROSECOND, NULL),
+    token = ?
+WHERE
+    type = ? AND token IS NOT NULL AND token != ''`
+		micros := gracePeriod.Microseconds()
+		res, err := tx.ExecContext(ctx, rotateStmt, micros, micros, micros, newToken, fleet.MDMAppleEnrollmentTypeAutomatic)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"), "rotate automatic enrollment token")
+		}
+
+		const expiresStmt = `SELECT previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`
+		if err := sqlx.GetContext(ctx, tx, &previousTokenExpiresAt, expiresStmt, fleet.MDMAppleEnrollmentTypeAutomatic); err != nil {
+			return ctxerr.Wrap(ctx, err, "get previous automatic enrollment token expiration")
+		}
+
+		// Queued in the same transaction so the new token is never stored without
+		// the job that publishes it to Apple. Otherwise a retry after a failed
+		// enqueue would rotate again and drop the token Apple still advertises.
+		if _, err := insertJobDB(ctx, tx, profileUpdateJob); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue automatic enrollment profile update job")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return previousTokenExpiresAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
@@ -1649,7 +1700,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "", "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
@@ -2037,6 +2088,25 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		previousAcctUUID = ""
+
+		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
+		// a host that's still enrolled under another UUID.
+		var enrolledUUID string
+		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
+			SELECT h.uuid FROM hosts h
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+			WHERE h.hardware_serial = ? AND h.uuid != ?
+			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
+		case err == nil:
+			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
+				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+			})
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+		}
+
 		toInsert := []hostToCreateFromMDM{
 			{
 				HardwareSerial: deviceInfo.Serial,
@@ -4089,33 +4159,27 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func isMDMAppleBootstrapPackageInDB(ctx context.Context, q sqlx.QueryerContext, teamID uint) (isInDB, existsForTeam bool, err error) {
-	const stmt = `SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = ?`
-	var pkgLen int
-	if err := sqlx.GetContext(ctx, q, &pkgLen, stmt, teamID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, false, nil
-		}
-		return false, false, ctxerr.Wrapf(ctx, err, "check for bootstrap package content in database for team %d", teamID)
-	}
-	return pkgLen > 0, true, nil
-}
-
 func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
-	const insStmt = `INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)`
-	execInsert := func(args ...any) error {
-		if _, err := ds.writer(ctx).ExecContext(ctx, insStmt, args...); err != nil {
-			if IsDuplicate(err) {
-				return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
-			}
-			return ctxerr.Wrap(ctx, err, "create bootstrap package")
+	// A fleet's existing package is replaced in this single write rather than deleted beforehand, so
+	// a failed upload leaves it in place. created_at is reset because it's the package's upload time.
+	const upsertStmt = `
+INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	name = VALUES(name),
+	sha256 = VALUES(sha256),
+	bytes = VALUES(bytes),
+	token = VALUES(token),
+	created_at = CURRENT_TIMESTAMP`
+	execUpsert := func(args ...any) error {
+		if _, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "save bootstrap package")
 		}
 		return nil
 	}
 
 	if pkgStore == nil {
-		// no S3 storage configured, insert the metadata and the content in the DB
-		return execInsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
+		// no S3 storage configured, save the metadata and the content in the DB
+		return execUpsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	}
 
 	// using distinct storages for content and metadata introduces an
@@ -4123,27 +4187,16 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 	// fail together), so what we do instead is to minimize the risk of data
 	// inconsistency:
 	//
-	//   1. check if the row exists in the DB, if so fail immediately with a
-	//   duplicate error (which would happen at the INSERT stage anyway
-	//   otherwise).
-	//   2. if it does not exist in the DB, check if the package is already on
-	//   S3, to avoid a costly upload if it is.
-	//   3. if it is not already on S3, upload the package - if this fails,
+	//   1. check if the package is already on S3, to avoid a costly upload if
+	//   it is.
+	//   2. if it is not already on S3, upload the package - if this fails,
 	//   return and the DB was not touched and data is still consistent.
-	//   4. after upload, insert the metadata in the DB - if this fails, the
+	//   3. after upload, save the metadata in the DB - if this fails, the
 	//   only possible inconsistency is an unused package stored on S3, which a
 	//   cron job will eventually cleanup.
-	//   5. if everything succeeds, data is consistent and the S3 package
-	//   cannot be used before it is uploaded (since the DB row is inserted
+	//   4. if everything succeeds, data is consistent and the S3 package
+	//   cannot be used before it is uploaded (since the DB row is saved
 	//   after upload).
-	_, existsInDB, err := isMDMAppleBootstrapPackageInDB(ctx, ds.writer(ctx), bp.TeamID)
-	if err != nil {
-		return err
-	}
-	if existsInDB {
-		return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
-	}
-
 	pkgID := hex.EncodeToString(bp.Sha256)
 	ok, err := pkgStore.Exists(ctx, pkgID)
 	if err != nil {
@@ -4159,8 +4212,8 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		}
 	}
 
-	// insert in the DB with a NULL bytes content (to indicate it is on S3)
-	return execInsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
+	// save in the DB with a NULL bytes content (to indicate it is on S3)
+	return execUpsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
 }
 
 func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
@@ -4988,6 +5041,16 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
+		// ! Heavily consider putting methods above this check, so they always run on MDM renewals and not only fresh/re-enrollments
+		// ! It's a place easy for bugs to occur due to resets etc.
+		if scepRenewalInProgress {
+			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+			// much more difficult to reason about the state of the host. We should try instead
+			// to centralize the flow control in the lifecycle methods.
+			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			return nil
+		}
+
 		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
 		//
 		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
@@ -4999,8 +5062,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
 			// An IdP username set by an admin is kept by the reconcile above, so keep the
-			// SCIM link derived from it too: there is no IdP account to rebuild it from and
-			// this check-in may be a SCEP renewal rather than a real re-enrollment.
+			// SCIM link derived from it too: there is no IdP account to rebuild it from.
 			// Without either, drop the link so a host re-enrolled without SSO doesn't keep
 			// showing its previous user.
 			keepManualLink := false
@@ -5019,18 +5081,6 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 					return ctxerr.Wrap(ctx, err, "re-associating host with scim user from mdm idp account")
 				}
 			}
-		}
-
-		// TODO: Add test coverage for scepRenewalInProgress branching logic.
-		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
-		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
-		// on if it is an old device that was expected to renew but was wiped.
-		if scepRenewalInProgress {
-			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
-			// much more difficult to reason about the state of the host. We should try instead
-			// to centralize the flow control in the lifecycle methods.
-			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
-			return nil
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -9511,6 +9561,64 @@ SET operation_type = ?, status = NULL, detail = '', retries = 0
 WHERE host_uuid = ? AND profile_uuid = ?`,
 		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
 	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+}
+
+func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	return newAppleSCEPChallengeDB(ctx, ds.writer(ctx), info, ttl)
+}
+
+func newAppleSCEPChallengeDB(ctx context.Context, q sqlx.ExecerContext, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		return "", ctxerr.New(ctx, "challenge ttl must be greater than zero")
+	}
+	challenge, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating apple scep challenge")
+	}
+	_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
+		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
+		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
+		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert apple scep challenge")
+	}
+	return string(challenge), nil
+}
+
+// findOrCreateAppleSCEPRenewalChallenge returns the enrollment's unconsumed, unexpired renewal challenge, creating
+// one if there's none. enrollmentID is the enrollment's device channel ID.
+func (ds *Datastore) findOrCreateAppleSCEPRenewalChallenge(ctx context.Context, enrollmentID string) (string, error) {
+	var challenge string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		challenge = ""
+		// Locking the challenges table alone doesn't serialize concurrent deliveries: two transactions that both find
+		// no row hold compatible gap locks and can both insert. Every enrollment has a nano_enrollments row keyed by
+		// exactly this ID, ADUE included.
+		var lockedID string
+		if err := sqlx.GetContext(ctx, tx, &lockedID, `SELECT id FROM nano_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("NanoEnrollment").WithName(enrollmentID), "creating scep renewal challenge")
+			}
+			return ctxerr.Wrap(ctx, err, "locking nano enrollment for scep renewal challenge")
+		}
+
+		err := sqlx.GetContext(ctx, tx, &challenge, `SELECT challenge FROM mdm_apple_scep_challenges
+			WHERE host_uuid = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW(6)
+			ORDER BY id DESC LIMIT 1`, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal)
+		switch {
+		case err == nil:
+			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "getting scep renewal challenge")
+		}
+
+		challenge, err = newAppleSCEPChallengeDB(ctx, tx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeSCEPRenewal,
+			UUID:    &enrollmentID,
+		}, fleet.AppleSCEPRenewalChallengeTTL)
+		return err
+	})
+	return challenge, err
 }
 
 func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {

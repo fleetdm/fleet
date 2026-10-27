@@ -172,6 +172,28 @@ describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
     });
   });
 
+  it("keeps the DEP profile error filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depProfileError: true,
+      })
+    ).toEqual({
+      dep_profile_error: true,
+    });
+  });
+
+  it("keeps the DEP assign profile response filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depAssignProfileResponse: "FAILED",
+      })
+    ).toEqual({
+      dep_assign_profile_response: "FAILED",
+    });
+  });
+
   it("returns no filters for a label alone", () => {
     expect(reconcileMutuallyExclusiveHostParams({ label: "labels/7" })).toEqual(
       {}
@@ -188,6 +210,22 @@ describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
       })
     ).toEqual({
       os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("keeps the App Store app version filter with a software title and status", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        teamId: 3,
+        softwareTitleId: 12,
+        softwareStatus: "failed",
+        appStoreAppVersionId: 5,
+      })
+    ).toEqual({
+      software_title_id: 12,
+      software_status: "failed",
+      app_store_app_version_id: 5,
+      fleet_id: 3,
     });
   });
 });
