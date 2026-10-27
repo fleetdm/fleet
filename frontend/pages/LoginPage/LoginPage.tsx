@@ -162,7 +162,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         // meant for API clients, so it's replaced here.
         if ((response as { status: number }).status === 429) {
           notify.error(
-            "Too many login attempts. Wait a moment and try again.",
+            "Too many login attempts. Wait 10 seconds and try again.",
             {
               response,
             }
