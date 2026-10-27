@@ -472,3 +472,34 @@ func TestGoogleCASCAEquals(t *testing.T) {
 		require.False(t, a.Equals(&c))
 	}
 }
+
+func TestCertificateAuthorityGoogleCASCA(t *testing.T) {
+	full := func() CertificateAuthority {
+		return CertificateAuthority{
+			ID: 7, Type: string(CATypeGoogleCAS), Name: new("GOOGLE_WIFI"), URL: new(""),
+			GoogleCASProject: new("p"), GoogleCASLocation: new("l"), GoogleCASCAPool: new("c"), GoogleCASAPIKeyJSON: new("k"),
+		}
+	}
+	ca := full()
+	got, err := ca.GoogleCASCA()
+	require.NoError(t, err)
+	require.Equal(t, GoogleCASCA{ID: 7, Name: "GOOGLE_WIFI", Project: "p", Location: "l", CAPool: "c", APIKeyJSON: "k"}, got)
+
+	for name, tc := range map[string]struct {
+		change  func(*CertificateAuthority)
+		wantErr string
+	}{
+		"another type":   {func(ca *CertificateAuthority) { ca.Type = string(CATypeHydrant) }, "is not a Google CAS certificate authority"},
+		"no project":     {func(ca *CertificateAuthority) { ca.GoogleCASProject = nil }, "does not have a Google Cloud project ID configured"},
+		"empty location": {func(ca *CertificateAuthority) { ca.GoogleCASLocation = new("") }, "does not have a location configured"},
+		"no CA pool":     {func(ca *CertificateAuthority) { ca.GoogleCASCAPool = nil }, "does not have a CA pool configured"},
+		"no key":         {func(ca *CertificateAuthority) { ca.GoogleCASAPIKeyJSON = nil }, "does not have a service account key configured"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ca := full()
+			tc.change(&ca)
+			_, err := ca.GoogleCASCA()
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}

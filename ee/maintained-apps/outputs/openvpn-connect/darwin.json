@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.9.0",
+      "version": "3.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app' AND version_compare(bundle_short_version, '3.9.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app' AND version_compare(bundle_short_version, '3.9.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.openvpn.client.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://packages.openvpn.net/connect/v3/OpenVPN_Connect_3_9_0(6050)_arm64_Installer_signed.pkg",
+      "installer_url": "https://packages.openvpn.net/connect/v3/OpenVPN_Connect_3_9_1(6051)_arm64_Installer_signed.pkg",
       "install_script_ref": "c5205fa0",
       "uninstall_script_ref": "efdd25d4",
-      "sha256": "7b8b5696b0cae8dec7b1371bf8c505b764188162437bc5cd53e622b35c74b027",
+      "sha256": "b10a33cb868d0ad5ff62460928a1c77f740d23450289c92c86358133b20baee7",
       "default_categories": [
         "Productivity"
       ]

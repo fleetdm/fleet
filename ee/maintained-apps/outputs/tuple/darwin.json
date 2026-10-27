@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.14",
+      "version": "3.3.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app' AND version_compare(bundle_short_version, '3.3.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app' AND version_compare(bundle_short_version, '3.3.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.tuple.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d32ifkf9k9ezcg.cloudfront.net/production/sparkle/tuple-3.3.14-2026-10-23-55cdcbbe43.zip",
+      "installer_url": "https://d32ifkf9k9ezcg.cloudfront.net/production/sparkle/tuple-3.3.15-2026-10-26-ff90db0a75.zip",
       "install_script_ref": "b37902e9",
       "uninstall_script_ref": "c55f2828",
-      "sha256": "e9109f208624c77f693aab6998d8368f0545de9a4d9f0d60c46ea4132bd5bf19",
+      "sha256": "db235241d78892d15be501abe70b782f7f9fb2618ddc2d7aa6c7469f23b31fd7",
       "default_categories": [
         "Productivity"
       ]

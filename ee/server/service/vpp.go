@@ -2174,7 +2174,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
 	var includedHostIDs map[uint]struct{}
 	var hostIDsWithRecentFailedInstall map[uint]struct{}
-	var hostIDsWithFailedInstall map[uint]struct{}
+	var hostIDsToRetry map[uint]struct{}
 	var retries int
 	var vppApp *fleet.VPPApp
 	for _, version := range versions {
@@ -2241,12 +2241,12 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			return ctxerr.Wrapf(ctx, err, "get hosts with a recent failed install of app store app version %d", version.VPPAppsTeamsID)
 		}
 
-		// Count a send to a host whose install of this version failed in the timeout window and after the configuration last changed as a retry
+		// A send to a host whose install of this version failed in the retry timeout window, after the configuration last changed, is a retry
 		retriedSince := time.Now().Add(-fleet.VPPAutomaticInstallRetryTimeout)
 		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(retriedSince) {
 			retriedSince = version.ConfigurationUpdatedAt.Truncate(time.Second)
 		}
-		hostIDsWithFailedInstall, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, retriedSince, hostIDs)
+		hostIDsToRetry, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, retriedSince, hostIDs)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get hosts with a failed install of app store app version %d", version.VPPAppsTeamsID)
 		}
@@ -2263,8 +2263,9 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
 			}
-			// Skip a host retried MaxVPPAutomaticInstallRetries times until its count expires, and count this retry otherwise
-			if _, failedBefore := hostIDsWithFailedInstall[hostID]; failedBefore && retryCounter != nil {
+			// Count each retry, and stop retrying the host after MaxVPPAutomaticInstallRetries until the count expires
+			_, isRetry := hostIDsToRetry[hostID]
+			if isRetry && retryCounter != nil {
 				retries, err = retryCounter.CountAttempts(ctx, hostID, version.VPPAppsTeamsID)
 				if err != nil {
 					logger.WarnContext(ctx, "failed to count app store app configuration retries", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
@@ -2272,6 +2273,8 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 				if retries >= fleet.MaxVPPAutomaticInstallRetries {
 					continue
 				}
+				// Record the retry before queueing the VPP install, since the MDM command result and install
+				// verification can't tell it was a configuration resend
 				_, err = retryCounter.RecordAttempt(ctx, hostID, version.VPPAppsTeamsID, fleet.VPPAutomaticInstallRetryTimeout)
 				if err != nil {
 					logger.WarnContext(ctx, "failed to record app store app configuration retry", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)

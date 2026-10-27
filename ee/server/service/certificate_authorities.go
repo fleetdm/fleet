@@ -571,7 +571,7 @@ func deletesFreeingEJBCANames(ops *fleet.CertificateAuthoritiesBatchOperations) 
 	upserts := slices.Concat(ops.Add, ops.Update)
 	return slices.DeleteFunc(slices.Clone(ops.Delete), func(deleted *fleet.CertificateAuthority) bool {
 		return !slices.ContainsFunc(upserts, func(upserted *fleet.CertificateAuthority) bool {
-			return deleted.Name != nil && upserted.Name != nil && strings.EqualFold(*deleted.Name, *upserted.Name) &&
+			return deleted.Name != nil && upserted.Name != nil && caNameKey(*deleted.Name) == caNameKey(*upserted.Name) &&
 				(deleted.Type == string(fleet.CATypeEJBCA)) != (upserted.Type == string(fleet.CATypeEJBCA))
 		})
 	})
@@ -591,11 +591,19 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
+	ejbcaNames := make(map[string]string)
 	checkAllNames := func(name, caType, displayCAType string) error {
 		key := caNameKey(name)
-		for i := 0; i < len(allNames[key]); i++ {
-			if allNames[key][i] == caType {
+		if caType == "ejbca" {
+			ejbcaNames[key] = name
+		}
+		for _, seenType := range allNames[key] {
+			if seenType == caType {
 				return fmtDuplicateCANameError(name, caType, displayCAType)
+			}
+			// the name of an EJBCA CA can't be shared with a CA of another type
+			if (seenType == "ejbca") != (caType == "ejbca") {
+				return &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ejbcaNames[key]}.Error()}
 			}
 		}
 		allNames[key] = append(allNames[key], caType)
@@ -614,7 +622,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 	}
 	// preprocess ejbca, in place so the trimmed names are the ones that get stored
-	ejbcaNames := make(map[string]struct{}, len(incoming.EJBCA))
 	for i := range incoming.EJBCA {
 		ca := &incoming.EJBCA[i]
 		ca.Preprocess()
@@ -622,11 +629,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.ejbca: CA name cannot be empty.")
 		}
 
-		// The database compares names without regard to case, so names that differ only by case are the same CA.
-		if _, ok := ejbcaNames[caNameKey(ca.Name)]; ok {
-			return nil, fmtDuplicateCANameError(ca.Name, "ejbca", "EJBCA")
-		}
-		ejbcaNames[caNameKey(ca.Name)] = struct{}{}
 		if err := checkAllNames(ca.Name, "ejbca", "EJBCA"); err != nil {
 			return nil, err
 		}
@@ -684,18 +686,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 		if err := checkAllNames(ca.Name, "google_cas", "Google CAS"); err != nil {
 			return nil, err
-		}
-	}
-	// the name of an EJBCA CA can't be shared with a CA of another type
-	otherNames := make(map[string]struct{})
-	for name, caTypes := range allNames {
-		if slices.ContainsFunc(caTypes, func(caType string) bool { return caType != "ejbca" }) {
-			otherNames[caNameKey(name)] = struct{}{}
-		}
-	}
-	for _, ca := range incoming.EJBCA {
-		if _, shared := otherNames[caNameKey(ca.Name)]; shared {
-			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
 		}
 	}
 	// preprocess ndes
