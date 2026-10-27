@@ -565,7 +565,7 @@ describe("ProfileFormPage", () => {
     it("shows an existing profile's targets read-only when its MDM is off", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
-        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+        .mockResolvedValue({ ...existingProfile, fleet_id: 1 });
       const { user } = renderPage(
         existingProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, false, {
@@ -586,7 +586,7 @@ describe("ProfileFormPage", () => {
     it("opens with an existing profile's targets and replaces them on save", async () => {
       jest.spyOn(configProfileAPI, "getConfigProfile").mockResolvedValue({
         ...existingProfile,
-        team_id: 1,
+        fleet_id: 1,
         labels_exclude_any: [{ name: "Contractors", id: 2 }],
       });
       const { user } = renderPage(existingProfile.profile_uuid, premiumRender, {
@@ -614,7 +614,7 @@ describe("ProfileFormPage", () => {
     it("shows the targets read-only in GitOps mode", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
-        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+        .mockResolvedValue({ ...existingProfile, fleet_id: 1 });
       const { user } = renderPage(
         existingProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, true),
