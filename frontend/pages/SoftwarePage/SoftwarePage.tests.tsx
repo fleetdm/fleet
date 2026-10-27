@@ -243,7 +243,7 @@ describe("SoftwarePage type filter", () => {
       screen
         .getAllByRole("checkbox", { checked: true })
         .map((el) => el.textContent)
-    ).toEqual(["Browser extension (Brave)", "App (macOS)"]);
+    ).toEqual(["App (macOS)", "Browser extension (Brave)"]);
 
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
