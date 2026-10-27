@@ -232,7 +232,7 @@
              ELSE 'ROOT_TRUSTED emSign Root CS CA - G3 (Microsoft root store, code signing)'
            END AS status
     FROM certificates
-    WHERE store <> 'Untrusted Certificates'
+    WHERE store NOT IN ('Untrusted Certificates', 'Disallowed')
       AND lower(sha1) IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1',
                           'd1eb23a46d17d68fd92564c2f1f1601764d8e349',
                           '39d3236e4a609ab6190cbfa1ad02b3cc61dfc2c3',
@@ -241,7 +241,7 @@
     SELECT 'compromised_intermediate_present', common_name,
            store_location || '\' || store || ' user=' || username || ' sha1=' || sha1, 'IOC_HIT investigate (cached intermediate or code-signing chain seen)'
     FROM certificates
-    WHERE store <> 'Untrusted Certificates'
+    WHERE store NOT IN ('Untrusted Certificates', 'Disallowed')
       AND (lower(subject_key_id) IN ('e21e2fe71c19390e554b62c120245735248a2514',  -- EM DV TLS CA - G3B
                                     '9bd86551afe7e72c37ad08ee6919d9bf3784ae0a',  -- EM OV TLS CA - G3B
                                     '3edc20d9894698877b873fd88147b25c15d84706',  -- EM EV TLS CA - G3B
@@ -267,7 +267,7 @@
                 ELSE 'NOT_PRESENT run the remediation script for an explicit block' END
     FROM certificates
     WHERE store_location = 'LocalMachine'
-      AND store = 'Untrusted Certificates'
+      AND store IN ('Untrusted Certificates', 'Disallowed')
       AND lower(sha1) IN ('a99b289464f3b44343270a7a1e910f02370483fe','1396be1372bc93dfa2a433ca964dba91548a6e57',
                           '5f014e0db3bb8f950e0598ab280846d383fc57be','5dfa19197d1c1cf629af7c0cd865543c5050227c',
                           'f33acd1f5d31aa81ac18c72c928446226d3d5914','19069bd6533bff93fb67c71fb3376b4ea7402c3b',
