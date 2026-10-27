@@ -139,11 +139,18 @@ describe("SoftwareAppStoreAndroid", () => {
     expect(requestedFleetId).toBe("global");
   });
 
-  it("shows the form while custom labels load", () => {
+  it("shows the form while custom labels load, with a spinner in place of the label list", async () => {
+    let releaseLabels: () => void = () => undefined;
+    const labelsReleased = new Promise<void>((resolve) => {
+      releaseLabels = resolve;
+    });
     mockServer.use(
-      http.get(baseUrl("/labels/summary"), () =>
-        HttpResponse.json({ labels: [] })
-      )
+      http.get(baseUrl("/labels/summary"), async () => {
+        await labelsReleased;
+        return HttpResponse.json({
+          labels: [{ id: 2, name: "Android pilot", label_type: "regular" }],
+        });
+      })
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -156,11 +163,26 @@ describe("SoftwareAppStoreAndroid", () => {
       },
     });
 
-    render(<SoftwareAppStoreAndroid currentTeamId={1} router={router} />);
+    const { user } = render(
+      <SoftwareAppStoreAndroid currentTeamId={1} router={router} />
+    );
 
     expect(
       screen.getByRole("textbox", { name: "Application ID" })
     ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Custom" }));
+    expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Android pilot" })
+    ).not.toBeInTheDocument();
+
+    releaseLabels();
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Android pilot" })
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
   });
 
   it("keeps All hosts usable when custom labels fail to load", async () => {
