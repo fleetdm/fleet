@@ -128,9 +128,17 @@ module.exports = {
           Platform: 'macOS',
           PartnerManagedCompliance: true
         }
-      }).tolerate({raw:{statusCode: 409}}, async ()=>{
-        // If a partner compliance policy already exists, send a request to get all policies and return the previously created policy.
-        let getPoliciesResponse = await sails.helpers.http.sendHttpRequest.with({
+      }).tolerate({raw:{statusCode: 409}})
+      .intercept(async (err)=>{
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+        sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return {redirect: fleetInstanceUrlToRedirectTo };
+      });
+
+      // A 409 means a partner compliance policy already exists. Microsoft can also answer the create with a 204 and an empty body, with the new policy only in the Location header.
+      // In both cases, send a request to get all policies and use the existing policy.
+      if(!createPolicyResponse || !createPolicyResponse.body) {
+        createPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'GET',
           url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
           headers: {
@@ -138,12 +146,7 @@ module.exports = {
             'Content-Type': 'application/json'
           }
         });
-        return getPoliciesResponse;
-      }).intercept(async (err)=>{
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return {redirect: fleetInstanceUrlToRedirectTo };
-      });
+      }
 
       // Log responses from Micrsoft APIs for Fleet's integration
       if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
