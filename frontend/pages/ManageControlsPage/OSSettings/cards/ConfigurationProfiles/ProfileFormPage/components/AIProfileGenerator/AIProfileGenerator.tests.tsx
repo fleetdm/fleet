@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
 import createMockUser from "__mocks__/userMock";
 import autofillAPI, {
   IAutofillConfigProfileContentResponse,
@@ -375,7 +376,7 @@ describe("AIProfileGenerator", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers Create manually with the result, and disables Retry while saving", async () => {
+  it("leaves Create manually out of the result, and disables Retry while saving", async () => {
     const { user, router } = renderGenerator();
     const upload = deferred<{ profile_uuid: string }>();
     jest.mocked(mdmAPI.uploadProfile).mockImplementation(() => upload.promise);
@@ -385,15 +386,12 @@ describe("AIProfileGenerator", () => {
     await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
 
     expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    // per the design, only the instructions offer it
     expect(
-      screen.getByRole("button", { name: "Create manually" })
-    ).toBeEnabled();
+      screen.queryByRole("button", { name: "Create manually" })
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add profile" }));
     expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
-    // its completion would redirect away from the manual view
-    expect(
-      screen.getByRole("button", { name: "Create manually" })
-    ).toBeDisabled();
     expect(router.push).not.toHaveBeenCalled();
     await act(async () => upload.resolve({ profile_uuid: "a-new" }));
   });
@@ -450,13 +448,27 @@ describe("AIProfileGenerator", () => {
     typeInstructions("Turn off AirDrop");
     clickGenerate();
     await act(async () =>
-      content.reject(apiError("base", "The AI service timed out."))
+      content.reject(apiError("base", "The AI service is unavailable."))
     );
     expect(
       screen.getByText(
-        "Couldn't generate configuration profile. The AI service timed out. Please try again, or create your profile manually."
+        "Couldn't generate configuration profile. The AI service is unavailable. Please try again, or create your profile manually."
       )
     ).toBeInTheDocument();
+  });
+
+  it("goes to the manual view with the timeout banner when Fleet's AI call times out", async () => {
+    const { router } = renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () =>
+      content.reject(apiError("base", "The AI service timed out."))
+    );
+    expect(router.push).toHaveBeenCalledWith({
+      ...MANUAL_LOCATION,
+      state: { aiTimedOut: true },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("stops both requests and returns to the instructions", () => {
@@ -485,19 +497,114 @@ describe("AIProfileGenerator", () => {
     });
   });
 
-  it("stops the requests and goes to the manual view on Create manually, even while generating", () => {
+  it("goes to the manual view on Create manually, which isn't offered while generating", () => {
     const { router } = renderGenerator();
     typeInstructions("Turn off AirDrop");
     clickGenerate();
-    const { signal } = jest.mocked(
-      autofillAPI.getConfigProfileContent
-    ).mock.calls[0][0];
+    // per the design, only the instructions offer it
+    expect(
+      screen.queryByRole("button", { name: "Create manually" })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
     fireEvent.click(screen.getByRole("button", { name: "Create manually" }));
-    expect(signal?.aborted).toBe(true);
     expect(router.push).toHaveBeenCalledWith({
       ...MANUAL_LOCATION,
       state: { aiTimedOut: false },
     });
+  });
+
+  it("lets the targets be edited while generating and keeps them for the result", async () => {
+    jest.mocked(labelsAPI.summary).mockResolvedValue({
+      labels: [createMockLabel({ id: 1, name: "Engineering" })],
+    });
+    const { user } = renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    const appliesTo = () =>
+      screen.getByText(/Applies to/).textContent?.replace(/\s+/g, " ");
+    expect(appliesTo()).toBe("Applies to all hosts for Workstations.");
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Edit targets" }));
+    await user.click(screen.getByLabelText("Custom"));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Engineering" })
+    );
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(appliesTo()).toBe(
+      "Applies to hosts in custom targets for Workstations."
+    );
+
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
+    await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
+    expect(appliesTo()).toBe(
+      "Applies to hosts in custom targets for Workstations."
+    );
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
+    expect(
+      jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0].labelsIncludeAny
+    ).toEqual(["Engineering"]);
+  });
+
+  it("keeps Edit targets open when the profile arrives, and applies it to the result", async () => {
+    jest.mocked(labelsAPI.summary).mockResolvedValue({
+      labels: [createMockLabel({ id: 1, name: "Engineering" })],
+    });
+    const { user } = renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await user.click(screen.getByRole("button", { name: "Edit targets" }));
+    await user.click(screen.getByLabelText("Custom"));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Engineering" })
+    );
+
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
+    await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
+    expect(screen.getByRole("checkbox", { name: "Engineering" })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(
+      screen.getByText(/Applies to/).textContent?.replace(/\s+/g, " ")
+    ).toBe("Applies to hosts in custom targets for Workstations.");
+    await user.click(screen.getByRole("button", { name: "Add profile" }));
+    await waitFor(() => expect(mdmAPI.uploadProfile).toHaveBeenCalledTimes(1));
+    expect(
+      jest.mocked(mdmAPI.uploadProfile).mock.calls[0][0].labelsIncludeAny
+    ).toEqual(["Engineering"]);
+  });
+
+  it("keeps the targets chosen with the result across a retry", async () => {
+    jest.mocked(labelsAPI.summary).mockResolvedValue({
+      labels: [createMockLabel({ id: 1, name: "Engineering" })],
+    });
+    const { user } = renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => nameDescription.resolve(NAME_DESCRIPTION));
+    await act(async () => content.resolve(MOBILECONFIG_RESPONSE));
+    await user.click(screen.getByRole("button", { name: "Edit targets" }));
+    await user.click(screen.getByLabelText("Custom"));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Engineering" })
+    );
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(
+      screen.getByText(/Applies to/).textContent?.replace(/\s+/g, " ")
+    ).toBe("Applies to hosts in custom targets for Workstations.");
+  });
+
+  it("leaves Edit targets out while generating on Fleet Free", () => {
+    renderGenerator({ isPremiumTier: false, teamId: 0 });
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    expect(screen.getByRole("button", { name: "Add profile" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Edit targets" })
+    ).not.toBeInTheDocument();
   });
 
   it("reruns both requests on Retry with the edited instructions", async () => {

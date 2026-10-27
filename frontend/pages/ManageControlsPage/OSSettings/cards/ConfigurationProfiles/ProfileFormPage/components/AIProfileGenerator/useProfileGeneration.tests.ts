@@ -151,12 +151,27 @@ describe("useProfileGeneration", () => {
   it("reports any other content error as a failure with its reason", async () => {
     const { result } = start();
     await act(async () =>
-      content.reject(apiError("base", "The AI service timed out."))
+      content.reject(apiError("base", "The AI service is unavailable."))
     );
     expect(result.current.error).toEqual({
       kind: "failure",
-      reason: "The AI service timed out.",
+      reason: "The AI service is unavailable.",
     });
+  });
+
+  it("treats Fleet's own AI service timeout as the cap", async () => {
+    const onTimeout = jest.fn();
+    const { result } = start(onTimeout);
+    await act(async () =>
+      content.reject(apiError("base", "The AI service timed out."))
+    );
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+    expect(nameSpy.mock.calls[0][0].signal.aborted).toBe(true);
+    expect(result.current.status).toBe("idle");
+    expect(result.current.error).toBeUndefined();
+    // the cap doesn't fire a second time
+    act(() => jest.advanceTimersByTime(GENERATION_TIMEOUT_MS));
+    expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 
   it("aborts both requests on Stop and returns to idle", () => {

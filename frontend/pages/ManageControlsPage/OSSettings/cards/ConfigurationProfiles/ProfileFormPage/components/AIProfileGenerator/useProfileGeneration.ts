@@ -13,6 +13,10 @@ export const READING_STEP_MS = 1000;
 /** Product's cap on a generation; past it the admin is sent to the manual view. */
 export const GENERATION_TIMEOUT_MS = 10000;
 
+// Fleet's own call to the AI service gives up just inside the cap, so its
+// timeout is the cap being reached.
+const SERVER_TIMEOUT_REASON = "The AI service timed out.";
+
 export type GenerationStep = "reading" | "drafting" | "writing";
 
 export const GENERATION_STEP_LABELS: Record<GenerationStep, string> = {
@@ -63,6 +67,10 @@ export const toGenerationError = (e: unknown): IGenerationError => {
   return { kind: "failure", reason: firstError?.reason ?? "" };
 };
 
+const isServerTimeout = (e: unknown) =>
+  (e as AxiosResponse<IApiError> | undefined)?.data?.errors?.[0]?.reason ===
+  SERVER_TIMEOUT_REASON;
+
 interface IUseProfileGenerationOptions {
   /** Called when the cap is hit, after both requests are aborted. */
   onTimeout: () => void;
@@ -111,11 +119,12 @@ const useProfileGeneration = ({ onTimeout }: IUseProfileGenerationOptions) => {
       timersRef.current.push(
         setTimeout(() => update({ readingDone: true }), READING_STEP_MS)
       );
-      const capTimer = setTimeout(() => {
+      const timeOut = () => {
         abortRun();
         setState({ ...INITIAL_STATE, runId });
         onTimeoutRef.current();
-      }, GENERATION_TIMEOUT_MS);
+      };
+      const capTimer = setTimeout(timeOut, GENERATION_TIMEOUT_MS);
       timersRef.current.push(capTimer);
 
       autofillAPI
@@ -133,6 +142,10 @@ const useProfileGeneration = ({ onTimeout }: IUseProfileGenerationOptions) => {
         })
         .catch((e: unknown) => {
           if (signal.aborted) {
+            return;
+          }
+          if (isServerTimeout(e)) {
+            timeOut();
             return;
           }
           // A failed profile discards any name and description shown.

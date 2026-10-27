@@ -10,9 +10,12 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IMdmConfig } from "interfaces/config";
+import PATHS from "router/paths";
 import { AutofillConfigProfilePlatform } from "services/entities/autofill";
 
+import EditTargetsModal, { IProfileTargets } from "../EditTargetsModal";
 import GeneratedProfileSummary from "../GeneratedProfileSummary";
+import ProfileBottomBar from "../ProfileBottomBar";
 import ProfileForm from "../ProfileForm";
 
 import useProfileGeneration, {
@@ -26,6 +29,16 @@ const baseClass = "ai-profile-generator";
 export const MAX_INSTRUCTIONS_LENGTH = 2000;
 
 const OS_SETTINGS_LEARN_MORE_URL = "https://fleetdm.com/os-settings";
+
+// The arrow overlaps the default offset, leaving no gap above the button.
+const ACTION_TIP_OFFSET = 10;
+
+const DEFAULT_TARGETS: IProfileTargets = {
+  targetType: "All hosts",
+  includeMode: "any",
+  includeLabels: {},
+  excludeLabels: {},
+};
 
 const PLATFORM_OPTIONS: {
   label: string;
@@ -133,6 +146,9 @@ const AIProfileGenerator = ({
   const [edits, setEdits] = useState<{ name?: string; description?: string }>(
     {}
   );
+  // Editable while generating, and kept across retries.
+  const [targets, setTargets] = useState<IProfileTargets>(DEFAULT_TARGETS);
+  const [showEditTargetsModal, setShowEditTargetsModal] = useState(false);
 
   const goToManual = (aiTimedOut = false) =>
     router.push({ ...manualLocation, state: { aiTimedOut } });
@@ -158,19 +174,13 @@ const AIProfileGenerator = ({
     });
   };
 
-  // Disabled while a save is in flight, whose completion would redirect away from
-  // the manual view.
-  const renderCreateManually = (isSubmitting = false) => (
+  const renderCreateManually = () => (
     <Button
       variant="subdued"
       icon="arrow"
       iconPosition="right"
       className={`${baseClass}__create-manually`}
-      disabled={isSubmitting}
-      onClick={() => {
-        generation.stop();
-        goToManual();
-      }}
+      onClick={() => goToManual()}
     >
       Create manually
     </Button>
@@ -181,12 +191,14 @@ const AIProfileGenerator = ({
       tipContent={sendTooltip ?? label}
       position="top"
       showArrow
+      tipOffset={ACTION_TIP_OFFSET}
+      tooltipClass={`${baseClass}__action-tip`}
       underline={false}
     >
       <Button
         icon="arrow"
         ariaLabel={label}
-        className={`${baseClass}__send`}
+        className={`${baseClass}__send ${baseClass}__action-button`}
         disabled={!canSend}
         onClick={onClick}
       />
@@ -198,12 +210,15 @@ const AIProfileGenerator = ({
       tipContent={sendTooltip ?? "Retry"}
       position="top"
       showArrow
+      tipOffset={ACTION_TIP_OFFSET}
+      tooltipClass={`${baseClass}__action-tip`}
       underline={false}
     >
       <Button
         variant="secondary"
         icon="refresh"
         ariaLabel="Retry"
+        className={`${baseClass}__action-button`}
         // a save in flight would redirect away from the new generation
         disabled={!canSend || isSubmitting}
         onClick={onGenerate}
@@ -211,127 +226,160 @@ const AIProfileGenerator = ({
     </TooltipWrapper>
   );
 
-  // The profile and its review form.
-  if (status === "done" && profile) {
-    const nameFromAI = profile.name ?? nameDescription?.name ?? "";
-    return (
-      <ProfileForm
-        // a retry starts the review over, closing and resetting its options
-        key={runId}
-        router={router}
-        teamId={teamId}
-        teamName={teamName}
-        isPremiumTier={isPremiumTier}
-        gitOpsModeEnabled={gitOpsModeEnabled}
-        listPath={listPath}
-        generated={{
-          type: profile.type,
-          contents: profile.content,
-          name: edits.name ?? nameFromAI,
-          description: edits.description ?? nameDescription?.description ?? "",
-          isNamePending:
-            edits.name === undefined &&
-            !profile.name &&
-            nameDescription === undefined,
-          isDescriptionPending:
-            edits.description === undefined && nameDescription === undefined,
-        }}
-        renderBelowEditor={({ isSubmitting }) => (
-          <>
+  const renderView = () => {
+    // The profile and its review form.
+    if (status === "done" && profile) {
+      const nameFromAI = profile.name ?? nameDescription?.name ?? "";
+      return (
+        <ProfileForm
+          // a retry starts the review over, closing and resetting its options
+          key={runId}
+          router={router}
+          teamId={teamId}
+          teamName={teamName}
+          isPremiumTier={isPremiumTier}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+          listPath={listPath}
+          generated={{
+            type: profile.type,
+            contents: profile.content,
+            name: edits.name ?? nameFromAI,
+            description:
+              edits.description ?? nameDescription?.description ?? "",
+            isNamePending:
+              edits.name === undefined &&
+              !profile.name &&
+              nameDescription === undefined,
+            isDescriptionPending:
+              edits.description === undefined && nameDescription === undefined,
+            targets,
+          }}
+          onTargetsChange={setTargets}
+          renderBelowEditor={({ isSubmitting }) => (
             <PromptBox
               value={instructions}
               onChange={setInstructions}
               action={renderRetryButton(isSubmitting)}
             />
-            {renderCreateManually(isSubmitting)}
-          </>
-        )}
-      />
-    );
-  }
+          )}
+        />
+      );
+    }
 
-  // In flight: placeholders, the progress step and Stop.
-  if (status === "generating") {
+    // In flight: placeholders, the progress step and Stop.
+    if (status === "generating") {
+      return (
+        <div className={baseClass}>
+          <GeneratedProfileSummary
+            name={edits.name ?? nameDescription?.name ?? ""}
+            description={
+              edits.description ?? nameDescription?.description ?? ""
+            }
+            isNamePending={
+              edits.name === undefined && nameDescription === undefined
+            }
+            isDescriptionPending={
+              edits.description === undefined && nameDescription === undefined
+            }
+            onChangeName={(name) => setEdits((prev) => ({ ...prev, name }))}
+            onChangeDescription={(description) =>
+              setEdits((prev) => ({ ...prev, description }))
+            }
+          />
+          <div
+            className={`${baseClass}__editor-placeholder`}
+            data-testid="editor-placeholder"
+            aria-hidden
+          />
+          <div className={`${baseClass}__progress`} aria-live="polite">
+            <Spinner size="x-small" centered={false} delay={0} />
+            <span>{GENERATION_STEP_LABELS[step]}</span>
+          </div>
+          <PromptBox
+            value={instructions}
+            readOnly
+            action={
+              <TooltipWrapper
+                tipContent="Stop"
+                position="top"
+                showArrow
+                tipOffset={ACTION_TIP_OFFSET}
+                tooltipClass={`${baseClass}__action-tip`}
+                underline={false}
+              >
+                <Button
+                  variant="alert"
+                  ariaLabel="Stop"
+                  className={`${baseClass}__stop ${baseClass}__action-button`}
+                  onClick={generation.stop}
+                >
+                  <span className={`${baseClass}__stop-square`} />
+                </Button>
+              </TooltipWrapper>
+            }
+          />
+          <ProfileBottomBar
+            targetType={targets.targetType}
+            fleetName={teamName}
+            onEditTargets={
+              isPremiumTier ? () => setShowEditTargetsModal(true) : undefined
+            }
+            submitButton={<Button disabled>Add profile</Button>}
+          />
+        </div>
+      );
+    }
+
+    // The instructions, with the last error if there was one.
     return (
       <div className={baseClass}>
-        <GeneratedProfileSummary
-          name={edits.name ?? nameDescription?.name ?? ""}
-          description={edits.description ?? nameDescription?.description ?? ""}
-          isNamePending={
-            edits.name === undefined && nameDescription === undefined
-          }
-          isDescriptionPending={
-            edits.description === undefined && nameDescription === undefined
-          }
-          onChangeName={(name) => setEdits((prev) => ({ ...prev, name }))}
-          onChangeDescription={(description) =>
-            setEdits((prev) => ({ ...prev, description }))
-          }
-        />
-        <div
-          className={`${baseClass}__editor-placeholder`}
-          data-testid="editor-placeholder"
-          aria-hidden
-        />
-        <div className={`${baseClass}__progress`} aria-live="polite">
-          <Spinner size="x-small" centered={false} delay={0} />
-          <span>{GENERATION_STEP_LABELS[step]}</span>
-        </div>
-        <PromptBox
-          value={instructions}
-          readOnly
-          action={
-            <TooltipWrapper
-              tipContent="Stop"
-              position="top"
-              showArrow
-              underline={false}
-            >
-              <Button
-                variant="alert"
-                ariaLabel="Stop"
-                className={`${baseClass}__stop`}
-                onClick={generation.stop}
-              >
-                <span className={`${baseClass}__stop-square`} />
-              </Button>
-            </TooltipWrapper>
+        <h1>Add profile</h1>
+        {isPremiumTier && teamName && (
+          <p className={`${baseClass}__fleet`}>
+            Adding profile for <b>{teamName}</b>.
+          </p>
+        )}
+        <DropdownWrapper
+          label="Platform"
+          name="platform"
+          className={`${baseClass}__platform`}
+          options={platformOptions}
+          value={platform}
+          onChange={(option) =>
+            setPlatform(option?.value as AutofillConfigProfilePlatform)
           }
         />
+        <FormField label="Instructions" name="instructions">
+          <PromptBox
+            value={instructions}
+            onChange={setInstructions}
+            action={renderSendButton("Generate profile", onGenerate)}
+          />
+        </FormField>
+        {status === "error" && error && <ErrorBanner error={error} />}
         {renderCreateManually()}
       </div>
     );
-  }
+  };
 
-  // The instructions, with the last error if there was one.
   return (
-    <div className={baseClass}>
-      <h1>Add profile</h1>
-      {isPremiumTier && teamName && (
-        <p className={`${baseClass}__fleet`}>
-          Adding profile for <b>{teamName}</b>.
-        </p>
-      )}
-      <DropdownWrapper
-        label="Platform"
-        name="platform"
-        className={`${baseClass}__platform`}
-        options={platformOptions}
-        value={platform}
-        onChange={(option) =>
-          setPlatform(option?.value as AutofillConfigProfilePlatform)
-        }
-      />
-      <FormField label="Instructions" name="instructions">
-        <PromptBox
-          value={instructions}
-          onChange={setInstructions}
-          action={renderSendButton("Generate profile", onGenerate)}
+    <>
+      {renderView()}
+      {/* Outside the views, so a profile arriving mid-edit doesn't close it;
+          the review form picks up what's chosen here. */}
+      {showEditTargetsModal && (
+        <EditTargetsModal
+          fleetId={teamId}
+          targets={targets}
+          onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
+          onDone={(newTargets) => {
+            setTargets(newTargets);
+            setShowEditTargetsModal(false);
+          }}
+          onExit={() => setShowEditTargetsModal(false)}
         />
-      </FormField>
-      {status === "error" && error && <ErrorBanner error={error} />}
-      {renderCreateManually()}
-    </div>
+      )}
+    </>
   );
 };
 

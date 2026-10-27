@@ -90,6 +90,8 @@ export interface IGeneratedProfile {
   description: string;
   isNamePending?: boolean;
   isDescriptionPending?: boolean;
+  /** Chosen while the profile was being generated. */
+  targets?: IProfileTargets;
 }
 
 /** An existing profile's values, a generated profile's, or an empty form. */
@@ -112,6 +114,7 @@ const initialFormDataFor = (
     excludeLabels: labelsToSelection(excludeLabels),
     selfService: profile?.self_service ?? false,
     hidden: profile?.hidden ?? false,
+    ...generated?.targets,
   };
 };
 
@@ -135,6 +138,7 @@ interface IProfileFormProps {
   generated?: IGeneratedProfile;
   /** Rendered under the editor, given whether the profile is being saved. */
   renderBelowEditor?: (state: { isSubmitting: boolean }) => React.ReactNode;
+  onTargetsChange?: (targets: IProfileTargets) => void;
 }
 
 const ProfileForm = ({
@@ -147,6 +151,7 @@ const ProfileForm = ({
   editing,
   generated,
   renderBelowEditor,
+  onTargetsChange,
 }: IProfileFormProps) => {
   const { config } = useContext(AppContext);
   const profile = editing?.profile;
@@ -233,6 +238,16 @@ const ProfileForm = ({
       applied.description = generatedDescription;
     }
   }, [generatedName, generatedDescription, setField]);
+
+  // Targets chosen in the generating view after the form opened.
+  const appliedTargetsRef = useRef(generated?.targets);
+  const generatedTargets = generated?.targets;
+  useEffect(() => {
+    if (generatedTargets && generatedTargets !== appliedTargetsRef.current) {
+      appliedTargetsRef.current = generatedTargets;
+      commitFields(generatedTargets);
+    }
+  }, [generatedTargets, commitFields]);
 
   // An existing profile's type is fixed by what it is, and a generated one's
   // by the API; pasted content on the add page is typed by what it looks like.
@@ -423,6 +438,8 @@ const ProfileForm = ({
 
   const onDoneEditingTargets = (targets: IProfileTargets) => {
     commitFields(targets);
+    appliedTargetsRef.current = targets;
+    onTargetsChange?.(targets);
     setShowEditTargetsModal(false);
   };
 

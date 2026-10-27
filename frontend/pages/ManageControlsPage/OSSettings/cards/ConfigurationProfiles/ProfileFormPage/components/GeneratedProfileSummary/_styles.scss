@@ -20,6 +20,8 @@
     font-size: $x-small;
     color: $ui-fleet-black-75;
     overflow-wrap: anywhere;
+    // keeps the line breaks the admin typed
+    white-space: pre-wrap;
   }
 
   &__chip {
@@ -44,7 +46,7 @@
 
     &:focus {
       outline: none;
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-75-down;
     }
   }
 

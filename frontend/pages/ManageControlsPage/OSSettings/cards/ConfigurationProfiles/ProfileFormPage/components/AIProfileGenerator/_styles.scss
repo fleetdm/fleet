@@ -1,5 +1,7 @@
 .ai-profile-generator {
   @include vertical-form-layout;
+  // Fills the page column so the bottom bar sits at the bottom.
+  flex: 1;
 
   h1 {
     margin: 0;
@@ -16,31 +18,42 @@
     width: 240px;
   }
 
+  // The text and its button side by side, so long text wraps and scrolls
+  // beside the button rather than under it.
   &__prompt {
-    position: relative;
     display: flex;
+    gap: $pad-small;
+    padding: $pad-medium;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
     background-color: $core-fleet-white;
+    transition: border-color 100ms;
+    box-sizing: border-box;
+    min-height: 100px;
+    // The box resizes, not the text inside it, so the grip sits in its
+    // corner, per the design.
+    resize: vertical;
+    overflow: hidden;
 
     &:focus-within {
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-50;
     }
   }
 
   &__prompt-input {
     flex: 1;
-    min-height: 72px;
-    padding: $pad-small $pad-medium;
-    // room for the button in the bottom-right corner
-    padding-right: 56px;
+    padding: 0;
     font-family: inherit;
     font-size: $x-small;
+    line-height: $line-height;
     color: $core-fleet-black;
     border: none;
-    border-radius: $border-radius;
     background: transparent;
-    resize: vertical;
+    resize: none;
+
+    &::placeholder {
+      color: $ui-fleet-black-50;
+    }
 
     &:focus {
       outline: none;
@@ -52,9 +65,25 @@
   }
 
   &__prompt-action {
-    position: absolute;
-    right: $pad-small;
-    bottom: $pad-small;
+    align-self: flex-end;
+  }
+
+  &__action-button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  // Solid gray whatever the reason, not the faded variant color.
+  &__action-button.button--disabled {
+    opacity: 1;
+    filter: none;
+    background-color: $ui-fleet-black-25;
+    border-color: $ui-fleet-black-25;
+
+    svg path {
+      fill: $core-fleet-white;
+    }
   }
 
   // An up arrow, from the right-pointing one.
@@ -99,4 +128,11 @@
   &__create-manually {
     align-self: flex-start;
   }
+}
+
+// Narrow and centered over the button, per the design; doubled up to win over
+// the tooltip's own width.
+.component__tooltip-wrapper__tip-text.ai-profile-generator__action-tip {
+  max-width: 160px;
+  text-align: center;
 }
