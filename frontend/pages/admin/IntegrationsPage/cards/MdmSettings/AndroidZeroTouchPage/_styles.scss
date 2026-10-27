@@ -59,7 +59,9 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 160px;
+      box-sizing: border-box;
+      // Height of the loaded DPC extras, for the first load.
+      min-height: 142px;
     }
   }
 }

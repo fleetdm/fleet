@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
@@ -38,6 +38,9 @@ const AndroidZeroTouchPage = () => {
   const [selectedFleetId, setSelectedFleetId] = useState(
     APP_CONTEXT_NO_TEAM_ID
   );
+  // Sized to the last loaded DPC extras so the page doesn't jump while the
+  // next fleet's extras load.
+  const dpcExtrasHeight = useRef<number>();
   const selectedFleetName =
     availableTeams?.find((fleet) => fleet.id === selectedFleetId)?.name ??
     APP_CONTEXT_NO_TEAM_SUMMARY.name;
@@ -88,8 +91,9 @@ const AndroidZeroTouchPage = () => {
       return (
         <div
           className={`${baseClass}__dpc-extras-code ${baseClass}__dpc-extras-code--loading`}
+          style={{ height: dpcExtrasHeight.current }}
         >
-          <Spinner />
+          <Spinner centered={false} />
         </div>
       );
     }
@@ -99,7 +103,12 @@ const AndroidZeroTouchPage = () => {
     }
 
     return (
-      <pre className={`${baseClass}__dpc-extras-code`}>
+      <pre
+        className={`${baseClass}__dpc-extras-code`}
+        ref={(el) => {
+          if (el) dpcExtrasHeight.current = el.offsetHeight;
+        }}
+      >
         <code>{dpcExtrasText}</code>
       </pre>
     );
