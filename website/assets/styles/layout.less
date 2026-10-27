@@ -72,7 +72,7 @@ a[purpose='announcement-banner'] {
   padding: 15px 16px;
   justify-content: center;
   align-items: center;
-  background-color: #B6E9EB;
+  background-color: #DDF4F5;
   font-family: Inter;
   font-size: 14px;
   font-style: normal;
@@ -94,19 +94,6 @@ a[purpose='announcement-banner'] {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 100%);
     transform: skew(-10deg);
   }
-  // One white line of the glass's frame, running across the flutes like a latitude line on the domes.
-  &::after {
-    content: ' ';
-    position: absolute;
-    top: 30%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    z-index: -1;
-    pointer-events: none;
-    background: rgba(255, 255, 255, 0.75);
-  }
-  // With flutes, the gaps between them show through as the glass's white frame.
   &.fluted {
     background-color: #F3FAFA;
     &::before {
@@ -121,7 +108,6 @@ a[purpose='announcement-banner'] {
     right: -24px;
     z-index: -1;
     display: flex;
-    gap: 2px;
     pointer-events: none;
   }
   [purpose='banner-flute'] {
@@ -129,7 +115,7 @@ a[purpose='announcement-banner'] {
     position: relative;
     overflow: hidden;
     flex: 0 0 auto;
-    background-color: rgba(119, 217, 222, 0.5);
+    background-color: rgba(119, 217, 222, 0.28);
     transform: skew(-10deg);
     // The shine.
     &::before {
