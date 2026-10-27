@@ -774,3 +774,123 @@ func TestNewActivityHostWebhook(t *testing.T) {
 		assert.Equal(t, []any{float64(9)}, fleetDetails["host_ids"])
 	})
 }
+
+type bulkMockDatastore struct {
+	mockDatastore
+	calls       int
+	lastCtx     context.Context
+	lastDetails [][]byte
+}
+
+func (m *bulkMockDatastore) NewActivities(
+	ctx context.Context, _ *api.User, _ []api.ActivityDetails, details [][]byte, _ time.Time,
+) error {
+	m.calls++
+	m.lastCtx = ctx
+	m.lastDetails = details
+	return nil
+}
+
+func TestNewActivities(t *testing.T) {
+	t.Parallel()
+	user := &api.User{ID: 1, Name: "testUser", Email: "testUser@example.com"}
+
+	t.Run("stores the batch once and resolves host webhooks once", func(t *testing.T) {
+		ds := &bulkMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+		}
+		svc := newTestService(ds, providers)
+
+		activities := []api.ActivityDetails{
+			hostActivity{simpleActivity: simpleActivity{Name: "a"}, hostIDs: []uint{1}},
+			hostActivity{simpleActivity: simpleActivity{Name: "b"}, hostIDs: []uint{2}},
+			simpleActivity{Name: "c"},
+		}
+		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
+
+		assert.Equal(t, 1, ds.calls)
+		require.Len(t, ds.lastDetails, 3)
+		assert.JSONEq(t, `{"name":"b"}`, string(ds.lastDetails[1]))
+		processed, _ := ds.lastCtx.Value(types.ActivityWebhookContextKey).(bool)
+		assert.True(t, processed)
+		assert.True(t, providers.hostWebhooksCalled)
+		assert.Equal(t, []uint{1, 2}, providers.hostWebhookHostIDs)
+	})
+
+	t.Run("empty batch is a no-op", func(t *testing.T) {
+		ds := &bulkMockDatastore{}
+		svc := newTestService(ds, &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+		})
+		require.NoError(t, svc.NewActivities(t.Context(), user, nil))
+		assert.Zero(t, ds.calls)
+	})
+
+	t.Run("activators are rejected", func(t *testing.T) {
+		ds := &bulkMockDatastore{}
+		svc := newTestService(ds, &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}},
+		})
+		err := svc.NewActivities(t.Context(), user, []api.ActivityDetails{activatorActivity{hostID: 1, cmdUUID: "x"}})
+		require.Error(t, err)
+		assert.Zero(t, ds.calls)
+	})
+
+	t.Run("each fleet destination only receives its own hosts' activities", func(t *testing.T) {
+		type received struct {
+			path    string
+			hostIDs any
+		}
+		got := make(chan received, 4)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body webhookPayload
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			var details map[string]any
+			_ = json.Unmarshal(*body.Details, &details)
+			got <- received{path: r.URL.Path, hostIDs: details["host_ids"]}
+		}))
+		t.Cleanup(srv.Close)
+
+		ds := &bulkMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/fleet-a", HostIDs: []uint{1}},
+					{DestinationURL: srv.URL + "/fleet-b", HostIDs: []uint{2}},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		activities := []api.ActivityDetails{
+			hostActivity{simpleActivity: simpleActivity{Name: "a"}, hostIDs: []uint{1}},
+			hostActivity{simpleActivity: simpleActivity{Name: "b"}, hostIDs: []uint{2}},
+			hostActivity{simpleActivity: simpleActivity{Name: "c"}, hostIDs: []uint{3}},
+		}
+		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
+
+		want := map[string]any{"/fleet-a": []any{float64(1)}, "/fleet-b": []any{float64(2)}}
+		for range want {
+			select {
+			case <-time.After(3 * time.Second):
+				t.Fatal("timeout waiting for host activities webhooks")
+			case r := <-got:
+				assert.Equal(t, want[r.path], r.hostIDs, r.path)
+				delete(want, r.path)
+			}
+		}
+		assert.Empty(t, want)
+		// a host outside every fleet's webhook gets no delivery
+		select {
+		case r := <-got:
+			t.Fatalf("unexpected extra delivery to %s", r.path)
+		case <-time.After(300 * time.Millisecond):
+		}
+	})
+}

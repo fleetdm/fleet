@@ -32,14 +32,9 @@ type webhookPayload struct {
 
 // NewActivity creates a new activity record and fires the webhook if configured.
 func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails) error {
-	detailsBytes, err := json.Marshal(activity)
+	detailsBytes, err := marshalActivityDetails(ctx, activity)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling activity details")
-	}
-	// Duplicate JSON keys so that stored activity details include both the
-	// old and new field names (e.g. team_id and fleet_id).
-	if rules := eu.ExtractAliasRules(activity); len(rules) > 0 {
-		detailsBytes = eu.DuplicateJSONKeys(detailsBytes, rules, eu.DuplicateJSONKeysOpts{Compact: true})
+		return err
 	}
 	timestamp := time.Now()
 
@@ -97,6 +92,92 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	ctx = context.WithValue(ctx, types.ActivityWebhookContextKey, true)
 
 	return s.store.NewActivity(ctx, user, activity, detailsBytes, timestamp)
+}
+
+func marshalActivityDetails(ctx context.Context, activity api.ActivityDetails) ([]byte, error) {
+	detailsBytes, err := json.Marshal(activity)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling activity details")
+	}
+	// Duplicate JSON keys so that stored activity details include both the
+	// old and new field names (e.g. team_id and fleet_id).
+	if rules := eu.ExtractAliasRules(activity); len(rules) > 0 {
+		detailsBytes = eu.DuplicateJSONKeys(detailsBytes, rules, eu.DuplicateJSONKeysOpts{Compact: true})
+	}
+	return detailsBytes, nil
+}
+
+// NewActivities creates one activity record per item of activities and fires their webhooks. The webhook settings are resolved once
+// for the whole batch, which is what makes it much cheaper than calling NewActivity in a loop.
+func (s *Service) NewActivities(ctx context.Context, user *api.User, activities []api.ActivityDetails) error {
+	if len(activities) == 0 {
+		return nil
+	}
+
+	detailsBytes := make([][]byte, len(activities))
+	var hostIDs []uint
+	for i, activity := range activities {
+		if aa, ok := activity.(types.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
+			return ctxerr.Errorf(ctx, "activity %s activates the next upcoming activity, which NewActivities does not support",
+				activity.ActivityName())
+		}
+		details, err := marshalActivityDetails(ctx, activity)
+		if err != nil {
+			return err
+		}
+		detailsBytes[i] = details
+		if ah, ok := activity.(types.ActivityHosts); ok {
+			hostIDs = append(hostIDs, ah.HostIDs()...)
+		}
+	}
+	timestamp := time.Now()
+
+	webhookConfig, err := s.providers.GetActivitiesWebhookConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get activities webhook config")
+	}
+	if webhookConfig != nil && webhookConfig.Enable {
+		for i, activity := range activities {
+			s.fireActivityWebhook(ctx, user, activity, detailsBytes[i], timestamp, webhookConfig.DestinationURL)
+		}
+	}
+
+	if len(hostIDs) > 0 {
+		hooks, err := s.providers.GetHostActivitiesWebhooks(ctx, hostIDs)
+		if err != nil {
+			// transient failure here must not fail the surrounding operation recording the activities.
+			s.logger.ErrorContext(ctx, "get host activities webhooks", slog.String("err", err.Error()))
+			hooks = nil
+		}
+		for _, hook := range hooks {
+			hookHostIDs := make(map[uint]struct{}, len(hook.HostIDs))
+			for _, id := range hook.HostIDs {
+				hookHostIDs[id] = struct{}{}
+			}
+			for i, activity := range activities {
+				ah, ok := activity.(types.ActivityHosts)
+				if !ok {
+					continue
+				}
+				// each delivery gets only the host IDs of this activity that belong to the destination's fleet(s).
+				var activityHostIDs []uint
+				for _, id := range ah.HostIDs() {
+					if _, ok := hookHostIDs[id]; ok {
+						activityHostIDs = append(activityHostIDs, id)
+					}
+				}
+				if len(activityHostIDs) == 0 {
+					continue
+				}
+				webhookDetails := s.detailsWithHostIDs(ctx, activity.ActivityName(), detailsBytes[i], activityHostIDs)
+				s.fireActivityWebhook(ctx, user, activity, webhookDetails, timestamp, hook.DestinationURL)
+			}
+		}
+	}
+
+	ctx = context.WithValue(ctx, types.ActivityWebhookContextKey, true)
+
+	return s.store.NewActivities(ctx, user, activities, detailsBytes, timestamp)
 }
 
 // detailsWithHostIDs returns the details to use in one per-fleet host

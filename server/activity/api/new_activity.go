@@ -22,4 +22,7 @@ type NewActivityService interface {
 	// NewActivity creates a new activity record and fires the webhook if configured.
 	// user can be nil for automation-initiated activities.
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	// NewActivities creates one activity record per item of activities and fires their webhooks, using a few queries for the
+	// whole batch instead of one set per activity. It does not support activities that activate the next upcoming activity.
+	NewActivities(ctx context.Context, user *User, activities []ActivityDetails) error
 }

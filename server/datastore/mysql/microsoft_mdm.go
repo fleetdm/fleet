@@ -2039,7 +2039,24 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-	query := `SELECT
+	// The enrollments come from the command's results, or from its queue when it has no results yet, and every join after that is on
+	// the full (enrollment_id, command_uuid) key. Joining the queue on command_uuid alone reads every queue row of a command that was
+	// sent to many hosts, once per result row.
+	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
+	var queueHostFilter, resultsHostFilter string
+	var args []any
+	if hostUUID != "" {
+		queueHostFilter = fmt.Sprintf(hostFilter, "wmcq")
+		resultsHostFilter = fmt.Sprintf(hostFilter, "wmcr")
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID, commandUUID)
+	if hostUUID != "" {
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID, commandUUID)
+
+	query := fmt.Sprintf(`SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(wmcr.status_code, '101') AS status,
@@ -2052,21 +2069,17 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
     wmc.raw_command AS payload
 FROM
     windows_mdm_commands wmc
-    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+    JOIN (
+        SELECT wmcq.enrollment_id FROM windows_mdm_command_queue wmcq%s WHERE wmcq.command_uuid = ?
+            AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results WHERE command_uuid = ?)
+        UNION
+        SELECT wmcr.enrollment_id FROM windows_mdm_command_results wmcr%s WHERE wmcr.command_uuid = ?
+    ) pairs ON TRUE
+    JOIN mdm_windows_enrollments mwe ON mwe.id = pairs.enrollment_id
+    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid AND wmcr.enrollment_id = pairs.enrollment_id
     LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
-    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
-    LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
-        wmcr.enrollment_id,
-        wmcq.enrollment_id
-    )
 WHERE
-    wmc.command_uuid = ?`
-
-	args := []any{commandUUID}
-	if hostUUID != "" {
-		query += " AND mwe.host_uuid = ?"
-		args = append(args, hostUUID)
-	}
+    wmc.command_uuid = ?`, queueHostFilter, resultsHostFilter)
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(

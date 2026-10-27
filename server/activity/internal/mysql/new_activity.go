@@ -29,6 +29,76 @@ func (ds *Datastore) NewActivity(
 		)
 	}
 
+	return platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
+		actID, err := insertActivityRow(ctx, tx, user, activity, details, createdAt)
+		if err != nil {
+			return err
+		}
+
+		// Insert into activity_host_past table if the activity is associated with hosts.
+		// This supposes a reasonable amount of hosts per activity, to revisit if we
+		// get in the 10K+.
+		if ah, ok := activity.(types.ActivityHosts); ok {
+			return insertActivityHosts(ctx, tx, []activityHostLink{{activityID: actID, hostIDs: ah.HostIDs()}})
+		}
+		return nil
+	}, ds.logger)
+}
+
+// newActivitiesChunkSize bounds the activities written per transaction by NewActivities.
+const newActivitiesChunkSize = 1000
+
+// NewActivities stores one activity record per item of activities, with details[i] being the serialized details of activities[i].
+// The webhook context key must be set in the context before calling this method.
+func (ds *Datastore) NewActivities(
+	ctx context.Context, user *api.User, activities []api.ActivityDetails, details [][]byte, createdAt time.Time,
+) error {
+	ctx, span := tracer.Start(ctx, "activity.mysql.NewActivities")
+	defer span.End()
+
+	processed, _ := ctx.Value(types.ActivityWebhookContextKey).(bool)
+	if !processed {
+		return ctxerr.New(
+			ctx, "activity webhook not processed. Please use svc.NewActivities instead of ds.NewActivities. This is a Fleet server bug.",
+		)
+	}
+	if len(activities) != len(details) {
+		return ctxerr.New(ctx, "activities and details must have the same length")
+	}
+
+	// Each row is inserted on its own because the ids of a multi-row insert are not guaranteed to be consecutive (it depends on
+	// innodb_autoinc_lock_mode), and the host links need them. Batching the inserts in a transaction and the host links in one
+	// statement removes the commit and lookup cost that dominates a call to NewActivity.
+	for start := 0; start < len(activities); start += newActivitiesChunkSize {
+		end := min(start+newActivitiesChunkSize, len(activities))
+		err := platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
+			var links []activityHostLink
+			for i := start; i < end; i++ {
+				actID, err := insertActivityRow(ctx, tx, user, activities[i], details[i], createdAt)
+				if err != nil {
+					return err
+				}
+				if ah, ok := activities[i].(types.ActivityHosts); ok {
+					links = append(links, activityHostLink{activityID: actID, hostIDs: ah.HostIDs()})
+				}
+			}
+			return insertActivityHosts(ctx, tx, links)
+		}, ds.logger)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type activityHostLink struct {
+	activityID int64
+	hostIDs    []uint
+}
+
+func insertActivityRow(
+	ctx context.Context, tx sqlx.ExtContext, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time,
+) (int64, error) {
 	var userID *uint
 	var userName *string
 	var userEmail *string
@@ -72,34 +142,31 @@ func (ds *Datastore) NewActivity(
 		cols = append(cols, "user_email")
 	}
 
-	return platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
-		const insertActStmt = `INSERT INTO activity_past (%s) VALUES (%s)`
-		sqlStmt := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
-		res, err := tx.ExecContext(ctx, sqlStmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "new activity")
+	const insertActStmt = `INSERT INTO activity_past (%s) VALUES (%s)`
+	sqlStmt := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
+	res, err := tx.ExecContext(ctx, sqlStmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "new activity")
+	}
+	actID, _ := res.LastInsertId()
+	return actID, nil
+}
+
+func insertActivityHosts(ctx context.Context, tx sqlx.ExtContext, links []activityHostLink) error {
+	const insertActHostStmt = `INSERT INTO activity_host_past (host_id, activity_id) VALUES `
+
+	var sb strings.Builder
+	for _, link := range links {
+		for _, hid := range link.hostIDs {
+			sb.WriteString(fmt.Sprintf("(%d, %d),", hid, link.activityID))
 		}
-
-		// Insert into activity_host_past table if the activity is associated with hosts.
-		// This supposes a reasonable amount of hosts per activity, to revisit if we
-		// get in the 10K+.
-		if ah, ok := activity.(types.ActivityHosts); ok {
-			const insertActHostStmt = `INSERT INTO activity_host_past (host_id, activity_id) VALUES `
-
-			var sb strings.Builder
-			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
-				sb.WriteString(insertActHostStmt)
-				actID, _ := res.LastInsertId()
-				for _, hid := range hostIDs {
-					sb.WriteString(fmt.Sprintf("(%d, %d),", hid, actID))
-				}
-
-				stmt := strings.TrimSuffix(sb.String(), ",")
-				if _, err := tx.ExecContext(ctx, stmt); err != nil {
-					return ctxerr.Wrap(ctx, err, "insert host activity")
-				}
-			}
-		}
+	}
+	if sb.Len() == 0 {
 		return nil
-	}, ds.logger)
+	}
+	stmt := insertActHostStmt + strings.TrimSuffix(sb.String(), ",")
+	if _, err := tx.ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert host activity")
+	}
+	return nil
 }
