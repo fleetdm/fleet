@@ -225,38 +225,39 @@
   query: |
     SELECT 'root_in_cert_store' AS finding, common_name AS item,
            store_location || '\' || store || ' user=' || username AS detail,
-           CASE sha1
+           CASE lower(sha1)
              WHEN '3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1' THEN 'ROOT_TRUSTED emSign ECC Root CA - G3'
              WHEN 'd1eb23a46d17d68fd92564c2f1f1601764d8e349' THEN 'ROOT_TRUSTED AAA Certificate Services (Sectigo cross-sign path)'
              WHEN '39d3236e4a609ab6190cbfa1ad02b3cc61dfc2c3' THEN 'ROOT_TRUSTED emSign Root TLS CA - G3 (Microsoft root store)'
              ELSE 'ROOT_TRUSTED emSign Root CS CA - G3 (Microsoft root store, code signing)'
            END AS status
     FROM certificates
-    WHERE sha1 IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1',
-                   'd1eb23a46d17d68fd92564c2f1f1601764d8e349',
-                   '39d3236e4a609ab6190cbfa1ad02b3cc61dfc2c3',
-                   '1f74b6010a219fd9ca058d07aa053d15efd9300d')
+    WHERE store NOT IN ('Untrusted Certificates', 'Disallowed')
+      AND lower(sha1) IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1',
+                          'd1eb23a46d17d68fd92564c2f1f1601764d8e349',
+                          '39d3236e4a609ab6190cbfa1ad02b3cc61dfc2c3',
+                          '1f74b6010a219fd9ca058d07aa053d15efd9300d')
     UNION ALL
     SELECT 'compromised_intermediate_present', common_name,
            store_location || '\' || store || ' user=' || username || ' sha1=' || sha1, 'IOC_HIT investigate (cached intermediate or code-signing chain seen)'
     FROM certificates
-    WHERE store <> 'Untrusted Certificates'
-      AND (subject_key_id IN ('e21e2fe71c19390e554b62c120245735248a2514',  -- EM DV TLS CA - G3B
-                             '9bd86551afe7e72c37ad08ee6919d9bf3784ae0a',  -- EM OV TLS CA - G3B
-                             '3edc20d9894698877b873fd88147b25c15d84706',  -- EM EV TLS CA - G3B
-                             'ae7e105c3c2996c1a847270559f1e03dd4e50af3',  -- EM DV TLS CA - G3C
-                             '34eaea0cebc90adaf9d0c5e2ed9b78c9879e1b6c',  -- EM OV TLS CA - G3C
-                             'a6255e80a94db7f3967c1bc791df92bcee4beb5f',  -- EM EV TLS CA - G3C
-                             '79fae8eccfdb0d758da458d69fb6eddc7c49dee6',  -- EM OV CS CA - G3B
-                             'ee6f73298d6fbfa7b31bc39534f61556447866b7') -- EM OV CS CA - G3C
-       OR sha1 IN ('a99b289464f3b44343270a7a1e910f02370483fe','1396be1372bc93dfa2a433ca964dba91548a6e57',
-                   '5f014e0db3bb8f950e0598ab280846d383fc57be','5dfa19197d1c1cf629af7c0cd865543c5050227c',
-                   'f33acd1f5d31aa81ac18c72c928446226d3d5914','19069bd6533bff93fb67c71fb3376b4ea7402c3b',
-                   '8ad23bc78845d6faae1d534bac89f0e36ba55a11','4b0944c14f8c2ccba4e4f32104ad920fa15ee331',
-                   '7fcc31aab874ce6c8ee8584f54cfd08646b54117','305fc1e253dcab71b95d4995dae3cb09d562f22a',
-                   'c988f3d0cc1629ffc43165d6464c9b6ef73d6e48','8588708e875a1f8aa83524f3559080f7e17068c7',
-                   'd33195a244046a3263fb5e0e83c6803a5b2e7bc3','ee26d7ae3cc71718f6e07d7d0095076f0c158f63',
-                   '1f4a5d178f8b6a8ef0f6784155bd5fea91158b12','7fde64753a957b98f172fd2ab0d922551909c7ba'))
+    WHERE store NOT IN ('Untrusted Certificates', 'Disallowed')
+      AND (lower(subject_key_id) IN ('e21e2fe71c19390e554b62c120245735248a2514',  -- EM DV TLS CA - G3B
+                                    '9bd86551afe7e72c37ad08ee6919d9bf3784ae0a',  -- EM OV TLS CA - G3B
+                                    '3edc20d9894698877b873fd88147b25c15d84706',  -- EM EV TLS CA - G3B
+                                    'ae7e105c3c2996c1a847270559f1e03dd4e50af3',  -- EM DV TLS CA - G3C
+                                    '34eaea0cebc90adaf9d0c5e2ed9b78c9879e1b6c',  -- EM OV TLS CA - G3C
+                                    'a6255e80a94db7f3967c1bc791df92bcee4beb5f',  -- EM EV TLS CA - G3C
+                                    '79fae8eccfdb0d758da458d69fb6eddc7c49dee6',  -- EM OV CS CA - G3B
+                                    'ee6f73298d6fbfa7b31bc39534f61556447866b7') -- EM OV CS CA - G3C
+       OR lower(sha1) IN ('a99b289464f3b44343270a7a1e910f02370483fe','1396be1372bc93dfa2a433ca964dba91548a6e57',
+                          '5f014e0db3bb8f950e0598ab280846d383fc57be','5dfa19197d1c1cf629af7c0cd865543c5050227c',
+                          'f33acd1f5d31aa81ac18c72c928446226d3d5914','19069bd6533bff93fb67c71fb3376b4ea7402c3b',
+                          '8ad23bc78845d6faae1d534bac89f0e36ba55a11','4b0944c14f8c2ccba4e4f32104ad920fa15ee331',
+                          '7fcc31aab874ce6c8ee8584f54cfd08646b54117','305fc1e253dcab71b95d4995dae3cb09d562f22a',
+                          'c988f3d0cc1629ffc43165d6464c9b6ef73d6e48','8588708e875a1f8aa83524f3559080f7e17068c7',
+                          'd33195a244046a3263fb5e0e83c6803a5b2e7bc3','ee26d7ae3cc71718f6e07d7d0095076f0c158f63',
+                          '1f4a5d178f8b6a8ef0f6784155bd5fea91158b12','7fde64753a957b98f172fd2ab0d922551909c7ba'))
     UNION ALL
     -- Explicit block added by remediate-emudhra-ca-compromise-windows.ps1. "Untrusted Certificates" is the English
     -- display name of the Disallowed store. Microsoft's own CTL block does not show up here.
@@ -266,15 +267,15 @@
                 ELSE 'NOT_PRESENT run the remediation script for an explicit block' END
     FROM certificates
     WHERE store_location = 'LocalMachine'
-      AND store = 'Untrusted Certificates'
-      AND sha1 IN ('a99b289464f3b44343270a7a1e910f02370483fe','1396be1372bc93dfa2a433ca964dba91548a6e57',
-                   '5f014e0db3bb8f950e0598ab280846d383fc57be','5dfa19197d1c1cf629af7c0cd865543c5050227c',
-                   'f33acd1f5d31aa81ac18c72c928446226d3d5914','19069bd6533bff93fb67c71fb3376b4ea7402c3b',
-                   '8ad23bc78845d6faae1d534bac89f0e36ba55a11','4b0944c14f8c2ccba4e4f32104ad920fa15ee331',
-                   '7fcc31aab874ce6c8ee8584f54cfd08646b54117','305fc1e253dcab71b95d4995dae3cb09d562f22a',
-                   'c988f3d0cc1629ffc43165d6464c9b6ef73d6e48','8588708e875a1f8aa83524f3559080f7e17068c7',
-                   'd33195a244046a3263fb5e0e83c6803a5b2e7bc3','ee26d7ae3cc71718f6e07d7d0095076f0c158f63',
-                   '1f4a5d178f8b6a8ef0f6784155bd5fea91158b12','7fde64753a957b98f172fd2ab0d922551909c7ba')
+      AND store IN ('Untrusted Certificates', 'Disallowed')
+      AND lower(sha1) IN ('a99b289464f3b44343270a7a1e910f02370483fe','1396be1372bc93dfa2a433ca964dba91548a6e57',
+                          '5f014e0db3bb8f950e0598ab280846d383fc57be','5dfa19197d1c1cf629af7c0cd865543c5050227c',
+                          'f33acd1f5d31aa81ac18c72c928446226d3d5914','19069bd6533bff93fb67c71fb3376b4ea7402c3b',
+                          '8ad23bc78845d6faae1d534bac89f0e36ba55a11','4b0944c14f8c2ccba4e4f32104ad920fa15ee331',
+                          '7fcc31aab874ce6c8ee8584f54cfd08646b54117','305fc1e253dcab71b95d4995dae3cb09d562f22a',
+                          'c988f3d0cc1629ffc43165d6464c9b6ef73d6e48','8588708e875a1f8aa83524f3559080f7e17068c7',
+                          'd33195a244046a3263fb5e0e83c6803a5b2e7bc3','ee26d7ae3cc71718f6e07d7d0095076f0c158f63',
+                          '1f4a5d178f8b6a8ef0f6784155bd5fea91158b12','7fde64753a957b98f172fd2ab0d922551909c7ba')
     UNION ALL
     -- Microsoft's 2026-10-20 block ships through the Disallowed CTL auto-update (CTL Updater), not Windows Update.
     SELECT 'ctl_autoupdate_policy', name, 'data=' || data,
@@ -285,12 +286,18 @@
     WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SystemCertificates\AuthRoot'
       AND name IN ('DisableRootAutoUpdate', 'EnableDisallowedCertAutoUpdate')
     UNION ALL
-    SELECT 'disallowed_ctl_sync', name, 'key_mtime=' || datetime(mtime, 'unixepoch') || 'Z',
-           CASE WHEN mtime >= 1792454400 THEN 'OK_AUTOUPDATE_KEY_WRITTEN_SINCE_2026-10-20'
+    -- data is a little-endian FILETIME as hex; reversing the bytes gives big-endian hex that compares as text.
+    -- 01DD6025F3200000 is 2026-10-20 00:00Z.
+    SELECT 'disallowed_ctl_sync', name, 'filetime_le=' || data,
+           CASE WHEN length(data) = 16
+                 AND substr(data, 15, 2) || substr(data, 13, 2) || substr(data, 11, 2) || substr(data, 9, 2)
+                  || substr(data, 7, 2) || substr(data, 5, 2) || substr(data, 3, 2) || substr(data, 1, 2)
+                  >= '01DD6025F3200000'
+                THEN 'OK_DISALLOWED_CTL_SYNCED_SINCE_2026-10-20'
                 ELSE 'NOT_SYNCED_SINCE_BLOCK (offline, WSUS-only, or policy)' END
     FROM registry
     WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\SystemCertificates\AuthRoot\AutoUpdate'
-      AND name IN ('DisallowedCertLastSyncTime', 'LastSyncTime')
+      AND name = 'DisallowedCertLastSyncTime'
     UNION ALL
     SELECT 'python_certifi', name || ' uid=' || uid, version || ' ' || path,
            CASE WHEN CAST(substr(version, 1, 4) AS INTEGER) * 10000

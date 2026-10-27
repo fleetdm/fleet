@@ -326,6 +326,8 @@ func TestErrorMessage(t *testing.T) {
 			"503 Service Unavailable Service Unavailable",
 		},
 		{"long text is cut", strings.Repeat("a", 300), strings.Repeat("a", 200)},
+		{"the cut doesn't split a character", strings.Repeat("a", 199) + "é", strings.Repeat("a", 199)},
+		{"invalid UTF-8 is dropped", "bad\xffbody", "badbody"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, errorMessage([]byte(tt.body)))
