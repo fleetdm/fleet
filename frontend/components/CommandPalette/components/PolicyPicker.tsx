@@ -107,7 +107,7 @@ const PolicyPicker = ({
         const showCriticalBadge = isPremiumTier && policy.critical;
         const showPatchBadge = policy.type === "patch";
         const showInheritedBadge =
-          isViewingSpecificTeam && policy.team_id === null;
+          isViewingSpecificTeam && policy.fleet_id === null;
 
         return (
           <Command.Item

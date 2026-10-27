@@ -82,7 +82,7 @@ const WINDOWS_XML = `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/
 
 const existingProfile: IMdmProfile = {
   profile_uuid: "w-123",
-  team_id: 0,
+  fleet_id: 0,
   name: "Existing Windows",
   description: "Existing description",
   platform: "windows",
@@ -565,7 +565,7 @@ describe("ProfileFormPage", () => {
     it("shows an existing profile's targets read-only when its MDM is off", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
-        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+        .mockResolvedValue({ ...existingProfile, fleet_id: 1 });
       const { user } = renderPage(
         existingProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, false, {
@@ -586,7 +586,7 @@ describe("ProfileFormPage", () => {
     it("opens with an existing profile's targets and replaces them on save", async () => {
       jest.spyOn(configProfileAPI, "getConfigProfile").mockResolvedValue({
         ...existingProfile,
-        team_id: 1,
+        fleet_id: 1,
         labels_exclude_any: [{ name: "Contractors", id: 2 }],
       });
       const { user } = renderPage(existingProfile.profile_uuid, premiumRender, {
@@ -614,7 +614,7 @@ describe("ProfileFormPage", () => {
     it("shows the targets read-only in GitOps mode", async () => {
       jest
         .spyOn(configProfileAPI, "getConfigProfile")
-        .mockResolvedValue({ ...existingProfile, team_id: 1 });
+        .mockResolvedValue({ ...existingProfile, fleet_id: 1 });
       const { user } = renderPage(
         existingProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, true),
@@ -714,7 +714,7 @@ describe("ProfileFormPage", () => {
     });
     jest
       .spyOn(configProfileAPI, "getConfigProfile")
-      .mockResolvedValue({ ...existingProfile, team_id: 3 });
+      .mockResolvedValue({ ...existingProfile, fleet_id: 3 });
 
     const { router } = renderPage(
       existingProfile.profile_uuid,
@@ -750,7 +750,7 @@ describe("ProfileFormPage", () => {
     });
     jest
       .spyOn(configProfileAPI, "getConfigProfile")
-      .mockResolvedValue({ ...existingProfile, team_id: 3 });
+      .mockResolvedValue({ ...existingProfile, fleet_id: 3 });
 
     const { router } = renderPage(
       existingProfile.profile_uuid,
