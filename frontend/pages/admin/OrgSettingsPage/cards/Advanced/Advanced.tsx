@@ -34,6 +34,7 @@ interface IAdvancedConfigFormData {
   preserveHostActivitiesOnReenrollment: boolean;
   disableHostsActive: boolean;
   disableVulnerabilities: boolean;
+  enableProfileValidation: boolean;
 }
 
 interface IAdvancedConfigFormErrors {
@@ -137,6 +138,7 @@ const Advanced = ({
     disableVulnerabilities: !(
       appConfig.features?.historical_data?.vulnerabilities ?? true
     ),
+    enableProfileValidation: appConfig.mdm.enable_profile_validation,
   });
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
@@ -209,6 +211,7 @@ const Advanced = ({
         apple_require_hardware_attestation: formData.requireHardwareAttestation,
         only_allow_apple_business_enrollment:
           formData.onlyAllowAppleBusinessEnrollment,
+        enable_profile_validation: formData.enableProfileValidation,
       },
       sso_settings: {
         sso_server_url: formData.ssoUserURL,

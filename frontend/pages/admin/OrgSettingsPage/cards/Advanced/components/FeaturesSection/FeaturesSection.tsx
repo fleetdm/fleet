@@ -10,7 +10,12 @@ const FeaturesSection = ({
   formData,
   onInputChange,
 }: IAdvancedSectionProps) => {
-  const { disableLiveQuery, disableScripts, disableAIFeatures } = formData;
+  const {
+    disableLiveQuery,
+    disableScripts,
+    disableAIFeatures,
+    enableProfileValidation,
+  } = formData;
 
   return (
     <SettingsSection title="Features">
@@ -103,6 +108,37 @@ const FeaturesSection = ({
             helpText="When enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn't use this data to train models."
           >
             Generative AI
+          </Checkbox>
+        )}
+      />
+      <GitOpsModeTooltipWrapper
+        position="left"
+        renderChildren={(disableChildren) => (
+          <Checkbox
+            disabled={disableChildren}
+            onChange={() =>
+              onInputChange({
+                name: "enableProfileValidation",
+                value: !enableProfileValidation,
+              })
+            }
+            name="enableProfileValidation"
+            value={enableProfileValidation}
+            labelTooltipContent={
+              !disableChildren && (
+                <>
+                  Currently supported for Apple and Windows configuration
+                  profiles. When disabled, Fleet does not check that each
+                  setting it recognizes has a value of the expected type.
+                  <br />
+                  <i>
+                    (Default: <strong>On</strong>)
+                  </i>
+                </>
+              )
+            }
+          >
+            Profile Validation
           </Checkbox>
         )}
       />
