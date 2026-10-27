@@ -36,7 +36,7 @@ func TestUp_20261027034724(t *testing.T) {
 	// re-running is safe
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20261026092108(tx))
+	require.NoError(t, Up_20261027034724(tx))
 	require.NoError(t, tx.Commit())
 	assertStored(t)
 }
