@@ -148,6 +148,7 @@ const LoginForm = ({
           label="Password"
           placeholder="Password"
           type="password"
+          enableShowPassword
           ignore1Password={false}
           disabled={isSubmitting}
         />
