@@ -1004,7 +1004,7 @@ When editing a CA, specify one object and only its fields that you want to updat
 
 When you change a DigiCert CA's `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Changing only other fields, like `url` or `api_token`, doesn't reissue certificates.
 
-When you change an EJBCA CA's `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Changing only other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates.
+When you change an EJBCA CA's `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Only changing other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates.
 
 To replace the client certificate of an EJBCA CA, send `client_p12` and `password` together. Fleet keeps the stored client certificate until EJBCA accepts the new one. Fleet never returns `client_p12` or `password`, and ignores either one when it's `********`. Fleet checks the connection to EJBCA when you change `url`, `client_p12`, `trust_ca_bundle`, `certificate_authority_name`, or `certificate_profile_name`.
 
