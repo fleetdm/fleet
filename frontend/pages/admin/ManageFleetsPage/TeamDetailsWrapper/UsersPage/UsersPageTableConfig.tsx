@@ -231,8 +231,8 @@ const enhanceUsersData = (
     return {
       name: user.name,
       email: user.email,
-      role: generateRole(teamId, user.teams),
-      teams: user.teams,
+      role: generateRole(teamId, user.fleets),
+      teams: user.fleets,
       sso_enabled: user.sso_enabled,
       mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,

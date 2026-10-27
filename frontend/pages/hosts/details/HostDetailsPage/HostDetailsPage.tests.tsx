@@ -107,7 +107,7 @@ const stubQueries = (host: IHost) => {
     count: 0,
     meta: { has_next_results: false, has_previous_results: false },
   });
-  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ teams: [] });
+  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ fleets: [] });
   (commandAPI.getCommands as jest.Mock).mockResolvedValue({
     results: [],
     count: 0,

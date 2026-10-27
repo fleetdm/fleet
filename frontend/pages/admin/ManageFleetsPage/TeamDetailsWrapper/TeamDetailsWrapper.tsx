@@ -166,7 +166,9 @@ const TeamDetailsWrapper = ({
     {
       enabled: isRouteOk,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!responseTeams?.find((team) => team.id === teamIdForApi)) {
           handlePageError({ status: 404 });

@@ -79,7 +79,7 @@ const AccountSidePanel = ({
     global_role: globalRole,
     updated_at: updatedAt,
     sso_enabled: ssoEnabled,
-    teams,
+    fleets: teams,
   } = currentUser;
 
   const roleText = generateRole(teams, globalRole);

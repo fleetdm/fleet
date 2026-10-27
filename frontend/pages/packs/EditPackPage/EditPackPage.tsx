@@ -107,7 +107,7 @@ const EditPacksPage = ({
           ...label,
           target_type: "labels",
         })),
-        ...storedPack.teams.map((team) => ({
+        ...storedPack.fleets.map((team) => ({
           ...team,
           target_type: "teams",
         })),

@@ -49,7 +49,7 @@ export interface IUserFormData {
   sso_enabled: boolean;
   mfa_enabled?: boolean;
   global_role: UserRole | null;
-  teams: ITeam[];
+  fleets: ITeam[];
   currentUserId?: number;
   invited_by?: number;
   role?: UserRole;
@@ -194,7 +194,7 @@ const UserForm = ({
       sso_enabled: data.sso_enabled,
       mfa_enabled: data.mfa_enabled,
       global_role: data.global_role,
-      teams: data.teams,
+      fleets: data.teams,
       currentUserId,
     };
 
@@ -223,8 +223,8 @@ const UserForm = ({
     }
 
     return data.global_role !== null
-      ? { ...submitData, global_role: data.global_role, teams: [] }
-      : { ...submitData, global_role: null, teams: data.teams };
+      ? { ...submitData, global_role: data.global_role, fleets: [] }
+      : { ...submitData, global_role: null, fleets: data.teams };
   };
 
   const onValidSubmit = (data: UserFormState) =>

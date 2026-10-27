@@ -441,6 +441,7 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  fleets?: ITeamSummary[];
   /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
   time_before?: number;
   triggered_by?: string;

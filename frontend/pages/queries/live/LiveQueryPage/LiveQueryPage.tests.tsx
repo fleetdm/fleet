@@ -62,7 +62,7 @@ beforeEach(() => {
     http.get(baseUrl("/hosts/42"), () =>
       HttpResponse.json({ host: createMockHost({ id: 42 }) })
     ),
-    http.get(baseUrl("/fleets"), () => HttpResponse.json({ teams: [] })),
+    http.get(baseUrl("/fleets"), () => HttpResponse.json({ fleets: [] })),
     http.get(baseUrl("/labels/summary"), () =>
       HttpResponse.json({
         labels: [{ id: 1, name: "All Hosts", label_type: "builtin" }],
