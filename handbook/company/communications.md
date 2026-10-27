@@ -20,6 +20,8 @@ This is the _single source of truth_ for Fleet's strategy, positioning, past, an
   - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
   - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
   - Find all planned events for the next few quarters in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).
+  - Fleet covers every "big 5" conference (there are more than 5), every time. Covering a conference means that at each one we always sponsor, submit a talk, host or submit a workshop, and host a dinner.
+  - Event budget for upcoming quarters is defined as part of the marketing program spend. Find quarterly event budgets in the confidential marketing budget Google doc. <!-- TODO: add link to confidential marketing budget doc, and a short note on how to read it -->
 - In the [🌗 OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about current and upcoming quarterly goals, and the company's progress towards them.
 - See how Fleet measures everyday excellence and success, goals, and historical numbers in [📈 KPIs (confidential doc, includes revenue information)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
