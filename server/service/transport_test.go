@@ -204,7 +204,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"all params defined (deprecated)": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
-				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
+				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
@@ -265,13 +265,13 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?status=foo",
 			errorMessage: "Invalid status",
 		},
-		"error in team_id (number too large)": {
-			url:          "/foo?team_id=9,223,372,036,854,775,808",
-			errorMessage: "Invalid team_id",
+		"error in fleet_id (number too large)": {
+			url:          "/foo?fleet_id=9,223,372,036,854,775,808",
+			errorMessage: "Invalid fleet_id",
 		},
-		"error in team_id (not a number)": {
-			url:          "/foo?team_id=foo",
-			errorMessage: "Invalid team_id",
+		"error in fleet_id (not a number)": {
+			url:          "/foo?fleet_id=foo",
+			errorMessage: "Invalid fleet_id",
 		},
 		"error in policy_id": {
 			url:          "/foo?policy_id=foo",
@@ -546,10 +546,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			errorMessage: "Invalid macos_bootstrap_package",
 		},
 		// Conflict: both old and new param names specified
-		"error when both team_id and fleet_id specified": {
-			url:          "/foo?team_id=1&fleet_id=2",
-			errorMessage: "Cannot specify both team_id and fleet_id",
-		},
 		"error when both macos_settings and apple_settings specified": {
 			url:          "/foo?macos_settings=pending&apple_settings=verified",
 			errorMessage: "Cannot specify both macos_settings and apple_settings",
@@ -702,7 +698,7 @@ func TestUserListOptionsFromRequest(t *testing.T) {
 			},
 		},
 		"all params defined": {
-			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&team_id=1",
+			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&fleet_id=1",
 			userListOptions: fleet.UserListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -717,13 +713,13 @@ func TestUserListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?page=-1",
 			errorMessage: "negative page value",
 		},
-		"error in team_id (negative_number)": {
-			url:          "/foo?team_id=-1",
-			errorMessage: "Invalid team_id",
+		"error in fleet_id (negative_number)": {
+			url:          "/foo?fleet_id=-1",
+			errorMessage: "Invalid fleet_id",
 		},
-		"error in team_id (not a number)": {
-			url:          "/foo?team_id=foo",
-			errorMessage: "Invalid team_id",
+		"error in fleet_id (not a number)": {
+			url:          "/foo?fleet_id=foo",
+			errorMessage: "Invalid fleet_id",
 		},
 	}
 

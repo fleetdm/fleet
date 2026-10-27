@@ -242,7 +242,7 @@ type MDMAppleConfigProfile struct {
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `db:"team_id" json:"fleet_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
@@ -719,7 +719,7 @@ type MDMApplePreassignProfile struct {
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
-	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID               *uint `json:"fleet_id"`
 	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
 }
 
@@ -731,7 +731,7 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID                      *uint   `json:"fleet_id"`
 	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
 	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
@@ -912,7 +912,7 @@ type MDMAppleCommand struct {
 // or no team.
 type MDMAppleSetupAssistant struct {
 	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID     *uint           `json:"fleet_id" db:"team_id"`
 	Name       string          `json:"name" db:"name"`
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
@@ -973,7 +973,7 @@ type MDMAppleDeclaration struct {
 
 	// TeamID is the id of the team with which the declaration is associated. A nil team id
 	// represents a declaration that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `db:"team_id" json:"fleet_id"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
@@ -2007,7 +2007,7 @@ type RawDDMAssetPayloadReference struct {
 // DDMAssetAuthz is used to check user authorization to read/write an
 // DDM asset.
 type DDMAssetAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -2030,7 +2030,7 @@ type ABReleaseDeviceResponse struct {
 
 // ABReleaseDeviceAuthz is used to check user authorization to release a device from AB.
 type ABReleaseDeviceAuthz struct {
-	TeamID *uint `json:"team_id,omitempty,omitzero"` // nolint:apiparamcheck // used for rego policy, and we only support team_id there.
+	TeamID *uint `json:"fleet_id,omitempty,omitzero"`
 }
 
 func (a ABReleaseDeviceAuthz) AuthzType() string {

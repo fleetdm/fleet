@@ -1606,7 +1606,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Greater(t, len(listActivities.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`, string(*listActivities.Activities[0].Details))
 
 	// try to set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

@@ -243,12 +243,12 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 type LabelWithTeamName struct {
 	Label
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -260,7 +260,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	TeamID      *uint     `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID      *uint     `json:"fleet_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -322,7 +322,7 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 const (

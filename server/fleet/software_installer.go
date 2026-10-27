@@ -71,7 +71,7 @@ type SoftwareInstallerURL struct {
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
@@ -165,7 +165,7 @@ type SoftwareInstaller struct {
 type SoftwarePackageResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// InstallerID is the row ID of the specific software_installers entry this
@@ -224,7 +224,7 @@ type SoftwareTitleIdentifier struct {
 type DeletedSoftwarePackage struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to
 	// hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID uint `json:"title_id" db:"title_id"`
 	// DisplayName is the team's display-name override for the title when
@@ -268,7 +268,7 @@ type BatchSetSoftwareInstallersResult struct {
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
@@ -650,7 +650,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 }
 
 type HostSoftwareInstallerResultAuthz struct {
-	HostTeamID *uint `json:"host_team_id" renameto:"host_fleet_id"`
+	HostTeamID *uint `json:"host_fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -1335,7 +1335,7 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
-	TeamID  uint `json:"team_id" renameto:"fleet_id"`
+	TeamID  uint `json:"fleet_id"`
 	// InstallerID pins the token to a specific package on a multi-package
 	// title. Zero means "fall back to the first-added package" so single-package
 	// titles and pre-multi-package callers keep working.

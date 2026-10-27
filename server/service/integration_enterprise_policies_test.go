@@ -121,7 +121,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	// Test merge inherited
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 2)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
@@ -311,7 +311,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 3)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
@@ -1152,7 +1152,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
 
 	// A reset_policy activity was recorded; global policies emit team_id/fleet_id: -1.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1,"fleet_id":-1}`, globalPolicy.ID), 0)
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","fleet_id":-1,"fleet_id":-1}`, globalPolicy.ID), 0)
 
 	// --- no-team policy ---
 	createNoTeamResp := fleet.TeamPolicyResponse{}
@@ -1185,7 +1185,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getNoTeamResp.Policy.PassingHostCount)
 
 	// Activity emitted with team_id/fleet_id: 0 and no team_name.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0,"fleet_id":0}`, noTeamPolicy.ID), 0)
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","fleet_id":0,"fleet_id":0}`, noTeamPolicy.ID), 0)
 
 	// --- team policy ---
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-team"})
@@ -1223,7 +1223,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// A reset_policy activity was recorded with team fields (both team_id/fleet_id and team_name/fleet_name).
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"fleet_id":%d,"team_name":"reset-policy-team","fleet_name":"reset-policy-team"}`,
+		`{"policy_id":%d,"policy_name":"reset-test-team","fleet_id":%d,"fleet_id":%d,"fleet_name":"reset-policy-team","fleet_name":"reset-policy-team"}`,
 		teamPolicy.ID, team.ID, team.ID,
 	), 0)
 
@@ -1261,7 +1261,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
 
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","fleet_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
 		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
 	), 0)
 

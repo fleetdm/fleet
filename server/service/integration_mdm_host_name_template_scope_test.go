@@ -72,7 +72,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateSecretScope() {
 			require.NotContains(t, c.CommandUUID, fleet.DeviceNameCommandUUIDPrefix)
 		}
 		var hosts listHostsResponse
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "team_id", fmt.Sprint(team.ID))
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "fleet_id", fmt.Sprint(team.ID))
 		for _, h := range hosts.Hosts {
 			require.NotEqual(t, secretValue, h.DisplayName)
 		}

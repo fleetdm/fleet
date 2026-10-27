@@ -495,9 +495,9 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
   roles:
     %s:
       global_role: null
-      teams:
+      fleets:
       - role: maintainer
-        team: team1
+        fleet: team1
 `,
 		email))
 
@@ -516,9 +516,9 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
   roles:
     %s:
       global_role: null
-      teams:
+      fleets:
       - role: maintainer
-        team: non-existent
+        fleet: non-existent
 `,
 		email))
 	userRoleSpec = applyUserRoleSpecsRequest{}

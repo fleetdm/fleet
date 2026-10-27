@@ -232,13 +232,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
+	Team string `json:"fleet"` // renameto doesn't actually do anything here but adding for visibility
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
+	Teams      []TeamRole `json:"fleets"` // renameto doesn't actually do anything here but adding for visibility
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {

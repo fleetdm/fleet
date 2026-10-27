@@ -244,9 +244,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
@@ -274,14 +274,14 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N2", "I2")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 	// enable FileVault
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"team_id":%d}`, tm.ID))), http.StatusNoContent)
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"fleet_id":%d}`, tm.ID))), http.StatusNoContent)
 
 	// add a setup experience script to run for this team
 	extraArgs := map[string][]string{
-		"team_id": {fmt.Sprintf("%d", tm.ID)},
+		"fleet_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "hello"`), s.token, extraArgs)
@@ -313,7 +313,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// remove the setup experience script, run the new setup experience flow when
 	// there is no setup experience item to process (so it is bypassed)
-	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
@@ -327,7 +327,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	}
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
-		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
 		s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: true,
 			TeamID:                &tm.ID,
@@ -385,16 +385,16 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N2", "I2")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
@@ -436,7 +436,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		"manual_agent_install":           opts.ManualAgentInstall,
 	}
 	if opts.TeamID != nil {
-		payload["team_id"] = *opts.TeamID
+		payload["fleet_id"] = *opts.TeamID
 		if opts.BootstrapPackage {
 			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 			require.NoError(t, err)
@@ -1842,10 +1842,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 		"mdm": {
 			"apple_business_manager": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q,
-			  "byod_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q,
+			  "byod_fleet": %q
 			}]
 		}
 	}`, tmOrgName, tm.Name, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)

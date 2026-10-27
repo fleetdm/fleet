@@ -132,7 +132,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	)
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 
 	// create a non-macOS host
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
@@ -247,7 +247,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	}
 	copy(wantTeamProfiles[1], teamProfiles[1])
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
@@ -266,7 +266,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Upload the same profiles again. No changes expected.
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
@@ -292,7 +292,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// Manually replace the expected secret variables in the profile
@@ -309,10 +309,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	assert.Empty(t, removes)
 
 	// Clear the profiles using the new (non-deprecated) endpoint.
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "fleet_id",
 		fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "fleet_id",
 		fmt.Sprint(tm.ID), "dry_run", "false")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
 	s.awaitTriggerProfileSchedule(t)
@@ -326,11 +326,11 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		{Name: "N5", Contents: teamProfiles[1]},
 		{Name: "NS1", Contents: teamProfiles[2]},
 	}}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I4", false)
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I5", false)
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
@@ -339,8 +339,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.signedProfilesMatch(wantTeamProfiles, installs)
 
 	// Upload the same profiles again. No changes expected.
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
@@ -365,8 +365,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		},
 	}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// Manually replace the expected secret variables in the profile
@@ -482,7 +482,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// add a declaration to the team
 	declIdent := "decl-ident-" + uuid.NewString()
 	fields := map[string][]string{
-		"team_id": {fmt.Sprintf("%d", tm.ID)},
+		"fleet_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewProfileMultipartRequest(
 		t, "some-declaration.json", declarationForTest(declIdent), s.token, fields,
@@ -924,7 +924,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.Empty(t, listResp.ConfigProfiles)
 
 		listResp = listMDMAppleConfigProfilesResponse{}
-		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &listResp)
+		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?fleet_id=%d`, testTeam.ID), nil, http.StatusOK, &listResp)
 		require.NotNil(t, listResp.ConfigProfiles) // expect empty slice instead of nil
 		require.Empty(t, listResp.ConfigProfiles)
 
@@ -954,7 +954,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.Equal(t, p1.Identifier, resp.ConfigProfiles[0].Identifier)
 
 		resp = listMDMAppleConfigProfilesResponse{}
-		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?fleet_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.ConfigProfiles)
 		require.Len(t, resp.ConfigProfiles, 1)
 		require.Equal(t, p2.Name, resp.ConfigProfiles[0].Name)
@@ -966,7 +966,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.NoError(t, err)
 
 		resp = listMDMAppleConfigProfilesResponse{}
-		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?fleet_id=%d`, testTeam.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.ConfigProfiles)
 		require.Len(t, resp.ConfigProfiles, 2)
 		for _, p := range resp.ConfigProfiles {
@@ -1428,7 +1428,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 	// create the team 1 enroll secret
 	var teamResp teamEnrollSecretsResponse
 	tm1EnrollSec := "team1_enroll_sec"
@@ -1445,7 +1445,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm2.ID))
+		"fleet_id", fmt.Sprint(tm2.ID))
 
 	// enroll a couple hosts in no team
 	h1, h1UserEnrollment, _ := createManualMDMEnrollWithOrbit(globalEnrollSec, true)
@@ -1652,7 +1652,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 
 	// add a profile to team 2 (h1 and h3 are now part of team 2)
 	body, headers = generateNewProfileMultipartRequest(t,
-		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm2.ID)}})
+		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm2.ID)}})
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -1780,7 +1780,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				t22Edited,
 				t23Content,
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm2.ID))
 	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -1816,13 +1816,13 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				t22Edited,
 				t23Content,
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm2.ID))
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
 			Profiles: [][]byte{
 				scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeUser),
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(tm1.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm1.ID))
 	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -1944,7 +1944,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		"label_prof",
 		mobileconfigForTest("label_prof", "label_prof"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprintf("%d", tm1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 
@@ -2076,7 +2076,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
 		args := map[string][]string{}
 		if teamID != nil {
-			args["team_id"] = []string{fmt.Sprintf("%d", *teamID)}
+			args["fleet_id"] = []string{fmt.Sprintf("%d", *teamID)}
 		}
 		return generateNewProfileMultipartRequest(t, "some_filename", testProfiles[name].Mobileconfig, s.token, args)
 	}
@@ -2299,7 +2299,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 
 		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+			"fleet_id": {fmt.Sprintf("%d", testTeam.ID)},
 		})
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 
@@ -2316,7 +2316,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 		cp.TeamID = &testTeam.ID
 		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+			"fleet_id": {fmt.Sprintf("%d", testTeam.ID)},
 		})
 
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
@@ -2891,7 +2891,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 
 	// create a second team with different profiles
 	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_profile_scope_changes_2"})
@@ -2904,17 +2904,17 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm2.ID))
+		"fleet_id", fmt.Sprint(tm2.ID))
 
 	// Do a no-op update of each team's profiles, verify no errors are returned
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm2.ID))
+		"fleet_id", fmt.Sprint(tm2.ID))
 
 	// Test a modification of an existing global profile with an implicit scope change
 	newGlobalProfiles := [][]byte{
@@ -2939,7 +2939,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	}
 	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
 	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
@@ -2954,7 +2954,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	}
 	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
 	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
@@ -2970,7 +2970,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	}
 	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
 	require.Contains(t, errMsg, "Couldn't add configuration profile. This profile has the same \"PayloadIdentifier\" but a different \"PayloadScope\" as another profile in a separate team.")
@@ -2983,7 +2983,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	}
 	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
 	require.Contains(t, errMsg, "Couldn't edit configuration profile (T1.3.user) because the profile's \"PayloadScope\" has changed")
@@ -2999,7 +2999,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusNoContent,
-		"team_id", fmt.Sprint(tm1.ID))
+		"fleet_id", fmt.Sprint(tm1.ID))
 }
 
 func (s *integrationMDMTestSuite) TestIPadOSUpdateDeclarationAfterMDMReset() {

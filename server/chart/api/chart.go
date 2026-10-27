@@ -134,11 +134,11 @@ const (
 )
 
 // Host is a minimal host type for authorization checks within the chart bounded context.
-// The JSON tags matter: the OPA rego policy reads object.team_id via the JSON-encoded
+// The JSON tags matter: the OPA rego policy reads object.fleet_id via the JSON-encoded
 // input, so renaming or dropping the tag silently breaks team-scoped authorization.
 type Host struct {
 	ID     uint  `json:"id"`
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"fleet_id"`
 }
 
 // AuthzType implements platform_authz.AuthzTyper.

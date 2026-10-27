@@ -143,14 +143,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return hopt, err
-	}
+	teamID := r.URL.Query().Get("fleet_id")
 	if teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", teamID)))
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", teamID)))
 		}
 		tid := uint(id)
 		hopt.TeamFilter = &tid
@@ -761,14 +758,11 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-	tid, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return userOpts, err
-	}
+	tid := r.URL.Query().Get("fleet_id")
 	if tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", tid)))
 		}
 		// GitHub CodeQL flags this as: Incorrect conversion between integer types. Previously waived: https://github.com/fleetdm/fleet/security/code-scanning/516
 		userOpts.TeamID = uint(teamID)

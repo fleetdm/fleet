@@ -24,7 +24,6 @@ import (
 
 var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"profile_uuid": "profile_uuid",
-	"team_id":      "team_id",
 	"fleet_id":     "team_id",
 	"name":         "name",
 	"platform":     "platform",

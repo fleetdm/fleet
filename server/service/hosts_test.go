@@ -5906,13 +5906,13 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "valid team filter",
 			filters: &map[string]interface{}{
-				"team_id": float64(1), // json unmarshals to float64
+				"fleet_id": float64(1), // json unmarshals to float64
 			},
 		},
 		{
 			name: "invalid team_id type",
 			filters: &map[string]interface{}{
-				"team_id": "invalid",
+				"fleet_id": "invalid",
 			},
 			has400Err: true,
 		},
@@ -5964,24 +5964,24 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "multiple valid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": float64(1),
-				"query":   "test",
+				"status":   "new",
+				"fleet_id": float64(1),
+				"query":    "test",
 			},
 		},
 		{
 			name: "mixed valid and invalid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": "invalid",
+				"status":   "new",
+				"fleet_id": "invalid",
 			},
 			has400Err: true,
 		},
 		{
 			name: "mixed invalid filters and valid filters (different order)",
 			filters: &map[string]interface{}{
-				"status":  "invalid",
-				"team_id": 1,
+				"status":   "invalid",
+				"fleet_id": 1,
 			},
 			has400Err: true,
 		},

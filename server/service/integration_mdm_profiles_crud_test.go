@@ -93,7 +93,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, filename, mobileconfigForTest(name, ident), s.token, fields,
@@ -116,7 +116,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(fmt.Sprintf(`{
@@ -149,9 +149,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedMacosProfile{}.ActivityName(), wantJSON, 0)
 
@@ -163,9 +163,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "identifier": %q}`, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "identifier": %q}`, name, ident)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedDeclarationProfile{}.ActivityName(), wantJSON, 0)
 
@@ -175,7 +175,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t,
@@ -204,9 +204,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedWindowsProfile{}.ActivityName(), wantJSON, 0)
 
@@ -216,7 +216,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile := func(filename string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(`{
@@ -245,9 +245,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedAndroidProfile{}.ActivityName(), wantJSON, 0)
 
@@ -585,7 +585,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	require.Empty(t, deleteResp.Warning)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedDeclarationProfile{}.ActivityName(),
-		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	// delete non-existing Apple declaration
@@ -613,7 +613,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
-		`{"profile_name": "android-global-profile", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"profile_name": "android-global-profile", "fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	// turn off Android MDM
@@ -625,7 +625,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, testTeam.ID, testTeam.Name, testTeam.ID, testTeam.Name),
+		fmt.Sprintf(`{"profile_name": "android-team-profile", "fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`, testTeam.ID, testTeam.Name, testTeam.ID, testTeam.Name),
 		0,
 	)
 	// delete non-existing Android profiles
@@ -796,7 +796,7 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 			identJSON = fmt.Sprintf(`"profile_identifier": %q, `, profileIdentifier)
 		}
 		wantJSON := fmt.Sprintf(
-			`{"profile_name": %q, %s"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+			`{"profile_name": %q, %s"fleet_id": null, "fleet_name": null, "fleet_id": null, "fleet_name": null}`,
 			profileName, identJSON,
 		)
 		s.lastActivityOfTypeMatches(activityName, wantJSON, 0)
@@ -1122,7 +1122,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// test that all fields are correctly returned with team 2
 	var listResp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm2.ID))
 	require.Len(t, listResp.Profiles, 3)
 	require.NotZero(t, listResp.Profiles[0].CreatedAt)
 	require.NotZero(t, listResp.Profiles[0].UploadedAt)
@@ -1221,7 +1221,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		},
 	}, getProfResp.MDMConfigProfilePayload)
 	// list for a non-existing team returns 404
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusNotFound, &listResp, "team_id", "99999")
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusNotFound, &listResp, "fleet_id", "99999")
 
 	cases := []struct {
 		queries   []string // alternate query name and value
@@ -1284,7 +1284,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			var listResp listMDMConfigProfilesResponse
 			queryArgs := c.queries
 			if c.teamID != nil {
-				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+				queryArgs = append(queryArgs, "fleet_id", fmt.Sprint(*c.teamID))
 			}
 			s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, queryArgs...)
 
@@ -1893,7 +1893,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 }`)
 
 	fields := make(map[string][]string)
-	fields["team_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
+	fields["fleet_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
 	body, headers := generateNewProfileMultipartRequest(t, "remove-user-disabled.json", bytes, s.token, fields)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	require.NotNil(t, res)
@@ -1970,7 +1970,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	teamFields := func(extra map[string][]string) map[string][]string {
-		fields := map[string][]string{"team_id": {fmt.Sprint(team.ID)}}
+		fields := map[string][]string{"fleet_id": {fmt.Sprint(team.ID)}}
 		maps.Copy(fields, extra)
 		return fields
 	}
@@ -1998,7 +1998,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	}
 	list := func() map[string]*fleet.MDMConfigProfilePayload {
 		var resp listMDMConfigProfilesResponse
-		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team.ID))
 		byUUID := make(map[string]*fleet.MDMConfigProfilePayload, len(resp.Profiles))
 		for _, p := range resp.Profiles {
 			byUUID[p.ProfileUUID] = p
@@ -2115,7 +2115,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	batch := func(profiles []fleet.BatchModifyMDMConfigProfilePayload, wantStatus int) {
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: profiles,
-		}, wantStatus, "team_id", fmt.Sprint(team.ID))
+		}, wantStatus, "fleet_id", fmt.Sprint(team.ID))
 	}
 	batch([]fleet.BatchModifyMDMConfigProfilePayload{
 		// padded like a hand-written YAML value; stored trimmed
@@ -2181,7 +2181,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	teamID := fmt.Sprint(team.ID)
 
 	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
-		fields["team_id"] = []string{teamID}
+		fields["fleet_id"] = []string{teamID}
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
 		defer res.Body.Close()
@@ -2239,7 +2239,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	require.True(t, get(forcedUUID).SelfService)
 
 	var listResp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "fleet_id", teamID)
 	for _, p := range listResp.Profiles {
 		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
 		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
@@ -2247,7 +2247,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 
 	// batch: the flip seeds opt-ins too, and is declarative for the flags
 	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "fleet_id", teamID)
 	}
 	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
 	var bUUID string
@@ -2263,7 +2263,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	require.True(t, get(bUUID).SelfService)
 	requireOptedIn("host-2", bUUID)
 	listResp = listMDMConfigProfilesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "fleet_id", teamID)
 	require.Len(t, listResp.Profiles, 3)
 	for _, p := range listResp.Profiles {
 		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)

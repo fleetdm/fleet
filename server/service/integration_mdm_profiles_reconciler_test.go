@@ -584,7 +584,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsPendingInstallFor
 	require.NoError(t, err)
 	for _, tm := range []*fleet.Team{teamA, teamB} {
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
-			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	}
 
 	profileUUIDForTeam := func(teamID uint) string {

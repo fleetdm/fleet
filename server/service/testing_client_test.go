@@ -968,7 +968,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 
 	// add the team_id field
 	if payload.TeamID != nil {
-		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
+		require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", *payload.TeamID)))
 	}
 	if payload.TitleID != nil {
 		require.NoError(t, w.WriteField("software_title_id", fmt.Sprintf("%d", *payload.TitleID)))
@@ -1054,7 +1054,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	if payload.TeamID != nil {
 		tmID = *payload.TeamID
 	}
-	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", tmID)))
 	if payload.InstallerID != 0 {
 		require.NoError(t, w.WriteField("installer_id", fmt.Sprintf("%d", payload.InstallerID)))
 	}

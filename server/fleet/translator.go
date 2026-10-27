@@ -3,7 +3,7 @@ package fleet
 const (
 	TranslatorTypeUserEmail = "user"
 	TranslatorTypeLabel     = "label"
-	TranslatorTypeTeam      = "team"
+	TranslatorTypeTeam      = "fleet"
 	TranslatorTypeHost      = "host"
 )
 

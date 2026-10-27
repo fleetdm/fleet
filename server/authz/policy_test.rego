@@ -1,6 +1,6 @@
 package authz
 
-team_user := {"teams": [
+team_user := {"fleets": [
 	{
 		"id": 4,
 		"role": "observer",
@@ -13,22 +13,22 @@ team_user := {"teams": [
 
 global_admin := {
 	"global_role": "admin",
-	"teams": [],
+	"fleets": [],
 }
 
 global_maintainer := {
 	"global_role": "maintainer",
-	"teams": [],
+	"fleets": [],
 }
 
 global_observer := {
 	"global_role": "observer",
-	"teams": [],
+	"fleets": [],
 }
 
 enroll_secret_team_4 := {
 	"type": "enroll_secret",
-	"team_id": 4,
+	"fleet_id": 4,
 }
 
 test_team_role {

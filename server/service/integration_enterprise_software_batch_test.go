@@ -270,7 +270,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	ctx := context.Background()
 
 	// non-existent team
-	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "fleet_name", "foo")
 
 	// create a team
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -283,13 +283,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{URL: "."},
 	}
-	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "fleet_name", tm.Name)
 
 	// software with a too big URL
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 4000-23)},
 	}
-	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "fleet_name", tm.Name)
 
 	// create an HTTP server to host the software installer
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +313,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		{URL: srv.URL + "/not_found.pkg"},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.NotEmpty(t, message)
 	expectedNotFoundMessage := fmt.Sprintf("validation failed: software.url URL (\"%s/not_found.pkg\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", srv.URL)
@@ -324,7 +324,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: rubyURL},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -345,31 +345,31 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			InstallScript: "echo $FLEET_SECRET_INVALID",
 		},
 	}
-	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "fleet_name", tm.Name)
 	errMsg := extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
-	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "fleet_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
 
 	softwareToInstallBadSecret[0].InstallScript = ""
 	softwareToInstallBadSecret[0].PostInstallScript = "echo $FLEET_SECRET_ALSO_INVALID"
-	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "fleet_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_ALSO_INVALID")
 
-	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "fleet_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
 
 	softwareToInstallBadSecret[0].PostInstallScript = ""
 	softwareToInstallBadSecret[0].UninstallScript = "echo $FLEET_SECRET_THIRD_INVALID"
-	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "fleet_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_THIRD_INVALID")
 
-	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "fleet_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Empty(t, errMsg)
 
@@ -380,7 +380,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			InstallScript: "#!/usr/bin/perl\nprint 'hello'",
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadShebang}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadShebang}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	message = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Contains(t, message, "Interpreter not supported")
 
@@ -388,7 +388,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// check the application status
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	require.Equal(t, 1, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
@@ -407,7 +407,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	})
 
 	// same payload doesn't modify anything
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -415,13 +415,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 	newTitlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// setting self-service to true updates the software title metadata
 	softwareToInstall[0].SelfService = true
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -429,7 +429,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 	newTitlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
@@ -437,11 +437,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// empty payload cleans the software items
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
 	titlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Empty(t, titlesResp.SoftwareTitles)
@@ -461,7 +461,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// check the application status on team 0
 	titlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id", strconv.Itoa(int(0)))
 	require.Equal(t, 1, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 
@@ -473,7 +473,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.Nil(t, packages[0].TeamID)
 	newTitlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "fleet_id", strconv.Itoa(int(0)))
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// setting self-service to true updates the software title metadata
@@ -485,7 +485,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.Nil(t, packages[0].TeamID)
 	newTitlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "fleet_id", strconv.Itoa(int(0)))
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
@@ -574,7 +574,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
 	require.Empty(t, packages)
 	titlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id", strconv.Itoa(int(0)))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Empty(t, titlesResp.SoftwareTitles)
 
@@ -623,7 +623,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Contains(t, softwareTitleResponse.SoftwareTitle.SoftwarePackage.UninstallScript, "LOGGED_IN_USER") // should pass through FMA script
 
 	// with a team
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -725,7 +725,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// Given that the manifest returns "latest", the version should be parsed from the downloaded file.
 	titleResponse := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
 
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
@@ -769,20 +769,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDryRunEmp
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
 		batchSetSoftwareInstallersRequest{Software: nil},
-		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+		http.StatusAccepted, &batchResp, "fleet_name", tm.Name)
 	require.Empty(t, batchResp.RequestUUID, "dry-run + nil software should return empty request_uuid")
 
 	// Same with an explicitly empty slice.
 	batchResp = batchSetSoftwareInstallersResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
-		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+		http.StatusAccepted, &batchResp, "fleet_name", tm.Name)
 	require.Empty(t, batchResp.RequestUUID, "dry-run + empty software should return empty request_uuid")
 
 	// Genuine-miss path on the result endpoint must still 404. The short-circuit
 	// doesn't change that contract for unknown UUIDs.
 	s.Do("GET", "/api/latest/fleet/software/batch/00000000-0000-0000-0000-000000000000",
-		nil, http.StatusNotFound, "team_name", tm.Name)
+		nil, http.StatusNotFound, "fleet_name", tm.Name)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffects() {
@@ -816,7 +816,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		{URL: srv.URL},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -824,11 +824,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 	require.Equal(t, srv.URL, packages[0].URL)
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	uploadedAt := titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt
 
 	// create a host that doesn't have fleetd installed
@@ -882,7 +882,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 
 	// Switch self-service flag
 	softwareToInstall[0].SelfService = true
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -890,7 +890,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 	require.Equal(t, srv.URL, packages[0].URL)
 	newTitlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
 	require.True(t, *newTitlesResp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
@@ -903,7 +903,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	withUpdatedPreinstallQuery := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, PreInstallQuery: "SELECT * FROM os_version"},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedPreinstallQuery}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedPreinstallQuery}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -912,7 +912,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, srv.URL, packages[0].URL)
 	titleResponse = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, "SELECT * FROM os_version", titleResponse.SoftwareTitle.SoftwarePackage.PreInstallQuery)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
 
@@ -935,7 +935,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 
 	// ensure install count is updated
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
 
@@ -948,7 +948,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	withUpdatedInstallScript := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, InstallScript: "apt install ruby"},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -958,7 +958,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 
 	// ensure install count is the same, and uploaded_at hasn't changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
 	require.Equal(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
@@ -970,7 +970,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 
 	trailer = " " // add a character to the response for the installer HTTP call to ensure the file hashes differently
 	// update package
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -980,7 +980,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 
 	// ensure install count is zeroed and uploaded_at HAS changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
 	require.NotEqual(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
@@ -1013,7 +1013,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, fleet.SoftwareUninstallPending, *afterPreinstallHostResp.Software[0].Status)
 
 	// delete all installers
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}}, http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
 
@@ -1083,7 +1083,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersMSIReuseP
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: payloads},
-			http.StatusAccepted, &resp, "team_name", teamName, "dry_run", strconv.FormatBool(dryRun))
+			http.StatusAccepted, &resp, "fleet_name", teamName, "dry_run", strconv.FormatBool(dryRun))
 		result := waitBatchSetSoftwareInstallers(t, &s.withServer, teamName, resp.RequestUUID)
 		require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status, result.Message)
 		return result.DeletedPackages
@@ -1182,7 +1182,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	firstHash := packages[0].HashSHA256
@@ -1190,13 +1190,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp,
-		"available_for_install", "true", "team_id", fmt.Sprint(tm.ID))
+		"available_for_install", "true", "fleet_id", fmt.Sprint(tm.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
 
 	titleResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	firstUploadedAt := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
 
 	mu.Lock()
@@ -1208,14 +1208,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	// should reuse the cached installer (uploaded_at must not change).
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.Equal(t, firstHash, packages[0].HashSHA256, "hash must match on cache hit")
 
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, firstUploadedAt, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
 		"uploaded_at must not change on 304 cache hit")
 
@@ -1231,7 +1231,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	withBadScript := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, InstallScript: oversizeScript}}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: withBadScript},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	msg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Contains(t, msg, "install script")
 
@@ -1241,7 +1241,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	withAlwaysDownload := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, AlwaysDownload: true}}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: withAlwaysDownload},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	_ = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 
 	mu.Lock()
@@ -1255,7 +1255,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	// "warm-up" download required.
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	uploadedAtBeforeConditional := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
 
 	mu.Lock()
@@ -1264,13 +1264,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, uploadedAtBeforeConditional, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
 		"uploaded_at must not change when ETag from prior always_download run is reused")
 
@@ -1293,20 +1293,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	uploadedAtBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
 	hashBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.StorageID
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotEqual(t, hashBeforeContentChange, packages[0].HashSHA256, "hash must change when upstream content changes")
 
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 	require.NotEqual(t, uploadedAtBeforeContentChange, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
 		"uploaded_at must advance when bytes are re-downloaded")
 
@@ -1324,7 +1324,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 
@@ -1386,7 +1386,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 		},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1403,7 +1403,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 			URL: srv.URL + "/ruby.deb",
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	sort.Slice(packages, func(i, j int) bool {
 		return packages[i].URL < packages[j].URL
@@ -1425,7 +1425,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -1442,7 +1442,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 
 	// Get rid of all installers in team1.
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
 
@@ -1452,13 +1452,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	require.Nil(t, policy1Team1.SoftwareInstallerID)
 	// team1 should be empty.
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(team1.ID))
 	require.Equal(t, 0, titlesResp.Count)
 
 	// team2 should be untouched.
 	titlesResp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(team2.ID))
 	require.Equal(t, 2, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 2)
@@ -1529,20 +1529,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 		{URL: rubyURL, SHA256: "foobar"},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	errMsg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Equal(t, fmt.Sprintf("downloaded installer hash does not match provided hash for installer with url %s", rubyURL), errMsg)
 
 	// payload without URL or hash should fail
 	softwareToInstall[0].SHA256 = ""
 	softwareToInstall[0].URL = ""
-	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "fleet_name", team1.Name)
 	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.")
 
 	// Pass in valid URL
 	softwareToInstall[0].URL = rubyURL
 	softwareToInstall[0].SHA256 = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1562,7 +1562,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[0].SHA256 = debHash
 
 	// dry run shouldn't hit the download endpoint since we included the SHA
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name, "dry_run", "true")
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1573,7 +1573,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	// since we provided the SHA and we'd already added the installer, we should not hit the
 	// download endpoint
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1584,7 +1584,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	// check that URL comes back on individual title fetch
 	stResp := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "fleet_id", fmt.Sprint(team1.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 	require.Equal(t, "ruby", stResp.SoftwareTitle.Name)
 	require.Equal(t, rubyURL, stResp.SoftwareTitle.SoftwarePackage.URL)
@@ -1620,20 +1620,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
 	// this should fail
 	softwareToInstall[0].URL = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "package not found with hash")
 
 	// user doesn't have access to team1: we should hit the download endpoint
 	softwareToInstall[0].URL = rubyURL
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name, "dry_run", "true")
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
 	require.True(t, hitDebURL)
 	hitDebURL = false
 
 	// same for real run
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1646,7 +1646,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
 	// downloaded it just above
 	softwareToInstall[0].URL = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1658,7 +1658,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	// Update the URL, should re-download
 	updatedRubyURL := srv.URL + "/updated/ruby.deb"
 	softwareToInstall[0].URL = updatedRubyURL
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
@@ -1674,13 +1674,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 		URL: exeURL,
 	})
 
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Install script is required for .exe packages.")
 
 	softwareToInstall[1].InstallScript = "echo install"
 	softwareToInstall[1].UninstallScript = "echo uninstall"
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 2)
 	require.True(t, hitExeURL)
@@ -1697,7 +1697,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[1].UninstallScript = ""
 	softwareToInstall[1].URL = ""
 	softwareToInstall[1].SHA256 = exeHash
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
 	require.False(t, hitExeURL)
@@ -1707,7 +1707,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[1].UninstallScript = ""
 	softwareToInstall[1].URL = ""
 	softwareToInstall[1].SHA256 = exeHash
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
 	require.False(t, hitExeURL)
@@ -1724,12 +1724,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 		UninstallScript: "some uninstall script",
 	})
 
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 3)
 	pkgTitleID := packages[2].TitleID
 	require.NotNil(t, pkgTitleID)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "fleet_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
@@ -1748,14 +1748,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[1].UninstallScript = ""
 	softwareToInstall[1].URL = ""
 	softwareToInstall[1].SHA256 = exeHash
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
 	require.False(t, hitExeURL)
 
 	// Now add just an install script, should still fail.
 	softwareToInstall[1].InstallScript = "echo foo"
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
 	require.False(t, hitExeURL)
@@ -1793,12 +1793,12 @@ done
 	// remove the custom scripts from the .pkg. We should get back the auto-generated ones.
 	softwareToInstall[2].InstallScript = ""
 	softwareToInstall[2].UninstallScript = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 3)
 	pkgTitleID = packages[2].TitleID
 	require.NotNil(t, pkgTitleID)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "fleet_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
@@ -1812,14 +1812,14 @@ done
 
 	// At this point, the exe payload has no URL. Batch set should fail because the
 	// installer bytes don't exist anymore and there is no URL provided.
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, fmt.Sprintf("package not found with hash %s", exeHash))
 
 	// Add the URL back and do the batch set. Should succeed and re-download all installers.
 	softwareToInstall[1].URL = exeURL
 	hitDebURL, hitExeURL, hitPkgURL = false, false, false
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 3)
 	for _, v := range []bool{hitDebURL, hitExeURL, hitPkgURL} {
@@ -1912,13 +1912,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		{Slug: &maintained1.Slug, SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 2)
 
 	// an over-length category name is rejected up front
 	softwareToInstall[0].Categories = optjson.SetSlice([]string{strings.Repeat("x", 256)})
-	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "fleet_name", team1.Name)
 	require.Contains(t, extractServerErrorText(res.Body), "name must be at most 255 characters")
 
 	testCases := []struct {
@@ -1964,7 +1964,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 
 			// remove duplicates if any
 			wantCategories := server.RemoveDuplicatesFromSlice(tc.categories.Value)
-			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "fleet_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 			require.Len(t, packages, 2)
 
@@ -1975,7 +1975,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 
 				// check that categories come back on individual title fetch
 				stResp := getSoftwareTitleResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "fleet_id", fmt.Sprint(team1.ID))
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && !tc.categories.Set {
 					// categories omitted on an FMA → fall back to the manifest default
@@ -2023,7 +2023,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersLowercase
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2068,7 +2068,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2079,7 +2079,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 			{Slug: new("1password/darwin")},
 		}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2108,7 +2108,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2139,7 +2139,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 
 	var listResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp,
-		"team_id", fmt.Sprintf("%d", tm.ID), "available_for_install", "true")
+		"fleet_id", fmt.Sprintf("%d", tm.ID), "available_for_install", "true")
 
 	var titleID uint
 	for _, sw := range listResp.SoftwareTitles {
@@ -2161,7 +2161,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{SHA256: storageID}}},
-		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+		http.StatusAccepted, &batchResponse, "fleet_name", tm.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 
 	var installScript string
@@ -2207,7 +2207,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersClearsFai
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 		{SHA256: installer.StorageID, InstallScript: "echo edited by batch"},
-	}}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	}}, http.StatusAccepted, &batchResponse, "fleet_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
 
 	attempts, err := s.attemptCounter.CountAttempts(ctx, hostID, installer.ID)
@@ -2230,13 +2230,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFleetVari
 	}}
 	for _, dryRun := range []string{"true", "false"} {
 		resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
-			http.StatusUnprocessableEntity, "team_name", tm.Name, "dry_run", dryRun)
+			http.StatusUnprocessableEntity, "fleet_name", tm.Name, "dry_run", dryRun)
 		require.Contains(t, extractServerErrorText(resp.Body),
 			"Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.", "dry_run=%s", dryRun)
 	}
 	scriptOnly[0].InstallScript = "echo $FLEET_VAR_HOST_UUID"
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
-		http.StatusAccepted, "team_name", tm.Name, "dry_run", "true")
+		http.StatusAccepted, "fleet_name", tm.Name, "dry_run", "true")
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareBatchDownloadProgressManyPackages() {
@@ -2333,12 +2333,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	var resp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
-		http.StatusAccepted, &resp, "team_name", team.Name,
+		http.StatusAccepted, &resp, "fleet_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
 	var listResp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
 	require.Len(t, listResp.SoftwareTitles, 1)
 	titleID := listResp.SoftwareTitles[0].ID
 
@@ -2362,7 +2362,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
-		http.StatusAccepted, &resp, "team_name", team.Name,
+		http.StatusAccepted, &resp, "fleet_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2396,7 +2396,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMANoChec
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
-			http.StatusAccepted, &resp, "team_name", team.Name,
+			http.StatusAccepted, &resp, "fleet_name", team.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 	}
@@ -2405,7 +2405,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMANoChec
 	require.Equal(t, 1, downloads("/api/desktop.latestRelease"))
 
 	var listResp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
 	require.Len(t, listResp.SoftwareTitles, 1)
 	titleID := listResp.SoftwareTitles[0].ID
 
@@ -2512,7 +2512,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFe
 			var batchResponse batchSetSoftwareInstallersResponse
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
 				Software: []*fleet.SoftwareInstallerPayload{{Slug: &maintainedApp.Slug, SelfService: true}},
-			}, http.StatusAccepted, &batchResponse, "team_name", tc.teamName)
+			}, http.StatusAccepted, &batchResponse, "fleet_name", tc.teamName)
 
 			// release the manifest, the batch should complete with the manifest category
 			manifestReleases <- struct{}{}

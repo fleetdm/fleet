@@ -69,15 +69,14 @@ func TestKnownJSONKeys(t *testing.T) {
 	})
 
 	t.Run("renameto alias accepted", func(t *testing.T) {
-		// PolicySpec has `json:"team" renameto:"fleet"` — both should be known
+		// The team names are gone: only the fleet names are known.
 		keys := knownJSONKeys(reflect.TypeFor[fleet.PolicySpec]())
-		assert.Contains(t, keys, "team")
 		assert.Contains(t, keys, "fleet")
+		assert.NotContains(t, keys, "team")
 
-		// LabelSpec has `json:"team_id" renameto:"fleet_id"`
 		keys = knownJSONKeys(reflect.TypeFor[fleet.LabelSpec]())
-		assert.Contains(t, keys, "team_id")
 		assert.Contains(t, keys, "fleet_id")
+		assert.NotContains(t, keys, "team_id")
 
 		// MDM has `json:"apple_business_manager" renameto:"apple_business,inline"`
 		// — the registered alias must drop the ",inline" option.

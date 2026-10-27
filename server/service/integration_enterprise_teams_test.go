@@ -167,7 +167,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}), team.Config.MDM)
 
 	// an activity was created for team spec applied
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"fleets": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Create team policy
 	teamPolicy, err := s.ds.NewTeamPolicy(
@@ -665,7 +665,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, appConfig.Features, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"fleets": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// updates
 	teamSpecs = map[string]any{
@@ -853,7 +853,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 
 	seenActivitiesIDs := map[uint]struct{}{}
 	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
-	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name)
+	activityDetails := fmt.Sprintf(`{"fleet_id": %d, "fleet_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name)
 
 	// Check that an activity was created for the new secrets
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
@@ -1504,7 +1504,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // nolint:nilaway // left unchanged; DoJSON fails the test unless the response decodes into tmResp
 
 	// list activities, it should have created one for edited_agent_options
-	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1ID, team.Name, tm1ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1ID, team.Name, tm1ID, team.Name), 0)
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
@@ -2485,7 +2485,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -2519,7 +2519,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -2564,7 +2564,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)

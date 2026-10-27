@@ -215,7 +215,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	require.NoError(t, err)
 
 	var listSWTitles listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(0))
 
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
 	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
@@ -273,13 +273,13 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 
 	// New app should not show up in "No team" library
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(0))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
 	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID) // just the app we had before
 	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
 
 	// New app SHOULD show up in our new team library
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(team.ID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
 	s.Assert().Equal(androidAppNewTeam.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
 	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApp.Version)
@@ -307,14 +307,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 	require.Equal(t, androidAppNewTeam2.Name, addAppResp.Name)
 
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(team.ID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 2)
 	s.Assert().True(slices.ContainsFunc(listSWTitles.SoftwareTitles, func(t fleet.SoftwareTitleListResult) bool {
 		return t.AppStoreApp.AppStoreID == androidAppNewTeam.AdamID || t.AppStoreApp.AppStoreID == androidAppNewTeam2.AdamID
 	}))
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
 			team.Name, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
@@ -394,7 +394,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
 			fleet.TeamNameNoTeam, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
@@ -435,7 +435,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
 			"", "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, newConfig), 0)
 }
 
@@ -504,12 +504,12 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	// verify that the expected activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "android", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
+		`{"platform": "android", "fleet_id": 0, "fleet_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
-		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+		"fleet_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
 	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
 	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)
@@ -531,7 +531,7 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	getResp = getSetupExperienceSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
-		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+		"fleet_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
 	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
 	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
@@ -549,7 +549,7 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	getResp = getSetupExperienceSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
-		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+		"fleet_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
 	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
 	require.NotNil(t, getResp.SoftwareTitles[0].AppStoreApp.InstallDuringSetup)
@@ -693,11 +693,11 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		// Verify that activity includes configuration
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
+			fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
 				teamName, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
 
 		var listSWTitles listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 1)
 		s.Assert().Equal(androidAppFoo.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
 
@@ -713,10 +713,10 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_4", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: exampleConfiguration},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
 		// Look up title IDs by app store ID (ordering within tied hosts_count is by ID, not name).
 		var titleApp1, titleApp2 uint
@@ -748,7 +748,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			}, http.StatusOK, &batchResp,
 		)
 
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(0))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
 
 		// Update configurations
@@ -762,10 +762,10 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_4", Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
 
 		var titleResp getSoftwareTitleResponse
@@ -793,10 +793,10 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, Configuration: exampleConfiguration},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 2)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp1), &getSoftwareTitleRequest{
@@ -819,7 +819,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 				DryRun: false,
 				Apps:   []fleet.VPPBatchPayload{},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 	})
 	t.Run("android app setup experience", func(t *testing.T) {
@@ -848,7 +848,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should not create an edited setup experience activity, nothing changed
@@ -860,7 +860,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should create an edited setup experience activity, existing software changed
@@ -872,7 +872,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should create an edited setup experience activity, as new software was added
@@ -885,7 +885,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_3", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -964,7 +964,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	}
 
 	// delete app [0], does not affect any host so no removeApplicationsPolicy call
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[0]), nil, http.StatusNoContent, "team_id", "0")
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[0]), nil, http.StatusNoContent, "fleet_id", "0")
 	s.runWorkerUntilDone()
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
@@ -1033,7 +1033,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	}
 
 	// delete app [1], should trigger remove from both hosts
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "team_id", "0")
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "fleet_id", "0")
 	s.runWorkerUntilDone()
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)

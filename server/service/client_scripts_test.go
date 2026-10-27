@@ -89,7 +89,7 @@ func TestRewrapScriptBatchIndexErr(t *testing.T) {
 		{"valid index", "scripts[1]", `script "b.sh"`},
 		{"first index", "scripts[0]", `script "a.sh"`},
 		{"no name", "", ""},
-		{"non-script field", "team_id", ""},
+		{"non-script field", "fleet_id", ""},
 		{"index out of range", "scripts[2]", ""},
 		{"negative index", "scripts[-1]", ""},
 		{"not a number", "scripts[x]", ""},

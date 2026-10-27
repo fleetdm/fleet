@@ -315,8 +315,16 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		require.Equal(t, `<dict><key>K</key><string>v</string></dict>`, string(stored))
 
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
-		body := readBody(resp)
-		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
+		var titleResp struct {
+			SoftwareTitle struct {
+				AppStoreApp struct {
+					Configuration string `json:"configuration"`
+				} `json:"app_store_app"`
+			} `json:"software_title"`
+		}
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&titleResp))
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, `<dict><key>K</key><string>v</string></dict>`, titleResp.SoftwareTitle.AppStoreApp.Configuration)
 	})
 
 	t.Run("android wire format", func(t *testing.T) {
@@ -1948,6 +1956,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
 		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
-	}, http.StatusBadRequest, "team_name", team.Name)
+	}, http.StatusBadRequest, "fleet_name", team.Name)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

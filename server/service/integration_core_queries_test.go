@@ -1458,7 +1458,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	}, gqrr.Results[2].Columns)
 
 	gqrr = fleet.GetQueryReportResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report?team_id=%d", osqueryInfoQuery.ID, team2.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report?fleet_id=%d", osqueryInfoQuery.ID, team2.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
 	require.Len(t, gqrr.Results, 1)

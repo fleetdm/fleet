@@ -128,20 +128,20 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		// the host moved to it, and setup assistant
 		s.lastActivityOfTypeMatches(
 			fleet.ActivityTypeCreatedTeam{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1.ID, tm1.Name, tm1.ID, tm1.Name),
+			fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1.ID, tm1.Name, tm1.ID, tm1.Name),
 			0)
 		s.lastActivityOfTypeMatches(
 			fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1.ID, tm1.Name, tm1.ID, tm1.Name),
+			fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1.ID, tm1.Name, tm1.ID, tm1.Name),
 			0)
 		s.lastActivityOfTypeMatches(
 			fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
 				tm1.ID, tm1.Name, tm1.ID, tm1.Name, h.ID, h.DisplayName()),
 			0)
 		s.lastActivityOfTypeMatches(
 			fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`,
+			fmt.Sprintf(`{"fleet_id": %d, "name": %q, "fleet_name": %q, "fleet_id": %d, "fleet_name": %q}`,
 				tm1.ID, globalAsstResp.Name, tm1.Name, tm1.ID, tm1.Name),
 			0)
 	})
@@ -183,7 +183,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	prof4 := mobileconfigForTest("n4", "i4")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof4,
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm2.ID))
 	// tm2 has disk encryption and release device manually disabled
 	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
 	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
@@ -196,7 +196,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof2, prof4,
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm3.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm3.ID))
 
 	// and yet another team with the same profiles as tm3
 	tm4, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -206,7 +206,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof2, prof4,
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm4.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm4.ID))
 
 	// preassign the MDM host to prof1 and prof4, should match existing team tm2
 	//
