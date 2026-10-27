@@ -74,7 +74,6 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
 		{"UpdateHostSoftwareMetadata", testUpdateHostSoftwareMetadata},
-		{"CleanupUnusedSoftwareBatches", testCleanupUnusedSoftwareBatches},
 		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
@@ -162,6 +161,7 @@ func TestSoftware(t *testing.T) {
 		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
 		{"ListHostSoftwareSortByDisplayName", testListHostSoftwareSortByDisplayName},
+		{"CleanupUnusedSoftwareBatches", testCleanupUnusedSoftwareBatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -16343,25 +16343,28 @@ func testCleanupUnusedSoftwareBatches(t *testing.T, ds *Datastore) {
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[2], software[5]})
 	require.NoError(t, err)
 
-	// Deleting sw4 in the second batch orphans sw2, which the cursor has already passed, so it must
-	// survive until the next run instead of being found by a rescan.
-	_, err = ds.writer(ctx).ExecContext(ctx, `
-		CREATE TRIGGER test_orphan_behind_cursor AFTER DELETE ON software FOR EACH ROW
-		IF OLD.name = 'sw4' THEN
-			DELETE hsw FROM host_software hsw
-			JOIN software s ON s.id = hsw.software_id
-			JOIN hosts h ON h.id = hsw.host_id
-			WHERE s.name = 'sw2' AND h.hostname = 'cleanup-host';
-		END IF`)
-	require.NoError(t, err)
-	defer func() {
-		_, err := ds.writer(ctx).ExecContext(ctx, `DROP TRIGGER IF EXISTS test_orphan_behind_cursor`)
-		require.NoError(t, err)
-	}()
+	// Batches are (sw0, sw1) then (sw3, sw4). Orphaning sw2 after the second batch puts it behind the
+	// cursor, so it must survive until the next run instead of being found by a rescan.
+	var batches int
+	cleanupUnusedSoftwareAfterBatchHook = func() {
+		batches++
+		if batches == 2 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[5]})
+			require.NoError(t, err)
+		}
+	}
+	t.Cleanup(func() { cleanupUnusedSoftwareAfterBatchHook = nil })
+
+	softwareNames := func() []string {
+		var names []string
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &names, `SELECT name FROM software ORDER BY name`))
+		return names
+	}
 
 	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw2", "sw5"}, softwareNames())
 
-	var names []string
-	require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &names, `SELECT name FROM software ORDER BY name`))
-	require.Equal(t, []string{"sw2", "sw5"}, names)
+	cleanupUnusedSoftwareAfterBatchHook = nil
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw5"}, softwareNames())
 }

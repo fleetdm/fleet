@@ -77,6 +77,9 @@ var cleanupBatchSize = 1000
 // Any remaining orphans will be processed on the next hourly cron cycle.
 var cleanupMaxIterations = 100
 
+// Test hook run after each unused-software delete batch, to change host links mid-run.
+var cleanupUnusedSoftwareAfterBatchHook func()
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -3541,8 +3544,8 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		LIMIT ?
 	`
 
-	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer
-	// so that we see our own deletes and don't re-select the same rows due to replica lag.
+	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer so that
+	// software just re-linked to a host is less likely to be deleted, since the DELETE doesn't re-check orphan status.
 	db := ds.reader(ctx)
 	var lastID uint
 	for range cleanupMaxIterations {
@@ -3561,6 +3564,9 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete unused software batch")
+		}
+		if cleanupUnusedSoftwareAfterBatchHook != nil {
+			cleanupUnusedSoftwareAfterBatchHook()
 		}
 		db = ds.writer(ctx)
 	}
