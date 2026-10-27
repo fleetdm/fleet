@@ -2,7 +2,29 @@
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 
-## All hands
+## Strategy
+
+At Fleet, we are [public by default](https://fleetdm.com/handbook/company#openness).  The handbook and as much of our roadmap and tactics as possible are public and open to the world.  Some aspects of strategy, metrics, and day to day execution must remain confidential, but even these aspects are shared with every team member within the company.  This maximizes context for contributors and AI agents, which helps everyone produce better results.
+
+### The goal
+
+This is the _single source of truth_ for Fleet's strategy, positioning, past, and future:
+
+- See high-level product and company direction **for the next 3-5 years** in ["Direction"](https://docs.google.com/document/d/1aVZ_eAiUjq1pdltR5ckwcbOXKB0DMzmboWZlegqJXDk/edit?tab=t.0)
+  - You can read background about how Fleet reached its positioning and product strategy in the historical ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#), and some of the [latest 2027 strategy](https://docs.google.com/document/d/1oNLwrBNp-5eXWkPhnhEhQA2UY10LYF1rEtY4YAu62sI/edit?usp=drive_web&ouid=110737225569469728451).
+  - The [ambition](https://fleetdm.com/handbook/company) of Fleet's product roadmap is to reach [product maturity](http://fleetdm.com/handbook/company/product-maturity-assessment) across every stage of the computing lifecycle, implemented in a way that delights customers by delivering on our core brand promises: openness, flexibility, accessibility, and clarity.
+  - The priority of features is [weighed (confidential doc, contains customer names)](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) against this maturity framework while taking into account the timelines of customers as well as [the competitive landscape](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809).
+  - At the start of every quarter, Fleet publishes a blog post and video about the [roadmap for the next 3 months](https://fleetdm.com/announcements).
+  - The full, actualized roadmap is [public on GitHub (anonymized customer labels)](https://github.com/fleetdm/fleet).
+- See current and upcoming strategic initiatives and press releases for the next 18-36 months in [🌄 Horizons](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=2104067010#gid=2104067010).
+  - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
+  - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
+  - Find all planned events for the next few quarters in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).
+- In the [🌗 OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about current and upcoming quarterly goals, and the company's progress towards them.
+- See how Fleet measures everyday excellence and success, goals, and historical numbers in [📈 KPIs (confidential doc, includes revenue information)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
+
+
+### All hands
 
 Every month, Fleet holds a company-wide meeting called the "All hands". 
 
@@ -13,43 +35,16 @@ All team members should attend the "All hands" every month.  "All hands" meeting
 
 Every week, the "Executive" or "E-group", including the CEO, CTO, CFO, CMO, SVP Global Sales, SVP Customer Success, Head of Strategic Growth, Head of Product Design, Head of People, and Head of IT and Solutions Consulting, will hold a 2-hour E-group meeting to discuss the company's immediate needs, address any blockers, and review progress toward strategic short and long-term company goals.
 
+Many relevant notes and transcripts from these meetings are available via search for in Google Drive for all team members to access.
+
 If one of the department heads cannot attend this meeting, the Executive Assistant will reschedule the meeting as close to the original time as possible, while verifying that all E-group members can attend.
 
 The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0)" agenda will be processed every week and used for all E-group meetings. 
 
 
-### Strategy
+### Directly responsible individuals (DRIs)
 
-You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market ops page](https://fleetdm.com/handbook/company/go-to-market-operations).
-
-You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our prospects.
-
-You can find all planned events in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).  And in the [📈 OKRs (private Google doc)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041), you can read about:
-- Current and upcoming quarterly goals, and the company's progress towards them
-- Planned marketing campaigns
-- Upcoming content
-- Marketing budgets
-
-The ambition of Fleet's product roadmap is to reach [product maturity](http://fleetdm.com/handbook/company/product-maturity-assessment) across every stage of the computing lifecycle, implemented in a way that delights customers by delivering on our core brand promises: openness, flexibility, accessibility, and clarity.  The priority of features is [weighed (private Google doc)](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) against this framework while taking into account the timelines of customers as well as the competitive landscape.  At the start of every quarter, Fleet publishes a blog post and video about the roadmap for the next 3 months.
-
-
-## Security 
-
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [use Okta Verify with FastPass](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
-
-
-### Trust
-
-Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
-
-> **Compliance**
-> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
-
-> **Export control**
-> Fleet conforms to the export-control restrictions applicable to ECCN 5D992.c classification. Accordingly, Fleet does not currently do business in Cuba, Iran, Syria, North Korea, Russia, or Belarus, or in the Crimea, Donetsk, and Luhansk regions of Ukraine.
-
-
-## Directly responsible individuals (DRIs)
+Everyone can contribute at Fleet.  But to get something done, work directly with the [Directly Responsible Individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).  This leads to better results, clear ownership, and fewer miscommunications.  A single mind can make decisions quickly.
 
 | Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
 | -------------- | --- |
@@ -95,6 +90,23 @@ Fleet is successful because of our customers and community, and those relationsh
 | Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | [Usage statistics](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Workshops and sponsorships           | <sup><sub>_[Dave Siederer](https://docs.google.com/document/d/1IOAv8N2-FuzU9LSFeu6M7WX9p-Bin7an-XbsKQfPrJ8/edit?tab=t.0)_</sup></sub>
+
+
+## Security 
+
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [use Okta Verify with FastPass](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+
+### Trust
+
+Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
+
+> **Compliance**
+> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
+
+> **Export control**
+> Fleet conforms to the export-control restrictions applicable to ECCN 5D992.c classification. Accordingly, Fleet does not currently do business in Cuba, Iran, Syria, North Korea, Russia, or Belarus, or in the Crimea, Donetsk, and Luhansk regions of Ukraine.
+
 
 ## Meetings
 
