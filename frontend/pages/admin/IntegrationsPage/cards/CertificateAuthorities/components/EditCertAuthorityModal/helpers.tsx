@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   ICertificateAuthority,
+  ICertificateAuthorityType,
   ICertificatesCustomSCEP,
 } from "interfaces/certificates";
 import { IEditCertAuthorityFormData } from "services/entities/certificates";
@@ -18,6 +19,7 @@ import {
   generateEJBCAEditData,
   generateEJBCAFormData,
 } from "../EJBCAForm/helpers";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
@@ -75,6 +77,14 @@ export const generateDefaultFormData = (
         url: certAuthority.url,
         username: certAuthority.username,
         password: certAuthority.password,
+      };
+    case "google_cas":
+      return {
+        name: certAuthority.name,
+        projectId: certAuthority.project,
+        caPool: certAuthority.ca_pool,
+        location: certAuthority.location,
+        apiKeyJson: certAuthority.api_key_json,
       };
     default:
       throw new Error(
@@ -226,6 +236,30 @@ export const generateEditCertAuthorityData = (
       }
       return diff;
     }
+    case "google_cas": {
+      const {
+        name,
+        projectId,
+        caPool,
+        location,
+        apiKeyJson,
+      } = formData as IGoogleCASFormData;
+      // An unchanged key is still the masked value the API sent, so the diff
+      // leaves it out and the server keeps the saved key, which it uses to
+      // verify a changed project, location or pool.
+      return {
+        google_cas: deepDifference(
+          {
+            name,
+            project: projectId,
+            ca_pool: caPool,
+            location,
+            api_key_json: apiKeyJson,
+          },
+          certAuthWithoutType
+        ),
+      };
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthority.type}`
@@ -347,6 +381,10 @@ export const updateFormData = (
       }
       break;
     }
+    case "google_cas":
+      // Unlike the URL-based CAs, the server doesn't need the key re-entered
+      // when the pool changes.
+      break;
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthority.type}`
@@ -355,8 +393,14 @@ export const updateFormData = (
   return newData;
 };
 
-export const getErrorMessage = (err: unknown): JSX.Element => {
+export const getErrorMessage = (
+  err: unknown,
+  caType: ICertificateAuthorityType
+): JSX.Element => {
   return (
-    <>Couldn&apos;t edit certificate authority. {getDisplayErrMessage(err)}</>
+    <>
+      Couldn&apos;t edit certificate authority.{" "}
+      {getDisplayErrMessage(err, caType)}
+    </>
   );
 };

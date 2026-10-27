@@ -74,7 +74,7 @@ interface IHostSoftwareTableProps {
   filters: ISoftwareFilters;
   teamId?: number;
   /** Current value of the macOS /Applications filter, the inverse of "Show
-   * helpers". Only defined on macOS hosts while "macOS app" is selected. */
+   * helpers". Only defined on macOS hosts while "App (macOS)" is selected. */
   macosApplicationsFilter?: boolean;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;

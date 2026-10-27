@@ -9,7 +9,8 @@ import {
 } from "./helpers";
 
 /** Builds an API error in the shape getErrorReason reads. */
-const apiError = (reason: string) => ({
+const apiError = (reason: string, status?: number) => ({
+  status,
   errors: [{ name: "base", reason }],
 });
 
@@ -141,10 +142,96 @@ describe("AddCertAuthorityModal helpers", () => {
       );
     });
 
+    // The server's Google CAS errors name the field or Google setting to fix,
+    // so its 4xx reasons are shown as they are.
+    it.each([
+      [
+        "Couldn't add certificate authority. The CA pool can only contain letters, numbers, hyphens and underscores.",
+        "The CA pool can only contain letters, numbers, hyphens and underscores.",
+      ],
+      [
+        "Couldn't add certificate authority. The service account key must be a JSON object.",
+        "The service account key must be a JSON object.",
+      ],
+      [
+        "Couldn't edit certificate authority. Couldn't authenticate with Google CAS. Check that the service account key is valid.",
+        "Couldn't authenticate with Google CAS. Check that the service account key is valid.",
+      ],
+      [
+        'Couldn\'t add certificate authority. CA pool "my-pool" wasn\'t found in project "my-project", location "us-central1".',
+        'CA pool "my-pool" wasn\'t found in project "my-project", location "us-central1".',
+      ],
+      [
+        "Couldn't edit certificate authority. Google couldn't issue an access token (HTTP 503). Try again later.",
+        "Google couldn't issue an access token (HTTP 503). Try again later.",
+      ],
+      [
+        'Couldn\'t add certificate authority. "GOOGLE_WIFI" name is already used by another Google CAS certificate authority. Please choose a different name and try again.',
+        '"GOOGLE_WIFI" name is already used by another Google CAS certificate authority. Please choose a different name and try again.',
+      ],
+    ])("shows the Google CAS error as it is for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason, 422), "google_cas")).toBe(
+        expected
+      );
+    });
+
+    it("falls back to the default error for a Google CAS server error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. Internal server error",
+            500
+          ),
+          "google_cas"
+        )
+      ).toBe("Please try again.");
+    });
+
+    it("doesn't show another CA type's reason as it is", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. The CA pool can only contain letters.",
+            422
+          ),
+          "hydrant"
+        )
+      ).toBe("Please try again.");
+    });
+
     it("falls back to the default error for an unrecognized reason", () => {
       expect(getDisplayErrMessage(apiError("something unexpected"))).toBe(
         "Please try again."
       );
+    });
+  });
+});
+
+describe("generateDropdownOptions", () => {
+  it("offers Google CAS after EJBCA", () => {
+    const values = generateDropdownOptions(false).map((option) => option.value);
+    expect(values.indexOf("google_cas")).toBe(values.indexOf("ejbca") + 1);
+  });
+});
+
+describe("generateAddCertAuthorityData", () => {
+  it("maps the Google CAS form to the API's field names", () => {
+    expect(
+      generateAddCertAuthorityData("google_cas", {
+        name: "GOOGLE_WIFI",
+        projectId: "my-project",
+        caPool: "my-ca-pool",
+        location: "us-central1",
+        apiKeyJson: '{"type":"service_account"}',
+      })
+    ).toEqual({
+      google_cas: {
+        name: "GOOGLE_WIFI",
+        project: "my-project",
+        ca_pool: "my-ca-pool",
+        location: "us-central1",
+        api_key_json: '{"type":"service_account"}',
+      },
     });
   });
 });

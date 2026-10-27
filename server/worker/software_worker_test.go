@@ -645,6 +645,34 @@ func TestBuildApplicationPolicyWithConfig(t *testing.T) {
 		assert.Equal(t, "PREINSTALLED", policies[0].InstallType)
 	})
 
+	t.Run("installConstraint is sent only for installs Google starts", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}], "autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		cases := []struct {
+			installType    string
+			wantConstraint bool
+		}{
+			{installType: "AVAILABLE", wantConstraint: false},
+			{installType: "PREINSTALLED", wantConstraint: true},
+			{installType: "FORCE_INSTALLED", wantConstraint: true},
+		}
+		for _, c := range cases {
+			t.Run(c.installType, func(t *testing.T) {
+				policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, c.installType)
+				require.NoError(t, err)
+				require.Len(t, policies, 1)
+				assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+				if c.wantConstraint {
+					require.Len(t, policies[0].InstallConstraint, 1)
+					assert.Equal(t, "INSTALL_ONLY_WHEN_CHARGING", policies[0].InstallConstraint[0].ChargingConstraint)
+				} else {
+					assert.Empty(t, policies[0].InstallConstraint)
+				}
+			})
+		}
+	})
+
 	t.Run("each app gets its own configuration", func(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.configured": []byte(`{"autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
@@ -792,6 +820,87 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 	require.Equal(t, []uint{1}, configVersionIDs)
 	require.Len(t, installs, 1)
 	require.Equal(t, uint(1), installs[0].VPPAppTeamID)
+}
+
+func TestRunAndroidSetupExperienceWithInstallConstraint(t *testing.T) {
+	const hostUUID = "setup-host-uuid"
+	const constrainedApp = "com.example.constrained"
+	const otherApp = "com.example.other"
+
+	ds := new(mock.Store)
+	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: hostUUID}, Device: &android.Device{AppliedPolicyID: new(hostUUID)}}, nil
+	}
+	apps := []fleet.VPPAppTeam{
+		{AdamID: constrainedApp, Platform: fleet.AndroidPlatform, AppTeamID: 1},
+		{AdamID: otherApp, Platform: fleet.AndroidPlatform, AppTeamID: 2},
+	}
+	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+		return apps, nil
+	}
+	ds.GetVPPAppsToInstallDuringSetupExperienceFunc = func(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {
+		return apps, nil
+	}
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+		return map[string][]byte{
+			constrainedApp: []byte(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}]}`),
+		}, nil
+	}
+	var installs []*fleet.HostAndroidVPPSoftwareInstall
+	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
+		installs = append(installs, payload)
+		return nil
+	}
+
+	// Reject what Google rejects: an installConstraint on an AVAILABLE app.
+	rejectConstrainedAvailable := func(policies []*androidmanagement.ApplicationPolicy) error {
+		for _, p := range policies {
+			if p.InstallType == "AVAILABLE" && len(p.InstallConstraint) > 0 {
+				return errors.New("googleapi: Error 400: Invalid installConstraint, not supported with install type AVAILABLE")
+			}
+		}
+		return nil
+	}
+	var availablePolicies, installPolicies []*androidmanagement.ApplicationPolicy
+	androidModule := &mockAndroidModule{
+		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, policies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+			availablePolicies = policies
+			return rejectConstrainedAvailable(policies)
+		},
+		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, policies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			installPolicies = policies
+			if err := rejectConstrainedAvailable(policies); err != nil {
+				return nil, err
+			}
+			return map[string]*android.MDMAndroidPolicyRequest{hostUUID: {PolicyVersion: sql.Null[int64]{V: 1, Valid: true}}}, nil
+		},
+	}
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	err := w.runAndroidSetupExperience(t.Context(), hostUUID, 0, "enterprises/test")
+	require.NoError(t, err)
+
+	require.Len(t, availablePolicies, 2)
+	for _, p := range availablePolicies {
+		assert.Equal(t, "AVAILABLE", p.InstallType)
+		assert.Empty(t, p.InstallConstraint, p.PackageName)
+	}
+
+	require.Len(t, installPolicies, 2)
+	installByApp := make(map[string]*androidmanagement.ApplicationPolicy, len(installPolicies))
+	for _, p := range installPolicies {
+		installByApp[p.PackageName] = p
+	}
+	constrainedInstall, ok := installByApp[constrainedApp]
+	require.True(t, ok)
+	assert.Equal(t, "PREINSTALLED", constrainedInstall.InstallType)
+	require.Len(t, constrainedInstall.InstallConstraint, 1)
+	assert.Equal(t, "INSTALL_ONLY_WHEN_CHARGING", constrainedInstall.InstallConstraint[0].ChargingConstraint)
+	otherInstall, ok := installByApp[otherApp]
+	require.True(t, ok)
+	assert.Empty(t, otherInstall.InstallConstraint)
+
+	require.Len(t, installs, 2)
 }
 
 // A re-enrolled host reuses its host-specific policy, so making its fleet's apps available

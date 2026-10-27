@@ -23,6 +23,8 @@ import {
   generateEJBCAEditData,
   handleEJBCAServerError,
 } from "../EJBCAForm/helpers";
+import GoogleCASForm from "../GoogleCASForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
 import NDESForm from "../NDESForm";
 import SmallstepForm from "../SmallstepForm";
@@ -77,13 +79,15 @@ const EditCertAuthorityModal = ({
     setIsDirty(true);
   };
 
-  const onEditCertAuthority = async () => {
-    if (!fullCertAuthority || !formData) {
+  // The Google CAS form keeps its own data and passes it in on submit.
+  const onEditCertAuthority = async (submittedFormData?: ICertFormData) => {
+    const data = submittedFormData ?? formData;
+    if (!fullCertAuthority || !data) {
       return;
     }
     const editPatchData = generateEditCertAuthorityData(
       fullCertAuthority,
-      formData
+      data
     );
     setIsUpdating(true);
     try {
@@ -94,7 +98,9 @@ const EditCertAuthorityModal = ({
       notify.success("Successfully edited certificate authority.");
       onExit();
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, certAuthority.type), {
+        response: e,
+      });
     }
     setIsUpdating(false);
   };
@@ -175,8 +181,22 @@ const EditCertAuthorityModal = ({
       );
     }
 
+    if (!formData) return <></>;
+
+    if (certAuthority.type === "google_cas") {
+      return (
+        <GoogleCASForm
+          defaultData={formData as IGoogleCASFormData}
+          submitBtnText="Save"
+          isSubmitting={isUpdating}
+          onSubmit={onEditCertAuthority}
+          onCancel={onExit}
+        />
+      );
+    }
+
     const FormComponent = getFormComponent();
-    if (!FormComponent || !formData) return <></>;
+    if (!FormComponent) return <></>;
 
     return (
       <FormComponent

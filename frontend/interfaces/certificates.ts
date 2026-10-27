@@ -119,6 +119,17 @@ export interface ICertificatesEJBCA {
   mtls_cert_expires_at?: string;
 }
 
+export interface ICertificatesGoogleCAS {
+  id?: number;
+  type?: "google_cas";
+  name: string;
+  project: string;
+  location: string;
+  ca_pool: string;
+  /** The service account key file's JSON. The API returns it masked. */
+  api_key_json: string;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
@@ -126,7 +137,8 @@ export type ICertificateAuthorityType =
   | "hydrant"
   | "smallstep"
   | "custom_est_proxy"
-  | "ejbca";
+  | "ejbca"
+  | "google_cas";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
@@ -136,7 +148,8 @@ export type ICertificateAuthority =
   | ICertificatesCustomSCEP
   | ICertificatesSmallstep
   | ICertificatesCustomEST
-  | ICertificatesEJBCA;
+  | ICertificatesEJBCA
+  | ICertificatesGoogleCAS;
 
 export const isNDESCertAuthority = (
   integration: ICertificateAuthority
@@ -213,6 +226,16 @@ export const isCustomESTCertAuthority = (
   );
 };
 
+export const isGoogleCASCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesGoogleCAS => {
+  return (
+    "project" in integration &&
+    "ca_pool" in integration &&
+    "api_key_json" in integration
+  );
+};
+
 export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial[] => {
   return [
     {
@@ -250,6 +273,11 @@ export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial
       name: "Test EJBCA",
       type: "ejbca",
       mtls_cert_expires_at: "2099-01-01T00:00:00Z",
+    },
+    {
+      id: 8,
+      name: "Test Google CAS",
+      type: "google_cas",
     },
   ];
 };

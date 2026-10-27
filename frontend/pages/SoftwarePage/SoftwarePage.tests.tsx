@@ -243,7 +243,7 @@ describe("SoftwarePage type filter", () => {
       screen
         .getAllByRole("checkbox", { checked: true })
         .map((el) => el.textContent)
-    ).toEqual(["Brave extension", "macOS app"]);
+    ).toEqual(["App (macOS)", "Browser extension (Brave)"]);
 
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
@@ -256,7 +256,7 @@ describe("SoftwarePage type filter", () => {
     const { router, user } = renderInventoryTab({ types: "macos_app" });
 
     await user.click(screen.getByRole("button", { name: "Open filters" }));
-    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(router.replace).toHaveBeenLastCalledWith(

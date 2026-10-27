@@ -21,6 +21,8 @@ import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import EJBCAForm from "../EJBCAForm";
 import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import { handleEJBCAServerError } from "../EJBCAForm/helpers";
+import GoogleCASForm from "../GoogleCASForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import NDESForm from "../NDESForm";
@@ -42,7 +44,8 @@ export type ICertFormData =
   | ICustomSCEPFormData
   | ISmallstepFormData
   | ICustomESTFormData
-  | IEJBCAFormData;
+  | IEJBCAFormData
+  | IGoogleCASFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -166,7 +169,7 @@ const AddCertAuthorityModal = ({
     });
   };
 
-  const onAddCertAuthority = async () => {
+  const onAddCertAuthority = async (submittedFormData?: ICertFormData) => {
     let formData: ICertFormData;
     switch (certAuthorityType) {
       case "digicert":
@@ -187,6 +190,13 @@ const AddCertAuthorityModal = ({
       case "custom_est_proxy":
         formData = customESTFormData;
         break;
+      case "google_cas":
+        // This form keeps its own data and passes it in on submit.
+        if (!submittedFormData) {
+          return;
+        }
+        formData = submittedFormData;
+        break;
       default:
         return;
     }
@@ -204,7 +214,7 @@ const AddCertAuthorityModal = ({
       notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, certAuthorityType), { response: e });
     }
     setIsAdding(false);
   };
@@ -311,6 +321,16 @@ const AddCertAuthorityModal = ({
             isSubmitting={isAdding}
             serverErrors={ejbcaServerErrors}
             onSubmit={onAddEJBCA}
+            onCancel={onExit}
+          />
+        );
+      case "google_cas":
+        return (
+          <GoogleCASForm
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onSubmit={onAddCertAuthority}
             onCancel={onExit}
           />
         );
