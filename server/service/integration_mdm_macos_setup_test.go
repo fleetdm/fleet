@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1047,7 +1047,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	})
 
 	t.Run("UpdateTeamConfig", func(t *testing.T) {
-		path := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		path := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		fmtJSON := `{
 			"name": %q,
 			%s
@@ -1104,7 +1104,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 							Name: tm.Name,
 							MDM:  fleet.TeamSpecMDM{MacOSSetup: macSetup},
 						}}}
-						s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+						s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 					}
 				} else {
 					// no setup assistant, use the PATCH /setup_experience endpoint
@@ -1165,7 +1165,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
-			tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+			tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
 			var tmResp teamResponse
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
@@ -1276,7 +1276,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 
 		// 2. enable EUA on a team
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1301,7 +1301,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		require.Equal(t, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again", errResp.Errors[0].Reason)
 
 		// 4. disable team EUA, then clear IdP
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1340,7 +1340,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1768,7 +1768,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 	// Create a team used by enrollment subtests
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 	team := createTeamResp.Team
 
 	// Enable managed local account on the team
@@ -2328,9 +2328,9 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	t.Run("Setup experience team config", func(t *testing.T) {
 		// Create a team
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 		tm := createTeamResp.Team
-		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
 
 		// Enable via PATCH /setup_experience
@@ -2365,9 +2365,9 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	t.Run("Setup experience team config via Update fleet endpoint", func(t *testing.T) {
 		// Create a team
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 		tm := createTeamResp.Team
-		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
 
 		// Enable via PATCH /teams/:id

@@ -976,7 +976,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	// confirm only the former triggers a resend.
 	newPolicy := func(name string, profileUUID *string) *fleet.Policy {
 		var resp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", tm.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", tm.ID), fleet.TeamPolicyRequest{
 			Name:        name,
 			Query:       "SELECT 1;",
 			Platform:    "darwin",
@@ -1180,7 +1180,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team.ID = createTeamResp.Team.ID
 

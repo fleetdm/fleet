@@ -778,7 +778,7 @@ def delete_fleet_team(fleet_url: str, token: str, team_id: int) -> None:
     """Delete a Fleet team and all its associated data."""
     log(f"Deleting Fleet team ID {team_id}")
     try:
-        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/teams/{team_id}")
+        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/fleets/{team_id}")
     except HTTPError:
         log_error(f"Failed to delete team {team_id}")
 

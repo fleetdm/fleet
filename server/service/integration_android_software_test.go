@@ -250,7 +250,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Add some apps to a different team. They shouldn't be sent to our existing host
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 	// Add Android app
 	androidAppNewTeam := &fleet.VPPApp{
@@ -659,7 +659,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 	teamName := "Android Team For All Tests"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: teamName,
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -911,7 +911,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 
 	// create a team for the test host that will not be affected
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 
 	s.enableAndroidMDM(t)
