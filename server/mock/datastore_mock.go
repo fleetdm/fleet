@@ -254,7 +254,7 @@ type ListHostUsersFunc func(ctx context.Context, hostID uint) ([]fleet.HostUser,
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error)
 
 type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
 
@@ -1948,9 +1948,17 @@ type ListHostAppStoreAppVersionsFunc func(ctx context.Context, host *fleet.Host)
 
 type GetAppStoreAppVersionIDsFromSpecificVersionFunc func(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error)
+type GetAppStoreAppVersionsByFleetAndTitleFunc func(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error)
 
-type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
+type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error)
+
+type ListIOSAndIPadOSMDMHostsAfterIDFunc func(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error)
+
+type GetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context) (uint, error)
+
+type SetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context, cursor uint) error
+
+type GetHostIDsWithRecentFailedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
@@ -5503,11 +5511,23 @@ type DataStore struct {
 	GetAppStoreAppVersionIDsFromSpecificVersionFunc        GetAppStoreAppVersionIDsFromSpecificVersionFunc
 	GetAppStoreAppVersionIDsFromSpecificVersionFuncInvoked bool
 
+	GetAppStoreAppVersionsByFleetAndTitleFunc        GetAppStoreAppVersionsByFleetAndTitleFunc
+	GetAppStoreAppVersionsByFleetAndTitleFuncInvoked bool
+
 	ListHostAppStoreAppInstallVersionsFunc        ListHostAppStoreAppInstallVersionsFunc
 	ListHostAppStoreAppInstallVersionsFuncInvoked bool
 
-	GetHostIDsWithUnactivatedVPPAppInstallFunc        GetHostIDsWithUnactivatedVPPAppInstallFunc
-	GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked bool
+	ListIOSAndIPadOSMDMHostsAfterIDFunc        ListIOSAndIPadOSMDMHostsAfterIDFunc
+	ListIOSAndIPadOSMDMHostsAfterIDFuncInvoked bool
+
+	GetAppStoreAppConfigurationReconcileCursorFunc        GetAppStoreAppConfigurationReconcileCursorFunc
+	GetAppStoreAppConfigurationReconcileCursorFuncInvoked bool
+
+	SetAppStoreAppConfigurationReconcileCursorFunc        SetAppStoreAppConfigurationReconcileCursorFunc
+	SetAppStoreAppConfigurationReconcileCursorFuncInvoked bool
+
+	GetHostIDsWithRecentFailedVPPAppInstallFunc        GetHostIDsWithRecentFailedVPPAppInstallFunc
+	GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked bool
 
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
@@ -7313,11 +7333,11 @@ func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
-func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, filter, query, omit...)
+	return s.SearchHostsFunc(ctx, filter, query, excludeMobile, omit...)
 }
 
 func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
@@ -13242,18 +13262,46 @@ func (s *DataStore) GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Cont
 	return s.GetAppStoreAppVersionIDsFromSpecificVersionFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error) {
+func (s *DataStore) GetAppStoreAppVersionsByFleetAndTitle(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
+	s.mu.Lock()
+	s.GetAppStoreAppVersionsByFleetAndTitleFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppStoreAppVersionsByFleetAndTitleFunc(ctx, platforms)
+}
+
+func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
 	s.mu.Lock()
 	s.ListHostAppStoreAppInstallVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostAppStoreAppInstallVersionsFunc(ctx, appID, fleetID, hostIDs)
+	return s.ListHostAppStoreAppInstallVersionsFunc(ctx, fleetID, hostIDs, platforms)
 }
 
-func (s *DataStore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+func (s *DataStore) ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
 	s.mu.Lock()
-	s.GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked = true
+	s.ListIOSAndIPadOSMDMHostsAfterIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostIDsWithUnactivatedVPPAppInstallFunc(ctx, vppAppTeamID, hostIDs)
+	return s.ListIOSAndIPadOSMDMHostsAfterIDFunc(ctx, afterHostID, limit)
+}
+
+func (s *DataStore) GetAppStoreAppConfigurationReconcileCursor(ctx context.Context) (uint, error) {
+	s.mu.Lock()
+	s.GetAppStoreAppConfigurationReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppStoreAppConfigurationReconcileCursorFunc(ctx)
+}
+
+func (s *DataStore) SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error {
+	s.mu.Lock()
+	s.SetAppStoreAppConfigurationReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAppStoreAppConfigurationReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIDsWithRecentFailedVPPAppInstallFunc(ctx, vppAppTeamID, since, hostIDs)
 }
 
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {

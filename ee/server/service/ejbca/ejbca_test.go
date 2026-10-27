@@ -315,6 +315,24 @@ func TestRedirectsNotFollowed(t *testing.T) {
 	require.Zero(t, hits.Load())
 }
 
+func TestErrorMessage(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ name, body, want string }{
+		{"EJBCA error", `{"error_code":400,"error_message":"CA doesn't exist"}`, "CA doesn't exist"},
+		{"plain text", "  Gateway timeout  ", "Gateway timeout"},
+		{
+			"HTML page of a proxy",
+			"<!DOCTYPE HTML>\n<html><head>\n<title>503 Service Unavailable</title>\n</head><body>\n<h1>Service Unavailable</h1>\n</body></html>",
+			"503 Service Unavailable Service Unavailable",
+		},
+		{"long text is cut", strings.Repeat("a", 300), strings.Repeat("a", 200)},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, errorMessage([]byte(tt.body)))
+		})
+	}
+}
+
 // Running out of time or being canceled while looking up the certificate profile is not that lookup being unavailable.
 func TestVerifyConnectionCanceled(t *testing.T) {
 	t.Parallel()

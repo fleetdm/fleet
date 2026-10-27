@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.13.1",
+      "version": "1.13.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.mqttx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.mqttx' AND version_compare(bundle_short_version, '1.13.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.mqttx' AND version_compare(bundle_short_version, '1.13.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.mqttx' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/emqx/MQTTX/releases/download/v1.13.1/MQTTX-1.13.1-arm64.dmg",
+      "installer_url": "https://github.com/emqx/MQTTX/releases/download/v1.13.2/MQTTX-1.13.2-arm64.dmg",
       "install_script_ref": "4a4bae45",
       "uninstall_script_ref": "d7a19356",
-      "sha256": "253a636a0d32f136c3822616373dd7cfb2e89363e39a3257e9ccfe4813b55b40",
+      "sha256": "3bd495aef415930821b0f8a758566fd519f28c28b2421e948bf5b8e485e9dba1",
       "default_categories": [
         "Productivity"
       ]

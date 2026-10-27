@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -591,7 +592,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -606,6 +607,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
@@ -639,12 +641,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
 			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)
