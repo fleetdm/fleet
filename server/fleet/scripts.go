@@ -340,15 +340,9 @@ func (hsr HostScriptResult) AuthzType() string {
 }
 
 // ExtraAuthz implements authz.ExtraAuthzer. It gives the authorization policy
-<<<<<<< HEAD
-// the team id without including it in the JSON returned by the API.
-func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
-	return map[string]any{"team_id": hsr.TeamID}, nil
-=======
 // the fleet id without including it in the JSON returned by the API.
-func (hsr HostScriptResult) ExtraAuthz() (map[string]interface{}, error) {
-	return map[string]interface{}{"fleet_id": hsr.TeamID}, nil
->>>>>>> e08f4fcf20 (Remove teams from the API)
+func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{"fleet_id": hsr.TeamID}, nil
 }
 
 type BatchScriptHost struct {

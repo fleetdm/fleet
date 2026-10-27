@@ -11,5 +11,5 @@ import (
 
 // Parse parses the multipart form on the request.
 func Parse(ctx context.Context, r *http.Request, maxMemory int64) error {
-	return r.ParseMultipartForm(maxMemory)
+	return r.ParseMultipartForm(maxMemory) //nolint:gosec // G120: bounded by the route limit
 }

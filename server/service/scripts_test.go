@@ -961,7 +961,7 @@ func TestBatchScriptExecute(t *testing.T) {
 			return &fleet.Script{ID: id}, nil
 		}
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"fleet_id": float64(1)}, nil)
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"fleet_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "too_many_hosts")
 	})
@@ -998,7 +998,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.Equal(t, []uint{1, 2}, requestedHostIds)
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"fleet_id": float64(1)}, nil)
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"fleet_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
