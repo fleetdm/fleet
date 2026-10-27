@@ -2886,6 +2886,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedGoogleCAS, /added a certificate authority/],
+    [ActivityType.EditedGoogleCAS, /edited a certificate authority/],
+    [ActivityType.DeletedGoogleCAS, /deleted a certificate authority/],
+  ])("renders %s activity with the CA's name", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "GOOGLE_WIFI" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("GOOGLE_WIFI")).toBeInTheDocument();
+  });
+
   it("renders addedCustomScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedCustomScepProxy,

@@ -161,6 +161,7 @@ func TestSoftware(t *testing.T) {
 		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
 		{"ListHostSoftwareSortByDisplayName", testListHostSoftwareSortByDisplayName},
+		{"CleanupUnusedSoftwareBatches", testCleanupUnusedSoftwareBatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -16322,4 +16323,48 @@ func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+}
+
+func testCleanupUnusedSoftwareBatches(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	defer func(size, iterations int) {
+		cleanupBatchSize, cleanupMaxIterations = size, iterations
+	}(cleanupBatchSize, cleanupMaxIterations)
+	cleanupBatchSize, cleanupMaxIterations = 2, 10
+
+	host := test.NewHost(t, ds, "cleanup-host", "", "cleanup-hostkey", "cleanup-hostuuid", time.Now())
+	// Add one package at a time so software IDs ascend with the names.
+	software := make([]fleet.Software, 0, 6)
+	for i := range 6 {
+		software = append(software, fleet.Software{Name: fmt.Sprintf("sw%d", i), Version: "1.0", Source: "deb_packages"})
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[2], software[5]})
+	require.NoError(t, err)
+
+	// Batches are (sw0, sw1) then (sw3, sw4). Orphaning sw2 after the second batch puts it behind the
+	// cursor, so it must survive until the next run instead of being found by a rescan.
+	var batches int
+	cleanupUnusedSoftwareAfterBatchHook = func() {
+		batches++
+		if batches == 2 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[5]})
+			require.NoError(t, err)
+		}
+	}
+	t.Cleanup(func() { cleanupUnusedSoftwareAfterBatchHook = nil })
+
+	softwareNames := func() []string {
+		var names []string
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &names, `SELECT name FROM software ORDER BY name`))
+		return names
+	}
+
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw2", "sw5"}, softwareNames())
+
+	cleanupUnusedSoftwareAfterBatchHook = nil
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw5"}, softwareNames())
 }

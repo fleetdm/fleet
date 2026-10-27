@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.0.1",
+      "version": "10.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick' AND version_compare(bundle_short_version, '10.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick' AND version_compare(bundle_short_version, '10.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.tunnelblick.tunnelblick' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://tunnelblick.net/iprelease/Tunnelblick_10.0.1_build_6570.dmg",
+      "installer_url": "https://tunnelblick.net/iprelease/Tunnelblick_10.0.2_build_6590.dmg",
       "install_script_ref": "47462e4d",
       "uninstall_script_ref": "1fdaa6aa",
-      "sha256": "4187023a8a33b11cfccd12bb021f21ec942e4758b1c7f20102c136cda97a73c7",
+      "sha256": "0cbe851ab6d2c61e496ca9dd36b0a62a5759bb6ff9e855188cce0cda15d4d504",
       "default_categories": [
         "Productivity"
       ]
