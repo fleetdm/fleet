@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet is AI-native device management that turns IT admins into 5x AI engineers. It is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
-Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
-- 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
-- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
-- 🪟 reducing complexity by eliminating tool overlap from multiple traditional systems.
+Fleet is dedicated to:
+- 🔌 giving IT and cybersecurity teams less KTLO and more time building the future. With AI and human review, entire IT projects can happen in minutes.
+- 🪟 unbundling the Microsoft suite, so customers can choose their own IdP, EDR, office suite, and other tools while keeping tight integration.
+- 🐧 being the best way to manage Linux, new NVIDIA DGX hardware, ARM PCs, and other deskside computing.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
