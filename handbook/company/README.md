@@ -5,7 +5,7 @@
 Fleet Device Management is the open-core company behind the leading AI-native device management platform for Windows, Apple, Linux, Android, and more. Today, Fleet enrolls millions of laptops and servers at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to:
-- 🔌 AI-native device management that gives IT admins the time to transform themselves into 5x AI engineers, cutting KTLO so IT teams can build the future. With AI and human review, IT teams can one-shot entire IT projects in minutes.
+- 🔌 AI-native device management that gives IT admins the time to transform themselves into 5x AI engineers, cutting KTLO so they can build the future. With AI and human review, they can one-shot entire IT projects in minutes.
 - 🪟 unbundling the Microsoft suite. Customers choose their own IdP, EDR, office suite, and other tools, and keep tight integration with all of them.
 - 🐧 Linux, ARM PCs, and deskside computing. Fleet is the best Linux management option on the market and the premier solution for managing new NVIDIA DGX hardware.
 
