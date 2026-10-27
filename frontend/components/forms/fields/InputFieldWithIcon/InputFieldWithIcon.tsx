@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -34,8 +34,6 @@ export interface IInputFieldWithIconProps {
    * Defaults to `true` because most Fleet inputs are not credential fields.
    */
   ignore1Password?: boolean;
-  /** Adds an eye button that shows or hides a `type="password"` value. */
-  enableShowPassword?: boolean;
   value?: string;
 }
 
@@ -59,13 +57,9 @@ const InputFieldWithIcon = ({
   inputOptions,
   tooltip,
   ignore1Password = true,
-  enableShowPassword = false,
   value,
 }: IInputFieldWithIconProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const canShowPassword = enableShowPassword && type === "password";
-  const inputType = canShowPassword && showPassword ? "text" : type;
 
   useEffect(() => {
     if (autofocus && inputRef.current) {
@@ -124,10 +118,7 @@ const InputFieldWithIcon = ({
     className,
     { "input-with-icon": !!iconSvg },
     { [`${baseClass}__input--error`]: !!error },
-    {
-      [`${baseClass}__input--password`]: !!(inputType === "password" && value),
-    },
-    { [`${baseClass}__input--show-password`]: canShowPassword }
+    { [`${baseClass}__input--password`]: !!(type === "password" && value) }
   );
 
   const inputWrapperClasses = classnames(`${baseClass}__input-wrapper`, {
@@ -159,7 +150,7 @@ const InputFieldWithIcon = ({
           placeholder={placeholder}
           ref={inputRef}
           tabIndex={tabIndex}
-          type={inputType}
+          type={type}
           value={value}
           disabled={disabled}
           {...inputOptions}
@@ -176,18 +167,6 @@ const InputFieldWithIcon = ({
             className={`${baseClass}__clear-button`}
           >
             <Icon name="close-filled" color="core-fleet-black" />
-          </Button>
-        )}
-        {canShowPassword && (
-          <Button
-            onClick={() => setShowPassword((prev) => !prev)}
-            variant="subdued"
-            className={`${baseClass}__show-password-button`}
-            ariaLabel={showPassword ? "Hide password" : "Show password"}
-            ariaPressed={showPassword}
-            disabled={disabled}
-          >
-            <Icon name={showPassword ? "eye-slash" : "eye"} />
           </Button>
         )}
       </div>

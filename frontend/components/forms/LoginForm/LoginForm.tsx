@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import { isValidEmail, isPresent } from "components/forms/validators";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -143,13 +144,13 @@ const LoginForm = ({
           ignore1Password={false}
           disabled={isSubmitting}
         />
-        <InputFieldWithIcon
+        <InputField
           {...getTextFieldProps("password")}
           label="Password"
           placeholder="Password"
           type="password"
-          enableShowPassword
-          ignore1Password={false}
+          enableShowSecret
+          ignore1password={false}
           disabled={isSubmitting}
         />
       </div>

@@ -49,10 +49,6 @@
       padding-left: 36px;
     }
 
-    &--show-password {
-      padding-right: 40px;
-    }
-
     &::placeholder {
       color: $ui-fleet-black-50;
     }
@@ -157,14 +153,6 @@
   input[type="search"]::-webkit-search-results-button,
   input[type="search"]::-webkit-search-results-decoration {
     display: none;
-  }
-
-  &__show-password-button {
-    position: absolute;
-    right: 12px;
-    top: 0;
-    height: 36px;
-    z-index: 1;
   }
 
   &__clear-button {
