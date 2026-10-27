@@ -17,11 +17,72 @@
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Okta is an identity and access management (IAM) platform. Configure Fleet as an Okta SAML application so your team signs in with existing corporate credentials, reduces password sprawl, and centralizes access control.
+            Okta is an identity and access management (IAM) platform. Configure Fleet as an Okta SAML application so your team signs in with existing corporate credentials, reduces password sprawl, and centralizes access control. Use Fleet's <a href="/guides/okta-conditional-access-integration">conditional access</a> so Okta blocks sign-in from macOS hosts that are failing Fleet policies.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.okta.com/">Learn more</a>
             <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#okta">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
+          <img src="/images/logo-microsoft-entra-28x28@2x.png" alt="Microsoft Entra logo">
+          <p>Microsoft Entra</p>
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Microsoft Entra ID is Microsoft's identity and access management (IAM) platform. Configure Fleet as an Entra application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/entra-conditional-access-integration">conditional access</a> so Entra blocks sign-in from macOS and Windows hosts that are failing Fleet policies.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id">Learn more</a>
+            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#entra">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-duo-93x47@2x.png" alt="Duo logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Duo is a multi-factor authentication (MFA) and access platform. Configure Fleet as a Duo SSO application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/duo-conditional-access-integration">conditional access</a> so Duo blocks sign-in from macOS, Windows, and Linux hosts that aren't managed by Fleet.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://duo.com/">Learn more</a>
+            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-ping-identity-164x28@2x.png" alt="Ping Identity logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            PingFederate is Ping Identity's identity federation server. Configure Fleet as a PingFederate SAML application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/pingfederate-conditional-access-integration">conditional access</a> so PingFederate blocks sign-in from macOS, Windows, and Linux hosts that aren't managed by Fleet or are failing critical policies.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://www.pingidentity.com/en/platform/capabilities/authentication-authority/pingfederate.html">Learn more</a>
+            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-google-workspace-223x28@2x.png" alt="Google Workspace logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Google Workspace is Google's productivity and identity platform. Configure Fleet as a Google Workspace SAML app so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/google-conditional-access-integration">conditional access</a> so Google blocks sign-in from iPhones and iPads that aren't managed by Fleet.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://workspace.google.com/">Learn more</a>
+            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#google-workspace">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -36,7 +97,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.snowflake.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -51,7 +112,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.tines.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-fleet-and-tines-together#basic-article">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/using-fleet-and-tines-together#basic-article">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -151,7 +212,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.elastic.co/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -165,7 +226,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://github.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-github-actions-to-apply-configuration-profiles-with-fleet">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/using-github-actions-to-apply-configuration-profiles-with-fleet">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -316,7 +377,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.crowdstrike.com/en-us/platform/falcon-shield/integrations/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/deploying-crowdstrike-with-fleet">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/deploying-crowdstrike-with-fleet">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -355,7 +416,7 @@
             Vanta is a compliance and security automation platform. Send Fleet user and host data to Vanta to automatically collect evidence and demonstrate control over endpoints, speeding up audits and continuous compliance.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://vanta.com">Learn more</a>
+            <a purpose="learn-more-link" target="_blank" href="/guides/connect-fleet-to-vanta">Learn more</a>
             <animated-arrow-button class="py-0" href="/connect-vanta">Get started</animated-arrow-button>
           </div>
         </div>
@@ -370,7 +431,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://smallstep.com/product/solutions/fleet/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#smallstep">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#smallstep">Docs</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -384,7 +445,21 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://www.digicert.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#digicert">Guide</animated-arrow-button>
+            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#digicert">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-retriever-126x28@2x.png" alt="Retriever logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Retriever is a device retrieval and warehousing service. Sync each device’s Retriever warehouse status into a Fleet custom host vital. See which spare devices are ready to ship before anyone buys new hardware.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://www.helloretriever.com/">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/sync-warehouse-status-from-retriever">Docs</animated-arrow-button>
           </div>
         </div>
       </div>

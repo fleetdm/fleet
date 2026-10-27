@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` leaving a fleet with no bootstrap package when uploading its replacement failed. The existing package is now replaced only once the new one is saved.

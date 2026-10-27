@@ -8,13 +8,16 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"golang.org/x/text/cases"
@@ -278,10 +281,11 @@ func androidWipeAckUnenroll(ctx context.Context, ds fleet.Datastore, newActivity
 	cmd *android.MDMAndroidCommand, onUnenrolled func(hostID uint),
 ) error {
 	ah, err := ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
 	}
-	if ah == nil || ah.Host == nil {
+	// No host found (e.g. deleted from Fleet) leaves nothing to unenroll; returning nil lets the command reach a terminal state.
+	if err != nil || ah == nil || ah.Host == nil {
 		return nil
 	}
 
@@ -834,36 +838,21 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
-	}
-
 	if host != nil {
 		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-		if err != nil && !fleet.IsNotFound(err) {
-			return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
+		if err != nil {
+			return 0, err
 		}
-		if err == nil {
-			host.TeamID = enrollSecret.GetTeamID()
-		}
+		host.TeamID = teamID
 
-		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
-		hostKey := getAndroidHostKey(device)
-		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
-			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
-			ctxerr.Handle(ctx, err)
-		} else if found {
-			host.TeamID = priorTeamID
-		}
-
-		if enrollmentTokenRequest.IdpUUID != "" {
-			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
+		if idpUUID != "" {
+			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, idpUUID)
+			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
 			}
+			shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.Host.UUID, previousAcctUUID, idpUUID)
 		}
 
 		if err := svc.updateHost(ctx, device, host, true); err != nil {
@@ -959,8 +948,13 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
-		svc.verifyDevicePolicy(ctx, host.UUID, device)
-		svc.verifyDeviceSoftware(ctx, host.Host, device)
+		// Profiles are only ever delivered in the host-specific policy. The applied version
+		// of any other policy (e.g. the default one a device enrolls with) says nothing
+		// about them.
+		if policy != nil && *policy == host.UUID {
+			svc.verifyDevicePolicy(ctx, host.UUID, device)
+		}
+		svc.verifyDeviceSoftware(ctx, host.Host, device, fromEnroll)
 	} else if fromEnroll {
 		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
 		// Clear stale data so that the host-specific policy is applied correctly.
@@ -986,6 +980,8 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
+	// A payload without a measurement calculates as "not supported" (-1). UpdateAndroidHost
+	// keeps the host's last real measurement instead of writing that over it.
 	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
@@ -1062,6 +1058,8 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
+		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.UUID, host.Device.AppliedPolicyID)
+
 		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 			host.Host.UUID, host.Host.TeamID, enterprise.Name())
 		if err != nil {
@@ -1071,6 +1069,21 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
+}
+
+// clearReusedHostPolicyApps empties the app list of the host-specific policy of a device that
+// isn't on it yet. A re-enrolled host reuses that policy, which still lists the apps of its
+// previous enrollment, and the profile reconciler may move the device to it before the setup
+// experience replaces them. On failure the setup experience still replaces them before it
+// moves the device, so this only logs.
+func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName, hostUUID string, appliedPolicyID *string) {
+	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
+		return
+	}
+	// Don't hold the Pub/Sub push on quota errors, this is best-effort.
+	if err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
+	}
 }
 
 // androidDeviceVitals extracts the host vitals that live in
@@ -1286,25 +1299,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, err
 	}
 
-	var enrollmentTokenRequest enrollmentTokenRequest
-	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(ctx, device.EnrollmentTokenData)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
-	}
-
-	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "verifying enroll secret")
-	}
-
-	// If the device was previously known restore the last-known team instead of the enrollment secret's default.
-	teamID := enrollSecret.GetTeamID()
-	hostKey := getAndroidHostKey(device)
-	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
-		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
-		ctxerr.Handle(ctx, tlErr)
-	} else if found {
-		teamID = priorTeamID
+		return 0, err
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -1314,7 +1311,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
-	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", enrollmentTokenRequest.IdpUUID)
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", idpUUID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting computer name for new host")
 	}
@@ -1377,12 +1374,13 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, err
 	}
 
-	if enrollmentTokenRequest.IdpUUID != "" {
-		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
-		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
+	if idpUUID != "" {
+		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", idpUUID)
+		previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpUUID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.newActivity, svc.logger, host.UUID, previousAcctUUID, idpUUID)
 		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "associating android host with scim user")
 		}
@@ -1403,6 +1401,8 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
+
+	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.UUID, host.Device.AppliedPolicyID)
 
 	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())
@@ -1511,8 +1511,12 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	svc.logger.DebugContext(ctx, "pending install profiles for verification", "host_uuid", hostUUID,
 		"pending_count", len(pendingInstallProfiles), "applied_policy_version", appliedPolicyVersion)
 
-	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
-	if len(device.NonComplianceDetails) == 0 {
+	switch {
+	case len(pendingInstallProfiles) == 0:
+		// Nothing to verify. Non-compliance can still be reported for settings that are not
+		// profiles, such as apps added by certificate delivery or app installs.
+	case len(device.NonComplianceDetails) == 0:
+		// If nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
@@ -1537,7 +1541,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			svc.logger.ErrorContext(ctx, "error verifying pending install profiles", "err", err)
 		}
 
-	} else {
+	default:
 		// Find the policy request UUID from the most recent profile PATCH
 		// that the device has applied. We use <= instead of == because
 		// non-profile PATCHes (e.g. cert delivery, app installs) can bump
@@ -1569,6 +1573,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				"pending_profiles", len(pendingInstallProfiles),
 				"nil_policy_request_uuid", nilPolicyReqCount, "nil_included_in_policy_version", nilVersionCount,
 				"non_compliance_count", len(device.NonComplianceDetails))
+			break
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
@@ -1650,7 +1655,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	}
 }
 
-func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device) {
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device, fromEnroll bool) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
@@ -1664,7 +1669,28 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		svc.logger.ErrorContext(ctx, "error getting pending vpp installs", "err", err)
 		return
 	}
-	if len(pendingInstallApps) == 0 {
+	// A failure is not final: the device can report an app installed after Fleet gave up
+	// on it, e.g. when it was offline past the install timeout or the report listing the
+	// app arrived after the one that failed it. Not on enrollment though, as the host's
+	// enrollment time isn't updated yet, so the installs that re-enrolling just failed would
+	// count as current.
+	installedPackages := make(map[string]bool, len(device.ApplicationReports))
+	for _, appReport := range device.ApplicationReports {
+		if appReport.State == "INSTALLED" {
+			installedPackages[appReport.PackageName] = true
+		}
+	}
+	var failedInstallApps []*fleet.HostAndroidVPPSoftwareInstall
+	if !fromEnroll && len(installedPackages) > 0 {
+		failedInstallApps, err = svc.listFailedInstallsReportedInstalled(ctx, host.ID, installedPackages)
+		if err != nil {
+			// Still verify this report's pending installs; the failed ones can be recovered
+			// by a later report.
+			svc.logger.ErrorContext(ctx, "error getting failed vpp installs", "err", err)
+			failedInstallApps = nil
+		}
+	}
+	if len(pendingInstallApps) == 0 && len(failedInstallApps) == 0 {
 		return
 	}
 
@@ -1708,7 +1734,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	}
 
 	// for the remaining apps, mark as failed if non-conformant
-	for packageName := range pendingByPackageName {
+	for packageName, install := range pendingByPackageName {
 		if _, ok := markVerified[packageName]; ok {
 			// already marked as verified
 			continue
@@ -1733,13 +1759,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			continue
 		}
 
-		// no non-compliance report, but also not reported as installed, give it another
-		// chance later if the applied version == requested version? For now, marking as
-		// failed, we don't know how long it might take for the device to receive another
-		// policy, it may never happen.
-		markVerified[packageName] = false
-		svc.logger.ErrorContext(ctx, "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
-			"installation_failure_reason", "unknown - no non-compliance report received")
+		// Absent from both reports is not a failure by itself: a real one arrives as a
+		// non-compliance report, so wait for a later message as the in-progress case above
+		// does. But an app that left the host's policy before installing (fleet transfer, app
+		// deleted, GitOps) is never reported again, so give up once the install is too old.
+		if svc.installReapTimeout > 0 && install.CreatedAt != nil && svc.clock.Since(*install.CreatedAt) >= svc.installReapTimeout {
+			markVerified[packageName] = false
+			svc.logger.WarnContext(ctx, "Software failed to install: not reported by the device within the install timeout", "host_uuid", hostUUID, "package_name", packageName,
+				"install_created_at", *install.CreatedAt, "install_reap_timeout", svc.installReapTimeout)
+			continue
+		}
+		svc.logger.DebugContext(ctx, "Software not reported as installed or failed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName)
 	}
 
 	var toVerifyUUIDs, toFailUUIDs []string
@@ -1753,6 +1783,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 				toFailUUIDs = append(toFailUUIDs, install.CommandUUID)
 			}
 		}
+	}
+	for _, install := range failedInstallApps {
+		// The pending installs come from the replica, which can still list an install the
+		// primary already failed; that install was handled above.
+		if slices.ContainsFunc(pendingInstallApps, func(pending *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return pending.CommandUUID == install.CommandUUID
+		}) {
+			continue
+		}
+		toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+		svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
 	}
 	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
 		svc.logger.ErrorContext(ctx, "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
@@ -1798,6 +1839,35 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			return
 		}
 	}
+}
+
+// listFailedInstallsReportedInstalled returns the host's failed installs whose app the
+// status report lists as installed. Nearly every report lists installed apps, so the
+// replica is checked first. A match is confirmed on the primary, because reports for a
+// host arrive seconds apart and a lagging replica would still list an install the previous
+// report already verified, which would then be verified again with a second "installed"
+// activity. A failure the replica hasn't caught up with yet is recovered by a later report.
+func (svc *Service) listFailedInstallsReportedInstalled(ctx context.Context, hostID uint, installedPackages map[string]bool,
+) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	reportedInstalled := func(installs []*fleet.HostAndroidVPPSoftwareInstall) []*fleet.HostAndroidVPPSoftwareInstall {
+		return slices.DeleteFunc(installs, func(install *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return !installedPackages[install.AdamID]
+		})
+	}
+
+	candidates, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs")
+	}
+	if len(reportedInstalled(candidates)) == 0 {
+		return nil, nil
+	}
+
+	confirmed, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs from primary")
+	}
+	return reportedInstalled(confirmed), nil
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {

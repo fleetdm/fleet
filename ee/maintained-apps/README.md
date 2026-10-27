@@ -124,6 +124,7 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `install_script_path`    | string        | Filepath to a custom install script (`.ps1`). Overrides the generated install script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates install scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the `INSTALLER_PATH` environment variable.                                                                                                |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
 | `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
+| `ignore_upgrade_code`    | boolean       | Set to `true` when the vendor gives every MSI build a new `UpgradeCode` (e.g., QGIS). Fleet links a Windows Fleet-maintained app to its software title by upgrade code, so a per-build code would move the app to a new title with each update. With this set, the title is linked by `unique_identifier` instead, so give each app that sets it a distinct `unique_identifier`.  |
 | `requires_client_os`     | boolean       | Set to `true` when the installer refuses to run on Windows Server SKUs (e.g., Dell Display and Peripheral Manager). Fleet's ingestion ignores this field; CI reads it to route validation to the `windows-11-arm` runner (the only GitHub-hosted client-OS Windows runner) instead of the default Windows Server x64 runner.  |
 
 #### Windows troubleshooting
@@ -163,6 +164,55 @@ If an app does not pass test criteria:
 
 - [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
+
+## Editing an app's pre-install query
+
+With patch when closed on, Fleet runs the app's `open` query before an update and installs only if it returns a result (app is closed). To override the generated query:
+
+### macOS
+
+In `ingesters/homebrew/ingester.go`, add a `case` for the app's `token` to the `switch input.Token` block after `GenerateOpenQuery`. Escape `%` as `%%`.
+
+```go
+case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+	out.Queries.Open = fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+		out.UniqueIdentifier,
+	)
+```
+
+Add a test in `ingesters/homebrew/ingester_test.go`.
+
+### Windows
+
+The default query checks for a running `<app name>.exe`.
+
+To match other process names, add the app's `name` to `windowsOpenQueryOverrides` in `pkg/patch_policy/patch_policy.go`. The value replaces `<value>` in `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`.
+
+```go
+"7-zip": "IN ('7zfm.exe','7zg.exe')",
+```
+
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `GenerateOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
+
+```go
+switch input.Slug {
+case "example-app/windows":
+	out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE 'c:\program files\example app\%');`
+}
+```
+
+### Publish
+
+1. Regenerate the output and confirm `open` changed:
+
+   ```bash
+   go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
+   ```
+
+2. Open a PR. Go changes need [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go) approval.
+
+No Fleet release needed. Fleet servers pick up the new query on the next FMA auto-update, except for apps pinned to a specific version.
 
 ## Freezing an existing Fleet-maintained app
 

@@ -79,6 +79,7 @@ type generateGitopsClient interface {
 	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
+	GetWindowsEULAMetadata() (*fleet.MDMEULA, error)
 	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
@@ -692,7 +693,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			for _, comment := range cmd.Comments {
 				if comment.Filename == path {
-					b = bytes.ReplaceAll(b,
+					b = bytes.ReplaceAll(
+						b,
 						[]byte(comment.Token),
 						[]byte("# "+comment.Comment),
 					)
@@ -798,6 +800,21 @@ func generateFilename(name string) string {
 	// Strip any leading/trailing dashes using regex.
 	fileName = strings.Trim(fileName, "-")
 	return fileName
+}
+
+// uniqueFilename numbers fileName ("a-b-2.xml") when it's already taken:
+// distinct names can sanitize alike ("A B" and "a-b"), and since each YAML
+// entry carries its own name, a shared file would apply one profile's
+// contents under both names.
+func uniqueFilename(fileName string, taken map[string]bool) string {
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+	candidate := fileName
+	for i := 2; taken[candidate]; i++ {
+		candidate = fmt.Sprintf("%s-%d%s", base, i, ext)
+	}
+	taken[candidate] = true
+	return candidate
 }
 
 func scriptExtensionForPlatform(platform string) string {
@@ -920,7 +937,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		})
 	}
 
-	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
+	if orgSettings[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
 		return nil, err
 	}
 
@@ -1145,6 +1162,29 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if googleCAS, ok := result["google_cas"]; ok && googleCAS != nil {
+			for _, intg := range googleCAS.([]any) {
+				intg.(map[string]any)["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google CAS service account key JSON here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.google_cas.api_key_json",
+				})
+			}
+		}
+	}
+
+	// The client certificate and key are stored apart from their PKCS#12, so it can't be exported, even with secrets.
+	if ejbcaCAs, ok := result["ejbca"]; ok && ejbcaCAs != nil {
+		for _, intg := range ejbcaCAs.([]any) {
+			intg.(map[string]any)["client_p12"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 (base64) here")
+			intg.(map[string]any)["password"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 password here")
+			for _, key := range []string{"client_p12", "password"} {
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.ejbca." + key,
+				})
+			}
+		}
 	}
 
 	return result, nil
@@ -1232,30 +1272,81 @@ func orgLogoExtFromContentType(contentType string) (string, error) {
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
-	// Download the eula metadata for the token.
-	eulaMetadata, err := cmd.Client.GetEULAMetadata()
+	return cmd.writeEULA("eula", fleet.MDMEULADefaultDarwinFileName, "macos-", cmd.Client.GetEULAMetadata, cmd.Client.GetEULAContent)
+}
+
+func (cmd *GenerateGitopsCommand) generateWindowsEULA() (string, error) {
+	return cmd.writeEULA("Windows EULA", "terms.md", "windows-", cmd.Client.GetWindowsEULAMetadata, cmd.Client.GetEULAContent)
+}
+
+// writeEULA adds an uploaded EULA, macOS or Windows, to lib/eula and returns
+// its path for the YAML, or "" when none is uploaded.
+// maxExportedNameBytes leaves room for a collision prefix under the 255-byte
+// limit common file systems put on a file name.
+const maxExportedNameBytes = 200
+
+// portableFileName reports whether an exported file can keep name on macOS,
+// Linux and Windows. Windows also refuses its reserved device names, with any
+// extension, and names ending in a dot.
+func portableFileName(name string) bool {
+	if name == "" || len(name) > maxExportedNameBytes || strings.HasSuffix(name, ".") {
+		return false
+	}
+	stem, _, _ := strings.Cut(name, ".")
+	switch stem = strings.ToUpper(strings.TrimRight(stem, " ")); {
+	case stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL":
+		return false
+	case len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '0' && stem[3] <= '9':
+		return false
+	}
+	return true
+}
+
+func (cmd *GenerateGitopsCommand) writeEULA(
+	label, defaultName, collisionPrefix string,
+	getMetadata func() (*fleet.MDMEULA, error),
+	getContent func(token string) ([]byte, error),
+) (string, error) {
+	metadata, err := getMetadata()
 	if err != nil {
-		// not found is OK, it means the user has not uploaded a EULA yet.
-		if strings.Contains(err.Error(), "Resource Not Found") {
+		// not found is OK, it means the user has not uploaded one yet.
+		if service.IsNotFoundErr(err) {
 			return "", nil
 		}
-
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula metadata: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s metadata: %s\n", label, err)
 		return "", err
 	}
 
-	// now we want the eula contents, which is a PDF.
-	eulaContent, err := cmd.Client.GetEULAContent(eulaMetadata.Token)
+	content, err := getContent(metadata.Token)
 	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula contents: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s contents: %s\n", label, err)
 		return "", err
 	}
 
-	fileName := fmt.Sprintf("lib/eula/%s", eulaMetadata.Name)
-	cmd.FilesToWrite[fileName] = string(eulaContent)
-	path := fmt.Sprintf("./%s", fileName)
-
-	return path, nil
+	// The stored name is whatever the uploader sent, so keep only its last
+	// element: a path in it would write outside the output directory.
+	name := fleet.SanitizeEULAFileName(metadata.Name)
+	// Characters Windows rejects in file names would fail the write there.
+	name = strings.Map(func(r rune) rune {
+		if strings.ContainsRune(`<>:"|?*`, r) {
+			return '-'
+		}
+		return r
+	}, name)
+	if !portableFileName(name) {
+		name = defaultName
+	}
+	fileName := "lib/eula/" + name
+	// Both EULAs go to the same folder; keep both when their names match,
+	// ignoring case as macOS and Windows file systems do.
+	for existing := range cmd.FilesToWrite {
+		if strings.EqualFold(existing, fileName) {
+			fileName = "lib/eula/" + collisionPrefix + name
+			break
+		}
+	}
+	cmd.FilesToWrite[fileName] = string(content)
+	return "./" + fileName, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
@@ -1278,6 +1369,10 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 			for _, team := range token.Teams {
 				teamNames = append(teamNames, team.Name)
 			}
+			// Write "All fleets" for a token assigned to all fleets, it has no fleet names to list
+			if token.Teams != nil && len(token.Teams) == 0 {
+				teamNames = []string{fleet.DisplayNameAllTeams}
+			}
 			vppConfig = append(vppConfig, fleet.MDMAppleVolumePurchasingProgramInfo{
 				Location: token.Location,
 				Teams:    teamNames,
@@ -1295,6 +1390,16 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 			}
 		}
 		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
+
+		var windowsEULAPath string
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			var err error
+			windowsEULAPath, err = cmd.generateWindowsEULA()
+			if err != nil {
+				return nil, err
+			}
+		}
+		result[jsonFieldName(t, "WindowsEULA")] = windowsEULAPath
 	}
 
 	if !cmd.CLI.Bool("insecure") {
@@ -1415,13 +1520,15 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
 			}
-			assets, err := cmd.generateAssets(teamId, teamName)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
-				return nil, err
-			}
-			if len(assets) > 0 {
-				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+			if cmd.AppConfig.License.IsPremium() {
+				assets, err := cmd.generateAssets(teamId, teamName)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+					return nil, err
+				}
+				if len(assets) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+				}
 			}
 
 		}
@@ -1547,13 +1654,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = cmd.AppConfig.MDM.WindowsSettings.RequireBitLockerPIN.Value
 			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-		}
-
-		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
-			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
-		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
@@ -1598,6 +1698,16 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 	}
 
+	if teamId == nil || *teamId == 0 {
+		mdmT := reflect.TypeFor[fleet.MDM]()
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result[jsonFieldName(mdmT, "AndroidEnabledAndConfigured")] = true
+		}
+	}
+
 	if len(macosSettings) > 0 {
 		result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 	}
@@ -1618,11 +1728,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	if len(profiles) == 0 {
 		return nil, nil
 	}
-	appleProfilesSlice := make([]map[string]interface{}, 0)
-	windowsProfilesSlice := make([]map[string]interface{}, 0)
-	androidProfilesSlice := make([]map[string]interface{}, 0)
+	appleProfilesSlice := make([]map[string]any, 0)
+	windowsProfilesSlice := make([]map[string]any, 0)
+	androidProfilesSlice := make([]map[string]any, 0)
+	usedFilenames := make(map[string]bool, len(profiles))
 	for _, profile := range profiles {
-		profileSpec := map[string]interface{}{}
+		profileSpec := map[string]any{}
 		// Parse any labels.
 		if profile.LabelsIncludeAll != nil {
 			labels := make([]string, len(profile.LabelsIncludeAll))
@@ -1658,6 +1769,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		if generatedFilename == "" {
 			continue // Error logged inside generateProfileFilename
 		}
+		generatedFilename = uniqueFilename(generatedFilename, usedFilenames)
 
 		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
@@ -1675,6 +1787,19 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 
 		profileSpec["path"] = path
+		if profile.SelfService {
+			profileSpec["self_service"] = true
+		}
+		if profile.Hidden {
+			profileSpec["hidden"] = true
+		}
+
+		// Always emitted: the file name is a sanitized copy of the name, so
+		// omitting it would rename profiles whose name the file can't carry.
+		profileSpec["name"] = profile.Name
+		if profile.Description != "" {
+			profileSpec["description"] = profile.Description
+		}
 
 		// Only declarations can carry one, and the list endpoint doesn't return
 		// activations, so it takes a second call.
@@ -1715,7 +1840,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
 		"android_profiles": androidProfilesSlice,
@@ -1821,10 +1946,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "Description"):                  policy.Description,
 			jsonFieldName(t, "Resolution"):                   policy.Resolution,
 			jsonFieldName(t, "Platform"):                     policy.Platform,
-			jsonFieldName(t, "Critical"):                     policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+		}
+		if cmd.AppConfig.License.IsPremium() {
+			policySpec[jsonFieldName(t, "Critical")] = policy.Critical
+			policySpec[jsonFieldName(t, "Hidden")] = policy.Hidden
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
@@ -1843,6 +1971,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
+			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2367,9 +2496,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
+				// open query, which gitops rejects.
 				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
+					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
@@ -2437,13 +2568,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
-			if softwareTitle.AppStoreApp.SelfService {
-				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
-			}
-
-			if softwareTitle.AppStoreApp.Categories != nil {
-				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
-			}
 
 			if softwareTitle.DisplayName != "" {
 				softwareSpec["display_name"] = softwareTitle.DisplayName
@@ -2465,60 +2589,103 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				cmd.FilesToWrite[fileName] = icon
 			}
 
-			config := softwareTitle.AppStoreApp.Configuration
-			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
-				// all per-team software-related artifacts are generated in lib/{team}/software
-				platform := softwareTitle.AppStoreApp.Platform
-				switch platform {
-				case fleet.IOSPlatform, fleet.IPadOSPlatform:
-					// iOS/iPadOS configuration is returned as a JSON-encoded
-					// string of XML; unwrap and write the raw XML.
-					var xmlStr string
-					if err := json.Unmarshal(config, &xmlStr); err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-					if xmlStr == "" {
-						break
-					}
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
-					softwareSpec["configuration"] = map[string]any{
-						"path": fmt.Sprintf("../%s", fileName),
-					}
-					cmd.FilesToWrite[fileName] = []byte(xmlStr)
-				default:
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
-					softwareSpec["configuration"] = map[string]any{
-						"path": fmt.Sprintf("../%s", fileName),
-					}
-
-					// format config because it is received with incorrect indentation
-					var buf bytes.Buffer
-					if err := json.Indent(&buf, config, "", "  "); err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-
-					cmd.FilesToWrite[fileName] = buf.Bytes()
-				}
+			flatVersion := softwareTitle.AppStoreApp.AppStoreAppVersion()
+			flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
+			flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
+			flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
+			appVersions := []fleet.AppStoreAppVersion{flatVersion}
+			var versionSpecs []map[string]any
+			if len(softwareTitle.AppStoreApps) > 1 || (len(softwareTitle.AppStoreApps) == 1 && softwareTitle.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+				appVersions = softwareTitle.AppStoreApps
+				versionSpecs = make([]map[string]any, 0, len(appVersions))
 			}
 
-			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
-			// only VPP apps (those with an AdamID) support auto-update schedules.
-			if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
-				platform := softwareTitle.AppStoreApp.Platform
-				adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
-				if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
-					if softwareTitle.AutoUpdateEnabled != nil {
-						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
+			usedVersionFilenamePrefixes := make(map[string]struct{}, len(appVersions))
+			for _, version := range appVersions {
+				versionSpec := softwareSpec
+				versionFilenamePrefix := filenamePrefix
+				if versionSpecs != nil {
+					versionSpec = map[string]any{"name": version.Name}
+					versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.Name)
+					// Add the version id when two version names map to the same file name
+					if _, ok := usedVersionFilenamePrefixes[versionFilenamePrefix]; ok {
+						versionFilenamePrefix += fmt.Sprintf("-%d", version.ID)
 					}
-					if softwareTitle.AutoUpdateStartTime != nil {
-						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
-					}
-					if softwareTitle.AutoUpdateEndTime != nil {
-						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
+					usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
+				}
+
+				if version.SelfService {
+					versionSpec["self_service"] = version.SelfService
+				}
+
+				if version.Categories != nil {
+					versionSpec["categories"] = version.Categories
+				}
+
+				versionLabelKey, versionLabelNames := scopeLabels(version.LabelsIncludeAny, version.LabelsExcludeAny, version.LabelsIncludeAll)
+				if versionLabelKey != "" {
+					versionSpec[versionLabelKey] = versionLabelNames
+				}
+
+				config := version.Configuration
+				if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+					// all per-team software-related artifacts are generated in lib/{team}/software
+					switch version.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						// iOS/iPadOS configuration is returned as a JSON-encoded
+						// string of XML; unwrap and write the raw XML.
+						var xmlStr string
+						if err := json.Unmarshal(config, &xmlStr); err != nil {
+							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
+							return nil, err
+						}
+						if xmlStr == "" {
+							break
+						}
+						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.xml")
+						versionSpec["configuration"] = map[string]any{
+							"path": fmt.Sprintf("../%s", fileName),
+						}
+						cmd.FilesToWrite[fileName] = []byte(xmlStr)
+					default:
+						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.json")
+						versionSpec["configuration"] = map[string]any{
+							"path": fmt.Sprintf("../%s", fileName),
+						}
+
+						// format config because it is received with incorrect indentation
+						var buf bytes.Buffer
+						if err := json.Indent(&buf, config, "", "  "); err != nil {
+							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+							return nil, err
+						}
+
+						cmd.FilesToWrite[fileName] = buf.Bytes()
 					}
 				}
+
+				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+				// only VPP apps (those with an AdamID) support auto-update schedules.
+				if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
+					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AppStoreID != "" {
+						if version.AutoUpdateEnabled != nil {
+							versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
+						}
+						if version.AutoUpdateStartTime != nil {
+							versionSpec["auto_update_window_start"] = *version.AutoUpdateStartTime
+						}
+						if version.AutoUpdateEndTime != nil {
+							versionSpec["auto_update_window_end"] = *version.AutoUpdateEndTime
+						}
+					}
+				}
+
+				if versionSpecs != nil {
+					versionSpecs = append(versionSpecs, versionSpec)
+				}
+			}
+			if versionSpecs != nil {
+				softwareSpec["versions"] = versionSpecs
 			}
 		}
 
@@ -2538,7 +2705,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		} else {
 			app := softwareTitle.AppStoreApp
-			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
 			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}

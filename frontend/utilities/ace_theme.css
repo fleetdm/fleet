@@ -1,11 +1,23 @@
+.ace-fleet {
+  --code-blue: #2f6bd4;
+  --code-green: #24803a;
+}
+
+body.dark-mode .ace-fleet {
+  --code-blue: #7aa7ff;
+  --code-green: #6fcf87;
+}
+
 .ace_editor.ace-fleet {
   font-family: "SourceCodePro", monospace;
   font-size: 14px;
   background: transparent;
-  color: #66696f;
+  color: var(--core-fleet-black);
   border-radius: 4px;
   border: solid 1px var(--ui-blue-gray);
   line-height: 24px;
+  /* Horizontal swipes Ace can't scroll would otherwise reach the page and trigger browser back navigation. */
+  overscroll-behavior-x: contain;
 }
 
 .ace_editor.ace-fleet:hover {
@@ -102,7 +114,7 @@
 }
 
 .ace-fleet .ace_string {
-  color: var(--core-fleet-green);
+  color: var(--code-green);
 }
 
 .ace-fleet .ace_osquery-column {
@@ -113,7 +125,7 @@
 .ace-fleet .ace_storage,
 .ace-fleet .ace_storage.ace_type,
 .ace-fleet .ace_support.ace_type {
-  color: #8959a8;
+  color: var(--core-fleet-purple);
 }
 
 .ace-fleet .ace_keyword.ace_operator,
@@ -121,20 +133,14 @@
   color: var(--ui-fleet-black-75);
 }
 
-.ace-fleet .ace_constant.ace_numeric {
-  color: var(--core-fleet-green);
-}
-
+.ace-fleet .ace_constant.ace_numeric,
 .ace-fleet .ace_constant.ace_character,
 .ace-fleet .ace_constant.ace_language,
 .ace-fleet .ace_keyword.ace_other.ace_unit,
 .ace-fleet .ace_support.ace_constant,
-.ace-fleet .ace_variable.ace_parameter {
-  color: #f5871f;
-}
-
+.ace-fleet .ace_variable.ace_parameter,
 .ace-fleet .ace_constant.ace_other {
-  color: #666969;
+  color: var(--code-green);
 }
 
 .ace-fleet .ace_invalid {
@@ -154,12 +160,12 @@
 .ace-fleet .ace_entity.ace_name.ace_function,
 .ace-fleet .ace_support.ace_function,
 .ace-fleet .ace_variable {
-  color: #4271ae;
+  color: var(--code-blue);
 }
 
 .ace-fleet .ace_support.ace_class,
 .ace-fleet .ace_support.ace_type {
-  color: #c99e00;
+  color: var(--core-fleet-purple);
 }
 
 .ace-fleet .ace_heading,
@@ -168,11 +174,21 @@
 }
 
 .ace-fleet .ace_entity.ace_name.ace_tag,
-.ace-fleet .ace_entity.ace_other.ace_attribute-name,
 .ace-fleet .ace_meta.ace_tag,
-.ace-fleet .ace_string.ace_regexp,
-.ace-fleet .ace_variable {
-  color: #c82829;
+.ace-fleet .ace_xml-pe,
+.ace-fleet .ace_punctuation.ace_xml-decl,
+.ace-fleet .ace_keyword.ace_instruction,
+.ace-fleet .ace_keyword.ace_markup-decl,
+.ace-fleet .ace_punctuation.ace_markup-decl {
+  color: var(--code-blue);
+}
+
+.ace-fleet .ace_entity.ace_other.ace_attribute-name {
+  color: inherit;
+}
+
+.ace-fleet .ace_string.ace_regexp {
+  color: var(--code-green);
 }
 
 .ace-fleet .ace_comment {
@@ -180,15 +196,10 @@
 }
 
 .ace-fleet .ace_indent-guide {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bdu3f/BwAlfgctduB85QAAAABJRU5ErkJggg==)
-    right repeat-y;
+  box-shadow: inset -1px 0 0 var(--ui-fleet-black-10);
 }
 
 /* Dark mode overrides — only for values without a matching CSS custom property */
-body.dark-mode .ace_editor.ace-fleet {
-  color: var(--ui-fleet-black-33);
-}
-
 body.dark-mode .ace-fleet .ace_marker-layer .ace_selection {
   background: rgba(123, 121, 255, 0.2);
 }

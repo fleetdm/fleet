@@ -6,7 +6,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Marketing Coordinator | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
+| Product Marketing Manager | Allen Houchins <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
+| Marketing Coordinator | Irena Reedy <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
+| GTM Engineer | Eric Shaw <sup><sub> See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#website-group) </sup></sub>
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -15,12 +17,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 - To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
-
-
-
-### Marketing assets
-
-The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
 
 ### Press boilerplate text
@@ -32,7 +28,7 @@ Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep ful
 
 ## Fleet writing style, tone, and voice instructions for AI
 
-When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing.
 
 
 ### Website traffic Looker dashboard 
@@ -132,12 +128,29 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 > LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
-### Promote a post on LinkedIn
+### Review competitor exclusion list
 
-1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
-2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
-3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
-4. Launch campaign once approved.
+Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update competitor database"](https://fleetdm.com/handbook/marketing#update-competitor-database)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
+
+1. For each competitor on the competitor exclusion list, search the company name in the [dynamic company list segment builder](https://www.linkedin.com/campaignmanager/accounts/509911695/companies/?businessId=personal&companyNameSearch=tanium&crmFilters=%7B%22openOpportunityCountFilter%22%3A%22ALL%22%2C%22pipelineValueFilter%22%3A%22ALL%22%2C%22revenueWonFilter%22%3A%22ALL%22%2C%22closedLostValueFilter%22%3A%22ALL%22%7D&lookbackWindow=LAST_30_DAYS) in LinkedIn Campaign Manager (the example link searches "tanium"; change `companyNameSearch` to the competitor's name).
+2. Confirm that the competitor received no paid impressions, clicks, or engagements over the last 30 days.
+3. If a competitor did, find the active ad sets that skipped the exclusion list and fix them. Add any missing company to the list.
+
+
+### Promote a workshop on LinkedIn
+
+1. Create an ad set under ["Drives"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D). Name it with an ISO date prefix, the type of workshop, and the city (e.g., "2026-10-03 - Apple certified (Denver)").
+2. Set the goal to "Engagement" and don't set an end date. Marketing turns off the ad set manually when it's no longer needed.
+3. Click "Next."
+4. Under "What you're marketing," clear all selections so it shows "No specified offering."
+5. Under "Saved audiences," select "See all audiences" and load "anyone.local." This audience includes customers, because customers should see workshop ads too.
+6. Under "Location," clear the default (Canada and United States) and search for the workshop's city. Select the city's metro area, plus its state and the surrounding states. For example, for a Denver workshop, select "Denver Metro," Colorado, Wyoming, New Mexico, and Utah, which gives a target audience size of 5,400+.
+7. Keep the language set to English. Leave every other audience setting at its default, except uncheck "Enable Audience Expansion."
+8. Turn off "LinkedIn Audience Network."
+9. Set a daily budget of $50.
+10. Under "Additional options," select "Manual bidding" and uncheck "Enable bid adjustments for high-value clicks." Ignore LinkedIn's suggested bid, which is usually high. Start at $1 and check the results. For a small, highly targeted workshop audience, go up to $2.
+11. Keep the "Single image" ad format and leave everything else at its defaults, then click "Next."
+12. Finish and launch the ad set by following the ["LinkedIn workshop promotion"](https://docs.google.com/document/d/1Zgs093felMMJHNkYUZafLWoSsePPmg2ofl0zUYljx5Q/edit) steps (private Google doc).
 
 
 ### Settle event strategy
@@ -438,7 +451,7 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it
 6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
-7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) first
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) first
 8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
 9. Once you think your blog is ready, commit the changes
 10. Before submitting a PR to merge it, preview it:
@@ -447,6 +460,12 @@ Although details on how to format and meta tag a blog are in [the writing handbo
     - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
 11. When ready, submit a PR to get it reviewed and merged
 
+## Update competitor database
+
+To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
+
+1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
+2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
 
 
 ## Rituals

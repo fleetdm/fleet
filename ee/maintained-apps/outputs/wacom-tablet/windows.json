@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.4.14-1",
+      "version": "6.4.15-1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.' AND version_compare(version, '6.4.14-1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Wacom Tablet %' AND publisher = 'Wacom Technology Corp.' AND version_compare(version, '6.4.15-1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wacomdesktopcenter.exe','wacom_tablet.exe'));"
       },
-      "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/win/professional/WacomTablet_6.4.14-1.exe",
+      "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/win/professional/WacomTablet_6.4.15-1.exe",
       "install_script_ref": "d1d4a55c",
       "uninstall_script_ref": "c031e81e",
-      "sha256": "9ddb4c8fb467b1c9a9b9377f7fcd7ed481550d6f43bb9ea62e4724089eeecd63",
+      "sha256": "05e639d68af2f411e9df5c98205fa3e66636eb6a271bbe408c36af4c40efd01c",
       "default_categories": [
         "Productivity"
       ]

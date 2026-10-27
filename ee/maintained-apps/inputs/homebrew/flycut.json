@@ -1,0 +1,10 @@
+{
+  "name": "Flycut",
+  "unique_identifier": "com.generalarcade.flycut",
+  "token": "flycut",
+  "installer_format": "zip",
+  "slug": "flycut/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

@@ -1,356 +1,22 @@
-//  ╔═╗╔═╗╔═╗╔═╗╔═╗
-//  ║  ╠═╣╚═╗║╣ ╚═╗
-//  ╚═╝╩ ╩╚═╝╚═╝╚═╝
-//
-// `mustContain` / `mustNotContain` are compared with all whitespace stripped from both sides,
-// because the JSON formats have unpredictable indentation and an assertion like
-// `"maximumTimeToLock": "300000"` would otherwise fail on formatting alone.
-//
-// Assertions are substring-only by design.  Anything cleverer would be a validator, and the design
-// decision for this generator was that there isn't one -- the CANARY cases are written as exact
-// substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
-// per payload domain, distinct PayloadUUIDs, single-line CDATA) are noted on the case and stay a
-// human read.
-const TEST_CASES = [
-
-  //  ╔═╗╔═╗╔═╗
-  //  ║  ╚═╗╠═╝
-  //  ╚═╝╚═╝╩
-  {
-    id: 'csp-device-password',
-    profileType: 'csp',
-    canary: true,
-    instructions: 'Require a password to unlock the device.',
-    expect: {
-      mustContain: ['./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled'],
-      mustContainElement: [['Format', 'int'], ['Data', '0']],
-      mustNotContainElement: [['Format', 'bool']],
-      mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-removable-storage',
-    profileType: 'csp',
-    instructions: 'Block write access to removable storage.',
-    expect: {
-      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Storage/RemovableDiskDenyWriteAccess'],
-      mustContainElement: [['Format', 'int'], ['Data', '1']],
-      mustNotContainElement: [['Format', 'bool'], ['Format', 'chr'], ['Data', '0']],
-      mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-min-password-length',
-    profileType: 'csp',
-    instructions: 'Require device passwords to be at least 12 characters long.',
-    expect: {
-      mustContain: ['MinDevicePasswordLength', 'DevicePasswordEnabled'],
-      mustContainElement: [['Data', '12'],['Format', 'int']],
-      mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-failed-attempts',
-    profileType: 'csp',
-    instructions: 'Wipe a mobile device after 10 failed password attempts.',
-    expect: {
-      mustContain: ['DeviceLock/MaxDevicePasswordFailedAttempts'],
-      mustContainElement: [['Data', '10'], ['Format', 'int']],
-      mustNotContainElement: [['Format', 'chr'], ['Data', '0']],
-      mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-wifi-wpa2-psk-with-spaces',
-    profileType: 'csp',
-    canary: true,
-    instructions: 'Add a wifi profile for a network with the SSID "A Network" with WPA2 authentication that uses the password "aaaaaaapassword".',
-    readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA - no assertion can express that.',
-    expect: {
-      mustContain: ['A%20Network', '<![CDATA[',],
-      mustContainElement: [['name', 'A Network'], ['authentication', 'WPA2PSK'], ['keyMaterial', 'aaaaaaapassword']],
-      mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-logon-banner',
-    profileType: 'csp',
-    instructions: 'Show "Authorized users only" as a message on the sign-in screen.',
-    expect: {
-      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn', 'Authorized users only'],
-      mustContainElement: [['Format', 'chr']]
-    }
-  },
-  {
-    id: 'csp-telemetry',
-    profileType: 'csp',
-    instructions: 'Send the least amount of diagnostic data allowed.',
-    expect: {
-      mustContain: ['Vendor/MSFT/Policy/Config/System/AllowTelemetry'],
-      mustContainElement: [['Format', 'int'], ['Data', '0']]
-    }
-  },
-  {
-    id: 'csp-clipboard-history',
-    profileType: 'csp',
-    instructions: 'Disable clipboard history.',
-    expect: {
-      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Experience/AllowClipboardHistory'],
-      mustContainElement: [['Format', 'int'], ['Data', '0']],
-      mustNotContainElement: [['Format', 'bool']],
-    }
-  },
-  {
-    id: 'csp-store-app-auto-update',
-    profileType: 'csp',
-    instructions: 'Enforce automatic updates for Microsoft Store apps.',
-    expect: {
-      mustContain: ['ApplicationManagement/AllowAppStoreAutoUpdate'],
-      mustContainElement: [['Format', 'int'], ['Data', '1']],
-      mustNotContainElement: [['Data', '2'], ['Format', 'bool']],
-      mustNotContain: ['WindowsStore/DisableAutoUpdate']
-    }
-  },
-  {
-    id: 'csp-disable-snapshots',
-    profileType: 'csp',
-    instructions: 'Prevent Recall from saving snapshots of the screen',
-    expect: {
-      mustContain: ['/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis'],
-      mustContainElement: [['Format', 'int'], ['Data', '1']],
-      mustNotContainElement: [['Data', '0'], ['Format', 'bool'], ['Format', 'chr']],
-    }
-  },
-
-  //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
-  //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
-  //  ╩ ╩╚═╝╚═╝╩╩═╝╚═╝╚═╝╝╚╝╚  ╩╚═╝
-  {
-    id: 'mobileconfig-mixed-casing',
-    profileType: 'mobileconfig',
-    canary: true,
-    instructions: 'Require a 12-character passcode with no simple passcodes, and turn on automatic checking for updates.',
-    readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.  Confirm the passcode keys kept their lowercase first letter in the SAME profile where AutomaticCheckEnabled kept its capital -- a model can be self-consistently wrong and still pass one of these two checks.',
-    expect: {
-      mustContainElement: [['key', 'forcePIN'], ['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
-      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
-    }
-  },
-  {
-    id: 'mobileconfig-showfullname',
-    profileType: 'mobileconfig',
-    canary: true,
-    instructions: 'Set the login window to show a list of users instead of name and password fields.',
-    readByEye: 'SHOWFULLNAME false is what shows the user list, so confirm the value is false rather than the true a "show a list" reading invites.',
-    expect: {
-      mustContain: ['SHOWFULLNAME', '<false/>'],
-      mustNotContainElement: [['string', 'false']]
-    }
-  },
-  {
-    id: 'mobileconfig-disable-camera',
-    profileType: 'mobileconfig',
-    instructions: 'Disable the camera.',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', 'allowCamera', '<false/>'],
-      mustNotContainElement: [['string', 'false']],
-    }
-  },
-  {
-    id: 'mobileconfig-login-banner',
-    profileType: 'mobileconfig',
-    instructions: 'Show "Authorized use only" on the login window.',
-    expect: {
-      mustContain: ['LoginwindowText', 'Authorized use only']
-    }
-  },
-  {
-    id: 'mobileconfig-screensaver',
-    profileType: 'mobileconfig',
-    instructions: 'Show the "Flurry" screensaver after 10 minutes of inactivity and require a password immediately.',
-    expect: {
-      mustContain: ['idleTime', 'askForPassword', 'moduleName', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
-    }
-  },
-  {
-    id: 'mobileconfig-firewall',
-    profileType: 'mobileconfig',
-    instructions: 'Turn on the firewall in stealth mode and block all incoming connections.',
-    readByEye: 'All three keys must sit in ONE dict of PayloadType com.apple.security.firewall.  Count the dicts inside PayloadContent.',
-    expect: {
-      mustContain: ['EnableFirewall', 'EnableStealthMode', 'BlockAllIncoming', 'com.apple.security.firewall']
-    }
-  },
-  {
-    id: 'mobileconfig-two-payloads',
-    profileType: 'mobileconfig',
-    instructions: 'Disable AirDrop and turn off Siri.',
-    readByEye: 'Two dicts, each with a distinct uppercase PayloadUUID and an identifier that is the root identifier plus a suffix.  Duplicate UUIDs install unpredictably and nothing here can detect them.',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', 'allowAirDrop', 'allowAssistant'],
-    }
-  },
-  {
-    id: 'mobileconfig-diagnostics',
-    profileType: 'mobileconfig',
-    instructions: 'Don\'t send diagnostic reports to Apple.',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', 'allowDiagnosticSubmission', '<false/>'],
-    }
-  },
-  {
-    id: 'mobileconfig-dock-lowercase-keys',
-    profileType: 'mobileconfig',
-    instructions: 'Set the Dock to auto-hide and pin it to the left side of the screen.',
-    // All-lowercase keys -- fails if the model PascalCases.
-    expect: {
-      mustContain: ['com.apple.dock'],
-      mustContainElement: [['key', 'autohide'], ['key', 'orientation']],
-      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
-    }
-  },
-  {
-    id: 'mobileconfig-app-store',
-    profileType: 'mobileconfig',
-    instructions: 'Prevent users from downloading books tagged as erotica from the Apple Books store',
-    expect: {
-      mustContain: ['com.apple.applicationaccess', 'allowBookstoreErotica'],
-    }
-  },
-  {
-    id: 'mobileconfig-allow-bookstore',
-    profileType: 'mobileconfig',
-    instructions: 'Enable access to Bookstore app',
-    // The adjacent pair binds the value to the key -- a lone '<true/>' could be satisfied by any
-    // other key -- and pins the exact key, since 'allowBookstore' is a substring-prefix of
-    // 'allowBookstoreErotica'.  "Enable" means true here -- the tempting failure is inverting to
-    // false because the payload is named "restrictions".
-    expect: {
-      mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
-      mustNotContain: ['allowBookstoreErotica', '<false/>'],
-      mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
-    }
-  },
-
-  //  ╔╦╗╔╦╗╔╦╗
-  //   ║║ ║║║║║
-  //  ═╩╝═╩╝╩ ╩
-  {
-    id: 'ddm-passcode-alphanumeric',
-    profileType: 'ddm',
-    canary: true,
-    instructions: 'Require a 10-character alphanumeric passcode and lock the device after 10 failed attempts.',
-    readByEye: 'Identifier must not be a copy of Type, and must be 64 bytes or fewer.  MaximumFailedAttempts accepts 2-11, so 10 is in range -- confirm it was not clamped or rewritten.',
-    expect: {
-      mustContain: ['com.apple.configuration.passcode.settings', 'RequireAlphanumericPasscode', '"MinimumLength":10', '"MaximumFailedAttempts":10'],
-      mustNotContain: ['requirePasscode', 'forcePIN', 'minLength']
-    }
-  },
-  {
-    id: 'ddm-beta-enroll',
-    profileType: 'ddm',
-    instructions: 'Enroll devices in our beta program using the enrollment token BETA-TOKEN-123, shown to users as "Acme macOS Beta".',
-    expect: {
-      mustContain: ['com.apple.configuration.softwareupdate.settings', 'RequireProgram', 'BETA-TOKEN-123']
-    }
-  },
-  {
-    id: 'ddm-beta-block',
-    profileType: 'ddm',
-    instructions: 'Block enrollment in any beta program.',
-    expect: {
-      mustContain: ['com.apple.configuration.softwareupdate.settings', 'ProgramEnrollment', 'AlwaysOff'],
-      mustNotContain: ['AlwaysOn']
-    }
-  },
-  {
-    id: 'ddm-defer-minor-updates',
-    profileType: 'ddm',
-    instructions: 'Defer minor updates by 30 days.',
-    expect: {
-      mustContain: ['softwareupdate.settings', 'Deferrals', '"MinorPeriodInDays":30']
-    }
-  },
-  {
-    id: 'ddm-auto-install-security-updates',
-    profileType: 'ddm',
-    instructions: 'Automatically download and install security updates.',
-    expect: {
-      mustContain: ['softwareupdate.settings', '"AutomaticActions"', '"InstallSecurityUpdate":"AlwaysOn"', '"Download":"AlwaysOn"'],
-    }
-  },
-  {
-    id: 'ddm-enforce-os-version',
-    profileType: 'ddm',
-    instructions: 'Enforce macOS 26.1 by December 15, 2026 at 6:00 PM local time.',
-    expect: {
-      mustContain: ['softwareupdate.enforcement.specific', '"TargetOSVersion":"26.1"', '"TargetLocalDateTime":"2026-12-15T18:00:00"']
-    }
-  },
-  {
-    id: 'ddm-intelligence-off',
-    profileType: 'ddm',
-    instructions: 'Turn off every Apple Intelligence feature.',
-    expect: {
-      mustContain: [
-        'intelligence.settings', '"AllowWritingTools":false', '"AllowGenmoji":false', '"AllowImagePlayground":false',
-        '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowPersonalizedHandwritingResults":false',
-        '"AllowVisualIntelligenceSummary":false'
-      ]
-    }
-  },
-  {
-    id: 'ddm-intelligence-partial',
-    profileType: 'ddm',
-    instructions: 'Block Writing Tools and Image Playground but leave the rest of Apple Intelligence available.',
-    expect: {
-      mustContain: ['intelligence.settings', '"AllowWritingTools":false', '"AllowImagePlayground":false'],
-      mustNotContain: ['"AllowGenmoji":false', '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowVisualIntelligenceSummary":false']
-    }
-  },
-  {
-    id: 'ddm-migration-assistant',
-    profileType: 'ddm',
-    instructions: 'Turn on managed migration and keep the Downloads/ folder out of anything that gets migrated.',
-    readByEye: 'ExcludedPaths entries are relative to the home directory and directory paths need a trailing slash, so "Downloads/" is right and "/Users/x/Downloads" is not.',
-    expect: {
-      mustContain: ['migration-assistant.settings', 'ShouldDoManagedMigration', '"ExcludedPaths":["Downloads/"]'],
-      mustNotContain: ['/Users/']
-    }
-  },
-  {
-    id: 'ddm-mobileconfig-install',
-    profileType: 'ddm',
-    instructions: 'Install a mobileconfig profile hosted at https://www.example.com/profiles/passcode.mobileconfig',
-    expect: {
-      mustContain: ['configuration.legacy', '"ProfileURL":"https://www.example.com/profiles/passcode.mobileconfig"'],
-    }
-  },
-
-
-];
-
-
 module.exports = {
 
 
   friendlyName: 'Test llm generated configuration profile',
 
 
-  description: 'Generate configuration profiles and report wall-clock time plus whether the output holds up, for one instruction or for every case in this script.',
+  description: 'Generate configuration profiles and report wall-clock time plus whether the output holds up, for one instruction or for every case in profile-generator/configuration-profile-generator-cases.js.',
 
 
   extendedDescription:
-`The prompt comes from api/helpers/get-configuration-profile-generator-configuration.js, the same
-helper the public endpoint calls, so there is nothing to keep in sync -- only the model varies here.
-
+`Each generation goes through api/helpers/generate-configuration-profile.js, the same helper the public
+endpoint calls, so there is nothing to keep in sync -- only what is overridden here varies.
 
 Examples:
   sails run test-llm-generated-configuration-profile --profileType=csp --naturalLanguageInstructions="Require a device password"
   sails run test-llm-generated-configuration-profile
   sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
-  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-4-5
-  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
+  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-5-5 --disableThinking
+  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-sonnet-5-5 --effort=medium --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
   sails run test-llm-generated-configuration-profile --profileType=csp --parallelTests=5`,
@@ -360,8 +26,8 @@ Examples:
 
     profileType: {
       type: 'string',
-      isIn: ['mobileconfig', 'csp', 'ddm'],
-      description: 'Generate one profile of this type, or with, run only this type\'s cases.'
+      isIn: ['mobileconfig', 'csp', 'ddm', 'android'],
+      description: 'Generate one profile of this type, or, with no other inputs, run only this type\'s cases.'
     },
 
     naturalLanguageInstructions: {
@@ -371,8 +37,17 @@ Examples:
 
     baseModel: {
       type: 'string',
-      defaultsTo: 'claude-haiku-4-5',
-      description: 'The model to generate with.'
+      description: 'The model to generate with, instead of the one production generates each profile type with.'
+    },
+
+    effort: {
+      type: 'string',
+      description: 'The effort level to generate at, instead of the one production generates each profile type at.'
+    },
+
+    disableThinking: {
+      type: 'boolean',
+      description: 'Generate with thinking turned on (false) or off (true), instead of the way production generates each profile type.'
     },
 
     verbose: {
@@ -383,7 +58,7 @@ Examples:
 
     caseId: {
       type: 'string',
-      description: 'Run one case from the list at the top of this script, by its id, e.g. "ddm-defer-minor-updates".',
+      description: 'Run one case from profile-generator/configuration-profile-generator-cases.js, by its id, e.g. "ddm-defer-minor-updates".',
       extendedDescription: `Unlike --naturalLanguageInstructions, the case brings its own expect block, so repeated runs
 are actually scored rather than just printed.  Combines with --parallelTests to see whether a case passes reliably or
 only sometimes.  Ids are unique and carry their profile type as a prefix, so --profileType is not needed.`
@@ -393,7 +68,7 @@ only sometimes.  Ids are unique and carry their profile type as a prefix, so --p
       type: 'number',
       defaultsTo: 1,
       description: 'Run each case this many times, to see how often it passes rather than whether it passed once.',
-      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId or.  The repeats of one case
+      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId, or a whole run.  The repeats of one case
 go out together and the cases stay sequential, so at most this many requests are ever in flight -- launching every case
 at once would say more about rate limits than about the prompt.  Results are reported per case as a fail rate, because
 a case failing 2 of 5 is a different problem from one failing 5 of 5.`
@@ -411,17 +86,37 @@ csp cases report as not-checked either way.`
 
     testLighterResponse: {
       type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether or not to run the tests with a smaller response shape, as production does.'
+    },
+
+    lookupAppleSchemaKeys: {
+      type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether or not to use the configuration helper\'s lookup functionality, as production does.'
+    },
+
+    asFleet: {
+      type: 'boolean',
       defaultsTo: false,
-      description: 'Whether or not to run the tests with a smaller response shape.'
-    }
+      description: 'Ask the way Fleet does, for the Apple platform rather than a profile type, so each request is routed to a declaration or a .mobileconfig first.',
+      extendedDescription: 'Runs only the Apple cases, checks where each was routed, and scores it against its Fleet expectations.  With --naturalLanguageInstructions, no --profileType is needed.'
+    },
+
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether to have the model return each .mobileconfig\'s payloads and each Windows profile\'s commands, as production does, rather than write the document itself.',
+    },
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys, asFleet, writeProfilesFromSettings}) {
 
     let path = require('path');
     let util = require('util');
+    let { TEST_CASES, checkExpectations, checkDeclineReason, fleetRequestFor, isWorthRetryingAfterAPause } = require('../profile-generator/configuration-profile-generator-cases');
 
     const MAX_ELAPSED_MS = 10000;
 
@@ -429,15 +124,23 @@ csp cases report as not-checked either way.`
     if(naturalLanguageInstructions || caseId) {
       runAllTestCases = false;
     }
-    if(naturalLanguageInstructions && !profileType){
+    if(naturalLanguageInstructions && !profileType && !asFleet){
       throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`);
     }
     if(parallelTests < 1) {
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
     }
 
-    // Resolved before anything is spent.  Listing near-misses matters with 33 cases: a bare "not found"
-    // on a mistyped id means paging back through the file to find the right spelling.
+    // What the generations were run with, for the transcript and its filename.
+    let generationLabel = _.compact([
+      baseModel || 'production models',
+      effort ? `effort ${effort}` : undefined,
+      disableThinking === true ? 'thinking off' : disableThinking === false ? 'thinking on' : undefined,
+      asFleet ? 'as Fleet' : undefined,
+    ]).join(', ');
+
+    // Resolved before anything is spent.  Listing near-misses matters with this many cases: a bare
+    // "not found" on a mistyped id means paging back through the file to find the right spelling.
     let chosenCase;
     if(caseId) {
       chosenCase = _.find(TEST_CASES, { id: caseId });
@@ -447,13 +150,16 @@ csp cases report as not-checked either way.`
         });
         throw new Error(
           `No case with the id "${caseId}".` +
-          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun without a caseId flag to see every case, or check the ids at the top of this script.`)
+          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun without a caseId flag to see every case, or check the ids in profile-generator/configuration-profile-generator-cases.js.`)
         );
       }
       if(profileType && profileType !== chosenCase.profileType) {
         throw new Error(`--profileType is "${profileType}" but the case "${caseId}" is a ${chosenCase.profileType} case.  Leave --profileType off; the id already implies it.`);
       }
       profileType = chosenCase.profileType;
+      if(asFleet && !fleetRequestFor(chosenCase)) {
+        throw new Error(`The case "${caseId}" does not run as a Fleet request (Fleet asks by platform only for Apple cases, and a case can opt out with \`fleet: false\`), so --asFleet would check nothing.  Leave --asFleet off, or pick an Apple case.`);
+      }
     }
 
     // Checked once, up front, rather than per case: a missing binary is a setup mistake, and finding out
@@ -516,9 +222,12 @@ csp cases report as not-checked either way.`
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
       (runAllTestCases ? 'Run all tests: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
-      `LLM model used: ${baseModel}\n` +
+      `Generated with: ${generationLabel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
+      `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
+      `Writing .mobileconfig and Windows profiles from settings: ${writeProfilesFromSettings}\n` +
+      `Asking as Fleet does: ${asFleet}\n` +
       `verbose: ${verbose}\n` +
       '----------'
     );
@@ -526,13 +235,13 @@ csp cases report as not-checked either way.`
     let cases;
     if(runAllTestCases) {
       cases = _.filter(TEST_CASES, (testCase)=>{
-        return !profileType || testCase.profileType === profileType;
+        return (!profileType || testCase.profileType === profileType) && (!asFleet || fleetRequestFor(testCase));
       });
       if(cases.length === 0) {
         throw new Error(`No cases defined for profileType "${profileType}".`);
       }
     } else {
-      // A named case from the list above -- which brings its own expect block, so repeats are scored --
+      // A named case from the cases module -- which brings its own expect block, so repeats are scored --
       // or a one-off from --naturalLanguageInstructions, which is not.
       cases = [chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions }];
     }
@@ -542,26 +251,36 @@ csp cases report as not-checked either way.`
     // Wrapped in an IIFE so the request goes out now rather than when it is awaited: a Sails deferred
     // does not start until something awaits it.  elapsedMs is measured per call, so it stays the model's
     // latency rather than the batch's wall clock.
+    //
+    // A generation the API rate-limited or was too overloaded to serve is retried once, after a pause, and
+    // timed from the retry, as the test suite does: it says how many requests were in flight, not anything
+    // about the prompt.
     let startGenerating = (testCase)=>{
       return (async ()=>{
-        let startedAt = Date.now();
-        try {
-          // The helper supplies the PayloadUUIDs, and it is called once per run, so parallel repeats
-          // of one case still get their own set.
-          let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
-            profileType: testCase.profileType,
-            naturalLanguageInstructions: testCase.instructions,
-            useLighterResponseShape: testLighterResponse,
-          });
-          let rawResult = await sails.helpers.ai.prompt.with({
-            systemPrompt: generatorConfiguration.systemPrompt,
-            prompt: generatorConfiguration.userPrompt,
-            baseModel,
-            expectJson: true,
-          });
-          return { rawResult, elapsedMs: Date.now() - startedAt };
-        } catch (err) {
-          return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
+        for (let attempt = 1; ; attempt++) {
+          let startedAt = Date.now();
+          try {
+            let generationResult = await sails.helpers.generateConfigurationProfile.with({
+              profileType: asFleet ? undefined : testCase.profileType,
+              platform: asFleet ? 'apple' : undefined,
+              // A case's own forFleet runs it by profile type with Fleet's rules on.
+              forFleet: asFleet || !!testCase.forFleet,
+              naturalLanguageInstructions: testCase.instructions,
+              baseModel,
+              effort,
+              disableThinking,
+              useLighterResponseShape: testLighterResponse,
+              useApplePayloadTypeLookup: lookupAppleSchemaKeys,
+              writeProfilesFromSettings,
+            });
+            return { generationResult, elapsedMs: Date.now() - startedAt };
+          } catch (err) {
+            if(attempt === 1 && isWorthRetryingAfterAPause(err)) {
+              await new Promise((resolve)=>{ setTimeout(resolve, 3000); });
+              continue;
+            }
+            return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
+          }
         }
       })();
     };
@@ -585,39 +304,38 @@ csp cases report as not-checked either way.`
 
         // Awaited in order even when they finished out of order, so the transcript reads predictably.
         let outcome = await repeatsInFlight[repeatIdx];
-        let rawResult = outcome.rawResult;
+        let generationResult = outcome.generationResult;
         let unexpectedError = outcome.unexpectedError;
         let elapsedMs = outcome.elapsedMs;
         // Numbered only when there is more than one, so a single run still reads as the plain id.
         let displayId = parallelTests > 1 ? `${testCase.id} #${repeatIdx + 1}` : testCase.id;
+        // Ad-hoc instructions asked as Fleet have no profile type until they are routed.
+        let caseProfileType = testCase.profileType || 'apple';
 
-        // Mirror the action's own acceptance test: an abstention, or a response missing any
-        // required key, is not a usable profile.
-        let abstained = !unexpectedError && (
-          rawResult.couldNotGenerateProfile ||
-        !rawResult.configurationProfile ||
-        !rawResult.profileFilename ||
-        !rawResult.settingsEnforced
-        );
-        let generatedProfile = (unexpectedError || abstained) ? undefined : {
-          profile: rawResult.configurationProfile,
-          profileFilename: rawResult.profileFilename,
-          deliveryNotes: rawResult.deliveryNotes,
-          items: rawResult.settingsEnforced,
-        };
+        let abstained = !unexpectedError && generationResult.couldNotGenerateProfile;
+        let generatedProfile = (unexpectedError || abstained) ? undefined : generationResult.generatedProfile;
 
-        let expectations = testCase.expect || {};
+        let fleetRequest = asFleet ? fleetRequestFor(testCase) : undefined;
+        let expectations = (asFleet ? (fleetRequest && fleetRequest.expect) : testCase.expect) || {};
+        let routedTo = asFleet && generationResult ? (generationResult.route && generationResult.route.couldNotGenerateProfile ? 'decline' : generationResult.profileType) : undefined;
         let checkFailures;
         if(unexpectedError) {
         // Distinguished from an abstention on purpose: collapsing them would hide a
         // misconfigured anthropicSecret as a model refusal.
           checkFailures = [`unexpected error: ${unexpectedError.message}`];
+        } else if(abstained && generationResult.contentDidNotMatchProfileType) {
+          // Content of the wrong type is a broken generation, not the model declining, even where declining was the right answer.
+          checkFailures = [`generated content that is not a ${generationResult.profileType} profile`];
         } else if(abstained) {
-          checkFailures = expectations.expectFailure ? [] : [
-            `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
+          checkFailures = expectations.expectFailure ? checkDeclineReason(generationResult.reasonWhyAProfileCouldNotBeGenerated) : [
+            `abstained but a profile was expected -- reason given: ${JSON.stringify(generationResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
-          checkFailures = checkExpectations(expectations, generatedProfile);
+          checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType, asFleet || !!testCase.forFleet);
+        }
+
+        if(generationResult && fleetRequest && fleetRequest.routesTo && routedTo !== fleetRequest.routesTo) {
+          checkFailures = [`routed to ${routedTo} rather than ${fleetRequest.routesTo} (${generationResult.route.decidedBecause})`].concat(checkFailures);
         }
 
         if(elapsedMs > MAX_ELAPSED_MS) {
@@ -632,7 +350,7 @@ csp cases report as not-checked either way.`
         // warnings would turn the suite red for reasons unrelated to what each case is testing.
         let contourResult;
         if(validateWithContour && generatedProfile) {
-          contourResult = await runContourValidation(testCase.profileType, generatedProfile.profile);
+          contourResult = await runContourValidation(generationResult.profileType, generatedProfile.profile);
           checkFailures = checkFailures.concat(_.map(contourResult.errors, (contourError)=>{
             return `contour: ${contourError}`;
           }));
@@ -642,7 +360,7 @@ csp cases report as not-checked either way.`
           id: displayId,
           // The base id, so repeats of one case can be grouped back together for the failure rate.
           caseId: testCase.id,
-          profileType: testCase.profileType,
+          profileType: caseProfileType,
           canary: !!testCase.canary,
           elapsedMs,
           checkFailures,
@@ -654,9 +372,10 @@ csp cases report as not-checked either way.`
         // makes a slow run indistinguishable from a hung one.
         report(
         `${String(elapsedMs).padStart(6)}ms  ` +
-        `${testCase.profileType.padEnd(13)} ` +
+        `${caseProfileType.padEnd(13)} ` +
         `${String(displayId).padEnd(38)} ` +
-        `${checkFailures.length === 0 ? 'ok' : 'FAILED'}`
+        `${checkFailures.length === 0 ? 'ok' : 'FAILED'}` +
+        (generationResult ? `  (${routedTo ? `routed to ${routedTo} in ${generationResult.timings.routingMs}ms, ` : ''}lookups ${generationResult.timings.configurationMs}ms, generation ${generationResult.timings.generationMs}ms)` : '')
         );
         for (let checkFailure of checkFailures) {
           report(`         └─ ${checkFailure}`);
@@ -674,7 +393,7 @@ csp cases report as not-checked either way.`
         if(generatedProfile) {
           let banner = testCase.canary && checkFailures.length === 0 ? 'CANARY, automated checks passed -- confirm by eye' : testCase.canary ? 'CANARY, FAILED' : checkFailures.length > 0 ? 'FAILED' : 'ok';
           let caseDetailLines = [
-            `\n──── ${displayId} @ (${baseModel}) -- ${banner} ────`,
+            `\n──── ${displayId} @ (${generationLabel}) -- ${banner} ────`,
             `instructions: ${testCase.instructions}`,
           ];
           if(testCase.readByEye) {
@@ -701,7 +420,8 @@ csp cases report as not-checked either way.`
               caseDetailLines.push(`  warning ${contourWarning}`);
             }
           }
-          caseDetailLines.push(`\n${generatedProfile.profile}\n`);
+          // Each embedded ADMX template is cut down to its size: they are hundreds of KB, and the model did not write them.
+          caseDetailLines.push(`\n${generatedProfile.profile.replace(/<!\[CDATA\[(\s*(?:<\?xml[^>]*\?>\s*)?<policyDefinitions[\s\S]*?)\]\]>/g, (unusedMatch, admxText)=>{ return `<![CDATA[…ADMX template, ${Math.round(Buffer.byteLength(admxText, 'utf8') / 1024)} KB…]]>`; })}\n`);
 
           if(verbose){
             caseDetailLines.push(
@@ -723,7 +443,7 @@ csp cases report as not-checked either way.`
     // Back to the section that gets assembled directly under the inputs header, ahead of the per-case details.
     transcriptSection = summaryLines;
 
-    for (let tableLine of buildResultsTable(results, baseModel, parallelTests)) {
+    for (let tableLine of buildResultsTable(results, generationLabel, parallelTests)) {
       reportWithoutLogPrefix(tableLine);
     }
 
@@ -731,7 +451,7 @@ csp cases report as not-checked either way.`
     let passing = _.filter(results, (result)=>{ return result.checkFailures.length === 0; });
     let elapsedTimes = _.pluck(results, 'elapsedMs').sort((a, b)=>{ return a - b; });
     report(
-      `${String(baseModel).padEnd(8)} ` +
+      `${generationLabel}  ` +
       `passed ${passing.length}/${results.length}  ` +
       `median ${elapsedTimes[Math.floor(elapsedTimes.length / 2)]}ms  ` +
       `slowest ${_.last(elapsedTimes)}ms`
@@ -766,7 +486,8 @@ csp cases report as not-checked either way.`
 
     if(verbose) {
       let citations = _.uniq(_.flatten(_.map(_.filter(results, 'generatedProfile'), (result)=>{
-        return _.map(result.generatedProfile.items || [], (item)=>{ return `${result.id}: ${item.schemaReference}`; });
+        // The lighter response shape asks for no schemaReference, so there is nothing to cite.
+        return _.map(_.filter(result.generatedProfile.items || [], 'schemaReference'), (item)=>{ return `${result.id}: ${item.schemaReference}`; });
       })));
       report(`\n${citations.length} citation(s) to spot-check against the published reference:`);
       for (let citation of citations) {
@@ -831,7 +552,7 @@ csp cases report as not-checked either way.`
     let transcriptPath = path.resolve(
       sails.config.appPath,
       `test-results/${profileType ? profileType : 'all'}`,
-      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${baseModel}${whatWasRunForFilename}.txt`
+      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${generationLabel}${whatWasRunForFilename}.txt`
     );
     // The reordering the three sections exist for: what ran, then how it went, then the evidence.
     await sails.helpers.fs.write(transcriptPath, headerLines.concat(summaryLines, detailLines).join('\n'), true);
@@ -989,10 +710,10 @@ async function runContourValidation(profileType, profile) {
  * sails.log prefix that would break column alignment, and the saved transcript.
  *
  * @param  {Array} results
- * @param  {String} baseModel
+ * @param  {String} generationLabel
  * @returns {Array} lines
  */
-function buildResultsTable(results, baseModel, parallelTests) {
+function buildResultsTable(results, generationLabel, parallelTests) {
   // An asterisk rather than a separate column: it keeps the case name and its weight together, and
   // the name column is already the widest thing in the table.
   let nameFor = (name, isCanary)=>{ return isCanary ? `${name} *` : name; };
@@ -1007,7 +728,7 @@ function buildResultsTable(results, baseModel, parallelTests) {
     // fails, not what any single run did -- a case that fails two times in five is a different problem
     // from one that fails every time, and a flat list of runs hides which is which.
     let caseIdsInOrder = _.uniq(_.pluck(results, 'caseId'));
-    lines = [`\n=== Results (${baseModel}, ${parallelTests} runs per case) ===`].concat(buildTable(
+    lines = [`\n=== Results (${generationLabel}, ${parallelTests} runs per case) ===`].concat(buildTable(
       ['case', 'type', 'passed', 'fail rate', 'median ms'],
       _.map(caseIdsInOrder, (caseId)=>{
         let runsOfThisCase = _.where(results, { caseId });
@@ -1024,7 +745,7 @@ function buildResultsTable(results, baseModel, parallelTests) {
       ['left', 'left', 'right', 'right', 'right']
     ));
   } else {
-    lines = [`\n=== Results (${baseModel}) ===`].concat(buildTable(
+    lines = [`\n=== Results (${generationLabel}) ===`].concat(buildTable(
       ['case', 'type', 'ms', 'result'],
       _.map(results, (result)=>{
         return [nameFor(result.id, result.canary), result.profileType, String(result.elapsedMs), result.checkFailures.length === 0 ? 'ok' : `FAIL ${result.checkFailures.length}`];
@@ -1073,72 +794,4 @@ function buildTable(headers, rows, alignments) {
   ].concat(_.map(rows, renderRow), [
     horizontalRule('└', '┴', '┘'),
   ]);
-}
-
-
-/**
- * Compare a generated profile against a case's `expect` block.
- *
- * @param  {Dictionary} expectations
- * @param  {Dictionary} generatedProfile
- * @returns {Array} human-readable descriptions of what failed
- */
-function checkExpectations(expectations, generatedProfile) {
-  let failures = [];
-
-  if(expectations.expectFailure) {
-    return ['expected this request to be refused, but a profile was generated'];
-  }
-
-  // Whitespace is stripped from both sides so an assertion doesn't fail on JSON indentation.
-  let stripWhitespace = (str)=>{ return String(str).replace(/\s+/g, ''); };
-  let profileWithoutWhitespace = stripWhitespace(generatedProfile.profile);
-
-  // Element matchers tolerate attributes.  A plain substring cannot be used for XML elements the
-  // prompt requires attributes on: '<Format>int</Format>' never matches the real
-  // '<Format xmlns="syncml:metinf">int</Format>'.  That cuts both ways -- as a mustNotContain it
-  // would silently miss a wrong format rather than merely reporting a false failure.
-  let escapeForRegExp = (str)=>{ return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
-  let elementRegExp = (tagName, textContent)=>{
-    return new RegExp('<' + escapeForRegExp(tagName) + '(?:\\s[^>]*)?>\\s*' + escapeForRegExp(textContent) + '\\s*</' + escapeForRegExp(tagName) + '>');
-  };
-
-  for (let [tagName, textContent] of expectations.mustContainElement || []) {
-    if(!elementRegExp(tagName, textContent).test(generatedProfile.profile)) {
-      // Name what was actually there.  Reporting only what was wanted makes a wrong value and an
-      // unmatched pattern read identically, and the obvious conclusion is that the matcher is broken
-      // rather than the profile -- <Format>chr</Format> where int was expected looks like a regex that
-      // cannot cope with the xmlns attribute, right up until you see the value.
-      let elementsThatWereThere = generatedProfile.profile.match(
-        new RegExp('<' + escapeForRegExp(tagName) + '(?:\\s[^>]*)?>[\\s\\S]*?</' + escapeForRegExp(tagName) + '>', 'g')
-      ) || [];
-      failures.push(
-        `missing expected element: <${tagName}>${textContent}</${tagName}>` +
-        (elementsThatWereThere.length > 0
-          ? ` -- found ${_.uniq(elementsThatWereThere).slice(0, 3).map((element)=>{ return element.replace(/\s+/g, ' '); }).join(', ')}`
-          : ` -- no <${tagName}> element in the profile at all`)
-      );
-    }
-  }
-
-  for (let [tagName, textContent] of expectations.mustNotContainElement || []) {
-    if(elementRegExp(tagName, textContent).test(generatedProfile.profile)) {
-      failures.push(`contains forbidden element: <${tagName}>${textContent}</${tagName}>`);
-    }
-  }
-
-  for (let needle of expectations.mustContain || []) {
-    if(!_.contains(profileWithoutWhitespace, stripWhitespace(needle))) {
-      failures.push(`missing expected substring: ${JSON.stringify(needle)}`);
-    }
-  }
-
-  for (let needle of expectations.mustNotContain || []) {
-    if(_.contains(profileWithoutWhitespace, stripWhitespace(needle))) {
-      failures.push(`contains forbidden substring: ${JSON.stringify(needle)}`);
-    }
-  }
-
-
-  return failures;
 }

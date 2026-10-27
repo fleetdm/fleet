@@ -681,11 +681,11 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}
 			resp.Err = err
 		}
+		// Meta refresh rather than an inline script so the redirect isn't blocked when CSP is enabled.
 		relayStateLoadPage := ` <html>
-     <script type='text/javascript'>
-     var redirectURL = {{ .RedirectURL }};
-     window.location = redirectURL;
-     </script>
+     <head>
+     <meta http-equiv="refresh" content="0;url={{ .RedirectURL }}">
+     </head>
      <body>
      Redirecting to Fleet at {{ .RedirectURL }} ...
      </body>
@@ -786,6 +786,17 @@ func (svc *Service) InitSSOCallback(
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+	}
+
+	// Only after the signature checked out, so an attacker can't burn assertion
+	// IDs with forged responses. This is what stops a captured response from
+	// being replayed, in particular on the IdP-initiated path where there is no
+	// single-use session to reject it.
+	if err := svc.ssoSessionStore.ConsumeAssertion(auth.AssertionID(), auth.AssertionNotOnOrAfter()); err != nil {
+		if errors.Is(err, sso.ErrAssertionAlreadyUsed) {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+		}
+		return nil, "", ctxerr.Wrap(ctx, err, "consume saml assertion")
 	}
 
 	return auth, redirectURL, nil
@@ -929,6 +940,10 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 		return nil, err
 	}
 
+	if err := svc.ds.MarkSessionAccessed(ctx, session); err != nil {
+		return nil, err
+	}
+
 	return session, nil
 }
 
@@ -951,5 +966,5 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 		return fleet.NewAuthRequiredError("expired session")
 	}
 
-	return svc.ds.MarkSessionAccessed(ctx, session)
+	return nil
 }

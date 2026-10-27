@@ -131,9 +131,45 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "patch-when-closed empty pre-install output shows app-was-open copy",
 			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				PatchWhenClosed:         true,
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "notify-before-patching empty pre-install output shows the notify copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				NotifyBeforePatching:    true,
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenNotifyCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "empty pre-install output on an install that did not run the app open query",
+			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,
 				PreInstallQueryOutput: new(""),
-				PatchWhenClosed:       true,
+				NotifyBeforePatching:  true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerQueryFailCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			// the app was still open when this install ran, even though the policy option is off now
+			name: "empty pre-install output after the patch option was turned off",
+			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				OverridePreInstallQuery: true,
 			},
 			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
 			expectedOutput:                  nil,
@@ -1223,4 +1259,196 @@ func TestValidateSoftwareSources(t *testing.T) {
 			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestParseSoftwareTypeFilter(t *testing.T) {
+	const requiresSource = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	for _, tc := range []struct {
+		name         string
+		source       string
+		extensionFor string
+		want         SoftwareTypeFilter
+		wantArg      string
+		wantReason   string
+	}{
+		{
+			name: "both absent",
+		},
+		{
+			name:   "single source",
+			source: "apps",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "dedupes sources",
+			source: "apps,programs,apps",
+			want:   SoftwareTypeFilter{"apps": nil, "programs": nil},
+		},
+		{
+			name:   "nix packages",
+			source: "nix_packages",
+			want:   SoftwareTypeFilter{"nix_packages": nil},
+		},
+		{
+			name:         "trims spaces",
+			source:       "apps, chrome_extensions ",
+			extensionFor: " brave",
+			want:         SoftwareTypeFilter{"apps": nil, "chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "groups extension_for by source",
+			source:       "apps,chrome_extensions,vscode_extensions,jetbrains_plugins",
+			extensionFor: "brave,cursor,edge,brave,intellij_idea",
+			want: SoftwareTypeFilter{
+				"apps":              nil,
+				"chrome_extensions": {"brave", "edge"},
+				"vscode_extensions": {"cursor"},
+				"jetbrains_plugins": {"intellij_idea"},
+			},
+		},
+		{
+			name:   "AI tool sources",
+			source: "ai_clis,mcp_servers,ai_skills",
+			want:   SoftwareTypeFilter{"ai_clis": nil, "mcp_servers": nil, "ai_skills": nil},
+		},
+		{
+			name:       "the ai_tools pseudo-source is never stored",
+			source:     "ai_tools",
+			wantArg:    "source",
+			wantReason: `Invalid source: "ai_tools" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:       "unknown source",
+			source:     "apps,app",
+			wantArg:    "source",
+			wantReason: `Invalid source: "app" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:       "source is case sensitive",
+			source:     "Apps",
+			wantArg:    "source",
+			wantReason: `Invalid source: "Apps" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:   "empty values in source are ignored",
+			source: ",apps,,",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "only separators and spaces",
+			source: " , ,",
+		},
+		{
+			name:         "unknown extension_for",
+			source:       "chrome_extensions",
+			extensionFor: "brav",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "brav" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			// osquery's jetbrains_plugins.product_type is snake_case (kProductTypeToString), not the
+			// CamelCase its table doc string claims.
+			name:         "extension_for is case sensitive",
+			source:       "jetbrains_plugins",
+			extensionFor: "IntelliJIdea",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "IntelliJIdea" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:         "empty values in extension_for are ignored",
+			source:       "chrome_extensions",
+			extensionFor: "brave,",
+			want:         SoftwareTypeFilter{"chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "extension_for without source",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "extension_for with only separators in source",
+			source:       ",",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "only separators in extension_for without source",
+			extensionFor: ",",
+		},
+		{
+			name:         "extension_for whose source is not selected",
+			source:       "apps,chrome_extensions",
+			extensionFor: "cursor",
+			wantArg:      "extension_for",
+			wantReason:   `"cursor" is a "vscode_extensions" value, but source doesn't include "vscode_extensions".`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseSoftwareTypeFilter(tc.source, tc.extensionFor)
+			if tc.wantReason == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+				return
+			}
+			require.Nil(t, got)
+			var argErr *InvalidArgumentError
+			require.ErrorAs(t, err, &argErr)
+			require.Equal(t, []map[string]string{{"name": tc.wantArg, "reason": tc.wantReason}}, argErr.Invalid())
+		})
+	}
+}
+
+func TestSoftwareFromOsqueryRowEpoch(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		epoch  string
+		want   *uint32
+	}{
+		{"rpm with epoch", "rpm_packages", "1", new(uint32(1))},
+		{"rpm with large epoch", "rpm_packages", "32", new(uint32(32))},
+		{"rpm without epoch", "rpm_packages", "", nil},
+		{"rpm with zero epoch", "rpm_packages", "0", nil},
+		{"rpm with invalid epoch", "rpm_packages", "abc", nil},
+		{"rpm with negative epoch", "rpm_packages", "-1", nil},
+		{"non-rpm source ignores epoch", "deb_packages", "1", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sw, err := SoftwareFromOsqueryRow("tomcat", "9.0.117", tc.source, "", "", "2.el9_8", "noarch", "", "", "", "", "", tc.epoch)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, sw.Epoch)
+		})
+	}
+}
+
+func TestSoftwareEpochNotPartOfIdentity(t *testing.T) {
+	withoutEpoch := Software{Name: "tomcat", Version: "9.0.117", Release: "2.el9_8", Arch: "noarch", Vendor: "Rocky Enterprise Software Foundation", Source: "rpm_packages"}
+	withEpoch := withoutEpoch
+	withEpoch.Epoch = new(uint32(1))
+
+	require.Equal(t, withoutEpoch.ToUniqueStr(), withEpoch.ToUniqueStr())
+
+	sumWithout, err := withoutEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	sumWith, err := withEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, sumWithout, sumWith)
+}
+
+// TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an
+// existing row can be flagged in place instead of becoming a second row.
+func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
+	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	flagged := sw
+	flagged.AITool = new(true)
+
+	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
+	want, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+	got, err := flagged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

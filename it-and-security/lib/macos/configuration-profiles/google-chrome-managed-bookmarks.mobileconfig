@@ -648,7 +648,7 @@
                             <key>name</key>
                             <string>Fleet usage statistics - Google Sheets</string>
                             <key>url</key>
-                            <string>https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=1797565811#gid=1797565811</string>
+                            <string>https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit</string>
                         </dict>
                     </array>
                 </dict>
@@ -827,9 +827,15 @@
                 </dict>
                 <dict>
                     <key>name</key>
-                    <string>Fleet Dashboard</string>
+                    <string>Fleet dashboard</string>
                     <key>url</key>
                     <string>https://dogfood.fleetdm.com/dashboard</string>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>DEX overview dashboard</string>
+                    <key>url</key>
+                    <string>https://claude.ai/artifact/TLcnQThVkEra1Lsi24wsyb</string>
                 </dict>
             </array>
         </dict>

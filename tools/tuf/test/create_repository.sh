@@ -14,6 +14,15 @@ set -xe
 # FLEET_TIMESTAMP_PASSPHRASE: Timestamp role passphrase.
 # SYSTEMS: Space separated list of systems to support in the TUF repository. Default value is: "macos windows linux"
 # MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: Set variable to use a pre-built desktop.app.tar.gz. Useful when running on non-macOS host.
+# MACOSX_DEPLOYMENT_TARGET: Minimum macOS version for cgo builds (Fleet Desktop, orbit) when running on macOS. Default value is: "15" (Sequoia)
+
+# Without this, clang sets the Mach-O minimum OS to the build host's SDK version, so
+# binaries built on a newer macOS fail to launch on older ones (LSOpen error -10825).
+# The flag in CGO_CFLAGS makes Go's build cache recompile cgo objects built for the host version.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-15}
+    export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
+fi
 
 if [[ -z "$TUF_PATH" ]]; then
     echo "Must set the TUF_PATH environment variable."
@@ -45,7 +54,7 @@ ESCROW_BUDDY_PKG_VERSION=1.0.0
 SWIFT_DIALOG_VERSION=2.5.6
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.23.1
+    OSQUERY_VERSION=5.24.0
 fi
 
 mkdir -p $TUF_PATH/tmp

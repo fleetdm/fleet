@@ -27,6 +27,7 @@ import { IVersionPinFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage
 import sendRequest, {
   sendRequestWithHeaders,
   sendRequestWithProgressAndHeaders,
+  uploadToStorage,
 } from "services";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import endpoints from "utilities/endpoints";
@@ -50,6 +51,12 @@ export interface ISoftwareApiParams {
   max_cvss_score?: number;
   min_cvss_score?: number;
   exploit?: boolean;
+  /** Comma-separated software sources. */
+  source?: string;
+  /** Comma-separated extension_for values, each narrowing its own source. */
+  extension_for?: string;
+  /** Premium only: limits results to software Fleet marked as an AI tool. */
+  aiTool?: boolean;
   availableForInstall?: boolean;
   packagesOnly?: boolean;
   selfService?: boolean;
@@ -173,6 +180,10 @@ export interface IAddAppStoreAppFormData {
   app_store_id: string;
   fleet_id: number;
   platform: ApplePlatform | "android";
+  /** Admin-provided version name for the App Store app, unique per title per
+   * fleet. Required by the backend for iOS/iPadOS/Android; omitted for macOS
+   * VPP, which has a single version. */
+  name?: string;
   // True by default for android apps
   self_service?: boolean;
   // No automatic_install on add Android app
@@ -181,11 +192,22 @@ export interface IAddAppStoreAppFormData {
   labels_include_all?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
+  /** Serialized managed app configuration. iOS/iPadOS sends an XML plist
+   * string; Android sends a parsed JSON object (axios serializes it to
+   * the wire). The two shapes share this field. */
+  configuration?: string | Record<string, unknown>;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
-// 4.77 Edit for Android app is not yet available
 export interface IEditAppStoreAppFormData {
   fleet_id: number;
+  /** Target a specific version on a multi-version App Store app title. Omit
+   * on single-version titles for the legacy edit behavior. */
+  version_id?: number;
+  /** Rename the version. Must be unique for the title per fleet. */
+  name?: string;
   self_service?: boolean;
   // No automatic_install on edit VPP or android app
   labels_include_any?: string[];
@@ -193,7 +215,9 @@ export interface IEditAppStoreAppFormData {
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
   display_name?: string;
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object. `null`
+   * (iOS/iPadOS) or `{}` (Android) clears a stored configuration. */
+  configuration?: string | Record<string, unknown> | null;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
@@ -274,13 +298,35 @@ const handleDisplayNameForm = (
   formData.append("display_name", data.displayName || "");
 };
 
+const appendPackageFile = async (
+  formData: FormData,
+  file: File,
+  teamId: number | undefined,
+  directUpload: boolean | undefined,
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
+  signal?: AbortSignal
+) => {
+  if (!directUpload) {
+    formData.append("software", file);
+    return;
+  }
+  const uploadId = await uploadToStorage({
+    target: "software_package",
+    file,
+    teamId,
+    onUploadProgress,
+    signal,
+  });
+  formData.append("upload_id", uploadId);
+  formData.append("filename", file.name);
+};
+
 const handleEditPackageForm = (
   data: IEditPackageFormData,
   formData: FormData,
   orignalPackage: ISoftwarePackage,
   omitPreInstallQuery = false
 ) => {
-  data.software && formData.append("software", data.software);
   formData.append("self_service", data.selfService.toString());
   // Base64 encode script fields to bypass WAF rules that block script patterns
   formData.append(
@@ -518,13 +564,14 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: ({
+  addSoftwarePackage: async ({
     data,
     teamId,
     softwareTitleId,
     timeout,
     onUploadProgress,
     signal,
+    directUpload,
   }: {
     data: IPackageFormData;
     teamId?: number;
@@ -534,6 +581,7 @@ export default {
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
+    directUpload?: boolean;
   }) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
@@ -542,7 +590,14 @@ export default {
     }
 
     const formData = new FormData();
-    formData.append("software", data.software);
+    await appendPackageFile(
+      formData,
+      data.software,
+      teamId,
+      directUpload,
+      onUploadProgress,
+      signal
+    );
     softwareTitleId !== undefined &&
       formData.append("software_title_id", softwareTitleId.toString());
     formData.append("self_service", data.selfService.toString());
@@ -598,12 +653,14 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },
 
-  editSoftwarePackage: ({
+  editSoftwarePackage: async ({
     data,
     orignalPackage,
     softwareId,
@@ -613,6 +670,7 @@ export default {
     onUploadProgress,
     signal,
     omitPreInstallQuery,
+    directUpload,
   }: {
     data:
       | IEditPackageFormData
@@ -629,6 +687,7 @@ export default {
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
     signal?: AbortSignal;
     omitPreInstallQuery?: boolean;
+    directUpload?: boolean;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
@@ -652,12 +711,23 @@ export default {
         throw new Error("originalPackage is required for EditPackageFormData");
       }
       // Handles primary Edit Package form
+      const packageData = data as IEditPackageFormData;
       handleEditPackageForm(
-        data as IEditPackageFormData,
+        packageData,
         formData,
         orignalPackage,
         omitPreInstallQuery
       );
+      if (packageData.software) {
+        await appendPackageFile(
+          formData,
+          packageData.software,
+          teamId,
+          directUpload,
+          onUploadProgress,
+          signal
+        );
+      }
     }
 
     return sendRequestWithProgressAndHeaders({
@@ -667,7 +737,9 @@ export default {
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
-      onUploadProgress,
+      onUploadProgress: formData.has("upload_id")
+        ? undefined
+        : onUploadProgress,
       signal,
     });
   },
@@ -685,6 +757,66 @@ export default {
     return handleVppAppForm(teamId, formData as ISoftwareVppFormData);
   },
 
+  // Dedicated add-another-version call for multi-version App Store titles
+  // (iOS/iPadOS/Android). Posts to the same endpoint as `addAppStoreApp` with
+  // the title's existing `app_store_id` + `platform`, plus the per-version
+  // name and any provided per-version settings.
+  addAppStoreAppVersion: (
+    teamId: number,
+    data: {
+      app_store_id: string;
+      platform: ApplePlatform | "android";
+      name: string;
+      self_service?: boolean;
+      configuration?: string | Record<string, unknown>;
+      labels_include_any?: string[];
+      labels_include_all?: string[];
+      labels_exclude_any?: string[];
+      categories?: SoftwareCategory[];
+      auto_update_enabled?: boolean;
+      auto_update_window_start?: string;
+      auto_update_window_end?: string;
+    }
+  ) => {
+    const { SOFTWARE_APP_STORE_APPS } = endpoints;
+    const body: IAddAppStoreAppFormData = {
+      fleet_id: teamId,
+      ...data,
+    };
+    return sendRequest("POST", SOFTWARE_APP_STORE_APPS, body);
+  },
+
+  // Dedicated edit-this-version call for multi-version App Store titles.
+  // Sends the combined payload in one PATCH so a save can simultaneously
+  // change name + configuration + labels + auto-update + self-service.
+  // Distinct from the field-sliced `editAppStoreApp` paths used elsewhere.
+  editAppStoreAppVersion: (
+    softwareId: number,
+    teamId: number,
+    versionId: number,
+    data: {
+      name?: string;
+      self_service?: boolean;
+      /** `null` (iOS/iPadOS) or `{}` (Android) clears a stored configuration. */
+      configuration?: string | Record<string, unknown> | null;
+      labels_include_any?: string[];
+      labels_include_all?: string[];
+      labels_exclude_any?: string[];
+      categories?: SoftwareCategory[];
+      auto_update_enabled?: boolean;
+      auto_update_window_start?: string;
+      auto_update_window_end?: string;
+    }
+  ) => {
+    const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
+    const body: IEditAppStoreAppFormData = {
+      fleet_id: teamId,
+      version_id: versionId,
+      ...data,
+    };
+    return sendRequest("PATCH", EDIT_SOFTWARE_APP_STORE_APP(softwareId), body);
+  },
+
   editAppStoreApp: (
     softwareId: number,
     teamId: number,
@@ -693,11 +825,17 @@ export default {
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
       | ISoftwareConfigurationFormData
-      | ISoftwareAutoUpdateConfigFormData
+      | ISoftwareAutoUpdateConfigFormData,
+    /** Targets one specific version on a multi-version App Store app title.
+     * Omit on single-version titles for the legacy edit behavior. */
+    versionId?: number
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
     const body: IEditAppStoreAppFormData = { fleet_id: teamId };
+    if (versionId !== undefined) {
+      body.version_id = versionId;
+    }
 
     if ("displayName" in formData) {
       // Handles Edit display name form only
@@ -778,17 +916,24 @@ export default {
   },
 
   // Endpoint for deleting packages or VPP. Pass `installerId` to delete one
-  // specific package on a multi-package title; omit to keep the legacy
-  // single-package / VPP behavior (deletes the whole installer slot).
+  // specific package on a multi-package title; pass `versionId` to delete one
+  // specific App Store app version on a multi-version title. Omit both to
+  // keep the legacy single-package / all-versions behavior (deletes the whole
+  // installer slot or every version on the title).
   deleteSoftwareInstaller: (
     softwareId: number,
     teamId: number,
-    installerId?: number
+    installerId?: number,
+    versionId?: number
   ) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = getPathWithQueryParams(
       SOFTWARE_AVAILABLE_FOR_INSTALL(softwareId),
-      { fleet_id: teamId, installer_id: installerId }
+      {
+        fleet_id: teamId,
+        installer_id: installerId,
+        version_id: versionId,
+      }
     );
     return sendRequest("DELETE", path);
   },

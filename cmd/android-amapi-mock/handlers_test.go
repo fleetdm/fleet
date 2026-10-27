@@ -120,6 +120,90 @@ func TestHandlePolicyActionStoresPendingCertificates(t *testing.T) {
 	}
 }
 
+// TestPolicyActionRequiresExistingPolicy covers --require-policies: AMAPI answers a policy
+// action on a policy that was never created with 404, which is how Fleet's certificate
+// delivery failed for hosts whose host-specific policy didn't exist yet.
+func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
+	testCases := []struct {
+		name            string
+		requirePolicies bool
+		setup           func(t *testing.T, mux *http.ServeMux)
+		policyID        string
+		wantStatus      int
+	}{
+		{
+			name:            "missing policy is not found",
+			requirePolicies: true,
+			policyID:        testESID,
+			wantStatus:      http.StatusNotFound,
+		},
+		{
+			name:            "patched policy exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "policy restored by a device registering again exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				req := defaultRegisterRequest()
+				req.PolicyName = testPolicyName(testESID)
+				req.PolicyVersion = 5
+				registerTestDevice(t, mux, req, http.StatusOK)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "another host's policy does not make this one exist",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, "other-host").Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:            "a policy for a device the mock doesn't simulate is not checked",
+			requirePolicies: true,
+			policyID:        "real-device",
+			wantStatus:      http.StatusOK,
+		},
+		{
+			name:       "missing policy is accepted by default",
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newDeviceStore()
+			store.requirePolicies = tc.requirePolicies
+			mux := newMux(store, nil, 0, 0)
+			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+			if tc.setup != nil {
+				tc.setup(t, mux)
+			}
+			versionBefore := store.getPolicyVersion(testPolicyName(tc.policyID))
+
+			body := certChangesBody(t, certConfig(certTemplate(7, fleet.MDMOperationTypeInstall)))
+			rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, tc.policyID), body)
+			require.Equal(t, tc.wantStatus, rr.Code, "policy action response: %s", rr.Body.String())
+
+			if tc.wantStatus == http.StatusNotFound {
+				assert.Equal(t, "Not Found\n", rr.Body.String())
+				assert.Empty(t, store.getByESID(testESID).PendingCertificates, "a rejected action must not deliver certificates")
+				assert.Equal(t, versionBefore, store.getPolicyVersion(testPolicyName(tc.policyID)), "a rejected action must not issue a version")
+				assert.False(t, store.policyExists(testPolicyName(tc.policyID)), "a rejected action must not create the policy")
+			}
+		})
+	}
+}
+
 func TestExtractAndStoreCertTemplateIDs(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -322,7 +406,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 
 		d := store.getByESID(testESID)
 		require.NotNil(t, d)
-		assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName)
+		assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName)
 		assert.Zero(t, d.PolicyVersion)
 	})
 
@@ -340,7 +424,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 			d := store.getByESID(testESID)
 			require.NotNil(t, d)
 			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
-			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+			assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName,
 				"the device falls back to a fresh registration")
 
 			// And it must not be reported to Fleet either.
@@ -559,6 +643,10 @@ func TestStoreConcurrentAccess(t *testing.T) {
 		func() *http.Request {
 			return httptest.NewRequest("POST", policyActionPath, bytes.NewReader(certBody))
 		},
+		// Reads the enterprise set the policy routes above are writing to.
+		func() *http.Request {
+			return httptest.NewRequest("GET", "/v1/enterprises", nil)
+		},
 	}
 
 	var wg sync.WaitGroup
@@ -585,6 +673,108 @@ func TestGetStateUnknownDeviceReturns404(t *testing.T) {
 
 // TestDevicesListIncludesFakeDevices pins what the reconciler reads: a registered device must
 // be listed, since Fleet marks any enrolled device missing from this list as unenrolled.
+// TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices checks that an enterprise in
+// use is reported even with no fake device registered against it. Fleet reads its enterprise
+// missing from a successful list as proof of deletion, and reacts by deleting its enterprise
+// records, turning Android MDM off and unenrolling every Android host.
+func TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	// Any request naming the enterprise is enough; none of these register a device.
+	for _, req := range []*http.Request{
+		httptest.NewRequest("POST", "/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens",
+			bytes.NewReader([]byte(`{}`))),
+		httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices", nil),
+	} {
+		t.Run(req.Method+" "+req.URL.Path, func(t *testing.T) {
+			mux, store := newTestMux(t)
+			mux.ServeHTTP(httptest.NewRecorder(), req)
+			require.Empty(t, store.byESID, "this request must not register a device")
+
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var resp androidmanagement.ListEnterprisesResponse
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+			require.Len(t, resp.Enterprises, 1)
+			assert.Equal(t, "enterprises/"+testEnterpriseID, resp.Enterprises[0].Name)
+		})
+	}
+
+	// A registered device still reports its enterprise, as before.
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp androidmanagement.ListEnterprisesResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Len(t, resp.Enterprises, 1)
+	assert.Equal(t, "enterprises/"+testEnterpriseID, resp.Enterprises[0].Name)
+}
+
+// TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow checks that with nothing observed
+// the answer is "unknown", not "empty". Fleet treats a failed list as a technical problem and
+// leaves its enterprise alone; an empty one it would act on.
+func TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
+// TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest checks that the enterprise an
+// addressed request names is recorded even when that request fails, so a call for an unknown
+// device does not leave the enterprise unreported.
+func TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest(t *testing.T) {
+	mux, store := newTestMux(t)
+
+	mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET",
+		"/v1/enterprises/"+testEnterpriseID+"/devices/nope", nil))
+	require.Empty(t, store.byESID)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "enterprises/"+testEnterpriseID)
+}
+
+// TestNoteEnterpriseIgnoresEmptyID checks that an empty path value is not recorded as an
+// enterprise. Recording it would leave the set non-empty and holding a meaningless ID, which
+// would both report "enterprises/" to Fleet and stop the unknown state from answering 503.
+func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
+	store := newDeviceStore()
+	store.noteEnterprise("")
+
+	assert.Empty(t, store.knownEnterprises())
+
+	mux := newMux(store, nil, 0, 0)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
+// TestNoteEnterpriseIsBounded checks that enterprise IDs taken from request paths cannot grow
+// the set without limit, and that an enterprise recorded before the limit is still reported.
+func TestNoteEnterpriseIsBounded(t *testing.T) {
+	store := newDeviceStore()
+
+	store.noteEnterprise(testEnterpriseID)
+	for i := range maxTrackedEnterprises + 100 {
+		store.noteEnterprise(fmt.Sprintf("junk-%d", i))
+	}
+
+	store.entMu.RLock()
+	got := len(store.enterprises)
+	store.entMu.RUnlock()
+	assert.Equal(t, maxTrackedEnterprises, got)
+
+	// The enterprise seen first is still there, so the report Fleet depends on is unaffected.
+	assert.Contains(t, store.knownEnterprises(), testEnterpriseID)
+}
+
 func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	mux, _ := newTestMux(t)
 	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)

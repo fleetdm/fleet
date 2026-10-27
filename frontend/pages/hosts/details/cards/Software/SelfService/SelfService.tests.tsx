@@ -50,6 +50,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     order_direction: "asc",
     per_page: 10,
     category_id: undefined,
+    mobile: undefined,
   },
   router: createMockRouter(),
   refetchHostDetails: noop,

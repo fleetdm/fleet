@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -44,7 +45,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
+	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger, false)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -139,7 +140,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.Empty(t, hosts)
 }
 
-func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
+func TestCleanupUnusedS3FilesCronJobsSetDeadline(t *testing.T) {
 	ds := new(mock.Store)
 
 	const budget = time.Minute
@@ -147,6 +148,18 @@ func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
 	var hasDeadline bool
 	ds.CleanupUnusedSoftwareInstallersFunc = func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 		deadline, hasDeadline = ctx.Deadline()
+		return nil
+	}
+	var iconDeadline time.Time
+	var iconHasDeadline bool
+	ds.CleanupUnusedSoftwareTitleIconsFunc = func(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error {
+		iconDeadline, iconHasDeadline = ctx.Deadline()
+		return nil
+	}
+	var bootstrapDeadline time.Time
+	var bootstrapHasDeadline bool
+	ds.CleanupUnusedBootstrapPackagesFunc = func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
+		bootstrapDeadline, bootstrapHasDeadline = ctx.Deadline()
 		return nil
 	}
 
@@ -157,6 +170,22 @@ func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
 	require.True(t, hasDeadline, "the S3 calls must inherit the job time budget")
 	require.Positive(t, time.Until(deadline))
 	require.LessOrEqual(t, time.Until(deadline), budget)
+
+	// Run the title icon cleanup with a context that has no deadline, the S3 calls should get the job time budget.
+	err = cleanupUnusedSoftwareTitleIconsCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedSoftwareTitleIconsFuncInvoked)
+	require.True(t, iconHasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(iconDeadline))
+	require.LessOrEqual(t, time.Until(iconDeadline), budget)
+
+	// Run the bootstrap package cleanup with a context that has no deadline, the S3 calls should get the job time budget.
+	err = cleanupUnusedBootstrapPackagesCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedBootstrapPackagesFuncInvoked)
+	require.True(t, bootstrapHasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(bootstrapDeadline))
+	require.LessOrEqual(t, time.Until(bootstrapDeadline), budget)
 }
 
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
@@ -304,6 +333,179 @@ func TestCleanupStaleWindowsMDMEnrollmentsCronJob(t *testing.T) {
 		err := cleanupStaleWindowsMDMEnrollmentsCronJob(t.Context(), ds, logger, time.Hour)
 		require.ErrorContains(t, err, "boom")
 	})
+}
+
+func TestCleanupWindowsMDMCommandHistoryCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupWindowsMDMCommandHistoryCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupMDMWindowsCommandHistoryFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupMDMWindowsCommandHistoryFunc = func(ctx context.Context, olderThan time.Time) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+			cutoff = olderThan
+			return fleet.MDMWindowsCommandHistoryCleanupCounts{Responses: 1, Results: 2, Commands: 3}, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupWindowsMDMCommandHistoryCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupMDMWindowsCommandHistoryFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.CleanupMDMWindowsCommandHistoryFunc = func(ctx context.Context, olderThan time.Time) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+			return fleet.MDMWindowsCommandHistoryCleanupCounts{Responses: 1}, errors.New("boom")
+		}
+		err := cleanupWindowsMDMCommandHistoryCronJob(t.Context(), ds, logger, time.Hour)
+		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestCleanupHostSoftwareInstallsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupHostSoftwareInstallsFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupHostSoftwareInstallsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			cutoff = olderThan
+			return 7, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupHostSoftwareInstallsFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.CleanupHostSoftwareInstallsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			return 1, errors.New("boom")
+		}
+		err := cleanupHostSoftwareInstallsCronJob(t.Context(), ds, logger, time.Hour)
+		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestCleanupHostScriptResultsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupHostScriptResultsCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupHostScriptResultsFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupHostScriptResultsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			cutoff = olderThan
+			return 3, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupHostScriptResultsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupHostScriptResultsFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.CleanupHostScriptResultsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			return 1, errors.New("boom")
+		}
+		err := cleanupHostScriptResultsCronJob(t.Context(), ds, logger, time.Hour)
+		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestUnblockHostsUpcomingActivityQueueCronJob(t *testing.T) {
+	const maxHosts = 500
+
+	unblockReturning := func(t *testing.T, unblocked int, retErr error) (*mock.Store, *bytes.Buffer, error) {
+		t.Helper()
+		var logs bytes.Buffer
+		ds := new(mock.Store)
+		var gotMaxHosts int
+		var gotSkipFleetInitiated bool
+		ds.UnblockHostsUpcomingActivityQueueFunc = func(ctx context.Context, m int, skipFleetInitiated bool) (int, error) {
+			gotMaxHosts, gotSkipFleetInitiated = m, skipFleetInitiated
+			return unblocked, retErr
+		}
+		err := unblockHostsUpcomingActivityQueueCronJob(
+			t.Context(), ds, slog.New(slog.NewTextHandler(&logs, nil)), maxHosts, true,
+		)
+		require.True(t, ds.UnblockHostsUpcomingActivityQueueFuncInvoked)
+		require.Equal(t, maxHosts, gotMaxHosts)
+		require.True(t, gotSkipFleetInitiated)
+		return ds, &logs, err
+	}
+
+	t.Run("logs the count it unblocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 7, nil)
+		require.NoError(t, err)
+		require.Contains(t, logs.String(), "hosts_unblocked=7")
+		require.Contains(t, logs.String(), "max_hosts=500")
+		require.Contains(t, logs.String(), "cap_reached=false")
+	})
+
+	t.Run("flags a run that hit its cap, since more hosts are still blocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, maxHosts, nil)
+		require.NoError(t, err)
+		require.Contains(t, logs.String(), "cap_reached=true")
+	})
+
+	t.Run("stays quiet when nothing was blocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 0, nil)
+		require.NoError(t, err)
+		require.Empty(t, logs.String())
+	})
+
+	t.Run("reports partial progress before returning the error", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 3, errors.New("boom"))
+		require.ErrorContains(t, err, "boom")
+		require.Contains(t, logs.String(), "hosts_unblocked=3")
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 0, errors.New("boom"))
+		require.ErrorContains(t, err, "boom")
+		require.Empty(t, logs.String())
+	})
+}
+
+func TestCleanupHostCertificatesCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ds := new(mock.Store)
+	var cutoff time.Time
+	ds.CleanupSoftDeletedHostCertificatesFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+		cutoff = olderThan
+		return 0, nil
+	}
+
+	require.NoError(t, cleanupHostCertificatesCronJob(t.Context(), ds, logger, 0))
+	require.False(t, ds.CleanupSoftDeletedHostCertificatesFuncInvoked, "zero retention disables the cleanup")
+
+	require.NoError(t, cleanupHostCertificatesCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+	require.WithinDuration(t, time.Now().Add(-30*24*time.Hour), cutoff, time.Minute)
 }
 
 func TestCleanupExpiredHostsCronJob(t *testing.T) {

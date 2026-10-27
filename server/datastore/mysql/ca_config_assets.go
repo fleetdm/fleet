@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/crypto"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -33,7 +34,7 @@ WHERE
 
 	assetMap := make(map[string]fleet.CAConfigAsset, len(res))
 	for _, asset := range res {
-		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+		decryptedVal, err := crypto.DecryptAESGCM(asset.Value, ds.serverPrivateKey)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "decrypting CA config asset %s", asset.Name)
 		}
@@ -63,7 +64,7 @@ func (ds *Datastore) saveCAConfigAssets(ctx context.Context, tx sqlx.ExtContext,
 
 	args := make([]interface{}, 0, len(assets)*3)
 	for _, asset := range assets {
-		encryptedVal, err := encrypt(asset.Value, ds.serverPrivateKey)
+		encryptedVal, err := crypto.EncryptAESGCM(asset.Value, ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "encrypting CA config asset %s", asset.Name)
 		}
@@ -95,7 +96,7 @@ func (ds *Datastore) GetCAConfigAsset(ctx context.Context, name string, assetTyp
 		return nil, ctxerr.Wrapf(ctx, err, "get CA config asset %s", name)
 	}
 
-	decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+	decryptedVal, err := crypto.DecryptAESGCM(asset.Value, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "decrypting CA config asset %s", asset.Name)
 	}

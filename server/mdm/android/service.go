@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"google.golang.org/api/androidmanagement/v1"
@@ -32,8 +33,8 @@ type Service interface {
 	// command_uuid so callers can correlate the API response with the persisted row via GetMDMAndroidCommandByUUID.
 	ClearAndroidPasscode(ctx context.Context, hostID uint) (commandUUID string, err error)
 
-	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the service layer reject BYO before reaching
-	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
+	// WipeAndroidHost issues an AMAPI WIPE command. On a BYO host AMAPI only removes the work profile; on COBO it factory
+	// resets the device. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
 	WipeAndroidHost(ctx context.Context, hostID uint) error
 
 	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against
@@ -71,6 +72,11 @@ type Service interface {
 
 	// CreateAndroidWebApp creates a new web app for the given enterprise.
 	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
+	// GetZeroTouchConfiguration returns the DPC extras JSON for zero-touch enrollment.
+	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
+	// teamID is the fleet to enroll devices into; nil means "Unassigned."
+	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
 }
 
 // /////////////////////////////////////////////
@@ -107,4 +113,30 @@ type EnterpriseSignupResponse struct {
 type EnrollmentTokenResponse struct {
 	*EnrollmentToken
 	DefaultResponse
+}
+
+type ZeroTouchConfigurationResponse struct {
+	DPCExtras json.RawMessage `json:"-"`
+	Warning   string          `json:"warning,omitempty"`
+	DefaultResponse
+}
+
+func (r ZeroTouchConfigurationResponse) MarshalJSON() ([]byte, error) {
+	if len(r.DPCExtras) == 0 {
+		return json.Marshal(struct {
+			Warning string `json:"warning,omitempty"`
+		}{Warning: r.Warning})
+	}
+	// Start with DPCExtras as the base object, then merge warning if present.
+	if r.Warning == "" {
+		return r.DPCExtras, nil
+	}
+	// Merge warning into the DPC extras object.
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(r.DPCExtras, &m); err != nil {
+		return r.DPCExtras, nil
+	}
+	w, _ := json.Marshal(r.Warning)
+	m["warning"] = w
+	return json.Marshal(m)
 }

@@ -98,6 +98,7 @@ export const HOST_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
   "debian",
+  "parrot", // Parrot OS (Debian-based)
   "rhel", // covers Fedora
   "centos",
   "sles",
@@ -152,11 +153,19 @@ export const isAppleDevice = (platform = "") => {
   );
 };
 
-export const isWindows = (platform: string | HostPlatform) =>
-  platform === "windows";
+// Accept both the single-value host platform (`"windows"`, `"darwin"`,
+// `"macos"`) and the comma-joined `CommaSeparatedPlatformString` from
+// policies (`"darwin,linux"`) so the same predicate works at the wire
+// boundary for patch policies without a second helper. `undefined` is
+// allowed so callers with `string | undefined` don't need to `?? ""`.
+export const isWindows = (platform: string | HostPlatform | undefined) =>
+  !!platform && platform.split(",").includes("windows");
 
-export const isMacOS = (platform: string | HostPlatform) =>
-  ["darwin", "macos"].includes(platform);
+export const isMacOS = (platform: string | HostPlatform | undefined) => {
+  if (!platform) return false;
+  const parts = platform.split(",");
+  return parts.includes("darwin") || parts.includes("macos");
+};
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
@@ -174,6 +183,8 @@ export const isMobilePlatform = (platform: string | HostPlatform) =>
 
 // --- OS Settings and Disk Encryption support by Platform ---
 
+/** Linux platforms whose disk encryption status Fleet displays (host vitals, OS settings card).
+ * Display only: escrow eligibility is LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS below. */
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
@@ -186,13 +197,23 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "omarchy", // Omarchy (Arch-based)
 ] as const;
 
+/** Linux distributions Fleet escrows LUKS keys for. Must match LUKSSupportedPlatforms on the
+ * server. Fedora reports rhel and is matched on OS version instead. */
+export const LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS = [
+  "ubuntu", // covers Kubuntu
+  "zorin",
+] as const;
+
 export const isDiskEncryptionSupportedLinuxPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
-  const isFedora =
-    platform === "rhel" && os_version.toLowerCase().includes("fedora");
-  return isFedora || platform === "ubuntu" || platform === "zorin";
+  if (platform === "rhel") {
+    return os_version.toLowerCase().includes("fedora");
+  }
+  return LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS.includes(
+    platform as typeof LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS[number]
+  );
 };
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [

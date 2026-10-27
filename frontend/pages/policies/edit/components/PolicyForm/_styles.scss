@@ -169,14 +169,14 @@
     }
   }
 
-  &__critical-checkbox-wrapper {
+  &__critical-checkbox-wrapper,
+  &__hidden-checkbox-wrapper {
     // override form child width: 100%
     width: auto;
     .form-field--checkbox {
       margin-bottom: 0;
     }
   }
-
 }
 
 // Responsive tweaks that only apply when the schema sidebar is open on the

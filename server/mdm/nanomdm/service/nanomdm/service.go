@@ -13,6 +13,7 @@ import (
 
 	"github.com/micromdm/nanolib/log"
 	"github.com/micromdm/nanolib/log/ctxlog"
+	"github.com/micromdm/plist"
 )
 
 // Service is the main NanoMDM service which dispatches to storage.
@@ -287,7 +288,11 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	}
 
 	expandHostSecrets := func(cmdRaw string, onError func(hostUUID string, errorMsg string)) (expanded string, didError bool) {
-		hostUUID := results.UDID
+		// The device channel ID is the UDID for device enrollments and the EnrollmentID for ADUE, which has no UDID.
+		var hostUUID string
+		if resolved := results.Resolved(); resolved != nil {
+			hostUUID = resolved.DeviceChannelID
+		}
 		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, cmdRaw, hostUUID)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)
@@ -303,6 +308,13 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 					LocalizedDescription: errorMsg,
 				}},
 			}
+			// The stored result can't be empty: without it the command stays
+			// first in the queue and blocks every command behind it.
+			raw, marshalErr := plist.Marshal(failedResult)
+			if marshalErr != nil {
+				logger.Info("level", "error", "msg", "marshalling failed command result", "err", marshalErr)
+			}
+			failedResult.Raw = raw
 			if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
 				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
 			}
@@ -322,6 +334,20 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			// Mark the host's recovery lock status as failed so it's not stuck in pending.
 			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
+			}
+		})
+		if didError {
+			return nil, nil
+		}
+
+		cmd.Raw = []byte(hostExpanded)
+	}
+
+	// RotateFileVaultKey is device-only, so UDID is the host UUID.
+	if cmd.Command.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
+			if storeErr := s.store.SetDiskEncryptionKeyRotationFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
+				logger.Info("level", "error", "msg", "setting disk encryption key rotation failed", "err", storeErr)
 			}
 		})
 		if didError {

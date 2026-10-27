@@ -28,11 +28,9 @@ const (
 // redis list will be LTRIM'd if there are more policy IDs than this.
 var maxRedisPolicyResultsPerHost = 1000
 
-// RecordPolicyQueryExecutions records the incoming policy results for the host.
-// Under synchronous processing it returns the host's stale policy IDs (see
-// fleet.Datastore.RecordPolicyQueryExecutions); under async processing the
-// results are buffered in Redis and cannot be compared against stored rows
-// yet, so it always returns nil stale policy IDs.
+// RecordPolicyQueryExecutions records the incoming policy results for the host and returns the host's stale policy IDs: policies
+// with a stored policy_membership row but no incoming result (see fleet.Datastore.RecordPolicyQueryExecutions). Under async
+// processing the results are buffered in Redis, but the stored rows can still be compared against them.
 func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool, newlyPassingPolicyIDs []uint) ([]uint, error) {
 	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
 	if !cfg.Enabled {
@@ -125,7 +123,31 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	if _, err := storePurgeActiveHostID(t.pool, policyPassHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "store active host id")
 	}
-	return nil, nil
+
+	stalePolicyIDs, err := t.datastore.StalePolicyIDsForHost(ctx, host.ID, results)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get stale policy ids for host")
+	}
+	if len(stalePolicyIDs) > 0 {
+		// Drop older buffered results for the stale policies, so that the collector doesn't write back the rows the caller
+		// is about to delete. A collection already in flight can still write them; the host's next report cleans that up.
+		// KEYS[1]: keyList (policyPassHostKey)
+		// ARGV[1..]: policy_id=pass entries to remove from the list
+		removeScript := redigo.NewScript(1, `
+		for i = 1, #ARGV do
+			redis.call('LREM', KEYS[1], 0, ARGV[i])
+		end
+		return 0
+		`)
+		args := redigo.Args{}.Add(keyList)
+		for _, policyID := range stalePolicyIDs {
+			args = args.Add(fmt.Sprintf("%d=1", policyID), fmt.Sprintf("%d=-1", policyID), fmt.Sprintf("%d=0", policyID))
+		}
+		if _, err := removeScript.Do(conn, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "remove buffered results of stale policies")
+		}
+	}
+	return stalePolicyIDs, nil
 }
 
 func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {

@@ -2,3 +2,5 @@ url: $DOGFOOD_OKTA_VERIFY_LINUX_URL
 display_name: Okta Verify
 icon:
   path: ../../all/icons/okta-verify-logo.png
+post_install_script:
+  path: ../scripts/configure-okta-verify-org-url.sh

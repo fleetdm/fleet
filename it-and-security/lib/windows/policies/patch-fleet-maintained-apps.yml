@@ -3,7 +3,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Slack installed
@@ -20,7 +20,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also uninstall Claude if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: claude/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Claude installed
@@ -29,7 +29,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Firefox's built-in update functionality. You can also uninstall Firefox if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: firefox/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Firefox installed
@@ -38,7 +38,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: google-chrome/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Google Chrome installed
@@ -47,7 +47,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: zoom/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Zoom installed
@@ -56,7 +56,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Visual Studio Code's built-in update functionality. You can also uninstall Visual Studio Code if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: visual-studio-code/windows
-  install_software: false
+  install_software: true
   patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Visual Studio Code installed

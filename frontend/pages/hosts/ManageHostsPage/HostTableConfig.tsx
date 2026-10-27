@@ -22,7 +22,7 @@ import {
   INumberCellProps,
 } from "interfaces/datatable_config";
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import { isPersonalEnrollment } from "interfaces/mdm";
 import {
   isAndroid,
   isAppleDevice,
@@ -181,6 +181,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       return (
         <LinkCell
+          className="w400"
+          tooltipTruncate
           value={cellProps.cell.value}
           path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(
@@ -315,7 +317,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       // "Not supported" for them. All other hosts, including managed Android
       // devices, show the reported serial number.
       if (
-        isBYODAccountDrivenUserEnrollment(
+        isPersonalEnrollment(
           cellProps.row.original.mdm?.enrollment_status ?? null
         )
       ) {

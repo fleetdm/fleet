@@ -11,6 +11,14 @@ import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
 const baseClass = "add-hosts-modal";
 
+// The hosts that can still enroll without an enroll secret, by which one-time enroll secrets are on.
+export const APPLE_AUTO_ENROLLING_HOSTS =
+  "Apple hosts that automatically enroll via Automated Device Enrollment (ADE)";
+export const WINDOWS_AUTO_ENROLLING_HOSTS =
+  "Windows hosts that automatically enroll via Microsoft Entra ID or Autopilot";
+export const APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS =
+  "hosts that automatically enroll via Apple's Automated Device Enrollment (ADE), Microsoft Entra ID, or Autopilot";
+
 interface IAddHostsModal {
   currentTeamName?: string;
   enrollSecret?: string;
@@ -54,15 +62,27 @@ const AddHostsModal = ({
       return <Spinner />;
     }
     if (!enrollSecret) {
+      // Hosts that get a one-time enroll secret from Fleet's MDM can still enroll without one.
+      const appleOneTimeSecrets = !!config?.auth
+        ?.mdm_apple_one_time_enroll_secrets;
+      const windowsOneTimeSecrets = !!config?.auth
+        ?.mdm_windows_one_time_enroll_secrets;
+      let autoEnrollingHosts = "";
+      if (appleOneTimeSecrets && windowsOneTimeSecrets) {
+        autoEnrollingHosts = APPLE_AND_WINDOWS_AUTO_ENROLLING_HOSTS;
+      } else if (appleOneTimeSecrets) {
+        autoEnrollingHosts = APPLE_AUTO_ENROLLING_HOSTS;
+      } else if (windowsOneTimeSecrets) {
+        autoEnrollingHosts = WINDOWS_AUTO_ENROLLING_HOSTS;
+      }
       return (
         <>
           <p>You have no enroll secrets.</p>
           <p>
-            {config?.auth?.use_one_time_enroll_secrets ? (
+            {autoEnrollingHosts ? (
               <>
-                Only Apple hosts that automatically enroll via Automated Device
-                Enrollment (ADE) can enroll to <b>{teamDisplayName}</b>. Add an
-                enroll secret to enroll other hosts.
+                Only {autoEnrollingHosts} can enroll to <b>{teamDisplayName}</b>
+                . Add an enroll secret to enroll other hosts.
               </>
             ) : (
               <>

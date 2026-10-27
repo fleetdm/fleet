@@ -1,4 +1,6 @@
 .host-header {
+  gap: $pad-medium;
+
   &__device-status-tag-wrapper {
     // We are aligning self on the tag wrapper to center it vertically with the Host title.
     // This tag will not always display and the default of the parent container is
@@ -8,7 +10,6 @@
 
   &__device-status-tag {
     display: block;
-    margin-left: $pad-small;
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: $xx-small;
@@ -33,7 +34,6 @@
     font-size: $xx-small;
     color: $ui-fleet-black-75;
     margin: 0;
-    margin-left: $pad-medium;
   }
 
   &__refetch {
@@ -74,5 +74,7 @@
     flex-direction: row;
     align-items: center;
     gap: $gap-action-elements;
+    // Pin to top so buttons don't slide down when "Last fetched..." wraps.
+    align-self: flex-start;
   }
 }

@@ -1,23 +1,29 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -28,19 +34,37 @@ import (
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
 var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
-func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
+func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
+	return createAndroidServiceWithActivity(t, noopNewActivity, opts...)
+}
+
+func createAndroidServiceWithActivity(t *testing.T, newActivity fleet.NewActivityFunc, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, newActivity, config.AndroidAgentConfig{}, opts...)
 	require.NoError(t, err)
 
 	return svc, mockDS
 }
 
+func withIdPAccountEmails(t *testing.T, mockDS *AndroidMockDS) {
+	prev := mockDS.GetMDMIdPAccountByUUIDFunc
+	t.Cleanup(func() { mockDS.GetMDMIdPAccountByUUIDFunc = prev })
+	mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+}
+
 func TestPubSubEnrollment(t *testing.T) {
-	svc, mockDS := createAndroidService(t)
+	var linkActivities []fleet.ActivityTypeBoundHostToIdPAccount
+	svc, mockDS := createAndroidServiceWithActivity(t, func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			linkActivities = append(linkActivities, bound)
+		}
+		return nil
+	})
 
 	globalSecret := "global"
 	teamSecret := "team"
@@ -183,12 +207,16 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			var linkedHostUUID string
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				linkedHostUUID = hostUUID
+				return "", nil
 			}
 			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 				return nil
 			}
+			withIdPAccountEmails(t, mockDS)
+			linkActivities = nil
 
 			enrollmentToken := enrollmentTokenRequest{
 				EnrollSecret: "global",
@@ -206,6 +234,11 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
 			require.True(t, mockDS.MaybeAssociateHostWithScimUserFuncInvoked)
+			require.NotEmpty(t, linkedHostUUID)
+			require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+				HostUUID: linkedHostUUID,
+				IdPEmail: "mock-id@example.com",
+			}}, linkActivities)
 		})
 
 		t.Run("associates scim user with correct host ID after idp association", func(t *testing.T) {
@@ -223,10 +256,10 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			var capturedIdpHostUUID, capturedIdpAcctUUID string
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 				capturedIdpHostUUID = hostUUID
 				capturedIdpAcctUUID = accountUUID
-				return nil
+				return "", nil
 			}
 
 			var capturedScimHostID uint
@@ -328,8 +361,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				require.Equal(t, testBrandTestSerialHashed, host.UUID)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
-			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-				return nil
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+				return "", nil
 			}
 
 			enrollmentToken := enrollmentTokenRequest{
@@ -396,11 +429,13 @@ func TestPubSubEnrollment(t *testing.T) {
 
 		var capturedHostUUID, capturedIdpUUID string
 		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
 			capturedHostUUID = hostUUID
 			capturedIdpUUID = accountUUID
-			return nil
+			return "old-user-idp-uuid", nil
 		}
+		withIdPAccountEmails(t, mockDS)
+		linkActivities = nil
 
 		enrollmentToken := enrollmentTokenRequest{
 			EnrollSecret: "global",
@@ -421,9 +456,14 @@ func TestPubSubEnrollment(t *testing.T) {
 		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
 		// Re-enrollment should update, not create a new host
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+		require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+			HostUUID:         existingHostUUID,
+			IdPEmail:         "new-user-idp-uuid@example.com",
+			ReplacedIdPEmail: "old-user-idp-uuid@example.com",
+		}}, linkActivities)
 	})
 
-	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
+	t.Run("re-enrollment with rotated enroll secret is rejected", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -453,19 +493,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			return nil, common_mysql.NotFound("enroll secret")
 		}
 
-		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
-			return nil, false, nil
-		}
-
-		var capturedTeamID *uint
 		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
-			capturedTeamID = host.TeamID
-			return nil
-		}
-		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
-			return nil
-		}
-		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			t.Error("UpdateAndroidHost should not be called when enroll secret is invalid")
 			return nil
 		}
 
@@ -479,16 +508,12 @@ func TestPubSubEnrollment(t *testing.T) {
 			EnrollmentTokenData: string(enrollTokenData),
 		})
 
-		// Should not panic even though VerifyEnrollSecret returns nil.
+		// Device should not be allowed to re-enroll with an invalid enroll secret.
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
-		require.NoError(t, err)
-
-		// Host should keep its original team since enroll secret was not found.
-		require.NotNil(t, capturedTeamID)
-		require.Equal(t, originalTeamID, *capturedTeamID)
+		require.Error(t, err)
 	})
 
-	t.Run("re-enrollment restores prior team from android_devices", func(t *testing.T) {
+	t.Run("re-enrollment uses enroll secret team not last known team", func(t *testing.T) {
 		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
@@ -511,13 +536,14 @@ func TestPubSubEnrollment(t *testing.T) {
 			}, nil
 		}
 
-		// Enroll secret points to team 1 (the default).
-		defaultTeamID := uint(1)
+		// Enroll secret points to team 1.
+		enrollSecretTeamID := uint(1)
 		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret, TeamID: &defaultTeamID}, nil
+			return &fleet.EnrollSecret{Secret: secret, TeamID: &enrollSecretTeamID}, nil
 		}
 
-		// Prior team from android_devices is team 19 (admin transferred).
+		// "Last known team" from android_devices is team 19 (admin transferred).
+		// This should NOT be used — the enroll secret's team should win.
 		priorTeamID := uint(19)
 		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
 			return &priorTeamID, true, nil
@@ -548,9 +574,124 @@ func TestPubSubEnrollment(t *testing.T) {
 		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
 		require.NoError(t, err)
 
-		// Should use the prior team (19), not the enroll secret's team (1).
+		// Should use the enroll secret's team (1), not the "last known team" (19).
 		require.NotNil(t, capturedTeamID)
-		require.Equal(t, priorTeamID, *capturedTeamID)
+		require.Equal(t, enrollSecretTeamID, *capturedTeamID)
+	})
+
+	t.Run("zero-touch new device uses fleet_id from token", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		// No existing host — new device.
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return nil, common_mysql.NotFound("android host lite mock")
+		}
+
+		// Zero-touch token says fleet_id=7.
+		tokenTeamID := uint(7)
+		mockDS.DataStore.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return id == tokenTeamID, nil
+		}
+
+		// "Last known team" is team 42 — should NOT be used.
+		priorTeamID := uint(42)
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return &priorTeamID, true, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+			capturedTeamID = host.TeamID
+			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
+		}
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
+			Name:                createAndroidDeviceId("test-zt-new"),
+			EnrollmentTokenData: `{"fleet_id": 7}`,
+		})
+
+		err := svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Should use the token's fleet_id (7), not the "last known team" (42).
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, tokenTeamID, *capturedTeamID)
+	})
+
+	t.Run("zero-touch re-enrollment uses fleet_id from token", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-ZT"
+		existingTeamID := uint(10)
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:     40,
+					UUID:   existingHostUUID,
+					TeamID: &existingTeamID,
+				},
+				Device: &android.Device{
+					HostID:               40,
+					DeviceID:             "zt-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		// Zero-touch token says fleet_id=7.
+		tokenTeamID := uint(7)
+		mockDS.DataStore.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return id == tokenTeamID, nil
+		}
+
+		// "Last known team" is team 42 — should NOT be used.
+		priorTeamID := uint(42)
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return &priorTeamID, true, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedTeamID = host.TeamID
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, common_mysql.NotFound("scim user")
+		}
+		mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, common_mysql.NotFound("mdm idp account")
+		}
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{ //nolint:gosec // G101: test data, not a credential
+			Name:                createAndroidDeviceId("test-zt-re-enroll"),
+			EnrollmentTokenData: `{"fleet_id": 7}`,
+		})
+
+		err := svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Should use the token's fleet_id (7), not the "last known team" (42).
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, tokenTeamID, *capturedTeamID)
 	})
 }
 
@@ -565,6 +706,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			DeviceID: createAndroidDeviceId("test"),
 		},
 	}
+	hostPolicyName := "enterprises/mock-enterprise-id/policies/" + androidDevice.UUID
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 		return androidDevice, nil
 	}
@@ -617,7 +759,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -708,7 +850,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, []*androidmanagement.NonComplianceDetail{
 			{
 				SettingName:         "DefaultPermissionPolicy",
 				NonComplianceReason: "INVALID_VALUE",
@@ -821,7 +963,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		}
 
 		// the two pending profiles will be set to verified, and the non-compliant profile will be set to failed
-		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "passwordPolicies", NonComplianceReason: "USER_ACTION"}})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
@@ -835,7 +977,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 
 		// the failed profile will now be verified because it is no longer in non compliance details
-		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{})
 		wantedReason2 = fleet.MDMDeliveryVerified
 
@@ -933,7 +1075,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "cameraDisabled", NonComplianceReason: "USER_ACTION"}})
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
@@ -950,9 +1092,98 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	t.Run("non-compliance with no pending profiles skips profile verification", func(t *testing.T) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
+		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		var logBuf bytes.Buffer
+		androidSvc := svc.(*Service)
+		origLogger := androidSvc.logger
+		androidSvc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+		t.Cleanup(func() { androidSvc.logger = origLogger })
+
+		// e.g. certificate delivery bumped the policy version without any profile in it
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, new(2), []*androidmanagement.NonComplianceDetail{
+			{
+				SettingName:         "applications",
+				NonComplianceReason: "APP_NOT_INSTALLED",
+				PackageName:         "com.fleetdm.agent",
+			},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		// pending removals are still cleaned up
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+		require.NotContains(t, logBuf.String(), "no matching policy request UUID found")
+		require.NotContains(t, logBuf.String(), "level=ERROR")
+	})
+
+	t.Run("non-compliance with no profile matching a policy request skips the lookup", func(t *testing.T) {
+		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{{
+				ProfileUUID:   uuid.NewString(),
+				ProfileName:   "a",
+				HostUUID:      androidDevice.UUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
+			}}, nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, new(2), []*androidmanagement.NonComplianceDetail{
+			{SettingName: "cameraDisabled", NonComplianceReason: "INVALID_VALUE"},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+
+		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	// A device still on another policy (e.g. the default one it enrolled with) has none of
+	// the host's profiles, whatever that policy's version.
+	t.Run("status report for a policy other than the host policy verifies nothing", func(t *testing.T) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{{
+				ProfileUUID:             uuid.NewString(),
+				ProfileName:             "a",
+				HostUUID:                androidDevice.UUID,
+				Status:                  &fleet.MDMDeliveryPending,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				IncludedInPolicyVersion: new(2),
+			}}, nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test",
+			fmt.Sprintf("enterprises/mock-enterprise-id/policies/%d", android.DefaultAndroidPolicyID), new(50), nil)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+		require.False(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.False(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 	})
 }
 
@@ -1409,6 +1640,42 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
+	t.Run("status report without MEASURED events passes not supported to the datastore", func(t *testing.T) {
+		existingHost.Host.GigsTotalDiskSpace = 0
+		existingHost.Host.GigsDiskSpaceAvailable = 0
+		existingHost.Host.PercentDiskSpaceAvailable = 0
+
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId(deviceName),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "UpdatedBrand",
+				Model:                "UpdatedModel",
+				SerialNumber:         "updated-serial",
+				Hardware:             "updated-hardware",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "updated-build", AndroidVersion: "15"},
+			MemoryInfo: &androidmanagement.MemoryInfo{
+				TotalRam:             int64(16 * 1024 * 1024 * 1024),
+				TotalInternalStorage: int64(128 * 1024 * 1024 * 1024),
+			},
+		}
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+			Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+		}
+
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
+
+		// The service passes -1 through; UpdateAndroidHost decides whether a stored measurement wins.
+		require.NotNil(t, capturedHost)
+		require.InDelta(t, 128.0, capturedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, capturedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, capturedHost.Host.PercentDiskSpaceAvailable, 0.01)
+	})
+
 	t.Run("UUID is set from EnterpriseSpecificId", func(t *testing.T) {
 		mockDS.UpdateAndroidHostFuncInvoked = false
 		capturedHost = nil
@@ -1820,8 +2087,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil
@@ -1880,8 +2147,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 		}
 
-		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
-			return nil
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) (string, error) {
+			return "", nil
 		}
 		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil
@@ -1932,6 +2199,38 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		return host, nil
 	}
 
+	// Mocks the re-enrollment (update) path needs on top of the create path.
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
+	}
+	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
+	}
+	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	mockDS.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
+	mockDS.SetOrUpdateHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
+		return nil
+	}
+	mockDS.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "test-enterprise"}, nil
+	}
+
 	t.Run("extracts storage data from AMAPI device", func(t *testing.T) {
 		createdHost = nil // Reset
 
@@ -1976,6 +2275,84 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
 	})
 
+	t.Run("re-enrollment without MEASURED events passes not supported to the datastore", func(t *testing.T) {
+		const esid = "REENROLL-TEST-ESID"
+		existing := &fleet.AndroidHost{
+			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-test"), HostID: 42, EnterpriseSpecificID: new(esid)},
+		}
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			if enterpriseSpecificID != esid {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+			return existing, nil
+		}
+		var updatedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			updatedHost = host
+			return nil
+		}
+		t.Cleanup(func() {
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+		})
+
+		// A re-enrollment payload carries no memory events at all.
+		enrollmentMessage := createEnrollmentMessageWithoutMemoryEvents(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("reenroll-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, updatedHost)
+		// UpdateAndroidHost keeps the host's last real measurement over -1.
+		require.InDelta(t, 64.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, updatedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, updatedHost.Host.PercentDiskSpaceAvailable, 0.01)
+	})
+
+	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
+		const esid = "REENROLL-MEASURED-ESID"
+		existing := &fleet.AndroidHost{
+			Host:   &fleet.Host{ID: 43, UUID: "reenroll-measured-uuid", Platform: "android"},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-measured"), HostID: 43, EnterpriseSpecificID: new(esid)},
+		}
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			if enterpriseSpecificID != esid {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+			return existing, nil
+		}
+		var updatedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			updatedHost = host
+			return nil
+		}
+		t.Cleanup(func() {
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+		})
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("reenroll-measured"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, updatedHost)
+		require.InDelta(t, 128.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, 35.0, updatedHost.Host.GigsDiskSpaceAvailable, 0.1)
+		require.InDelta(t, 27.34, updatedHost.Host.PercentDiskSpaceAvailable, 0.1)
+	})
+
 	t.Run("uses only latest EXTERNAL_STORAGE_DETECTED event", func(t *testing.T) {
 		createdHost = nil // Reset
 
@@ -2003,6 +2380,10 @@ func TestAndroidStorageExtraction(t *testing.T) {
 }
 
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	var esid string
+	if deviceInfo.HardwareInfo != nil {
+		esid = deviceInfo.HardwareInfo.EnterpriseSpecificId
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		Brand:    "TestBrand",
 		Model:    "TestModel",
@@ -2016,7 +2397,10 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 		deviceInfo.HardwareInfo.SerialNumber = "test-serial"
 	}
 	if deviceInfo.Ownership == DeviceOwnershipPersonallyOwned {
-		deviceInfo.HardwareInfo.EnterpriseSpecificId = strings.ToUpper(uuid.New().String())
+		if esid == "" {
+			esid = strings.ToUpper(uuid.New().String())
+		}
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = esid
 		deviceInfo.HardwareInfo.SerialNumber = deviceInfo.HardwareInfo.EnterpriseSpecificId
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
@@ -2096,6 +2480,40 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 			"notificationType": string(android.PubSubEnrollment),
 		},
 		Data: encodedData,
+	}
+}
+
+// createEnrollmentMessageWithoutMemoryEvents builds the payload AMAPI sends on enrollment:
+// memory info but no memory events, which only arrive on status reports.
+func createEnrollmentMessageWithoutMemoryEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	esid := strings.ToUpper(uuid.New().String())
+	if deviceInfo.HardwareInfo != nil && deviceInfo.HardwareInfo.EnterpriseSpecificId != "" {
+		esid = deviceInfo.HardwareInfo.EnterpriseSpecificId
+	}
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: esid,
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: base64.StdEncoding.EncodeToString(data),
 	}
 }
 
@@ -2283,8 +2701,76 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 	}
 }
 
+// fakePendingInstalls stands in for host_vpp_software_installs: as in the datastore, an install
+// marked verified or failed is no longer pending, and only a failed one can still be verified.
+// pending and failedInstalls are the primary's rows; set the replica fields to have reads that
+// don't require the primary see a lagging replica instead.
+type fakePendingInstalls struct {
+	pending, failedInstalls               map[string]*fleet.HostAndroidVPPSoftwareInstall
+	replicaPending, replicaFailedInstalls map[string]*fleet.HostAndroidVPPSoftwareInstall
+	verified, failed                      []string
+	primaryFailedLookups                  int
+}
+
+func useFakePendingInstalls(t *testing.T, mockDS *AndroidMockDS, installs ...*fleet.HostAndroidVPPSoftwareInstall) *fakePendingInstalls {
+	f := &fakePendingInstalls{
+		pending:        make(map[string]*fleet.HostAndroidVPPSoftwareInstall, len(installs)),
+		failedInstalls: make(map[string]*fleet.HostAndroidVPPSoftwareInstall),
+	}
+	for _, install := range installs {
+		f.pending[install.CommandUUID] = install
+	}
+	mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		pending := f.pending
+		if f.replicaPending != nil && !ctxdb.IsPrimaryRequired(ctx) {
+			pending = f.replicaPending
+		}
+		var res []*fleet.HostAndroidVPPSoftwareInstall
+		for _, install := range pending {
+			if v, _ := strconv.ParseInt(install.AssociatedEventID, 10, 64); v <= version {
+				res = append(res, install)
+			}
+		}
+		return res, nil
+	}
+	mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		if ctxdb.IsPrimaryRequired(ctx) {
+			f.primaryFailedLookups++
+		} else if f.replicaFailedInstalls != nil {
+			return slices.Collect(maps.Values(f.replicaFailedInstalls)), nil
+		}
+		return slices.Collect(maps.Values(f.failedInstalls)), nil
+	}
+	t.Cleanup(func() {
+		mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+	})
+	mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+		for _, cmdUUID := range cmdUUIDs {
+			delete(f.pending, cmdUUID)
+			delete(f.failedInstalls, cmdUUID)
+		}
+		f.verified = append(f.verified, cmdUUIDs...)
+		return nil
+	}
+	mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+		for _, cmdUUID := range cmdUUIDs {
+			if install, ok := f.pending[cmdUUID]; ok {
+				f.failedInstalls[cmdUUID] = install
+			}
+			delete(f.pending, cmdUUID)
+		}
+		f.failed = append(f.failed, cmdUUIDs...)
+		return nil
+	}
+	return f
+}
+
 func TestStatusReportAppInstallVerification(t *testing.T) {
-	svc, mockDS := createAndroidService(t)
+	const installReapTimeout = 24 * time.Hour
+	clk := clock.NewMockClock()
+	svc, mockDS := createAndroidService(t, WithClock(clk), WithInstallReapTimeout(installReapTimeout))
 
 	androidDevice := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -2563,6 +3049,220 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
 	})
 
+	pushStatusReport := func(t *testing.T, apps []*androidmanagement.ApplicationReport, nonCompliance []*androidmanagement.NonComplianceDetail) {
+		statusReport := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), new(2), apps, nonCompliance)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+	}
+
+	t.Run("pending app not reported at all stays pending until a later report", func(t *testing.T) {
+		createdAt := clk.Now()
+		installs := useFakePendingInstalls(t, mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &createdAt,
+		})
+
+		// The device applied the policy but says nothing about the app, neither an
+		// application report nor a non-compliance report.
+		pushStatusReport(t, nil, nil)
+		require.Empty(t, installs.failed)
+		require.Contains(t, installs.pending, "a")
+
+		// A later report saying the app is installed must still be able to verify it.
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.app", State: "INSTALLED"}}, nil)
+		require.Equal(t, []string{"a"}, installs.verified)
+		require.Empty(t, installs.failed)
+	})
+
+	t.Run("pending app not reported fails once older than the install reap timeout", func(t *testing.T) {
+		now := clk.Now()
+		young, old := now.Add(-installReapTimeout+time.Hour), now.Add(-installReapTimeout-time.Hour)
+		installs := useFakePendingInstalls(t, mockDS,
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.young", CommandUUID: "young", AssociatedEventID: "2", CreatedAt: &young},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old", CommandUUID: "old", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old.installed", CommandUUID: "old-installed", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.old.inprogress", CommandUUID: "old-inprogress", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.noage", CommandUUID: "no-age", AssociatedEventID: "2"},
+		)
+		var failedActivities []string
+		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			if status == fleet.SoftwareInstallFailed {
+				failedActivities = append(failedActivities, cmdUUID)
+			}
+			return nil, nil, nil
+		}
+		t.Cleanup(func() {
+			mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+				return nil, nil, nil
+			}
+		})
+
+		// Only the old install missing from both reports fails: a report of any kind still wins,
+		// and an install whose age is unknown keeps waiting.
+		pushStatusReport(t,
+			[]*androidmanagement.ApplicationReport{{PackageName: "com.example.old.installed", State: "INSTALLED"}},
+			[]*androidmanagement.NonComplianceDetail{{PackageName: "com.example.old.inprogress", NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"}},
+		)
+		require.Equal(t, []string{"old-installed"}, installs.verified)
+		require.Equal(t, []string{"old"}, installs.failed)
+		require.Equal(t, []string{"old"}, failedActivities)
+		require.ElementsMatch(t, []string{"young", "old-inprogress", "no-age"}, slices.Collect(maps.Keys(installs.pending)))
+
+		// The young install fails on the first report after it too passes the timeout.
+		clk.AddTime(2 * time.Hour)
+		pushStatusReport(t, nil, []*androidmanagement.NonComplianceDetail{
+			{PackageName: "com.example.old.inprogress", NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
+		})
+		require.Equal(t, []string{"old", "young"}, installs.failed)
+		require.ElementsMatch(t, []string{"old-inprogress", "no-age"}, slices.Collect(maps.Keys(installs.pending)))
+	})
+
+	t.Run("install reap timeout of zero keeps an unreported app pending", func(t *testing.T) {
+		svc.(*Service).installReapTimeout = 0
+		t.Cleanup(func() { svc.(*Service).installReapTimeout = installReapTimeout })
+
+		old := clk.Now().Add(-10 * installReapTimeout)
+		installs := useFakePendingInstalls(t, mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &old,
+		})
+
+		pushStatusReport(t, nil, nil)
+		require.Empty(t, installs.failed)
+		require.Contains(t, installs.pending, "a")
+	})
+
+	t.Run("failed installs lookup error still verifies pending installs", func(t *testing.T) {
+		createdAt := clk.Now()
+		installs := useFakePendingInstalls(t, mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &createdAt,
+		})
+		mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, errors.New("lookup failed")
+		}
+
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.app", State: "INSTALLED"}}, nil)
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
+		require.Equal(t, []string{"a"}, installs.verified)
+	})
+
+	t.Run("failed app is verified once a later report has it installed", func(t *testing.T) {
+		old := clk.Now().Add(-installReapTimeout - time.Hour)
+		installs := useFakePendingInstalls(t, mockDS,
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.timedout", CommandUUID: "timed-out", AssociatedEventID: "2", CreatedAt: &old},
+			&fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.rejected", CommandUUID: "rejected", AssociatedEventID: "2", CreatedAt: &old},
+		)
+		activities := map[fleet.SoftwareInstallerStatus][]string{}
+		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			activities[status] = append(activities[status], cmdUUID)
+			return nil, nil, nil
+		}
+		t.Cleanup(func() {
+			mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+				return nil, nil, nil
+			}
+		})
+		notApproved := []*androidmanagement.NonComplianceDetail{
+			{PackageName: "com.example.rejected", NonComplianceReason: "APP_NOT_INSTALLED", InstallationFailureReason: "NOT_APPROVED"},
+		}
+
+		pushStatusReport(t, nil, notApproved)
+		require.ElementsMatch(t, []string{"timed-out", "rejected"}, installs.failed)
+		require.Empty(t, installs.verified)
+
+		// Not reported as installed, so both stay failed and neither is failed again. With no
+		// app installed in the report there is nothing to override, so failures aren't read.
+		mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = false
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.timedout", State: "REMOVED"}}, notApproved)
+		require.False(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
+		require.Len(t, installs.failed, 2)
+		require.Empty(t, installs.verified)
+
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.timedout", State: "INSTALLED"}}, notApproved)
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
+		require.Equal(t, 1, installs.primaryFailedLookups, "a failure is only overridden once the primary confirms it")
+		require.Equal(t, []string{"timed-out"}, installs.verified)
+
+		// A failure from an explicit non-compliance report is overridden the same way.
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{
+			{PackageName: "com.example.timedout", State: "INSTALLED"},
+			{PackageName: "com.example.rejected", State: "INSTALLED"},
+		}, nil)
+		require.Equal(t, []string{"timed-out", "rejected"}, installs.verified)
+		require.Empty(t, installs.failedInstalls)
+		require.ElementsMatch(t, []string{"timed-out", "rejected"}, activities[fleet.SoftwareInstallFailed])
+		require.Equal(t, []string{"timed-out", "rejected"}, activities[fleet.SoftwareInstalled])
+	})
+
+	recordInstalledActivities := func(t *testing.T) *[]string {
+		var installed []string
+		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			if status == fleet.SoftwareInstalled {
+				installed = append(installed, cmdUUID)
+			}
+			return nil, nil, nil
+		}
+		t.Cleanup(func() {
+			mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+				return nil, nil, nil
+			}
+		})
+		return &installed
+	}
+	failInstall := func(t *testing.T, installs *fakePendingInstalls, packageName string) {
+		pushStatusReport(t, nil, []*androidmanagement.NonComplianceDetail{
+			{PackageName: packageName, NonComplianceReason: "APP_NOT_INSTALLED", InstallationFailureReason: "NOT_APPROVED"},
+		})
+		require.NotEmpty(t, installs.failedInstalls)
+	}
+	reportInstalled := func(t *testing.T, packageName string) {
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: packageName, State: "INSTALLED"}}, nil)
+	}
+
+	t.Run("an install the replica still lists as pending is verified once", func(t *testing.T) {
+		createdAt := clk.Now()
+		install := &fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.lagging", CommandUUID: "lagging", AssociatedEventID: "2", CreatedAt: &createdAt}
+		installs := useFakePendingInstalls(t, mockDS, install)
+		installed := recordInstalledActivities(t)
+		failInstall(t, installs, install.AdamID)
+
+		// The replica hasn't seen the failure, so the install is both pending there and
+		// failed on the primary.
+		installs.replicaPending = map[string]*fleet.HostAndroidVPPSoftwareInstall{install.CommandUUID: install}
+		reportInstalled(t, install.AdamID)
+		require.Equal(t, []string{"lagging"}, installs.verified)
+		require.Equal(t, []string{"lagging"}, *installed)
+	})
+
+	t.Run("a failure the replica still lists after a report verified it isn't verified again", func(t *testing.T) {
+		createdAt := clk.Now()
+		install := &fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.verified", CommandUUID: "verified", AssociatedEventID: "2", CreatedAt: &createdAt}
+		installs := useFakePendingInstalls(t, mockDS, install)
+		installed := recordInstalledActivities(t)
+		failInstall(t, installs, install.AdamID)
+		reportInstalled(t, install.AdamID)
+		require.Equal(t, []string{"verified"}, installs.verified)
+
+		installs.replicaFailedInstalls = map[string]*fleet.HostAndroidVPPSoftwareInstall{install.CommandUUID: install}
+		reportInstalled(t, install.AdamID)
+		require.Equal(t, []string{"verified"}, installs.verified)
+		require.Equal(t, []string{"verified"}, *installed)
+	})
+
+	t.Run("a failure the replica hasn't seen yet is recovered by a later report", func(t *testing.T) {
+		createdAt := clk.Now()
+		install := &fleet.HostAndroidVPPSoftwareInstall{AdamID: "com.example.unseen", CommandUUID: "unseen", AssociatedEventID: "2", CreatedAt: &createdAt}
+		installs := useFakePendingInstalls(t, mockDS, install)
+		failInstall(t, installs, install.AdamID)
+
+		// No candidate on the replica, so the primary isn't read.
+		installs.replicaFailedInstalls = map[string]*fleet.HostAndroidVPPSoftwareInstall{}
+		reportInstalled(t, install.AdamID)
+		require.Empty(t, installs.verified)
+		require.Zero(t, installs.primaryFailedLookups)
+
+		installs.replicaFailedInstalls = nil
+		reportInstalled(t, install.AdamID)
+		require.Equal(t, []string{"unseen"}, installs.verified)
+	})
+
 	t.Run("multiple apps in various states", func(t *testing.T) {
 		t.Cleanup(func() {
 			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
@@ -2614,7 +3314,6 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		commandsToStatus := map[string]fleet.SoftwareInstallerStatus{
 			"a": fleet.SoftwareInstalled,
 			"b": fleet.SoftwareInstalled,
-			"c": fleet.SoftwareInstallFailed,
 			"d": fleet.SoftwareInstallFailed,
 		}
 		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
@@ -2622,7 +3321,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
-			require.ElementsMatch(t, []string{"c", "d"}, cmdUUIDs)
+			require.ElementsMatch(t, []string{"d"}, cmdUUIDs)
 			return nil
 		}
 		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -2633,7 +3332,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		}
 
 		policyVersion := new(2)
-		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
+		// app1 and app2 verified, app3 not reported at all so still pending, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
 			{PackageName: pendingApps[1].AdamID, State: "INSTALLED"},
@@ -3024,6 +3723,78 @@ func TestPubSubCommand(t *testing.T) {
 		require.Contains(t, err.Error(), "simulated transient DB connection drop", "wrapped error must preserve the original cause")
 	})
 
+	t.Run("WIPE+ack transient host lookup failure bubbles error so Pub/Sub retries", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-lookup-transient",
+			HostUUID:      "host-uuid-wipe-lookup-transient",
+			OperationName: "enterprises/E/devices/D/operations/wipe-lookup-transient",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			t.Fatalf("the command must stay pending when the host lookup fails transiently")
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, errors.New("simulated transient DB connection drop")
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		err := svc.ProcessPubSubPush(t.Context(), validToken, msg)
+		require.Error(t, err, "transient lookup failure must bubble so Pub/Sub retries")
+		require.Contains(t, err.Error(), "simulated transient DB connection drop")
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	for _, tc := range []struct {
+		name         string
+		status       android.MDMAndroidCommandStatus
+		expectUpdate bool
+	}{
+		{name: "pending", status: android.MDMAndroidCommandStatusPending, expectUpdate: true},
+		{name: "already-terminal redelivery", status: android.MDMAndroidCommandStatusAcknowledged, expectUpdate: false},
+	} {
+		t.Run("WIPE+ack for a host deleted from Fleet is acked: "+tc.name, func(t *testing.T) {
+			// The command row outlives the host (no FK), so the unenroll finds no host. That must not strand
+			// the row as pending or make Pub/Sub redeliver forever.
+			svc, mockDS := newSvc(t)
+
+			stored := &android.MDMAndroidCommand{
+				CommandUUID:   "cmd-uuid-wipe-host-gone",
+				HostUUID:      "host-uuid-wipe-host-gone",
+				OperationName: "enterprises/E/devices/D/operations/wipe-host-gone",
+				CommandType:   string(android.MDMAndroidCommandTypeWipe),
+				Status:        string(tc.status),
+			}
+			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+				return stored, nil
+			}
+			var gotStatus string
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+				gotStatus = status
+				return nil
+			}
+			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("Android device").WithName(hostUUID)
+			}
+
+			msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+			require.True(t, mockDS.AndroidHostLiteByHostUUIDFuncInvoked)
+			require.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+			require.Equal(t, tc.expectUpdate, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			if tc.expectUpdate {
+				require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+			}
+		})
+	}
+
 	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
 		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
 		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
@@ -3295,4 +4066,52 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		"AndroidHostLite must be invoked to detect existing host on re-enroll")
 	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
 		"ClearHostMDMActions must be called on Android re-enrollment to drop stale lock/wipe/clear-passcode refs")
+}
+
+// A re-enrolled host reuses its host-specific policy, so its previous enrollment's apps must be
+// cleared before anything can move the device to it, unless the device is already on it.
+func TestClearReusedHostPolicyApps(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+	)
+	defaultPolicyID := fmt.Sprint(android.DefaultAndroidPolicyID)
+
+	cases := []struct {
+		name            string
+		appliedPolicyID *string
+		apiErr          error
+		wantCleared     bool
+	}{
+		{name: "no applied policy", wantCleared: true},
+		{name: "default policy", appliedPolicyID: &defaultPolicyID, wantCleared: true},
+		{name: "already on host policy", appliedPolicyID: new(hostUUID)},
+		{name: "AMAPI error is only logged", appliedPolicyID: &defaultPolicyID, apiErr: errors.New("quota"), wantCleared: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := android_mock.Client{}
+			client.InitCommonMocks()
+			var patched []string
+			client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+				require.True(t, androidmgmt.RetryDisabled(ctx), "a quota error must not hold the Pub/Sub push")
+				require.True(t, opts.OnlyUpdateApps)
+				require.Empty(t, policy.Applications)
+				patched = append(patched, policyName)
+				return &androidmanagement.Policy{}, c.apiErr
+			}
+			mockDS := InitCommonDSMocks()
+			svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), mockDS, &client, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+			require.NoError(t, err)
+
+			svc.(*Service).clearReusedHostPolicyApps(t.Context(), enterpriseName, hostUUID, c.appliedPolicyID)
+
+			if c.wantCleared {
+				require.Equal(t, []string{enterpriseName + "/policies/" + hostUUID}, patched)
+			} else {
+				require.Empty(t, patched)
+			}
+		})
+	}
 }

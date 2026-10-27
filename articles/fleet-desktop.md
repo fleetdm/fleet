@@ -53,6 +53,15 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+**Single Sign-On (SSO)**
+
+Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
+
+To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
+On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
+
+> If you deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin), end users have to sign in each time the app is relaunched (for example, after an app update, a restart, or quitting the app). The app doesn't share a session with the Fleet Desktop menu bar icon or the end user's web browser, so signing in to one doesn't sign them in to the others.
+
 ## Advanced
 
 ### Hide the menu bar icon on macOS

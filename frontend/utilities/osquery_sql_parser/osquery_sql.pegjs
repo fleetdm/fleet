@@ -14,7 +14,6 @@
     'CASE': true,
     'CREATE': true,
     'CONTAINS': true,
-    'COUNT': true,
     'CURRENT_DATE': true,
     'CURRENT_TIME': true,
     'CURRENT_TIMESTAMP': true,
@@ -26,6 +25,7 @@
 
     'ELSE': true,
     'END': true,
+    'EXCEPT': true,
     'EXISTS': true,
     'EXPLAIN': true,
 
@@ -41,6 +41,7 @@
     'IN': true,
     'INNER': true,
     'INSERT': true,
+    'INTERSECT': true,
     'INTO': true,
     'IS': true,
 
@@ -163,6 +164,12 @@ start
     return n
   }
 
+// Alternate start rule for input with no statement at all (empty, whitespace,
+// or comments only), which `start` rejects. Lets callers tell "nothing typed
+// yet" apart from a syntax error.
+no_stmt
+  = __
+
 crud_stmt
   = union_stmt
   / empty_stmt
@@ -205,8 +212,24 @@ select_core
       return { type: 'values', values: v.values }
     }
 
+compound_op
+  = set_op
+  / KW_INTERSECT { return 'intersect' }
+  / KW_EXCEPT { return 'except' }
+
 union_stmt
-  = head:select_core tail:(__ set_op __ select_core)* __ ob: order_by_clause? __ l:limit_clause? {
+  = head:select_core tail:(__ (op:compound_op { return { op, loc: location() } }) __ select_core)* __ ob: order_by_clause? __ l:limit_clause? {
+      // select_stmt_nake parses ORDER BY and LIMIT on every member, but SQLite
+      // only allows them after the last one.
+      const members = [head, ...tail.map(t => t[3])]
+      for (let i = 0; i < tail.length; i++) {
+        const clause = members[i].orderby ? 'ORDER BY' : members[i].limit ? 'LIMIT' : null
+        if (clause) {
+          const { op, loc } = tail[i][1]
+          error(`${clause} clause should come after ${op.toUpperCase()} not before`, loc)
+        }
+        tail[i][1] = tail[i][1].op
+      }
       let cur = head
       for (let i = 0; i < tail.length; i++) {
         cur._next = tail[i][3]
@@ -251,10 +274,11 @@ with_clause
     }
 
 cte_definition
-  = name:(literal_string / ident_name / table_name) __ columns:cte_column_definition? __ KW_AS __ LPAREN __ stmt:union_stmt __ RPAREN {
+  = name:(literal_string / ident_name / table_name) __ columns:cte_column_definition? __ KW_AS __ m:((KW_NOT __)? KW_MATERIALIZED)? __ LPAREN __ stmt:union_stmt __ RPAREN {
     if (typeof name === 'string') name = { type: 'default', value: name }
     if (name.table) name = { type: 'default', value: name.table }
-    return { name, stmt, columns };
+    const materialized = m ? !m[0] : null
+    return { name, stmt, columns, materialized };
   }
 
 cte_column_definition
@@ -264,12 +288,13 @@ cte_column_definition
 
 select_stmt_nake
   = __ cte:with_clause? __ KW_SELECT ___
-    d:KW_DISTINCT?      __
+    d:(KW_DISTINCT / KW_ALL)? __
     c:column_clause     __
     f:from_clause?      __
     w:where_clause?     __
     g:group_by_clause?  __
     h:having_clause?    __
+    win:window_clause?  __
     o:order_by_clause?  __
     l:limit_clause? {
       if(f) f.forEach(info => info.table && tableList.add(`select::${info.db}::${info.table}`));
@@ -282,6 +307,7 @@ select_stmt_nake
           where: w,
           groupby: g,
           having: h,
+          window: win,
           orderby: o,
           limit: l,
       };
@@ -327,7 +353,7 @@ column_list_item
 
 alias_clause
   = KW_AS ___ i:alias_ident { return i; }
-  / KW_AS? __ i:ident { return i; }
+  / KW_AS? __ !(KW_WINDOW __ ident __ KW_AS) i:ident { return i; }
 
 from_clause
   = KW_FROM __ l:table_ref_list { return l; }
@@ -458,8 +484,9 @@ order_by_list
     }
 
 order_by_element
-  = e:expr __ d:(KW_DESC / KW_ASC)? {
+  = e:expr __ d:(KW_DESC / KW_ASC)? __ n:(KW_NULLS __ ('FIRST'i / 'LAST'i) !ident_start)? {
     const obj = { expr: e, type: d };
+    if (n) obj.nulls = n[2].toUpperCase();
     return obj;
   }
 
@@ -653,7 +680,13 @@ arithmetic_comparison_operator
   = ">=" / ">" / "<=" / "<>" / "<" / "==" / "=" / "!="
 
 is_op_right
-  = KW_IS __ right:additive_expr {
+  = 'ISNULL'i !ident_start {
+      return { op: 'IS', right: { type: 'null', value: null } };
+    }
+  / 'NOTNULL'i !ident_start {
+      return { op: 'IS NOT', right: { type: 'null', value: null } };
+    }
+  / KW_IS __ right:additive_expr {
       return { op: 'IS', right: right };
     }
   / (KW_IS __ KW_NOT) __ right:additive_expr {
@@ -701,8 +734,8 @@ regexp_op_right
   = op:regexp_op __ e:(func_call / literal_string / column_ref) {
     return  { op: op, right: e };
   }
-  / 'glob'i __ e:literal_string {
-    return { op: 'GLOB', right: e }
+  / n:(KW_NOT __)? 'glob'i __ e:literal_string {
+    return { op: n ? 'NOT GLOB' : 'GLOB', right: e }
   }
 
 like_op_right
@@ -816,10 +849,10 @@ alias_ident
     }
 
 quoted_ident_type
-  = double_quoted_ident / single_quoted_ident / backticks_quoted_ident
+  = double_quoted_ident / single_quoted_ident / backticks_quoted_ident / bracket_quoted_ident
 
 quoted_ident
-  = v:(double_quoted_ident / single_quoted_ident / backticks_quoted_ident) {
+  = v:(double_quoted_ident / single_quoted_ident / backticks_quoted_ident / bracket_quoted_ident) {
     return v.value
   }
 
@@ -843,6 +876,14 @@ backticks_quoted_ident
   = "`" chars:[^`]+ "`" {
     return {
       type: 'backticks_quote_string',
+      value: chars.join('')
+    }
+  }
+
+bracket_quoted_ident
+  = "[" chars:[^\]]+ "]" {
+    return {
+      type: 'bracket_quote_string',
       value: chars.join('')
     }
   }
@@ -875,13 +916,14 @@ aggr_func
   / aggr_fun_smma
 
 aggr_fun_smma
-  = name:KW_SUM_MAX_MIN_AVG  __ LPAREN __ e:additive_expr __ RPAREN __ bc:over_partition?  {
+  = name:KW_SUM_MAX_MIN_AVG  __ LPAREN __ e:additive_expr __ RPAREN __ fc:filter_clause? __ bc:over_partition?  {
       return {
         type: 'aggr_func',
         name: name,
         args: {
           expr: e
         },
+        filter: fc,
         over: bc,
         ...getLocationObject(),
       };
@@ -891,21 +933,39 @@ KW_SUM_MAX_MIN_AVG
   = KW_SUM / KW_MAX / KW_MIN / KW_AVG
 
 over_partition
-  = KW_OVER __ LPAREN __ p:partition_by_clause? __ l:order_by_clause? __ RPAREN {
+  = KW_OVER __ w:window_spec { return w; }
+  / KW_OVER __ n:ident { return { name: n }; }
+
+window_spec
+  = LPAREN __ p:partition_by_clause? __ l:order_by_clause? __ RPAREN {
     return {
       partitionby: p,
       orderby: l
     }
   }
 
+window_clause
+  = KW_WINDOW __ head:named_window tail:(__ COMMA __ named_window)* {
+      return createList(head, tail);
+    }
+
+named_window
+  = n:ident __ KW_AS __ w:window_spec {
+      return { name: n, ...w };
+    }
+
+filter_clause
+  = KW_FILTER __ LPAREN __ KW_WHERE __ e:or_and_where_expr __ RPAREN { return e; }
+
 partition_by_clause
   = KW_PARTITION __ KW_BY __ bc:column_clause { return bc; }
 aggr_fun_count
-  = name:(KW_COUNT / KW_GROUP_CONCAT) __ LPAREN __ arg:count_arg __ RPAREN __ bc:over_partition? {
+  = name:(KW_COUNT / KW_GROUP_CONCAT) __ LPAREN __ arg:count_arg __ RPAREN __ fc:filter_clause? __ bc:over_partition? {
       return {
         type: 'aggr_func',
         name: name,
         args: arg,
+        filter: fc,
         over: bc
       };
     }
@@ -938,12 +998,13 @@ func_call
         ...getLocationObject(),
     }
   }
-  / name:proc_func_name __ LPAREN __ l:or_and_where_expr? __ RPAREN __ bc:over_partition? {
+  / name:proc_func_name __ LPAREN __ l:or_and_where_expr? __ RPAREN __ fc:filter_clause? __ bc:over_partition? {
     if (l && l.type !== 'expr_list') l = { type: 'expr_list', value: [l] }
       return {
         type: 'function',
         name: name,
         args: l ? l: { type: 'expr_list', value: [] },
+        filter: fc,
         over: bc,
         ...getLocationObject(),
       };
@@ -1067,6 +1128,13 @@ number
     }
     return parseFloat(int_);
   }
+  / "." d:digits exp:exp? {
+    if (exp) return {
+      type: 'bigint',
+      value: "." + d + exp
+    }
+    return parseFloat("0." + d).toFixed(d.length);
+  }
 
 int
   = digits
@@ -1113,6 +1181,12 @@ KW_JOIN     = "JOIN"i     !ident_start
 KW_OUTER    = "OUTER"i    !ident_start
 KW_OVER     = "OVER"i     !ident_start
 KW_UNION    = "UNION"i    !ident_start
+KW_INTERSECT = "INTERSECT"i !ident_start
+KW_EXCEPT   = "EXCEPT"i   !ident_start
+KW_WINDOW   = "WINDOW"i   !ident_start
+KW_FILTER   = "FILTER"i   !ident_start
+KW_NULLS    = "NULLS"i    !ident_start
+KW_MATERIALIZED = "MATERIALIZED"i !ident_start
 KW_VALUES   = "VALUES"i   !ident_start
 KW_USING    = "USING"i    !ident_start
 

@@ -377,7 +377,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Empty(t, listHostsResp.Hosts)
 
 		// set MDM information on a host
-		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 		var mdmID uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1152,7 +1152,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NoError(
 		t,
 		s.ds.SetOrUpdateMDMData(
-			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false,
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone,
 		),
 	)
 
@@ -1214,6 +1214,22 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			},
 		}, http.StatusUnprocessableEntity, &applyResp,
 	)
+
+	// names that differ by case and accent are the same name to the database, so they collide with each other and with built-in labels
+	res := s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: name + "_Gämma", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+		{Name: name + "_gamma", Query: "select 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf("More than one label has the same name: %q", name+"_gamma"))
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: "Àll Hosts", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "conflicts with the name of a built-in label")
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Specs, builtInsCount)
+	for _, spec := range listResp.Specs {
+		require.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
+	}
 
 	// apply an invalid label spec - invalid platform
 	s.DoJSON(

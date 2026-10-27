@@ -1,0 +1,1 @@
+- Fixed automatic install and patch policy queries generated from software package metadata so that single quotes in the metadata are escaped.

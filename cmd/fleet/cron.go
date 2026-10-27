@@ -27,6 +27,7 @@ import (
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -34,9 +35,11 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
@@ -1364,13 +1367,16 @@ func newCleanupsAndAggregationSchedule(
 	svc fleet.Service,
 	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
+	cleanupStateStore fleet.MDMAppleCommandCleanupStateStore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	notificationsSvc notifications_api.Service,
 	acmeSvc acme_api.Service,
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
@@ -1597,13 +1603,21 @@ func newCleanupsAndAggregationSchedule(
 			return cleanupUnusedSoftwareInstallersCronJob(ctx, ds, softwareInstallStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
-			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedSoftwareTitleIconsCronJob(ctx, ds, softwareTitleIconStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
-			// remove only those unused created more than a minute ago to avoid a
-			// race where we delete those created after the mysql query to get those
-			// in use.
-			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
+		}),
+		schedule.WithJob("cleanup_staged_uploads", func(ctx context.Context) error {
+			if stagedUploadStore == nil {
+				return nil
+			}
+			// A staging object only exists once its PUT completes, so the cutoff only
+			// has to outlast the gap between upload and finalize.
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
+			return err
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
@@ -1613,6 +1627,19 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_stale_windows_mdm_enrollments", func(ctx context.Context) error {
 			return cleanupStaleWindowsMDMEnrollmentsCronJob(ctx, ds, logger, config.MDM.WindowsEnrollmentRetention)
+		}),
+		// After the queue and enrollment reapers, so the commands they orphan
+		// go in the same tick.
+		schedule.WithJob("cleanup_windows_mdm_command_history", func(ctx context.Context) error {
+			return cleanupWindowsMDMCommandHistoryCronJob(ctx, ds, logger, config.MDM.WindowsCommandRetention)
+		}),
+		// Before the script results sweep, so a script result this one orphans is
+		// collected in the same tick rather than an hour later.
+		schedule.WithJob("cleanup_host_software_installs", func(ctx context.Context) error {
+			return cleanupHostSoftwareInstallsCronJob(ctx, ds, logger, config.Server.SoftwareInstallResultsRetention)
+		}),
+		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
+			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
 		}),
 		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
 			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
@@ -1631,6 +1658,9 @@ func newCleanupsAndAggregationSchedule(
 				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1655,7 +1685,8 @@ func newCleanupsAndAggregationSchedule(
 			return nil
 		}),
 		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
-			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+			// Don't hold up the other cleanup jobs waiting out an AMAPI quota error; the next run retries.
+			return androidSvc.VerifyExistingEnterpriseIfAny(androidmgmt.WithoutRetry(ctx))
 		}),
 		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
 			// Revert certificate templates stuck in 'delivering' status for too long
@@ -1670,11 +1701,14 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
-		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
-			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		schedule.WithJob("cleanup_apple_mdm_commands", func(ctx context.Context) error {
+			return cleanupAppleMDMCommandsJob(ctx, ds, cleanupStateStore, config.MDM, logger)
 		}),
 		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
 			return chartSvc.CleanupData(ctx, 30)
+		}),
+		schedule.WithJob("cleanup_end_user_notifications", func(ctx context.Context) error {
+			return notificationsSvc.CleanupNotifications(ctx, 30*24*time.Hour)
 		}),
 	)
 
@@ -1728,6 +1762,83 @@ func cleanupStaleWindowsMDMEnrollmentsCronJob(ctx context.Context, ds fleet.Data
 	return nil
 }
 
+// cleanupWindowsMDMCommandHistoryCronJob is disabled by a non-positive
+// retention, the documented off switch for mdm.windows_command_retention.
+func cleanupWindowsMDMCommandHistoryCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	counts, err := ds.CleanupMDMWindowsCommandHistory(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if counts.Total() > 0 {
+			logger.WarnContext(ctx, "cleanup windows mdm command history failed after partial progress",
+				"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+		}
+		return err
+	}
+	if counts.Total() > 0 {
+		logger.InfoContext(ctx, "cleaned up windows mdm command history",
+			"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+	}
+	return nil
+}
+
+// cleanupHostSoftwareInstallsCronJob is disabled by a non-positive retention,
+// the documented off switch for server.software_install_results_retention.
+func cleanupHostSoftwareInstallsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostSoftwareInstalls(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host software installs failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host software installs", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostScriptResultsCronJob is disabled by a non-positive retention, the
+// documented off switch for server.script_results_retention.
+func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostScriptResults(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host script results failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
+	}
+	return nil
+}
+
 func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
 	// Jobs in this schedule run one after another under a leader lock that keeps being extended while
 	// a job runs, so an S3 call with no deadline here blocks every job after it until a restart. The
@@ -1740,6 +1851,23 @@ func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datast
 	// race where we delete those created after the mysql query to get those
 	// in use.
 	return ds.CleanupUnusedSoftwareInstallers(workCtx, softwareInstallStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedSoftwareTitleIconsCronJob(ctx context.Context, ds fleet.Datastore, softwareTitleIconStore fleet.SoftwareTitleIconStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	return ds.CleanupUnusedSoftwareTitleIcons(workCtx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedBootstrapPackagesCronJob(ctx context.Context, ds fleet.Datastore, bootstrapPackageStore fleet.MDMBootstrapPackageStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	// remove only those unused created more than a minute ago to avoid a
+	// race where we delete those created after the mysql query to get those
+	// in use.
+	return ds.CleanupUnusedBootstrapPackages(workCtx, bootstrapPackageStore, time.Now().Add(-time.Minute))
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
@@ -1871,6 +1999,10 @@ func newQueryResultsCleanupSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
 		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -1907,6 +2039,9 @@ func newQueryResultsCleanupSchedule(
 				}
 			}
 			return nil
+		}),
+		schedule.WithJob("update_query_results_last_fetched", func(ctx context.Context) error {
+			return service.UpdateQueryResultsLastFetched(ctx, ds, liveQueryStore)
 		}),
 	)
 
@@ -2127,6 +2262,7 @@ func newWindowsMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -2141,7 +2277,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets)
 		}),
 	)
 
@@ -2248,6 +2384,56 @@ func apnsPusherJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm
 	}
 
 	return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+}
+
+// Caps a run so slow scans can't hold the hourly schedule; each batch is its own transaction and the rest waits for the next tick.
+const appleCommandCleanupMaxRunTime = 10 * time.Minute
+
+func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateStore fleet.MDMAppleCommandCleanupStateStore, cfg config.MDMConfig, logger *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(ctx, appleCommandCleanupMaxRunTime)
+	defer cancel()
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil
+	}
+
+	state, err := stateStore.GetMDMAppleCommandCleanupState(ctx)
+	if err != nil {
+		// a lost cursor only costs a restart from the oldest rows
+		logger.WarnContext(ctx, "failed to read apple mdm command cleanup state; scans restart from the oldest rows", "err", err)
+		state = nil
+	}
+	logger.InfoContext(ctx, "apple mdm command cleanup starting", "cursors", state)
+
+	state, stats, err := ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{
+		ShortRetention:    cfg.AppleCommandCleanupShortRetention,
+		StandardRetention: cfg.AppleCommandCleanupStandardRetention,
+		MaxRowDeletions:   cfg.AppleCommandCleanupMaxRowDeletionsPerRun,
+		MaxCmdDeletions:   cfg.AppleCommandCleanupMaxCmdDeletionsPerRun,
+	}, state)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup apple mdm commands")
+	}
+	if err := stateStore.SetMDMAppleCommandCleanupState(ctx, state); err != nil {
+		return ctxerr.Wrap(ctx, err, "save apple mdm command cleanup state")
+	}
+	logger.InfoContext(ctx, "cleaned up apple mdm commands",
+		"inactive_pairs_deleted", stats.InactivePairsDeleted,
+		"short_retention_pairs_deleted", stats.ShortPairsDeleted,
+		"standard_retention_pairs_deleted", stats.StandardPairsDeleted,
+		"commands_deleted", stats.CommandsDeleted,
+		"orphan_commands_deleted", stats.OrphanCommandsDeleted,
+		"cursors", state)
+	if stats.RowBudgetExhausted || stats.CmdBudgetExhausted {
+		logger.WarnContext(ctx, "apple mdm command cleanup stopped early, remaining rows will be cleaned on the next run",
+			"row_budget_exhausted", stats.RowBudgetExhausted,
+			"command_budget_exhausted", stats.CmdBudgetExhausted)
+	}
+	return nil
 }
 
 func apnsSweepJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger *slog.Logger, interval time.Duration) error {
@@ -2655,6 +2841,21 @@ func newIPhoneIPadReviver(
 	return s, nil
 }
 
+func unblockHostsUpcomingActivityQueueCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxHosts int, skipFleetInitiated bool) error {
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxHosts, skipFleetInitiated)
+	// per-host isolation in the datastore means a partial failure still unblocks the
+	// healthy hosts, so report progress before returning the error
+	if unblocked > 0 {
+		logger.InfoContext(ctx, "unblocked hosts upcoming activity queue",
+			"hosts_unblocked", unblocked,
+			"max_hosts", maxHosts,
+			// unblocked == max means more hosts are likely still blocked
+			"cap_reached", unblocked == maxHosts,
+		)
+	}
+	return err
+}
+
 func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2701,8 +2902,7 @@ func newUpcomingActivitiesSchedule(
 		// solely on deferred fleet-initiated activities are not blocked — they
 		// belong to the release cron, and unblocking them here would bypass
 		// its budget
-		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts, fleetInitiatedReleaseEnabled)
-		return err
+		return unblockHostsUpcomingActivityQueueCronJob(ctx, ds, logger, maxUnblockHosts, fleetInitiatedReleaseEnabled)
 	}))
 
 	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
@@ -2894,6 +3094,36 @@ func cronMigrateToPerHostPolicy(
 	return s, nil
 }
 
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts ten minutes after
+// startup, once the agents that were waiting for the server have checked in, and runs hourly from then on. It is not
+// run-once because customers upgrade from any version, so legacy rows can appear at any upgrade; a run that finds
+// none costs one index probe.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 10*time.Minute)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs ten minutes after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
+		}),
+	)
+	return s, nil
+}
+
 func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2968,6 +3198,45 @@ func newCleanupExpiredADUEChallengesSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+func newEndUserNotificationsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	notificationsSvc notifications_api.Service,
+	patchNotificationKind service.PatchNotificationKind,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEndUserNotifications)
+		defaultInterval = 1 * time.Minute
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
+			return notificationsSvc.ExpireAndQueueNotifications(ctx)
+		}),
+		schedule.WithJob("remind_and_install_due_patches", func(ctx context.Context) error {
+			return patchNotificationKind.RemindAndInstallDuePatches(ctx)
+		}),
 	)
 
 	return s, nil
@@ -2989,6 +3258,35 @@ func newAppleMDMOSUpdatesSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
 			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppStoreAppConfigurationReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	redisPool fleet.RedisPool,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, retryCounter, logger)
 		}),
 	)
 

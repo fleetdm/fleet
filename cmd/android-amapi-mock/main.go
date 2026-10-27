@@ -12,18 +12,23 @@
 //
 //	android-amapi-mock --listen :9999
 //	android-amapi-mock --listen :9999 --google-credentials "$(cat service-account.json)"
+//	android-amapi-mock --listen 127.0.0.1:9999 --require-policies --latency 0 --error-rate 0
 package main
 
 import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // fakeDevice holds the in-memory state for a single fake Android device.
@@ -63,6 +68,14 @@ type deviceStore struct {
 	deletedESIDs map[string]struct{}
 	deletedNames map[string]struct{}
 
+	// enterprises records every enterprise this mock has been addressed about, so that
+	// GET /v1/enterprises can report one that has no registered fake device. It has its own
+	// lock because it is touched by nearly every AMAPI request: sharing mu would put a
+	// store-wide writer in front of every concurrent device lookup. Capped at
+	// maxTrackedEnterprises, since the IDs come from request paths.
+	entMu       sync.RWMutex
+	enterprises map[string]struct{}
+
 	// policyVersions tracks the latest version for each policy name.
 	// Fleet uses per-device policies named enterprises/{id}/policies/{hostUUID}.
 	// policyVersion is the counter versions are issued from; it is guarded by policyMu so
@@ -70,6 +83,14 @@ type deviceStore struct {
 	policyMu       sync.RWMutex
 	policyVersions map[string]int64
 	policyVersion  int64
+	// restoredPolicies holds policies a device reported when it registered again after this
+	// process lost its state. They exist in AMAPI even though this process never patched them.
+	restoredPolicies map[string]struct{}
+
+	// requirePolicies makes policy actions fail with 404 on a policy that was never created,
+	// as AMAPI does. Off by default: after a restart every policy would look missing until its
+	// device registers again or Fleet patches it.
+	requirePolicies bool
 }
 
 func newDeviceStore() *deviceStore {
@@ -78,9 +99,62 @@ func newDeviceStore() *deviceStore {
 		byName:         make(map[string]*fakeDevice),
 		deletedESIDs:   make(map[string]struct{}),
 		deletedNames:   make(map[string]struct{}),
+		enterprises:    make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
 		policyVersion:  1,
+
+		restoredPolicies: make(map[string]struct{}),
 	}
+}
+
+// maxTrackedEnterprises bounds the set noteEnterprise fills. The IDs are taken from request
+// paths, so an unbounded set would grow with junk from anything that can reach the mock. A load
+// test addresses one enterprise, and the one Fleet is using is recorded on its first request,
+// long before a limit this size is reached.
+const maxTrackedEnterprises = 1000
+
+// noteEnterprise records an enterprise the mock has been addressed about.
+func (ds *deviceStore) noteEnterprise(id string) {
+	if id == "" {
+		return
+	}
+
+	// The set is effectively write-once — a load test addresses one enterprise for its whole
+	// run — so keep the common case on the read lock and only write on first sight.
+	ds.entMu.RLock()
+	_, known := ds.enterprises[id]
+	ds.entMu.RUnlock()
+	if known {
+		return
+	}
+
+	ds.entMu.Lock()
+	defer ds.entMu.Unlock()
+	if len(ds.enterprises) >= maxTrackedEnterprises {
+		return
+	}
+	ds.enterprises[id] = struct{}{}
+}
+
+// knownEnterprises returns every enterprise the mock has seen, either addressed directly or
+// through a registered fake device.
+func (ds *deviceStore) knownEnterprises() []string {
+	// Taken one after the other rather than nested, so this never holds two of the store's
+	// locks at once.
+	ds.entMu.RLock()
+	seen := make(map[string]struct{}, len(ds.enterprises))
+	maps.Copy(seen, ds.enterprises)
+	ds.entMu.RUnlock()
+
+	ds.mu.RLock()
+	for _, d := range ds.byESID {
+		if d.EnterpriseID != "" {
+			seen[d.EnterpriseID] = struct{}{}
+		}
+	}
+	ds.mu.RUnlock()
+
+	return slices.Collect(maps.Keys(seen))
 }
 
 // nextPolicyVersion issues the next version and records it as the current version of
@@ -97,6 +171,25 @@ func (ds *deviceStore) getPolicyVersion(policyName string) int64 {
 	ds.policyMu.RLock()
 	defer ds.policyMu.RUnlock()
 	return ds.policyVersions[policyName]
+}
+
+// notePolicyRestored records that a policy exists without issuing it a version.
+func (ds *deviceStore) notePolicyRestored(policyName string) {
+	ds.policyMu.Lock()
+	defer ds.policyMu.Unlock()
+	ds.restoredPolicies[policyName] = struct{}{}
+}
+
+// policyExists reports whether policyName would be found in AMAPI: a policy this process
+// issued a version for (a patch creates a policy), or one a device restored.
+func (ds *deviceStore) policyExists(policyName string) bool {
+	ds.policyMu.RLock()
+	defer ds.policyMu.RUnlock()
+	if _, ok := ds.policyVersions[policyName]; ok {
+		return true
+	}
+	_, ok := ds.restoredPolicies[policyName]
+	return ok
 }
 
 // raisePolicyVersionCounter pulls the counter up to a version a device reports when it
@@ -163,7 +256,10 @@ func (ds *deviceStore) register(d *fakeDevice) bool {
 	}
 
 	if d.PolicyName == "" && d.EnterpriseID != "" {
-		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		// A real device enrolls on the policy Fleet's enrollment token names, its default
+		// policy. Fleet only moves devices off that policy by ID, so any other name strands
+		// them there.
+		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/%d", d.EnterpriseID, android.DefaultAndroidPolicyID)
 		d.PolicyVersion = 0
 	}
 	ds.byESID[d.EnterpriseSpecificID] = d
@@ -227,6 +323,7 @@ func main() {
 	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\" or set GOOGLE_CREDENTIALS env var")
 	latencyMean := flag.Duration("latency", 200*time.Millisecond, "Mean latency added to AMAPI responses (simulates Google API latency)")
 	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
+	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -236,6 +333,7 @@ func main() {
 	}
 
 	store := newDeviceStore()
+	store.requirePolicies = *requirePolicies
 
 	// Set up authenticated Google API client for real device forwarding
 	var google *googleForwarder
@@ -279,22 +377,32 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 		return simulateLatencyAndErrors(latencyMean, errorRate, h)
 	}
 
+	// noteEnt records the enterprise a request addresses before handling it, so that an
+	// enterprise Fleet is actively using is reported by GET /v1/enterprises even when no fake
+	// device has been registered against it.
+	noteEnt := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			store.noteEnterprise(r.PathValue("eid"))
+			h(w, r)
+		}
+	}
+
 	// ---- AMAPI: Devices ----
 	fwd := forwardForRealDevice(store, google)
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesGet(store))))
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesPatch(store))))
-	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesDelete(store))))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleIssueCommand(store))))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", sim(handleDevicesList(store, google)))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesGet(store)))))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesPatch(store)))))
+	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesDelete(store)))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleIssueCommand(store)))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", noteEnt(sim(handleDevicesList(store, google))))
 
 	// ---- AMAPI: Policies ----
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", sim(handlePoliciesPatch(store, google)))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", sim(handlePolicyAction(store)))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePoliciesPatch(store, google))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePolicyAction(store))))
 
 	// ---- AMAPI: Other ----
-	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", sim(forwardOrMock(google, handleEnrollmentTokenCreate())))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", sim(forwardOrMock(google, handleApplicationsGet())))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", sim(forwardOrMock(google, handleWebAppsCreate())))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", noteEnt(sim(forwardOrMock(google, handleEnrollmentTokenCreate()))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", noteEnt(sim(forwardOrMock(google, handleApplicationsGet()))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", noteEnt(sim(forwardOrMock(google, handleWebAppsCreate()))))
 	mux.HandleFunc("GET /v1/enterprises", sim(forwardOrMock(google, handleEnterprisesList(store))))
 
 	// Catch-all for unmatched /v1/ requests
