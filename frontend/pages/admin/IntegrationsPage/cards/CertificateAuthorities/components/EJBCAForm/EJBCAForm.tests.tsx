@@ -93,7 +93,7 @@ describe("EJBCAForm", () => {
     });
   });
 
-  it("shows the errors that the server reported, the one of the client certificate also after a file is selected", async () => {
+  it("shows the errors that the server reported, and drops the one of the client certificate when a file is selected", async () => {
     const passwordError = "The PKCS#12 password is incorrect";
     const clientP12Error = "The client certificate expired on 2020-01-01";
     const { user, container } = renderWithSetup(
@@ -105,11 +105,15 @@ describe("EJBCAForm", () => {
       />
     );
     expect(screen.getByText(passwordError)).toBeVisible();
+    expect(screen.getByText(clientP12Error)).toBeVisible();
+
     await user.upload(getFileInput(container), p12File());
     // the file is read asynchronously, which can take longer than the default wait on a loaded CI runner
-    expect(
-      await screen.findByText(clientP12Error, undefined, { timeout: 5000 })
-    ).toBeVisible();
+    await waitFor(
+      () => expect(screen.queryByText(clientP12Error)).not.toBeInTheDocument(),
+      { timeout: 5000 }
+    );
+    expect(screen.getByText(passwordError)).toBeVisible();
   });
 
   describe("when editing", () => {
@@ -153,6 +157,17 @@ describe("EJBCAForm", () => {
       expect(
         await screen.findByLabelText("Client certificate password")
       ).toBeVisible();
+    });
+
+    it("says that the stored client certificate expired, when it did", () => {
+      renderWithSetup(
+        <EJBCAForm
+          {...editProps}
+          clientCertExpiresAt="2020-01-01T00:00:00Z"
+          onSubmit={noop}
+        />
+      );
+      expect(screen.getByText(/expired on January 1, 2020/)).toBeVisible();
     });
 
     it("saves without a new client certificate", async () => {

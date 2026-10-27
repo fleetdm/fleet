@@ -14,15 +14,13 @@ import certificatesAPI from "services/entities/certificates";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
+import { handleEJBCAServerError } from "../AddCertAuthorityModal/helpers";
 import CustomESTForm from "../CustomESTForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import DigicertForm from "../DigicertForm";
 import EJBCAForm from "../EJBCAForm";
 import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
-import {
-  generateEJBCAEditData,
-  handleEJBCAServerError,
-} from "../EJBCAForm/helpers";
+import { generateEJBCAEditData } from "../EJBCAForm/helpers";
 import GoogleCASForm from "../GoogleCASForm";
 import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";

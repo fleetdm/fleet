@@ -83,6 +83,7 @@ const EJBCAForm = ({
     getTextFieldProps,
     getError,
     commitFields,
+    clearFieldError,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IEJBCAFormData>({
@@ -124,6 +125,8 @@ const EJBCAForm = ({
         if (selection === latestP12Selection.current) {
           setP12File(file);
           commitFields({ clientP12 });
+          // an error of the client certificate was about the one that is replaced
+          clearFieldError("clientP12");
         }
       } catch {
         notify.error("Couldn't read the file. Please try again.");
@@ -133,7 +136,7 @@ const EJBCAForm = ({
         }
       }
     },
-    [commitFields]
+    [commitFields, clearFieldError]
   );
 
   const onDeleteP12 = () => {
@@ -142,6 +145,7 @@ const EJBCAForm = ({
     isReadingP12.current = false;
     setP12File(null);
     commitFields({ clientP12: "", password: "" });
+    clearFieldError("clientP12");
   };
 
   // Saving while the file is still being read would submit the form without it.
@@ -150,7 +154,9 @@ const EJBCAForm = ({
 
   const clientCertInfo =
     isEditing && clientCertExpiresAt
-      ? `The client certificate expires on ${monthDayYearFormat(
+      ? `The client certificate ${
+          new Date(clientCertExpiresAt) < new Date() ? "expired" : "expires"
+        } on ${monthDayYearFormat(
           clientCertExpiresAt
         )}. Upload a new one to replace it.`
       : "Fleet uses it to authenticate to EJBCA.";

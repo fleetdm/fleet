@@ -8,7 +8,6 @@ import {
   generateEJBCAAddData,
   generateEJBCAEditData,
   generateEJBCAFormData,
-  getEJBCAErrorMessage,
   readFileAsBase64,
   splitEJBCAServerErrors,
   validateEJBCAForm,
@@ -244,17 +243,6 @@ describe("EJBCAForm helpers", () => {
         userPrincipalName: "Bad UPN.",
       });
       expect(otherReasons).toEqual(["Oops."]);
-    });
-  });
-
-  describe("getEJBCAErrorMessage", () => {
-    it("has the reasons of the server, or says what failed and what to do", () => {
-      expect(getEJBCAErrorMessage("add", ["First.", "Second."])).toBe(
-        "First. Second."
-      );
-      expect(getEJBCAErrorMessage("edit", [])).toBe(
-        "Couldn't edit certificate authority. Please try again."
-      );
     });
   });
 

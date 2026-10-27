@@ -1,4 +1,8 @@
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import { createMockEJBCACertAuthority } from "__mocks__/certificatesMock";
+import { notify } from "components/ToastNotification";
 
 import { generateEJBCAFormData } from "../EJBCAForm/helpers";
 
@@ -6,6 +10,8 @@ import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getDisplayErrMessage,
+  getEJBCAErrorMessage,
+  handleEJBCAServerError,
 } from "./helpers";
 
 /** Builds an API error in the shape getErrorReason reads. */
@@ -233,5 +239,47 @@ describe("generateAddCertAuthorityData", () => {
         api_key_json: '{"type":"service_account"}',
       },
     });
+  });
+});
+
+describe("EJBCA server errors", () => {
+  it("says what failed and what to do when the server gave no reason", () => {
+    expect(getEJBCAErrorMessage("edit", [])).toBe(
+      "Couldn't edit certificate authority. Please try again."
+    );
+  });
+
+  it("shows the errors of the fields without the prefix, and the rest in a toast with the link to configure the private key", () => {
+    const prefix = "Couldn't add certificate authority. ";
+    const setFieldErrors = jest.fn();
+    const notifyError = jest.spyOn(notify, "error").mockImplementation();
+    handleEJBCAServerError(
+      {
+        errors: [
+          {
+            name: "client_p12",
+            reason: `${prefix}The private key in the PKCS#12 file doesn't match its certificate.`,
+          },
+          {
+            name: "base",
+            reason: `${prefix}Private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key`,
+          },
+        ],
+      },
+      "add",
+      setFieldErrors
+    );
+
+    expect(setFieldErrors).toHaveBeenCalledWith({
+      clientP12:
+        "The private key in the PKCS#12 file doesn't match its certificate.",
+    });
+    const { container } = render(
+      React.createElement("div", null, notifyError.mock.calls[0][0])
+    );
+    expect(container).toHaveTextContent(
+      `${prefix}Private key must be configured. Learn more`
+    );
+    expect(screen.getByRole("link", { name: /Learn more/ })).toBeVisible();
   });
 });

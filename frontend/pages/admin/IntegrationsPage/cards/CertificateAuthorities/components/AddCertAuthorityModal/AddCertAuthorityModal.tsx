@@ -20,7 +20,6 @@ import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import EJBCAForm from "../EJBCAForm";
 import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
-import { handleEJBCAServerError } from "../EJBCAForm/helpers";
 import GoogleCASForm from "../GoogleCASForm";
 import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
@@ -35,6 +34,7 @@ import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getErrorMessage,
+  handleEJBCAServerError,
 } from "./helpers";
 
 export type ICertFormData =
