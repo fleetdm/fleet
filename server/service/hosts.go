@@ -2787,6 +2787,22 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 		scimUserFound := err == nil && scimUser != nil
 
 		var resentCerts []fleet.ActivityTypeResentCertificate
+		// Each step commits its resends, so they're logged even when a later step fails. Linking a SCIM user resends a
+		// certificate that the new IdP username already resent.
+		defer func() {
+			seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
+			for _, cert := range resentCerts {
+				key := [2]uint{cert.HostID, cert.CertificateTemplateID}
+				if _, dup := seenCerts[key]; dup {
+					continue
+				}
+				seenCerts[key] = struct{}{}
+				if err := svc.NewActivity(ctx, nil, cert); err != nil {
+					svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
+			}
+		}()
+
 		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
@@ -2827,19 +2843,6 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 			} else {
 				resentCerts = append(resentCerts, certs...)
-			}
-		}
-
-		// linking a SCIM user resends a certificate that the new IdP username already resent
-		seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
-		for _, cert := range resentCerts {
-			key := [2]uint{cert.HostID, cert.CertificateTemplateID}
-			if _, dup := seenCerts[key]; dup {
-				continue
-			}
-			seenCerts[key] = struct{}{}
-			if err := svc.NewActivity(ctx, nil, cert); err != nil {
-				svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
 			}
 		}
 

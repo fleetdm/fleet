@@ -6640,6 +6640,42 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
 	})
 
+	t.Run("IDP source logs resent certificates when the edited activity fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		var resentCerts []uint
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if cert, ok := act.(fleet.ActivityTypeResentCertificate); ok {
+				resentCerts = append(resentCerts, cert.CertificateTemplateID)
+				return nil
+			}
+			return errors.New("activity failed")
+		}
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1, UUID: "host-uuid-1"}, nil
+		}
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return nil, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return []fleet.ActivityTypeResentCertificate{{HostID: hostID, CertificateTemplateID: 10}}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.ErrorContains(t, err, "create updated host idp activity")
+		require.Equal(t, []uint{10}, resentCerts)
+	})
+
 	t.Run("IDP source success with any username when SCIM user not found", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})

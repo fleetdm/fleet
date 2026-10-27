@@ -4769,8 +4769,9 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			// no mapping resolves the same as an empty one
 			prevUsernames = []string{""}
 		}
+		// profiles get the value as stored, so a change in case alone resends too
 		usernameChanged := slices.ContainsFunc(prevUsernames, func(prev string) bool {
-			return !strings.EqualFold(prev, email)
+			return prev != email
 		})
 		// the manual mapping replaces the authenticated and device-reported ones
 		if _, err := tx.ExecContext(ctx, delStmt, hostID,
