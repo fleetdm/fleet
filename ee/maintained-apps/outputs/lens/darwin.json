@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.10.121159-latest",
+      "version": "2026.10.261408-latest",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens' AND version_compare(bundle_short_version, '2026.10.121159-latest') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens' AND version_compare(bundle_short_version, '2026.10.261408-latest') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.kontena-lens' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.10.121159-latest-arm64.dmg",
+      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.10.261408-latest-arm64.dmg",
       "install_script_ref": "31a8200c",
       "uninstall_script_ref": "3fda0acd",
-      "sha256": "867bd32ff33867b5c590da814f8e946d553c2c19ca7b15cf2fb3880a66356f00",
+      "sha256": "784abc1d3ec6fe87aab5f8f6896f7b749edb641322ad8e173c34b17862c97418",
       "default_categories": [
         "Developer tools"
       ]

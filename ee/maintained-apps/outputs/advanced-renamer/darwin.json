@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.27",
+      "version": "4.28",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.HulubuluSoftware.AdvancedRenamer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.HulubuluSoftware.AdvancedRenamer' AND version_compare(bundle_short_version, '4.27') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.HulubuluSoftware.AdvancedRenamer' AND version_compare(bundle_short_version, '4.28') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.HulubuluSoftware.AdvancedRenamer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.advancedrenamer.com/down/macos/arm/AdvancedRenamer_4_27.dmg",
+      "installer_url": "https://www.advancedrenamer.com/down/macos/arm/AdvancedRenamer_4_28.dmg",
       "install_script_ref": "bce74927",
       "uninstall_script_ref": "529892f3",
-      "sha256": "b330ccd310d0be91bea7c80c5b4c6e1920c17275e84c542af9f9d54748727e81",
+      "sha256": "3d255e02e1afc47d2688b79dabf2b72228147d70d544cddf0e3fa5ea043dc1f4",
       "default_categories": [
         "Productivity"
       ]
