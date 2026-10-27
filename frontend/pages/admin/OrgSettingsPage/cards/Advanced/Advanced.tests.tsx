@@ -153,6 +153,18 @@ describe("Advanced settings — MCP server", () => {
     expect(screen.getByLabelText(/MCP server/)).toBeChecked();
   });
 
+  it("links the MCP server help text to the guide", () => {
+    renderAdvanced();
+    expect(screen.getByText(/ask questions about your fleet/)).toBeVisible();
+    const guideLinks = screen
+      .getAllByRole("link", { name: /learn more/i })
+      .filter(
+        (link) =>
+          link.getAttribute("href") === "https://fleetdm.com/guides/fleet-mcp"
+      );
+    expect(guideLinks).toHaveLength(1);
+  });
+
   it("sends mcp_disabled true after unchecking it", async () => {
     const { user, handleSubmit } = renderAdvanced();
     await user.click(screen.getByRole("checkbox", { name: "disableMCP" }));

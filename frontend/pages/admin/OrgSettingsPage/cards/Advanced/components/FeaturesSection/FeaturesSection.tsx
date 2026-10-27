@@ -1,5 +1,6 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
@@ -126,8 +127,8 @@ const FeaturesSection = ({
               labelTooltipContent={
                 !disableChildren && (
                   <>
-                    When disabled, AI assistants (e.g. Claude) can&apos;t
-                    connect to Fleet&apos;s MCP server.
+                    When disabled, AI harnesses (e.g. Claude) can&apos;t connect
+                    to Fleet&apos;s MCP server.
                     <br />
                     <i>
                       (Default: <strong>On</strong>)
@@ -135,7 +136,18 @@ const FeaturesSection = ({
                   </>
                 )
               }
-              helpText="Only API-only users can connect. Users limited to specific endpoints only see the tools those endpoints allow."
+              helpText={
+                <>
+                  Connect Fleet&apos;s MCP server to your AI harness (Claude,
+                  Codex, Copilot, etc.) so that you can ask questions about your
+                  fleet.{" "}
+                  <CustomLink
+                    url="https://fleetdm.com/guides/fleet-mcp"
+                    text="Learn more"
+                    newTab
+                  />
+                </>
+              }
             >
               MCP server
             </Checkbox>
