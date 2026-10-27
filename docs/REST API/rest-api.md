@@ -1823,7 +1823,7 @@ None.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "microsoft_graph_credential_invalid": false,
-    "windows_mdm_enable_turn_on_manually": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
@@ -2228,7 +2228,7 @@ Modifies the Fleet's configuration with the supplied information.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "microsoft_graph_credential_invalid": false,
-    "windows_mdm_enable_turn_on_manually": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
@@ -2916,7 +2916,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
-| windows_mdm_enable_turn_on_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
+| enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
@@ -3104,7 +3104,7 @@ _Available in Fleet Premium._
 {
   "mdm": {
     "windows_enabled_and_configured": false,
-    "windows_mdm_enable_turn_on_manually": false,
+    "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "macos_enable_recovery_lock_password": true,
