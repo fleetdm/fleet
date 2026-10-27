@@ -209,11 +209,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	assert.Empty(t, usersResp.Users)
 
 	// add team users
-	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// delete team users
-	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// get team enroll secrets
