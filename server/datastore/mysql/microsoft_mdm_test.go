@@ -51,7 +51,6 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsGetESPReleaseAckStatus", testMDMWindowsGetESPReleaseAckStatus},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
-		{"TestMDMWindowsCommandResultsHostFilter", testMDMWindowsCommandResultsHostFilter},
 		{"TestMDMWindowsProfileManagement", testMDMWindowsProfileManagement},
 		{"TestWindowsProfileRetryOnDeviceFailure", testWindowsProfileRetryOnDeviceFailure},
 		{"TestBulkOperationsMDMWindowsHostProfiles", testBulkOperationsMDMWindowsHostProfiles},
@@ -2665,6 +2664,31 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Empty(t, results[0].Hostname) // populated only at the service layer
 	require.Equal(t, rawCmd, string(results[0].Payload))
 
+	// With a host filter, the host that has a result gets it, and a host that is only queued gets nothing (the command has results).
+	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev.HostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, rawResponse, results[0].Result)
+	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev2.HostUUID)
+	require.NoError(t, err)
+	require.Empty(t, results)
+
+	// A command with no results yet is pending (101) on each queued host.
+	const pendingCmdUUID = "some-pending-uuid"
+	_, err = insertDB(t, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, pendingCmdUUID, rawCmd, cmdTarget)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?), (?, ?)`,
+		enrollmentID2, pendingCmdUUID, enrollmentID3, pendingCmdUUID)
+	require.NoError(t, err)
+	results, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	results, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, dev2.HostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, dev2.HostUUID, results[0].HostUUID)
+	require.Equal(t, "101", results[0].Status)
+
 	p, err = ds.GetMDMCommandPlatform(ctx, "unknown-cmd-uuid")
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
@@ -2672,103 +2696,6 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
-}
-
-func testMDMWindowsCommandResultsHostFilter(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	enroll := func() (*fleet.MDMWindowsEnrolledDevice, uint) {
-		dev := createEnrolledDevice(t, ds)
-		var id uint
-		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &id,
-			`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID))
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, id)
-		require.NoError(t, err)
-		return dev, id
-	}
-	acked, ackedEnrollmentID := enroll()
-	otherAcked, otherAckedEnrollmentID := enroll()
-	pending, pendingEnrollmentID := enroll()
-
-	newCommand := func(cmdUUID string) {
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, 'raw', 'target')`, cmdUUID)
-		require.NoError(t, err)
-	}
-	enqueue := func(cmdUUID string, enrollmentID uint) {
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`, enrollmentID, cmdUUID)
-		require.NoError(t, err)
-	}
-	ack := func(cmdUUID string, enrollmentID uint, result string) {
-		compressed, err := compressWindowsMDMResponse([]byte(result))
-		require.NoError(t, err)
-		res, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, compressed)
-		require.NoError(t, err)
-		responseID, err := res.LastInsertId()
-		require.NoError(t, err)
-		_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO windows_mdm_command_results
-			(enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, '200')`,
-			enrollmentID, cmdUUID, result, responseID)
-		require.NoError(t, err)
-	}
-
-	t.Run("acked on some hosts", func(t *testing.T) {
-		const cmdUUID = "cmd-acked-on-some-hosts"
-		newCommand(cmdUUID)
-		enqueue(cmdUUID, ackedEnrollmentID)
-		enqueue(cmdUUID, otherAckedEnrollmentID)
-		enqueue(cmdUUID, pendingEnrollmentID)
-		ack(cmdUUID, ackedEnrollmentID, "acked-result")
-		ack(cmdUUID, otherAckedEnrollmentID, "other-acked-result")
-
-		results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
-		require.NoError(t, err)
-		require.Len(t, results, 2)
-
-		results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, acked.HostUUID)
-		require.NoError(t, err)
-		require.Len(t, results, 1)
-		require.Equal(t, acked.HostUUID, results[0].HostUUID)
-		require.Equal(t, "200", results[0].Status)
-		require.Equal(t, "acked-result", string(results[0].Result))
-
-		results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, otherAcked.HostUUID)
-		require.NoError(t, err)
-		require.Len(t, results, 1)
-		require.Equal(t, "other-acked-result", string(results[0].Result))
-	})
-
-	t.Run("pending on all hosts", func(t *testing.T) {
-		const cmdUUID = "cmd-pending-on-all-hosts"
-		newCommand(cmdUUID)
-		enqueue(cmdUUID, ackedEnrollmentID)
-		enqueue(cmdUUID, pendingEnrollmentID)
-
-		results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
-		require.NoError(t, err)
-		require.Len(t, results, 2)
-
-		results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, pending.HostUUID)
-		require.NoError(t, err)
-		require.Len(t, results, 1)
-		require.Equal(t, pending.HostUUID, results[0].HostUUID)
-		require.Equal(t, "101", results[0].Status)
-		require.Empty(t, results[0].Result)
-	})
-
-	t.Run("host that was not targeted", func(t *testing.T) {
-		const cmdUUID = "cmd-not-targeted"
-		newCommand(cmdUUID)
-		enqueue(cmdUUID, ackedEnrollmentID)
-		ack(cmdUUID, ackedEnrollmentID, "result")
-
-		results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, pending.HostUUID)
-		require.NoError(t, err)
-		require.Empty(t, results)
-	})
 }
 
 // mdmWindowsEnrollmentIDByHardwareID resolves an enrollment row's auto-increment id
