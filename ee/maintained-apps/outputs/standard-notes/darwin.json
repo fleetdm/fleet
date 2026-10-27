@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.202.10",
+      "version": "3.202.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.202.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.202.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.standardnotes.standardnotes' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.202.10/standard-notes-3.202.10-mac-arm64.zip",
+      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.202.11/standard-notes-3.202.11-mac-arm64.zip",
       "install_script_ref": "43e381f4",
       "uninstall_script_ref": "c4590ee2",
-      "sha256": "9fbb184484e87355e6f135cf474fec7c947f0e022f5c648723db45b941482861",
+      "sha256": "8a8d85860487ddf9a9f89b6e06bf00e36d96dbe4ab99d0c41f52f7ff4d47bcaa",
       "default_categories": [
         "Security"
       ]
