@@ -102,6 +102,10 @@
   // Nav active underline
   --nav-active-underline: var(--core-fleet-black);
 
+  // Syntax highlighting in code views
+  --code-blue: #2f6bd4;
+  --code-green: #24803a;
+
   // Overlay / semi-transparent (used in Modal & Button)
   --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
   --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
@@ -205,6 +209,10 @@ body.dark-mode {
   // Nav active underline
   --nav-active-underline: var(--core-fleet-green);
 
+  // Syntax highlighting in code views
+  --code-blue: #7aa7ff;
+  --code-green: #6fcf87;
+
   // Overlays
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
@@ -302,6 +310,8 @@ $transparent: rgba(255, 255, 255, 0);
 $core-fleet-black-overlay-40: var(--core-fleet-black-overlay-40);
 $core-fleet-black-overlay-05: var(--core-fleet-black-overlay-05);
 $loading-overlay: var(--loading-overlay);
+$code-blue: var(--code-blue);
+$code-green: var(--code-green);
 
 // Static colors — not themed, same in both light and dark mode.
 // Use for elements that are always dark surfaces with light text (tooltips, code blocks).
