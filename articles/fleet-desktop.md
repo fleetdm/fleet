@@ -10,7 +10,7 @@ Fleet Desktop unlocks two key benefits:
 
 ## Deploy Fleet Desktop
 
-Fleet Desktop is deployed automatically with Fleet's agent (fleetd) when you [enroll hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop). It shows up in the menu bar on macOS and the system tray on Windows and Linux.
+Fleet Desktop is deployed automatically when you [enroll hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop). It shows up in the menu bar on macOS and the system tray on Windows and Linux.
 
 ### macOS
 
@@ -23,11 +23,11 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 
 ## Update Fleet Desktop
 
-fleetd automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
 
 ### macOS
 
-The Fleet Desktop app is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically), so fleetd doesn't update it. To keep it up to date, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
+The Fleet Desktop app is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically), so it isn't updated automatically. To keep it up to date, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
 
 ## Custom transparency link
 Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.
