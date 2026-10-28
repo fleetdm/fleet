@@ -386,7 +386,7 @@ func handleEnrollmentTokenCreate() http.HandlerFunc {
 // rejects the one value this handler most needs to answer.
 func enrollmentTokenExpiry(now time.Time, duration string) time.Time {
 	seconds := defaultEnrollmentTokenSeconds
-	if trimmed := strings.TrimSuffix(duration, "s"); trimmed != duration {
+	if trimmed, isSeconds := strings.CutSuffix(duration, "s"); isSeconds {
 		// A fractional duration is legal; whole seconds are enough for an
 		// expiry.
 		whole, _, _ := strings.Cut(trimmed, ".")
