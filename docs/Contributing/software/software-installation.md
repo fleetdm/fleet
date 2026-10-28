@@ -159,7 +159,7 @@ sequenceDiagram
 Android app installation works a bit differently than on other platforms. Fleet uses the Google Android Management API (AMAPI) which
 sends one declarative "policy" to devices. When an Android app is added to a fleet, a job gets triggered to add this app to the policy
 on relevant hosts with the InstallType set to "[AVAILABLE](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)". 
-For each host, this job will send a request to [enterprises.policies.modifyPolicyApplications](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications) which will make the app available for download in the Play Store for that host, and record its result in the database.
+For each host, this job will send a request to [enterprises.policies.modifyPolicyApplications](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications) which will make the app available for download in the Google Play Store for that host, and record its result in the database.
 
 Setup experience: currently, setup experience will add all relevant apps to a host's policy, 
 but with InstallType set to "[PREINSTALLED](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)"
