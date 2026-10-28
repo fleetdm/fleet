@@ -2161,69 +2161,53 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 
 type recordingESTService struct {
 	fleet.ESTService
-	validatedURLs *[]string
+	record func(url string) error
 }
 
-func (r *recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
-	*r.validatedURLs = append(*r.validatedURLs, ca.URL)
-	return nil
+func (r recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
+	return r.record(ca.URL)
 }
 
 func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {
-	existing := fleet.GroupedCertificateAuthorities{
-		DigiCert: []fleet.DigiCertCA{{
-			ID: 5, Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile",
-			CertificateCommonName: "cn", CertificateUserPrincipalNames: []string{"upn"}, CertificateSeatID: "seat",
-		}},
-		CustomScepProxy: []fleet.CustomSCEPProxyCA{{ID: 1, Name: "SCEP", URL: "https://scep.example.com", Challenge: "challenge"}},
-		Hydrant:         []fleet.HydrantCA{{ID: 2, Name: "HYDRANT", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: "secret"}},
-		EST:             []fleet.ESTProxyCA{{ID: 3, Name: "EST", URL: "https://est.example.com", Username: "user", Password: "pass"}},
-		Smallstep: []fleet.SmallstepSCEPProxyCA{{
-			ID: 4, Name: "SMALLSTEP", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
-			Username: "user", Password: "pass",
-		}},
-	}
-	// incoming CAs from YAML have no IDs
-	unchanged := func() fleet.GroupedCertificateAuthorities {
-		cas := fleet.GroupedCertificateAuthorities{
-			DigiCert:        []fleet.DigiCertCA{existing.DigiCert[0]},
-			CustomScepProxy: []fleet.CustomSCEPProxyCA{existing.CustomScepProxy[0]},
-			Hydrant:         []fleet.HydrantCA{existing.Hydrant[0]},
-			EST:             []fleet.ESTProxyCA{existing.EST[0]},
-			Smallstep:       []fleet.SmallstepSCEPProxyCA{existing.Smallstep[0]},
+	stored := func() fleet.GroupedCertificateAuthorities {
+		return fleet.GroupedCertificateAuthorities{
+			DigiCert:        []fleet.DigiCertCA{{Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile"}},
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "SCEP", URL: "https://scep.example.com", Challenge: "challenge"}},
+			Hydrant:         []fleet.HydrantCA{{Name: "HYDRANT", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: "secret"}},
+			EST:             []fleet.ESTProxyCA{{Name: "EST", URL: "https://est.example.com", Username: "user", Password: "pass"}},
+			Smallstep: []fleet.SmallstepSCEPProxyCA{{
+				Name: "SMALLSTEP", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
+				Username: "user", Password: "pass",
+			}},
 		}
-		cas.DigiCert[0].ID, cas.CustomScepProxy[0].ID, cas.Hydrant[0].ID, cas.EST[0].ID, cas.Smallstep[0].ID = 0, 0, 0, 0, 0
-		return cas
 	}
 
 	for _, tc := range []struct {
 		name          string
-		incoming      func() fleet.GroupedCertificateAuthorities
+		change        func(cas *fleet.GroupedCertificateAuthorities)
+		alsoStored    bool // apply change to the stored CAs too
 		wantUpdated   []string
 		wantValidated []string
+		wantErr       string
 	}{
-		{name: "identical CAs are skipped", incoming: unchanged},
+		{name: "identical CAs are skipped", change: func(*fleet.GroupedCertificateAuthorities) {}},
 		{
 			name: "padded values are trimmed before comparing",
-			incoming: func() fleet.GroupedCertificateAuthorities {
-				cas := unchanged()
-				cas.DigiCert[0].Name, cas.DigiCert[0].ProfileID = " DIGICERT ", " profile "
+			change: func(cas *fleet.GroupedCertificateAuthorities) {
+				cas.DigiCert[0].ProfileID = " profile "
 				cas.CustomScepProxy[0].URL = " https://scep.example.com "
 				cas.Hydrant[0].Name = " HYDRANT"
 				cas.EST[0].URL = "https://est.example.com\n"
-				cas.Smallstep[0].ChallengeURL, cas.Smallstep[0].Username = " https://smallstep.example.com/challenge", "user "
-				return cas
+				cas.Smallstep[0].Username = "user "
 			},
 		},
 		{
 			name: "changed secrets are validated and updated",
-			incoming: func() fleet.GroupedCertificateAuthorities {
-				cas := unchanged()
+			change: func(cas *fleet.GroupedCertificateAuthorities) {
 				cas.CustomScepProxy[0].Challenge = "new-challenge"
 				cas.Hydrant[0].ClientSecret = "new-secret"
 				cas.EST[0].Password = "new-pass"
 				cas.Smallstep[0].Password = "new-pass"
-				return cas
 			},
 			wantUpdated: []string{"SCEP", "HYDRANT", "EST", "SMALLSTEP"},
 			wantValidated: []string{
@@ -2232,25 +2216,70 @@ func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {
 			},
 		},
 		{
-			name: "case-only rename is an update",
-			incoming: func() fleet.GroupedCertificateAuthorities {
-				cas := unchanged()
-				cas.CustomScepProxy[0].Name = "scep"
-				return cas
-			},
+			name:          "case-only rename is an update",
+			change:        func(cas *fleet.GroupedCertificateAuthorities) { cas.CustomScepProxy[0].Name = "scep" },
 			wantUpdated:   []string{"scep"},
 			wantValidated: []string{"https://scep.example.com"},
 		},
+		// The REST update path can store a masked secret, so an incoming masked secret can match the stored one. GitOps still rejects it.
+		{
+			name: "masked SCEP challenge is rejected even when it matches the stored one",
+			change: func(cas *fleet.GroupedCertificateAuthorities) {
+				cas.CustomScepProxy[0].Challenge = fleet.MaskedPassword
+			},
+			alsoStored: true,
+			wantErr:    "Custom SCEP Proxy challenge cannot be empty",
+		},
+		{
+			name:       "masked Hydrant client secret is rejected even when it matches the stored one",
+			change:     func(cas *fleet.GroupedCertificateAuthorities) { cas.Hydrant[0].ClientSecret = fleet.MaskedPassword },
+			alsoStored: true,
+			wantErr:    "Invalid Hydrant Client Secret",
+		},
+		{
+			name:       "masked EST password is rejected even when it matches the stored one",
+			change:     func(cas *fleet.GroupedCertificateAuthorities) { cas.EST[0].Password = fleet.MaskedPassword },
+			alsoStored: true,
+			wantErr:    "Invalid EST Password",
+		},
+		{
+			name:       "masked Smallstep password is rejected even when it matches the stored one",
+			change:     func(cas *fleet.GroupedCertificateAuthorities) { cas.Smallstep[0].Password = fleet.MaskedPassword },
+			alsoStored: true,
+			wantErr:    "Smallstep password cannot be empty",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			existing, incoming := stored(), stored()
+			tc.change(&incoming)
+			if tc.alsoStored {
+				tc.change(&existing)
+			}
 			ds := new(mock.Store)
 			ds.GetGroupedCertificateAuthoritiesFunc = func(_ context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 				require.True(t, includeSecrets)
 				return &existing, nil
 			}
-			svc, validatedURLs := newCARecordingService(ds)
+			var validatedURLs []string
+			record := func(url string) error {
+				validatedURLs = append(validatedURLs, url)
+				return nil
+			}
+			svc := &Service{
+				ds:         ds,
+				logger:     slog.New(slog.DiscardHandler),
+				estService: recordingESTService{record: record},
+				scepConfigService: &scep_mock.SCEPConfigService{
+					ValidateSCEPURLFunc:               func(_ context.Context, url string) error { return record(url) },
+					ValidateSmallstepChallengeURLFunc: func(_ context.Context, ca fleet.SmallstepSCEPProxyCA) error { return record(ca.ChallengeURL) },
+				},
+			}
 
-			ops, err := svc.getCertificateAuthoritiesBatchOperations(t.Context(), tc.incoming())
+			ops, err := svc.getCertificateAuthoritiesBatchOperations(t.Context(), incoming)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
 			require.NoError(t, err)
 			require.Empty(t, ops.Add)
 			require.Empty(t, ops.Delete)
@@ -2259,69 +2288,7 @@ func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {
 				updated = append(updated, *ca.Name)
 			}
 			require.ElementsMatch(t, tc.wantUpdated, updated)
-			require.ElementsMatch(t, tc.wantValidated, *validatedURLs, "only changed CAs call their external services")
+			require.ElementsMatch(t, tc.wantValidated, validatedURLs, "only changed CAs call their external services")
 		})
 	}
-
-	// A stored masked secret can come from the REST update path, which doesn't reject it. GitOps still rejects it.
-	for _, tc := range []struct {
-		name    string
-		cas     fleet.GroupedCertificateAuthorities
-		wantErr string
-	}{
-		{
-			name:    "custom scep proxy",
-			cas:     fleet.GroupedCertificateAuthorities{CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "SCEP", URL: "https://scep.example.com", Challenge: fleet.MaskedPassword}}},
-			wantErr: "Custom SCEP Proxy challenge cannot be empty",
-		},
-		{
-			name:    "hydrant",
-			cas:     fleet.GroupedCertificateAuthorities{Hydrant: []fleet.HydrantCA{{Name: "HYDRANT", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: fleet.MaskedPassword}}},
-			wantErr: "Invalid Hydrant Client Secret",
-		},
-		{
-			name:    "custom est proxy",
-			cas:     fleet.GroupedCertificateAuthorities{EST: []fleet.ESTProxyCA{{Name: "EST", URL: "https://est.example.com", Username: "user", Password: fleet.MaskedPassword}}},
-			wantErr: "Invalid EST Password",
-		},
-		{
-			name: "smallstep",
-			cas: fleet.GroupedCertificateAuthorities{Smallstep: []fleet.SmallstepSCEPProxyCA{{
-				Name: "SMALLSTEP", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
-				Username: "user", Password: fleet.MaskedPassword,
-			}}},
-			wantErr: "Smallstep password cannot be empty",
-		},
-	} {
-		t.Run("stored masked secret is rejected: "+tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			ds.GetGroupedCertificateAuthoritiesFunc = func(_ context.Context, _ bool) (*fleet.GroupedCertificateAuthorities, error) {
-				return &tc.cas, nil
-			}
-			svc, _ := newCARecordingService(ds)
-			_, err := svc.getCertificateAuthoritiesBatchOperations(t.Context(), tc.cas)
-			require.ErrorContains(t, err, tc.wantErr)
-		})
-	}
-}
-
-// newCARecordingService returns a service whose SCEP, Smallstep challenge, and EST validators succeed and record the URLs they're called
-// with.
-func newCARecordingService(ds fleet.Datastore) (*Service, *[]string) {
-	var validatedURLs []string
-	return &Service{
-		ds:         ds,
-		logger:     slog.New(slog.DiscardHandler),
-		estService: &recordingESTService{validatedURLs: &validatedURLs},
-		scepConfigService: &scep_mock.SCEPConfigService{
-			ValidateSCEPURLFunc: func(_ context.Context, url string) error {
-				validatedURLs = append(validatedURLs, url)
-				return nil
-			},
-			ValidateSmallstepChallengeURLFunc: func(_ context.Context, ca fleet.SmallstepSCEPProxyCA) error {
-				validatedURLs = append(validatedURLs, ca.ChallengeURL)
-				return nil
-			},
-		},
-	}, &validatedURLs
 }
