@@ -4,6 +4,40 @@ Use audit logs to automate based on what happens in Fleet. For example, send eve
 
 This page includes a list of activity types and their fields. To learn how to see activities and send them to a webhook or log destination, see the [Automations guide](https://fleetdm.com/guides/automations#activity-automations). To only receive activities linked to a specific fleet's hosts, see [Host audit logs](https://fleetdm.com/docs/api/host-audit-logs).
 
+## Payload
+
+Each webhook request is a JSON object with the following fields:
+- "timestamp": When the activity happened.
+- "actor_full_name": Name of the user who performed the activity. "Fleet" if Fleet performed it automatically. Null if there's no user.
+- "actor_id": ID of the user who performed the activity. Null if there's no user or the user was deleted.
+- "actor_email": Email of the user who performed the activity. Null if there's no user.
+- "type": The activity type. See the list below.
+- "details": Fields for the activity type. See the list below.
+
+#### Example
+
+```json
+{
+  "timestamp": "2026-10-28T17:32:43.123456Z",
+  "actor_full_name": "Anna Chao",
+  "actor_id": 1,
+  "actor_email": "anna@example.com",
+  "type": "ran_script",
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Anna's MacBook Pro",
+    "script_name": "set-timezones.sh",
+    "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+    "batch_execution_id": null,
+    "async": true,
+    "policy_id": null,
+    "policy_name": null,
+    "from_setup_experience": false
+  }
+}
+```
+Activities sent to a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging) use the same format as the [List activities](https://fleetdm.com/docs/api/rest-api#list-activities) API response, not this webhook payload.
+
 ## Authentication
 
 - [user_added_by_sso](#user-added-by-sso)
