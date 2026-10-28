@@ -10,7 +10,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 import Slider from "components/forms/fields/Slider";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import {
   IGlobalIntegrations,
@@ -56,7 +56,7 @@ const getDestinationUrlError = (url: string): string | undefined => {
   if (!url) {
     return "Please add a destination URL";
   }
-  if (!validUrl({ url })) {
+  if (!isValidURL({ url })) {
     return "Destination URL is not a valid URL";
   }
   return undefined;

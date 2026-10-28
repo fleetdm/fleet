@@ -91,8 +91,9 @@ parasails.registerPage('basic-documentation', {
       let elementWithMatchingId = document.getElementById(possibleHashToScrollTo);
       // If the hash matches a header's ID, we'll scroll to that section.
       if(elementWithMatchingId){
-        // Get the distance of the specified element, and reduce it by 90 so the section is not hidden by the page header.
-        let amountToScroll = elementWithMatchingId.offsetTop - 90;
+        // Get the distance of the specified element, and reduce it by 90 (plus the announcement banner, if shown) so the section is not hidden by the page header.
+        let announcementBannerHeight = parseInt(document.documentElement.style.getPropertyValue('--announcement-banner-height')) || 0;
+        let amountToScroll = elementWithMatchingId.offsetTop - 90 - announcementBannerHeight;
         window.scrollTo({
           top: amountToScroll,
           left: 0,

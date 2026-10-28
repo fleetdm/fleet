@@ -54,14 +54,14 @@ func IsUnassignedFleetName(name string) bool {
 }
 
 type TeamPayload struct {
-	Name               *string              `json:"name"`
-	Description        *string              `json:"description"`
-	Secrets            []*EnrollSecret      `json:"secrets"`
-	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
-	Integrations       *TeamIntegrations    `json:"integrations"`
-	MDM                *TeamPayloadMDM      `json:"mdm"`
-	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
-	Features           *TeamPayloadFeatures `json:"features"`
+	Name               *string                  `json:"name"`
+	Description        *string                  `json:"description"`
+	Secrets            []*EnrollSecret          `json:"secrets"`
+	WebhookSettings    *TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       *TeamIntegrations        `json:"integrations"`
+	MDM                *TeamPayloadMDM          `json:"mdm"`
+	HostExpirySettings *HostExpirySettings      `json:"host_expiry_settings"`
+	Features           *TeamPayloadFeatures     `json:"features"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -986,6 +986,7 @@ type TeamSpecIntegrations struct {
 type TeamSpecsDryRunAssumptions struct {
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
+	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

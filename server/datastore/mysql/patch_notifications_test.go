@@ -202,6 +202,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *apps[0].SoftwareInstallerID)
 	require.Equal(t, "Notified App", apps[0].Name)
 	require.Equal(t, "Notified App", apps[0].DisplayName)
+	require.Nil(t, apps[0].DisplayNameOverride)
 	require.False(t, apps[0].HasIcon)
 	// created_at is what tells a later install that the app no longer needs updating
 	require.WithinDuration(t, time.Now().UTC(), apps[0].CreatedAt, time.Minute)
@@ -222,8 +223,35 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
+	require.NotNil(t, apps[0].DisplayNameOverride)
+	require.Equal(t, "Notified App (renamed)", *apps[0].DisplayNameOverride)
 	require.True(t, apps[0].HasIcon)
 	require.False(t, apps[0].UpdatedInInventory)
+
+	// An override explicitly equal to the raw title must still be captured as
+	// an override; the write site uses DisplayNameOverride (not a DisplayName
+	// vs Name comparison) so the admin's pinned value survives the FE's
+	// WELL_KNOWN normalization.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_title_display_names SET display_name = ? WHERE team_id = ? AND software_title_id = ?`,
+			"Notified App", team.ID, titleID)
+		return err
+	})
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, "Notified App", apps[0].DisplayName)
+	require.NotNil(t, apps[0].DisplayNameOverride)
+	require.Equal(t, "Notified App", *apps[0].DisplayNameOverride)
+
+	// Restore the renamed override so later cases below see the expected state.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_title_display_names SET display_name = ? WHERE team_id = ? AND software_title_id = ?`,
+			"Notified App (renamed)", team.ID, titleID)
+		return err
+	})
 
 	// set the app as updated in inventory, the listed app should report it
 	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, notificationUUID, []uint{titleID}))

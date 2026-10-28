@@ -306,6 +306,7 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
 	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+	noExternalIDErr := fmt.Sprintf("There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPExternalID)
 
 	if user == nil {
 		switch fleetVar {
@@ -315,6 +316,8 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 			return "", nil, false, noDepartmentErr
 		case string(fleet.FleetVarHostEndUserIDPFullname):
 			return "", nil, false, noFullnameErr
+		case string(fleet.FleetVarHostEndUserIDPExternalID):
+			return "", nil, false, noExternalIDErr
 		default:
 			return "", nil, false, fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 		}
@@ -341,6 +344,11 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 			return "", nil, false, noFullnameErr
 		}
 		return fullName, fleet.FleetVarHostEndUserIDPFullnameRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPExternalID):
+		if user.IdpID == "" {
+			return "", nil, false, noExternalIDErr
+		}
+		return user.IdpID, fleet.FleetVarHostEndUserIDPExternalIDRegexp, true, ""
 	default:
 		return "", nil, false, fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 	}

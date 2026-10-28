@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -295,8 +296,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			Department *string `db:"department"`
 			GivenName  *string `db:"given_name"`
 			FamilyName *string `db:"family_name"`
+			ExternalID *string `db:"external_id"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name, external_id FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -341,8 +343,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 
 		usernameChanged := old.UserName != user.UserName
-		departmentChanged := !cmp.Equal(old.Department, user.Department)
-		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
+		var changedVars []fleet.FleetVarName
+		if usernameChanged {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart)
+		}
+		if !cmp.Equal(old.Department, user.Department) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPDepartment)
+		}
+		if !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPFullname)
+		}
+		if !cmp.Equal(old.ExternalID, user.ExternalID) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPExternalID)
+		}
 		// every store the rename flows into holds an email address
 		renamedBetweenEmails := usernameChanged &&
 			fleet.ValidateEmail(old.UserName) == nil &&
@@ -374,7 +387,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
-		if !usernameChanged && !departmentChanged && !nameChanged {
+		if len(changedVars) == 0 {
 			return nil
 		}
 
@@ -392,7 +405,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			}
 		}
 
-		certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, hostIDs, idpEmailChangedHostIDs)
+		certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, hostIDs, changedVars, idpEmailChangedHostIDs)
 		if err != nil {
 			return err
 		}
@@ -1710,21 +1723,15 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-// triggerResendProfilesForIDPUserChange resends SCIM attribute profiles on
+// triggerResendProfilesForIDPUserChange resends profiles using changedVars on
 // scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
 // either set without being in the other.
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
-	vars := []fleet.FleetVarName{
-		fleet.FleetVarHostEndUserIDPUsername,
-		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-		fleet.FleetVarHostEndUserIDPDepartment,
-		fleet.FleetVarHostEndUserIDPFullname,
-	}
-	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(vars))
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, scimHostIDs, vars); err != nil {
+	if err := triggerResendProfilesUsingVariables(ctx, tx, scimHostIDs, changedVars); err != nil {
 		return nil, err
 	}
 
@@ -1763,6 +1770,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -1824,6 +1832,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -2112,6 +2121,10 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 	}
 
+	if err := triggerResendCAProfilesUsingVariables(ctx, tx, hostIDs, affectedVars); err != nil {
+		return err
+	}
+
 	// Resend certificate templates that use affected variables.
 	certParams := map[string]any{
 		"host_ids":               hostIDs,
@@ -2142,6 +2155,153 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "resend host name templates for idp change")
 	}
 
+	return nil
+}
+
+// triggerResendCAProfilesUsingVariables resends Apple profiles that get a certificate from a DigiCert or EJBCA CA whose certificate fields
+// use an affected variable. The variable is in the CA, not the profile, so the profile has no association with it.
+func triggerResendCAProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+	var cas []struct {
+		Type   fleet.CAType `db:"type"`
+		Name   string       `db:"name"`
+		Fields string       `db:"fields"`
+	}
+	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text. CONCAT_WS skips the columns a type doesn't use.
+	caTypes := make([]fleet.CAType, 0, len(profileCATypes))
+	for _, t := range profileCATypes {
+		caTypes = append(caTypes, t.caType)
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT type, name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, ejbca_username_template,
+			certificate_user_principal_names) AS fields
+		FROM certificate_authorities
+		WHERE type IN (?)`, caTypes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select CAs for resend")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &cas, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select CAs for resend")
+	}
+	caNames := make(map[fleet.CAType][]string, len(profileCATypes))
+	for _, ca := range cas {
+		if slices.ContainsFunc(variables.Find(ca.Fields), func(v string) bool {
+			return slices.Contains(affectedVars, fleet.FleetVarName(v))
+		}) {
+			caNames[ca.Type] = append(caNames[ca.Type], ca.Name)
+		}
+	}
+	for _, t := range profileCATypes {
+		if len(caNames[t.caType]) == 0 {
+			continue
+		}
+		if err := resendCAProfilesDB(ctx, tx, t.dataVar, caNames[t.caType], hostIDs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resendCAProfilesDB resends the Apple profiles that get a certificate from one of the named CAs, through the profile variable with the
+// dataVar prefix, to hostIDs, or to every host that has them when hostIDs is empty.
+func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.FleetVarName, caNames []string, hostIDs []uint) error {
+	dataVars := make(map[string]struct{}, len(caNames))
+	for _, name := range caNames {
+		dataVars[string(dataVar)+name] = struct{}{}
+	}
+
+	selectStmt := `
+		SELECT macp.profile_uuid, macp.team_id, macp.mobileconfig
+		FROM mdm_apple_configuration_profiles macp
+		WHERE EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_variables mcpv
+				JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+			WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
+		)`
+	selectArgs := []any{"FLEET_VAR_" + string(dataVar)}
+	if len(hostIDs) > 0 {
+		// Scoped to the hosts' teams rather than their host_mdm_apple_profiles rows, which have no index by profile alone.
+		selectStmt += ` AND EXISTS (
+			SELECT 1
+			FROM hosts h
+			WHERE h.id IN (?) AND (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL))
+		)`
+		selectArgs = append(selectArgs, hostIDs)
+	}
+	selectStmt, selectArgs, err := sqlx.In(selectStmt, selectArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare select CA profiles for resend")
+	}
+	type caProfile struct {
+		ProfileUUID  string `db:"profile_uuid"`
+		TeamID       uint   `db:"team_id"`
+		Mobileconfig []byte `db:"mobileconfig"`
+	}
+	var profiles []caProfile
+	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select CA profiles for resend")
+	}
+	// Keep only the profiles that actually get their certificate from one of the CAs being resent
+	profiles = slices.DeleteFunc(profiles, func(p caProfile) bool {
+		return !slices.ContainsFunc(variables.Find(string(p.Mobileconfig)), func(v string) bool {
+			_, ok := dataVars[v]
+			return ok
+		})
+	})
+	if len(profiles) == 0 {
+		return nil
+	}
+
+	if len(hostIDs) > 0 {
+		profileUUIDs := make([]string, 0, len(profiles))
+		for _, p := range profiles {
+			profileUUIDs = append(profileUUIDs, p.ProfileUUID)
+		}
+		updateStmt, updateArgs, err := sqlx.In(`
+			UPDATE
+				host_mdm_apple_profiles hmap
+				JOIN hosts h
+					ON h.uuid = hmap.host_uuid
+				JOIN mdm_apple_configuration_profiles macp
+					ON (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+						 macp.profile_uuid = hmap.profile_uuid
+			SET
+				hmap.status = NULL,
+				hmap.detail = NULL,
+				hmap.command_uuid = ''
+			WHERE
+				h.id IN (?) AND
+				hmap.profile_uuid IN (?) AND
+				hmap.operation_type = ? AND
+				hmap.status IS NOT NULL`, hostIDs, profileUUIDs, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend CA profiles")
+		}
+		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend CA profiles")
+		}
+		return nil
+	}
+
+	// One profile at a time, driven by its team's hosts, since host_mdm_apple_profiles has no index by profile alone.
+	for _, p := range profiles {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE
+				host_mdm_apple_profiles hmap
+				JOIN hosts h
+					ON h.uuid = hmap.host_uuid
+			SET
+				hmap.status = NULL,
+				hmap.detail = NULL,
+				hmap.command_uuid = ''
+			WHERE
+				h.team_id <=> ? AND
+				hmap.profile_uuid = ? AND
+				hmap.operation_type = ? AND
+				hmap.status IS NOT NULL`, ptr.UintOrNilIfZero(p.TeamID), p.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend CA profile to all hosts")
+		}
+	}
 	return nil
 }
 
@@ -2195,9 +2355,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds android app configs that reference any of
+// queueManagedConfigResendJobs finds app store app configs that reference any of
 // the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values.
+// configuration with the updated values, or sets a flag for VPP apps.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2246,17 +2406,34 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
 	var apps []affectedApp
+	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
-			apps = append(apps, app)
+		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
-		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
+		apps = append(apps, app)
+	}
+
+	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
+	// host's latest install can be of another version with the same configuration
+	if len(appleAppTeamIDs) > 0 {
+		const markConfigurationResendStmt = `
+		UPDATE host_vpp_software_installs hvsi
+		JOIN vpp_apps_teams vat ON vat.adam_id = hvsi.adam_id AND vat.platform = hvsi.platform
+		SET hvsi.needs_resend = 1
+		WHERE hvsi.host_id IN (?) AND vat.id IN (?) AND hvsi.canceled = 0
+`
+		var markStmt string
+		var markArgs []any
+		markStmt, markArgs, err = sqlx.In(markConfigurationResendStmt, hostIDs, appleAppTeamIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+			return ctxerr.Wrap(ctx, err, "prepare mark vpp app configuration resend")
+		}
+		_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "mark vpp app configuration resend")
 		}
 	}
 

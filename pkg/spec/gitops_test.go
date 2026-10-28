@@ -779,7 +779,7 @@ reports:
   observer_can_run: false
   automations_enabled: true
   logging: snapshot
-- name: orbit_info
+- name: "Orbit_Info "
   query: SELECT 1;
   interval: 300
   platform: windows
@@ -789,7 +789,22 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate report names")
+	assert.ErrorContains(t, err, "duplicate report names: [orbit_info]")
+}
+
+func TestDuplicateLabelNames(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    hosts: []
+    label_membership_type: manual
+  - name: "testlabel "
+    hosts: []
+    label_membership_type: manual`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "duplicate label names: [TestLabel]")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -1544,7 +1559,7 @@ secrets:
 		assert.Equal(t, filepath.Join(tmpDir, "assets/light.png"), orgInfo["org_logo_path_light_mode"])
 	})
 
-	t.Run("end_user_license_agreement resolves relative to nested file", func(t *testing.T) {
+	t.Run("EULA paths resolve relative to nested file", func(t *testing.T) {
 		gitops, tmpDir := setup(t, `
 server_settings:
   server_url: https://fleet.example.com
@@ -1553,10 +1568,12 @@ org_info:
   org_name: Test Org
 mdm:
   end_user_license_agreement: ../docs/eula.pdf
+  windows_eula: ../docs/terms.md
 secrets:
 `)
 		mdm := gitops.OrgSettings["mdm"].(map[string]any)
 		assert.Equal(t, filepath.Join(tmpDir, "docs/eula.pdf"), mdm["end_user_license_agreement"])
+		assert.Equal(t, filepath.Join(tmpDir, "docs/terms.md"), mdm["windows_eula"])
 	})
 
 	t.Run("absolute paths in nested file are untouched", func(t *testing.T) {
@@ -4134,6 +4151,66 @@ controls:
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "apple_account_provisioning can only be configured in the global configuration")
+	})
+}
+
+func TestGitOpsEnableProfileValidation(t *testing.T) {
+	t.Parallel()
+
+	const controls = "controls:\n  enable_profile_validation: false\n"
+
+	t.Run("parsed in global config", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig([]string{"controls"})+controls)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+		assert.True(t, gitops.Controls.Set())
+	})
+
+	t.Run("nil when omitted", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig(nil))
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Nil(t, gitops.Controls.EnableProfileValidation)
+	})
+
+	for file, name := range map[string]string{"no-team.yml": "No team", "unassigned.yml": "Unassigned"} {
+		t.Run("accepted in "+file, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"name", "settings", "controls"}) + "name: " + name + "\n" + controls
+			path, basePath := createNamedFileOnTempDir(t, file, config)
+			gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			require.NoError(t, err)
+			assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+		})
+	}
+
+	t.Run("rejected in a specific team's file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getTeamConfig([]string{"controls"})+controls)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
+	})
+
+	t.Run("rejected in a team's referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getTeamConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
+	})
+
+	t.Run("accepted in a global referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
 	})
 }
 

@@ -1,9 +1,12 @@
+import { mapValues } from "lodash";
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ICertificateAuthorityType } from "interfaces/certificates";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { getErrorReason } from "interfaces/errors";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { IAddCertAuthorityFormData } from "services/entities/certificates";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -11,6 +14,12 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import {
+  generateEJBCAAddData,
+  splitEJBCAServerErrors,
+} from "../EJBCAForm/helpers";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import CA_LABEL_BY_TYPE from "../helpers";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
@@ -27,6 +36,8 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.ejbca, value: "ejbca" },
+  { label: CA_LABEL_BY_TYPE.google_cas, value: "google_cas" },
   {
     label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
@@ -107,6 +118,8 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "ejbca":
+      return { ejbca: generateEJBCAAddData(formData as IEJBCAFormData) };
     case "custom_scep_proxy": {
       const {
         name: customSCEPName,
@@ -171,6 +184,24 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "google_cas": {
+      const {
+        name,
+        projectId,
+        caPool,
+        location,
+        apiKeyJson,
+      } = formData as IGoogleCASFormData;
+      return {
+        google_cas: {
+          name,
+          project: projectId,
+          ca_pool: caPool,
+          location,
+          api_key_json: apiKeyJson,
+        },
+      };
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthorityType}`
@@ -223,17 +254,33 @@ const CA_NOT_FOUND_ERROR =
  */
 const INVALID_URL_PATTERN = /Invalid [\w ]*URL\./;
 
+const SERVER_ERROR_PREFIX = /^Couldn't (add|edit) certificate authority\. /;
+
 /**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
+export const getDisplayErrMessage = (
+  err: unknown,
+  caType?: ICertificateAuthorityType
+): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const rawReason = getErrorReason(err);
   const reason = rawReason.toLowerCase();
   const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
+  const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
 
-  if (reason.includes("invalid api token")) {
+  // Google CAS errors name the field or Google setting to fix, and the server
+  // writes its 4xx reasons for admins, so they're shown as is.
+  if (
+    caType === "google_cas" &&
+    unprefixedReason &&
+    hasStatusKey(err) &&
+    err.status >= 400 &&
+    err.status < 500
+  ) {
+    message = unprefixedReason;
+  } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {
     message = INVALID_PROFILE_GUID_ERROR;
@@ -274,8 +321,59 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown): JSX.Element => {
+export const getErrorMessage = (
+  err: unknown,
+  caType: ICertificateAuthorityType
+): JSX.Element => {
   return (
-    <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
+    <>
+      Couldn&apos;t add certificate authority.{" "}
+      {getDisplayErrMessage(err, caType)}
+    </>
   );
+};
+
+const PRIVATE_KEY_NOT_CONFIGURED_REASON = "Private key must be configured";
+
+/**
+ * The toast for the reasons of a failed EJBCA request that don't belong to a field.
+ */
+export const getEJBCAErrorMessage = (
+  action: "add" | "edit",
+  otherReasons: string[]
+) => {
+  if (!otherReasons.length) {
+    return `Couldn't ${action} certificate authority. Please try again.`;
+  }
+  return (
+    <>
+      Couldn&apos;t {action} certificate authority.{" "}
+      {otherReasons.map((otherReason) => {
+        const reason = otherReason.replace(SERVER_ERROR_PREFIX, "");
+        return (
+          <React.Fragment key={reason}>
+            {reason.startsWith(PRIVATE_KEY_NOT_CONFIGURED_REASON)
+              ? PRIVATE_KEY_NOT_CONFIGURED_ERROR
+              : reason}{" "}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+
+/** Shows the errors of a failed EJBCA request: the form gets the ones of its fields, and the rest are a toast. */
+export const handleEJBCAServerError = (
+  err: unknown,
+  action: "add" | "edit",
+  setFieldErrors: (errors: IFormErrors) => void
+) => {
+  const { fieldErrors, otherReasons } = splitEJBCAServerErrors(err);
+  // a field's error is shown next to it, so it doesn't need to say what failed
+  setFieldErrors(
+    mapValues(fieldErrors, (reason) => reason?.replace(SERVER_ERROR_PREFIX, ""))
+  );
+  if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
+    notify.error(getEJBCAErrorMessage(action, otherReasons), { response: err });
+  }
 };

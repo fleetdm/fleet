@@ -49,6 +49,9 @@ type EnterpriseOverrides struct {
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	// VerifyAppleAccountProvisioning checks Apple account provisioning IdP
+	// settings with the IdP before they're saved.
+	VerifyAppleAccountProvisioning func(ctx context.Context, settings AppleAccountProvisioning, clientSecret string) error
 }
 
 type OsqueryService interface {
@@ -502,7 +505,8 @@ type Service interface {
 	//	- matchQuery is the query SQL
 	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
 	//	- excludedHostIDs is an optional list of IDs to omit from the search
-	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
+	//	- excludeMobileHosts omits iOS, iPadOS, and Android hosts (used by the live report target picker)
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
@@ -767,9 +771,9 @@ type Service interface {
 	// service creation when the transport is enabled.
 	SetAgentCheckInNotifier(notifier AgentCheckInNotifier)
 
-	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
-	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
-	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	// NewACMEEnrollment forwards to the ACME service module (see ACMEWriteService). Production wires the module into
+	// the renewal cron directly; integration tests reach it through the Fleet service.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string, purpose AppleMDMCertPurpose, enrollmentID *string) (string, error)
 
 	// NewActivity creates the given activity on the datastore.
 	//
@@ -1012,7 +1016,7 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// Returns (nil, nil, "", nil) for non-DEP hosts and hosts whose ABM token was deleted.
 	// If ABM returns an error, dep_device is nil, depError classifies why, and
 	// the original error is logged rather than returned to the caller.
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
@@ -1221,18 +1225,19 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMGetEULABytes returns the contents of the EULA that matches
-	// the given token.
+	// MDMGetEULABytes returns the contents of the EULA, macOS or Windows,
+	// that matches the given token.
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
 	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMGetEULAMetadata returns metadata about the EULA file that can
-	// be used by clients to display information.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
-	// MDMAppleDelete EULA removes an EULA entry.
+	// MDMGetEULAMetadata returns metadata about the platform's EULA; an empty
+	// platform means darwin.
+	MDMGetEULAMetadata(ctx context.Context, platform MDMEULAPlatform) (*MDMEULA, error)
+	// MDMCreateEULA adds a new EULA file: a PDF for darwin, or the markdown
+	// terms shown during Windows Entra enrollment; an empty platform means darwin.
+	MDMCreateEULA(ctx context.Context, platform MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
+	// MDMDeleteEULA removes the EULA, macOS or Windows, that matches the token.
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
@@ -1374,6 +1379,15 @@ type Service interface {
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
+	// AutofillConfigProfileNameDescription asks fleetdm.com for a name and
+	// description for a profile described in natural language.
+	AutofillConfigProfileNameDescription(ctx context.Context, instructions, platform string) (name, description string, err error)
+
+	// AutofillConfigProfileContent asks fleetdm.com to generate a profile and
+	// runs the checks Fleet runs when the profile is added to teamID, without
+	// saving it.
+	AutofillConfigProfileContent(ctx context.Context, instructions, platform string, teamID uint) (*AutofilledConfigProfile, error)
+
 	// UpdateMDMConfigProfile updates an existing configuration profile's
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
@@ -1395,7 +1409,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

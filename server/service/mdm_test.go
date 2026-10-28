@@ -1234,6 +1234,8 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
 		{"recovery lock password placeholder", false, `<Exec><CmdID>1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target><Data>` +
 			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
+		{"SCEP status probe CmdID", false, `<Exec><CmdID>` + fleet.WindowsSCEPStatusProbeCmdUUIDPrefix +
+			`c0ffee-1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target></Item></Exec>`, "is reserved for commands Fleet sends", ""},
 	}
 
 	for _, c := range cases {
@@ -2079,6 +2081,7 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2609,7 +2612,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, nil, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -2624,6 +2627,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 
 func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -2661,12 +2665,12 @@ func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	}
 
 	// Test dry-run
-	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, false)
+	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 
 	// Test actual run
-	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, false)
+	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 }
@@ -2752,7 +2756,7 @@ func TestMDMBatchSetProfilesWindowsAssumeEnabled(t *testing.T) {
 			windowsEnabled = tc.windowsEnabled
 			ds.BatchSetMDMProfilesFuncInvoked = false
 
-			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, false)
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, nil, false)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, tc.wantErr)
@@ -2886,6 +2890,18 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "null",
+			input:       []byte("null"),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:        "empty old format",
+			input:       []byte(`{}`),
+			expect:      backwardsCompatProfilesParam{},
+			expectError: false,
+		},
+		{
 			name:  "new format",
 			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
 			expect: backwardsCompatProfilesParam{
@@ -2928,6 +2944,7 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.expect == nil, bcp == nil)
 				require.ElementsMatch(t, tc.expect, bcp)
 			}
 		})
@@ -3407,6 +3424,7 @@ func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
 
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -3627,7 +3645,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
 
-	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true), false)
+	err := svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, profiles, false, false, new(true), nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])
@@ -3647,20 +3665,20 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["AExclAny"])
 
 	// Test that a bad label doesn't pass validation...
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, false, false, ptr.Bool(true), false)
+	}}, false, false, new(true), nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, true, false, ptr.Bool(true), false)
+	}}, true, false, new(true), nil, false)
 	require.NoError(t, err)
 }
 
@@ -3762,6 +3780,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			mockDuplicateStringGroupsExactMatch(ds)
 			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 			teamID = new(uint(1))
 			if c.freeTier {
@@ -3812,7 +3831,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			}
 
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), nil, false)
 
 			if c.wantErr != "" {
 				require.Error(t, err)
@@ -3868,7 +3887,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 			gotDocs = documents
 			return nil
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.NoError(t, err)
 		found := false
 		for _, doc := range gotDocs {
@@ -3884,7 +3903,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -3897,7 +3916,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "connection refused")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -4120,6 +4139,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
 			"",
+		},
+		{
+			"android software setting without premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+		},
+		{
+			"android software setting with premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",

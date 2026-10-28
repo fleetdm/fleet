@@ -117,12 +117,21 @@ const Modal = ({
   }, []);
 
   useEffect(() => {
-    document.body.classList.add("modal-open");
+    const { body, documentElement } = document;
+    // A stacked modal would measure the already-hidden scrollbar as 0.
+    if (!body.classList.contains("modal-open")) {
+      const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
+      // Takes the place of the scrollbar that overflow: hidden removes, so the
+      // page doesn't widen. Inline to win over the command palette's scroll lock.
+      body.style.paddingRight = `${scrollbarWidth}px`;
+      body.classList.add("modal-open");
+    }
     return () => {
       // By cleanup time this modal's own background node is already
       // detached, so only unlock scroll once none remain.
       if (document.querySelectorAll(`.${baseClass}__background`).length === 0) {
-        document.body.classList.remove("modal-open");
+        body.classList.remove("modal-open");
+        body.style.removeProperty("padding-right");
       }
     };
   }, []);

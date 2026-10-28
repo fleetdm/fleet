@@ -421,6 +421,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.id,
 		hsr.host_id,
 		hsr.execution_id,
+		hsr.script_content_id,
 		sc.contents as script_contents,
 		hsr.script_id,
 		hsr.policy_id,
@@ -456,6 +457,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		0 as id,
 		ua.host_id,
 		ua.execution_id,
+		sua.script_content_id,
 		sc.contents as script_contents,
 		sua.script_id,
 		sua.policy_id,
@@ -3143,6 +3145,9 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 
 	batchActivity := &fleet.BatchActivity{}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("batch execution").WithName(executionID))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
 	}
 
