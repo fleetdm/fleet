@@ -1409,7 +1409,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

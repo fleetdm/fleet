@@ -428,7 +428,9 @@ type Datastore interface {
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
-	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// When the host has no SCIM user, it resends the profiles that use the IdP username.
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
@@ -3166,6 +3168,11 @@ type Datastore interface {
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
+
+	// GetMDMProfileChecksums returns the MD5 of each Apple profile, declaration,
+	// and Windows profile stored for the team (0 for no team), keyed (lowercased)
+	// the way BatchSetMDMProfiles matches incoming profiles.
+	GetMDMProfileChecksums(ctx context.Context, teamID uint) (*MDMProfileChecksums, error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	// An OS-update (software update) declaration is tracked as the team's OS-update

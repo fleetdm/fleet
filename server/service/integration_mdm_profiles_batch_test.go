@@ -143,7 +143,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	<array/>`),
 		},
 	}}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: XML syntax error")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent)

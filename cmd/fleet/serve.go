@@ -282,6 +282,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			initFatal(err, "loading profile validation schema")
 		}
 	}
+	pvVersion := profilevalidation.Current().Version
+	logger.InfoContext(cmd.Context(), "profile validation schema loaded",
+		"apple_release", pvVersion.Apple.Release, "windows_release", pvVersion.Windows.Release)
 
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
