@@ -598,6 +598,13 @@ type Datastore interface {
 	// before before, or, when their end is unknown or in the future, that Fleet last saw change before it. It stops
 	// after maxRunTime, leaving the rest for the next run. Returns the count of sessions deleted.
 	CleanupHostAISessions(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error)
+	// ListHostAISessions lists the host's stored AI agent sessions.
+	ListHostAISessions(ctx context.Context, hostID uint, opts HostAISessionListOptions) ([]*HostAISession, *PaginationMetadata, error)
+	// GetHostAISession returns the host's stored AI agent session with that id, or a not found error if the host has
+	// none.
+	GetHostAISession(ctx context.Context, hostID, id uint) (*HostAISession, error)
+	// ListHostAISessionEvents lists the stored events of an AI agent session, in the order they ran.
+	ListHostAISessionEvents(ctx context.Context, aiSessionID uint, opts HostAISessionEventListOptions) ([]*HostAISessionEvent, *PaginationMetadata, error)
 
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
 	// needed to decide whether an InstallProfile ack should trigger a
