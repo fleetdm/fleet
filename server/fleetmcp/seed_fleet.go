@@ -1,19 +1,15 @@
-package main
+package fleetmcp
 
 import (
 	"context"
-
-	"github.com/sirupsen/logrus"
 )
 
 // SeedFleet populates Fleet with a baseline set of standard saved reports (formerly "queries").
 // Run this once against a fresh Fleet instance to bootstrap common reports.
 // Invoke via the -seed flag on the fleet-mcp binary; the caller supplies the
-// already-loaded Config and FleetClient so this function does not duplicate
+// already-constructed FleetClient so this function does not duplicate
 // environment loading or client construction.
-func SeedFleet(config *Config, client *FleetClient) {
-	_ = config // reserved for future use (e.g. choosing query sets per env)
-
+func SeedFleet(ctx context.Context, client *FleetClient) {
 	queries := []struct {
 		Name        string
 		Description string
@@ -54,13 +50,13 @@ func SeedFleet(config *Config, client *FleetClient) {
 	for _, q := range queries {
 		// Seed queries are intentionally Global — they are demo/sample data
 		// not tied to any specific team.
-		if _, err := client.CreateSavedQuery(context.Background(), q.Name, q.Description, q.SQL, q.Platform, nil); err != nil {
-			logrus.Errorf("failed to create %q: %v", q.Name, err)
+		if _, err := client.CreateSavedQuery(ctx, q.Name, q.Description, q.SQL, q.Platform, nil); err != nil {
+			client.logger.ErrorContext(ctx, "failed to create seed query", "name", q.Name, "err", err)
 			continue
 		}
-		logrus.Infof("created %q", q.Name)
+		client.logger.InfoContext(ctx, "created seed query", "name", q.Name)
 		success++
 	}
 
-	logrus.Infof("seeding complete: %d/%d queries created", success, len(queries))
+	client.logger.InfoContext(ctx, "seeding complete", "created", success, "total", len(queries))
 }

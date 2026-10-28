@@ -1,14 +1,14 @@
-package main
+package fleetmcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/sirupsen/logrus"
 )
 
 func registerInventoryTools(s *server.MCPServer, fleetClient *FleetClient) {
@@ -18,16 +18,16 @@ func registerInventoryTools(s *server.MCPServer, fleetClient *FleetClient) {
 
 func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, source, extensionFor string) error {
 	if perHost && (fleet != "" || platform != "") {
-		return fmt.Errorf("host_id/host_identifier are mutually exclusive with fleet/platform — pick per-host or cross-host mode")
+		return errors.New("host_id/host_identifier are mutually exclusive with fleet/platform — pick per-host or cross-host mode")
 	}
 	if vulnerable != "" && vulnerable != "true" && vulnerable != "false" {
 		return fmt.Errorf("vulnerable must be 'true' or 'false', got %q", vulnerable)
 	}
 	if extensionFor != "" && source == "" {
-		return fmt.Errorf("extension_for requires source — e.g. source=chrome_extensions with extension_for=brave")
+		return errors.New("extension_for requires source — e.g. source=chrome_extensions with extension_for=brave")
 	}
 	if !perHost && platform != "" && fleet == "" {
-		return fmt.Errorf("platform requires fleet in cross-host mode — Fleet's software/titles endpoint only filters by platform when a team is also set")
+		return errors.New("platform requires fleet in cross-host mode — Fleet's software/titles endpoint only filters by platform when a team is also set")
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_software")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_software")
 
 		hostIDArg := getOptionalString(request, "host_id")
 		identifier := getOptionalString(request, "host_identifier")
@@ -138,7 +138,7 @@ func registerGetHostUsers(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_host_users")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_host_users")
 
 		hostIDArg := getOptionalString(request, "host_id")
 		identifier := getOptionalString(request, "host_identifier")
