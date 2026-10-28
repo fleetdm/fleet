@@ -216,6 +216,12 @@ func (s *Service) detailsWithHostIDs(ctx context.Context, activityName string, d
 	return withIDs
 }
 
+// maxConcurrentWebhookDeliveries caps the HTTP requests in flight across all activity webhooks. A batch such as NewActivities can fire
+// thousands of deliveries at once, which would otherwise open that many connections to the same receiver.
+const maxConcurrentWebhookDeliveries = 50
+
+var webhookDeliverySlots = make(chan struct{}, maxConcurrentWebhookDeliveries)
+
 // fireActivityWebhook sends the activity to the configured webhook URL asynchronously.
 // It uses exponential backoff with a max elapsed time of 30 minutes for retries.
 func (s *Service) fireActivityWebhook(
@@ -265,6 +271,9 @@ func (s *Service) fireActivityWebhook(
 		retryStrategy.MaxElapsedTime = 30 * time.Minute
 		err := backoff.Retry(
 			func() error {
+				// Held per attempt, not across the retries, so a receiver answering 429 doesn't keep slots from the others.
+				webhookDeliverySlots <- struct{}{}
+				defer func() { <-webhookDeliverySlots }()
 				if err := platformhttp.PostJSONWithTimeout(
 					spanCtx, webhookURL, &webhookPayload{
 						Timestamp:     timestamp,

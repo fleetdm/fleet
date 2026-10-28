@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -836,6 +837,42 @@ func TestNewActivities(t *testing.T) {
 		err := svc.NewActivities(t.Context(), user, []api.ActivityDetails{activatorActivity{hostID: 1, cmdUUID: "x"}})
 		require.Error(t, err)
 		assert.Zero(t, ds.calls)
+	})
+
+	t.Run("global webhook deliveries are capped", func(t *testing.T) {
+		const deliveries = 3 * maxConcurrentWebhookDeliveries
+		var inFlight, maxInFlight, received atomic.Int32
+		done := make(chan struct{})
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			n := inFlight.Add(1)
+			for old := maxInFlight.Load(); n > old && !maxInFlight.CompareAndSwap(old, n); old = maxInFlight.Load() {
+			}
+			time.Sleep(20 * time.Millisecond)
+			inFlight.Add(-1)
+			if received.Add(1) == deliveries {
+				close(done)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		providers := &newActivityMockProviders{
+			mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{},
+			webhookConfig: &activity.ActivitiesWebhookSettings{Enable: true, DestinationURL: srv.URL},
+		}
+		svc := newTestServiceWithWebhook(&bulkMockDatastore{}, providers)
+
+		activities := make([]api.ActivityDetails, deliveries)
+		for i := range activities {
+			activities[i] = simpleActivity{Name: fmt.Sprintf("a%d", i)}
+		}
+		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
+
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timeout: %d of %d deliveries received", received.Load(), deliveries)
+		}
+		assert.LessOrEqual(t, int(maxInFlight.Load()), maxConcurrentWebhookDeliveries)
 	})
 
 	t.Run("each fleet destination only receives its own hosts' activities", func(t *testing.T) {
