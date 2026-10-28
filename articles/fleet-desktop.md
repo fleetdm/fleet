@@ -60,6 +60,8 @@ Fleet can be configured to require an end user to authenticate via SSO to view t
 To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
 
+> If you deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin), end users have to sign in each time the app is relaunched (for example, after an app update, a restart, or quitting the app). The app doesn't share a session with the Fleet Desktop menu bar icon or the end user's web browser, so signing in to one doesn't sign them in to the others.
+
 ## Advanced
 
 ### Hide the menu bar icon on macOS

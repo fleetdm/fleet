@@ -32,6 +32,7 @@ enum ACTIONS {
   SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
+  SET_HOST_COUNT = "SET_HOST_COUNT",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
   SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
   SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
@@ -104,6 +105,11 @@ interface ISetNoSandboxHostsAction {
   noSandboxHosts: boolean;
 }
 
+interface ISetHostCountAction {
+  type: ACTIONS.SET_HOST_COUNT;
+  hostCount?: number;
+}
+
 interface ISetFilteredHostsPathAction {
   type: ACTIONS.SET_FILTERED_HOSTS_PATH;
   filteredHostsPath: string;
@@ -137,6 +143,7 @@ type IAction =
   | ISetVppExpiryAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
+  | ISetHostCountAction
   | ISetFilteredHostsPathAction
   | ISetFilteredSoftwarePathAction
   | ISetFilteredQueriesPathAction
@@ -194,6 +201,8 @@ type InitialStateType = {
   vppExpiry?: string;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
+  /** Total hosts across all fleets. Only loaded for global users on Fleet Premium. */
+  hostCount?: number;
   filteredHostsPath?: string;
   filteredSoftwarePath?: string;
   filteredQueriesPath?: string;
@@ -214,6 +223,7 @@ type InitialStateType = {
   setVppExpiry: (vppExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
+  setHostCount: (hostCount?: number) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
   setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
   setFilteredQueriesPath: (filteredQueriesPath: string) => void;
@@ -281,6 +291,7 @@ export const initialState = {
   setVppExpiry: () => null,
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
+  setHostCount: () => null,
   setFilteredHostsPath: () => null,
   setFilteredSoftwarePath: () => null,
   setFilteredQueriesPath: () => null,
@@ -467,6 +478,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         noSandboxHosts,
       };
     }
+    case ACTIONS.SET_HOST_COUNT: {
+      const { hostCount } = action;
+      return {
+        ...state,
+        hostCount,
+      };
+    }
     case ACTIONS.SET_FILTERED_HOSTS_PATH: {
       const { filteredHostsPath } = action;
       return {
@@ -560,6 +578,10 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
   }, []);
 
+  const setHostCount = useCallback((hostCount?: number) => {
+    dispatch({ type: ACTIONS.SET_HOST_COUNT, hostCount });
+  }, []);
+
   const setFilteredHostsPath = useCallback((filteredHostsPath: string) => {
     dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
   }, []);
@@ -611,6 +633,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       willApplePnsExpire: state.willApplePnsExpire,
       willVppExpire: state.willVppExpire,
       noSandboxHosts: state.noSandboxHosts,
+      hostCount: state.hostCount,
       filteredHostsPath: state.filteredHostsPath,
       filteredSoftwarePath: state.filteredSoftwarePath,
       filteredQueriesPath: state.filteredQueriesPath,
@@ -659,6 +682,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       setVppExpiry,
       setSandboxExpiry,
       setNoSandboxHosts,
+      setHostCount,
       setFilteredHostsPath,
       setFilteredSoftwarePath,
       setFilteredQueriesPath,
@@ -709,6 +733,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.hasInvalidABMToken,
       state.invalidAbmTokenOrgNames,
       state.noSandboxHosts,
+      state.hostCount,
       state.sandboxExpiry,
       state.vppExpiry,
       state.willAppleBmExpire,
@@ -727,6 +752,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       setVppExpiry,
       setSandboxExpiry,
       setNoSandboxHosts,
+      setHostCount,
       setFilteredHostsPath,
       setFilteredSoftwarePath,
       setFilteredQueriesPath,

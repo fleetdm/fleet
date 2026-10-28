@@ -662,11 +662,13 @@ func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceNam
 // that have templates in 'pending' status.
 func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) error {
 	const batchSize = 1000
-	offset := 0
+	// Paged by host UUID rather than offset: each batch's hosts leave 'pending' as they are
+	// processed, so an offset would skip over hosts that are still pending.
+	var afterHostUUID string
 
 	for {
 		// Get hosts with PENDING certificates
-		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, offset, batchSize)
+		hostUUIDs, err := r.DS.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, afterHostUUID, batchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list android host uuids with pending certificate templates")
 		}
@@ -690,7 +692,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 		if len(hostUUIDs) < batchSize {
 			break
 		}
-		offset += batchSize
+		afterHostUUID = hostUUIDs[len(hostUUIDs)-1]
 	}
 
 	return nil

@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -281,6 +282,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			initFatal(err, "loading profile validation schema")
 		}
 	}
+	pvVersion := profilevalidation.Current().Version
+	logger.InfoContext(cmd.Context(), "profile validation schema loaded",
+		"apple_release", pvVersion.Apple.Release, "windows_release", pvVersion.Windows.Release)
 
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
@@ -591,7 +595,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -606,6 +610,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
@@ -639,12 +644,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
 			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)
@@ -846,7 +852,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
-	var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
 			"get_frontend",
@@ -923,6 +929,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			ds,
 			redis_key_value.New(redisPool),
 			clock.C,
+			logger,
+			serveCSP,
+		)
+
+		endUserEnrollNextStepsHandler = service.ServeEndUserEnrollNextSteps(
+			config.Server.URLPrefix,
 			logger,
 			serveCSP,
 		)
@@ -1111,6 +1123,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 	rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+	// Registered with and without the trailing slash: the design and any link
+	// written as /enroll/next-steps/ would otherwise fall through to the "/"
+	// catch-all and serve the admin UI to an enrolling end user.
+	rootMux.Handle("/enroll/next-steps", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps", config))
+	rootMux.Handle("/enroll/next-steps/", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps/", config))
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{

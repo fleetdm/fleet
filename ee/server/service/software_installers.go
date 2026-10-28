@@ -5066,16 +5066,6 @@ func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint,
 		}
 	}
 
-	// Re-send the app to iOS and iPadOS hosts whose version is deleted and that are in scope for a remaining version,
-	// the delete cleared the version of their installs. Queue nothing when every version is deleted, deleting an
-	// iOS or iPadOS app never removes it from hosts.
-	if (versions[0].Platform == fleet.IOSPlatform || versions[0].Platform == fleet.IPadOSPlatform) && len(versionsToDelete) < len(versions) {
-		err := worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, versions[0].VPPAppID, ptr.ValOrZero(teamID), nil, false, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
-		}
-	}
-
 	if len(androidHostsToUninstall) == 0 && len(androidHostsByNextVersionID) == 0 {
 		return nil
 	}
