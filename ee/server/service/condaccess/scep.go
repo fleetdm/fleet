@@ -84,6 +84,8 @@ func RegisterSCEP(
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
 	scepHandler = otel.WrapHandler(scepHandler, scepPath, *fleetConfig)
 	mux.Handle(scepPath, scepHandler)
+	// The Windows SCEP client appends /pkiclient.exe to the server URL, as NDES expects, and can't be told not to.
+	mux.Handle(scepPath+"/pkiclient.exe", scepHandler)
 	return nil
 }
 

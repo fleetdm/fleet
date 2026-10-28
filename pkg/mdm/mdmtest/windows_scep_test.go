@@ -27,6 +27,7 @@ func TestExtractSCEPCommandsAtomicLayout(t *testing.T) {
 	assert.Equal(t, "https://scep.example.com/scep", got[0].ServerURL)
 	assert.Equal(t, "challenge-abc", got[0].Challenge)
 	assert.Equal(t, "CN=device-1,OU=fleet-1", got[0].SubjectName)
+	assert.Equal(t, "7+urn:device:fleet:uuid:uniq-1", got[0].SubjectAlternativeNames)
 	assert.Equal(t, atomic.CmdID.Value, got[0].AtomicCmdID)
 	assert.NotEmpty(t, got[0].EnrollCmdID)
 }
@@ -77,6 +78,7 @@ func buildAtomicSCEPCmd(t *testing.T, locPrefix, uniqueID, serverURL, challenge,
 			mkAdd("ServerURL", serverURL),
 			mkAdd("Challenge", challenge),
 			mkAdd("SubjectName", subject),
+			mkAdd("SubjectAlternativeNames", "7+urn:device:fleet:uuid:"+uniqueID),
 			mkAdd("KeyLength", "2048"),
 			mkAdd("HashAlgorithm", "SHA-256"),
 		},
@@ -86,4 +88,30 @@ func buildAtomicSCEPCmd(t *testing.T, locPrefix, uniqueID, serverURL, challenge,
 			Items:   []fleet.CmdItem{{Target: &enrollLoc}},
 		}},
 	}
+}
+
+// Windows CertEnroll accepts quoted RDN values, and Fleet quotes values it substitutes into SubjectName.
+func TestParseSCEPSubjectQuotedValues(t *testing.T) {
+	n, err := parseSCEPSubject(`CN=Fleet conditional access for Okta,OU="fleet-abc"`)
+	require.NoError(t, err)
+	assert.Equal(t, "Fleet conditional access for Okta", n.CommonName)
+	assert.Equal(t, []string{"fleet-abc"}, n.OrganizationalUnit)
+
+	n, err = parseSCEPSubject(`CN="say ""hi"""`)
+	require.NoError(t, err)
+	assert.Equal(t, `say "hi"`, n.CommonName)
+}
+
+func TestParseSCEPSubjectAltNameURIs(t *testing.T) {
+	uris, err := parseSCEPSubjectAltNameURIs("2+user@example.com;7+urn:device:fleet:uuid:ABC;3+host.example.com")
+	require.NoError(t, err)
+	require.Len(t, uris, 1)
+	assert.Equal(t, "urn:device:fleet:uuid:ABC", uris[0].String())
+
+	uris, err = parseSCEPSubjectAltNameURIs("")
+	require.NoError(t, err)
+	assert.Empty(t, uris)
+
+	_, err = parseSCEPSubjectAltNameURIs("no-name-type")
+	require.Error(t, err)
 }
