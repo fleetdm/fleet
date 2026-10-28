@@ -2158,3 +2158,118 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 		})
 	}
 }
+
+type recordingESTService struct {
+	fleet.ESTService
+	validatedURLs []string
+}
+
+func (r *recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
+	r.validatedURLs = append(r.validatedURLs, ca.URL)
+	return nil
+}
+
+func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {
+	existing := fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{{
+			ID: 5, Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile",
+			CertificateCommonName: "cn", CertificateUserPrincipalNames: []string{"upn"}, CertificateSeatID: "seat",
+		}},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{{ID: 1, Name: "SCEP", URL: "https://scep.example.com", Challenge: "challenge"}},
+		Hydrant:         []fleet.HydrantCA{{ID: 2, Name: "HYDRANT", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: "secret"}},
+		EST:             []fleet.ESTProxyCA{{ID: 3, Name: "EST", URL: "https://est.example.com", Username: "user", Password: "pass"}},
+		Smallstep: []fleet.SmallstepSCEPProxyCA{{
+			ID: 4, Name: "SMALLSTEP", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
+			Username: "user", Password: "pass",
+		}},
+	}
+	// incoming CAs from YAML have no IDs
+	unchanged := func() fleet.GroupedCertificateAuthorities {
+		cas := fleet.GroupedCertificateAuthorities{
+			DigiCert:        []fleet.DigiCertCA{existing.DigiCert[0]},
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{existing.CustomScepProxy[0]},
+			Hydrant:         []fleet.HydrantCA{existing.Hydrant[0]},
+			EST:             []fleet.ESTProxyCA{existing.EST[0]},
+			Smallstep:       []fleet.SmallstepSCEPProxyCA{existing.Smallstep[0]},
+		}
+		cas.DigiCert[0].ID, cas.CustomScepProxy[0].ID, cas.Hydrant[0].ID, cas.EST[0].ID, cas.Smallstep[0].ID = 0, 0, 0, 0, 0
+		return cas
+	}
+
+	for _, tc := range []struct {
+		name        string
+		incoming    func() fleet.GroupedCertificateAuthorities
+		wantUpdated []string
+	}{
+		{name: "identical CAs are skipped", incoming: unchanged},
+		{
+			name: "padded values are trimmed before comparing",
+			incoming: func() fleet.GroupedCertificateAuthorities {
+				cas := unchanged()
+				cas.DigiCert[0].Name, cas.DigiCert[0].ProfileID = " DIGICERT ", " profile "
+				cas.CustomScepProxy[0].URL = " https://scep.example.com "
+				cas.Hydrant[0].Name = " HYDRANT"
+				cas.EST[0].URL = "https://est.example.com\n"
+				cas.Smallstep[0].ChallengeURL, cas.Smallstep[0].Username = " https://smallstep.example.com/challenge", "user "
+				return cas
+			},
+		},
+		{
+			name: "changed secrets are validated and updated",
+			incoming: func() fleet.GroupedCertificateAuthorities {
+				cas := unchanged()
+				cas.CustomScepProxy[0].Challenge = "new-challenge"
+				cas.Hydrant[0].ClientSecret = "new-secret"
+				cas.EST[0].Password = "new-pass"
+				cas.Smallstep[0].Password = "new-pass"
+				return cas
+			},
+			wantUpdated: []string{"SCEP", "HYDRANT", "EST", "SMALLSTEP"},
+		},
+		{
+			name: "case-only rename is an update",
+			incoming: func() fleet.GroupedCertificateAuthorities {
+				cas := unchanged()
+				cas.CustomScepProxy[0].Name = "scep"
+				return cas
+			},
+			wantUpdated: []string{"scep"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetGroupedCertificateAuthoritiesFunc = func(_ context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				require.True(t, includeSecrets)
+				return &existing, nil
+			}
+			var scepValidatedURLs []string
+			estService := &recordingESTService{}
+			svc := &Service{
+				ds:         ds,
+				logger:     slog.New(slog.DiscardHandler),
+				estService: estService,
+				scepConfigService: &scep_mock.SCEPConfigService{
+					ValidateSCEPURLFunc: func(_ context.Context, url string) error {
+						scepValidatedURLs = append(scepValidatedURLs, url)
+						return nil
+					},
+					ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error { return nil },
+				},
+			}
+
+			ops, err := svc.getCertificateAuthoritiesBatchOperations(t.Context(), tc.incoming())
+			require.NoError(t, err)
+			require.Empty(t, ops.Add)
+			require.Empty(t, ops.Delete)
+			var updated []string
+			for _, ca := range ops.Update {
+				updated = append(updated, *ca.Name)
+			}
+			require.ElementsMatch(t, tc.wantUpdated, updated)
+			if len(tc.wantUpdated) == 0 {
+				require.Empty(t, scepValidatedURLs, "unchanged CAs must not call the SCEP server")
+				require.Empty(t, estService.validatedURLs, "unchanged CAs must not call the EST server")
+			}
+		})
+	}
+}

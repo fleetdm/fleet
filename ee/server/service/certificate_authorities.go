@@ -610,12 +610,13 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil
 	}
 
-	// preprocess digicert
-	for _, ca := range incoming.DigiCert {
+	// preprocess digicert, in place so the trimmed values are what gets stored
+	for i := range incoming.DigiCert {
+		ca := &incoming.DigiCert[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
 			return nil, err
@@ -633,44 +634,49 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// preprocess custom scep proxy
-	for _, ca := range incoming.CustomScepProxy {
+	// preprocess custom scep proxy, in place so the trimmed values are what gets stored
+	for i := range incoming.CustomScepProxy {
+		ca := &incoming.CustomScepProxy[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "custom_scep_proxy", "Custom SCEP Proxy"); err != nil {
 			return nil, err
 		}
 	}
-	// preprocess hydrant
-	for _, ca := range incoming.Hydrant {
+	// preprocess hydrant, in place so the trimmed values are what gets stored
+	for i := range incoming.Hydrant {
+		ca := &incoming.Hydrant[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.hydrant: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "hydrant", "Hydrant"); err != nil {
 			return nil, err
 		}
 	}
-	for _, ca := range incoming.EST {
-		if strings.TrimSpace(ca.Name) == "" {
+	// preprocess custom est proxy, in place so the trimmed values are what gets stored
+	for i := range incoming.EST {
+		ca := &incoming.EST[i]
+		ca.Preprocess()
+		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "custom_est_proxy", "Custom EST Proxy"); err != nil {
 			return nil, err
 		}
 	}
-	// preprocess smallstep
-	for _, ca := range incoming.Smallstep {
+	// preprocess smallstep, in place so the trimmed values are what gets stored
+	for i := range incoming.Smallstep {
+		ca := &incoming.Smallstep[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "smallstep", "Smallstep"); err != nil {
 			return nil, err
@@ -931,11 +937,16 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateCustomSCEPProxy(ctx, incoming, "certificate_authorities.custom_scep_proxy: "); err != nil {
 			return err
 		}
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
@@ -981,12 +992,17 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateHydrant(ctx, incoming, "certificate_authorities.hydrant: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
@@ -1034,12 +1050,17 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateEST(ctx, incoming, "certificate_authorities.custom_est_proxy: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeCustomESTProxy),
@@ -1088,12 +1109,17 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateSmallstepSCEPProxy(ctx, incoming, "certificate_authorities.smallstep: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeSmallstep),
