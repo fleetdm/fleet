@@ -1754,6 +1754,8 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
+type GetMDMProfileChecksumsFunc func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error)
+
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error)
@@ -5225,6 +5227,9 @@ type DataStore struct {
 
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
+
+	GetMDMProfileChecksumsFunc        GetMDMProfileChecksumsFunc
+	GetMDMProfileChecksumsFuncInvoked bool
 
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
@@ -12596,6 +12601,13 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
+}
+
+func (s *DataStore) GetMDMProfileChecksums(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+	s.mu.Lock()
+	s.GetMDMProfileChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMProfileChecksumsFunc(ctx, teamID)
 }
 
 func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {

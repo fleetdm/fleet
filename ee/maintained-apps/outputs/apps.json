@@ -5546,6 +5546,27 @@
       "description": "Microsoft .NET Runtime 8 is the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
     },
     {
+      "name": "Microsoft .NET SDK 10",
+      "slug": "microsoft-dotnet-sdk-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 10",
+      "description": "Microsoft .NET SDK 10 is the software development kit for building, testing, and publishing .NET 10 apps, including the dotnet CLI and the .NET 10 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 8",
+      "slug": "microsoft-dotnet-sdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 8",
+      "description": "Microsoft .NET SDK 8 is the software development kit for building, testing, and publishing .NET 8 apps, including the dotnet CLI and the .NET 8 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 9",
+      "slug": "microsoft-dotnet-sdk-9/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 9",
+      "description": "Microsoft .NET SDK 9 is the software development kit for building, testing, and publishing .NET 9 apps, including the dotnet CLI and the .NET 9 runtimes."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",

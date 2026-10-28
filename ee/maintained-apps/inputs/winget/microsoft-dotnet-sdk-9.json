@@ -1,0 +1,14 @@
+{
+  "name": "Microsoft .NET SDK 9",
+  "slug": "microsoft-dotnet-sdk-9/windows",
+  "package_identifier": "Microsoft.DotNet.SDK.9",
+  "unique_identifier": "Microsoft .NET SDK 9",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 9.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation';",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "use_display_version_for_patch": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_sdk_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_sdk_9_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

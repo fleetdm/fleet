@@ -1231,6 +1231,54 @@ func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigEnableProfileValidation(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, initial bool) (fleet.Service, context.Context, *fleet.AppConfig) {
+		ds := new(mock.Store)
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		dsAppConfig.MDM.EnableProfileValidation = initial
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig.Copy(), nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(context.Context, *activity_api.User, activity_api.ActivityDetails) error { return nil }
+		return svc, viewer.NewContext(ctx, viewer.Viewer{User: admin}), dsAppConfig
+	}
+
+	cases := []struct {
+		name      string
+		initial   bool
+		body      string
+		overwrite bool
+		want      bool
+	}{
+		{"patch false persists", true, `{"mdm":{"enable_profile_validation":false}}`, false, false},
+		{"patch without key keeps false", false, `{"org_info":{"org_name":"Renamed"}}`, false, false},
+		{"overwrite without key sets true", false, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite without mdm keeps true", true, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite false sets false", true, `{"mdm":{"enable_profile_validation":false}}`, true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, ctx, dsAppConfig := newSvc(t, c.initial)
+			modified, err := svc.ModifyAppConfig(ctx, []byte(c.body), fleet.ApplySpecOptions{Overwrite: c.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, c.want, modified.MDM.EnableProfileValidation)
+			require.Equal(t, c.want, dsAppConfig.MDM.EnableProfileValidation)
+		})
+	}
+}
+
 // TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
 // template stored while premium is cleared on a Free-tier ModifyAppConfig (so
 // the cron, which enforces on MDM.EnabledAndConfigured rather than the license,

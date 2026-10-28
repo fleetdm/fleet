@@ -196,6 +196,7 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -216,7 +217,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil || c.EnableProfileValidation != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -1333,16 +1334,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
 
-	// apple_account_provisioning is a global-only MDM setting (it maps to global
-	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
-	// global configuration (or the no-team/unassigned file).
-	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
-		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
-		))
-	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
+
+	// apple_account_provisioning and enable_profile_validation are global-only MDM
+	// settings (they map to global AppConfig.MDM). Reject them in a specific team's
+	// file; they belong in the global configuration (or the no-team/unassigned file).
+	// Checked after path resolution, so a referenced controls file can't bypass it.
+	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		if result.Controls.AppleAccountProvisioning != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+		if result.Controls.EnableProfileValidation != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error

@@ -1838,6 +1838,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "merlin project": MerlinProject,
   "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft .net sdk": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,

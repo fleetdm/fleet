@@ -1438,6 +1438,30 @@ func (ds *Datastore) applyHostFilters(
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		whereParams = append(whereParams, *softwareIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
+		// Reject a version or package filter that isn't one of the title's in the fleet
+		if opt.AppStoreAppVersionIDFilter != nil {
+			_, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id is not a version of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+			}
+		}
+		if opt.SoftwareInstallerIDFilter != nil {
+			_, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.SoftwareInstallerIDFilter, false)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id is not a package of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get software installer for title")
+			}
+		}
+
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
@@ -1470,17 +1494,6 @@ func (ds *Datastore) applyHostFilters(
 					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
-				}
-				if opt.AppStoreAppVersionIDFilter != nil {
-					_, err = ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
-					switch {
-					case fleet.IsNotFound(err):
-						return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-							Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
-						}, "mismatched child id for title")
-					case err != nil:
-						return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
-					}
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {

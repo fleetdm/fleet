@@ -2831,6 +2831,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
+    case ActivityType.AddedEJBCA:
     case ActivityType.AddedHydrant:
     case ActivityType.AddedCustomESTProxy:
     case ActivityType.AddedSmallstep:
@@ -2839,6 +2840,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedEJBCA:
     case ActivityType.DeletedHydrant:
     case ActivityType.DeletedCustomESTProxy:
     case ActivityType.DeletedSmallstep:
@@ -2849,6 +2851,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
+    case ActivityType.EditedEJBCA:
     case ActivityType.EditedHydrant:
     case ActivityType.EditedCustomESTProxy:
     case ActivityType.EditedSmallstep:
