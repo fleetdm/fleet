@@ -330,7 +330,11 @@ func (oc *OrbitClient) TransportConnected() {
 
 // TransportDisconnected tells ExecuteConfigReceivers that the WebSocket transport disconnected, so changes are no
 // longer nudged: a slow fallback poll is shortened to DefaultConfigPollInterval. Non-blocking.
+//
+// It also drops pooled HTTP connections: a drop often follows sleep or a network change, which leaves them bound
+// to a dead local address, so reusing them would stall the next request.
 func (oc *OrbitClient) TransportDisconnected() {
+	oc.forceCloseIdleConnections()
 	select {
 	case oc.disconnectedCh <- struct{}{}:
 	default:
@@ -382,7 +386,10 @@ func (oc *OrbitClient) closeIdleConnections() {
 	}
 
 	oc.lastIdleConnectionsCleanup = time.Now()
+	oc.forceCloseIdleConnections()
+}
 
+func (oc *OrbitClient) forceCloseIdleConnections() {
 	rawClient := oc.GetRawHTTPClient()
 	c, ok := rawClient.(*http.Client)
 	if !ok {
