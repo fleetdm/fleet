@@ -339,6 +339,8 @@ To run a script during setup experience, add a script-only package (a .sh file u
 
 4. Press **Save**.
 
+> The **Run script** tab is hidden from **Controls > Setup experience**. You can still open the page directly at `https://<fleet-server-url>/controls/setup-experience/run-script`.
+
 To replace the Fleet logo with your organization's logo:
 
 1. Go to **Settings** > **Organization settings** > **Organization info**.
