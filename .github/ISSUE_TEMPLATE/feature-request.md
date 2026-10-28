@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-<!-- Product Design fills this in within one week to unpack the request: https://fleetdm.com/handbook/product-design#unpacking-the-why -->
+<!-- Product Designer fills this out during unpacking: https://fleetdm.com/handbook/product-design#unpacking-the-why
 **Problem:** TODO
 **Proposed solution:** TODO
 **Timing:** TODO
