@@ -19,11 +19,10 @@
   }
 
   // The text and its button side by side, so long text wraps and scrolls
-  // beside the button rather than under it.
+  // beside the button rather than under it. The padding is the text's own,
+  // so its scroll bar runs the box's full height beside the button.
   &__prompt {
     display: flex;
-    gap: $pad-small;
-    padding: $pad-medium;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
     background-color: $core-fleet-white;
@@ -42,7 +41,8 @@
 
   &__prompt-input {
     flex: 1;
-    padding: 0;
+    box-sizing: border-box;
+    padding: $pad-medium $pad-small $pad-medium $pad-medium;
     font-family: inherit;
     font-size: $x-small;
     line-height: $line-height;
@@ -66,6 +66,7 @@
 
   &__prompt-action {
     align-self: flex-end;
+    padding: 0 $pad-medium $pad-medium 0;
   }
 
   // Sizes per the design: Send is smaller than the standard 36px icon
