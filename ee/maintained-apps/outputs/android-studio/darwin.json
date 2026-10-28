@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2026.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.google.android.studio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.2.1.8/android-studio-rabbit1-mac_arm.dmg",
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.2.2.8/android-studio-rabbit2-mac_arm.dmg",
       "install_script_ref": "d69908f5",
       "uninstall_script_ref": "2467da82",
-      "sha256": "16d4a0f8a52413b51869fc18d5bdcdf9cecd38615cd7bb7cf14d51b99d2fef54",
+      "sha256": "a0d0672b06119cd304867c157c252496883625efbaa21dee2d8637879c327713",
       "default_categories": [
         "Developer tools"
       ]
