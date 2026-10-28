@@ -21,8 +21,8 @@ Built-in variables:
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
-| `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware serial number. For user enrolled iOS and iPadOS hosts with Managed Apple Account, this is the host's enrollment ID. Not available for personally owned Android hosts on Android 12 and later. |
-| `$FLEET_VAR_HOST_UUID` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID. For personal (BYOD) iOS, iPadOS, and Android hosts, this is the host's enrollment ID. For company-owned Android hosts, this is an ID that Fleet generates. |
+| `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware serial number. Not available for personal (BYOD) hosts: user enrolled iOS and iPadOS hosts with Managed Apple Account, and personally owned Android hosts with a work profile. Use `$FLEET_VAR_HOST_ENROLLMENT_ID` instead. |
+| `$FLEET_VAR_HOST_UUID` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID. Not available for personal (BYOD) hosts or company-owned Android hosts. For personal hosts, use `$FLEET_VAR_HOST_ENROLLMENT_ID` instead. |
 | `$FLEET_VAR_HOST_ENROLLMENT_ID` | None | iOS, iPadOS, Android | iOS, iPadOS, and Android | Host's enrollment ID. Only available for personal (BYOD) hosts: user enrolled iOS and iPadOS hosts with Managed Apple Account, and personally owned Android hosts with a work profile. This is the same value as the `enrollment_id` returned by the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) API endpoint. |
 | `$FLEET_VAR_HOST_PLATFORM` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`, and `"android"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the custom SCEP certificate authority configured in **Settings > Integrations > Certificate authorities**. |
@@ -39,6 +39,8 @@ Built-in variables:
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 
 
+
+If a variable isn't available for a host, the configuration profile or managed app configuration fails for that host, and Fleet shows an error explaining which variable it couldn't populate.
 
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
