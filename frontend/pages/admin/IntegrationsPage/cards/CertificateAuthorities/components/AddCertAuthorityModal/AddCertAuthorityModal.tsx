@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
 import {
   ICertificateAuthorityPartial,
   ICertificateAuthorityType,
@@ -17,6 +18,8 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import EJBCAForm from "../EJBCAForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import GoogleCASForm from "../GoogleCASForm";
 import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
@@ -31,6 +34,7 @@ import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getErrorMessage,
+  handleEJBCAServerError,
 } from "./helpers";
 
 export type ICertFormData =
@@ -40,6 +44,7 @@ export type ICertFormData =
   | ICustomSCEPFormData
   | ISmallstepFormData
   | ICustomESTFormData
+  | IEJBCAFormData
   | IGoogleCASFormData;
 
 const baseClass = "add-cert-authority-modal";
@@ -66,6 +71,10 @@ const AddCertAuthorityModal = ({
     dropdownOptions[0].value as ICertificateAuthorityType
   );
   const [isAdding, setIsAdding] = useState(false);
+  const [
+    ejbcaServerErrors,
+    setEJBCAServerErrors,
+  ] = useState<IFormErrors | null>(null);
   const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
     url: "https://one.digicert.com",
@@ -118,6 +127,8 @@ const AddCertAuthorityModal = ({
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
+    // the EJBCA form starts empty when it is shown again, so the errors of the last request don't belong to it
+    setEJBCAServerErrors(null);
   };
 
   const onChangeForm = (update: { name: string; value: string }) => {
@@ -208,6 +219,25 @@ const AddCertAuthorityModal = ({
     setIsAdding(false);
   };
 
+  const onAddEJBCA = async (formData: IEJBCAFormData) => {
+    const addCertAuthorityData = generateAddCertAuthorityData(
+      "ejbca",
+      formData
+    );
+    if (!addCertAuthorityData) {
+      return;
+    }
+    setIsAdding(true);
+    try {
+      await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
+      notify.success("Successfully added your certificate authority.");
+      onExit();
+    } catch (e) {
+      handleEJBCAServerError(e, "add", setEJBCAServerErrors);
+    }
+    setIsAdding(false);
+  };
+
   const renderForm = () => {
     const submitBtnText = "Add CA";
 
@@ -280,6 +310,17 @@ const AddCertAuthorityModal = ({
             isSubmitting={isAdding}
             onChange={onChangeForm}
             onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "ejbca":
+        return (
+          <EJBCAForm
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            serverErrors={ejbcaServerErrors}
+            onSubmit={onAddEJBCA}
             onCancel={onExit}
           />
         );

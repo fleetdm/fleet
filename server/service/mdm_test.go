@@ -2612,7 +2612,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, nil, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -2665,12 +2665,12 @@ func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	}
 
 	// Test dry-run
-	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, false)
+	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 
 	// Test actual run
-	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, false)
+	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 }
@@ -2756,7 +2756,7 @@ func TestMDMBatchSetProfilesWindowsAssumeEnabled(t *testing.T) {
 			windowsEnabled = tc.windowsEnabled
 			ds.BatchSetMDMProfilesFuncInvoked = false
 
-			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, false)
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, nil, false)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, tc.wantErr)
@@ -3645,7 +3645,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
 
-	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true), false)
+	err := svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, profiles, false, false, new(true), nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])
@@ -3665,20 +3665,20 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["AExclAny"])
 
 	// Test that a bad label doesn't pass validation...
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, false, false, ptr.Bool(true), false)
+	}}, false, false, new(true), nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, true, false, ptr.Bool(true), false)
+	}}, true, false, new(true), nil, false)
 	require.NoError(t, err)
 }
 
@@ -3831,7 +3831,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			}
 
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), nil, false)
 
 			if c.wantErr != "" {
 				require.Error(t, err)
@@ -3887,7 +3887,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 			gotDocs = documents
 			return nil
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.NoError(t, err)
 		found := false
 		for _, doc := range gotDocs {
@@ -3903,7 +3903,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -3916,7 +3916,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "connection refused")
 		var invalidArgErr *fleet.InvalidArgumentError

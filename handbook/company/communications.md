@@ -267,11 +267,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with `[shared externally to the company] `. This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
 
 
-## Company database
+## The archives
 
-Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
-- Check for existing files to avoid duplication.
-- Avoid breaking Google Drive links. In some cases, you can update files by using the "Manage versions" option (in the right-click menu) so that links continue to work.
+The files in Google Drive are our history, our unfiltered treasure trove, and our archives of thousands of call transcripts and meeting notes. That makes them extremely useful with AI. For example, generate a NotebookLM podcast from Google Docs.
+
+Before adding a file, check for duplicates. Update files with "Manage versions" so links keep working.
 
 
 ## Communicating with team members
