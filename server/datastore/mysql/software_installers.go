@@ -591,8 +591,8 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		// macOS FMA names on FMA catalog sync, so we only do Windows here.
 		renameToFMA := payload.FleetMaintainedAppID != nil && current.Name != payload.Title
 		if renameToFMA {
-			// The x64 and ARM64 builds of an MSI can share an upgrade code, putting two FMAs (in different
-			// fleets) on one title. The first keeps its name; renaming on every add would flip it back and forth.
+			// The x64 and ARM64 builds of an MSI can share an upgrade code, putting two FMAs (in one fleet or
+			// several) on one title. The first keeps its name; renaming on every add would flip it back and forth.
 			var otherFMAOwnsTitle bool
 			if err := sqlx.GetContext(ctx, tx, &otherFMAOwnsTitle,
 				`SELECT EXISTS (SELECT 1 FROM software_installers WHERE title_id = ? AND fleet_maintained_app_id != ?)`,
@@ -848,8 +848,9 @@ func (ds *Datastore) redirectPendingInstallsToActiveInstaller(ctx context.Contex
 // active, has no active sibling, or no longer exists.
 func (ds *Datastore) ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error) {
 	// Only Fleet-maintained apps have the single-active-version semantics this
-	// resolves against: an FMA title has exactly one is_active=1 row, so the active
-	// sibling is unambiguous. Custom titles can have several packages all flagged
+	// resolves against: an FMA has exactly one is_active=1 row per title (a title
+	// holding x64 and ARM64 builds has one per build), so the active version of the
+	// same app is unambiguous. Custom titles can have several packages all flagged
 	// is_active=1, and each is a distinct package (not a version of the other), so a
 	// retry must stay on its own installer — the query returns no row for them and
 	// the given id is used unchanged.
@@ -899,21 +900,43 @@ func (ds *Datastore) ResolveFleetMaintainedAppBuildForHost(ctx context.Context, 
 		if !fleet.MaintainedAppsAreArchSiblings(row.Slug, row.SiblingSlug) {
 			continue
 		}
+		// Labels don't apply during setup experience; a build must be selected for it instead.
+		inScope := func(id uint, installDuringSetup bool) (bool, error) {
+			if opts.ForSetupExperience {
+				return installDuringSetup, nil
+			}
+			scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, id, host.ID)
+			return scoped, ctxerr.Wrap(ctx, err, "check label scope of fleet-maintained app build")
+		}
+
 		fit := fleet.MaintainedAppArchFitForHost(host, row.Slug, true)
 		if fit == fleet.MaintainedAppArchNative {
+			// An ARM host outside the ARM64 build's scope falls back to the x64 build, which runs under emulation.
+			if opts.ForSetupExperience || !host.IsWindowsARM() {
+				return installerID, true, nil
+			}
+			scoped, err := inScope(installerID, false)
+			if err != nil {
+				return 0, false, err
+			}
+			if scoped {
+				return installerID, true, nil
+			}
+			siblingScoped, err := inScope(row.SiblingID, row.SiblingInstallDuringSetup)
+			if err != nil {
+				return 0, false, err
+			}
+			if siblingScoped {
+				return row.SiblingID, true, nil
+			}
 			return installerID, true, nil
 		}
-		// Labels don't apply during setup experience; the sibling must be selected for it instead.
-		scoped := row.SiblingInstallDuringSetup
-		if !opts.ForSetupExperience {
-			var err error
-			scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, row.SiblingID, host.ID)
-			if err != nil {
-				return 0, false, ctxerr.Wrap(ctx, err, "check label scope of arch sibling")
-			}
-		}
+
+		siblingScoped, err := inScope(row.SiblingID, row.SiblingInstallDuringSetup)
 		switch {
-		case scoped:
+		case err != nil:
+			return 0, false, err
+		case siblingScoped:
 			return row.SiblingID, true, nil
 		case fit == fleet.MaintainedAppArchEmulated:
 			return installerID, true, nil
@@ -1849,7 +1872,7 @@ WHERE
 var (
 	errDeleteInstallerWithAssociatedInstallPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 	errDeleteInstallerInstalledDuringSetup        = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
-	errDeleteInstallerWithAssociatedPatchPolicy   = &fleet.ConflictError{Message: "Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again."}
+	errDeleteInstallerWithAssociatedPatchPolicy   = &fleet.ConflictError{Message: fleet.DeleteSoftwareWithPatchPolicyMessage}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
@@ -4113,6 +4136,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 
 		// Source of truth for FMA titles: remove the rows of any app this batch didn't list for the title,
 		// such as an arch sibling dropped from the YAML. Its policies move to a listed app's active installer.
+		// Plain read, then lock just those rows before writing their policies, in the order queuing an
+		// install takes them, so an unchanged apply locks nothing.
 		for _, titleID := range slices.Sorted(maps.Keys(fmaIDsByTitle)) {
 			fmaIDs := fmaIDsByTitle[titleID]
 			stmt, args, err := sqlx.In(`SELECT id FROM software_installers
@@ -4126,6 +4151,13 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 			if len(unlistedIDs) == 0 {
 				continue
+			}
+			stmt, args, err = sqlx.In(`SELECT id FROM software_installers WHERE id IN (?) FOR UPDATE`, unlistedIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to lock unlisted fleet-maintained apps")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock unlisted fleet-maintained apps")
 			}
 			stmt, args, err = sqlx.In(`UPDATE policies SET software_installer_id = (
 					SELECT MIN(id) FROM software_installers
@@ -5478,21 +5510,21 @@ func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID
 		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ? AND fleet_maintained_app_id = ?
 	`, ptr.ValOrZero(teamID), titleID, fmaID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 	}
 	return &version, nil
 }
 
 func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint, version string) error {
 	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, fmaID, version); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting pinned version")
+		return ctxerr.Wrap(ctx, err, "set pinned version")
 	}
 	return nil
 }
 
 func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint) error {
 	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, fmaID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting pinned version")
+		return ctxerr.Wrap(ctx, err, "delete pinned version")
 	}
 	return nil
 }

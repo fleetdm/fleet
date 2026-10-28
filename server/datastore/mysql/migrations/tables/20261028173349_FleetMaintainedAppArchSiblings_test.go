@@ -69,4 +69,13 @@ func TestUp_20261028173349(t *testing.T) {
 	require.Equal(t, 2, pins)
 	_, err := db.Exec(`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (?, ?, ?, '1.0')`, team, chromeTitle, chromeARM)
 	require.Error(t, err)
+
+	// A retry after a partial failure is a no-op.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	require.NoError(t, Up_20261028173349(tx))
+	require.NoError(t, tx.Commit())
+	require.Equal(t, chromeX64, pinApp(chromeTitle))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software_title_team_pins WHERE team_id = ? AND title_id = ?`, team, chromeTitle).Scan(&pins))
+	require.Equal(t, 2, pins)
 }

@@ -3847,4 +3847,30 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppArchSiblings() {
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
 		require.Equal(t, c.want, queuedInstaller(host.ID), "cpu_type %q", c.cpuType)
 	}
+
+	// One patch policy covers both builds.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	require.Contains(t, patchPolicyQuery(), "cpu_type LIKE 'ARM%'")
+
+	// Deleting the whole title is refused up front rather than after removing one build.
+	teamParam := strconv.Itoa(int(team.ID)) //nolint:gosec // dismiss G115
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", teamParam)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.Packages, 2)
+
+	// One build can go; the patch policy then covers the other alone.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"team_id", teamParam, "installer_id", fmt.Sprint(arm64InstallerID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.Packages, 1)
+	require.Equal(t, x64InstallerID, titleResp.SoftwareTitle.Packages[0].InstallerID)
+	require.NotContains(t, patchPolicyQuery(), "cpu_type")
 }

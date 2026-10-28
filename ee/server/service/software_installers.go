@@ -1283,6 +1283,16 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting title packages to delete")
 		}
+		// One build of an FMA can go while the other backs the title's patch policy, so check the title
+		// up front rather than deleting the first build and stopping at the second.
+		if len(pkgs) > 1 && metaInstaller.FleetMaintainedAppID != nil {
+			switch _, err := svc.ds.GetPatchPolicy(ctx, teamID, titleID); {
+			case err == nil:
+				return &fleet.ConflictError{Message: fleet.DeleteSoftwareWithPatchPolicyMessage}
+			case !fleet.IsNotFound(err):
+				return ctxerr.Wrap(ctx, err, "getting patch policy")
+			}
+		}
 		for _, pkg := range pkgs {
 			pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
 			if err := svc.deleteSoftwareInstaller(ctx, pkg); err != nil {
@@ -1769,6 +1779,28 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 		return emulated, anyPackages, nil
 	}
 	return fallback, anyPackages, nil
+}
+
+// nativeFleetMaintainedAppBuild returns the build of a Windows Fleet-maintained app for the host's CPU when
+// the title holds both the x64 and ARM64 builds, ignoring labels, or nil otherwise.
+func (svc *Service) nativeFleetMaintainedAppBuild(ctx context.Context, host *fleet.Host, titleID uint) (*fleet.SoftwareInstaller, error) {
+	pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, host.TeamID, titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing packages for host's fleet-maintained app build")
+	}
+	slugs := make(map[string]struct{}, len(pkgs))
+	for _, pkg := range pkgs {
+		if pkg.FleetMaintainedAppSlug != "" {
+			slugs[pkg.FleetMaintainedAppSlug] = struct{}{}
+		}
+	}
+	for _, pkg := range pkgs {
+		_, hasArchSibling := slugs[fleet.MaintainedAppArchSiblingSlug(pkg.FleetMaintainedAppSlug)]
+		if hasArchSibling && fleet.MaintainedAppArchFitForHost(host, pkg.FleetMaintainedAppSlug, true) == fleet.MaintainedAppArchNative {
+			return pkg, nil
+		}
+	}
+	return nil, nil
 }
 
 // installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
@@ -2425,6 +2457,17 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 				}
 			}
 			return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		}
+		// A title holding the x64 and ARM64 builds of a Windows FMA uninstalls with the host's build, the
+		// one its software list shows; the builds' uninstall scripts can differ.
+		if installer.FleetMaintainedAppID != nil && host.FleetPlatform() == "windows" {
+			nativeBuild, err := svc.nativeFleetMaintainedAppBuild(ctx, host, softwareTitleID)
+			if err != nil {
+				return err
+			}
+			if nativeBuild != nil {
+				installer = nativeBuild
+			}
 		}
 	}
 

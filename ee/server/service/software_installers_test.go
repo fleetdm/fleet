@@ -2559,6 +2559,16 @@ func TestResolveFirstAddedInScopeInstallerArchSiblings(t *testing.T) {
 	outOfScope = map[uint]struct{}{x64.InstallerID: {}}
 	require.Zero(t, resolve("x86_64"))
 	require.Equal(t, arm64.InstallerID, resolve("ARM"))
+
+	// Uninstalls use the host's build, whatever the labels.
+	for cpuType, want := range map[string]uint{"ARM": arm64.InstallerID, "x86_64": x64.InstallerID, "": x64.InstallerID} {
+		build, err := svc.nativeFleetMaintainedAppBuild(t.Context(), &fleet.Host{ID: 1, Platform: "windows", CPUType: cpuType}, 5)
+		require.NoError(t, err)
+		require.NotNil(t, build)
+		if build != nil {
+			require.Equal(t, want, build.InstallerID, "cpu_type %q", cpuType)
+		}
+	}
 }
 
 func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {

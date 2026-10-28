@@ -215,20 +215,13 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// The title may already hold this app's other build (x64 or ARM64) with a patch policy, which
-	// now covers this build too.
-	switch patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, titleID); {
-	case fleet.IsNotFound(err):
-	case err != nil:
-		return 0, ctxerr.Wrap(ctx, err, "getting patch policy")
-	default:
-		if err := svc.ds.RegeneratePatchPolicyQuery(ctx, teamID, titleID); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "regenerating patch policy")
-		}
-		if patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching {
-			if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), titleID); err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "clearing pre-install query for patch policy")
-			}
-		}
+	// now covers this build too. Best effort, like the reconcile below: the app is already added,
+	// and the next version change regenerates the query anyway.
+	if err := svc.extendPatchPolicyToNewBuild(ctx, teamID, titleID); err != nil {
+		svc.logger.ErrorContext(ctx, "updating patch policy after adding a maintained app",
+			"slug", app.Slug,
+			"err", err,
+		)
 	}
 
 	// Windows programs report the version inside their name, so software already
@@ -290,6 +283,24 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	return titleID, nil
+}
+
+func (svc *Service) extendPatchPolicyToNewBuild(ctx context.Context, teamID *uint, titleID uint) error {
+	patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, titleID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy")
+	}
+	if err := svc.ds.RegeneratePatchPolicyQuery(ctx, teamID, titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "regenerating patch policy")
+	}
+	if patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching {
+		return ctxerr.Wrap(ctx, svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), titleID),
+			"clearing pre-install query for patch policy")
+	}
+	return nil
 }
 
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

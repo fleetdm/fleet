@@ -3460,6 +3460,8 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 // getPatchPolicyInstallers returns the title's active Fleet-maintained app installers, first-added first:
 // one, or the x64 and ARM64 builds of a Windows app.
 func (ds *Datastore) getPatchPolicyInstallers(ctx context.Context, teamID uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	// A lagging replica could miss a build added just before, shaping the query for one build only.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	pkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installers")
@@ -3482,7 +3484,7 @@ func (ds *Datastore) getPatchPolicyInstallers(ctx context.Context, teamID uint, 
 }
 
 func (ds *Datastore) RegeneratePatchPolicyQuery(ctx context.Context, teamID *uint, titleID uint) error {
-	// Callers have just changed the title's installers.
+	// Callers have just changed the title's installers, so read the policy from the primary too.
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	patchPolicy, err := ds.GetPatchPolicy(ctx, teamID, titleID)
 	switch {

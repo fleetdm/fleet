@@ -278,7 +278,12 @@ AND (
 )
 AND %s`
 		if resetFailedSetupSteps {
-			installerSelect = fmt.Sprintf(installerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+			// By title, so a title that succeeded through one package (such as one build of an FMA that has
+			// x64 and ARM64 builds) isn't queued again through another.
+			installerSelect = fmt.Sprintf(installerSelect, `si.title_id NOT IN (
+	SELECT done.title_id FROM setup_experience_status_results sesr
+	JOIN software_installers done ON done.id = sesr.software_installer_id
+	WHERE sesr.host_uuid = ? AND sesr.status = 'success' AND done.title_id IS NOT NULL)`)
 		} else {
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}

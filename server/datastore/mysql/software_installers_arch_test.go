@@ -247,6 +247,12 @@ func testArchSiblingsRouting(t *testing.T, ds *Datastore) {
 	id, ok = displayed(unknownHost)
 	require.True(t, ok)
 	require.Equal(t, x64ID, id)
+	// The admin host software list loads the host with HostLite.
+	liteHost, err := ds.HostLite(ctx, armHost.ID)
+	require.NoError(t, err)
+	id, ok = displayed(liteHost)
+	require.True(t, ok)
+	require.Equal(t, arm64ID, id)
 
 	// Labels still apply. Scope each build to a label no host is in.
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeManual})
@@ -258,9 +264,13 @@ func testArchSiblingsRouting(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	// An ARM host out of scope for the ARM64 build gets the x64 build, which runs under emulation.
+	// An ARM host out of scope for the ARM64 build gets the x64 build, which runs under emulation,
+	// whichever build the caller started from.
 	scopeToLabel(arm64ID)
 	id, ok = resolve(x64ID, armHost, fleet.HostSoftwareInstallOptions{})
+	require.True(t, ok)
+	require.Equal(t, x64ID, id)
+	id, ok = resolve(arm64ID, armHost, fleet.HostSoftwareInstallOptions{})
 	require.True(t, ok)
 	require.Equal(t, x64ID, id)
 	id, ok = displayed(armHost)
@@ -358,6 +368,27 @@ func testArchSiblingsSetupExperience(t *testing.T, ds *Datastore) {
 	setForSetup(true, false)
 	require.Equal(t, []uint{x64ID}, queued(armHost))
 	require.Equal(t, []uint{x64ID}, queued(x64Host))
+
+	// Retrying after a failure doesn't queue the other build of a title that already succeeded.
+	setForSetup(true, true)
+	require.Equal(t, []uint{arm64ID}, queued(armHost))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE setup_experience_status_results SET status = 'success' WHERE host_uuid = ?`, armHost.UUID)
+		return err
+	})
+	_, err := ds.ResetSetupExperienceItemsAfterFailure(ctx, "windows", "windows", armHost.UUID, f.team.ID)
+	require.NoError(t, err)
+	var rows []struct {
+		InstallerID uint   `db:"software_installer_id"`
+		Status      string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT software_installer_id, status FROM setup_experience_status_results WHERE host_uuid = ? AND software_installer_id IS NOT NULL`, armHost.UUID)
+	})
+	require.Len(t, rows, 1)
+	require.Equal(t, arm64ID, rows[0].InstallerID)
+	require.Equal(t, "success", rows[0].Status)
 }
 
 func testArchSiblingsBatchSet(t *testing.T, ds *Datastore) {
