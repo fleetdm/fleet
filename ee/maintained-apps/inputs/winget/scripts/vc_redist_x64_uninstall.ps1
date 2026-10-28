@@ -5,8 +5,8 @@
 # entries ("...X64 Minimum Runtime...", "...Additional Runtime..."). Only the
 # bundle entry removes the whole redistributable, and it uninstalls by running
 # its cached bootstrapper .exe with /uninstall -- never via msiexec. We target
-# the bundle by its ProductCode (injected by the ingester) and fall back to the
-# cached bootstrapper in the Package Cache.
+# the bundle's machine-wide (HKLM) entry by its ProductCode (injected by the
+# ingester).
 
 $productCode = ${PACKAGE_ID}
 
@@ -24,8 +24,8 @@ function Invoke-Uninstaller {
 
 $exitCode = $null
 
-# 1) Preferred: the bundle ARP entry, looked up by the bundle ProductCode. Its
-#    UninstallString/QuietUninstallString points to the cached bootstrapper .exe.
+# The bundle ARP entry, looked up by the bundle ProductCode. Its
+# UninstallString/QuietUninstallString points to the cached bootstrapper .exe.
 $keys = @(
   "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$productCode",
   "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$productCode"
@@ -51,15 +51,6 @@ foreach ($key in $keys) {
 
   $exitCode = Invoke-Uninstaller -exe $exe -exeArgs $exeArgs
   break
-}
-
-# 2) Fallback: run the cached bootstrapper directly from the Package Cache, which
-#    burn names after the bundle ProductCode.
-if ($null -eq $exitCode) {
-  $cached = Get-ChildItem -Path "C:\ProgramData\Package Cache\$productCode" -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($cached) {
-    $exitCode = Invoke-Uninstaller -exe $cached.FullName -exeArgs ""
-  }
 }
 
 if ($null -eq $exitCode) {

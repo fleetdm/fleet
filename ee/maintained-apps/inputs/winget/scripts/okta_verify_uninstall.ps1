@@ -1,6 +1,5 @@
-# Okta Verify installs as a WiX Burn bundle. Prefer the bundle's registry
-# uninstaller so all chained packages are removed, and fall back to the cached
-# bootstrapper under Package Cache when the registry command is unavailable.
+# Okta Verify installs as a WiX Burn bundle. Run the bundle's uninstaller from
+# its machine-wide (HKLM) registry entry so all chained packages are removed.
 
 $productCode = "{008b801f-b8a1-40df-911b-a77c60e029c7}"
 $displayNameLike = "Okta Verify*"
@@ -84,16 +83,6 @@ try {
         $raw = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
         $commandParts = Split-UninstallCommand -raw $raw
         $exitCode = Invoke-Uninstaller -exePath $commandParts[0] -existingArgs $commandParts[1]
-    }
-
-    if ($null -eq $exitCode) {
-        foreach ($cacheKey in @($productCode, $productCode.Trim('{}'))) {
-            $cached = Get-ChildItem -Path "C:\ProgramData\Package Cache\$cacheKey" -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cached) {
-                $exitCode = Invoke-Uninstaller -exePath $cached.FullName -existingArgs ""
-                break
-            }
-        }
     }
 
     if ($null -eq $exitCode) {

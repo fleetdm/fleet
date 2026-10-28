@@ -13,7 +13,8 @@ Stop-Process -Name "PAD.Console.Host" -Force -ErrorAction SilentlyContinue
 
 $setupExe = $null
 
-# 1) The Burn bundle's ARP entry records the cached bootstrapper in BundleCachePath.
+# The Burn bundle's machine-wide (HKLM) ARP entry records the cached bootstrapper
+# in BundleCachePath.
 $arpPaths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
@@ -23,13 +24,6 @@ foreach ($p in $arpPaths) {
     $_.DisplayName -like 'Power Automate for desktop*' -and $_.BundleCachePath
   } | Select-Object -First 1
   if ($bundle) { $setupExe = $bundle.BundleCachePath; break }
-}
-
-# 2) Fall back to searching the Burn package cache for the bootstrapper.
-if (-not $setupExe -or -not (Test-Path $setupExe)) {
-  $cache = Join-Path $env:ProgramData 'Package Cache'
-  $found = Get-ChildItem -Path $cache -Recurse -Filter 'Setup.Microsoft.PowerAutomate.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($found) { $setupExe = $found.FullName }
 }
 
 if (-not $setupExe -or -not (Test-Path $setupExe)) {
