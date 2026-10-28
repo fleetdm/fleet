@@ -1,0 +1,86 @@
+name: ai_agent_session_messages
+notes: |-
+  This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).
+
+  - One row per content block of an AI coding agent session (a prompt, a response, the model's reasoning, a tool call, or its result), for the sessions in `ai_agent_sessions`. An assistant turn that says something and then calls two tools is three rows.
+  - This table returns conversation content: prompts, code, command output, and tool arguments, which can include secrets. That content leaves the host when queried. Query it on demand, constrained to a `session_id`; don't schedule it unconstrained.
+  - A result is capped at 5,000 rows and each `content` value at 8 KB, cut on a character boundary. Rows are filled newest transcript first, so a capped result is the most recent activity, and fleetd logs a warning when the row cap is hit. `content_length` is the length before cutting.
+  - Equality constraints on `session_id`, `agent`, `username` and `transcript_path` are pushed down, so a query filtered on `session_id` reads only that transcript.
+  - Sessions whose transcript was written in the last 30 days are read.
+  - Roles follow what happened rather than the on-disk encoding: agents record tool output as a "user" turn, but here those rows are `role = 'system'`, so `role = 'user'` means a person typed it.
+  - Coverage differs per agent: Cursor records no timestamps or model; Copilot CLI's tool event names are inferred rather than observed; Gemini CLI records prompts only.
+description: The content of AI coding agent sessions, one row per content block.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  Read the tool calls of a session.
+
+  ```
+  SELECT message_index, tool_name, content FROM ai_agent_session_messages WHERE session_id = '5d1f26db-…' AND block_type = 'tool_use';
+  ```
+
+  Read a session in order.
+
+  ```
+  SELECT message_index, block_index, role, block_type, content FROM ai_agent_session_messages WHERE session_id = '5d1f26db-…';
+  ```
+columns:
+  - name: agent
+    description: "The agent: `claude_code`, `copilot_cli`, `cursor`, `codex_cli`, or `gemini_cli`."
+    type: text
+    required: false
+  - name: session_id
+    description: The agent's identifier for the session; joins to `ai_agent_sessions.session_id`.
+    type: text
+    required: false
+  - name: username
+    description: The local account the session belongs to.
+    type: text
+    required: false
+  - name: message_index
+    description: Position of the turn within the session, from 0.
+    type: bigint
+    required: false
+  - name: block_index
+    description: Position of the block within its turn, from 0.
+    type: bigint
+    required: false
+  - name: role
+    description: "`user`, `assistant`, or `system`."
+    type: text
+    required: false
+  - name: block_type
+    description: "`text`, `thinking`, `tool_use`, or `tool_result`."
+    type: text
+    required: false
+  - name: tool_name
+    description: The tool invoked, on `tool_use` and `tool_result` rows.
+    type: text
+    required: false
+  - name: timestamp
+    description: Unix timestamp of the turn, or 0 if the agent records none.
+    type: bigint
+    required: false
+  - name: model
+    description: The model that produced the turn, on assistant rows.
+    type: text
+    required: false
+  - name: content
+    description: The block's text; for `tool_use` rows, the JSON arguments the agent sent.
+    type: text
+    required: false
+  - name: content_length
+    description: Length of the content in bytes, before it was cut.
+    type: bigint
+    required: false
+  - name: truncated
+    description: 1 if `content` was cut to 8 KB, 0 otherwise.
+    type: integer
+    required: false
+  - name: transcript_path
+    description: The file the row was read from.
+    type: text
+    required: false
