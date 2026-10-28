@@ -1448,6 +1448,30 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	require.True(t, foundError, "Should have found a failed status update")
 }
 
+func TestReconcileWindowsProfilesRefreshesRollupWhenBatchFails(t *testing.T) {
+	ds := new(mock.Store)
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>1</Data></Item></Replace>`),
+	}
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{"host-a": testProfile, "host-b": testProfile})
+
+	// The commands are enqueued (committed) before the final host profile upsert fails.
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return errors.New("upsert failed")
+	}
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
+	err := ReconcileWindowsProfiles(t.Context(), ds, slog.New(slog.DiscardHandler), false)
+	require.ErrorContains(t, err, "upsert failed")
+	require.ElementsMatch(t, []string{"host-a", "host-b"}, rollupHosts)
+}
+
 func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {
 	ctx := t.Context()
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{
