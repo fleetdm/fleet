@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
+import { createMockGetHostAISessionsResponse } from "__mocks__/aiSessionsMock";
 import createMockConfig from "__mocks__/configMock";
 import createMockHost, {
   createMockGetHostSoftwareResponse,
@@ -21,6 +22,7 @@ import local from "utilities/local";
 
 import HostDetailsPage, {
   getMDMCommandsToggleLocalState,
+  REFETCH_HOST_DETAILS_POLLING_INTERVAL,
   setMDMCommandsToggleLocalState,
 } from "./HostDetailsPage";
 
@@ -96,6 +98,9 @@ const stubQueries = (host: IHost) => {
     certificates: [],
     meta: { has_next_results: false, has_previous_results: false },
   });
+  (hostAPI.getHostAISessions as jest.Mock).mockResolvedValue(
+    createMockGetHostAISessionsResponse()
+  );
   (hostAPI.refetch as jest.Mock).mockResolvedValue({});
   (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
   (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
@@ -243,6 +248,38 @@ describe("HostDetailsPage - MDM status modal Check in now", () => {
     expect(
       (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
     ).toBeGreaterThan(callsBeforeCheckIn);
+  });
+});
+
+describe("HostDetailsPage - AI sessions", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
+
+  it("refetches the AI sessions along with the host vitals", async () => {
+    stubQueries(mockWindowsHost());
+    renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
+
+    expect(await screen.findByText("1 session")).toBeInTheDocument();
+    const refetchButton = await screen.findByRole("button", {
+      name: /refetch/i,
+    });
+    const callsBeforeRefetch = (hostAPI.getHostAISessions as jest.Mock).mock
+      .calls.length;
+
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.click(refetchButton);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(
+        REFETCH_HOST_DETAILS_POLLING_INTERVAL
+      );
+    });
+
+    expect(
+      (hostAPI.getHostAISessions as jest.Mock).mock.calls.length
+    ).toBeGreaterThan(callsBeforeRefetch);
   });
 });
 

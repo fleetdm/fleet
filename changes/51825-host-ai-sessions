@@ -1,3 +1,4 @@
 - Fleet Premium now collects each host's AI coding agent sessions, and the tool calls made in them, from fleetd's `ai_agent_sessions` and `ai_agent_session_messages` tables on macOS, Windows, and Linux. Hosts report the sessions that started in the last 30 days, and Fleet keeps each session for 30 days after it started.
 - Added Fleet Premium endpoints to list a host's AI sessions (with search, agent and category filters, sorting, and pagination), get one session, and list a session's tool calls. Only admins and maintainers, globally or of the host's fleet, can read them.
 - Added the `osquery.disable_ai_session_ingestion` server setting (`FLEET_OSQUERY_DISABLE_AI_SESSION_INGESTION`) to stop collecting AI sessions from hosts.
+- Added an "AI sessions" card to the Host details page for Fleet Premium admins and maintainers, showing the host's AI coding agent sessions from the last 30 days, with a session modal that lists each session's tool calls and their payloads.

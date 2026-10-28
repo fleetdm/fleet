@@ -1,8 +1,14 @@
 import createMockHost from "__mocks__/hostMock";
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
 
-import { canShowMyDeviceButton, hasEverEnrolled } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  canViewHostAISessions,
+  hasEverEnrolled,
+} from "./helpers";
 
 describe("canShowMyDeviceButton", () => {
   it("returns true when Fleet Desktop is installed and the host is not wiped", () => {
@@ -216,4 +222,135 @@ describe("hasEverEnrolled", () => {
       false
     );
   });
+});
+
+describe("canViewHostAISessions", () => {
+  const teamHost = createMockHost({ platform: "darwin", team_id: 1 });
+
+  it.each(["darwin", "windows", "ubuntu", "rhel"] as HostPlatform[])(
+    "returns true for a global admin on a Premium %s host",
+    (platform) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: "admin" }),
+          host: { ...teamHost, platform },
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("returns true for a global maintainer", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({ global_role: "maintainer" }),
+        host: teamHost,
+      })
+    ).toBe(true);
+  });
+
+  it.each(["admin", "maintainer"] as const)(
+    "returns true for a %s of the host's fleet",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({
+            global_role: null,
+            teams: [createMockTeam({ id: 1, role })],
+          }),
+          host: teamHost,
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("returns false on Fleet Free", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: false,
+        currentUser: createMockUser({ global_role: "admin" }),
+        host: teamHost,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["observer", "observer_plus", "technician"] as const)(
+    "returns false for a global %s",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: role }),
+          host: teamHost,
+        })
+      ).toBe(false);
+    }
+  );
+
+  it.each(["observer", "observer_plus", "technician"] as const)(
+    "returns false for a %s of the host's fleet",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({
+            global_role: null,
+            teams: [createMockTeam({ id: 1, role })],
+          }),
+          host: teamHost,
+        })
+      ).toBe(false);
+    }
+  );
+
+  it("returns true for a global admin on a host with no fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({ global_role: "admin" }),
+        host: { ...teamHost, team_id: null },
+      })
+    ).toBe(true);
+  });
+
+  it("returns false for a fleet admin on a host with no fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({
+          global_role: null,
+          teams: [createMockTeam({ id: 1, role: "admin" })],
+        }),
+        host: { ...teamHost, team_id: null },
+      })
+    ).toBe(false);
+  });
+
+  it("returns false for an admin of a different fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({
+          global_role: null,
+          teams: [createMockTeam({ id: 2, role: "admin" })],
+        }),
+        host: teamHost,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["ios", "ipados", "android", "chrome"] as HostPlatform[])(
+    "returns false on %s hosts",
+    (platform) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: "admin" }),
+          host: { ...teamHost, platform },
+        })
+      ).toBe(false);
+    }
+  );
 });
