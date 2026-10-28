@@ -3630,6 +3630,10 @@ type Datastore interface {
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
+	// GetInstalledSoftwareActivityCreatedAt returns the time the "installed software" activity for the
+	// install was created. It returns a not found error if there is no such activity.
+	GetInstalledSoftwareActivityCreatedAt(ctx context.Context, hostID uint, installUUID string) (time.Time, error)
+
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error

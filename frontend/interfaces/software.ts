@@ -1113,8 +1113,7 @@ export interface ISoftwareInstallResult {
   output: string;
   pre_install_query_output: string;
   post_install_script_output: string;
-  created_at: string;
-  updated_at: string | null;
+  created_at: string | null;
   self_service: boolean;
   /** SHA-256 of the installer package. Present when the payload was
    * hydrated from a package-backed install; absent for VPP / older results

@@ -2440,6 +2440,26 @@ WHERE
 	return &dest, nil
 }
 
+func (ds *Datastore) GetInstalledSoftwareActivityCreatedAt(ctx context.Context, hostID uint, installUUID string) (time.Time, error) {
+	const stmt = `
+SELECT ap.created_at
+FROM activity_host_past ahp
+INNER JOIN activity_past ap ON ap.id = ahp.activity_id
+WHERE ahp.host_id = ? AND
+	ap.activity_type = 'installed_software' AND
+	ap.details->>'$.install_uuid' = ?
+`
+	var activityCreatedAt time.Time
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &activityCreatedAt, stmt, hostID, installUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, ctxerr.Wrap(ctx, notFound("InstalledSoftwareActivity"), "get installed software activity created at")
+		}
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get installed software activity created at")
+	}
+	return activityCreatedAt, nil
+}
+
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
