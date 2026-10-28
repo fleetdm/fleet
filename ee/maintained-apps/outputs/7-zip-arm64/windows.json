@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "26.05",
+      "queries": {
+        "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip % (arm64)' AND publisher = 'Igor Pavlov') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip % (arm64)' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.05') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('7zfm.exe','7zg.exe'));"
+      },
+      "installer_url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-arm64.exe",
+      "install_script_ref": "517ae4b7",
+      "uninstall_script_ref": "e1de0672",
+      "sha256": "86d5790d5dd84cab4636c3bb7fab10d3ed7cd3e57e6119401bd2769e28165268",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "517ae4b7": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "e1de0672": "# Silently uninstalls the ARM64 build of 7-Zip (\"7-Zip <version> (arm64)\") and\n# waits for its uninstall registry entry to clear. An x64 7-Zip installed from\n# the MSI is left alone.\n\n$keyPath = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\7-Zip'\n$displayNameLike = \"7-Zip * (arm64)\"\n$timeoutSeconds = 120\n\ntry {\n\n$key = Get-ItemProperty -Path $keyPath -ErrorAction SilentlyContinue\nif (-not $key -or $key.DisplayName -notlike $displayNameLike) {\n    Write-Host \"Uninstall entry matching '$displayNameLike' not found.\"\n    Exit 1\n}\n\n$uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $Matches[1]\n    $uninstallArgs = $Matches[2]\n} else {\n    $exePath = $uninstallCommand.Trim()\n    $uninstallArgs = \"\"\n}\nif ($uninstallArgs -notmatch '(^|\\s)/S(\\s|$)') {\n    $uninstallArgs = \"$uninstallArgs /S\".Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n$process = Start-Process -FilePath $exePath -ArgumentList $uninstallArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\nif ($exitCode -ne 0) {\n    Exit $exitCode\n}\n\n$deadline = (Get-Date).AddSeconds($timeoutSeconds)\nwhile ((Get-Date) -lt $deadline) {\n    $still = Get-ItemProperty -Path $keyPath -ErrorAction SilentlyContinue\n    if (-not $still -or $still.DisplayName -notlike $displayNameLike) {\n        Write-Host \"7-Zip (arm64) removed.\"\n        Exit 0\n    }\n    Start-Sleep -Seconds 2\n}\n\nWrite-Host \"7-Zip (arm64) is still registered after $timeoutSeconds seconds.\"\nExit 1\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

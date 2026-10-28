@@ -588,16 +588,28 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		if err := sqlx.GetContext(ctx, tx, &current, `SELECT name, upgrade_code FROM software_titles WHERE id = ? FOR SHARE`, titleID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "load software title")
 		}
-		if ptr.ValOrZero(current.UpgradeCode) == payload.UpgradeCode && (payload.FleetMaintainedAppID == nil || current.Name == payload.Title) {
+		// Name the title after a Windows FMA with an upgrade code. We already update software titles with
+		// macOS FMA names on FMA catalog sync, so we only do Windows here.
+		renameToFMA := payload.FleetMaintainedAppID != nil && current.Name != payload.Title
+		if renameToFMA {
+			// The x64 and ARM64 builds of an MSI can share an upgrade code, putting two FMAs (in different
+			// fleets) on one title. The first keeps its name; renaming on every add would flip it back and forth.
+			var otherFMAOwnsTitle bool
+			if err := sqlx.GetContext(ctx, tx, &otherFMAOwnsTitle,
+				`SELECT EXISTS (SELECT 1 FROM software_installers WHERE title_id = ? AND fleet_maintained_app_id != ?)`,
+				titleID, *payload.FleetMaintainedAppID); err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "check for another fleet-maintained app on software title")
+			}
+			renameToFMA = !otherFMAOwnsTitle
+		}
+		if ptr.ValOrZero(current.UpgradeCode) == payload.UpgradeCode && !renameToFMA {
 			return titleID, nil
 		}
 
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
 
-		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
-		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
-		if payload.FleetMaintainedAppID != nil {
+		if renameToFMA {
 			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
 			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
 		}

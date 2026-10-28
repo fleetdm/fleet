@@ -2438,7 +2438,7 @@ const matchStrictNameSourceToIcon = ({
   switch (true) {
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
-    case name === "zoom":
+    case name === "zoom" || name === "zoom (arm64)":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;
