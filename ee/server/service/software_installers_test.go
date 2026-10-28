@@ -1803,6 +1803,39 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
+
+	t.Run("malformed installer is a bad request", func(t *testing.T) {
+		// ar archive whose member header makes the deb parser fail; the
+		// caller sent a bad file, so this must surface as a 400, not a 500.
+		var deb bytes.Buffer
+		deb.WriteString("!<arch>\n")
+		deb.WriteString("debian-binary   ")
+		deb.WriteString("0           ")
+		deb.WriteString("0     ")
+		deb.WriteString("0     ")
+		deb.WriteString("00      ")
+		deb.WriteString("0         ")
+		deb.WriteString("`\n")
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.deb")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.Write(deb.Bytes())
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "bad.deb",
+		}
+
+		_, err = svc.addMetadataToSoftwarePayload(ctx, payload, false)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+	})
 }
 
 func TestAddScriptPackageMetadataLargeScript(t *testing.T) {

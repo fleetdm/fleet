@@ -42,7 +42,16 @@ type InstallerMetadata struct {
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (meta *InstallerMetadata, err error) {
+	// Installers are untrusted input and some parsers (and their dependencies)
+	// panic on malformed archives; the batch path runs this outside a request
+	// handler, where a panic would take down the process.
+	defer func() {
+		if r := recover(); r != nil {
+			meta, err = nil, fmt.Errorf("%w: parsing installer: %v", ErrInvalidInstaller, r)
+		}
+	}()
+
 	br := bufio.NewReader(tfr)
 	extension, err := typeFromBytes(br)
 	if err != nil {
@@ -52,7 +61,6 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		return nil, err
 	}
 
-	var meta *InstallerMetadata
 	switch extension {
 	case "deb":
 		meta, err = ExtractDebMetadata(tfr)
@@ -312,4 +320,50 @@ func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
 	}
 
 	return hashString, nil
+}
+
+// maxMetadataMemberSize caps how many decompressed bytes of a single archive
+// member (Info.plist, control, Distribution, PackageInfo, XAR TOC) are read into
+// memory. The upload limit only bounds the compressed size, so without this a
+// small, highly compressible installer could expand to gigabytes.
+var maxMetadataMemberSize int64 = 128 << 20
+
+// ErrInvalidInstaller marks failures caused by the installer's own content
+// (oversized members, malformed tables, parser panics) so callers can report a
+// bad upload rather than a server error.
+var ErrInvalidInstaller = errors.New("invalid installer")
+
+var errMemberTooLarge = fmt.Errorf("%w: archive member exceeds size limit", ErrInvalidInstaller)
+
+// limitedReader fails with errMemberTooLarge once more than limit bytes have
+// been read, unlike io.LimitReader which silently truncates.
+type limitedReader struct {
+	r         io.Reader
+	remaining int64
+}
+
+func newLimitedReader(r io.Reader) *limitedReader {
+	return &limitedReader{r: r, remaining: maxMetadataMemberSize}
+}
+
+func (l *limitedReader) Read(p []byte) (int, error) {
+	if l.remaining < 0 {
+		return 0, errMemberTooLarge
+	}
+	// Read at most one byte past the limit: that byte is what proves the
+	// member is too large, and when remaining is 0 it doubles as the EOF probe
+	// for a member of exactly the limit.
+	if int64(len(p)) > l.remaining+1 {
+		p = p[:l.remaining+1]
+	}
+	n, err := l.r.Read(p)
+	l.remaining -= int64(n)
+	if l.remaining < 0 {
+		return 0, errMemberTooLarge
+	}
+	return n, err
+}
+
+func readAllLimited(r io.Reader) ([]byte, error) {
+	return io.ReadAll(newLimitedReader(r))
 }
