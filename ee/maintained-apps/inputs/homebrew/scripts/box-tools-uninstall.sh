@@ -56,17 +56,38 @@ pkill -f "Box Device Trust.app/Contents/MacOS" >/dev/null 2>&1 || true
 pkill -f "Box Tools Custom Apps.app/Contents/MacOS" >/dev/null 2>&1 || true
 
 removed=false
+failed=false
 for udir in /Users/* /var/root; do
   box_edit_dir="$udir/Library/Application Support/Box/Box Edit"
   [[ -d "$box_edit_dir" ]] || continue
+  # Delete as the home's owner, never as root: the owner controls this tree,
+  # so root following a planted symlink out of it could delete files anywhere
+  # on the system. Root-owned entries under /Users (e.g. the world-writable
+  # /Users/Shared) are not user homes and are skipped.
+  owner_uid=$(stat -L -f "%u" "$udir")
+  if [[ "$owner_uid" -eq 0 && "$udir" != /var/root ]]; then
+    echo "skipping $box_edit_dir: $udir is not a user home"
+    continue
+  fi
+  if ! id -u "$owner_uid" >/dev/null 2>&1; then
+    echo "skipping $box_edit_dir: owner (uid $owner_uid) of $udir no longer exists"
+    failed=true
+    continue
+  fi
   echo "removing $box_edit_dir"
-  rm -rf "$box_edit_dir" || true
-  rmdir "$udir/Library/Application Support/Box" >/dev/null 2>&1 || true
-  removed=true
+  if sudo -u "#$owner_uid" rm -rf "$box_edit_dir"; then
+    removed=true
+  else
+    echo "failed to remove $box_edit_dir"
+    failed=true
+  fi
+  sudo -u "#$owner_uid" rmdir "$udir/Library/Application Support/Box" >/dev/null 2>&1 || true
 done
 
-if [[ "$removed" = false ]]; then
+if [[ "$removed" = false && "$failed" = false ]]; then
   echo "Box Tools was not found in any user's home directory."
 fi
+
+[[ "$failed" = false ]] || exit 1
 
 echo "Box Tools uninstalled"

@@ -76,26 +76,27 @@ hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" 
 RESOURCES="$MOUNT_POINT/Install Box Tools.app/Contents/Resources"
 BOX_DIR="$user_home/Library/Application Support/Box"
 DEST="$BOX_DIR/Box Edit"
-mkdir -p "$DEST"
 
+# Create and copy as the target user, never as root: the user controls this
+# tree, so root following a planted symlink out of it could create or chown
+# files anywhere on the system. Files the user copies are already theirs.
 status=0
-for app in "Box Edit.app" "Box Device Trust.app" "Box Local Com Server.app" "Box Tools Custom Apps.app"; do
-  if [[ -d "$RESOURCES/$app" ]]; then
-    rm -rf "${DEST:?}/$app"
-    if ! ditto "$RESOURCES/$app" "$DEST/$app"; then
-      echo "failed to copy $app"
+if sudo -u "$target_user" mkdir -p "$DEST"; then
+  for app in "Box Edit.app" "Box Device Trust.app" "Box Local Com Server.app" "Box Tools Custom Apps.app"; do
+    if [[ -d "$RESOURCES/$app" ]]; then
+      if ! sudo -u "$target_user" rm -rf "${DEST:?}/$app" || ! sudo -u "$target_user" ditto "$RESOURCES/$app" "$DEST/$app"; then
+        echo "failed to copy $app"
+        status=1
+      fi
+    else
+      echo "$app not found in installer"
       status=1
     fi
-  else
-    echo "$app not found in installer"
-    status=1
-  fi
-done
-
-# The parent Box directory is shared with other Box products (e.g. Box Drive)
-# that run as the same user, so owning it (non-recursively) is safe.
-chown -R "$target_user":staff "$DEST"
-chown "$target_user":staff "$BOX_DIR"
+  done
+else
+  echo "failed to create $DEST"
+  status=1
+fi
 
 hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
 rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
