@@ -23,6 +23,7 @@
   // so its scroll bar runs the box's full height beside the button.
   &__prompt {
     display: flex;
+    gap: $pad-small;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
     background-color: $core-fleet-white;
@@ -42,7 +43,7 @@
   &__prompt-input {
     flex: 1;
     box-sizing: border-box;
-    padding: $pad-medium $pad-small $pad-medium $pad-medium;
+    padding: $pad-medium 0 $pad-medium $pad-medium;
     font-family: inherit;
     font-size: $x-small;
     line-height: $line-height;
