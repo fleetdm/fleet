@@ -1814,6 +1814,8 @@ None.
     "vulnerabilities": false
   },
   "mdm": {
+    "apple_business_enabled_and_configured": true,
+    "apple_business_terms_expired": false,
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "windows_entra_tenant_ids": [
@@ -2219,6 +2221,8 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "mdm": {
     "enabled_and_configured": false,
+    "apple_business_enabled_and_configured": false,
+    "apple_business_terms_expired": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "windows_entra_tenant_ids": [
@@ -2919,7 +2923,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
-| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from Apple Business (AB) as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_profile_validation          | boolean | Specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited. Settings and payload types Fleet doesn't recognize are always allowed. Default is `true`. Set to `false` to skip this check. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
@@ -3636,7 +3640,7 @@ the `software` table.
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 | dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
-| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
+| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -9431,7 +9435,7 @@ Gets the Fleet default MDM setup enrollment profile. This is the profile Fleet r
 
 `GET /api/v1/fleet/enrollment_profiles/automatic/default`
 
-The default profile is a single profile per Fleet instance. It is shared across all fleets and all Apple Business Manager (ABM) tokens and cannot be scoped by `fleet_id`.
+The default profile is a single profile per Fleet instance. It is shared across all fleets and all Apple Business (AB) tokens and cannot be scoped by `fleet_id`.
 
 If the default profile has not yet been stored (for example, on a new Fleet instance that has not completed its first automatic enrollment registration), Fleet returns the in-code defaults that will be registered on first use, and `updated_at` is `null`.
 
@@ -10454,6 +10458,7 @@ None.
       "renew_date": "2023-11-29T00:00:00Z",
       "default": true,
       "terms_expired": false,
+      "token_invalid": false,
       "macos_fleet": {
         "name": "💻 Workstations",
         "fleet_id": 1
@@ -10465,35 +10470,10 @@ None.
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
         "fleet_id": 3
-      }
-    }
-  ],
-  "abm_tokens": [
-    {
-      "id": 1,
-      "apple_id": "apple@example.com",
-      "org_name": "Fleet Device Management Inc.",
-      "mdm_server_url": "https://example.com/mdm/apple/mdm",
-      "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
-      "renew_date": "2023-11-29T00:00:00Z",
-      "default": true,
-      "terms_expired": false,
-      "token_invalid": false,
-      "macos_fleet": {
-        "name": "💻 Workstations",
-        "id": 1
-      },
-      "ios_fleet": {
-        "name": "📱🏢 Company-owned iPhones",
-        "id": 2
-      },
-      "ipados_fleet": {
-        "name": "🔳🏢 Company-owned iPads",
-        "id": 3
       },
       "byod_fleet": {
         "name": "📱 BYOD iPhones",
-        "id": 4
+        "fleet_id": 4
       }
     }
   ]
