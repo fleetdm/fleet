@@ -2648,10 +2648,11 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID3,
 		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev3.MDMDeviceID))
 
-	// Insert queue entry for BOTH enrollments
+	// Insert queue entries for both enrollments that have not replied, plus the acked entry of the host that has.
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-         VALUES (?, ?), (?, ?)`,
+		`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid, acked_at)
+         VALUES (?, ?, NOW(6)), (?, ?, NULL), (?, ?, NULL)`,
+		enrollmentID, cmdUUID,
 		enrollmentID2, cmdUUID,
 		enrollmentID3, cmdUUID,
 	)
@@ -2661,25 +2662,35 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
+	// One host replied, so the other two are still pending, and none of the three is duplicated.
 	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, dev.HostUUID, results[0].HostUUID)
-	require.Equal(t, cmdUUID, results[0].CommandUUID)
-	require.Equal(t, rawResponse, results[0].Result)
-	require.Equal(t, cmdTarget, results[0].RequestType)
-	require.Equal(t, statusCode, results[0].Status)
-	require.Empty(t, results[0].Hostname) // populated only at the service layer
-	require.Equal(t, rawCmd, string(results[0].Payload))
+	require.Len(t, results, 3)
+	resultsByHost := make(map[string]*fleet.MDMCommandResult, len(results))
+	for _, r := range results {
+		resultsByHost[r.HostUUID] = r
+	}
+	require.Len(t, resultsByHost, 3)
+	require.Equal(t, cmdUUID, resultsByHost[dev.HostUUID].CommandUUID)
+	require.Equal(t, rawResponse, resultsByHost[dev.HostUUID].Result)
+	require.Equal(t, cmdTarget, resultsByHost[dev.HostUUID].RequestType)
+	require.Equal(t, statusCode, resultsByHost[dev.HostUUID].Status)
+	require.Empty(t, resultsByHost[dev.HostUUID].Hostname) // populated only at the service layer
+	require.Equal(t, rawCmd, string(resultsByHost[dev.HostUUID].Payload))
+	require.Equal(t, "101", resultsByHost[dev2.HostUUID].Status)
+	require.Equal(t, "101", resultsByHost[dev3.HostUUID].Status)
 
-	// With a host filter, the host that has a result gets it, and a host that is only queued gets nothing (the command has results).
+	// With a host filter, the host that replied gets its result and a host that is still queued gets a pending one.
 	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev.HostUUID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, rawResponse, results[0].Result)
 	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev2.HostUUID)
 	require.NoError(t, err)
-	require.Empty(t, results)
+	require.Len(t, results, 1)
+	require.Equal(t, dev2.HostUUID, results[0].HostUUID)
+	require.Equal(t, "101", results[0].Status)
+	require.Empty(t, results[0].Result)
 
 	// A command with no results yet is pending (101) on each queued host.
 	const pendingCmdUUID = "some-pending-uuid"
@@ -5248,11 +5259,18 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// Verify results
 	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
-	assert.Equal(t, cmd.CommandUUID, results[0].CommandUUID)
-	assert.Equal(t, "200", results[0].Status)
-	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
+	// Only the first device replied, the other two are still pending.
+	require.Len(t, results, 3)
+	resultsByHost := make(map[string]*fleet.MDMCommandResult, len(results))
+	for _, res := range results {
+		resultsByHost[res.HostUUID] = res
+	}
+	require.Len(t, resultsByHost, 3)
+	assert.Equal(t, cmd.CommandUUID, resultsByHost[enrolledDevice1.HostUUID].CommandUUID)
+	assert.Equal(t, "200", resultsByHost[enrolledDevice1.HostUUID].Status)
+	assert.Equal(t, enrichedSyncML.Raw, resultsByHost[enrolledDevice1.HostUUID].Result)
+	assert.Equal(t, "101", resultsByHost[enrolledDevice2.HostUUID].Status)
+	assert.Equal(t, "101", resultsByHost[enrolledDevice3.HostUUID].Status)
 
 	// And the row on disk must actually be gzip-compressed, not the raw envelope.
 	var storedResp []byte
@@ -5301,7 +5319,14 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	// Verify results for the second device
 	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
-	require.Len(t, results, 2)
+	require.Len(t, results, 3) // two replied, the third is still pending
+	pendingCount := 0
+	for _, res := range results {
+		if res.Status == "101" {
+			pendingCount++
+		}
+	}
+	require.Equal(t, 1, pendingCount)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
@@ -5325,9 +5350,12 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	// Verify results does not exist for the third device
 	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
 	require.NoError(t, err)
-	require.Len(t, results, 2) // still two
+	require.Len(t, results, 3) // still two replies plus the third host, which is pending
 	for _, res := range results {
-		assert.NotEqual(t, enrolledDevice3.HostUUID, res.HostUUID, "Host 3 should not have a result recorded")
+		if res.HostUUID == enrolledDevice3.HostUUID {
+			assert.Equal(t, "101", res.Status, "Host 3 should not have a result recorded")
+			assert.Empty(t, res.Result)
+		}
 	}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

@@ -2192,7 +2192,7 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
 	}
 
-	// the results are already scoped to the host, but keep the check in case the host has several enrollments.
+	// defensive check: the results are already scoped to the host
 	var cmdRes *fleet.MDMCommandResult
 	for _, r := range cmdResults {
 		if r.HostUUID != hostUUID {

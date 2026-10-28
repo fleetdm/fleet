@@ -2067,8 +2067,8 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-	// The enrollments come from the command's results, or from its queue when it has no results yet, and every join after that is on
-	// the full (enrollment_id, command_uuid) key.
+	// The enrollments come from the command's results, plus the ones still waiting in its queue (acked_at IS NULL), which report as
+	// pending even when other enrollments already replied. Every join after that is on the full (enrollment_id, command_uuid) key.
 	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
 	var queueHostFilter, resultsHostFilter string
 	var args []any
@@ -2077,7 +2077,7 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
 		resultsHostFilter = fmt.Sprintf(hostFilter, "wmcr")
 		args = append(args, hostUUID)
 	}
-	args = append(args, commandUUID, commandUUID)
+	args = append(args, commandUUID)
 	if hostUUID != "" {
 		args = append(args, hostUUID)
 	}
@@ -2097,8 +2097,7 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
 FROM
     windows_mdm_commands wmc
     JOIN (
-        SELECT wmcq.enrollment_id FROM windows_mdm_command_queue wmcq%s WHERE wmcq.command_uuid = ?
-            AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results WHERE command_uuid = ?)
+        SELECT wmcq.enrollment_id FROM windows_mdm_command_queue wmcq%s WHERE wmcq.command_uuid = ? AND wmcq.acked_at IS NULL
         UNION
         SELECT wmcr.enrollment_id FROM windows_mdm_command_results wmcr%s WHERE wmcr.command_uuid = ?
     ) pairs ON TRUE
