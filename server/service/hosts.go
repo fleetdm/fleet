@@ -2798,7 +2798,7 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 				}
 				seenCerts[key] = struct{}{}
 				if err := svc.NewActivity(ctx, nil, cert); err != nil {
-					svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					svc.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
 				}
 			}
 		}()
