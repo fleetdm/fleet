@@ -117,13 +117,17 @@ func parseCursor(src *source, r *recorder) {
 		UpdatedAtMs int64  `json:"updatedAtMs"`
 		CWD         string `json:"cwd"`
 	}
-	if ext.meta != "" && readJSON(src.sc, ext.meta, &meta) {
-		s.StartedAt, s.EndedAt = parseUnixMillis(meta.CreatedAtMs), parseUnixMillis(meta.UpdatedAtMs)
-	} else if fi, ok := regularFile(src.files[0]); ok {
-		s.StartedAt = birthTime(src.files[0], fi)
+	if ext.meta != "" {
+		readJSON(src.sc, ext.meta, &meta)
 	}
-	cwd := meta.CWD
-	s.ProjectPath = cmp.Or(cwd, resolveSlugPath(slugRoot(src.sc.home.Dir), ext.slug))
+	s.StartedAt, s.EndedAt = parseUnixMillis(meta.CreatedAtMs), parseUnixMillis(meta.UpdatedAtMs)
+	if s.StartedAt.IsZero() {
+		if fi, ok := regularFile(src.files[0]); ok {
+			s.StartedAt = birthTime(src.files[0], fi)
+		}
+	}
+	cwd := cmp.Or(meta.CWD, resolveSlugPath(slugRoot(src.sc.home.Dir), ext.slug))
+	s.ProjectPath = cwd
 
 	var ts time.Time
 	for i, path := range src.files {
@@ -242,7 +246,8 @@ func cursorAssistant(r *recorder, blocks []cursorBlock, ts time.Time, cwd string
 
 var (
 	cursorTimestamp = regexp.MustCompile(`(?s)^\s*<timestamp>(.*?)</timestamp>\s*`)
-	cursorQuery     = regexp.MustCompile(`(?s)<user_query>\s*(.*?)\s*</user_query>`)
+	// The prompt may itself mention the tags, so it ends at the last close.
+	cursorQuery = regexp.MustCompile(`(?s)<user_query>\s*(.*)</user_query>`)
 )
 
 // cursorPrompt strips the wrappers Cursor puts around a prompt and returns
@@ -286,6 +291,9 @@ func parseCursorTime(s string) time.Time {
 			if m, err = strconv.Atoi(mm); err != nil {
 				return time.Time{}
 			}
+		}
+		if h < 0 || h > 23 || m < 0 || m > 59 {
+			return time.Time{}
 		}
 		offset = sign * (h*3600 + m*60)
 	}

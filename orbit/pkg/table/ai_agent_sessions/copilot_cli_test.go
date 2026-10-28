@@ -65,7 +65,9 @@ func TestCopilotCLIWithoutShutdown(t *testing.T) {
 	writeFile(t, copilotPath(home, "a"), lines(ls[:4]...))
 	writeFile(t, copilotPath(home, "b"), lines(append(ls[:4:4], metrics)...))
 
-	for _, r := range sessionRows(t, eq("agent", agentCopilotCLI)) {
+	rows := sessionRows(t, eq("agent", agentCopilotCLI))
+	require.ElementsMatch(t, []string{copilotPath(home, "a"), copilotPath(home, "b")}, column(rows, "transcript_path"))
+	for _, r := range rows {
 		require.Equal(t, "claude-haiku-4.5", r["model"], "auto is a preference, not a model")
 		switch r["transcript_path"] {
 		case copilotPath(home, "a"):

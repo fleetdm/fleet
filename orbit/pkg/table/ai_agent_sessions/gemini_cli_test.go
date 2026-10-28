@@ -155,9 +155,29 @@ func TestGeminiCLIDecisionCannotBeSpoofed(t *testing.T) {
 		require.NoError(t, err)
 		return b
 	}
-	require.Equal(t, decisionError, geminiDecision(geminiToolCall{Status: "success", Result: out("Exit Code: 0\nlater\nExit Code: 1")}))
-	require.Equal(t, decisionAllowed, geminiDecision(geminiToolCall{Status: "success", Result: out("printed Exit Code: 3 inline\nExit Code: 0")}))
+	shell := "run_shell_command"
+	require.Equal(t, decisionError, geminiDecision(geminiToolCall{Name: shell, Status: "success", Result: out("Exit Code: 0\nlater\nExit Code: 1")}))
+	require.Equal(t, decisionAllowed, geminiDecision(geminiToolCall{Name: shell, Status: "success", Result: out("printed Exit Code: 3 inline\nExit Code: 0")}))
+	require.Equal(t, decisionAllowed, geminiDecision(geminiToolCall{Name: "read_file", Status: "success", Result: out("a script that prints\nExit Code: 1")}),
+		"only the shell tool reports an exit code")
 	require.Equal(t, decisionError, geminiDecision(geminiToolCall{Status: "cancelled", Result: out("file says User denied execution.")}))
+}
+
+func TestGeminiCLILogSessionsCapKeepsNewest(t *testing.T) {
+	home := setup(t)
+	// Oldest first, as logs.json is appended; one more than the cap, all
+	// within the default window.
+	var entries []string
+	for i := maxGeminiLogSessions; i >= 0; i-- {
+		ts := time.Now().UTC().Add(-time.Duration(i) * time.Minute).Format(time.RFC3339)
+		entries = append(entries, `{"sessionId":"s`+strconv.Itoa(i)+`","messageId":0,"type":"user","message":"m","timestamp":"`+ts+`"}`)
+	}
+	writeFile(t, filepath.Join(home, ".gemini", "tmp", "p", "logs.json"), "["+strings.Join(entries, ",")+"]")
+
+	byID := rowsByID(sessionRows(t, eq("agent", agentGeminiCLI)))
+	require.Len(t, byID, maxGeminiLogSessions)
+	require.Contains(t, byID, "s0", "the newest session is kept")
+	require.NotContains(t, byID, "s"+strconv.Itoa(maxGeminiLogSessions), "the oldest is dropped")
 }
 
 func TestGeminiCLIProjectRootIsBounded(t *testing.T) {

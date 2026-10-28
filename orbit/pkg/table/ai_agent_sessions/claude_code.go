@@ -57,7 +57,7 @@ var claudeFlatParents = newDerivedCache[string]()
 // claudeFlatAgentParent is the session a flat sub-agent transcript belongs
 // to, from its first record.
 func claudeFlatAgentParent(sc *scope, path string) string {
-	return claudeFlatParents.get(path, func() string {
+	return claudeFlatParents.get(sc, path, func() string {
 		discoveryReads.Add(1)
 		var head struct {
 			SessionID string `json:"sessionId"`
@@ -131,6 +131,13 @@ type claudeBlock struct {
 	ToolUseID string          `json:"tool_use_id"`
 	IsError   bool            `json:"is_error"`
 	Content   json.RawMessage `json:"content"`
+	// injected is set on a text block the CLI wrote itself (see
+	// claudeInjectedPrefixes), by whichever decoding read it.
+	injected bool
+}
+
+func (b claudeBlock) isInjected() bool {
+	return b.injected || claudeInjectedText(bytes.TrimSpace(b.Text))
 }
 
 // claudeBody is a decoded message body: a plain string, or typed blocks.
@@ -151,17 +158,27 @@ func (b *claudeBody) UnmarshalJSON(raw []byte) error {
 		return nil
 	}
 	var heads []struct {
-		Type      string `json:"type"`
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		ToolUseID string `json:"tool_use_id"`
-		IsError   bool   `json:"is_error"`
+		Type      string       `json:"type"`
+		ID        string       `json:"id"`
+		Name      string       `json:"name"`
+		ToolUseID string       `json:"tool_use_id"`
+		IsError   bool         `json:"is_error"`
+		Text      injectedText `json:"text"`
 	}
 	_ = json.Unmarshal(raw, &heads)
 	b.blocks = make([]claudeBlock, len(heads))
 	for i, h := range heads {
-		b.blocks[i] = claudeBlock{Type: h.Type, ID: h.ID, Name: h.Name, ToolUseID: h.ToolUseID, IsError: h.IsError}
+		b.blocks[i] = claudeBlock{Type: h.Type, ID: h.ID, Name: h.Name, ToolUseID: h.ToolUseID, IsError: h.IsError, injected: bool(h.Text)}
 	}
+	return nil
+}
+
+// injectedText records whether a text value is one of the CLI's own records,
+// without keeping the text.
+type injectedText bool
+
+func (t *injectedText) UnmarshalJSON(raw []byte) error {
+	*t = injectedText(claudeInjectedText(bytes.TrimSpace(raw)))
 	return nil
 }
 
@@ -328,12 +345,12 @@ func claudeUser(r *recorder, head claudeHead, body claudeBody, sub bool) {
 
 	prompt := false
 	for _, b := range body.blocks {
-		if b.Type != "tool_result" {
+		if b.Type != "tool_result" && !(b.Type == "text" && b.isInjected()) {
 			prompt = true
 		}
 	}
 	role := roleSystem
-	if prompt && !sub {
+	if prompt && !sub && !head.IsMeta && !head.IsCompact {
 		r.s.UserMessages++
 		role = roleUser
 	}

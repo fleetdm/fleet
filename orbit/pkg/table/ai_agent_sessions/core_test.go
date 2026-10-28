@@ -59,6 +59,21 @@ func TestUsernameComesFromHomeOwner(t *testing.T) {
 	require.Len(t, sessionRows(t, eq("username", "bob")), 1)
 }
 
+func TestCacheIsKeyedByHomeOwner(t *testing.T) {
+	setup(t)
+	dir := t.TempDir()
+	h := ownedHome(t, dir)
+	setHomes(t, h)
+	writeClaudePrompts(t, dir, "s1", "hi")
+	require.Equal(t, "alice", sessionRows(t)[0]["username"])
+
+	// The same, unchanged transcript under a renamed account is reported
+	// under the new name.
+	h.Username = "bob"
+	setHomes(t, h)
+	require.Equal(t, "bob", sessionRows(t)[0]["username"])
+}
+
 func TestSessionsNewestFirst(t *testing.T) {
 	home := setup(t)
 	writeClaudeTranscript(t, home, "older", `{"type":"user","timestamp":"2026-08-01T10:00:00.000Z","message":{"content":"hi"}}`)

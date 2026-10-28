@@ -45,8 +45,11 @@ type sessionCache struct {
 
 var cache = &sessionCache{m: map[string]cacheEntry{}}
 
+// cacheKey names a session by its files and the account it was read for, so
+// a home reattributed or renamed is parsed again under its current user.
 func cacheKey(src *source) string {
-	return src.agent.name + "\x00" + src.files[0] + "\x00" + src.id
+	h := src.sc.home
+	return src.agent.name + "\x00" + src.files[0] + "\x00" + src.id + "\x00" + h.UID + "\x00" + h.Username
 }
 
 // session returns the source's Session, parsing it unless an unchanged copy
@@ -133,8 +136,9 @@ func newDerivedCache[T any]() *derivedCache[T] {
 }
 
 // get returns the value for path, computing it unless the file is unchanged
-// since it was last computed.
-func (c *derivedCache[T]) get(path string, compute func() T) T {
+// since it was last computed. A value computed once the call's read budget
+// ran out is a fallback, and isn't kept.
+func (c *derivedCache[T]) get(sc *scope, path string, compute func() T) T {
 	st := stampOf(path)
 	gen := derivedGen.Load()
 	c.mu.Lock()
@@ -147,6 +151,9 @@ func (c *derivedCache[T]) get(path string, compute func() T) T {
 	}
 	c.mu.Unlock()
 	v := compute()
+	if sc.reads.exhausted {
+		return v
+	}
 	c.mu.Lock()
 	c.m[path] = derivedEntry[T]{stamp: st, v: v, gen: gen}
 	c.mu.Unlock()

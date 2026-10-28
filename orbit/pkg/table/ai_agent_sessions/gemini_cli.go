@@ -77,7 +77,7 @@ type geminiLogSession struct {
 var geminiLogIndexes = newDerivedCache[[]geminiLogSession]()
 
 func (f *geminiLogFile) index() []geminiLogSession {
-	return geminiLogIndexes.get(f.path, func() []geminiLogSession {
+	return geminiLogIndexes.get(f.sc, f.path, func() []geminiLogSession {
 		bySession := f.load()
 		idx := make([]geminiLogSession, 0, len(f.order))
 		for _, id := range f.order {
@@ -187,19 +187,20 @@ func discoverGeminiCLI(a *agent, sc *scope, cutoff time.Time) []*source {
 	}
 	for _, l := range logs {
 		file := &geminiLogFile{sc: sc, path: l.path}
-		n := 0
+		var found []geminiLogSession
 		for _, ls := range file.index() {
 			if _, inChats := mains[ls.id]; inChats || (!cutoff.IsZero() && !ls.last.IsZero() && ls.last.Before(cutoff)) {
 				continue
 			}
-			if n == maxGeminiLogSessions {
-				break
-			}
+			found = append(found, ls)
+		}
+		// The cap keeps the newest; sessions with no usable time sort last.
+		slices.SortStableFunc(found, func(a, b geminiLogSession) int { return b.last.Compare(a.last) })
+		for _, ls := range found[:min(len(found), maxGeminiLogSessions)] {
 			if src, ok := newSource(a, sc, ls.id, []string{l.path}, time.Time{}); ok {
 				src.extra = geminiSource{project: l.project(), logs: file}
 				src.deps = l.deps
 				srcs = append(srcs, src)
-				n++
 			}
 		}
 	}
@@ -211,7 +212,7 @@ var geminiChatIDs = newDerivedCache[string]()
 // geminiChatID reads a chat file's session id. A legacy .json chat has to be
 // parsed whole for it, so the id is kept while the file is unchanged.
 func geminiChatID(sc *scope, path string) string {
-	return geminiChatIDs.get(path, func() string {
+	return geminiChatIDs.get(sc, path, func() string {
 		discoveryReads.Add(1)
 		var meta struct {
 			SessionID string `json:"sessionId"`
@@ -370,7 +371,7 @@ func loadGeminiConversation(sc *scope, path string) (geminiConversation, bool) {
 			if json.Unmarshal(probe.Set, &set) == nil {
 				c.mergeMeta(set.geminiConversation)
 				if set.Messages != nil {
-					c.Messages = *set.Messages
+					c.Messages = (*set.Messages)[:min(len(*set.Messages), maxGeminiMessages)]
 					c.reindex()
 				}
 			}
@@ -624,6 +625,8 @@ func geminiResult(tc geminiToolCall) string {
 
 var geminiExitCode = regexp.MustCompile(`(?m)^Exit Code: (-?\d+)`)
 
+const geminiShellTool = "run_shell_command"
+
 // geminiDecision maps a tool call's final status to its outcome. Failed
 // shell commands are recorded as successful; only the output says.
 func geminiDecision(tc geminiToolCall) string {
@@ -640,7 +643,11 @@ func geminiDecision(tc geminiToolCall) string {
 		return decisionError
 	}
 	// The shell tool ends its output with the exit code; a command can print
-	// the same words earlier, so the last one counts.
+	// the same words earlier, so the last one counts. Any other tool's output
+	// (a file's contents, say) can hold the line without meaning it.
+	if tc.Name != geminiShellTool {
+		return decisionAllowed
+	}
 	if ms := geminiExitCode.FindAllStringSubmatch(output, -1); len(ms) > 0 && ms[len(ms)-1][1] != "0" {
 		return decisionError
 	}

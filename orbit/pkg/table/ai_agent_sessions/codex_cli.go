@@ -146,7 +146,7 @@ var codexKeys = newDerivedCache[codexKey]()
 // codexSessionKey reads a rollout's first record to find which session it
 // belongs to, and whether it is a sub-agent's.
 func codexSessionKey(sc *scope, path string) (key string, sub bool) {
-	k := codexKeys.get(path, func() codexKey {
+	k := codexKeys.get(sc, path, func() codexKey {
 		discoveryReads.Add(1)
 		var first struct {
 			Type    string    `json:"type"`

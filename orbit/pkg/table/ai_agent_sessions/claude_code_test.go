@@ -184,6 +184,9 @@ func TestClaudeCodeInjectedUserRecordsAreNotPrompts(t *testing.T) {
 		`{"type":"user","timestamp":"2026-08-01T10:00:01.000Z","message":{"role":"user","content":"<command-message>clear</command-message>\n<command-name>/clear</command-name>"}}`,
 		`{"type":"user","timestamp":"2026-08-01T10:00:02.000Z","message":{"role":"user","content":"<local-command-stdout>ok</local-command-stdout>"}}`,
 		`{"type":"user","isCompactSummary":true,"timestamp":"2026-08-01T10:00:03.000Z","message":{"role":"user","content":"This session is being continued from a previous conversation."}}`,
+		// The same records in block form.
+		`{"type":"user","isMeta":true,"timestamp":"2026-08-01T10:00:03.100Z","message":{"role":"user","content":[{"type":"text","text":"<system-reminder>attached file</system-reminder>"}]}}`,
+		`{"type":"user","timestamp":"2026-08-01T10:00:03.200Z","message":{"role":"user","content":[{"type":"text","text":"<command-name>/model</command-name>"}]}}`,
 		`{"type":"user","timestamp":"2026-08-01T10:00:04.000Z","message":{"role":"user","content":"real prompt"}}`,
 		// Older versions wrote sub-agent turns into the same file.
 		`{"type":"user","isSidechain":true,"timestamp":"2026-08-01T10:00:05.000Z","message":{"role":"user","content":"explore src"}}`,
@@ -205,6 +208,6 @@ func TestClaudeCodeInjectedUserRecordsAreNotPrompts(t *testing.T) {
 	require.Equal(t, "1", s["tool_calls"])
 	require.Empty(t, s["model"], "sub-agent models never set the session's")
 
-	require.Equal(t, []string{"system", "system", "system", "system", "user", "system", "assistant", "system"},
+	require.Equal(t, []string{"system", "system", "system", "system", "system", "system", "user", "system", "assistant", "system"},
 		column(messageRows(t, eq("session_id", "s"), eq("block_type", "text")), "role"))
 }

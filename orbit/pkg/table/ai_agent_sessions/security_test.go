@@ -137,7 +137,11 @@ func TestParserPanicCostsOneSession(t *testing.T) {
 			src, _ := newSource(a, sc, "boom", []string{claudePath(home, "fine")}, cutoff)
 			return []*source{src}
 		},
-		parse:   func(*source, *recorder) { panic("parser bug") },
+		parse: func(_ *source, r *recorder) {
+			r.message(time.Time{}, "", "")
+			r.text(roleUser, blockText, func() string { return "partial" })
+			panic("parser bug")
+		},
 		account: func(*scope) account { return account{} },
 	}
 	orig := agents
@@ -148,8 +152,54 @@ func TestParserPanicCostsOneSession(t *testing.T) {
 	rows := sessionRows(t)
 	require.Len(t, rows, 1)
 	require.Equal(t, "fine", rows[0]["session_id"])
-	require.Len(t, messageRows(t), 1)
+	require.Len(t, messageRows(t), 1, "rows recorded before the panic are dropped with the session")
 	require.Contains(t, logs.String(), "parser failed")
+}
+
+func TestDiscoveryIsNotCachedWhenBudgetRunsOut(t *testing.T) {
+	root := "11111111-0000-0000-0000-000000000001"
+	for _, tc := range []struct {
+		agent string
+		write func(t *testing.T, home string)
+		check func(t *testing.T, rows []map[string]string)
+	}{
+		{agent: agentGeminiCLI, write: func(t *testing.T, home string) { writeGeminiFixture(t, home) },
+			check: func(t *testing.T, rows []map[string]string) { require.NotEmpty(t, rows) }},
+		{agent: agentClaudeCode, write: func(t *testing.T, home string) {
+			writeClaudeFixture(t, home)
+			writeFile(t, filepath.Join(home, ".claude", "projects", "-Users-alice-GitHub-fleet", "agent-a2.jsonl"), lines(
+				`{"type":"assistant","isSidechain":true,"agentId":"a2","sessionId":"5d1f26db","timestamp":"2026-08-11T13:27:33.000Z","message":{"id":"a2","content":[{"type":"tool_use","id":"t","name":"Glob","input":{"pattern":"*"}}]}}`,
+			))
+		}, check: func(t *testing.T, rows []map[string]string) {
+			require.Len(t, rows, 1)
+			require.Equal(t, "6", rows[0]["tool_calls"], "the flat sub-agent's call is merged into its session")
+		}},
+		{agent: agentCodexCLI, write: func(t *testing.T, home string) {
+			writeFile(t, codexPath(home, "rollout-2026-08-01T12-00-00-"+root+".jsonl"), lines(
+				`{"timestamp":"2026-08-01T12:00:00.000Z","type":"session_meta","payload":{"id":"`+root+`","session_id":"`+root+`","cwd":"/w"}}`,
+				`{"timestamp":"2026-08-01T12:00:01.000Z","type":"event_msg","payload":{"type":"user_message","message":"hello"}}`,
+			))
+			writeFile(t, codexPath(home, "rollout-2026-08-01T12-00-02-22222222-0000-0000-0000-000000000002.jsonl"), lines(
+				`{"timestamp":"2026-08-01T12:00:02.000Z","type":"session_meta","payload":{"id":"22222222-0000-0000-0000-000000000002","session_id":"`+root+`","parent_thread_id":"`+root+`","cwd":"/w"}}`,
+				`{"timestamp":"2026-08-01T12:00:02.500Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"pwd\"}","call_id":"s1"}}`,
+			))
+		}, check: func(t *testing.T, rows []map[string]string) {
+			require.Len(t, rows, 1, "the sub-agent rollout is merged into its root session")
+			require.Equal(t, root, rows[0]["session_id"])
+			require.Equal(t, "1", rows[0]["tool_calls"])
+		}},
+	} {
+		t.Run(tc.agent, func(t *testing.T) {
+			home := setup(t)
+			tc.write(t, home)
+			// A budget too small for discovery's first read leaves it with
+			// fallback values, which must not outlive the call.
+			setReadBudget(t, 1)
+			require.Empty(t, sessionRows(t, eq("agent", tc.agent)))
+			setReadBudget(t, 4<<30)
+			tc.check(t, sessionRows(t, eq("agent", tc.agent)))
+		})
+	}
 }
 
 func TestWalksAreBounded(t *testing.T) {

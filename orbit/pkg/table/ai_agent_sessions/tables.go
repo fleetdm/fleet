@@ -228,7 +228,9 @@ func generateMessages(qc table.QueryContext) []map[string]string {
 		}
 		r := newMessageRecorder(src, &q)
 		transcriptsParsed.Add(1)
-		parse(src, r)
+		if !parse(src, r) {
+			continue
+		}
 		for _, m := range r.out {
 			rows = append(rows, m.row())
 		}

@@ -56,6 +56,36 @@ func TestCursorSessionWithoutMeta(t *testing.T) {
 	ended := intCol(t, s, "ended_at")
 	require.Positive(t, ended)
 	require.LessOrEqual(t, intCol(t, s, "started_at"), ended)
+	require.Equal(t, "/home/alice/code", messageRows(t, eq("session_id", cursorSession))[0]["cwd"])
+}
+
+func TestCursorMetaWithoutTimes(t *testing.T) {
+	home := setup(t)
+	copyCursorCapture(t, home)
+	meta := filepath.Join(home, ".cursor", "chats", "8ca42ba3fdb84804582e10fe7011bb18", cursorSession, "meta.json")
+	writeFile(t, meta, `{"schemaVersion":1,"cwd":"/home/alice/code"}`)
+
+	s := sessionRows(t, eq("session_id", cursorSession))[0]
+	require.Equal(t, "/home/alice/code", s["project_path"])
+	ended := intCol(t, s, "ended_at")
+	require.Positive(t, ended)
+	started := intCol(t, s, "started_at")
+	require.Positive(t, started, "the transcript's creation time stands in")
+	require.LessOrEqual(t, started, ended)
+}
+
+func TestParseCursorTime(t *testing.T) {
+	require.Equal(t, int64(1793130420), parseCursorTime("Tuesday, Oct 27, 2026, 3:47 PM (UTC-4)").Unix())
+	require.Equal(t, int64(1793130420+30*60), parseCursorTime("Tuesday, Oct 27, 2026, 3:47 PM (UTC-4:30)").Unix())
+	for _, bad := range []string{"sometime", "Tuesday, Oct 27, 2026, 3:47 PM (UTC+4:75)", "Tuesday, Oct 27, 2026, 3:47 PM (UTC-25)", "Tuesday, Oct 27, 2026, 3:47 PM (UTCx)"} {
+		require.True(t, parseCursorTime(bad).IsZero(), bad)
+	}
+}
+
+func TestCursorPromptKeepsNestedTags(t *testing.T) {
+	text, ts := cursorPrompt("<timestamp>Tuesday, Oct 27, 2026, 3:47 PM (UTC-4)</timestamp>\n<user_query>\nwrap it as <user_query>x</user_query> please\n</user_query>")
+	require.Equal(t, "wrap it as <user_query>x</user_query> please", text)
+	require.Equal(t, int64(1793130420), ts.Unix())
 }
 
 func TestCursorMessages(t *testing.T) {
