@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.0.3",
+      "version": "6.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce' AND version_compare(bundle_short_version, '6.0.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce' AND version_compare(bundle_short_version, '6.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sequelace.SequelAce' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Sequel-Ace/Sequel-Ace/releases/download/production/6.0.3-20116/Sequel-Ace-6.0.3.zip",
+      "installer_url": "https://github.com/Sequel-Ace/Sequel-Ace/releases/download/production/6.1.0-20117/Sequel-Ace-6.1.0.zip",
       "install_script_ref": "1b411c67",
       "uninstall_script_ref": "4dd8970a",
-      "sha256": "63b44d88d984b3796ba93301b55709b6cb3595a21f99d52fd6eac6c2f3e28c1c",
+      "sha256": "8337d0d45e631bb1850ba33eef596916e5dc99aeb58c623313e4b657482bc2fd",
       "default_categories": [
         "Developer tools"
       ]
