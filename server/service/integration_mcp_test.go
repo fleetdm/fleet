@@ -385,6 +385,8 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		})
 		resp := s.DoRawWithHeaders("POST", mcpPath, mcpInitializeBody, http.StatusBadRequest, bearer(operator.Token))
 		assert.Contains(t, readBody(resp), "server_settings.mcp_disabled")
+		resp = s.DoRawWithHeaders("POST", mcpPath, mcpInitializeBody, http.StatusBadRequest, nil)
+		assert.Contains(t, readBody(resp), "server_settings.mcp_disabled")
 	})
 
 	t.Run("a live query waits the server period and is attributed to the API-only user", func(t *testing.T) {
@@ -451,4 +453,5 @@ func (s *integrationTestSuite) TestEmbeddedMCPRequiresPremium() {
 	require.NoError(t, err)
 
 	s.DoRawWithHeaders("POST", mcpPath, mcpInitializeBody, http.StatusPaymentRequired, bearer(session.Key))
+	s.DoRawWithHeaders("POST", mcpPath, mcpInitializeBody, http.StatusPaymentRequired, nil)
 }
