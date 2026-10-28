@@ -1568,6 +1568,7 @@ The available metrics are:
 
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
+- [Get Okta Windows configuration profiles](#get-okta-windows-configuration-profiles)
 - [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
 
 ### Get Okta certificate
@@ -1609,6 +1610,42 @@ None.
 `Status: 200`
 
 Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Get Okta Windows configuration profiles
+
+_Available in Fleet Premium._
+
+Get the Windows configuration profiles (SyncML) for Okta conditional access. Requires a global admin, maintainer, technician, or GitOps user.
+
+Before uploading `scep_profile`, replace `<!-- Replace with a global enroll secret -->` with a [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) that holds a global enroll secret (recommended), or with the secret itself. Fleet rejects the profile until you do.
+
+The profiles require Windows 11 Pro, Enterprise, or Education. Windows Home isn't supported.
+
+`GET /api/v1/fleet/conditional_access/idp/windows/profiles`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/windows/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scep_profile": "<!-- Fleet conditional access for Okta: SCEP certificate (user store) -->\n<Add>...</Exec>",
+  "browser_profile": "<!-- Fleet conditional access for Okta: Chrome and Edge auto-select the certificate for the mTLS endpoint -->\n<Add>...</Replace>"
+}
+```
+
+| Field | Description |
+| ----- | ----------- |
+| scep_profile | Profile that enrolls the conditional access certificate into the signed-in user's certificate store. |
+| browser_profile | Profile that configures Chrome and Edge to present the certificate to Okta. Optional: without it, the browser asks the end user to pick the certificate. |
 
 ### Delete Microsoft Entra ID
 
