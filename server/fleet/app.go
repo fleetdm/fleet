@@ -294,6 +294,9 @@ type MDM struct {
 	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
 	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	// EnableProfileValidation turns on schema validation of admin-uploaded
+	// configuration profiles. Defaults to true.
+	EnableProfileValidation bool `json:"enable_profile_validation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -1647,6 +1650,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+	c.MDM.EnableProfileValidation = true
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.

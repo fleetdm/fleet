@@ -3887,3 +3887,27 @@ func TestGenerateProfilesFilenameCollision(t *testing.T) {
 		"Team-Win": "<xml>team-win</xml>",
 	}, contentsByName)
 }
+
+// Omitting enable_profile_validation means true, so a false must be exported on every tier
+// or applying the generated files would turn validation back on.
+func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
+	for _, free := range []bool{true, false} {
+		t.Run(fmt.Sprintf("free=%t", free), func(t *testing.T) {
+			client := &MockClient{IsFree: free}
+			appConfig, err := client.GetAppConfig()
+			require.NoError(t, err)
+			appConfig.MDM.EnableProfileValidation = false
+			cmd := &GenerateGitopsCommand{
+				Client:       client,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+			controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+			require.NoError(t, err)
+			require.Equal(t, false, controls["enable_profile_validation"])
+		})
+	}
+}
