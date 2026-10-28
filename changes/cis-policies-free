@@ -1,0 +1,1 @@
+- Made Fleet's CIS Benchmark policies free: moved them out of `ee/` into `docs/solutions/cis/` in GitOps format and removed the "Premium" badge from the policy library on fleetdm.com.

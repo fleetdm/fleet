@@ -43,7 +43,7 @@ spec:
             value > 5
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, premium,
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
@@ -106,7 +106,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, premium
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
@@ -169,7 +169,7 @@ spec:
         }
     }
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, premium
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
