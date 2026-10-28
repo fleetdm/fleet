@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_accounts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_hardware_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
@@ -140,6 +141,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
 
 		table.NewPlugin("app_sso_platform", app_sso_platform.Columns(), app_sso_platform.Generate),
+		table.NewPlugin("apple_accounts", apple_accounts.Columns(), apple_accounts.Generate),
 
 		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
 		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
