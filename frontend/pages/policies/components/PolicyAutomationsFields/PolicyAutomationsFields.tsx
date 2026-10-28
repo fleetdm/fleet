@@ -180,6 +180,7 @@ const PolicyAutomationsFields = forwardRef<
     const initialContinuous = policy.continuous_automations_enabled ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
     const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
+    const initialPatchDeadline = policy.patch_deadline ?? false;
 
     const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
       initialWebhookOrTicket
@@ -196,7 +197,9 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialPatchWhenClosed || initialNotifyBeforePatching
+      initialPatchWhenClosed ||
+        initialNotifyBeforePatching ||
+        initialPatchDeadline
         ? false
         : initialContinuous
     );
@@ -207,17 +210,24 @@ const PolicyAutomationsFields = forwardRef<
       patchOption !== undefined
         ? patchOption === "force" && endUserExperience === "notify"
         : initialNotifyBeforePatching;
-    // Continuous automations is locked on for both "Patch when app is closed"
-    // and "Notify before patching" — the backend forces it on for both, so an
-    // editable checkbox would lie.
+    const patchDeadline =
+      patchOption !== undefined
+        ? patchOption === "force" && endUserExperience === "deadline"
+        : initialPatchDeadline;
+    // Continuous automations is locked on for Patch when app is closed, Notify
+    // before patching, and Deadline — the backend forces it on for all three,
+    // so an editable checkbox would lie.
     const isContinuousAutomationsRequired =
-      patchWhenClosed || notifyBeforePatching;
+      patchWhenClosed || notifyBeforePatching || patchDeadline;
     const getContinuousAutomationsRequiredTooltip = () => {
       if (patchWhenClosed) {
         return "Continuous automation can't be disabled when Patch when app is closed is selected.";
       }
       if (notifyBeforePatching) {
         return "Continuous automation can't be disabled when Notify before patching is selected.";
+      }
+      if (patchDeadline) {
+        return "Continuous automation can't be disabled when Deadline is selected.";
       }
       return undefined;
     };
@@ -472,7 +482,8 @@ const PolicyAutomationsFields = forwardRef<
             effectiveContinuousEnabled !== initialContinuous ||
             (patchOption !== undefined &&
               (patchWhenClosed !== initialPatchWhenClosed ||
-                notifyBeforePatching !== initialNotifyBeforePatching)));
+                notifyBeforePatching !== initialNotifyBeforePatching ||
+                patchDeadline !== initialPatchDeadline)));
         const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
 
         return {
@@ -510,6 +521,10 @@ const PolicyAutomationsFields = forwardRef<
                 ...(patchOption !== undefined &&
                   notifyBeforePatching !== initialNotifyBeforePatching && {
                     notify_before_patching: notifyBeforePatching,
+                  }),
+                ...(patchOption !== undefined &&
+                  patchDeadline !== initialPatchDeadline && {
+                    patch_deadline: patchDeadline,
                   }),
               }
             : undefined,

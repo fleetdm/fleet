@@ -1058,13 +1058,20 @@ describe("PolicyForm - component", () => {
         await user.click(screen.getByRole("radio", { name: "Force patch" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
+        // Clicking Force patch (re)defaults the end-user experience to
+        // Deadline per the Figma dev note, so a user who flips the radio and
+        // hits Save gets patch_deadline: true + continuous automations locked
+        // on. This fallback path fires before the automations config loads;
+        // the Patch radio click still has to carry the deadline flag through
+        // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
             team_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
             notify_before_patching: false,
-            continuous_automations_enabled: false,
+            patch_deadline: true,
+            continuous_automations_enabled: true,
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);

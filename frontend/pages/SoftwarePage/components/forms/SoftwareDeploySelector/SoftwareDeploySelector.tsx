@@ -1,6 +1,8 @@
 import React from "react";
+import { browserHistory } from "react-router";
 import { SingleValue } from "react-select-5";
 
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
@@ -8,40 +10,66 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner";
+import usePatchDeadlineSettings from "hooks/usePatchDeadlineSettings";
+import { formatWeekdayList } from "interfaces/patch_deadline_settings";
 import { isMacOS, isWindows } from "interfaces/platform";
+import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-deploy-selector";
 
 export type PatchOption = "closed" | "force" | "manual";
-export type EndUserExperience = "immediate" | "notify";
+export type EndUserExperience = "deadline" | "immediate" | "notify";
 
-/** Returns the three policy flags derived from the deploy selector state. */
+/** Picks the end-user experience the dropdown should show when the user
+ * changes the patch option. Deadline is preselected whenever Force patch is
+ * chosen on a macOS target (Figma dev note on #55500). Non-macOS platforms
+ * never render the dropdown, so this is a no-op for them. Any other
+ * transition keeps the user's current choice. */
+export const getNextEndUserExperience = (
+  nextPatchOption: PatchOption,
+  prevEndUserExperience: EndUserExperience,
+  platform: string | undefined
+): EndUserExperience => {
+  if (nextPatchOption === "force" && isMacOS(platform)) {
+    return "deadline";
+  }
+  return prevEndUserExperience;
+};
+
+/** Returns the four policy flags derived from the deploy selector state. */
 export const getPatchPolicyFlags = (
   patchOption: PatchOption,
-  endUserExperience: EndUserExperience = "immediate"
+  endUserExperience: EndUserExperience = "deadline"
 ) => {
   const notifyActive =
     patchOption === "force" && endUserExperience === "notify";
+  const deadlineActive =
+    patchOption === "force" && endUserExperience === "deadline";
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
-    continuous_automations_enabled: patchOption === "closed" || notifyActive,
+    patch_deadline: deadlineActive,
+    continuous_automations_enabled:
+      patchOption === "closed" || notifyActive || deadlineActive,
   };
 };
 
 const END_USER_EXPERIENCE_LINK = `${LEARN_MORE_ABOUT_BASE_LINK}/patching-end-user-experience`;
 
 const END_USER_EXPERIENCE_OPTIONS: CustomOptionType[] = [
-  { label: "Patch immediately", value: "immediate" },
+  { label: "Deadline", value: "deadline" },
   { label: "Notify before patching", value: "notify" },
+  { label: "Patch immediately", value: "immediate" },
 ];
 
 /**
- * `showLink` is only true when the user could plausibly opt into Notify —
- * i.e. macOS today. On Windows and unknown platforms, Notify is unavailable
- * so the "End user experience" learn-more link would point at a feature the
- * user has no way to reach and gets suppressed.
+ * `showLink` is only true when the user could plausibly opt into Notify or
+ * Deadline — i.e. macOS today. On Windows and unknown platforms, those
+ * variants are unavailable so the "End user experience" learn-more link
+ * would point at a feature the user has no way to reach and gets suppressed.
  */
 const ImmediateBanner = ({ showLink }: { showLink: boolean }) => (
   <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
@@ -78,6 +106,37 @@ const WindowsBanner = () => (
   </InfoBanner>
 );
 
+/** Banner for Force patch -> Deadline. Reads the fleet's days + time from the
+ * patch_deadline_settings API via the shared hook so the Library settings
+ * page and the banner dedupe through the same React Query cache key. The
+ * "Edit deadline" action uses browserHistory.push rather than an anchor tag
+ * so navigation stays in-SPA — a hard navigation would spin up a fresh
+ * QueryClient on the settings page, and the settings page's
+ * invalidateQueries(["patchDeadlineSettings", fleetId]) wouldn't reach this
+ * banner on Back (the banner would show stale days/time). */
+const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
+  const { data } = usePatchDeadlineSettings(fleetId);
+  const daysLabel = formatWeekdayList(data?.days ?? []);
+  const timeLabel = data?.time ? internationalTimeOnlyFormat(data.time) : "";
+  const settingsPath = getPathWithQueryParams(
+    PATHS.SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE,
+    { fleet_id: fleetId }
+  );
+  return (
+    <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+      Patch is done silently when app is closed or forced on{" "}
+      <b>
+        {daysLabel || "---"}
+        {timeLabel ? ` at ${timeLabel}` : ""}
+      </b>{" "}
+      (host&apos;s local time).{" "}
+      <Button variant="link" onClick={() => browserHistory.push(settingsPath)}>
+        Edit deadline
+      </Button>
+    </InfoBanner>
+  );
+};
+
 interface ISoftwareDeploySelectorProps {
   forceInstall: boolean;
   patch: boolean;
@@ -94,6 +153,10 @@ interface ISoftwareDeploySelectorProps {
   platform?: string;
   endUserExperience?: EndUserExperience;
   onSelectEndUserExperience?: (value: EndUserExperience) => void;
+  /** Fleet id used by the Deadline banner to fetch the fleet's days + time
+   * and build the "Edit deadline" link. Required to show Deadline details;
+   * when absent the dropdown still works but the banner renders placeholders. */
+  fleetId?: number;
 }
 
 interface IPatchOptionSelectorProps {
@@ -104,6 +167,7 @@ interface IPatchOptionSelectorProps {
   platform?: string;
   endUserExperience?: EndUserExperience;
   onSelectEndUserExperience?: (value: EndUserExperience) => void;
+  fleetId?: number;
 }
 
 export const PatchOptionSelector = ({
@@ -112,8 +176,9 @@ export const PatchOptionSelector = ({
   disabled = false,
   showPatchWhenClosedNotice = false,
   platform,
-  endUserExperience = "immediate",
+  endUserExperience = "deadline",
   onSelectEndUserExperience,
+  fleetId,
 }: IPatchOptionSelectorProps) => {
   const onChangePatchOption = (value: string) =>
     onSelectPatchOption(value as PatchOption);
@@ -135,11 +200,13 @@ export const PatchOptionSelector = ({
     // Windows" one. The widened isMacOS/isWindows both return true for such
     // strings, so precedence matters here.
     if (isMacOS(platform)) {
-      return endUserExperience === "notify" ? (
-        <NotifyBanner />
-      ) : (
-        <ImmediateBanner showLink />
-      );
+      if (endUserExperience === "deadline" && fleetId !== undefined) {
+        return <DeadlineBanner fleetId={fleetId} />;
+      }
+      if (endUserExperience === "notify") {
+        return <NotifyBanner />;
+      }
+      return <ImmediateBanner showLink />;
     }
     if (isWindows(platform)) {
       return <WindowsBanner />;
@@ -221,6 +288,7 @@ const SoftwareDeploySelector = ({
   platform,
   endUserExperience,
   onSelectEndUserExperience,
+  fleetId,
 }: ISoftwareDeploySelectorProps) => {
   return (
     <div className={`form-field ${baseClass}`}>
@@ -252,6 +320,7 @@ const SoftwareDeploySelector = ({
           platform={platform}
           endUserExperience={endUserExperience}
           onSelectEndUserExperience={onSelectEndUserExperience}
+          fleetId={fleetId}
         />
       )}
     </div>
