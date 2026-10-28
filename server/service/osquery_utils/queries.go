@@ -4397,9 +4397,11 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	// IdP host vitals are a premium feature.
+	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
+		generatedMap["ai_agent_sessions"] = aiAgentSessions
+		generatedMap["ai_agent_session_events"] = aiAgentSessionEvents
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

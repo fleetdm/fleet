@@ -3,6 +3,39 @@
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
+## ai_agent_session_events
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_session_messages') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_session_messages') WHERE name = 'tool_call_index')
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## ai_agent_sessions
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_sessions') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_sessions') WHERE name = 'account_identifier')
+```
+
+- Query:
+```sql
+SELECT
+  agent, session_id, agent_version, username, account_identifier, model, project_path, git_repository, git_branch,
+  started_at, ended_at, user_messages, assistant_messages, tool_calls, input_tokens, output_tokens, cache_read_tokens,
+  cache_write_tokens, transcript_path, transcript_size_bytes
+FROM ai_agent_sessions
+WHERE started_at >= (SELECT unix_time FROM time) - 2592000
+```
+
 ## battery
 
 - Platforms: windows, darwin
