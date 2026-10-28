@@ -140,6 +140,8 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
+If a fleet has both the x64 and ARM64 builds of a Windows app, add one patch policy using either slug. It checks each host against the build for its CPU.
+
 To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
 To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed to `true`. 
@@ -904,6 +906,8 @@ software:
 Fleet-maintained apps support `path:` (single file) and `paths:` (glob pattern) references, so you can define an app once in a separate file and reference it from multiple fleets. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a fleet. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+
+Some Windows apps have a separate ARM64 build whose slug ends in `-arm64` (for example, `google-chrome-arm64/windows`). You can add both builds to a fleet. Each host gets the build for its CPU, and each build keeps its own labels and `version`.
 
 By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 

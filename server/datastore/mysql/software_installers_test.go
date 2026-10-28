@@ -5415,6 +5415,11 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
 	})
 	require.NoError(t, err)
+	// A different app that happens to register the same DisplayName.
+	nightlyPortable, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Firefox Nightly Portable", Slug: "firefox@nightly-portable/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
 	// Developer Edition's DisplayName carries the architecture, so its two FMAs are separate titles.
 	devEdARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name: "Mozilla Firefox Developer Edition (ARM64)", Slug: "firefox@developer-edition-arm64/windows", Platform: "windows",
@@ -5460,25 +5465,33 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly, "Firefox Nightly", "", "nightly-x64", "157.2609.908.0"))
 	require.NoError(t, err)
 
-	// ARM64 Nightly is a different FMA on the same title → rejected with the specific
-	// message, both at the same version (which would otherwise hit the dedup unique key)
-	// and at a different one (which would otherwise insert a second active row). The
-	// message names both FMAs, not the shared installer title.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64", "157.2609.908.0"))
-	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64-next", "157.2609.1001.0"))
-	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
+	// An unrelated FMA on the same title → rejected with the specific message, both at the
+	// same version (which would otherwise hit the dedup unique key) and at a different one
+	// (which would otherwise insert a second active row). The message names both FMAs, not
+	// the shared installer title.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyPortable, "Firefox Nightly", "", "nightly-portable", "157.2609.908.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly Portable can be added to the same fleet")
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyPortable, "Firefox Nightly", "", "nightly-portable-next", "157.2609.1001.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly Portable can be added to the same fleet")
+
+	// The ARM64 build of the same app joins the title, even at the x64 build's version.
+	_, armTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64", "157.2609.908.0"))
+	require.NoError(t, err)
+	// With both builds on the title, an unrelated FMA is still rejected.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyPortable, "Firefox Nightly", "", "nightly-portable", "157.2609.908.0"))
+	require.ErrorContains(t, err, "can be added to the same fleet")
 
 	// A new version of the SAME FMA must still be allowed.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly, "Firefox Nightly", "", "nightly-x64-next", "157.2609.1001.0"))
+	_, x64TitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly, "Firefox Nightly", "", "nightly-x64-next", "157.2609.1001.0"))
 	require.NoError(t, err)
+	require.Equal(t, x64TitleID, armTitleID)
 
 	// A different title on the same team is unaffected.
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, devEdARM, "Firefox Developer Edition (AArch64 en-US)", "", "deved-arm64", "156.0"))
 	require.NoError(t, err)
 
-	// The conflict is per team: ARM64 Nightly can be added to a team that has no Nightly.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(otherTeam.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64", "157.2609.908.0"))
+	// The conflict is per team: the unrelated app can be added to a team that has no Nightly.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(otherTeam.ID, nightlyPortable, "Firefox Nightly", "", "nightly-portable", "157.2609.908.0"))
 	require.NoError(t, err)
 
 	// Upgrade-code titles: a different FMA with a different upgrade code is a different title
@@ -5507,8 +5520,8 @@ func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
 		Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
 	})
 	require.NoError(t, err)
-	nightlyARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	nightlyPortable, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Firefox Nightly Portable", Slug: "firefox@nightly-portable/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
 	})
 	require.NoError(t, err)
 	opts.RunReplication()
@@ -5538,8 +5551,8 @@ func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
 
 	// No replication: the replica has neither the title nor the x64 installer. A different
 	// version sidesteps the dedup unique key, so only the conflict check can stop this.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(nightlyARM, "nightly-arm64", "157.2609.1001.0"))
-	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(nightlyPortable, "nightly-portable", "157.2609.1001.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly Portable can be added to the same fleet")
 }
 
 // The x64 and ARM64 Chrome MSIs share an upgrade code, so the two FMAs land on one title
@@ -5946,8 +5959,8 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	// setup experience so we can assert the flag is carried forward.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)`,
-			team.ID, titleID, "^1"); err != nil {
+			`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (?, ?, ?, ?)`,
+			team.ID, titleID, maintainedApp.ID, "^1"); err != nil {
 			return err
 		}
 		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, activeID)
@@ -6013,7 +6026,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, labelCount)
 
 	// Pin untouched.
-	pin, err := ds.GetPinnedVersion(ctx, &team.ID, titleID)
+	pin, err := ds.GetPinnedVersion(ctx, &team.ID, titleID, maintainedApp.ID)
 	require.NoError(t, err)
 	require.NotNil(t, pin)
 	require.Equal(t, "^1", *pin)
@@ -7616,36 +7629,36 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	otherTeam := new(uint(42))
 
 	// No row -> not found; the caller treats this as "Latest".
-	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
-	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, fma.ID, "1.0"))
+	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
-	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, fma.ID, "^1"))
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
-	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, fma.ID, "2.0"))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
-	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// Deleting one team's pin leaves the other intact; deleting again is a no-op.
-	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
-	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID, fma.ID))
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
-	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID, fma.ID))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
 }
@@ -7683,7 +7696,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
-	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	gotFilenames := map[string]string{}
 	for _, fv := range fmaVersions {
@@ -7716,7 +7729,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v1Query, patchPolicy.Query)
-	pin, err := ds.GetPinnedVersion(ctx, nil, titleID)
+	pin, err := ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
@@ -7747,7 +7760,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v2Query, patchPolicy.Query)
-	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	pin, err = ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
 	// The query changed on the flip, so the policy's stale results were cleared.
@@ -7761,7 +7774,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v1Query, patchPolicy.Query)
-	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	_, err = ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
@@ -9729,11 +9742,12 @@ func testBatchSetSoftwareInstallersChangesStillApply(t *testing.T, ds *Datastore
 			apply(tm.ID, payload(nil), y())
 			copyRow(tm.ID, "fma-y", "stale", "9.9", &app.ID, true)
 			apply(tm.ID, payload(nil), y())
-			var got string
+			// The row isn't an app listed for title Y, so the apply removes it.
+			var got int
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &got, `SELECT is_active FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'stale'`, tm.ID)
+				return sqlx.GetContext(ctx, q, &got, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'stale' AND is_active = 1`, tm.ID)
 			})
-			assert.Equal(t, "0", got)
+			assert.Zero(t, got)
 		})
 	})
 }
@@ -9751,7 +9765,7 @@ func TestUnchangedInstallerIDCoversPayload(t *testing.T) {
 		// resolve the title before the skip
 		"Title", "Source", "BundleIdentifier",
 		// not written for an existing package
-		"TeamID", "TitleID", "InstallerFile", "StagedUploadID", "FMAName",
+		"TeamID", "TitleID", "InstallerFile", "StagedUploadID", "FMAName", "FMASlug",
 		"FMAVersionCached", "PackageIDs", "SetupExperiencePlatforms",
 		"LabelsIncludeAny", "LabelsExcludeAny", "LabelsIncludeAll", "AutomaticInstall",
 		"AutomaticInstallQuery", "Categories", "AddedAutomaticInstallPolicy", "AlwaysDownload",

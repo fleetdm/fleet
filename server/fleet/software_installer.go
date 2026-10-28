@@ -690,6 +690,8 @@ type UploadSoftwareInstallerPayload struct {
 	// FMAName is the FMA's catalog name, for user-facing errors. Title is the
 	// software title name, which on Windows is often the registry DisplayName instead.
 	FMAName string
+	// FMASlug is the FMA's catalog slug, used to tell an x64 build from its ARM64 sibling.
+	FMASlug string
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
 	RollbackVersion string
@@ -1437,12 +1439,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 	var customCount int
 	seenHash := make(map[string]struct{}, len(payloads))
 	seenFMA := make(map[uint]struct{}, len(payloads))
-	var fmaNames []string
+	var fmas []*UploadSoftwareInstallerPayload
 	for _, p := range payloads {
 		if p.FleetMaintainedAppID != nil {
 			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
 				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
-				fmaNames = append(fmaNames, p.FMADisplayName())
+				fmas = append(fmas, p)
 			}
 			continue
 		}
@@ -1453,11 +1455,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		seenHash[p.StorageID] = struct{}{}
 	}
 	// Two FMAs on one title share a bundle identifier (Firefox and Firefox ESR) or a Windows
-	// DisplayName (x64 and ARM64 Firefox Nightly): same inventory app, so only one can be added.
-	if len(fmaNames) > 1 {
-		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
+	// DisplayName: same inventory app, so only one can be added, unless they're the x64 and ARM64
+	// builds of one Windows app, which hosts get by CPU.
+	if len(fmas) > 2 || (len(fmas) == 2 && !MaintainedAppsAreArchSiblings(fmas[0].FMASlug, fmas[1].FMASlug)) {
+		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmas[0].FMADisplayName(), fmas[1].FMADisplayName())}
 	}
-	if len(fmaNames) > 0 && customCount > 0 {
+	if len(fmas) > 0 && customCount > 0 {
 		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
 	}
 	if customCount > MaxPackagesPerTitle {

@@ -3426,17 +3426,18 @@ type Datastore interface {
 	// active packages, keyed by title id, first-added first; backs the list packages[].
 	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageListItem, error)
 
-	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
+	// GetFleetMaintainedVersionsByTitleID returns all cached versions of the
 	// fleet-maintained app for the given title and team, most recently
-	// downloaded first.
-	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+	// downloaded first. A title can hold the x64 and ARM64 builds of a Windows
+	// app, so the app is given too.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, fmaID uint) ([]FleetMaintainedVersion, error)
 
 	// MarkFleetMaintainedAppVersionCurrent moves a cached version's uploaded_at to now.
 	// GetFleetMaintainedVersionsByTitleID then returns it first.
 	MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error
 
 	// ListFleetMaintainedAppActiveInstallers returns the active installer for
-	// every (team, title) backed by a Fleet-maintained app, across all teams.
+	// every (team, title, app) backed by a Fleet-maintained app, across all teams.
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
@@ -3466,14 +3467,26 @@ type Datastore interface {
 	// installer is already active, has no active sibling, or no longer exists.
 	ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error)
 
-	// GetPinnedVersion returns the pinned version for a team and software title.
-	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+	// GetPinnedVersion returns the pinned version of a Fleet-maintained app on a team's software title.
+	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint) (*string, error)
 
-	// SetPinnedVersion upserts the pinned version for the team and title.
-	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
+	// SetPinnedVersion upserts the pinned version of a Fleet-maintained app on a team's software title.
+	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint, version string) error
 
-	// DeletePinnedVersion removes the pin for the given team and title.
-	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
+	// DeletePinnedVersion removes the pin of a Fleet-maintained app on a team's software title.
+	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint) error
+
+	// RegeneratePatchPolicyQuery rewrites the query of the title's patch policy, if it has one, from the
+	// title's active Fleet-maintained app installers, and resets the policy's results.
+	RegeneratePatchPolicyQuery(ctx context.Context, teamID *uint, titleID uint) error
+
+	// ResolveFleetMaintainedAppBuildForHost returns the installer to send the host in place of installerID.
+	// When installerID is a build of a Windows Fleet-maintained app whose title also holds the other build
+	// (x64 or ARM64) in the same fleet, that's the active installer of the build for the host's CPU, if the
+	// host is in its label scope (or, with opts.ForSetupExperience, it's selected for setup experience). ok
+	// is false when the host can't run any such build (an ARM64 build on a host that isn't ARM). Otherwise
+	// it returns installerID.
+	ResolveFleetMaintainedAppBuildForHost(ctx context.Context, installerID uint, host *Host, opts HostSoftwareInstallOptions) (resolvedID uint, ok bool, err error)
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team, and its storage hash.

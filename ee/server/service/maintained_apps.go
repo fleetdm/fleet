@@ -186,6 +186,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
 		FMAName:               app.Name,
+		FMASlug:               app.Slug,
 		PreInstallQuery:       preInstallQuery,
 		PostInstallScript:     postInstallScript,
 		SelfService:           selfService,
@@ -211,6 +212,23 @@ func (svc *Service) AddFleetMaintainedApp(
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
+	}
+
+	// The title may already hold this app's other build (x64 or ARM64) with a patch policy, which
+	// now covers this build too.
+	switch patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, titleID); {
+	case fleet.IsNotFound(err):
+	case err != nil:
+		return 0, ctxerr.Wrap(ctx, err, "getting patch policy")
+	default:
+		if err := svc.ds.RegeneratePatchPolicyQuery(ctx, teamID, titleID); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "regenerating patch policy")
+		}
+		if patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching {
+			if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), titleID); err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "clearing pre-install query for patch policy")
+			}
+		}
 	}
 
 	// Windows programs report the version inside their name, so software already

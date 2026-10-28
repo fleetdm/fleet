@@ -796,7 +796,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		// Latest takes the most recently downloaded, not highest version string.
-		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
 		}
@@ -1276,8 +1276,8 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 	switch {
 	case metaInstaller != nil:
-		// Delete every package on the title. FMA titles keep one active row, so this
-		// matches prior behavior for them. Per-package deletes mean a guarded package
+		// Delete every package on the title, including both builds of an FMA that has
+		// x64 and ARM64 builds on it. Per-package deletes mean a guarded package
 		// (setup experience / patch policy) fails the title delete partway.
 		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
 		if err != nil {
@@ -1396,7 +1396,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, *meta.FleetMaintainedAppID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -1405,11 +1405,15 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
 				}
 			}
-			// The pin row is keyed by (team, title) and is not cascade-deleted when
+			// The pin row is keyed by (team, title, app) and is not cascade-deleted when
 			// installer rows go away (only when the title row is deleted), so clear
 			// it explicitly to avoid a stale pin surviving a delete + re-add.
-			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID); err != nil {
+			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID, *meta.FleetMaintainedAppID); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting pinned version after FMA removal")
+			}
+			// The title's other build (x64 or ARM64), if any, now has the patch policy to itself.
+			if err := svc.ds.RegeneratePatchPolicyQuery(ctx, meta.TeamID, *meta.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "regenerating patch policy after FMA removal")
 			}
 		}
 	default:
@@ -1715,13 +1719,28 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 	}
 	anyPackages = len(pkgs) > 0
 
+	// A title holding the x64 and ARM64 builds of a Windows Fleet-maintained app routes the host to the
+	// build for its CPU (see fleet.MaintainedAppArchFitForHost).
+	fmaSlugs := make(map[string]struct{}, len(pkgs))
+	for _, pkg := range pkgs {
+		if pkg.FleetMaintainedAppSlug != "" {
+			fmaSlugs[pkg.FleetMaintainedAppSlug] = struct{}{}
+		}
+	}
+
 	// pkgs are ordered installer_id ASC (first-added first). Prefer the first-added package the host
-	// can actually install (in scope and platform-compatible). Keep the first-added in-scope package
-	// of any platform as a fallback so a cross-platform title with no compatible package still hits
-	// the downstream platform error (matching single-package behavior).
-	var fallback *fleet.SoftwareInstaller
+	// can actually install (in scope and platform-compatible), a native build before an emulated one.
+	// Keep the first-added in-scope package of any platform as a fallback so a cross-platform title
+	// with no compatible package still hits the downstream platform error (matching single-package
+	// behavior).
+	var emulated, fallback *fleet.SoftwareInstaller
 	for _, pkg := range pkgs {
 		if requireSelfService && !pkg.SelfService {
+			continue
+		}
+		_, hasArchSibling := fmaSlugs[fleet.MaintainedAppArchSiblingSlug(pkg.FleetMaintainedAppSlug)]
+		archFit := fleet.MaintainedAppArchFitForHost(host, pkg.FleetMaintainedAppSlug, hasArchSibling)
+		if archFit == fleet.MaintainedAppArchIncompatible {
 			continue
 		}
 		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, pkg.InstallerID, host.ID)
@@ -1734,11 +1753,21 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 		if fallback == nil {
 			fallback = pkg
 		}
-		if installerCompatibleWithHost(pkg, host) {
-			return pkg, anyPackages, nil
+		if !installerCompatibleWithHost(pkg, host) {
+			continue
 		}
+		if archFit == fleet.MaintainedAppArchEmulated {
+			if emulated == nil {
+				emulated = pkg
+			}
+			continue
+		}
+		return pkg, anyPackages, nil
 	}
 
+	if emulated != nil {
+		return emulated, anyPackages, nil
+	}
 	return fallback, anyPackages, nil
 }
 
@@ -3160,7 +3189,7 @@ func (svc *Service) softwareInstallerPayloadFromMaintainedApp(ctx context.Contex
 			if app.TitleID == nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, app.ID)
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
@@ -3916,6 +3945,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
 				installer.FMAName = p.MaintainedApp.Name
+				installer.FMASlug = p.MaintainedApp.Slug
 				installer.PatchQuery = p.MaintainedApp.PatchQuery
 				installer.AppOpenQuery = p.MaintainedApp.AppOpenQuery
 			}

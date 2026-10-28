@@ -4545,6 +4545,7 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 			software_installers.self_service AS self_service,
 			software_installers.platform AS platform,
 			software_installers.extension AS extension,
+			COALESCE(fleet_maintained_apps.slug, '') AS fma_slug,
 			(
 				no_labels.installer_id IS NOT NULL
 				OR include_any.installer_id IS NOT NULL
@@ -4553,6 +4554,8 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 			) AS in_scope
 		FROM
 			software_installers
+		LEFT JOIN fleet_maintained_apps
+			ON fleet_maintained_apps.id = software_installers.fleet_maintained_app_id
 		LEFT JOIN no_labels
 			ON no_labels.installer_id = software_installers.id
 		LEFT JOIN include_any
@@ -4589,24 +4592,44 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		SelfService bool   `db:"self_service"`
 		Platform    string `db:"platform"`
 		Extension   string `db:"extension"`
+		FMASlug     string `db:"fma_slug"`
 		InScope     bool   `db:"in_scope"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select scoped installers for host")
 	}
 
+	// A title holding the x64 and ARM64 builds of a Windows Fleet-maintained app routes each host to the
+	// build for its CPU: the ARM64 build is out of scope on other hosts, and the x64 build ranks below the
+	// ARM64 build on ARM hosts, where it runs under emulation.
+	fmaSlugsByTitle := make(map[uint]map[string]struct{})
+	for _, r := range rows {
+		if r.FMASlug == "" {
+			continue
+		}
+		if fmaSlugsByTitle[r.TitleID] == nil {
+			fmaSlugsByTitle[r.TitleID] = make(map[string]struct{})
+		}
+		fmaSlugsByTitle[r.TitleID][r.FMASlug] = struct{}{}
+	}
+
 	hostPlatform := host.FleetPlatform()
 	// Per title, rank candidate packages so the resolved (displayed/installed) package matches what the
-	// install path would pick: platform-compatible + in-scope first, then in-scope, then compatible,
-	// then any active package (a deterministic fallback so display never goes empty). Rows are ordered
-	// installer_id ASC, so within each tier the first-added package wins. inScope marks titles the host
-	// is label-in-scope for (independent of platform, matching the prior label-only availability gate).
+	// install path would pick: platform-compatible + in-scope first (a native build before an emulated
+	// one), then in-scope, then compatible, then any active package (a deterministic fallback so display
+	// never goes empty). Rows are ordered installer_id ASC, so within each tier the first-added package
+	// wins. inScope marks titles the host is label-in-scope for (independent of platform, matching the
+	// prior label-only availability gate).
 	type candidate struct {
-		both, inScopeAny, compatAny, any *resolvedInstaller
+		both, emulated, inScopeAny, compatAny, any *resolvedInstaller
 	}
 	byTitle := make(map[uint]*candidate, len(titleIDs))
 	for _, r := range rows {
+		_, hasArchSibling := fmaSlugsByTitle[r.TitleID][fleet.MaintainedAppArchSiblingSlug(r.FMASlug)]
+		archFit := fleet.MaintainedAppArchFitForHost(host, r.FMASlug, hasArchSibling)
 		compat := r.Platform == hostPlatform || ((r.Extension == "sh" || r.Extension == "py") && r.Platform == "linux" && fleet.IsUnixLike(host.Platform))
+		compat = compat && archFit != fleet.MaintainedAppArchIncompatible
+		rowInScope := r.InScope && archFit != fleet.MaintainedAppArchIncompatible
 		pkg := resolvedInstaller{ID: r.InstallerID, SelfService: r.SelfService}
 		c := byTitle[r.TitleID]
 		if c == nil {
@@ -4619,12 +4642,17 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		if compat && c.compatAny == nil {
 			c.compatAny = &pkg
 		}
-		if r.InScope {
+		if rowInScope {
 			inScope[r.TitleID] = struct{}{}
 			if c.inScopeAny == nil {
 				c.inScopeAny = &pkg
 			}
-			if compat && c.both == nil {
+			switch {
+			case compat && archFit == fleet.MaintainedAppArchEmulated:
+				if c.emulated == nil {
+					c.emulated = &pkg
+				}
+			case compat && c.both == nil:
 				c.both = &pkg
 			}
 		}
@@ -4634,6 +4662,8 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		switch {
 		case c.both != nil:
 			resolved[titleID] = *c.both
+		case c.emulated != nil:
+			resolved[titleID] = *c.emulated
 		case c.inScopeAny != nil:
 			resolved[titleID] = *c.inScopeAny
 		case c.compatAny != nil:

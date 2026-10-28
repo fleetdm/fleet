@@ -339,17 +339,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				}
 				return false, nil
 			}
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
-				SelfService:        false,
-				ForSetupExperience: true,
-			})
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
-			}
-			sw.HostSoftwareInstallsExecutionID = &installUUID
-			sw.Status = fleet.SetupExperienceStatusRunning
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
+			if err := svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw); err != nil {
+				return false, err
 			}
 
 		case sw.VPPAppTeamID != nil:
@@ -630,10 +621,22 @@ func (svc *Service) resetPolicyClockAfterGatedSetup(ctx context.Context, host *f
 // enqueueSetupExperienceSoftwareInstall enqueues a software installer item the same way an un-gated setup-experience item is
 // enqueued (ForSetupExperience priority, the item owns its host_software_installs execution), and marks the item running.
 func (svc *Service) enqueueSetupExperienceSoftwareInstall(ctx context.Context, host *fleet.Host, sw *fleet.SetupExperienceStatusResult) error {
-	installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	opts := fleet.HostSoftwareInstallOptions{
 		SelfService:        false,
 		ForSetupExperience: true,
-	})
+	}
+	// Setup experience is often queued before the host reports its CPU, so an ARM host may have been
+	// given the x64 build of a Windows Fleet-maintained app whose title also holds the ARM64 build.
+	if host.IsWindowsARM() {
+		installerID, ok, err := svc.ds.ResolveFleetMaintainedAppBuildForHost(ctx, *sw.SoftwareInstallerID, host, opts)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolve fleet-maintained app build for setup experience")
+		}
+		if ok {
+			sw.SoftwareInstallerID = &installerID
+		}
+	}
+	installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, opts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 	}

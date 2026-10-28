@@ -450,6 +450,38 @@ func TestValidateTitlePackages(t *testing.T) {
 			wantErr: "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet",
 		},
 		{
+			name: "x64 and ARM64 builds of one Windows app are allowed",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Google Chrome", FleetMaintainedAppID: new(uint(1)), FMAName: "Google Chrome", FMASlug: "google-chrome/windows"},
+				{Title: "Google Chrome", FleetMaintainedAppID: new(uint(2)), FMAName: "Google Chrome (ARM64)", FMASlug: "google-chrome-arm64/windows"},
+			},
+		},
+		{
+			name: "two x64 Windows FMAs sharing a title are rejected",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Slack", FleetMaintainedAppID: new(uint(1)), FMAName: "Slack", FMASlug: "slack/windows"},
+				{Title: "Slack", FleetMaintainedAppID: new(uint(2)), FMAName: "Slack Beta", FMASlug: "slack-beta/windows"},
+			},
+			wantErr: "Only one of Slack or Slack Beta can be added to the same fleet",
+		},
+		{
+			name: "an ARM64 build with another app's x64 build is rejected",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Chrome", FleetMaintainedAppID: new(uint(1)), FMAName: "Chromium", FMASlug: "chromium/windows"},
+				{Title: "Chrome", FleetMaintainedAppID: new(uint(2)), FMAName: "Google Chrome (ARM64)", FMASlug: "google-chrome-arm64/windows"},
+			},
+			wantErr: "Only one of Chromium or Google Chrome (ARM64) can be added to the same fleet",
+		},
+		{
+			name: "both builds plus a custom package are rejected",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Google Chrome", FleetMaintainedAppID: new(uint(1)), FMASlug: "google-chrome/windows"},
+				{Title: "Google Chrome", FleetMaintainedAppID: new(uint(2)), FMASlug: "google-chrome-arm64/windows"},
+				custom("Google Chrome", "hash-1"),
+			},
+			wantErr: "Fleet-maintained app",
+		},
+		{
 			name:     "same FMA across multiple versions is allowed",
 			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), fma(1, "Mozilla Firefox")},
 		},

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"mime"
 	"os"
@@ -2422,7 +2423,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		// A title with more than one custom package is written to its own package YAML
 		// file, referenced by a single path entry in the fleet file.
-		if len(softwareTitle.Packages) > 1 {
+		if len(softwareTitle.Packages) > 1 && softwareTitle.Packages[0].FleetMaintainedAppID == nil {
 			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
 			crosses := crossPlatformSelectionsByTitleID[softwareTitle.ID]
 			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup, crosses)
@@ -2433,301 +2434,323 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			continue
 		}
 
-		var slug string
-
-		if softwareTitle.SoftwarePackage != nil {
-			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-			scriptExtension := scriptExtensionForPlatform(sw.SoftwarePackage.Platform)
-
-			var fmaInstallScriptModified, fmaUninstallScriptModified bool
-			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-				slug, err = slugResolver.resolve(*softwareTitle.SoftwarePackage.FleetMaintainedAppID)
-				if err != nil {
-					return nil, err
-				}
-				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
-					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
-					Slug: slug,
-				}, "", nil, nil)
-				if err != nil {
-					return nil, err
-				}
-
-				fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
-				fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
-			}
-
-			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
-				if fmaID != nil {
-					return scriptModified && scriptContents != ""
-				}
-
-				return scriptContents != ""
-			}
-
-			// Only output install_script, post_install_script, uninstall_script, and
-			// pre_install_query for non-script packages
-			if !isScriptPackage {
-				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
-					script := softwareTitle.SoftwarePackage.InstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install"+scriptExtension)
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["install_script"] = map[string]interface{}{
-						"path": path,
-					}
-					cmd.FilesToWrite[fileName] = script
-				}
-
-				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
-					script := softwareTitle.SoftwarePackage.PostInstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall"+scriptExtension)
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["post_install_script"] = map[string]interface{}{
-						"path": path,
-					}
-					cmd.FilesToWrite[fileName] = script
-				}
-
-				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
-					script := softwareTitle.SoftwarePackage.UninstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall"+scriptExtension)
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["uninstall_script"] = map[string]interface{}{
-						"path": path,
-					}
-					cmd.FilesToWrite[fileName] = script
-				}
-
-				// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
-				// open query, which gitops rejects.
-				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
-					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
-					query := softwareTitle.SoftwarePackage.PreInstallQuery
-					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
-					path := fmt.Sprintf("../%s", fileName)
-					softwareSpec["pre_install_query"] = map[string]interface{}{
-						"path": path,
-					}
-					cmd.FilesToWrite[fileName] = []map[string]interface{}{{
-						"query": query,
-					}}
-				}
-			}
-
-			if softwareTitle.SoftwarePackage.SelfService {
-				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
-			}
-
-			if softwareTitle.SoftwarePackage.URL != "" {
-				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
-			}
-
-			if softwareTitle.SoftwarePackage.Categories != nil {
-				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
-			}
-
-			if softwareTitle.DisplayName != "" {
-				softwareSpec["display_name"] = softwareTitle.DisplayName
-			}
-
-			// each package is listed once in software, so we can pull icon directly here
-			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
-				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]interface{}{
-					"path": path,
-				}
-				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
-				if err != nil {
-					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
-					return nil, err
-				}
-
-				// TODO write files immediately rather than queueing them up
-				cmd.FilesToWrite[fileName] = icon
-			}
-
-			// Emit managed app configuration for iOS / iPadOS in-house apps. The
-			// API returns it as a JSON-encoded string of XML; unwrap and write
-			// the raw XML alongside the package's other artifacts.
-			if len(softwareTitle.SoftwarePackage.Configuration) > 0 {
-				var xmlStr string
-				if err := json.Unmarshal(softwareTitle.SoftwarePackage.Configuration, &xmlStr); err != nil {
-					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding in-house app configuration %s: %s\n", sw.Name, err)
-					return nil, err
-				}
-				if xmlStr != "" {
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
-					softwareSpec["configuration"] = map[string]any{
-						"path": fmt.Sprintf("../%s", fileName),
-					}
-					cmd.FilesToWrite[fileName] = []byte(xmlStr)
-				}
+		// A title holding the x64 and ARM64 builds of a Windows Fleet-maintained app gets an entry per build.
+		type titleView struct {
+			title *fleet.SoftwareTitle
+			spec  map[string]any
+		}
+		views := []titleView{{title: softwareTitle, spec: softwareSpec}}
+		if len(softwareTitle.Packages) > 1 {
+			views = make([]titleView, 0, len(softwareTitle.Packages))
+			for i := range softwareTitle.Packages {
+				title := *softwareTitle
+				title.SoftwarePackage = &softwareTitle.Packages[i]
+				views = append(views, titleView{title: &title, spec: maps.Clone(softwareSpec)})
 			}
 		}
+		for _, view := range views {
+			softwareTitle, softwareSpec := view.title, view.spec
 
-		if softwareTitle.AppStoreApp != nil {
-			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
-			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+			var slug string
 
-			if softwareTitle.DisplayName != "" {
-				softwareSpec["display_name"] = softwareTitle.DisplayName
-			}
+			if softwareTitle.SoftwarePackage != nil {
+				filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
+				scriptExtension := scriptExtensionForPlatform(sw.SoftwarePackage.Platform)
 
-			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
-				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]any{
-					"path": path,
-				}
-				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
-				if err != nil {
-					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
-					return nil, err
-				}
-
-				// TODO write files immediately rather than queueing them up
-				cmd.FilesToWrite[fileName] = icon
-			}
-
-			flatVersion := softwareTitle.AppStoreApp.AppStoreAppVersion()
-			flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
-			flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
-			flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
-			appVersions := []fleet.AppStoreAppVersion{flatVersion}
-			var versionSpecs []map[string]any
-			if len(softwareTitle.AppStoreApps) > 1 || (len(softwareTitle.AppStoreApps) == 1 && softwareTitle.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
-				appVersions = softwareTitle.AppStoreApps
-				versionSpecs = make([]map[string]any, 0, len(appVersions))
-			}
-
-			usedVersionFilenamePrefixes := make(map[string]struct{}, len(appVersions))
-			for _, version := range appVersions {
-				versionSpec := softwareSpec
-				versionFilenamePrefix := filenamePrefix
-				if versionSpecs != nil {
-					versionSpec = map[string]any{"name": version.Name}
-					versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.Name)
-					// Add the version id when two version names map to the same file name
-					if _, ok := usedVersionFilenamePrefixes[versionFilenamePrefix]; ok {
-						versionFilenamePrefix += fmt.Sprintf("-%d", version.ID)
+				var fmaInstallScriptModified, fmaUninstallScriptModified bool
+				if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+					slug, err = slugResolver.resolve(*softwareTitle.SoftwarePackage.FleetMaintainedAppID)
+					if err != nil {
+						return nil, err
 					}
-					usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
+					// keep an ARM64 build's files apart from its x64 sibling's on the same title
+					if fleet.MaintainedAppSlugIsARM64(slug) {
+						filenamePrefix += "-arm64"
+					}
+					fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
+						ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
+						Slug: slug,
+					}, "", nil, nil)
+					if err != nil {
+						return nil, err
+					}
+
+					fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
+					fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
 				}
 
-				if version.SelfService {
-					versionSpec["self_service"] = version.SelfService
+				shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
+					if fmaID != nil {
+						return scriptModified && scriptContents != ""
+					}
+
+					return scriptContents != ""
 				}
 
-				if version.Categories != nil {
-					versionSpec["categories"] = version.Categories
-				}
-
-				versionLabelKey, versionLabelNames := scopeLabels(version.LabelsIncludeAny, version.LabelsExcludeAny, version.LabelsIncludeAll)
-				if versionLabelKey != "" {
-					versionSpec[versionLabelKey] = versionLabelNames
-				}
-
-				config := version.Configuration
-				if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
-					// all per-team software-related artifacts are generated in lib/{team}/software
-					switch version.Platform {
-					case fleet.IOSPlatform, fleet.IPadOSPlatform:
-						// iOS/iPadOS configuration is returned as a JSON-encoded
-						// string of XML; unwrap and write the raw XML.
-						var xmlStr string
-						if err := json.Unmarshal(config, &xmlStr); err != nil {
-							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
-							return nil, err
+				// Only output install_script, post_install_script, uninstall_script, and
+				// pre_install_query for non-script packages
+				if !isScriptPackage {
+					if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
+						script := softwareTitle.SoftwarePackage.InstallScript
+						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install"+scriptExtension)
+						path := fmt.Sprintf("../%s", fileName)
+						softwareSpec["install_script"] = map[string]any{
+							"path": path,
 						}
-						if xmlStr == "" {
-							break
+						cmd.FilesToWrite[fileName] = script
+					}
+
+					if softwareTitle.SoftwarePackage.PostInstallScript != "" {
+						script := softwareTitle.SoftwarePackage.PostInstallScript
+						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall"+scriptExtension)
+						path := fmt.Sprintf("../%s", fileName)
+						softwareSpec["post_install_script"] = map[string]any{
+							"path": path,
 						}
-						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.xml")
-						versionSpec["configuration"] = map[string]any{
+						cmd.FilesToWrite[fileName] = script
+					}
+
+					if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
+						script := softwareTitle.SoftwarePackage.UninstallScript
+						fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall"+scriptExtension)
+						path := fmt.Sprintf("../%s", fileName)
+						softwareSpec["uninstall_script"] = map[string]any{
+							"path": path,
+						}
+						cmd.FilesToWrite[fileName] = script
+					}
+
+					// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
+					// open query, which gitops rejects.
+					patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
+					if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
+						(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
+						query := softwareTitle.SoftwarePackage.PreInstallQuery
+						fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+						path := fmt.Sprintf("../%s", fileName)
+						softwareSpec["pre_install_query"] = map[string]any{
+							"path": path,
+						}
+						cmd.FilesToWrite[fileName] = []map[string]any{{
+							"query": query,
+						}}
+					}
+				}
+
+				if softwareTitle.SoftwarePackage.SelfService {
+					softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
+				}
+
+				if softwareTitle.SoftwarePackage.URL != "" {
+					softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
+				}
+
+				if softwareTitle.SoftwarePackage.Categories != nil {
+					softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
+				}
+
+				if softwareTitle.DisplayName != "" {
+					softwareSpec["display_name"] = softwareTitle.DisplayName
+				}
+
+				// each package is listed once in software, so we can pull icon directly here
+				if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+					fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["icon"] = map[string]any{
+						"path": path,
+					}
+					icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+					if err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+						return nil, err
+					}
+
+					// TODO write files immediately rather than queueing them up
+					cmd.FilesToWrite[fileName] = icon
+				}
+
+				// Emit managed app configuration for iOS / iPadOS in-house apps. The
+				// API returns it as a JSON-encoded string of XML; unwrap and write
+				// the raw XML alongside the package's other artifacts.
+				if len(softwareTitle.SoftwarePackage.Configuration) > 0 {
+					var xmlStr string
+					if err := json.Unmarshal(softwareTitle.SoftwarePackage.Configuration, &xmlStr); err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding in-house app configuration %s: %s\n", sw.Name, err)
+						return nil, err
+					}
+					if xmlStr != "" {
+						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
+						softwareSpec["configuration"] = map[string]any{
 							"path": fmt.Sprintf("../%s", fileName),
 						}
 						cmd.FilesToWrite[fileName] = []byte(xmlStr)
-					default:
-						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.json")
-						versionSpec["configuration"] = map[string]any{
-							"path": fmt.Sprintf("../%s", fileName),
-						}
-
-						// format config because it is received with incorrect indentation
-						var buf bytes.Buffer
-						if err := json.Indent(&buf, config, "", "  "); err != nil {
-							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-							return nil, err
-						}
-
-						cmd.FilesToWrite[fileName] = buf.Bytes()
 					}
 				}
+			}
 
-				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
-				// only VPP apps (those with an AdamID) support auto-update schedules.
-				if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
-					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AppStoreID != "" {
-						if version.AutoUpdateEnabled != nil {
-							versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
-						}
-						if version.AutoUpdateStartTime != nil {
-							versionSpec["auto_update_window_start"] = *version.AutoUpdateStartTime
-						}
-						if version.AutoUpdateEndTime != nil {
-							versionSpec["auto_update_window_end"] = *version.AutoUpdateEndTime
-						}
-					}
+			if softwareTitle.AppStoreApp != nil {
+				filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
+				softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+
+				if softwareTitle.DisplayName != "" {
+					softwareSpec["display_name"] = softwareTitle.DisplayName
 				}
 
+				if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+					fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+					path := fmt.Sprintf("../%s", fileName)
+					softwareSpec["icon"] = map[string]any{
+						"path": path,
+					}
+					icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+					if err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+						return nil, err
+					}
+
+					// TODO write files immediately rather than queueing them up
+					cmd.FilesToWrite[fileName] = icon
+				}
+
+				flatVersion := softwareTitle.AppStoreApp.AppStoreAppVersion()
+				flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
+				flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
+				flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
+				appVersions := []fleet.AppStoreAppVersion{flatVersion}
+				var versionSpecs []map[string]any
+				if len(softwareTitle.AppStoreApps) > 1 || (len(softwareTitle.AppStoreApps) == 1 && softwareTitle.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+					appVersions = softwareTitle.AppStoreApps
+					versionSpecs = make([]map[string]any, 0, len(appVersions))
+				}
+
+				usedVersionFilenamePrefixes := make(map[string]struct{}, len(appVersions))
+				for _, version := range appVersions {
+					versionSpec := softwareSpec
+					versionFilenamePrefix := filenamePrefix
+					if versionSpecs != nil {
+						versionSpec = map[string]any{"name": version.Name}
+						versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.Name)
+						// Add the version id when two version names map to the same file name
+						if _, ok := usedVersionFilenamePrefixes[versionFilenamePrefix]; ok {
+							versionFilenamePrefix += fmt.Sprintf("-%d", version.ID)
+						}
+						usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
+					}
+
+					if version.SelfService {
+						versionSpec["self_service"] = version.SelfService
+					}
+
+					if version.Categories != nil {
+						versionSpec["categories"] = version.Categories
+					}
+
+					versionLabelKey, versionLabelNames := scopeLabels(version.LabelsIncludeAny, version.LabelsExcludeAny, version.LabelsIncludeAll)
+					if versionLabelKey != "" {
+						versionSpec[versionLabelKey] = versionLabelNames
+					}
+
+					config := version.Configuration
+					if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+						// all per-team software-related artifacts are generated in lib/{team}/software
+						switch version.Platform {
+						case fleet.IOSPlatform, fleet.IPadOSPlatform:
+							// iOS/iPadOS configuration is returned as a JSON-encoded
+							// string of XML; unwrap and write the raw XML.
+							var xmlStr string
+							if err := json.Unmarshal(config, &xmlStr); err != nil {
+								fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
+								return nil, err
+							}
+							if xmlStr == "" {
+								break
+							}
+							fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.xml")
+							versionSpec["configuration"] = map[string]any{
+								"path": fmt.Sprintf("../%s", fileName),
+							}
+							cmd.FilesToWrite[fileName] = []byte(xmlStr)
+						default:
+							fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.json")
+							versionSpec["configuration"] = map[string]any{
+								"path": fmt.Sprintf("../%s", fileName),
+							}
+
+							// format config because it is received with incorrect indentation
+							var buf bytes.Buffer
+							if err := json.Indent(&buf, config, "", "  "); err != nil {
+								fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+								return nil, err
+							}
+
+							cmd.FilesToWrite[fileName] = buf.Bytes()
+						}
+					}
+
+					// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+					// only VPP apps (those with an AdamID) support auto-update schedules.
+					if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
+						if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AppStoreID != "" {
+							if version.AutoUpdateEnabled != nil {
+								versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
+							}
+							if version.AutoUpdateStartTime != nil {
+								versionSpec["auto_update_window_start"] = *version.AutoUpdateStartTime
+							}
+							if version.AutoUpdateEndTime != nil {
+								versionSpec["auto_update_window_end"] = *version.AutoUpdateEndTime
+							}
+						}
+					}
+
+					if versionSpecs != nil {
+						versionSpecs = append(versionSpecs, versionSpec)
+					}
+				}
 				if versionSpecs != nil {
-					versionSpecs = append(versionSpecs, versionSpec)
+					softwareSpec["versions"] = versionSpecs
 				}
 			}
-			if versionSpecs != nil {
-				softwareSpec["versions"] = versionSpecs
-			}
-		}
 
-		var labelKey string
-		var labelNames []string
-		if softwareTitle.SoftwarePackage != nil {
-			sp := softwareTitle.SoftwarePackage
-			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
-			_, nativeSelected := setupSoftwareBySoftwareTitle[softwareTitle.ID]
-			setSetupExperienceKeys(softwareSpec, nativeSelected, crossPlatformSelectionsByTitleID[softwareTitle.ID], sp.Platform)
-			// Never set together with the cross-selection emission above: .ipa
-			// titles can't be cross-selected because the setup experience listing
-			// excludes them for any non-mobile target platform.
-			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
-				slices.Sort(inHousePlatforms)
-				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
+			var labelKey string
+			var labelNames []string
+			if softwareTitle.SoftwarePackage != nil {
+				sp := softwareTitle.SoftwarePackage
+				labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
+				_, nativeSelected := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+				setSetupExperienceKeys(softwareSpec, nativeSelected, crossPlatformSelectionsByTitleID[softwareTitle.ID], sp.Platform)
+				// Never set together with the cross-selection emission above: .ipa
+				// titles can't be cross-selected because the setup experience listing
+				// excludes them for any non-mobile target platform.
+				if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
+					slices.Sort(inHousePlatforms)
+					softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
+				}
+			} else {
+				app := softwareTitle.AppStoreApp
+				if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
+					softwareSpec["setup_experience"] = true
+				}
 			}
-		} else {
-			app := softwareTitle.AppStoreApp
-			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
-				softwareSpec["setup_experience"] = true
+			if labelKey != "" {
+				softwareSpec[labelKey] = labelNames
 			}
-		}
-		if labelKey != "" {
-			softwareSpec[labelKey] = labelNames
-		}
 
-		switch {
-		case sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil:
-			fmas = append(fmas, softwareSpec)
-			delete(softwareSpec, "hash_sha256")
-			delete(softwareSpec, "url")
-			softwareSpec["slug"] = slug
-			if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
-				softwareSpec["version"] = *pv
+			switch {
+			case sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil:
+				fmas = append(fmas, softwareSpec)
+				delete(softwareSpec, "hash_sha256")
+				delete(softwareSpec, "url")
+				softwareSpec["slug"] = slug
+				if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
+					softwareSpec["version"] = *pv
+				}
+			case sw.SoftwarePackage != nil:
+				packages = append(packages, softwareSpec)
+			case sw.AppStoreApp != nil:
+				appStoreApps = append(appStoreApps, softwareSpec)
 			}
-		case sw.SoftwarePackage != nil:
-			packages = append(packages, softwareSpec)
-		case sw.AppStoreApp != nil:
-			appStoreApps = append(appStoreApps, softwareSpec)
 		}
 	}
 	if len(packages) > 0 {

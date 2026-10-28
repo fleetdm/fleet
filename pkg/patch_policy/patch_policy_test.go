@@ -192,3 +192,51 @@ func TestScopeToWindowsARM(t *testing.T) {
 	require.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1) OR NOT EXISTS ("+armHosts+");", patch_policy.ScopeToWindowsARM("SELECT 1 \n"))
 	require.Empty(t, patch_policy.ScopeToWindowsARM(""))
 }
+
+func TestCombineWindowsArchQueries(t *testing.T) {
+	const armHosts = "SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%'"
+	const x64 = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0);"
+	const arm64 = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0);"
+
+	scopedARM64 := patch_policy.ScopeToWindowsARM(arm64)
+	// Scoping is idempotent, so a manifest's already-scoped ARM64 query isn't wrapped twice.
+	require.Equal(t, scopedARM64, patch_policy.ScopeToWindowsARM(scopedARM64))
+
+	want := "SELECT 1 WHERE EXISTS (SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0)) OR NOT EXISTS (" + armHosts + ")) AND (EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0)) OR EXISTS (" + armHosts + "));"
+	require.Equal(t, want, patch_policy.CombineWindowsArchQueries(x64, arm64))
+	require.Equal(t, want, patch_policy.CombineWindowsArchQueries(x64, scopedARM64))
+
+	require.Empty(t, patch_policy.CombineWindowsArchQueries("", arm64))
+	require.Empty(t, patch_policy.CombineWindowsArchQueries(x64, ""))
+}
+
+func TestGenerateFromInstallers(t *testing.T) {
+	x64 := &fleet.SoftwareInstaller{
+		Platform: "windows", SoftwareTitle: "Slack", Version: "4.47",
+		FleetMaintainedAppSlug: "slack/windows",
+		PatchQuery:             "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0);",
+	}
+	arm64 := &fleet.SoftwareInstaller{
+		Platform: "windows", SoftwareTitle: "Slack", Version: "4.46",
+		FleetMaintainedAppSlug: "slack-arm64/windows",
+		PatchQuery:             "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0);",
+	}
+
+	single, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, []*fleet.SoftwareInstaller{x64})
+	require.NoError(t, err)
+	require.Equal(t, x64.PatchQuery, single.Query)
+	require.Equal(t, "Windows - Slack up to date", single.Name)
+
+	// Either order: the ARM64 build's query applies to ARM hosts, the x64 build's to the rest.
+	want := patch_policy.CombineWindowsArchQueries(x64.PatchQuery, arm64.PatchQuery)
+	for _, installers := range [][]*fleet.SoftwareInstaller{{x64, arm64}, {arm64, x64}} {
+		combined, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, installers)
+		require.NoError(t, err)
+		require.Equal(t, want, combined.Query)
+		require.Equal(t, "Windows - Slack up to date", combined.Name)
+		require.Equal(t, "windows", combined.Platform)
+	}
+
+	_, err = patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, nil)
+	require.Error(t, err)
+}

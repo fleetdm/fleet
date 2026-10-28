@@ -44,6 +44,7 @@ import softwareAPI, {
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { compareVersions } from "utilities/helpers";
 import {
   canDownloadSoftwareInstaller,
   canWriteSoftware,
@@ -223,6 +224,17 @@ const SoftwareTitleDetailsPage = ({
     !!installerResult?.meta.isCustomPackage &&
     !installerResult.meta.isIosOrIpadosApp;
 
+  // A title can hold both the x64 and ARM64 builds of a Windows Fleet-maintained
+  // app, and each host gets the build for its CPU. Each build gets its own row
+  // and controls, like a title with multiple custom packages, but the title
+  // can't take more packages.
+  const hasMultipleFmaBuilds =
+    !!isPremiumTier &&
+    (softwareTitle?.packages?.filter((p) => !!p.fleet_maintained_app_id)
+      .length ?? 0) > 1;
+  const hasPerPackageControls =
+    canActivateMultiplePackages || hasMultipleFmaBuilds;
+
   // Canonical "this title can hold multiple App Store app versions" flag.
   // True for iOS/iPadOS App Store (VPP) and Android (Google Play) titles.
   // macOS VPP and in-house `.ipa` stay single-version. Premium-only.
@@ -311,7 +323,7 @@ const SoftwareTitleDetailsPage = ({
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onClickVersions={() => setShowVersionsModal(true)}
-        canActivateMultiplePackages={canActivateMultiplePackages}
+        canActivateMultiplePackages={hasPerPackageControls}
         canActivateMultipleVersions={canActivateMultipleVersions}
       />
     );
@@ -514,9 +526,12 @@ const SoftwareTitleDetailsPage = ({
     const renderPackageRows = (pkg: ISoftwarePackage) => {
       if (!pkg) return null;
       const { labels, kind } = pickLabels(pkg);
-      const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
+      const isFma = !!pkg.fleet_maintained_app_id;
       const isLatestFmaVersion =
-        installerResult?.meta.isLatestFmaVersion ?? false;
+        isFma &&
+        (pkg.fleet_maintained_versions ?? []).every(
+          (fma) => compareVersions(pkg.version ?? "", fma.version ?? "") >= 0
+        );
       const isScriptPackage =
         installerResult?.cardInfo.isScriptPackage ?? false;
       const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
@@ -549,7 +564,7 @@ const SoftwareTitleDetailsPage = ({
           isIosOrIpadosApp={isIosOrIpadosApp}
           isActive={row.isActive}
           badgeState={row.badgeState}
-          canActivateMultiplePackages={canActivateMultiplePackages}
+          canActivateMultiplePackages={hasPerPackageControls}
           isSelfService={pkg.self_service}
           hasAutoInstallPolicy={hasAutoInstallPolicy}
           labels={row.isActive ? labels : null}
@@ -568,7 +583,10 @@ const SoftwareTitleDetailsPage = ({
           )}
           onBadgeClick={
             isFma && canEditSoftware
-              ? () => setShowVersionsModal(true)
+              ? () => {
+                  setSelectedInstallerId(pkg.installer_id);
+                  setShowVersionsModal(true);
+                }
               : undefined
           }
           onLabelCountClick={() => openEditModal(pkg.installer_id)}
@@ -795,7 +813,7 @@ const SoftwareTitleDetailsPage = ({
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
-        canActivateMultiplePackages={canActivateMultiplePackages}
+        canActivateMultiplePackages={hasPerPackageControls}
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();
@@ -868,7 +886,7 @@ const SoftwareTitleDetailsPage = ({
         displayName={getDisplayedSoftwareName(title.name, title.display_name)}
         source={title.source}
         iconUrl={title.icon_url}
-        canActivateMultiplePackages={canActivateMultiplePackages}
+        canActivateMultiplePackages={hasPerPackageControls}
       />
     );
   };
@@ -946,20 +964,24 @@ const SoftwareTitleDetailsPage = ({
   const renderVersionsModal = (title: ISoftwareTitleDetails) => {
     // `teamIdForApi` is undefined on "All teams" (where `currentTeamId` is the
     // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
-    if (
-      !showVersionsModal ||
-      !title.software_package ||
-      typeof teamIdForApi !== "number"
-    ) {
+    // A row's badge targets its own build; the Actions menu targets the only one.
+    const pkg = findSelectedPackage(title) ?? title.software_package;
+    if (!showVersionsModal || !pkg || typeof teamIdForApi !== "number") {
       return null;
     }
+    const closeVersionsModal = () => {
+      setShowVersionsModal(false);
+      setSelectedInstallerId(null);
+    };
     return (
       <VersionsModal
         softwareTitle={title}
+        softwarePackage={pkg}
+        installerId={hasMultipleFmaBuilds ? pkg.installer_id : undefined}
         softwareId={softwareId}
         teamId={teamIdForApi}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        onExit={() => setShowVersionsModal(false)}
+        onExit={closeVersionsModal}
       />
     );
   };

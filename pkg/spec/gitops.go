@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -2302,6 +2303,22 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 	for _, slug := range getDuplicateNames(patchSlugs, func(s string) string { return s }) {
 		multiError = multierror.Append(multiError, fmt.Errorf(`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": %q.`, slug))
+	}
+	// The x64 and ARM64 builds of a Windows app share a software title, which has one patch policy for both.
+	patchSlugSet := make(map[string]struct{}, len(patchSlugs))
+	for _, slug := range patchSlugs {
+		patchSlugSet[slug] = struct{}{}
+	}
+	for _, slug := range slices.Sorted(maps.Keys(patchSlugSet)) {
+		if !fleet.MaintainedAppSlugIsARM64(slug) {
+			continue
+		}
+		if x64Slug := fleet.MaintainedAppArchSiblingSlug(slug); x64Slug != "" {
+			if _, ok := patchSlugSet[x64Slug]; ok {
+				multiError = multierror.Append(multiError, fmt.Errorf(
+					`Couldn't add policies with type "patch" for both %q and %q. One patch policy covers both builds, so keep only one.`, x64Slug, slug))
+			}
+		}
 	}
 	return multiError
 }

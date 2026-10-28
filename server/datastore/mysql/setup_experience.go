@@ -65,6 +65,10 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		hostPlatformLike = hostPlatform
 	}
 
+	// Picks between the x64 and ARM64 builds of a Windows Fleet-maintained app on one title. A host that
+	// hasn't reported its CPU yet counts as x64.
+	var hostIsWindowsARM bool
+
 	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
 		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
 		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
@@ -76,13 +80,17 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		// OsqueryHostID and the Fleet host UUID differ (default osquery host_identifier modes).
 		stmtHost := `
 		SELECT
-			last_enrolled_at
+			last_enrolled_at,
+			cpu_type
 		FROM
 			hosts
 		WHERE (osquery_host_id = ? OR uuid = ?) AND platform = ?
 		`
-		var lastEnrolledAt sql.NullTime
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostUUID, hostPlatform); err != nil {
+		var hostRow struct {
+			LastEnrolledAt sql.NullTime `db:"last_enrolled_at"`
+			CPUType        string       `db:"cpu_type"`
+		}
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostRow, stmtHost, hostUUID, hostUUID, hostPlatform); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// This shouldn't happen but we don't check for it elsewhere,
 				// so we'll log a warning and continue.
@@ -91,6 +99,8 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
 			}
 		}
+		lastEnrolledAt := hostRow.LastEnrolledAt
+		hostIsWindowsARM = (&fleet.Host{Platform: hostPlatform, CPUType: hostRow.CPUType}).IsWindowsARM()
 		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
@@ -219,15 +229,30 @@ SELECT
 		AND ` + setupExperienceGatingPolicyClause + `
 		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
-	st.id AS software_title_id
+	st.id AS software_title_id,
+	-- the build of a Windows Fleet-maintained app for the host's CPU first, when a title holds both
+	IF(fma.id IS NULL OR (fma.slug LIKE '%%-arm64/windows') = ?, 0, 1) AS arch_rank
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
+LEFT JOIN fleet_maintained_apps fma
+	ON fma.id = si.fleet_maintained_app_id
 LEFT JOIN software_title_display_names stdn
 	ON stdn.software_title_id = st.id AND stdn.team_id = ?
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND si.is_active = TRUE
+-- an ARM64 build can't run on other hosts, which get its x64 build when the title holds it
+AND NOT (
+	? = FALSE
+	AND COALESCE(fma.slug, '') LIKE '%%-arm64/windows'
+	AND EXISTS (
+		SELECT 1 FROM software_installers sib
+		JOIN fleet_maintained_apps sib_fma ON sib_fma.id = sib.fleet_maintained_app_id
+		WHERE sib.global_or_team_id = si.global_or_team_id AND sib.title_id = si.title_id AND sib.is_active = 1
+			AND sib_fma.slug = REPLACE(fma.slug, '-arm64/windows', '/windows')
+	)
+)
 AND (
 	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
@@ -258,9 +283,9 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
-		// deb-distro check, rpm-distro check.
-		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), arch_rank, stdn.team_id, global_or_team_id,
+		// ARM64 build check, si.platform, deb-distro check, rpm-distro check.
+		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, hostIsWindowsARM, teamID, teamID, hostIsWindowsARM, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
@@ -278,7 +303,8 @@ SELECT
 	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
-	st.id AS software_title_id
+	st.id AS software_title_id,
+	0 AS arch_rank
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -315,7 +341,8 @@ SELECT
 	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
-	st.id AS software_title_id
+	st.id AS software_title_id,
+	0 AS arch_rank
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
@@ -355,7 +382,8 @@ SELECT
 	iha.id AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
-	st.id AS software_title_id
+	st.id AS software_title_id,
+	0 AS arch_rank
 FROM in_house_apps iha
 INNER JOIN software_titles st
 	ON iha.title_id = st.id
@@ -395,7 +423,7 @@ INSERT INTO setup_experience_status_results (
 SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, in_house_app_id, policy_gated FROM (
 	SELECT combined.*, ROW_NUMBER() OVER (
 		PARTITION BY software_title_id
-		ORDER BY (software_installer_id IS NULL), software_installer_id ASC, vpp_app_team_id ASC
+		ORDER BY (software_installer_id IS NULL), arch_rank, software_installer_id ASC, vpp_app_team_id ASC
 	) AS first_added_rank FROM (
 		%s
 	) AS combined

@@ -3,6 +3,7 @@ package fleet
 import (
 	"net/http"
 	"slices"
+	"strings"
 )
 
 // MaintainedApp represents an app in the Fleet library of maintained apps
@@ -30,6 +31,70 @@ type MaintainedApp struct {
 	// only renames when an upgrade code is present). Windows software ingestion merges
 	// onto TitleID, and this is that title's name.
 	TitleName string `json:"-" db:"title_name"`
+}
+
+// maintainedAppARM64Suffix ends the app part of an ARM64 Windows Fleet-maintained app's slug, e.g.
+// "google-chrome-arm64/windows" is the ARM64 build of "google-chrome/windows".
+const maintainedAppARM64Suffix = "-arm64"
+
+// MaintainedAppSlugIsARM64 reports whether the slug is the ARM64 build of a Windows Fleet-maintained app.
+func MaintainedAppSlugIsARM64(slug string) bool {
+	app, platform, ok := strings.Cut(slug, "/")
+	return ok && platform == "windows" && strings.HasSuffix(app, maintainedAppARM64Suffix)
+}
+
+// MaintainedAppArchSiblingSlug returns the slug of the other build of a Windows Fleet-maintained app:
+// "google-chrome-arm64/windows" for "google-chrome/windows" and the reverse. It returns "" for other
+// platforms. Siblings can share a software title in one fleet, with each host getting the build that
+// matches its CPU.
+func MaintainedAppArchSiblingSlug(slug string) string {
+	app, platform, ok := strings.Cut(slug, "/")
+	if !ok || platform != "windows" || app == "" {
+		return ""
+	}
+	if base, isARM := strings.CutSuffix(app, maintainedAppARM64Suffix); isARM {
+		if base == "" {
+			return ""
+		}
+		return base + "/" + platform
+	}
+	return app + maintainedAppARM64Suffix + "/" + platform
+}
+
+// MaintainedAppsAreArchSiblings reports whether the two slugs are the x64 and ARM64 builds of the same
+// Windows Fleet-maintained app.
+func MaintainedAppsAreArchSiblings(slugA, slugB string) bool {
+	sibling := MaintainedAppArchSiblingSlug(slugA)
+	return sibling != "" && sibling == slugB
+}
+
+// MaintainedAppArchFit is how a build of a Windows Fleet-maintained app fits a host's CPU.
+type MaintainedAppArchFit int
+
+const (
+	// MaintainedAppArchNative is a build for the host's CPU, or a package arch doesn't apply to.
+	MaintainedAppArchNative MaintainedAppArchFit = iota
+	// MaintainedAppArchEmulated is an x64 build on an ARM host, which runs under emulation.
+	MaintainedAppArchEmulated
+	// MaintainedAppArchIncompatible is an ARM64 build on a host that isn't ARM.
+	MaintainedAppArchIncompatible
+)
+
+// MaintainedAppArchFitForHost returns how the build with the given slug fits the host. Arch only
+// applies when the title also holds the build's sibling (hasArchSibling); otherwise the package is the
+// title's only build and is treated as native, as before siblings could share a title.
+func MaintainedAppArchFitForHost(host *Host, slug string, hasArchSibling bool) MaintainedAppArchFit {
+	if !hasArchSibling || MaintainedAppArchSiblingSlug(slug) == "" {
+		return MaintainedAppArchNative
+	}
+	switch isARMBuild, isARMHost := MaintainedAppSlugIsARM64(slug), host.IsWindowsARM(); {
+	case isARMBuild == isARMHost:
+		return MaintainedAppArchNative
+	case isARMHost:
+		return MaintainedAppArchEmulated
+	default:
+		return MaintainedAppArchIncompatible
+	}
 }
 
 // WinMatchPrefixes returns the candidate program-name prefixes for matching a reported

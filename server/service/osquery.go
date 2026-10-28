@@ -2123,7 +2123,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 				"err", seuErr, "host_id", host.ID, "platform", host.Platform)
 			ctxerr.Handle(ctx, seuErr)
 		}
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.CPUType, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -2976,6 +2976,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostPlatform string,
+	hostCPUType string,
 	hostOrbitNodeKey *string,
 	setupExperienceHostUUID string,
 	incomingPolicyResults map[uint]*bool,
@@ -3083,7 +3084,28 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			logger.DebugContext(ctx, "installer platform does not match host platform")
 			continue
 		}
-		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
+		// A title can hold the x64 and ARM64 builds of a Windows Fleet-maintained app. Install the build
+		// for the host's CPU, whichever one the policy points to.
+		if installerMetadata.FleetMaintainedAppID != nil && installerMetadata.Platform == "windows" {
+			buildID, ok, err := svc.ds.ResolveFleetMaintainedAppBuildForHost(ctx, installerMetadata.InstallerID,
+				&fleet.Host{ID: hostID, TeamID: hostTeamID, Platform: hostPlatform, CPUType: hostCPUType}, fleet.HostSoftwareInstallOptions{})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resolve fleet-maintained app build for host")
+			}
+			if !ok {
+				incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
+				logger.DebugContext(ctx, "not marking policy as failed since no build of the software runs on the host's CPU")
+				continue
+			}
+			if buildID != installerMetadata.InstallerID {
+				installerMetadata, err = svc.ds.GetSoftwareInstallerMetadataByID(ctx, buildID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get software installer metadata for host's build")
+				}
+				logger = logger.With("software_installer_id", buildID)
+			}
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installerMetadata.InstallerID, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
 		}

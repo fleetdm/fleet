@@ -42,7 +42,10 @@ const fmaPackage = (overrides?: Partial<ISoftwarePackage>) =>
     ...overrides,
   });
 
-const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
+const renderModal = (
+  pkgOverrides?: Partial<ISoftwarePackage>,
+  installerId?: number
+) => {
   const onExit = jest.fn();
   const refetchSoftwareTitle = jest.fn();
   const render = createCustomRenderer({
@@ -56,12 +59,13 @@ const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
       },
     },
   });
-  const title = createMockSoftwareTitle({
-    software_package: fmaPackage(pkgOverrides),
-  });
+  const pkg = fmaPackage(pkgOverrides);
+  const title = createMockSoftwareTitle({ software_package: pkg });
   const utils = render(
     <VersionsModal
       softwareTitle={title}
+      softwarePackage={pkg}
+      installerId={installerId}
       softwareId={1}
       teamId={1}
       refetchSoftwareTitle={refetchSoftwareTitle}
@@ -158,6 +162,25 @@ describe("VersionsModal", () => {
     expect(notify.success).toHaveBeenCalledWith(expect.anything());
     expect(refetchSoftwareTitle).toHaveBeenCalled();
     expect(onExit).toHaveBeenCalled();
+  });
+
+  it("targets the given build on a title holding both the x64 and ARM64 builds", async () => {
+    const editSpy = jest
+      .spyOn(softwareAPI, "editSoftwarePackage")
+      .mockResolvedValue({} as never);
+    const { user } = renderModal({ pinned_version: null }, 42);
+
+    await user.click(screen.getByRole("radio", { name: "Pin to 148.0.1" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(editSpy).toHaveBeenCalledWith({
+        data: { pinnedVersion: "148.0.1" },
+        softwareId: 1,
+        teamId: 1,
+        installerId: 42,
+      });
+    });
   });
 
   it("flashes an error and leaves the modal open when the PATCH fails", async () => {
