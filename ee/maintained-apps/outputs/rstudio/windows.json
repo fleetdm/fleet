@@ -4,7 +4,7 @@
       "version": "2026.10.0+233",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software' AND version_compare(version, '2026.10.0+233') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software' AND version_compare(REPLACE(version, '+', '.'), '2026.10.0.233') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('rgui.exe','rsession.exe','rstudio.exe'));"
       },
       "installer_url": "https://download1.rstudio.org/electron/windows/RStudio-2026.10.0-233.exe",
