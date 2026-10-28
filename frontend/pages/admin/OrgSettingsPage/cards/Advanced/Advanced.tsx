@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 
 import Button from "components/buttons/Button";
 import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { HistoricalDataConfigKey } from "interfaces/charts";
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -28,12 +28,14 @@ interface IAdvancedConfigFormData {
   disableLiveQuery: boolean;
   disableScripts: boolean;
   disableAIFeatures: boolean;
+  disableMCP: boolean;
   disableQueryReports: boolean;
   requireHardwareAttestation: boolean;
   onlyAllowAppleBusinessEnrollment: boolean;
   preserveHostActivitiesOnReenrollment: boolean;
   disableHostsActive: boolean;
   disableVulnerabilities: boolean;
+  enableProfileValidation: boolean;
 }
 
 interface IAdvancedConfigFormErrors {
@@ -64,7 +66,7 @@ const validateFormData = ({
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
   } else if (
-    !validUrl({
+    !isValidURL({
       url: ssoUserURL,
     })
   ) {
@@ -74,7 +76,7 @@ const validateFormData = ({
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
   } else if (
-    !validUrl({
+    !isValidURL({
       url: mdmAppleServerURL,
       allowLocalHost: false,
       protocols: ["http", "https"],
@@ -85,7 +87,7 @@ const validateFormData = ({
 
   if (!domain) {
     delete errors.domain;
-  } else if (!validUrl({ url: domain })) {
+  } else if (!isValidURL({ url: domain })) {
     errors.domain = "Domain is not a valid URL";
   }
 
@@ -124,6 +126,7 @@ const Advanced = ({
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableScripts: appConfig.server_settings.scripts_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
+    disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
     requireHardwareAttestation:
@@ -137,6 +140,7 @@ const Advanced = ({
     disableVulnerabilities: !(
       appConfig.features?.historical_data?.vulnerabilities ?? true
     ),
+    enableProfileValidation: appConfig.mdm.enable_profile_validation,
   });
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
@@ -187,6 +191,7 @@ const Advanced = ({
         scripts_disabled: formData.disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: formData.disableAIFeatures,
+        mcp_disabled: formData.disableMCP,
       },
       smtp_settings: {
         domain: formData.domain,
@@ -209,6 +214,7 @@ const Advanced = ({
         apple_require_hardware_attestation: formData.requireHardwareAttestation,
         only_allow_apple_business_enrollment:
           formData.onlyAllowAppleBusinessEnrollment,
+        enable_profile_validation: formData.enableProfileValidation,
       },
       sso_settings: {
         sso_server_url: formData.ssoUserURL,
@@ -263,7 +269,11 @@ const Advanced = ({
           formData={formData}
           onInputChange={onInputChange}
         />
-        <FeaturesSection formData={formData} onInputChange={onInputChange} />
+        <FeaturesSection
+          formData={formData}
+          onInputChange={onInputChange}
+          isPremiumTier={isPremiumLicense}
+        />
         <ServerAuthenticationSection
           formData={formData}
           onInputChange={onInputChange}

@@ -715,10 +715,25 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	}
 
 	// A policy that was deleted leaves patch_notification_apps.policy_id null.
+	// Snapshot the admin's raw per-team override via DisplayNameOverride, which
+	// is nil only when no override exists. Checking app.DisplayName != app.Name
+	// would conflate "no override" with "override explicitly equal to the raw
+	// title" (e.g. the admin pinned "Microsoft.CompanyPortal" to preserve the
+	// dotted form against the FE's WELL_KNOWN normalization) and silently drop
+	// the admin's choice.
 	softwareTitles := make([]string, 0, len(apps))
+	software := make([]fleet.NotifySoftwareTitle, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
 	for _, app := range apps {
 		softwareTitles = append(softwareTitles, app.Name)
+		item := fleet.NotifySoftwareTitle{
+			Title:   app.Name,
+			TitleID: app.SoftwareTitleID,
+		}
+		if app.DisplayNameOverride != nil {
+			item.DisplayName = new(*app.DisplayNameOverride)
+		}
+		software = append(software, item)
 		if app.PolicyID != nil {
 			policyIDs = append(policyIDs, *app.PolicyID)
 		}
@@ -755,6 +770,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		HostDisplayName:       host.DisplayName(),
 		PatchNotificationUUID: notification.UUID,
 		SoftwareTitles:        softwareTitles,
+		Software:              software,
 		PolicyIDs:             policyIDs,
 		TimeBefore:            int(timeBefore.Seconds()),
 		InstallAt:             installAt,

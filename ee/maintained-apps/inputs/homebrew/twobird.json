@@ -6,5 +6,6 @@
   "slug": "twobird/darwin",
   "default_categories": [
     "Communication"
-  ]
+  ],
+  "frozen": true
 }

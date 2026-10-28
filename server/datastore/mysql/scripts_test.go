@@ -981,8 +981,14 @@ func testBatchSetScriptsUnchangedDoesNotBlockScriptRuns(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	require.Len(t, setA, 12)
 	require.Len(t, setB, 1)
-	scriptA, scriptB := setA[0], setB[0]
-	contentsA, contentsB := "echo "+strings.TrimSuffix(scriptA.Name, ".sh"), "echo b"
+	var scriptA fleet.ScriptResponse
+	for _, s := range setA {
+		if s.Name == "a0.sh" {
+			scriptA = s
+		}
+	}
+	scriptB := setB[0]
+	contentsA, contentsB := "echo a0", "echo b"
 
 	h1 := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
 	h2 := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now())
@@ -2599,6 +2605,9 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, job.ID, *batchActivity.JobID)
 	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, batchActivity.Status)
 	require.Equal(t, uint(3), *batchActivity.NumTargeted)
+
+	_, err = ds.GetBatchActivity(ctx, "missing")
+	require.True(t, fleet.IsNotFound(err))
 
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)

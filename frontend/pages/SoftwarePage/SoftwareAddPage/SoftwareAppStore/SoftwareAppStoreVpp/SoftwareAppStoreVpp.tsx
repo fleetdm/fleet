@@ -109,7 +109,11 @@ const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isGlobalAdmin,
+    isMacMdmEnabledAndConfigured,
+  } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -128,6 +132,7 @@ const SoftwareAppStoreVpp = ({
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       retry: (tries, error) => error.status !== 404 && tries <= 3,
     }
@@ -163,7 +168,7 @@ const SoftwareAppStoreVpp = ({
     () => mdmAppleAPI.getVppApps(currentTeamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken,
+      enabled: hasVppToken && !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
@@ -227,6 +232,16 @@ const SoftwareAppStoreVpp = ({
     if (!isPremiumTier) {
       return (
         <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
+      );
+    }
+
+    // VPP needs Apple MDM; a token uploaded before MDM was turned off must not be used.
+    if (!isMacMdmEnabledAndConfigured) {
+      return (
+        <EnableVppMessage
+          onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
+        />
       );
     }
 

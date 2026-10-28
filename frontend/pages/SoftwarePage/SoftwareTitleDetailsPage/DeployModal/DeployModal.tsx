@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -22,7 +21,6 @@ import {
 } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/helpers";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 const baseClass = "deploy-modal";
 
@@ -82,22 +80,6 @@ const DeployModal = ({
   const platform = getInstallablePlatform(softwareTitle.source);
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
-  const {
-    data: fleetMaintainedApp,
-    isLoading: isLoadingFleetMaintainedApp,
-  } = useQuery(
-    ["fleet-maintained-app", fleetMaintainedAppId, teamId],
-    () =>
-      softwareAPI.getFleetMaintainedApp(
-        fleetMaintainedAppId as number,
-        String(teamId)
-      ),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!fleetMaintainedAppId && !forceInstallPolicy,
-      select: (res) => res.fleet_maintained_app,
-    }
-  );
 
   const onSave = async () => {
     setIsSaving(true);
@@ -106,6 +88,12 @@ const DeployModal = ({
     try {
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {
+          const {
+            fleet_maintained_app: fleetMaintainedApp,
+          } = await softwareAPI.getFleetMaintainedApp(
+            fleetMaintainedAppId as number,
+            String(teamId)
+          );
           if (!fleetMaintainedApp?.automatic_install_query) {
             // A plain Error wouldn't survive getErrorReason in the catch below
             // (it only unwraps API responses), so surface the toast directly
@@ -210,7 +198,7 @@ const DeployModal = ({
               onTogglePatch={setPatch}
               onSelectPatchOption={setPatchOption}
               onSelectEndUserExperience={setEndUserExperience}
-              disabled={disableChildren || isLoadingFleetMaintainedApp}
+              disabled={disableChildren}
               showPatchWhenClosedNotice
               hideLabel
             />
@@ -225,7 +213,7 @@ const DeployModal = ({
               <Button
                 onClick={onSave}
                 isLoading={isSaving}
-                disabled={disableChildren || isLoadingFleetMaintainedApp}
+                disabled={disableChildren}
               >
                 Save
               </Button>

@@ -31,6 +31,7 @@ interface ICopyButtonProps {
   tooltipOffset?: number;
   /** Table buttons show on row hover and tab focus only */
   rowHover?: boolean;
+  disabled?: boolean;
   /** Hover tooltip, hidden while the "Copied!" badge shows so the two
    *  don't overlap. */
   tooltip?: React.ReactNode;
@@ -50,6 +51,7 @@ const CopyButton = ({
   ariaLabel = "Copy to clipboard",
   tooltipOffset = 4,
   rowHover = false,
+  disabled = false,
   tooltip,
 }: ICopyButtonProps) => {
   const [message, setMessage] = useState<string | null>(null);
@@ -104,6 +106,7 @@ const CopyButton = ({
         variant={isCompact ? "subdued" : variant}
         size={size}
         onClick={onClick}
+        disabled={disabled}
         className={classnames(
           `${baseClass}__button`,
           {

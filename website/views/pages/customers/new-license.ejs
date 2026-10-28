@@ -63,16 +63,16 @@
             <strong>Order summary</strong>
           </div>
           <div class="d-flex flex-row justify-content-between">
-            <p class="">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 699" > or managed cloud</span>)</p>
-            <div class="text-right" v-if="numberOfHostsQuoted < 700">
+            <p class="">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 499" > or managed cloud</span>)</p>
+            <div class="text-right" v-if="numberOfHostsQuoted < 500">
               <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
             </div>
           </div>
         </div>
         <div :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-          <a spinner="true" purpose="submit-button" href="/contact?talkToUs" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted > 699"><span>Talk to us</span></a>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted < 700">Continue</ajax-button>
+          <a spinner="true" purpose="submit-button" href="/contact?talkToUs" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted > 499"><span>Talk to us</span></a>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted < 500">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -81,7 +81,7 @@
         <h3 class="pb-3">Billing information</h3>
         <div class="form-group" purpose="self-hosted-checkbox">
           <input type="checkbox" id="self-hosted-acknowledgment" v-model.trim="formData.selfHostedAcknowledgment" @input="clickClearOneFormError('selfHostedAcknowledgment')">
-          <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 700 hosts. I will host Fleet myself.</label>
+          <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 500 hosts. I will host Fleet myself.</label>
           <div class="invalid-feedback" v-if="formErrors.selfHostedAcknowledgment"><p>Please confirm that you will be hosting Fleet yourself.</p></div>
 
         </div>
