@@ -17,6 +17,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -285,6 +287,344 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	}
   }
 }`), http.StatusBadRequest)
+}
+
+// aiSessionsTestHost enrolls a host and returns how to read its detail queries and submit results as fleetd does.
+func (s *integrationEnterpriseTestSuite) aiSessionsTestHost() (*fleet.Host, func() getDistributedQueriesResponse, func(name, rows string)) {
+	t := s.T()
+	ctx := t.Context()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+
+	readQueries := func() getDistributedQueriesResponse {
+		require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, host.ID, true))
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *host.NodeKey}, http.StatusOK, &dqResp)
+		return dqResp
+	}
+	submit := func(name, rows string) {
+		var resp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  map[string]json.RawMessage{name: json.RawMessage(rows)},
+			Statuses: map[string]any{},
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}, http.StatusOK, &resp)
+	}
+	return host, readQueries, submit
+}
+
+func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
+	t := s.T()
+	ctx := t.Context()
+	host, readQueries, submit := s.aiSessionsTestHost()
+
+	// No sessions stored yet: sessions are asked for, those that started in the last 30 days by the host's clock;
+	// events aren't.
+	dqResp := readQueries()
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_ai_agent_sessions")
+	require.Contains(t, dqResp.Queries["fleet_detail_query_ai_agent_sessions"], "WHERE started_at >= (SELECT unix_time FROM time) - 2592000")
+	require.Contains(t, dqResp.Discovery["fleet_detail_query_ai_agent_sessions"], "name = 'ai_agent_sessions'")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
+
+	// Every session is collected from its first call.
+	submit("fleet_detail_query_ai_agent_sessions", `[{
+		"agent": "claude_code", "session_id": "s1", "username": "alice", "account_identifier": "alice@example.com",
+		"started_at": "1800000000", "ended_at": "1800007200", "tool_calls": "4",
+		"transcript_path": "/Users/alice/.claude/projects/app/s1.jsonl"
+	}, {
+		"agent": "claude_code", "session_id": "s2", "username": "alice", "account_identifier": "alice@example.com",
+		"started_at": "1800005000", "ended_at": "1800007100", "tool_calls": "1",
+		"transcript_path": "/Users/alice/.claude/projects/app/s2.jsonl"
+	}]`)
+	dqResp = readQueries()
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
+	eventsQuery := dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
+	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s1.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 0\n")
+	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s2.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 0")
+	require.Contains(t, eventsQuery, "1800007200 AS session_ended_at")
+	require.Contains(t, dqResp.Discovery["fleet_detail_query_ai_agent_session_events"], "name = 'ai_agent_session_messages'")
+
+	// s1's call 3 was still running when read.
+	submit("fleet_detail_query_ai_agent_session_events", `[
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "0", "tool_name": "Read",
+		 "tool_use_id": "toolu_0", "action": "read", "target": "go.mod", "decision": "allowed", "timestamp": "1800001000",
+		 "content": "{\"file_path\":\"go.mod\"}", "content_length": "22", "truncated": "0", "session_ended_at": "1800007200"},
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "1", "tool_name": "Bash",
+		 "tool_use_id": "toolu_1", "action": "execute", "target": "ls", "decision": "allowed", "timestamp": "1800005000",
+		 "content": "{\"command\":\"ls\"}", "content_length": "16", "truncated": "0", "session_ended_at": "1800007200"},
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "2", "tool_name": "Bash",
+		 "tool_use_id": "toolu_2", "action": "execute", "target": "cat big.txt", "decision": "allowed", "timestamp": "1800006000",
+		 "content": "{\"command\":\"cat big.txt\"}", "content_length": "90000", "truncated": "1", "session_ended_at": "1800007200"},
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "3", "tool_name": "Agent",
+		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "", "timestamp": "1800007000",
+		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "1800007200"},
+		{"agent": "claude_code", "session_id": "s2", "tool_call_index": "0", "tool_name": "Read",
+		 "tool_use_id": "toolu_4", "action": "read", "target": "main.go", "decision": "allowed", "timestamp": "1800007000",
+		 "content": "{\"file_path\":\"main.go\"}", "session_ended_at": "1800007100"}
+	]`)
+
+	// Both sessions are caught up, and neither has been active since: nothing to ask for.
+	dqResp = readQueries()
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_ai_agent_sessions")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
+
+	// One write on the host recorded call 3's result along with call 4: catching up comes first.
+	submit("fleet_detail_query_ai_agent_sessions", `[{
+		"agent": "claude_code", "session_id": "s1", "username": "alice", "account_identifier": "alice@example.com",
+		"started_at": "1800000000", "ended_at": "1800010000", "tool_calls": "5",
+		"transcript_path": "/Users/alice/.claude/projects/app/s1.jsonl"
+	}]`)
+	dqResp = readQueries()
+	eventsQuery = dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
+	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s1.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 4")
+	require.NotContains(t, eventsQuery, "s2.jsonl")
+	submit("fleet_detail_query_ai_agent_session_events", `[
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "4", "tool_name": "Bash",
+		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "1800009000",
+		 "content": "{\"command\":\"go test\"}", "session_ended_at": "1800010000"}
+	]`)
+
+	// Caught up, the write that may hold call 3's decision is read again from that call.
+	dqResp = readQueries()
+	eventsQuery = dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
+	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s1.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 3")
+	submit("fleet_detail_query_ai_agent_session_events", `[
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "3", "tool_name": "Agent",
+		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "allowed", "timestamp": "1800007000",
+		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "1800010000"},
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "4", "tool_name": "Bash",
+		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "1800009000",
+		 "content": "{\"command\":\"go test\"}", "session_ended_at": "1800010000"}
+	]`)
+	dqResp = readQueries()
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
+
+	var stored []struct {
+		AgentSessionID string `db:"agent_session_id"`
+		Backfill       bool   `db:"backfill"`
+		EventCount     uint   `db:"event_count"`
+		Actions        string `db:"actions"`
+		Decisions      string `db:"decisions"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored, `
+			SELECT s.agent_session_id, s.backfill, s.event_count, s.actions,
+				(SELECT GROUP_CONCAT(CONCAT(e.tool_call_index, ':', e.decision) ORDER BY e.tool_call_index)
+					FROM host_ai_session_events e WHERE e.ai_session_id = s.id) AS decisions
+			FROM host_ai_sessions s WHERE s.host_id = ? ORDER BY s.agent_session_id`, host.ID)
+	})
+	require.Len(t, stored, 2)
+	require.Equal(t, "s1", stored[0].AgentSessionID)
+	require.False(t, stored[0].Backfill)
+	require.EqualValues(t, 5, stored[0].EventCount)
+	require.Equal(t, "read,execute,other", stored[0].Actions)
+	require.Equal(t, "0:allowed,1:allowed,2:allowed,3:allowed,4:allowed", stored[0].Decisions)
+	require.Equal(t, "s2", stored[1].AgentSessionID)
+	require.EqualValues(t, 1, stored[1].EventCount)
+	require.Equal(t, "read", stored[1].Actions)
+	require.Equal(t, "0:allowed", stored[1].Decisions)
+
+	var truncated []struct {
+		ToolCallIndex uint `db:"tool_call_index"`
+		ContentLength uint `db:"content_length"`
+		Truncated     bool `db:"truncated"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &truncated, `
+			SELECT e.tool_call_index, e.content_length, e.truncated FROM host_ai_session_events e
+			JOIN host_ai_sessions s ON s.id = e.ai_session_id
+			WHERE s.host_id = ? AND s.agent_session_id = 's1' AND e.tool_call_index <= 2 ORDER BY e.tool_call_index`, host.ID)
+	})
+	require.Len(t, truncated, 3)
+	require.EqualValues(t, 22, truncated[0].ContentLength)
+	require.False(t, truncated[0].Truncated)
+	require.EqualValues(t, 90000, truncated[2].ContentLength)
+	require.True(t, truncated[2].Truncated)
+}
+
+// aiSessionEventsArm is one session's arm of the events query, as fleetd's table sees it.
+var aiSessionEventsArm = regexp.MustCompile(
+	`SELECT '([^']*)' AS agent, '([^']*)' AS session_id, 0 AS tool_call_index, [^\n]* (\d+) AS session_ended_at, 1 AS requested\n` +
+		`UNION ALL\n[^\n]*\nFROM ai_agent_session_messages\nWHERE transcript_path = '([^']*)' AND block_type = 'tool_use' AND tool_call_index >= (\d+)(?: AND tool_call_index < (\d+))?`)
+
+// aiSessionsFleetdResultBudget is roughly how many bytes of results fleetd's table returns for one query.
+const aiSessionsFleetdResultBudget = 1 << 20
+
+// aiSessionsFleetdResult answers the events query the way fleetd's table does, for sessions with the given number of
+// calls: one row per call, the arms sharing fleetd's result budget, with a call's first row admitted once the
+// budget is spent. It returns the result and each session's bounds as the query asked for them, its upper bound -1
+// when there is none.
+func aiSessionsFleetdResult(t *testing.T, query string, calls map[string]int) (string, map[string][2]int) {
+	arms := aiSessionEventsArm.FindAllStringSubmatch(query, -1)
+	require.NotEmpty(t, arms, query)
+	used := 0
+	var rows []map[string]string
+	bounds := make(map[string][2]int)
+	for _, arm := range arms {
+		agent, sessionID, endedAt, path, from, upTo := arm[1], arm[2], arm[3], arm[4], arm[5], arm[6]
+		require.Equal(t, "/Users/alice/.claude/projects/app/"+sessionID+".jsonl", path)
+		rows = append(rows, map[string]string{"agent": agent, "session_id": sessionID, "tool_call_index": "0", "session_ended_at": endedAt, "requested": "1"})
+		start, err := strconv.Atoi(from)
+		require.NoError(t, err)
+		end := -1
+		if upTo != "" {
+			end, err = strconv.Atoi(upTo)
+			require.NoError(t, err)
+		}
+		bounds[sessionID] = [2]int{start, end}
+		last := calls[sessionID]
+		if end >= 0 {
+			last = min(last, end)
+		}
+		for i := start; i < last; i++ {
+			row := map[string]string{
+				"agent": agent, "session_id": sessionID, "tool_call_index": strconv.Itoa(i), "tool_name": "Bash",
+				"tool_use_id": fmt.Sprintf("toolu_%d", i), "action": "execute", "target": "echo " + strconv.Itoa(i),
+				"decision": "allowed", "timestamp": endedAt,
+				"content": fmt.Sprintf(`{"command":"echo %d %s"}`, i, strings.Repeat("x", 200)), "session_ended_at": endedAt,
+			}
+			b, err := json.Marshal(row)
+			require.NoError(t, err)
+			if used+len(b) > aiSessionsFleetdResultBudget && i > start {
+				break
+			}
+			used += len(b)
+			rows = append(rows, row)
+		}
+	}
+	b, err := json.Marshal(rows)
+	require.NoError(t, err)
+	return string(b), bounds
+}
+
+// TestAIAgentSessionEventsPaging collects three 3,000-call sessions through the events query, answering it the way
+// fleetd's table does: one call per arm, sharing a ~1 MiB result budget, with a call's first row admitted once the
+// budget is spent. The sessions are read newest first, so the older ones get one row per refresh until the newer
+// are done; resuming after the calls stored, every read makes progress.
+func (s *integrationEnterpriseTestSuite) TestAIAgentSessionEventsPaging() {
+	t := s.T()
+	ctx := t.Context()
+	host, readQueries, submit := s.aiSessionsTestHost()
+
+	const calls, sessions = 3000, 3
+	callsBySession := make(map[string]int, sessions)
+	var rows []string
+	for i := range sessions {
+		callsBySession[fmt.Sprintf("s%d", i)] = calls
+		rows = append(rows, fmt.Sprintf(`{"agent": "claude_code", "session_id": "s%d", "username": "alice",
+			"started_at": "1800000000", "ended_at": "%d", "tool_calls": "%d", "transcript_path": "/Users/alice/.claude/projects/app/s%d.jsonl"}`,
+			i, 1800003600+i, calls, i))
+	}
+	readQueries()
+	submit("fleet_detail_query_ai_agent_sessions", "["+strings.Join(rows, ",")+"]")
+
+	refreshes := 0
+	for {
+		dqResp := readQueries()
+		query, ok := dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
+		if !ok {
+			break
+		}
+		refreshes++
+		require.LessOrEqual(t, refreshes, 10, "the sessions never finish")
+		result, _ := aiSessionsFleetdResult(t, query, callsBySession)
+		submit("fleet_detail_query_ai_agent_session_events", result)
+	}
+	require.GreaterOrEqual(t, refreshes, 3, "the result budget was never shared")
+
+	var stored []struct {
+		AgentSessionID   string `db:"agent_session_id"`
+		EventCount       uint   `db:"event_count"`
+		EventsEmptyReads uint   `db:"events_empty_reads"`
+		Events           uint   `db:"events"`
+		LastIndex        uint   `db:"last_index"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored, `
+			SELECT s.agent_session_id, s.event_count, s.events_empty_reads,
+				(SELECT COUNT(*) FROM host_ai_session_events e WHERE e.ai_session_id = s.id) AS events,
+				(SELECT MAX(tool_call_index) FROM host_ai_session_events e WHERE e.ai_session_id = s.id) AS last_index
+			FROM host_ai_sessions s WHERE s.host_id = ? ORDER BY s.agent_session_id`, host.ID)
+	})
+	require.Len(t, stored, sessions)
+	for _, st := range stored {
+		require.EqualValues(t, calls, st.EventCount, st.AgentSessionID)
+		require.EqualValues(t, calls, st.Events, st.AgentSessionID)
+		require.EqualValues(t, calls-1, st.LastIndex, st.AgentSessionID)
+		require.Zero(t, st.EventsEmptyReads, st.AgentSessionID)
+	}
+}
+
+// TestAIAgentSessionEventsBackfill checks that a session that had been running for days when the host first reported
+// it is read 100 calls at a time, alongside the live sessions, until it's caught up.
+func (s *integrationEnterpriseTestSuite) TestAIAgentSessionEventsBackfill() {
+	t := s.T()
+	ctx := t.Context()
+	host, readQueries, submit := s.aiSessionsTestHost()
+
+	now := time.Now().Unix()
+	sessionRows := func(liveCalls int) string {
+		return fmt.Sprintf(`[{
+			"agent": "claude_code", "session_id": "old", "username": "alice", "started_at": "%d", "ended_at": "%d",
+			"tool_calls": "250", "transcript_path": "/Users/alice/.claude/projects/app/old.jsonl"
+		}, {
+			"agent": "claude_code", "session_id": "live", "username": "alice", "started_at": "%d", "ended_at": "%d",
+			"tool_calls": "%d", "transcript_path": "/Users/alice/.claude/projects/app/live.jsonl"
+		}]`, now-10*24*3600, now-9*24*3600, now-600, now-60+int64(liveCalls), liveCalls)
+	}
+	calls := map[string]int{"old": 250, "live": 3}
+	readQueries()
+	submit("fleet_detail_query_ai_agent_sessions", sessionRows(calls["live"]))
+
+	read := func() map[string][2]int {
+		dqResp := readQueries()
+		query, ok := dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
+		if !ok {
+			return nil
+		}
+		result, bounds := aiSessionsFleetdResult(t, query, calls)
+		submit("fleet_detail_query_ai_agent_session_events", result)
+		return bounds
+	}
+	require.Equal(t, map[string][2]int{"live": {0, -1}, "old": {0, 100}}, read())
+
+	// The live session moves on while the backfill is still behind.
+	calls["live"] = 5
+	submit("fleet_detail_query_ai_agent_sessions", sessionRows(calls["live"]))
+	require.Equal(t, map[string][2]int{"live": {3, -1}, "old": {100, 200}}, read())
+	require.Equal(t, map[string][2]int{"old": {200, 300}}, read())
+	require.Nil(t, read())
+
+	var stored []struct {
+		AgentSessionID string `db:"agent_session_id"`
+		Backfill       bool   `db:"backfill"`
+		EventCount     uint   `db:"event_count"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored, `
+			SELECT agent_session_id, backfill, event_count FROM host_ai_sessions WHERE host_id = ? ORDER BY agent_session_id`, host.ID)
+	})
+	require.Len(t, stored, 2)
+	require.Equal(t, "live", stored[0].AgentSessionID)
+	require.False(t, stored[0].Backfill)
+	require.EqualValues(t, 5, stored[0].EventCount)
+	require.Equal(t, "old", stored[1].AgentSessionID)
+	require.False(t, stored[1].Backfill, "the backfill flag clears once the session is caught up")
+	require.EqualValues(t, 250, stored[1].EventCount)
 }
 
 func genDistributedReqWithEntraJoinUser(host *fleet.Host, userEmail string) submitDistributedQueryResultsRequestShim {
