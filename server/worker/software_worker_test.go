@@ -109,8 +109,11 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
 	}
-	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+		return nil, nil
 	}
 
 	var capturedAppPolicies []*androidmanagement.ApplicationPolicy
@@ -197,8 +200,11 @@ func TestSoftwareWorkerRunDisablesAMAPIRetry(t *testing.T) {
 	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
 	}
-	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+		return nil, nil
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
@@ -277,8 +283,13 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 		configVersionIDs = vppAppTeamIDs
 		return map[string][]byte{}, nil
 	}
-	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+	var upsertedInstalls []fleet.HostAndroidSoftwareInstall
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
+		upsertedInstalls = append(upsertedInstalls, installs...)
 		return nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+		return nil, nil
 	}
 	var installs []*fleet.HostAndroidVPPSoftwareInstall
 	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
@@ -303,6 +314,14 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 	require.Equal(t, []uint{1}, configVersionIDs)
 	require.Len(t, installs, 1)
 	require.Equal(t, uint(1), installs[0].VPPAppTeamID)
+
+	// read the upserted installs, the first-added version should be pending as PREINSTALLED in policy version 1
+	require.Len(t, upsertedInstalls, 1)
+	require.Equal(t, "com.example.app", upsertedInstalls[0].AdamID)
+	require.Equal(t, new(uint(1)), upsertedInstalls[0].VPPAppTeamID)
+	require.Equal(t, android.AppStatusPreinstalled, upsertedInstalls[0].InstallType)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, upsertedInstalls[0].Status)
+	require.Equal(t, new(int64(1)), upsertedInstalls[0].InPolicyVersion)
 }
 
 func TestRunAndroidSetupExperienceWithInstallConstraint(t *testing.T) {
@@ -329,8 +348,11 @@ func TestRunAndroidSetupExperienceWithInstallConstraint(t *testing.T) {
 			constrainedApp: []byte(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}]}`),
 		}, nil
 	}
-	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+		return nil, nil
 	}
 	var installs []*fleet.HostAndroidVPPSoftwareInstall
 	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
@@ -451,8 +473,11 @@ func TestMakeAndroidAppsAvailableForHostReplacesAppList(t *testing.T) {
 			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 				return map[string][]byte{}, nil
 			}
-			ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+			ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 				return nil
+			}
+			ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+				return nil, nil
 			}
 
 			buildAgent := c.buildAgent
@@ -536,8 +561,11 @@ func TestMakeAndroidAppsAvailableForHostSkipsUnresolvableAppConfig(t *testing.T)
 			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 				return map[string][]byte{"com.example.vital": []byte(`{"managedConfiguration":{"assetTag":"$FLEET_HOST_VITAL_7"}}`)}, nil
 			}
-			ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+			ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 				return nil
+			}
+			ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+				return nil, nil
 			}
 			ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
 				return "", c.expandErr
@@ -621,8 +649,11 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 		return map[string][]byte{}, nil
 	}
-	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+		return nil, nil
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 

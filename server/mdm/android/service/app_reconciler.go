@@ -20,6 +20,10 @@ type appReconciler struct {
 	AndroidSvc   android.Service
 	RetryCounter fleet.SoftwareInstallAttemptCounter
 	Logger       *slog.Logger
+	// InstallsToUpsert and InstallsToRemove collect the changed installs of every host during the run, upserted together
+	// at the end
+	InstallsToUpsert []fleet.HostAndroidSoftwareInstall
+	InstallsToRemove []fleet.HostAndroidSoftwareInstall
 }
 
 func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.Service, retryCounter fleet.SoftwareInstallAttemptCounter,
@@ -90,7 +94,19 @@ func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.S
 		}
 	}
 
-	reconciler := &appReconciler{DS: ds, AndroidSvc: androidSvc, RetryCounter: retryCounter, Logger: logger}
+	reconciler := &appReconciler{
+		DS:           ds,
+		AndroidSvc:   androidSvc,
+		RetryCounter: retryCounter,
+		Logger:       logger,
+	}
+	var quotaErr error
+	// TODO(JK): The setup experience job can run for a host while this cron sends to it:
+	//  - This cron skips hosts with pending setup experience installs in host_vpp_software_installs, but the job inserts
+	//    them only after it adds the setup experience apps. For a re-enrolled host, which keeps its host policy, this
+	//    cron's replace can land after that add and set the apps to AVAILABLE or remove them before the device installs
+	//    them.
+	//  - Both send the Fleet agent's configuration, and the device gets whichever one AMAPI receives last.
 	for _, host := range hosts {
 		// Leave the host to the setup experience until its setup installs are verified or failed, a replace would send
 		// them as AVAILABLE before the device installs them
@@ -102,10 +118,20 @@ func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.S
 		if err != nil {
 			// Stop on a quota error without moving the cursor, the next run starts this batch again
 			if androidmgmt.IsTooManyRequestsError(err) {
-				return ctxerr.Wrap(ctx, err, "reconcile android apps")
+				quotaErr = err
+				break
 			}
 			logger.ErrorContext(ctx, "failed to reconcile android apps for host", "host_id", host.ID, "err", err)
 		}
+	}
+
+	// Upsert what was sent even when the run stopped early or timed out, so the next run doesn't send it again
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(context.WithoutCancel(ctx), reconciler.InstallsToUpsert, reconciler.InstallsToRemove)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host android software installs")
+	}
+	if quotaErr != nil {
+		return ctxerr.Wrap(ctx, quotaErr, "reconcile android apps")
 	}
 
 	// Skip saving the cursor when the run timed out, so the next run checks this batch again
@@ -137,7 +163,8 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 	var needsSend bool
 	var needsRetry bool
 	var lastFailedAt time.Time
-	var versionOnlyInstalls []*fleet.HostAndroidSoftwareInstall
+	newVersionIDByAppStoreID := make(map[string]uint)
+	changedAppStoreIDs := make(map[string]struct{})
 	appStoreIDsInScope := make(map[string]struct{}, len(appsInScope))
 	for _, install := range installByAppStoreID {
 		if install.Status == fleet.AndroidSoftwareInstallStatusFailed && install.NeedsResend {
@@ -152,30 +179,33 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		install, sent := installByAppStoreID[app.AdamID]
 		if !sent {
 			needsSend = true
+			changedAppStoreIDs[app.AdamID] = struct{}{}
 			continue
 		}
 		version := versionByID[app.AppTeamID]
 		switch {
 		case install.Status == fleet.AndroidSoftwareInstallStatusFailed && install.NeedsResend:
 			// Retried below
+			changedAppStoreIDs[app.AdamID] = struct{}{}
 		case !ptr.Equal(install.VPPAppTeamID, &app.AppTeamID):
+			changedAppStoreIDs[app.AdamID] = struct{}{}
 			// Update only the row's version when the host moves to a version with the same configuration, the app entry
 			// in the policy is the same
 			if install.VPPAppTeamID != nil && version != nil {
 				sentVersion, found := versionByID[*install.VPPAppTeamID]
 				if found && !install.NeedsResend && bytes.Equal(sentVersion.Configuration, version.Configuration) &&
 					(sentVersion.ConfigurationUpdatedAt == nil || sentVersion.ConfigurationUpdatedAt.Before(install.PolicyBuiltAt)) {
-					versionOnlyInstall := *install
-					versionOnlyInstall.VPPAppTeamID = &app.AppTeamID
-					versionOnlyInstalls = append(versionOnlyInstalls, &versionOnlyInstall)
+					newVersionIDByAppStoreID[app.AdamID] = app.AppTeamID
 					continue
 				}
 			}
 			needsSend = true
 		case install.NeedsResend:
 			needsSend = true
+			changedAppStoreIDs[app.AdamID] = struct{}{}
 		case version != nil && version.ConfigurationUpdatedAt != nil && install.PolicyBuiltAt.Before(*version.ConfigurationUpdatedAt):
 			needsSend = true
+			changedAppStoreIDs[app.AdamID] = struct{}{}
 		}
 	}
 	for appStoreID, install := range installByAppStoreID {
@@ -217,12 +247,13 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		}
 	}
 	if !needsSend {
-		if len(versionOnlyInstalls) == 0 {
+		if len(newVersionIDByAppStoreID) == 0 {
 			return nil
 		}
-		err = r.DS.UpdateHostAndroidSoftwareInstallVersions(ctx, host.ID, versionOnlyInstalls)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update host android software install versions")
+		for appStoreID, newVersionID := range newVersionIDByAppStoreID {
+			updatedInstall := *installByAppStoreID[appStoreID]
+			updatedInstall.VPPAppTeamID = &newVersionID
+			r.InstallsToUpsert = append(r.InstallsToUpsert, updatedInstall)
 		}
 		return nil
 	}
@@ -292,27 +323,53 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		if androidmgmt.IsTooManyRequestsError(err) {
 			return ctxerr.Wrap(ctx, err, "set apps for android policy")
 		}
-		// Set the host's rows to failed, so the next run waits before sending again
-		failedInstalls := make([]*fleet.HostAndroidSoftwareInstall, 0, len(appsInScope))
+		// Set the host's installs to failed and flagged for resend, so the next run waits before sending again. Keep the
+		// apps that were being removed, their removal wasn't sent either.
 		for _, app := range appsInScope {
-			failedInstalls = append(failedInstalls, &fleet.HostAndroidSoftwareInstall{
+			r.InstallsToUpsert = append(r.InstallsToUpsert, fleet.HostAndroidSoftwareInstall{
 				HostID:        host.ID,
 				AdamID:        app.AdamID,
 				VPPAppTeamID:  &app.AppTeamID,
+				InstallType:   android.AppStatusAvailable,
+				Status:        fleet.AndroidSoftwareInstallStatusFailed,
+				NeedsResend:   true,
 				PolicyBuiltAt: policyBuiltAt,
 			})
 		}
-		recordErr := r.DS.SetHostAndroidSoftwareInstallsRequestFailed(ctx, host.ID, failedInstalls)
-		if recordErr != nil {
-			r.Logger.ErrorContext(ctx, "failed to record failed android app request", "host_id", host.ID, "err", recordErr)
+		for appStoreID, install := range installByAppStoreID {
+			if _, inScope := appStoreIDsInScope[appStoreID]; inScope {
+				continue
+			}
+			failedInstall := *install
+			failedInstall.Status = fleet.AndroidSoftwareInstallStatusFailed
+			failedInstall.NeedsResend = true
+			r.InstallsToUpsert = append(r.InstallsToUpsert, failedInstall)
 		}
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
 
-	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(appsToSend, appsWithUnresolvableValues, policyRequests[host.UUID], policyBuiltAt)
-	err = r.DS.ReplaceHostAndroidSoftwareInstalls(ctx, host.ID, installs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "replace host android software installs")
+	// Upsert only the apps that changed, an unchanged app's entry in the new policy is the same as in the policy of its
+	// existing install
+	var changedAppsToSend []fleet.VPPAppTeam
+	var changedAppsWithUnresolvableValues []fleet.VPPAppTeam
+	for _, app := range appsToSend {
+		if _, changed := changedAppStoreIDs[app.AdamID]; changed {
+			changedAppsToSend = append(changedAppsToSend, app)
+		}
+	}
+	for _, app := range appsWithUnresolvableValues {
+		if _, changed := changedAppStoreIDs[app.AdamID]; changed {
+			changedAppsWithUnresolvableValues = append(changedAppsWithUnresolvableValues, app)
+		}
+	}
+	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(host.ID, changedAppsToSend, changedAppsWithUnresolvableValues, policyRequests[host.UUID], policyBuiltAt)
+	r.InstallsToUpsert = append(r.InstallsToUpsert, installs...)
+
+	for appStoreID, install := range installByAppStoreID {
+		if _, inScope := appStoreIDsInScope[appStoreID]; inScope {
+			continue
+		}
+		r.InstallsToRemove = append(r.InstallsToRemove, *install)
 	}
 	return nil
 }

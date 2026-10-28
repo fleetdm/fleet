@@ -1982,11 +1982,7 @@ type GetAndroidHostIDsWithPendingSetupExperienceInstallFunc func(ctx context.Con
 
 type ListHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error)
 
-type ReplaceHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error
-
-type SetHostAndroidSoftwareInstallsRequestFailedFunc func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error
-
-type UpdateHostAndroidSoftwareInstallVersionsFunc func(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error
+type BulkUpsertHostAndroidSoftwareInstallsFunc func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error
 
 type SetHostAndroidSoftwareInstallsVerifiedFunc func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
 
@@ -5594,14 +5590,8 @@ type DataStore struct {
 	ListHostAndroidSoftwareInstallsFunc        ListHostAndroidSoftwareInstallsFunc
 	ListHostAndroidSoftwareInstallsFuncInvoked bool
 
-	ReplaceHostAndroidSoftwareInstallsFunc        ReplaceHostAndroidSoftwareInstallsFunc
-	ReplaceHostAndroidSoftwareInstallsFuncInvoked bool
-
-	SetHostAndroidSoftwareInstallsRequestFailedFunc        SetHostAndroidSoftwareInstallsRequestFailedFunc
-	SetHostAndroidSoftwareInstallsRequestFailedFuncInvoked bool
-
-	UpdateHostAndroidSoftwareInstallVersionsFunc        UpdateHostAndroidSoftwareInstallVersionsFunc
-	UpdateHostAndroidSoftwareInstallVersionsFuncInvoked bool
+	BulkUpsertHostAndroidSoftwareInstallsFunc        BulkUpsertHostAndroidSoftwareInstallsFunc
+	BulkUpsertHostAndroidSoftwareInstallsFuncInvoked bool
 
 	SetHostAndroidSoftwareInstallsVerifiedFunc        SetHostAndroidSoftwareInstallsVerifiedFunc
 	SetHostAndroidSoftwareInstallsVerifiedFuncInvoked bool
@@ -13461,25 +13451,11 @@ func (s *DataStore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs
 	return s.ListHostAndroidSoftwareInstallsFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
+func (s *DataStore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 	s.mu.Lock()
-	s.ReplaceHostAndroidSoftwareInstallsFuncInvoked = true
+	s.BulkUpsertHostAndroidSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReplaceHostAndroidSoftwareInstallsFunc(ctx, hostID, installs)
-}
-
-func (s *DataStore) SetHostAndroidSoftwareInstallsRequestFailed(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
-	s.mu.Lock()
-	s.SetHostAndroidSoftwareInstallsRequestFailedFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetHostAndroidSoftwareInstallsRequestFailedFunc(ctx, hostID, installs)
-}
-
-func (s *DataStore) UpdateHostAndroidSoftwareInstallVersions(ctx context.Context, hostID uint, installs []*fleet.HostAndroidSoftwareInstall) error {
-	s.mu.Lock()
-	s.UpdateHostAndroidSoftwareInstallVersionsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateHostAndroidSoftwareInstallVersionsFunc(ctx, hostID, installs)
+	return s.BulkUpsertHostAndroidSoftwareInstallsFunc(ctx, installs, removedInstalls)
 }
 
 func (s *DataStore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error {

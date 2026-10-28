@@ -93,6 +93,8 @@ type MDMAndroidPolicyRequest struct {
 
 const AppStatusAvailable = "AVAILABLE"
 
+const AppStatusPreinstalled = "PREINSTALLED"
+
 // MDMAndroidCommand represents a single AMAPI command Fleet issued via EnterprisesDevicesService.IssueCommand (Lock,
 // Wipe, Clear passcode). One row is inserted at issue time and updated by the Pub/Sub COMMAND handler when the device
 // acks or AMAPI rejects. CommandUUID is the Fleet-generated identifier that host_mdm_actions.{lock_ref, wipe_ref}

@@ -2292,18 +2292,29 @@ func newAndroidMDMProfileManagerSchedule(
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
+	androidModule android.Service,
+	redisPool fleet.RedisPool,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronMDMAndroidProfileManager)
-		defaultInterval = 30 * time.Second
+		name                   = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval        = 30 * time.Second
+		appReconcileMaxRunTime = 5 * time.Minute
 	)
 
 	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AndroidAppListPrefix)
+	// Run the app reconciler after the profiles in the same schedule, so its replace never overlaps the profile
+	// reconciler's Fleet agent send, and certificate templates are delivered before it builds the agent configuration
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
 			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
+		}),
+		schedule.WithJob("reconcile_android_apps", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, appReconcileMaxRunTime)
+			defer cancel()
+			return android_svc.ReconcileApps(workCtx, ds, androidModule, retryCounter, logger, batchSize)
 		}),
 	)
 
@@ -3287,36 +3298,6 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
 			defer cancel()
 			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, retryCounter, logger)
-		}),
-	)
-
-	return s, nil
-}
-
-func newAndroidAppReconcilerSchedule(
-	ctx context.Context,
-	instanceID string,
-	ds fleet.Datastore,
-	androidModule android.Service,
-	redisPool fleet.RedisPool,
-	androidBatchSize int,
-	logger *slog.Logger,
-) (*schedule.Schedule, error) {
-	const (
-		name            = string(fleet.CronAndroidAppReconciler)
-		defaultInterval = 1 * time.Minute
-		maxRunTime      = 5 * time.Minute
-	)
-
-	logger = logger.With("cron", name)
-	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AndroidAppListPrefix)
-	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(logger),
-		schedule.WithJob("reconcile_android_apps", func(ctx context.Context) error {
-			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
-			defer cancel()
-			return android_svc.ReconcileApps(workCtx, ds, androidModule, retryCounter, logger, androidBatchSize)
 		}),
 	)
 

@@ -3516,13 +3516,13 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Record the app as sent to the host.
-	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.ID, []*fleet.HostAndroidSoftwareInstall{{
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
 		HostID:        host.ID,
 		AdamID:        appID,
 		VPPAppTeamID:  new(uint(appTeamID)), //nolint:gosec // dismiss G115
 		Status:        fleet.AndroidSoftwareInstallStatusVerified,
 		PolicyBuiltAt: time.Now(),
-	}})
+	}}, nil)
 	require.NoError(t, err)
 
 	// Assign a SCIM user to the host.

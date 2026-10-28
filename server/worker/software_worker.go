@@ -270,8 +270,23 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
 
-	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(availableApps, appsWithUnresolvableValues, policyRequests[hostUUID], policyBuiltAt)
-	err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
+	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(hostID, availableApps, appsWithUnresolvableValues, policyRequests[hostUUID], policyBuiltAt)
+	existingInstalls, err := v.Datastore.ListHostAndroidSoftwareInstalls(ctx, []uint{hostID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host android software installs")
+	}
+	// Remove the existing installs of a previous enrollment, the replace took their apps out of the policy
+	sentAppStoreIDs := make(map[string]struct{}, len(installs))
+	for _, install := range installs {
+		sentAppStoreIDs[install.AdamID] = struct{}{}
+	}
+	var removedInstalls []fleet.HostAndroidSoftwareInstall
+	for _, existingInstall := range existingInstalls {
+		if _, sent := sentAppStoreIDs[existingInstall.AdamID]; !sent {
+			removedInstalls = append(removedInstalls, *existingInstall)
+		}
+	}
+	err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, removedInstalls)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "replace host android software installs")
 	}
@@ -338,6 +353,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		// even if they were already applied when making the apps available for self-service.
 		// However, once installed, if the app config changes it is applied automatically by the
 		// policy change (no need to re-install).
+		policyBuiltAt := time.Now()
 		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
@@ -348,7 +364,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
 		}
 
-		appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, appIDs, configsByAppID, "PREINSTALLED")
+		appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, appIDs, configsByAppID, android.AppStatusPreinstalled)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building application policies with config")
 		}
@@ -384,6 +400,27 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting android setup experience install request")
 			}
+		}
+
+		var inPolicyVersion *int64
+		if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+			inPolicyVersion = &policyRequest.PolicyVersion.V
+		}
+		installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(setupApps))
+		for _, app := range setupApps {
+			installs = append(installs, fleet.HostAndroidSoftwareInstall{
+				HostID:          host.Host.ID,
+				AdamID:          app.AdamID,
+				VPPAppTeamID:    &app.AppTeamID,
+				InstallType:     android.AppStatusPreinstalled,
+				Status:          fleet.AndroidSoftwareInstallStatusPending,
+				InPolicyVersion: inPolicyVersion,
+				PolicyBuiltAt:   policyBuiltAt,
+			})
+		}
+		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host android software installs for setup experience")
 		}
 	}
 
@@ -486,8 +523,23 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		}
 
 		// Record the sent list so the Android app reconciler doesn't send it again
-		installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(appsInScope, nil, policyRequests[uuid], policyBuiltAt)
-		err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
+		installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(hostID, appsInScope, nil, policyRequests[uuid], policyBuiltAt)
+		existingInstalls, err := v.Datastore.ListHostAndroidSoftwareInstalls(ctx, []uint{hostID})
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "list host android software installs", map[string]any{"host_id": hostID})
+		}
+		// Remove the existing installs of the previous fleet's apps, the replace took them out of the policy
+		sentAppStoreIDs := make(map[string]struct{}, len(installs))
+		for _, install := range installs {
+			sentAppStoreIDs[install.AdamID] = struct{}{}
+		}
+		var removedInstalls []fleet.HostAndroidSoftwareInstall
+		for _, existingInstall := range existingInstalls {
+			if _, sent := sentAppStoreIDs[existingInstall.AdamID]; !sent {
+				removedInstalls = append(removedInstalls, *existingInstall)
+			}
+		}
+		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, removedInstalls)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "replace host android software installs", map[string]any{"host_id": hostID})
 		}

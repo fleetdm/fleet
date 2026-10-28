@@ -4295,20 +4295,19 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	builtAt := time.Now().UTC().Truncate(time.Microsecond)
 
 	// send two apps to the host in policy version 1, and one app to the other host
-	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.Host.ID, []*fleet.HostAndroidSoftwareInstall{
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
-		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
-	})
-	require.NoError(t, err)
-	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, otherHost.Host.ID, []*fleet.HostAndroidSoftwareInstall{
-		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
-	})
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: otherHost.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
 	require.NoError(t, err)
 
-	// fail a request that sends the kept app on its new version and leaves out the removed app, every row of the host
+	// upsert a failed request that sends the kept app on its new version and keeps the removed app, every row of the host
 	// should be failed and flagged for resend
-	failedInstalls := []*fleet.HostAndroidSoftwareInstall{{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, PolicyBuiltAt: builtAt}}
-	err = ds.SetHostAndroidSoftwareInstallsRequestFailed(ctx, host.Host.ID, failedInstalls)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, NeedsResend: true, PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, NeedsResend: true, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
 	require.NoError(t, err)
 	installs, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
 	require.NoError(t, err)
@@ -4325,11 +4324,13 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, otherInstalls[0].Status)
 	require.False(t, otherInstalls[0].NeedsResend)
 
-	// send the kept app on its new version in policy version 2, the removed app's row should be deleted and the kept app's
-	// flag cleared
+	// send the kept app on its new version in policy version 2 and remove the removed app, the removed app's row should be
+	// deleted and the kept app's flag cleared
 	newBuiltAt := builtAt.Add(time.Minute)
-	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.Host.ID, []*fleet.HostAndroidSoftwareInstall{
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2)), PolicyBuiltAt: newBuiltAt},
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2)), PolicyBuiltAt: newBuiltAt},
+	}, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed"},
 	})
 	require.NoError(t, err)
 	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
@@ -4359,9 +4360,9 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installs[0].Status)
 
 	// move the kept app's row back to its first version, only the version should change
-	err = ds.UpdateHostAndroidSoftwareInstallVersions(ctx, host.Host.ID, []*fleet.HostAndroidSoftwareInstall{
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusVerified, InPolicyVersion: new(int64(2))},
-	})
+	keptInstall := *installs[0]
+	keptInstall.VPPAppTeamID = &keptVersionID
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
 	require.NoError(t, err)
 	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
 	require.NoError(t, err)
@@ -4369,6 +4370,10 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, &keptVersionID, installs[0].VPPAppTeamID)
 	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installs[0].Status)
 	require.True(t, newBuiltAt.Equal(installs[0].PolicyBuiltAt))
+
+	// upsert the kept app again exactly as it exists, no log entry should be written for it
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{*installs[0]}, nil)
+	require.NoError(t, err)
 
 	// read the host's log, it should have every change in order
 	type logRow struct {
@@ -4386,6 +4391,7 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 		{AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1))},
 		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1))},
 		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed},
+		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, InPolicyVersion: new(int64(1))},
 		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusRemoved},
 		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2))},
 		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusVerified, InPolicyVersion: new(int64(2))},

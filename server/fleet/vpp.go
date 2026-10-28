@@ -275,9 +275,10 @@ type HostAndroidSoftwareInstall struct {
 	HostID          uint      `db:"host_id"`
 	AdamID          string    `db:"adam_id"`
 	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
+	InstallType     string    `db:"install_type"`
 	Status          string    `db:"status"`
-	InPolicyVersion *int64    `db:"in_policy_version"`
 	NeedsResend     bool      `db:"needs_resend"`
+	InPolicyVersion *int64    `db:"in_policy_version"`
 	PolicyBuiltAt   time.Time `db:"policy_built_at"`
 	CreatedAt       time.Time `db:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at"`
@@ -493,26 +494,30 @@ type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp
 
 // MergeHostAndroidInstallsWithPolicyDetails returns sentApps as pending in the policy version of policyRequest, and
 // notSentApps as failed with no policy version.
-func MergeHostAndroidInstallsWithPolicyDetails(sentApps []VPPAppTeam, notSentApps []VPPAppTeam, policyRequest *android.MDMAndroidPolicyRequest, policyBuiltAt time.Time) []*HostAndroidSoftwareInstall {
+func MergeHostAndroidInstallsWithPolicyDetails(hostID uint, sentApps []VPPAppTeam, notSentApps []VPPAppTeam, policyRequest *android.MDMAndroidPolicyRequest, policyBuiltAt time.Time) []HostAndroidSoftwareInstall {
 	var inPolicyVersion *int64
 	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
 		inPolicyVersion = &policyRequest.PolicyVersion.V
 	}
 
-	installs := make([]*HostAndroidSoftwareInstall, 0, len(sentApps)+len(notSentApps))
+	installs := make([]HostAndroidSoftwareInstall, 0, len(sentApps)+len(notSentApps))
 	for _, app := range sentApps {
-		installs = append(installs, &HostAndroidSoftwareInstall{
+		installs = append(installs, HostAndroidSoftwareInstall{
+			HostID:          hostID,
 			AdamID:          app.AdamID,
 			VPPAppTeamID:    &app.AppTeamID,
+			InstallType:     android.AppStatusAvailable,
 			Status:          AndroidSoftwareInstallStatusPending,
 			InPolicyVersion: inPolicyVersion,
 			PolicyBuiltAt:   policyBuiltAt,
 		})
 	}
 	for _, app := range notSentApps {
-		installs = append(installs, &HostAndroidSoftwareInstall{
+		installs = append(installs, HostAndroidSoftwareInstall{
+			HostID:        hostID,
 			AdamID:        app.AdamID,
 			VPPAppTeamID:  &app.AppTeamID,
+			InstallType:   android.AppStatusAvailable,
 			Status:        AndroidSoftwareInstallStatusFailed,
 			PolicyBuiltAt: policyBuiltAt,
 		})

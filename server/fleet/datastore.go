@@ -3659,17 +3659,10 @@ type Datastore interface {
 	// ListHostAndroidSoftwareInstalls returns the host_android_software_installs rows of hostIDs.
 	ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*HostAndroidSoftwareInstall, error)
 
-	// ReplaceHostAndroidSoftwareInstalls sets the host's host_android_software_installs rows to installs, deleting the
-	// rows of other apps, and writes a log_android_software_installs row for every row it sets or deletes.
-	ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
-
-	// SetHostAndroidSoftwareInstallsRequestFailed sets every row of the host to failed and flagged for resend, with the
-	// version of installs for their apps. It writes a log_android_software_installs row for every row of installs.
-	SetHostAndroidSoftwareInstallsRequestFailed(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
-
-	// UpdateHostAndroidSoftwareInstallVersions sets the version of the host's rows of installs, and writes a
-	// log_android_software_installs row for each.
-	UpdateHostAndroidSoftwareInstallVersions(ctx context.Context, hostID uint, installs []*HostAndroidSoftwareInstall) error
+	// BulkUpsertHostAndroidSoftwareInstalls upserts installs and deletes removedInstalls by host and app, in
+	// transactions of at most 100 installs. It writes a log_android_software_installs entry for each one it changes or
+	// deletes, and skips the ones that match the existing install.
+	BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []HostAndroidSoftwareInstall, removedInstalls []HostAndroidSoftwareInstall) error
 
 	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows that were sent
 	// in appliedPolicyVersion or before to verified, and writes a log_android_software_installs row for each.

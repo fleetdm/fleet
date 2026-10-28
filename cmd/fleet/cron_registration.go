@@ -269,6 +269,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			deps.config.MDM.AndroidAgent,
 			deps.config.MDM.AndroidBatchSize,
+			deps.androidSvc,
+			deps.redisPool,
 		)
 	})
 
@@ -358,10 +360,6 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register app store app configuration reconciler schedule", func() (fleet.CronSchedule, error) {
 		return newAppStoreAppConfigurationReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.redisPool, deps.logger)
-	})
-
-	deps.register("failed to register android app reconciler schedule", func() (fleet.CronSchedule, error) {
-		return newAndroidAppReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.androidSvc, deps.redisPool, deps.config.MDM.AndroidBatchSize, deps.logger)
 	})
 }
 

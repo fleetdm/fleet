@@ -812,9 +812,9 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	recordedAppIDs := []string{vitalAppID, otherAppID, lookalikeAppID, noSigilAppID}
 	recordInstalls := func() {
 		t.Helper()
-		installs := make([]*fleet.HostAndroidSoftwareInstall, 0, len(recordedAppIDs))
+		installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(recordedAppIDs))
 		for _, appID := range recordedAppIDs {
-			installs = append(installs, &fleet.HostAndroidSoftwareInstall{
+			installs = append(installs, fleet.HostAndroidSoftwareInstall{
 				HostID:        androidHost.Host.ID,
 				AdamID:        appID,
 				VPPAppTeamID:  new(appTeamIDs[appID]),
@@ -822,7 +822,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 				PolicyBuiltAt: time.Now(),
 			})
 		}
-		require.NoError(t, ds.ReplaceHostAndroidSoftwareInstalls(ctx, androidHost.Host.ID, installs))
+		require.NoError(t, ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil))
 	}
 	// Reads the apps flagged for resend and clears the flags, so each assertion sees only its own flags.
 	drainFlaggedAppIDs := func() []string {
