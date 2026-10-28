@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.83",
+      "version": "7.84",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper' AND version_compare(bundle_short_version, '7.83') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cockos.reaper' AND version_compare(bundle_short_version, '7.84') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.cockos.reaper' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dlcf.reaper.fm/7.x/reaper783_universal.dmg",
+      "installer_url": "https://dlcf.reaper.fm/7.x/reaper784_universal.dmg",
       "install_script_ref": "df5d89ee",
       "uninstall_script_ref": "92d2a56e",
-      "sha256": "257d0e69147d0df05833e6a0efd097c63065cd16f58278d2213d3814c08f4653",
+      "sha256": "9f687af53480a1eb5283977e90884539f0e74f41e84ba953455dc7ecd3d42530",
       "default_categories": [
         "Productivity"
       ]
