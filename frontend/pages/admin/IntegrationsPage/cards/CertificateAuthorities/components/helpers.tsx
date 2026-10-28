@@ -4,6 +4,8 @@ const CA_LABEL_BY_TYPE: Record<ICertificateAuthorityType, string> = {
   custom_est_proxy: "Custom Enrollment Over Secure Transport (EST)",
   custom_scep_proxy: "Custom Simple Certificate Enrollment Protocol (SCEP)",
   digicert: "DigiCert",
+  ejbca: "EJBCA",
+  google_cas: "Google Certificate Authority Service (CAS)",
   hydrant: "Hydrant Enrollment Over Secure Transport (EST)",
   ndes_scep_proxy:
     "Dynamic SCEP - Okta CA or Microsoft Network Device Enrollment Service (NDES)",

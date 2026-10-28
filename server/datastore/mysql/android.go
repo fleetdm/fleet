@@ -2700,15 +2700,65 @@ WHERE
 	return pendingInstalls, nil
 }
 
+func (ds *Datastore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	// Only the latest install per app counts, so a failure that a later install replaced
+	// is never revisited. Installs from before the current enrollment are left out too:
+	// re-enrolling fails them, and until the setup experience creates the new installs
+	// they would otherwise still be the latest. They're always older than this
+	// enrollment's installs, so leaving them out before ranking doesn't change the latest.
+	const stmt = `
+SELECT
+	host_id,
+	adam_id,
+	command_uuid,
+	associated_event_id,
+	created_at
+FROM (
+	SELECT
+		hvsi.host_id,
+		hvsi.adam_id,
+		hvsi.command_uuid,
+		hvsi.associated_event_id,
+		hvsi.created_at,
+		hvsi.verification_failed_at,
+		ROW_NUMBER() OVER (
+			PARTITION BY hvsi.adam_id
+			ORDER BY hvsi.created_at DESC, hvsi.id DESC
+		) AS rn
+	FROM
+		host_vpp_software_installs hvsi
+		INNER JOIN hosts h ON hvsi.host_id = h.id
+	WHERE
+		hvsi.host_id = ? AND
+		hvsi.platform = ? AND
+		hvsi.removed = 0 AND
+		hvsi.canceled = 0 AND
+		hvsi.created_at >= h.last_enrolled_at
+) ranked
+WHERE
+	ranked.rn = 1 AND
+	ranked.verification_failed_at IS NOT NULL
+`
+
+	var failedInstalls []*fleet.HostAndroidVPPSoftwareInstall
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failedInstalls, stmt, hostID, fleet.AndroidPlatform)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps latest failed install")
+	}
+	return failedInstalls, nil
+}
+
 func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
-	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at")
+	// A device can report an app installed after Fleet already failed its install, so
+	// verifying also clears the failure.
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at = CURRENT_TIMESTAMP(6), verification_failed_at = NULL")
 }
 
 func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
-	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at")
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at = CURRENT_TIMESTAMP(6)")
 }
 
-func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, column string) error {
+func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, setFinalState string) error {
 	if len(commandUUIDs) == 0 {
 		return nil
 	}
@@ -2719,11 +2769,11 @@ func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID 
 UPDATE
 	host_vpp_software_installs
 SET
-	%s = CURRENT_TIMESTAMP(6),
+	%s,
 	verification_command_uuid = ?
 WHERE
 	command_uuid IN (?)
-`, column)
+`, setFinalState)
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		verificationUUID := uuid.NewString()
@@ -2923,12 +2973,8 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	}
 
 	// Track which fleet variables this app config uses so SCIM can trigger resends.
-	found := variables.Find(string(config))
-	fleetVars := make([]fleet.FleetVarName, len(found))
-	for i, v := range found {
-		fleetVars[i] = fleet.FleetVarName(v)
-	}
-	if err := setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, fleetVars); err != nil {
+	err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, config)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting app config variable associations")
 	}
 
@@ -2936,12 +2982,13 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 }
 
 // setAppConfigVariableAssociations replaces the variable associations for an
-// android app configuration in mdm_configuration_profile_variables.
-func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, fleetVars []fleet.FleetVarName) error {
+// App Store app configuration in mdm_configuration_profile_variables.
+func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE vpp_app_team_id = ?`, vppAppTeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting app config variable associations")
 	}
 
+	fleetVars := variables.Find(string(config))
 	if len(fleetVars) == 0 {
 		return nil
 	}
@@ -2959,7 +3006,7 @@ func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, v
 	var values strings.Builder
 	var args []any
 	for _, v := range fleetVars {
-		varWithPrefix := "FLEET_VAR_" + string(v)
+		varWithPrefix := "FLEET_VAR_" + v
 		for _, def := range varDefs {
 			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
 			if match {

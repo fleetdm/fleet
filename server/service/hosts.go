@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -837,6 +838,9 @@ type searchHostsRequest struct {
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+	// ExcludeMobileHosts omits iOS, iPadOS, and Android hosts, which can't be
+	// targeted by live reports.
+	ExcludeMobileHosts bool `json:"exclude_mobile_hosts"`
 }
 
 type searchHostsResponse struct {
@@ -849,7 +853,7 @@ func (r searchHostsResponse) Error() error { return r.Err }
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
-	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs, req.ExcludeMobileHosts)
 	if err != nil {
 		return searchHostsResponse{Err: err}, nil
 	}
@@ -865,7 +869,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -889,7 +893,7 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 
 	results := []*fleet.Host{}
 
-	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludeMobileHosts, excludedHostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -2283,6 +2287,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
+	var googleDeviceID *string
+	if fleet.IsMobilePlatform(host.Platform) {
+		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host google device id")
+		}
+		googleDeviceID = &id
+	}
+
 	customHostVitals, err := svc.ds.GetHostCustomHostVitals(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
@@ -2309,6 +2322,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		LastMDMEnrollmentType:         mdmEnrollmentType,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
+		GoogleDeviceID:                googleDeviceID,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
 		OSUpdateDeadline:              osUpdateDeadline,
 	}, nil
@@ -2775,12 +2789,39 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
+		// Check if the user is a valid SCIM user to manage the join table. Looked up before the
+		// update, which can resend profiles, so a lookup error doesn't leave them unlogged.
+		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
+		}
+		scimUserFound := err == nil && scimUser != nil
+
+		var resentCerts []fleet.ActivityTypeResentCertificate
+		// Each step commits its resends, so they're logged even when a later step fails. Linking a SCIM user resends a
+		// certificate that the new IdP username already resent.
+		defer func() {
+			seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
+			for _, cert := range resentCerts {
+				key := [2]uint{cert.HostID, cert.CertificateTemplateID}
+				if _, dup := seenCerts[key]; dup {
+					continue
+				}
+				seenCerts[key] = struct{}{}
+				if err := svc.NewActivity(ctx, nil, cert); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
+			}
+		}()
+
 		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
-			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+			certs, err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email)
+			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 			}
+			resentCerts = certs
 
 			if err := svc.NewActivity(
 				ctx,
@@ -2795,37 +2836,24 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
-		// Check if the user is a valid SCIM user to manage the join table
-		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
-		}
-		if err == nil && scimUser != nil {
+		if scimUserFound {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			certs, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
 			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			certs, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
 			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		}
 
@@ -2903,6 +2931,159 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Put Host Google Device ID
+////////////////////////////////////////////////////////////////////////////////
+
+type putHostGoogleDeviceIDRequest struct {
+	ID             uint   `url:"id"`
+	GoogleDeviceID string `json:"google_device_id"`
+}
+
+type putHostGoogleDeviceIDResponse struct {
+	HostID         uint   `json:"host_id"`
+	GoogleDeviceID string `json:"google_device_id"`
+	Err            error  `json:"error,omitempty"`
+}
+
+func (r putHostGoogleDeviceIDResponse) Error() error { return r.Err }
+
+func putHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*putHostGoogleDeviceIDRequest)
+	if err := svc.SetHostGoogleDeviceID(ctx, req.ID, req.GoogleDeviceID); err != nil {
+		return putHostGoogleDeviceIDResponse{Err: err}, nil
+	}
+	return putHostGoogleDeviceIDResponse{HostID: req.ID, GoogleDeviceID: req.GoogleDeviceID}, nil
+}
+
+func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error {
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	if !fleet.IsMobilePlatform(host.Platform) {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is only supported on iOS, iPadOS, and Android hosts.")
+	}
+	if googleDeviceID == "" {
+		// Removing the ID lets another device register as this host, so it takes the explicit DELETE.
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is required. To remove it, use the DELETE method.")
+	}
+	if strings.TrimSpace(googleDeviceID) != googleDeviceID {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID can't start or end with whitespace.")
+	}
+	if utf8.RuneCountInString(googleDeviceID) > 255 {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID must be 255 characters or less.")
+	}
+
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, hostID, googleDeviceID)
+	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+		var userID uint
+		if user := authz.UserFromContext(ctx); user != nil {
+			userID = user.ID
+		}
+		svc.logger.WarnContext(ctx, "refused a different Google device ID for host",
+			"host_id", host.ID, "user_id", userID,
+			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host google device id")
+	}
+	if !changed {
+		return nil
+	}
+	// The binding is already saved and a retry is a no-op that logs nothing, so the error carries the
+	// change to keep a trail of it.
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		GoogleDeviceID:  googleDeviceID,
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity for setting host %d google device id %q", host.ID, googleDeviceID)
+	}
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Host Google Device ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteHostGoogleDeviceIDRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteHostGoogleDeviceIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteHostGoogleDeviceIDResponse) Error() error { return r.Err }
+func (r deleteHostGoogleDeviceIDResponse) Status() int  { return http.StatusNoContent }
+
+func deleteHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteHostGoogleDeviceIDRequest)
+	if err := svc.DeleteHostGoogleDeviceID(ctx, req.ID); err != nil {
+		return deleteHostGoogleDeviceIDResponse{Err: err}, nil
+	}
+	return deleteHostGoogleDeviceIDResponse{}, nil
+}
+
+func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error {
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host google device id")
+	}
+	if removed == "" {
+		return nil
+	}
+	// Deleting only the value read above keeps the activity accurate if a concurrent request changes it.
+	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, hostID, removed)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host google device id")
+	}
+	if !deleted {
+		return nil
+	}
+	// Same as when setting it: a retry finds nothing to delete, so the error keeps the trail.
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedHostGoogleDeviceID{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		GoogleDeviceID:  removed,
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity for deleting host %d google device id %q", host.ID, removed)
+	}
+	return nil
+}
+
+func (svc *Service) authorizeHostGoogleDeviceID(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+	return host, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get host DEP assignment
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2967,10 +3148,10 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
-	// Without an ABM token ID we can't resolve which org name to use for the
-	// Apple API call, so return what we have from Fleet's DB.
+	// Deleting an ABM token nulls abm_token_id but leaves the assignment, so
+	// there's nothing to ask Apple about: treat the host as not a DEP host.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, "", nil
+		return nil, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
