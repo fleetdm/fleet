@@ -3,7 +3,7 @@
 package apps
 
 import (
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 // scanApps has no implementation on unsupported platforms; orbit builds a
