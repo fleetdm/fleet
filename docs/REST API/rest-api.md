@@ -15373,7 +15373,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | ----        | ------- | ---- | --------------------------------------------     |
 | id          | integer | path | ID of the software title being updated. |
 | fleet_id     | integer | query | **Required**. The fleet ID. Updates a software icon in the specified fleet. |
-| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
