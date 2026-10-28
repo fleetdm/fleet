@@ -13385,8 +13385,20 @@ func testOtherMDMHostIDWithUUID(t *testing.T, ds *Datastore) {
 		requireOtherMDMHostID(t, notInMDM.UUID, 0, 0)
 	})
 
-	t.Run("empty UUID", func(t *testing.T) {
-		requireOtherMDMHostID(t, "", 0, 0)
+	t.Run("UUIDs with padding", func(t *testing.T) {
+		requireOtherMDMHostID(t, mac.UUID+" ", 0, mac.ID)
+		requireOtherMDMHostID(t, windows.UUID+"\u200b", 0, windows.ID)
+	})
+
+	t.Run("empty and blank UUIDs", func(t *testing.T) {
+		noUUID := newOneTimeSecretTestHost(t, ds, "ios", nil)
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, noUUID.ID)
+		require.NoError(t, err)
+		insertWindowsEnrollment(t, ds, "hw-unlinked", "")
+
+		for _, blank := range []string{"", " ", "\u200b", "\u00a0", "\x01"} {
+			requireOtherMDMHostID(t, blank, 0, 0)
+		}
 	})
 
 	t.Run("disabled Apple enrollment", func(t *testing.T) {

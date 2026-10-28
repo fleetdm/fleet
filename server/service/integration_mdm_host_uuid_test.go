@@ -118,18 +118,20 @@ func (s *integrationMDMTestSuite) TestEnrollWithUUIDOfAnotherMDMHost() {
 				})
 
 				t.Run("orbit enroll onto a host without a UUID", func(t *testing.T) {
-					osqueryID := uuid.NewString()
-					s.enrollOsqueryWithoutUUID(t, secret.secret, osqueryID, host.Platform)
+					for _, blank := range []string{"", " ", "\u200b"} {
+						osqueryID := uuid.NewString()
+						s.enrollOsqueryWithUUID(t, secret.secret, osqueryID, host.Platform, blank)
 
-					s.postNoAuth(t, "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
-						EnrollSecret:      secret.secret,
-						HardwareUUID:      host.UUID,
-						HardwareSerial:    mdmtest.RandSerialNumber(),
-						Platform:          host.Platform,
-						OsqueryIdentifier: osqueryID,
-					}, http.StatusUnauthorized)
+						s.postNoAuth(t, "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+							EnrollSecret:      secret.secret,
+							HardwareUUID:      host.UUID,
+							HardwareSerial:    mdmtest.RandSerialNumber(),
+							Platform:          host.Platform,
+							OsqueryIdentifier: osqueryID,
+						}, http.StatusUnauthorized)
 
-					s.requireOnlyHostWithUUID(t, host)
+						s.requireOnlyHostWithUUID(t, host)
+					}
 				})
 			})
 		}
@@ -257,10 +259,19 @@ func (s *integrationMDMTestSuite) postNoAuth(t *testing.T, path string, params a
 }
 
 func (s *integrationMDMTestSuite) enrollOsqueryWithoutUUID(t *testing.T, secret, osqueryID, platform string) string {
+	return s.enrollOsqueryWithUUID(t, secret, osqueryID, platform, "")
+}
+
+// enrollOsqueryWithUUID enrolls with hostUUID as the system_info UUID, or without system_info when hostUUID is empty.
+func (s *integrationMDMTestSuite) enrollOsqueryWithUUID(t *testing.T, secret, osqueryID, platform, hostUUID string) string {
+	hostDetails := map[string]map[string]string{"os_version": {"platform": platform}}
+	if hostUUID != "" {
+		hostDetails["system_info"] = map[string]string{"uuid": hostUUID, "hardware_serial": mdmtest.RandSerialNumber()}
+	}
 	res := s.postNoAuth(t, "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   secret,
 		HostIdentifier: osqueryID,
-		HostDetails:    map[string]map[string]string{"os_version": {"platform": platform}},
+		HostDetails:    hostDetails,
 	}, http.StatusOK)
 	var enrollResp contract.EnrollOsqueryAgentResponse
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&enrollResp))
