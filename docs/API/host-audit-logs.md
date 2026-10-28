@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium._
 
-Use host audit logs to automate based on what happens on one fleet's hosts. For example, send a fleet's host activities to your SIEM, without receiving activities for every fleet.
+Use host audit logs to automate based on what happens on one fleet's hosts. For example, send a fleet's host activities to your [SIEM](https://en.wikipedia.org/wiki/Security_information_and_event_management), without receiving activities for every fleet.
 
 Host audit logs use the same payload format as [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs), filtered to activities linked to the fleet's hosts.
 
