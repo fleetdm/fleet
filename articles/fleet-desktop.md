@@ -24,7 +24,7 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 
 ## Update Fleet Desktop
 
-fleetd updates Fleet Desktop automatically. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+fleetd automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
 
 ### macOS
 
