@@ -703,8 +703,6 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests, including prospect requests, are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design and [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one week. To expedite a request, @mention the Head of Product Design in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5). If the request meets the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢📨🎉 Product design intake & outtake project.
-
 
 ### Criteria for prioritization
 
