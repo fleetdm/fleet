@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.0.14405",
+      "version": "2026.0.14555",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer' AND version_compare(bundle_short_version, '2026.0.14405') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer' AND version_compare(bundle_short_version, '2026.0.14555') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nicesoftware.dcvviewer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2026.0/Clients/nice-dcv-viewer-2026.0.14405.arm64.dmg",
+      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2026.0/Clients/nice-dcv-viewer-2026.0.14555.arm64.dmg",
       "install_script_ref": "48c60eb7",
       "uninstall_script_ref": "b225131b",
-      "sha256": "b1acbc3c67c84d2607257be331eebcf2850dc21d80417d0692a87edbec1294b2",
+      "sha256": "c52414b13832d8c7583440e499864a59163165545e897044f4b48090859fca05",
       "default_categories": [
         "Communication"
       ]
