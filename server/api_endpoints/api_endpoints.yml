@@ -448,6 +448,9 @@
   display_name: "Run live report"
   deprecated: true
 - method: "POST"
+  path: "/api/v1/fleet/mcp"
+  display_name: "Use Fleet's MCP server"
+- method: "POST"
   path: "/api/v1/fleet/scripts/run"
   display_name: "Run script"
 - method: "GET"

@@ -852,6 +852,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
+	mcpConn := service.NewMCPConn()
 	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
@@ -872,6 +873,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if agentWSHub != nil {
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
+		extra = append(extra, service.WithMCPConn(mcpConn))
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -969,6 +971,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		),
 	), healthCheckers)
 
+	// Set below, before the server starts serving.
+	var srv *http.Server
 	rootMux := http.NewServeMux()
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
@@ -1115,7 +1119,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger, func() time.Duration { return srv.WriteTimeout }))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1182,10 +1186,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		handler = launcher.Handler(rootMux)
 	}
 
-	srv := config.Server.DefaultHTTPServer(ctx, handler)
+	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {
 		srv.WriteTimeout = liveQueryRestPeriod
 	}
+	mcpConn.Start(ctx, handler)
 	srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 	errs := make(chan error, 2)
 	go func() {
@@ -1244,7 +1249,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			if agentWSHub != nil {
 				agentWSHub.Shutdown()
 			}
-			return srv.Shutdown(ctx)
+			err := srv.Shutdown(ctx)
+			if mcpErr := mcpConn.Shutdown(ctx); mcpErr != nil {
+				logger.ErrorContext(ctx, "failed to shut down the embedded MCP connection", "err", mcpErr)
+			}
+			return err
 		}()
 	}()
 

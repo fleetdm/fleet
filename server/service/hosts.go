@@ -2789,12 +2789,39 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
+		// Check if the user is a valid SCIM user to manage the join table. Looked up before the
+		// update, which can resend profiles, so a lookup error doesn't leave them unlogged.
+		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
+		}
+		scimUserFound := err == nil && scimUser != nil
+
+		var resentCerts []fleet.ActivityTypeResentCertificate
+		// Each step commits its resends, so they're logged even when a later step fails. Linking a SCIM user resends a
+		// certificate that the new IdP username already resent.
+		defer func() {
+			seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
+			for _, cert := range resentCerts {
+				key := [2]uint{cert.HostID, cert.CertificateTemplateID}
+				if _, dup := seenCerts[key]; dup {
+					continue
+				}
+				seenCerts[key] = struct{}{}
+				if err := svc.NewActivity(ctx, nil, cert); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
+			}
+		}()
+
 		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
-			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+			certs, err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email)
+			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 			}
+			resentCerts = certs
 
 			if err := svc.NewActivity(
 				ctx,
@@ -2809,37 +2836,24 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
-		// Check if the user is a valid SCIM user to manage the join table
-		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
-		}
-		if err == nil && scimUser != nil {
+		if scimUserFound {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			certs, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
 			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			certs, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
 			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		}
 

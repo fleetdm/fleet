@@ -699,6 +699,8 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
+type VerifyMCPAvailableFunc func(ctx context.Context) error
+
 type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
@@ -2068,6 +2070,9 @@ type Service struct {
 
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
+
+	VerifyMCPAvailableFunc        VerifyMCPAvailableFunc
+	VerifyMCPAvailableFuncInvoked bool
 
 	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
 	VerifyMDMAndroidConfiguredFuncInvoked bool
@@ -4971,6 +4976,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	s.VerifyMDMWindowsConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
+}
+
+func (s *Service) VerifyMCPAvailable(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMCPAvailableFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMCPAvailableFunc(ctx)
 }
 
 func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {

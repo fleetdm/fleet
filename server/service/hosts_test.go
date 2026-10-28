@@ -6598,7 +6598,16 @@ func TestSetHostDeviceMapping(t *testing.T) {
 
 	t.Run("IDP source success with valid SCIM user", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		var resentCerts []uint
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if cert, ok := act.(fleet.ActivityTypeResentCertificate); ok {
+				resentCerts = append(resentCerts, cert.CertificateTemplateID)
+			}
+			return nil
+		}
 
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: 1, UUID: "host-uuid-1"}, nil
@@ -6609,11 +6618,15 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{ID: 1, UserName: "user@example.com"}, nil
 		}
+		// both the new IdP username and the SCIM link resend certificate 10
 		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-			return nil, nil
+			return []fleet.ActivityTypeResentCertificate{
+				{HostID: hostID, CertificateTemplateID: 10},
+				{HostID: hostID, CertificateTemplateID: 20},
+			}, nil
 		}
-		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
-			return nil
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return []fleet.ActivityTypeResentCertificate{{HostID: hostID, CertificateTemplateID: 10}}, nil
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts}}, nil
@@ -6627,11 +6640,48 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
 		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked) // Should be called since SCIM user exists
+		require.Equal(t, []uint{10, 20}, resentCerts)
 		require.NotNil(t, result)
 		require.Len(t, result, 1)
 		assert.Equal(t, uint(1), result[0].HostID)
 		assert.Equal(t, "user@example.com", result[0].Email)
 		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
+	})
+
+	t.Run("IDP source logs resent certificates when the edited activity fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		var resentCerts []uint
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if cert, ok := act.(fleet.ActivityTypeResentCertificate); ok {
+				resentCerts = append(resentCerts, cert.CertificateTemplateID)
+				return nil
+			}
+			return errors.New("activity failed")
+		}
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1, UUID: "host-uuid-1"}, nil
+		}
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return nil, nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return []fleet.ActivityTypeResentCertificate{{HostID: hostID, CertificateTemplateID: 10}}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
+		require.ErrorContains(t, err, "create updated host idp activity")
+		require.Equal(t, []uint{10}, resentCerts)
 	})
 
 	t.Run("IDP source success with any username when SCIM user not found", func(t *testing.T) {
@@ -6647,8 +6697,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
 			return nil, sql.ErrNoRows // SCIM user not found
 		}
-		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
-			return nil
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 			return nil, nil
@@ -6722,8 +6772,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "new@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
-		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
-			return nil
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{ID: 1, UserName: "new@example.com"}, nil
@@ -6758,8 +6808,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
-		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) error {
-			return nil
+		ds.SetOrUpdateIDPHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
 		}
 		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{ID: 1, UserName: "user@example.com"}, nil

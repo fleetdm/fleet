@@ -21,7 +21,8 @@
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
-      "ai_features_disabled": false
+      "ai_features_disabled": false,
+      "mcp_disabled": false
     },
     "host_expiry_settings": {
       "host_expiry_enabled": false,
