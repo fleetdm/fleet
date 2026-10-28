@@ -4,35 +4,30 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-	"time"
-
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
 )
 
 // stamp identifies one version of a file; fi is nil when the file was absent.
 type stamp struct {
-	fi    os.FileInfo
-	ctime time.Time
+	fi os.FileInfo
 }
 
 func stampOf(path string) stamp {
-	fi, ctime, err := fsutil.LstatChangeTime(path)
+	fi, err := os.Lstat(path)
 	if err != nil || !fi.Mode().IsRegular() {
 		return stamp{}
 	}
-	return stamp{fi: fi, ctime: ctime}
+	return stamp{fi: fi}
 }
 
 // same reports whether two stamps describe the same file content: size,
-// modification time, change time and file identity all match. The change
-// time catches a rewrite that set the modification time back, since only the
-// kernel sets it.
+// modification time and file identity all match. Agents only append or
+// replace their files, so a same-size rewrite that restores the modification
+// time isn't worth the change time it would take to catch.
 func (a stamp) same(b stamp) bool {
 	if a.fi == nil || b.fi == nil {
 		return a.fi == nil && b.fi == nil
 	}
-	return a.fi.Size() == b.fi.Size() && a.fi.ModTime().Equal(b.fi.ModTime()) &&
-		a.ctime.Equal(b.ctime) && os.SameFile(a.fi, b.fi)
+	return a.fi.Size() == b.fi.Size() && a.fi.ModTime().Equal(b.fi.ModTime()) && os.SameFile(a.fi, b.fi)
 }
 
 type cacheEntry struct {

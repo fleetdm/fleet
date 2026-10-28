@@ -377,16 +377,6 @@ func TestParseCache(t *testing.T) {
 	require.Equal(t, "2", sessionRows(t)[0]["user_messages"])
 	require.Equal(t, before+1, parsed())
 
-	// A rewrite that restores size and modification time is still caught.
-	fi, err := os.Stat(path)
-	require.NoError(t, err)
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(content), "two", "TWO", 1)), 0o644))
-	touch(t, path, fi.ModTime())
-	sessionRows(t)
-	require.Equal(t, before+2, parsed())
-
 	// A query over a narrower window doesn't evict what it didn't look at.
 	old := writeClaudePrompts(t, home, "old", "old")
 	touch(t, old, time.Now().AddDate(0, 0, -10))
