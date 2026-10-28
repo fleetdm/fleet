@@ -4397,7 +4397,13 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 
 		if len(toInstall) > 0 || len(toRemove) > 0 {
-			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost); eerr != nil {
+			eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
+			// The enqueues do not refresh the status rollup, so do it once for the window, also after a partial failure since the
+			// earlier commands are already committed. A miss here is healed by the hourly windows_profiles_status_reconcile cron.
+			if rerr := ds.RefreshMDMWindowsProfilesStatusRollup(ctx, workHosts); rerr != nil {
+				logger.ErrorContext(ctx, "refreshing windows profiles status rollup after reconcile", "hosts", len(workHosts), "err", rerr)
+			}
+			if eerr != nil {
 				err = eerr
 				return err
 			}

@@ -1606,6 +1606,8 @@ type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.C
 
 type MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
+type RefreshMDMWindowsProfilesStatusRollupFunc func(ctx context.Context, hostUUIDs []string) error
+
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
 type MDMWindowsGetESPReleaseAckStatusFunc func(ctx context.Context, enrollmentID uint, targetLocURI string, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error)
@@ -4999,6 +5001,9 @@ type DataStore struct {
 
 	MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc        MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc
 	MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked bool
+
+	RefreshMDMWindowsProfilesStatusRollupFunc        RefreshMDMWindowsProfilesStatusRollupFunc
+	RefreshMDMWindowsProfilesStatusRollupFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
@@ -12068,6 +12073,13 @@ func (s *DataStore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Co
 	s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc(ctx, hostUUIDs, cmd, profilePayloads)
+}
+
+func (s *DataStore) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	s.mu.Lock()
+	s.RefreshMDMWindowsProfilesStatusRollupFuncInvoked = true
+	s.mu.Unlock()
+	return s.RefreshMDMWindowsProfilesStatusRollupFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {

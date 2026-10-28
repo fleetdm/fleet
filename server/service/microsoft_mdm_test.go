@@ -1413,9 +1413,16 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		return nil
 	}
 
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
+	require.Equal(t, []string{testHostUUID}, rollupHosts, "the rollup is refreshed once for the hosts the window had work for")
 
 	// Verify the command was preprocessed (UUID should be substituted)
 	require.NotNil(t, receivedCommand, "Command should have been created")

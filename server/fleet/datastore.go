@@ -2782,12 +2782,20 @@ type Datastore interface {
 
 	MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts inserts a command, enqueues it for hosts and upserts their profile
+	// tracking rows. It does not refresh the per-host profile status rollup: callers must call
+	// RefreshMDMWindowsProfilesStatusRollup once they have enqueued everything for the hosts.
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a pre-inserted
 	// command for hosts and upserts their profile tracking rows. The command
-	// must already exist in windows_mdm_commands.
+	// must already exist in windows_mdm_commands. Like
+	// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts, it leaves the rollup refresh to the caller.
 	MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// RefreshMDMWindowsProfilesStatusRollup recomputes the per-host Windows profile status rollup for the given hosts. If it is
+	// skipped or fails, the hourly ReconcileWindowsProfilesStatus heals the drift.
+	RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)

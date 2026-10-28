@@ -2055,6 +2055,11 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 			require.Equal(t, &fleet.MDMDeliveryPending, hp.Status)
 			require.Equal(t, cmdUUID, hp.CommandUUID)
 		}
+
+		// the enqueue leaves the rollup to the caller
+		require.Empty(t, readWindowsProfilesStatusRollup(t, ds))
+		require.NoError(t, ds.RefreshMDMWindowsProfilesStatusRollup(ctx, []string{d1.HostUUID, d2.HostUUID}))
+		require.Equal(t, map[string]string{d1.HostUUID: "pending", d2.HostUUID: "pending"}, readWindowsProfilesStatusRollup(t, ds))
 	})
 
 	t.Run("duplicate command insert is silently ignored", func(t *testing.T) {
