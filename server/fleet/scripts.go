@@ -300,8 +300,9 @@ type HostScriptResult struct {
 	IsInternal bool `json:"-" db:"is_internal"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
-	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?
+	// the host when checking authorization and is otherwise not set. It is not
+	// part of the JSON result; the authorization policy gets it from ExtraAuthz.
+	TeamID *uint `json:"-" db:"-"`
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -336,6 +337,12 @@ type HostScriptResult struct {
 
 func (hsr HostScriptResult) AuthzType() string {
 	return "host_script_result"
+}
+
+// ExtraAuthz implements authz.ExtraAuthzer. It gives the authorization policy
+// the team id without including it in the JSON returned by the API.
+func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{"team_id": hsr.TeamID}, nil
 }
 
 type BatchScriptHost struct {
