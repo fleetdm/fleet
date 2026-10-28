@@ -7,6 +7,7 @@ Every file in this guide is based on Fleet's own configuration in the [`it-and-s
 ## Prerequisites
 
 - Fleet 4.91.0 or later, with `fleetctl` 4.91.0 or later if you use GitOps. Earlier versions don't support custom activations.
+- Fleet Premium, with the [`mdm.allow_custom_activations`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-custom-activations) server setting turned on. It's off by default.
 - Apple MDM turned on in Fleet.
 - Macs on macOS 14 or later, enrolled with Automated Device Enrollment (ADE). The `softwareupdate.install-state` status item is only available on supervised Macs.
 - Nudge installed on your Macs, with its launch agent loaded. See [Enforce OS updates on macOS with Nudge](https://fleetdm.com/guides/enforce-os-updates-on-macos-with-nudge).
@@ -89,6 +90,8 @@ Create an activation that installs the declaration from step 4 only when the upd
 
 `StandardConfigurations` must list the `Identifier` from step 4 exactly. The value `prepared` is lowercase.
 
+> **Warning:** On macOS 26.5, an invalid predicate can leave a Mac unmanageable, and you can't recover it remotely. Apple tracks this as FB24193230. Test the activation on one Mac before you add it to more.
+
 ## Step 6: Add the files to Fleet
 
 Add the profiles and the declaration to your fleet's YAML file under `controls.apple_settings.configuration_profiles`, and attach the activation with the `activation` key. Fleet's version is in [`workstations.yml`](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml):
@@ -158,6 +161,8 @@ A commit can't contain its own SHA, so the two steps can't be combined. Don't re
 **Settings changes don't reach Macs.** The `ProfileURL` still points at the old commit. Update the SHA in the declaration, as described in [Update Nudge's settings](#update-nudges-settings).
 
 **GitOps fails with `unknown key` for `activation`.** Your `fleetctl` is older than 4.91.0. Update `fleetctl` to match your Fleet server.
+
+**GitOps fails with "Custom activations aren't available."** The `mdm.allow_custom_activations` server setting is off. Set `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=true` on the Fleet server, restart it, and run GitOps again.
 
 ## Further reading
 
