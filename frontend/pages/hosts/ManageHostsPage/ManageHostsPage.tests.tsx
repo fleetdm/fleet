@@ -344,7 +344,7 @@ describe("ManageHostsPage", () => {
     mockServer.use(
       http.get(baseUrl("/fleets"), () => {
         return HttpResponse.json({
-          teams: [{ id: 1, name: "Team 1", description: "" }],
+          fleets: [{ id: 1, name: "Team 1", description: "" }],
         });
       }),
       http.get(baseUrl("/fleets/1/secrets"), () => {
@@ -416,7 +416,7 @@ describe("ManageHostsPage", () => {
     mockServer.use(
       http.get(baseUrl("/fleets"), () => {
         return HttpResponse.json({
-          teams: [{ id: 1, name: "Team 1", description: "" }],
+          fleets: [{ id: 1, name: "Team 1", description: "" }],
         });
       }),
       http.get(baseUrl("/fleets/1/secrets"), () => {
@@ -600,7 +600,7 @@ describe("ManageHostsPage", () => {
       mockServer.use(
         http.get(baseUrl("/fleets"), () => {
           return HttpResponse.json({
-            teams: [{ id: 1, name: "Team 1", description: "" }],
+            fleets: [{ id: 1, name: "Team 1", description: "" }],
           });
         })
       );

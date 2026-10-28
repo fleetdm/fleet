@@ -223,7 +223,7 @@ describe("Activity Feed", () => {
   it("renders an applied_spec_team type activity for a single team", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecTeam,
-      details: { teams: [createMockTeamSummary()] },
+      details: { fleets: [createMockTeamSummary()] },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 

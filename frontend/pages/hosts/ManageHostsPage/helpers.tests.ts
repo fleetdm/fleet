@@ -4,7 +4,10 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 
-import { STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS } from "./helpers";
+import {
+  STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
+  migrateHiddenHostColumns,
+} from "./helpers";
 
 describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
   const rebuild = (query: string, newTeamId: number) =>
@@ -42,5 +45,21 @@ describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
     expect(
       rebuild("?fleet_id=2&os_settings=pending", APP_CONTEXT_NO_TEAM_ID)
     ).toBe("?fleet_id=0&os_settings=pending");
+  });
+});
+
+describe("migrateHiddenHostColumns", () => {
+  it("renames the old Fleet column id", () => {
+    expect(migrateHiddenHostColumns(["team_name", "hostname"])).toEqual([
+      "fleet_name",
+      "hostname",
+    ]);
+  });
+
+  it("leaves other column ids alone", () => {
+    expect(migrateHiddenHostColumns(["fleet_name", "uuid"])).toEqual([
+      "fleet_name",
+      "uuid",
+    ]);
   });
 });

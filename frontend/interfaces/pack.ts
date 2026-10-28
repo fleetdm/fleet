@@ -42,7 +42,7 @@ export interface IPack {
   host_ids: number[];
   labels: ILabel[];
   label_ids: number[];
-  teams: ITeam[];
+  fleets: ITeam[];
   fleet_ids: number[];
 }
 

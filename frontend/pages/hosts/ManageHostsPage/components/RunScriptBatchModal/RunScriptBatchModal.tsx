@@ -42,7 +42,7 @@ interface IRunScriptBatchModal {
   runByFilters: boolean; // otherwise, by selectedHostIds
   // since teamId has multiple uses in this component, it's passed in as its own prop and added to
   // `filters` as needed
-  filters: Omit<IScriptBatchSupportedFilters, "team_id">;
+  filters: Omit<IScriptBatchSupportedFilters, "fleet_id">;
   teamId: number;
   // If we are on the free tier, we don't want to apply any kind of team filters (since the feature is Premium only).
   isFreeTier?: boolean;

@@ -25,15 +25,15 @@ interface IEditTeamsVppModalProps {
  * Special handling for "All teams".
  */
 export const selectedValueFromToken = (token: IMdmVppToken) => {
-  if (!token.teams) {
+  if (!token.fleets) {
     // if teams is null, it means the token isn't configured to any team
     return "";
   }
-  if (token.teams.length === 0) {
+  if (token.fleets.length === 0) {
     // if teams is an empty array, it means the token is configured to all teams
     return APP_CONTEXT_ALL_TEAMS_ID.toString();
   }
-  return token.teams.map((team) => team.fleet_id).join(",");
+  return token.fleets.map((team) => team.fleet_id).join(",");
 };
 
 /** Returns an array of team ids for the API. It includes special handling for "All teams". */
@@ -80,8 +80,8 @@ export const updateSelectedValue = (prev: string, next: string) => {
   return next;
 };
 
-const isTokenAllTeams = (token: IMdmVppToken) => token.teams?.length === 0;
-const isTokenUnassigned = (token: IMdmVppToken) => token.teams === null;
+const isTokenAllTeams = (token: IMdmVppToken) => token.fleets?.length === 0;
+const isTokenUnassigned = (token: IMdmVppToken) => token.fleets === null;
 
 /**
  * Returns a dictionary of team ids already assigned (other than current token).
@@ -93,7 +93,7 @@ const getUnavailableTeamIds = (
   const unavailableTeamIds: Record<string, boolean> = {};
   tokens.forEach((token) => {
     if (token.id === currentTokenId) return;
-    token.teams?.forEach((team) => {
+    token.fleets?.forEach((team) => {
       unavailableTeamIds[team.fleet_id.toString()] = true;
     });
   });

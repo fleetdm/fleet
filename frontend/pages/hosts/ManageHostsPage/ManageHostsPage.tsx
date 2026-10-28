@@ -117,6 +117,7 @@ import LabelFilterSelect from "./components/LabelFilterSelect";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
 import {
   isAcceptableStatus,
+  migrateHiddenHostColumns,
   STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
 } from "./helpers";
 import {
@@ -325,7 +326,9 @@ const ManageHostsPage = ({
   ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    userSettings?.hidden_host_columns || defaultHiddenColumns
+    migrateHiddenHostColumns(
+      userSettings?.hidden_host_columns || defaultHiddenColumns
+    )
   );
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
@@ -567,7 +570,9 @@ const ManageHostsPage = ({
     {
       enabled: isRouteOk && !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
     }
   );
 

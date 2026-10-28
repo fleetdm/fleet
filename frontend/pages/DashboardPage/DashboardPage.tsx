@@ -212,7 +212,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   >(["teams"], () => teamsAPI.loadAll(), {
     enabled: !!isPremiumTier,
     select: (data: ILoadTeamsResponse) =>
-      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      data.fleets.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
   });
 
   const {
