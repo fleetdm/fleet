@@ -1,0 +1,8 @@
+# Closest Fleet equivalent of the Jamf "Battery Charge Percentage" extension attribute.
+# PLACEHOLDER THRESHOLD: change 20 to the charge level you care about.
+# Membership is a snapshot of the last label evaluation and changes as the battery charges or drains.
+- name: Hosts with battery below 20%
+  description: macOS and Windows hosts with a battery reporting less than 20% charge remaining (placeholder threshold; edit the query to set your own). Desktops without a battery are not included.
+  query: SELECT 1 FROM battery WHERE percent_remaining < 20;
+  label_membership_type: dynamic
+  platform: darwin,windows
