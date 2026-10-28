@@ -2886,6 +2886,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedGoogleCAS, /added a certificate authority/],
+    [ActivityType.EditedGoogleCAS, /edited a certificate authority/],
+    [ActivityType.DeletedGoogleCAS, /deleted a certificate authority/],
+  ])("renders %s activity with the CA's name", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "GOOGLE_WIFI" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("GOOGLE_WIFI")).toBeInTheDocument();
+  });
+
   it("renders addedCustomScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedCustomScepProxy,
@@ -2980,6 +2995,22 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
   });
 
   it("renders addedHydrant activity correctly", () => {
@@ -3441,6 +3472,66 @@ describe("Activity Feed", () => {
       expect(container.textContent).toContain(
         "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
       );
+    });
+
+    it("prefers `software` override over the legacy `software_titles` fallback", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          // Legacy flat list — would be used only if `software` were absent.
+          // A regression that swapped the field-selection order would render
+          // "1Password" instead of the override "1Password 8".
+          software_titles: ["1Password"],
+          software: [
+            { title: "1Password", title_id: 42, display_name: "1Password 8" },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password 8 on John's MacBook Pro."
+      );
+      expect(container.textContent).not.toMatch(/patching 1Password on/);
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toContain("1Password 8");
+      expect(bolds).not.toContain("1Password");
+    });
+
+    it("renders a mix of overridden and raw titles when truncating overflow", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software: [
+            { title: "1Password", title_id: 1, display_name: "1Password 8" },
+            { title: "Slack", title_id: 2 },
+            { title: "Docker Desktop", title_id: 3 },
+            { title: "Zoom", title_id: 4 },
+            { title: "Chrome", title_id: 5 },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      // First inline slot renders the override, not the raw title.
+      expect(container.textContent).toContain(
+        "1Password 8, Slack, Docker Desktop, and 2 more apps"
+      );
+      expect(container.textContent).not.toMatch(/1Password,/);
     });
   });
 

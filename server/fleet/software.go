@@ -106,6 +106,10 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	// It's a Premium field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 
@@ -158,7 +162,17 @@ type Software struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
+	SoftwareMetadata
+
 	DisplayName string `json:"display_name"`
+}
+
+// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
+// on every host with that software but is not part of its identity (not in ToUniqueStr or the
+// checksum), so that collecting a new field doesn't create new software rows.
+type SoftwareMetadata struct {
+	// Epoch is the RPM package epoch, only set when greater than 0.
+	Epoch *uint32 `json:"-" db:"epoch"`
 }
 
 func (Software) AuthzType() string {
@@ -528,6 +542,9 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -616,6 +633,9 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -624,6 +644,8 @@ type SoftwareTitleListResult struct {
 // IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
 	"android_apps":        nil,
 	"apps":                nil,
 	"chocolatey_packages": nil,
@@ -633,6 +655,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"mcp_servers":         nil,
 	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,
@@ -727,6 +750,7 @@ type SoftwareTitleListOptions struct {
 	PackageName         string  `query:"package_name,optional"`
 	Source              string  `query:"source,optional"`
 	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -770,6 +794,7 @@ type HostSoftwareTitleListOptions struct {
 
 	Source       string `query:"source,optional"`
 	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -880,6 +905,7 @@ type SoftwareListOptions struct {
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 	Source                      string  `query:"source,optional"`
 	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -973,7 +999,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode, epoch string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -1028,6 +1054,12 @@ func SoftwareFromOsqueryRow(
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
+	}
+	if truncatedSource == "rpm_packages" {
+		// osquery reports a missing epoch as empty; epoch 0 is equivalent for RPM comparisons.
+		if e, err := strconv.ParseUint(epoch, 10, 32); err == nil && e > 0 {
+			software.Epoch = new(uint32(e))
+		}
 	}
 
 	return &software, nil

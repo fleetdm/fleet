@@ -1,29 +1,18 @@
 import { AxiosResponse } from "axios";
 import React, { useContext, useRef, useState } from "react";
-import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
-import Checkbox from "components/forms/fields/Checkbox";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
-import FormField from "components/forms/FormField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import {
-  TargetLabelSelector,
-  ILabelConfig,
-  LabelTargetMode,
-  TargetType,
-} from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { IApiError } from "interfaces/errors";
-import { ILabelSummary } from "interfaces/label";
 import {
   IMdmProfile,
   IProfileLabel,
@@ -32,12 +21,7 @@ import {
   platformToMDMLabel,
 } from "interfaces/mdm";
 import PATHS from "router/paths";
-import labelsAPI, {
-  getCustomLabels,
-  listNamesFromSelectedLabels,
-} from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   ADD_PROFILE_ACCEPT,
@@ -54,6 +38,11 @@ import {
   ProfileContentType,
   profileContentTypeFor,
 } from "../../../components/ProfileUploader/helpers";
+import EditTargetsModal, { IProfileTargets } from "../EditTargetsModal";
+import ProfileAdvancedOptions, {
+  IProfileDeployOptions,
+} from "../ProfileAdvancedOptions";
+import ProfileBottomBar from "../ProfileBottomBar";
 
 const baseClass = "profile-form";
 
@@ -69,11 +58,6 @@ const EDITOR_MAX_LINES = 30;
 // default isn't documented.
 const PROFILE_NAMES_PER_PAGE = 1000;
 
-const DEPLOY_OPTIONS = [
-  { label: "Force install", value: "force" },
-  { label: "End user initiated (manual)", value: "self_service" },
-];
-
 const UNRECOGNIZED_CONTENTS_ERROR =
   "Paste a .mobileconfig, declaration (.json), Android (.json) or Windows (.xml) profile";
 
@@ -83,16 +67,10 @@ const labelsToSelection = (labels?: IProfileLabel[]) =>
     return selection;
   }, {});
 
-interface IProfileFormData {
+interface IProfileFormData extends IProfileTargets, IProfileDeployOptions {
   name: string;
   description: string;
   contents: string;
-  targetType: TargetType;
-  includeMode: LabelTargetMode;
-  includeLabels: Record<string, boolean>;
-  excludeLabels: Record<string, boolean>;
-  selfService: boolean;
-  hidden: boolean;
 }
 
 interface IEditedProfile {
@@ -154,6 +132,12 @@ const ProfileForm = ({
   // derives a profile name from when the admin leaves Name empty.
   const [uploadedFile, setUploadedFile] = useState<IUploadedFile | null>(null);
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
+  const [showEditTargetsModal, setShowEditTargetsModal] = useState(false);
+  // Open when editing a profile that isn't on the defaults, so its deploy
+  // settings aren't tucked away.
+  const [isAdvancedOptionsOpen, setIsAdvancedOptionsOpen] = useState(
+    initialFormData.selfService || initialFormData.hidden
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // An uploaded file the contents can't type, like a lone secret placeholder,
@@ -173,13 +157,6 @@ const ProfileForm = ({
     } else if (!isEdit && !detectContentType(data.contents)) {
       errors.contents = UNRECOGNIZED_CONTENTS_ERROR;
     }
-    if (
-      data.targetType === "Custom" &&
-      !listNamesFromSelectedLabels(data.includeLabels).length &&
-      !listNamesFromSelectedLabels(data.excludeLabels).length
-    ) {
-      errors.target = "Select at least one label";
-    }
     return errors;
   };
 
@@ -187,9 +164,8 @@ const ProfileForm = ({
     formData,
     setField,
     commitFields,
-    getError,
+    getTextFieldProps,
     clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IProfileFormData>({
@@ -199,17 +175,6 @@ const ProfileForm = ({
     // sent byte for byte, so a pasted profile isn't altered
     skipTrim: ["contents"],
   });
-
-  const {
-    data: labels,
-    isLoading: isLoadingLabels,
-    isFetching: isFetchingLabels,
-    isError: isErrorLabels,
-  } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels", teamId],
-    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
-    { ...DEFAULT_USE_QUERY_OPTIONS, enabled: isPremiumTier }
-  );
 
   // An existing profile's type is fixed by what it is; pasted content on the
   // add page is typed by what it looks like.
@@ -394,48 +359,19 @@ const ProfileForm = ({
     }
   };
 
-  const includeTab: ILabelConfig = {
-    selectedLabels: formData.includeLabels,
-    onSelectLabel: ({ name: labelName, value }) =>
-      commitFields({
-        includeLabels: { ...formData.includeLabels, [labelName]: value },
-      }),
-    showModeToggle: true,
-    mode: formData.includeMode,
-    onSelectMode: (includeMode) => commitFields({ includeMode }),
-    anyTooltip: (
-      <>
-        Profile will be applied to hosts that{" "}
-        <em>
-          <b>have any</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-    allTooltip: (
-      <>
-        Profile will be applied to hosts that{" "}
-        <em>
-          <b>have all</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-  };
-
-  const excludeTab: ILabelConfig = {
-    selectedLabels: formData.excludeLabels,
-    onSelectLabel: ({ name: labelName, value }) =>
-      commitFields({
-        excludeLabels: { ...formData.excludeLabels, [labelName]: value },
-      }),
-  };
-
   const onAddLabel = () => router.push(PATHS.LABEL_NEW_DYNAMIC);
+
+  const onDoneEditingTargets = (targets: IProfileTargets) => {
+    commitFields(targets);
+    setShowEditTargetsModal(false);
+  };
 
   const disabled = gitOpsModeEnabled || !isMDMEnabled;
   const isFieldDisabled = (disableChildren?: boolean) =>
     !!disableChildren || !isMDMEnabled || isSubmitting;
+
+  // On add there's nothing to deploy until there's a profile, per the design.
+  const showAdvancedOptions = isPremiumTier && (isEdit || hasContents);
 
   const renderSubmitButton = () => {
     const btn = (
@@ -484,198 +420,119 @@ const ProfileForm = ({
   };
 
   return (
-    <form className={`${baseClass}`} onSubmit={handleSubmit(onValidSubmit)}>
-      <GitOpsModeTooltipWrapper
-        isInputField
-        renderChildren={(disableChildren) => (
-          <div className={`${baseClass}__fields`}>
-            <InputField
-              label="Name"
-              name="name"
-              value={formData.name}
-              error={getError("name")}
-              onChange={(value: string) => setField("name", value)}
-              onFocus={() => clearFieldError("name")}
-              onBlur={() => validateField("name")}
-              placeholder="E.g., Disable camera access for Firefox"
-              inputOptions={{ maxLength: NAME_MAX_LENGTH }}
-              disabled={isFieldDisabled(disableChildren)}
-            />
-            <InputField
-              label="Description"
-              name="description"
-              type="textarea"
-              value={formData.description}
-              onChange={(value: string) => setField("description", value)}
-              placeholder="E.g., Blocks Firefox from accessing the camera on managed Macs, without affecting other apps."
-              inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
-              disabled={isFieldDisabled(disableChildren)}
-            />
-            <div className={`${baseClass}__upload`}>
-              <Button
-                variant="secondary"
-                icon="upload"
-                disabled={isFieldDisabled(disableChildren)}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Upload a profile
-              </Button>
-              <input
-                ref={fileInputRef}
-                accept={
-                  profile
-                    ? getAcceptedExtensions(profile).join(",")
-                    : ADD_PROFILE_ACCEPT
-                }
-                id="upload-profile"
-                aria-label="Upload a profile"
-                type="file"
-                disabled={isFieldDisabled(disableChildren)}
-                onChange={onFileInputChange}
-              />
-              {(hasContents || isEdit) && (
-                <span className={`${baseClass}__upload-help`}>
-                  Uploading a file will replace the profile contents below.
-                </span>
-              )}
-            </div>
-            <Editor
-              name="profile-contents"
-              label={
-                contentType
-                  ? PROFILE_CONTENT_TYPES[contentType].label
-                  : undefined
-              }
-              ariaLabel="Profile contents"
-              error={getError("contents")}
-              mode={
-                contentType
-                  ? PROFILE_CONTENT_TYPES[contentType].editorMode
-                  : "text"
-              }
-              value={formData.contents}
-              onChange={onContentsChange}
-              onFocus={() => clearFieldError("contents")}
-              onBlur={() => validateField("contents")}
-              placeholder="// Or paste your profile into here //"
-              minLines={EMPTY_EDITOR_MAX_LINES}
-              maxLines={hasContents ? EDITOR_MAX_LINES : EMPTY_EDITOR_MAX_LINES}
-              showPrintMargin={false}
-              // Ace's XML behaviours auto-insert closing tags while typing,
-              // which corrupts a profile typed in by hand.
-              onLoad={(editor) => editor.setBehavioursEnabled(false)}
-              readOnly={isFieldDisabled(disableChildren)}
-              wrapEnabled
-            />
-          </div>
-        )}
-      />
-      {isPremiumTier && (
-        // One tooltip per control, to its right, so it doesn't cover the
-        // fields above.
-        <div className={`${baseClass}__deploy`}>
-          {canSelfService ? (
-            <GitOpsModeTooltipWrapper
-              position="right"
-              tipOffset={8}
-              renderChildren={(disableChildren) => (
-                <DropdownWrapper
-                  label="Deploy"
-                  name="deploy"
-                  className={`${baseClass}__deploy-dropdown`}
-                  options={DEPLOY_OPTIONS}
-                  value={selfService ? "self_service" : "force"}
-                  onChange={(option) => {
-                    const isSelfService = option?.value === "self_service";
-                    // self-service profiles can't be hidden
-                    commitFields({
-                      selfService: isSelfService,
-                      hidden: isSelfService ? false : formData.hidden,
-                    });
-                  }}
-                  isDisabled={isFieldDisabled(disableChildren)}
-                />
-              )}
-            />
-          ) : (
-            <FormField label="Deploy" name="deploy">
-              <span className={`${baseClass}__deploy-static`}>
-                Force install
-              </span>
-            </FormField>
-          )}
-          {!selfService && (
-            <GitOpsModeTooltipWrapper
-              position="right"
-              tipOffset={8}
-              renderChildren={(disableChildren) => (
-                <Checkbox
-                  name="hidden"
-                  ariaLabel="Hide from end user"
-                  value={hidden}
-                  onChange={(value: boolean) => commitFields({ hidden: value })}
-                  labelTooltipContent="When checked, this profile is hidden from the end user's default list of profiles in Fleet Desktop."
-                  disabled={isFieldDisabled(disableChildren)}
-                >
-                  Hide from end user
-                </Checkbox>
-              )}
-            />
-          )}
-        </div>
-      )}
-      {isPremiumTier && (
+    <>
+      <form className={`${baseClass}`} onSubmit={handleSubmit(onValidSubmit)}>
         <GitOpsModeTooltipWrapper
           isInputField
           renderChildren={(disableChildren) => (
-            <FormField
-              label="Target"
-              name="target"
-              error={getError("target")}
-              className={`${baseClass}__target`}
-            >
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                onSelectTargetType={(targetType) =>
-                  commitFields({ targetType })
-                }
-                labels={labels || []}
-                includeConfig={includeTab}
-                excludeConfig={excludeTab}
-                isLoadingLabels={isLoadingLabels || isFetchingLabels}
-                isErrorLabels={isErrorLabels}
-                emptyStateDescription="Add a label to target your configuration profile."
-                onAddLabel={onAddLabel}
-                disableOptions={isFieldDisabled(disableChildren)}
+            <div className={`${baseClass}__fields`}>
+              <InputField
+                {...getTextFieldProps("name")}
+                label="Name"
+                placeholder="E.g., Disable camera access for Firefox"
+                inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+                disabled={isFieldDisabled(disableChildren)}
               />
-            </FormField>
+              <InputField
+                {...getTextFieldProps("description")}
+                label="Description"
+                type="textarea"
+                placeholder="E.g., Blocks Firefox from accessing the camera on managed Macs, without affecting other apps."
+                inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
+                disabled={isFieldDisabled(disableChildren)}
+              />
+              <div className={`${baseClass}__upload`}>
+                <Button
+                  variant="secondary"
+                  icon="upload"
+                  disabled={isFieldDisabled(disableChildren)}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload a profile
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  accept={
+                    profile
+                      ? getAcceptedExtensions(profile).join(",")
+                      : ADD_PROFILE_ACCEPT
+                  }
+                  id="upload-profile"
+                  aria-label="Upload a profile"
+                  type="file"
+                  disabled={isFieldDisabled(disableChildren)}
+                  onChange={onFileInputChange}
+                />
+              </div>
+              <Editor
+                {...getTextFieldProps("contents")}
+                name="profile-contents"
+                label={
+                  contentType
+                    ? PROFILE_CONTENT_TYPES[contentType].label
+                    : undefined
+                }
+                ariaLabel="Profile contents"
+                mode={
+                  contentType
+                    ? PROFILE_CONTENT_TYPES[contentType].editorMode
+                    : "text"
+                }
+                onChange={onContentsChange}
+                placeholder="// Paste or type your profile into here //"
+                minLines={EMPTY_EDITOR_MAX_LINES}
+                maxLines={
+                  hasContents ? EDITOR_MAX_LINES : EMPTY_EDITOR_MAX_LINES
+                }
+                showPrintMargin={false}
+                // Ace's XML behaviours auto-insert closing tags while typing,
+                // which corrupts a profile typed in by hand.
+                onLoad={(editor) => editor.setBehavioursEnabled(false)}
+                readOnly={isFieldDisabled(disableChildren)}
+                wrapEnabled
+              />
+            </div>
           )}
         />
+        {showAdvancedOptions && (
+          <ProfileAdvancedOptions
+            isOpen={isAdvancedOptionsOpen}
+            onToggle={() => setIsAdvancedOptionsOpen(!isAdvancedOptionsOpen)}
+            canSelfService={canSelfService}
+            selfService={selfService}
+            hidden={hidden}
+            onChange={commitFields}
+            disabled={isFieldDisabled()}
+          />
+        )}
+        <ProfileBottomBar
+          targetType={formData.targetType}
+          fleetName={teamName}
+          onEditTargets={
+            isPremiumTier ? () => setShowEditTargetsModal(true) : undefined
+          }
+          editTargetsDisabled={isSubmitting}
+          submitButton={renderSubmitButton()}
+        />
+      </form>
+      {/* Outside the form, so Enter in the label search doesn't submit the
+          profile. */}
+      {showEditTargetsModal && (
+        <EditTargetsModal
+          fleetId={teamId}
+          targets={{
+            targetType: formData.targetType,
+            includeMode: formData.includeMode,
+            includeLabels: formData.includeLabels,
+            excludeLabels: formData.excludeLabels,
+          }}
+          disabled={!isMDMEnabled}
+          onAddLabel={onAddLabel}
+          onDone={onDoneEditingTargets}
+          onExit={() => setShowEditTargetsModal(false)}
+        />
       )}
-      <div className={`${baseClass}__footer`}>
-        <span className={`${baseClass}__applies-to`}>
-          Applies to{" "}
-          <b>
-            {formData.targetType === "Custom"
-              ? "hosts in custom targets"
-              : "all hosts"}
-          </b>
-          {teamName && (
-            <>
-              {" "}
-              for <b>{teamName}</b>
-            </>
-          )}
-          .
-        </span>
-        <div className={`${baseClass}__footer-actions`}>
-          <Button variant="secondary" onClick={() => router.push(listPath)}>
-            Cancel
-          </Button>
-          {renderSubmitButton()}
-        </div>
-      </div>
-    </form>
+    </>
   );
 };
 

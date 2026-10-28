@@ -108,7 +108,7 @@
     <key>PayloadEnabled</key>
     <true/>
     <key>PayloadIdentifier</key>
-    <string>92D3A0F8-94F5-482B-98E0-C4D0DDBD7C24</string>
+    <string>com.fleetdm.suppress-iwork-upgrade-prompt</string>
     <key>PayloadOrganization</key>
     <string>Fleet</string>
     <key>PayloadRemovalDisallowed</key>

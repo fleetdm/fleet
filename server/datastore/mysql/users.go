@@ -37,11 +37,36 @@ const userSummaryColumns = `id, name, email, gravatar_url, api_only`
 
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, false)
+}
+
+func (ds *Datastore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, true)
+}
+
+func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bool) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if isInitial {
+			// Serialize on the singleton app config row: a gap lock on the empty users
+			// table isn't taken under READ COMMITTED and deadlocks concurrent callers
+			// under REPEATABLE READ.
+			var id uint
+			if err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM app_config_json WHERE id = 1 FOR UPDATE`); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock app config for initial user")
+			}
+			err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
+			switch {
+			case err == nil:
+				return ctxerr.Wrap(ctx, alreadyExists("User", user.Email))
+			case !errors.Is(err, sql.ErrNoRows):
+				return ctxerr.Wrap(ctx, err, "check for existing users")
+			}
+		}
+
 		sqlStatement := `
       INSERT INTO users (
       	password,

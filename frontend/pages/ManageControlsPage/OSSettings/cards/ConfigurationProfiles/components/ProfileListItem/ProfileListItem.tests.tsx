@@ -47,17 +47,17 @@ describe("ProfileListItem", () => {
 
   it("shows the user-scope indicator for user-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "User" });
-    expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+    expect(screen.getByText("User-scoped")).toBeInTheDocument();
   });
 
   it("does not show the indicator for system-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "System" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
   it("does not show the indicator for iOS/iPadOS profiles (no user channel)", () => {
     renderItem({ ...baseProfile, platform: "ios", scope: "User" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
   it("shows a renamed mobileconfig's PayloadDisplayName and UUID on hover", async () => {

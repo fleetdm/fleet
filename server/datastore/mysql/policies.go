@@ -53,8 +53,10 @@ const (
 		SET attempt_number = 0
 		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
 	`
+	// The (host_id, policy_id) index, so this never locks entries of the (host_id, software_installer_id) index,
+	// which deleting an installer rewrites through its SET NULL cascade after locking the rows.
 	resetInstallAttemptsStmt = `
-		UPDATE host_software_installs
+		UPDATE host_software_installs FORCE INDEX (idx_host_software_installs_host_policy)
 		SET attempt_number = 0
 		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
 	`

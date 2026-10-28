@@ -1,0 +1,1 @@
+- Fixed an issue where `fleetctl` on Windows required `rootca` or `tls-skip-verify` in the context. `fleetctl` now verifies the Fleet server's certificate against the Windows certificate store by default, the same as on macOS and Linux.

@@ -7,7 +7,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 
 import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import PageDescription from "components/PageDescription";
@@ -368,10 +367,14 @@ const SoftwareTitleDetailsPage = ({
       setShowDeleteModal(true);
     };
 
-    const statusPath = (software_status: "installed" | "pending" | "failed") =>
+    const statusPath = (
+      software_status: "installed" | "pending" | "failed",
+      appStoreAppVersionId?: number
+    ) =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
         software_title_id: softwareId,
         software_status,
+        app_store_app_version_id: appStoreAppVersionId,
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
@@ -439,9 +442,9 @@ const SoftwareTitleDetailsPage = ({
           installed={version.status?.installed ?? 0}
           pending={version.status?.pending ?? 0}
           failed={version.status?.failed ?? 0}
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
+          installedPath={statusPath("installed", version.id)}
+          pendingPath={statusPath("pending", version.id)}
+          failedPath={statusPath("failed", version.id)}
           canActivateMultipleVersions
           isSelfService={!!version.self_service}
           isAutoUpdateEnabled={!!version.auto_update_enabled}
@@ -613,29 +616,22 @@ const SoftwareTitleDetailsPage = ({
     );
 
     // "Add version" lives on multi-version-eligible App Store app titles
-    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. The
-    // button also disables in GitOps mode, where mutations should flow
-    // through YAML — handled inside `GitOpsModeTooltipWrapper` which wraps
-    // the button when the current title is subject to the lock.
+    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. In
+    // GitOps mode the button stays clickable so admins can open the modal in
+    // its disabled state; the lock is enforced inside the modal.
     const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
     const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
     const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
     const addVersionButton = showAddVersionAction && (
-      <GitOpsModeTooltipWrapper
-        entityType="software"
-        position="left"
-        renderChildren={(disableChildren) => (
-          <Button
-            variant="secondary"
-            size="small"
-            onClick={() => setShowAddVersionModal(true)}
-            disabled={disableChildren || atVersionLimit}
-            icon="plus"
-          >
-            Add version
-          </Button>
-        )}
-      />
+      <Button
+        variant="secondary"
+        size="small"
+        onClick={() => setShowAddVersionModal(true)}
+        disabled={atVersionLimit}
+        icon="plus"
+      >
+        Add version
+      </Button>
     );
 
     const getHeaderAction = (): React.ReactNode => {

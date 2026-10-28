@@ -491,6 +491,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 			if len(g.Hydrant) > 0 {
 				storedCAs.Hydrant = g.Hydrant
 			}
+			if len(g.GoogleCAS) > 0 {
+				storedCAs.GoogleCAS = g.GoogleCAS
+			}
 		}
 		return nil
 	}
@@ -1393,6 +1396,9 @@ func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
 		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -1493,6 +1499,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2108,6 +2117,12 @@ func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
 		return out, nil
 	}
 
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+
+		return &fleet.MDMProfileChecksums{}, nil
+
+	}
+
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
@@ -2273,6 +2288,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			})
 		}
 		return scriptResponses, nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2596,6 +2614,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			})
 		}
 		return scriptResponses, nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2964,6 +2985,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfig := savedAppConfig.Copy()
+		// The team file adds App Store apps, which need Apple MDM.
+		appConfig.MDM.EnabledAndConfigured = true
 		return appConfig, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
@@ -2992,6 +3015,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			enrolledTeamSecrets = secrets
 		}
 		return nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
@@ -3053,6 +3079,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
@@ -3333,6 +3365,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			enrolledTeamSecrets = secrets
 		}
 		return nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
@@ -5339,6 +5374,26 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 	})
 }
 
+func TestGitOpsEnableProfileValidation(t *testing.T) {
+	t.Run("omitted sets true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = false
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = true
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_profile_validation_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
@@ -6707,6 +6762,211 @@ func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
 	assert.Contains(t, out.String(), "[!] skipping windows_eula: requires Fleet Premium")
 }
 
+func TestGitOpsWarnsOnDeletedWindowsProfiles(t *testing.T) {
+	const (
+		fleetName      = "Workstations"
+		warningSnippet = "Windows settings from deleted profiles may not be cleanly removed from hosts"
+	)
+	windowsProfile := func(name string) *fleet.MDMConfigProfilePayload {
+		return &fleet.MDMConfigProfilePayload{ProfileUUID: "w" + name, Name: name, Platform: "windows"}
+	}
+
+	cases := []struct {
+		name    string
+		inFleet bool
+		// newFleet leaves the fleet uncreated, so the dry run has nothing to look up
+		newFleet        bool
+		windowsOnServer bool
+		windowsInFile   bool
+		// keepInFile lists keep.xml under windows_settings
+		keepInFile  bool
+		current     []*fleet.MDMConfigProfilePayload
+		listErr     error
+		wantLookup  bool
+		wantWarning string
+	}{
+		{
+			name:            "unassigned hosts lose Windows profiles",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current:     []*fleet.MDMConfigProfilePayload{windowsProfile("keep"), windowsProfile("gone"), windowsProfile("also gone")},
+			wantLookup:  true,
+			wantWarning: `[!] Fleet "Unassigned": some ` + warningSnippet + ". Learn more: " + fleet.WindowsProfileRemovalBehaviorURL,
+		},
+		{
+			name:    "a new fleet has nothing to delete",
+			inFleet: true, newFleet: true, windowsOnServer: true, keepInFile: true,
+			wantLookup: true,
+		},
+		{
+			name:    "a fleet loses a Windows profile",
+			inFleet: true, windowsOnServer: true, keepInFile: true,
+			current:     []*fleet.MDMConfigProfilePayload{windowsProfile("keep"), windowsProfile("gone")},
+			wantLookup:  true,
+			wantWarning: `[!] Fleet "` + fleetName + `": some ` + warningSnippet,
+		},
+		{
+			name:            "every Windows profile is kept",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current:    []*fleet.MDMConfigProfilePayload{windowsProfile("keep")},
+			wantLookup: true,
+		},
+		{
+			name:            "only macOS and Android profiles are deleted",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current: []*fleet.MDMConfigProfilePayload{
+				windowsProfile("keep"),
+				{ProfileUUID: "amac", Name: "mac", Platform: "darwin"},
+				{ProfileUUID: "gdroid", Name: "droid", Platform: "android"},
+			},
+			wantLookup: true,
+		},
+		{
+			// Windows MDM was off, so the deletion sends nothing to hosts.
+			name:            "run turns Windows MDM on",
+			windowsOnServer: false, windowsInFile: true, keepInFile: true,
+			current: []*fleet.MDMConfigProfilePayload{windowsProfile("gone")},
+		},
+		{
+			// Turning Windows MDM off clears the hosts' profiles, so no <Delete> is sent either.
+			name:            "run turns Windows MDM off",
+			windowsOnServer: true, windowsInFile: false,
+			current: []*fleet.MDMConfigProfilePayload{windowsProfile("gone")},
+		},
+		{
+			name:            "failed lookup is reported without failing the run",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			listErr:     errors.New("boom"),
+			wantLookup:  true,
+			wantWarning: "[!] couldn't check for deleted Windows profiles",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windowsOnServer
+			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+			// The mock runs on the server's goroutine.
+			var (
+				mu           sync.Mutex
+				listedTeamID *uint
+			)
+			ds.ListMDMConfigProfilesFunc = func(
+				ctx context.Context, teamID *uint, opt fleet.ListOptions,
+			) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+				mu.Lock()
+				listedTeamID = teamID
+				mu.Unlock()
+				if tt.listErr != nil {
+					return nil, nil, tt.listErr
+				}
+				return tt.current, &fleet.PaginationMetadata{}, nil
+			}
+
+			dir := t.TempDir()
+			profiles := "[]"
+			if tt.keepInFile {
+				xml, err := os.ReadFile("testdata/gitops/lib/windows-screenlock.xml")
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "keep.xml"), xml, 0o600))
+				profiles = "\n      - path: ./keep.xml"
+			}
+			var cfg string
+			if tt.inFleet {
+				if !tt.newFleet {
+					_, err := ds.NewTeam(t.Context(), &fleet.Team{Name: fleetName})
+					require.NoError(t, err)
+				}
+				cfg = fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "fleet-secret"
+controls:
+  windows_settings:
+    configuration_profiles: %s
+software:
+queries:
+policies:
+agent_options:
+`, fleetName, profiles)
+			} else {
+				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_enabled_and_configured: %t
+  windows_settings:
+    configuration_profiles: %s`, tt.windowsInFile, profiles), "")
+			}
+			cfgPath := writeGitOpsFile(t, dir, cfg)
+
+			for _, dryRun := range []bool{true, false} {
+				args := []string{"gitops", "-f", cfgPath}
+				if dryRun {
+					args = append(args, "--dry-run")
+				}
+				ds.ListMDMConfigProfilesFuncInvoked = false
+				mu.Lock()
+				listedTeamID = nil
+				mu.Unlock()
+				out, err := runAppNoChecks(args)
+				require.NoError(t, err, out.String())
+				wantLookup := tt.wantLookup && !(dryRun && tt.newFleet)
+				assert.Equal(t, wantLookup, ds.ListMDMConfigProfilesFuncInvoked, args)
+				if wantLookup {
+					mu.Lock()
+					gotTeamID := listedTeamID
+					mu.Unlock()
+					if tt.inFleet {
+						team, err := ds.TeamByName(t.Context(), fleetName)
+						require.NoError(t, err)
+						require.NotNil(t, gotTeamID, args)
+						assert.Equal(t, team.ID, *gotTeamID, args)
+					} else {
+						assert.Nil(t, gotTeamID, args)
+					}
+				}
+				if tt.wantWarning == "" {
+					assert.NotContains(t, out.String(), warningSnippet, args)
+					assert.NotContains(t, out.String(), "couldn't check for deleted Windows profiles", args)
+				} else {
+					assert.Equal(t, 1, strings.Count(out.String(), tt.wantWarning), out.String())
+				}
+			}
+		})
+	}
+}
+
+func TestGitOpsWarnsOnDeletedWindowsProfilesFreeTier(t *testing.T) {
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, tokenpki.PEMCertificate(testCert.Raw), tokenpki.PEMRSAPrivateKey(testKey), "../../../server/service/testdata")
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			FleetConfig:   &fleetCfg,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return []*fleet.MDMConfigProfilePayload{{ProfileUUID: "wgone", Name: "gone", Platform: "windows"}}, &fleet.PaginationMetadata{}, nil
+	}
+
+	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_enabled_and_configured: true
+  windows_settings:
+    configuration_profiles: []`, ""))
+	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err, out.String())
+	// Fleet Free has no fleets, so the line doesn't name one.
+	assert.Contains(t, out.String(), "[!] Some Windows settings from deleted profiles may not be cleanly removed from hosts. Learn more: "+
+		fleet.WindowsProfileRemovalBehaviorURL)
+	assert.NotContains(t, out.String(), `Fleet "`)
+}
+
 // setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
 func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.CertificateAuthority {
 	// Set up certificate authority mocks
@@ -6737,6 +6997,12 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 			APIToken:                      ptr.String("foo"),
 			ProfileID:                     ptr.String("foo"),
 		},
+	}
+
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+
+		return &fleet.MDMProfileChecksums{}, nil
+
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(
@@ -7767,6 +8033,9 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		},
 	)
 	setupEmptyGitOpsMocks(ds)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	tokExpire := time.Now().Add(time.Hour)
 	token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")

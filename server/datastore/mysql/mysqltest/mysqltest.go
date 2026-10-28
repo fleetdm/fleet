@@ -168,20 +168,17 @@ func setupDummyReplica(t testing.TB, testName string, ds *mysql.Datastore, opts 
 	// when the replication happens, by calling opts.RunReplication(), and when
 	// that call returns, the replication is guaranteed to be done.
 	ch := make(chan replicationRun)
-	go func() {
-		defer cancel()
+	primary := ds.TestPrimaryDB()
+	replica := ds.TestReplica().(*sqlx.DB)
+	replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
+	last := time.Now().Add(-time.Minute)
 
-		primary := ds.TestPrimaryDB()
-		replica := ds.TestReplica().(*sqlx.DB)
-		replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
-		last := time.Now().Add(-time.Minute)
-
-		// drop all foreign keys in the replica
-		var fks []struct {
-			TableName      string `db:"TABLE_NAME"`
-			ConstraintName string `db:"CONSTRAINT_NAME"`
-		}
-		err := primary.SelectContext(ctx, &fks, `
+	// drop all foreign keys in the replica, before the test starts so a test that never replicates can't end first
+	var fks []struct {
+		TableName      string `db:"TABLE_NAME"`
+		ConstraintName string `db:"CONSTRAINT_NAME"`
+	}
+	err := primary.SelectContext(ctx, &fks, `
           SELECT
             TABLE_NAME, CONSTRAINT_NAME
           FROM
@@ -189,20 +186,18 @@ func setupDummyReplica(t testing.TB, testName string, ds *mysql.Datastore, opts 
           WHERE
             TABLE_SCHEMA = ? AND
             REFERENCED_TABLE_NAME IS NOT NULL`, testName)
-		if !assert.NoError(t, err) {
-			return
+	require.NoError(t, err)
+	for _, fk := range fks {
+		stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
+		_, err := replica.ExecContext(ctx, stmt)
+		if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
+			continue
 		}
-		for _, fk := range fks {
-			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
-			_, err := replica.ExecContext(ctx, stmt)
-			if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
-				continue
-			}
+		require.NoError(t, err)
+	}
 
-			if !assert.NoError(t, err) {
-				return
-			}
-		}
+	go func() {
+		defer cancel()
 
 		for {
 			select {

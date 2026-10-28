@@ -102,6 +102,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. Software, report, policy, and packs logs are successfully sent to external log destinations.
 2. Software, report, policy, and packs logs are successfully sent to Filesystem log destinations.
+3. Configure the native Splunk integration and confirm its health check reports reachable, then confirm logs arrive in Splunk.
 
 </td>
 </tr>

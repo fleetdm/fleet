@@ -176,7 +176,7 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -251,6 +251,13 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// rather than checking the version.
 			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
 				logger.InfoContext(ctx, "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
+				return true, nil
+			}
+
+			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
+			// release, which never matches the cask's date-based version.
+			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
+				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
 				return true, nil
 			}
 

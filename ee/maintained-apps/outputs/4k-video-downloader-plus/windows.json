@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.1.1.355",
+      "version": "26.3.5.396",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH' AND version_compare(version, '26.1.1.355') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '4K Video Downloader+' AND publisher = 'InterPromo GMBH' AND version_compare(version, '26.3.5.396') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '4k video downloader+.exe');"
       },
-      "installer_url": "https://dl.4kdownload.com/app/4kvideodownloaderplus_26.1.1_x64_offline.exe?source=website",
+      "installer_url": "https://dl.4kdownload.com/app/4kvideodownloaderplus_26.3.5_x64_offline.exe?source=winget",
       "install_script_ref": "e60e87a2",
       "uninstall_script_ref": "9283b0c4",
-      "sha256": "570309a02be67a0febc46d9b767fcf577fbc28d0df9f3f23cf47293fb4ddf5f9",
+      "sha256": "d22abfe8896a1f3bc6ea77d7b17abc602c4d1c1804d1c8916d1ece2340008d2b",
       "default_categories": [
         "Productivity"
       ]

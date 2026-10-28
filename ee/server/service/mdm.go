@@ -517,6 +517,11 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 			return err
 		}
 	}
+	// The insert replaces an existing package, which is logged as a delete followed by the add.
+	replaced, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get existing bootstrap package")
+	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
 	}
@@ -524,6 +529,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		svc.deleteStagedUpload(ctx, stagedUploadID)
 	}
 
+	if replaced != nil {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: replaced.Name, TeamID: ptrTeamId, TeamName: ptrTeamName},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for replaced bootstrap package")
+		}
+	}
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName},
@@ -2509,6 +2522,17 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 		})
 	}
 
+	// The unlock token survives unenrollment, so it can't stand in for this check.
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Can't clear passcode for the host because it doesn't have MDM turned on.",
+		})
+	}
+
 	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
@@ -2523,8 +2547,7 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	// The enrollment profile can restrict the Device Lock & Passcode Removal
 	// access right (BYOD manual enrollments); enforce it here rather than
 	// relying on the UI hiding the action, since the API can be called
-	// directly. Missing permissions rows fall back to unrestricted rights,
-	// matching the host details response.
+	// directly.
 	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
