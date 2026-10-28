@@ -2601,6 +2601,12 @@ func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]
 			continue
 		}
 		if _, ok := allowedSet[platform]; !ok {
+			if len(allowed) == 0 {
+				return nil, fmt.Errorf(
+					`setup_experience_platform is not supported for a .%s package`,
+					extension,
+				)
+			}
 			return nil, fmt.Errorf(
 				`platform %q is not a valid "setup_experience_platform" value for a .%s package (allowed: %s)`,
 				raw, extension, strings.Join(allowed, ", "),
@@ -2811,6 +2817,15 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
 		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
 		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
+
+	// PowerShell scripts don't support any shebang, so catch this before
+	// shebang validation errors on an unrecognized interpreter like pwsh.
+	if extension == "ps1" && strings.HasPrefix(scriptContents, "#!") {
+		return &fleet.BadRequestError{
+			Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+			InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+		}
 	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {

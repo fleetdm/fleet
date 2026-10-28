@@ -3409,8 +3409,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
 		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
 		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
-		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
-		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `setup_experience_platform is not supported for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `setup_experience_platform is not supported for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
 		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
 		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
@@ -3421,6 +3421,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
 		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
 		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
+		{name: "ps1 unsupported entirely", input: []string{"darwin"}, extension: "ps1", wantErr: `setup_experience_platform is not supported for a .ps1 package`},
+		{name: "exe unsupported entirely", input: []string{"windows"}, extension: "exe", wantErr: `setup_experience_platform is not supported for a .exe package`},
 	}
 
 	for _, c := range cases {
