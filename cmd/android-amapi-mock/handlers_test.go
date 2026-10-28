@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
-	"google.golang.org/api/option"
 )
 
 const (
@@ -117,6 +116,90 @@ func TestHandlePolicyActionStoresPendingCertificates(t *testing.T) {
 			// the version the device reports never matches what Fleet recorded.
 			assert.Positive(t, store.getPolicyVersion(testPolicyName(testESID)))
 			assert.Zero(t, store.getPolicyVersion(testPolicyName(testESID+":"+action)))
+		})
+	}
+}
+
+// TestPolicyActionRequiresExistingPolicy covers --require-policies: AMAPI answers a policy
+// action on a policy that was never created with 404, which is how Fleet's certificate
+// delivery failed for hosts whose host-specific policy didn't exist yet.
+func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
+	testCases := []struct {
+		name            string
+		requirePolicies bool
+		setup           func(t *testing.T, mux *http.ServeMux)
+		policyID        string
+		wantStatus      int
+	}{
+		{
+			name:            "missing policy is not found",
+			requirePolicies: true,
+			policyID:        testESID,
+			wantStatus:      http.StatusNotFound,
+		},
+		{
+			name:            "patched policy exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "policy restored by a device registering again exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				req := defaultRegisterRequest()
+				req.PolicyName = testPolicyName(testESID)
+				req.PolicyVersion = 5
+				registerTestDevice(t, mux, req, http.StatusOK)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "another host's policy does not make this one exist",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, "other-host").Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:            "a policy for a device the mock doesn't simulate is not checked",
+			requirePolicies: true,
+			policyID:        "real-device",
+			wantStatus:      http.StatusOK,
+		},
+		{
+			name:       "missing policy is accepted by default",
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newDeviceStore()
+			store.requirePolicies = tc.requirePolicies
+			mux := newMux(store, nil, 0, 0, policyOptions{})
+			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+			if tc.setup != nil {
+				tc.setup(t, mux)
+			}
+			versionBefore := store.getPolicyVersion(testPolicyName(tc.policyID))
+
+			body := certChangesBody(t, certConfig(certTemplate(7, fleet.MDMOperationTypeInstall)))
+			rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, tc.policyID), body)
+			require.Equal(t, tc.wantStatus, rr.Code, "policy action response: %s", rr.Body.String())
+
+			if tc.wantStatus == http.StatusNotFound {
+				assert.Equal(t, "Not Found\n", rr.Body.String())
+				assert.Empty(t, store.getByESID(testESID).PendingCertificates, "a rejected action must not deliver certificates")
+				assert.Equal(t, versionBefore, store.getPolicyVersion(testPolicyName(tc.policyID)), "a rejected action must not issue a version")
+				assert.False(t, store.policyExists(testPolicyName(tc.policyID)), "a rejected action must not create the policy")
+			}
 		})
 	}
 }
@@ -323,7 +406,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 
 		d := store.getByESID(testESID)
 		require.NotNil(t, d)
-		assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName)
+		assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName)
 		assert.Zero(t, d.PolicyVersion)
 	})
 
@@ -341,7 +424,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 			d := store.getByESID(testESID)
 			require.NotNil(t, d)
 			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
-			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+			assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName,
 				"the device falls back to a fresh registration")
 
 			// And it must not be reported to Fleet either.
@@ -736,9 +819,6 @@ func TestPolicyRequestGuard(t *testing.T) {
 		{"default policy full patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1"), http.StatusBadRequest},
 		{"default policy patch without apps is accepted", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=statusReportingSettings,kioskCustomization", http.StatusOK},
 		{"host policy app action is accepted", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
-		{"action on a policy never created is accepted by default", policyOptions{}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
-		{"action on a policy never created is rejected", policyOptions{requirePolicies: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusNotFound},
-		{"patch creates a policy even when policies are required", policyOptions{requirePolicies: true}, "PATCH", policyPath(hostPolicyID), http.StatusOK},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -746,44 +826,4 @@ func TestPolicyRequestGuard(t *testing.T) {
 			require.Equal(t, c.want, serve(mux, c.method, c.path))
 		})
 	}
-
-	t.Run("action on a created policy is accepted when policies are required", func(t *testing.T) {
-		mux := newMux(newDeviceStore(), nil, 0, 0, policyOptions{requirePolicies: true})
-		require.Equal(t, http.StatusOK, serve(mux, "PATCH", policyPath(hostPolicyID)))
-		require.Equal(t, http.StatusOK, serve(mux, "POST", policyPath(hostPolicyID+":modifyPolicyApplications")))
-	})
-}
-
-func TestForwardedPolicyPatchRecordsPolicy(t *testing.T) {
-	const realDevicePolicyID = "real-device-policy"
-	policyPath := fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, realDevicePolicyID)
-	serve := func(mux *http.ServeMux, method, path string) int {
-		rr := httptest.NewRecorder()
-		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
-		return rr.Code
-	}
-	newForwarder := func(t *testing.T, googleStatus int) *googleForwarder {
-		fakeGoogle := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(googleStatus)
-			_, _ = w.Write([]byte(`{}`))
-		}))
-		t.Cleanup(fakeGoogle.Close)
-		svc, err := androidmanagement.NewService(t.Context(),
-			option.WithEndpoint(fakeGoogle.URL), option.WithHTTPClient(fakeGoogle.Client()))
-		require.NoError(t, err)
-		return &googleForwarder{svc: svc}
-	}
-
-	t.Run("a policy Google accepted takes app actions", func(t *testing.T) {
-		mux := newMux(newDeviceStore(), newForwarder(t, http.StatusOK), 0, 0, policyOptions{requirePolicies: true})
-		require.Equal(t, http.StatusOK, serve(mux, "PATCH", policyPath))
-		require.Equal(t, http.StatusOK, serve(mux, "POST", policyPath+":modifyPolicyApplications"))
-	})
-
-	t.Run("a policy Google rejected still doesn't exist", func(t *testing.T) {
-		mux := newMux(newDeviceStore(), newForwarder(t, http.StatusBadRequest), 0, 0, policyOptions{requirePolicies: true})
-		require.NotEqual(t, http.StatusOK, serve(mux, "PATCH", policyPath))
-		require.Equal(t, http.StatusNotFound, serve(mux, "POST", policyPath+":modifyPolicyApplications"))
-	})
 }

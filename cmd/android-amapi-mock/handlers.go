@@ -64,6 +64,7 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 			d.PolicyVersion = 0
 		} else if d.PolicyName != "" {
 			store.raisePolicyVersionCounter(d.PolicyVersion)
+			store.notePolicyRestored(d.PolicyName)
 		}
 
 		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
@@ -298,13 +299,12 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 // policyOptions turns on checks for policy requests that real AMAPI accepts but that show a bug
 // in Fleet, or that AMAPI rejects but the mock accepts by default.
 type policyOptions struct {
-	requirePolicies         bool
 	rejectDefaultPolicyApps bool
 }
 
 // guardPolicyRequest rejects policy requests before they reach the handler. An empty policy ID
 // is always rejected, as AMAPI does for an invalid policy name.
-func guardPolicyRequest(store *deviceStore, opts policyOptions, next http.HandlerFunc) http.HandlerFunc {
+func guardPolicyRequest(opts policyOptions, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := policyID(r)
 		if id == "" {
@@ -322,10 +322,6 @@ func guardPolicyRequest(store *deviceStore, opts policyOptions, next http.Handle
 		if opts.rejectDefaultPolicyApps && changesApps && id == strconv.Itoa(android.DefaultAndroidPolicyID) {
 			writeAMAPIError(w, http.StatusBadRequest, "FAILED_PRECONDITION",
 				"mock: Fleet must not change the apps of the default policy "+policyName(r))
-			return
-		}
-		if opts.requirePolicies && r.Method == http.MethodPost && store.getPolicyVersion(policyName(r)) == 0 {
-			writeAMAPIError(w, http.StatusNotFound, "NOT_FOUND", "Policy not found: "+policyName(r))
 			return
 		}
 
@@ -355,10 +351,7 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 		isFakeDevice := store.getByESID(hostUUID) != nil
 		if !isFakeDevice && google != nil {
 			log.Printf("Forwarding policy patch to Google AMAPI: %q", name) // #nosec G706 -- load testing tool
-			// App actions on this policy are answered here, so record that it now exists.
-			if google.ForwardPoliciesPatch(w, r) {
-				store.nextPolicyVersion(name)
-			}
+			google.ForwardPoliciesPatch(w, r)
 			return
 		}
 
@@ -379,6 +372,16 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 		// policyID strips the action suffix, without which the device lookup in
 		// extractAndStoreCertTemplateIDs never matches.
 		hostUUID := policyID(r)
+
+		// Only a simulated device's policy is checked: a real device's policy can be created
+		// through Google, which this process doesn't track.
+		if store.requirePolicies && store.getByESID(hostUUID) != nil && !store.policyExists(name) {
+			// The body Fleet sees from AMAPI, through the fleetdm.com proxy, for a policy that
+			// doesn't exist.
+			log.Printf("Policy action on missing policy %q", name) // #nosec G706 -- load testing tool
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 
 		// Try to extract cert template IDs from the request body
 		var bodyBytes []byte

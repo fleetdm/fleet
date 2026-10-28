@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.75.8",
+      "version": "0.77.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anysphere.sand';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anysphere.sand' AND version_compare(bundle_short_version, '0.75.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anysphere.sand' AND version_compare(bundle_short_version, '0.77.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.anysphere.sand' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.cursor.com/sand/stable/darwin-arm64/0.75.8/Grok_Bot_0.75.8.dmg",
+      "installer_url": "https://downloads.cursor.com/sand/stable/darwin-arm64/0.77.0/Grok_Bot_0.77.0.dmg",
       "install_script_ref": "cd149c0b",
       "uninstall_script_ref": "7e2d1b56",
-      "sha256": "1dca849105503b362f023c76a75891dc04f93484d76b03a703384c4a0ef15f7e",
+      "sha256": "8a2ae1a6263e24d52a647c9da228af0a72c425c476445d3b23bf8575389fe5e8",
       "default_categories": [
         "Productivity"
       ]
