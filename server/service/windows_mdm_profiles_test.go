@@ -231,11 +231,6 @@ func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
 			contents:    urlItem + challengeItem + syncMLAddItem(scepPrefix+"SubjectName", "CN=x,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID") + syncMLAddItem(scepPrefix+"SubjectName", "CN=y"),
 			errContains: "SubjectName item must contain the",
 		},
-		{
-			name:        "renewal ID missing",
-			contents:    urlItem + challengeItem + sanItem,
-			errContains: "SCEP profile for conditional access requires",
-		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

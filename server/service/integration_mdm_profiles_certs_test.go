@@ -368,38 +368,15 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessSCEPProfile() {
 		})
 		return raw
 	}
-	// Acknowledges every pending command and returns the SCEP challenge the device received, if any.
+	// Acknowledges every pending command and returns the challenge in the one SCEP profile the device received.
 	ackCommands := func() string {
-		var challenge string
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
-		msgID, err := mdmDevice.GetCurrentMsgID()
-		require.NoError(t, err)
-		for _, c := range cmds {
-			if c.Verb == fleet.CmdStatus {
-				continue
-			}
-			// SCEP profiles are sent wrapped in an Atomic, so the challenge is in a nested Add.
-			for _, cmd := range append([]fleet.SyncMLCmd{c.Cmd}, c.Cmd.AddCommands...) {
-				for _, item := range cmd.Items {
-					if item.Target != nil && strings.HasSuffix(*item.Target, "/Install/Challenge") && item.Data != nil {
-						challenge = item.Data.Content
-					}
-				}
-			}
-			cmdID, verb, status := c.Cmd.CmdID.Value, c.Verb, syncml.CmdStatusOK
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdID,
-				Cmd:     &verb,
-				Data:    &status,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-		_, err = mdmDevice.SendResponse()
-		require.NoError(t, err)
-		return challenge
+		sceps, incomplete := mdmDevice.ExtractSCEPCommands(cmds)
+		require.Empty(t, incomplete)
+		require.Len(t, sceps, 1)
+		ackWindowsCmds(t, mdmDevice, cmds)
+		return sceps[0].Challenge
 	}
 	// Queues the profile for another delivery, the way a resend or the renewal job does.
 	queueRedelivery := func(profileUUID string) {
