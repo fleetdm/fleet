@@ -1,0 +1,1 @@
+- Removed the deprecated "team" URL paths from the API. Use the matching `fleets` paths instead.

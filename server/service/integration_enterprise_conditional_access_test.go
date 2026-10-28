@@ -152,7 +152,7 @@ KSCy+VfKBn4=
 
 	// Enable conditional access on the team
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -200,7 +200,7 @@ KSCy+VfKBn4=
 	})
 
 	// Disable conditional access on the team
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": false,
 		},
@@ -436,7 +436,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NoError(t, err)
 
 	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		Platform:                 "darwin,windows",
@@ -444,7 +444,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
@@ -452,7 +452,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 3;",
 		Name:                     "Other policy",
 		Platform:                 "darwin,windows",
@@ -501,7 +501,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -802,7 +802,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.True(t, acResp.Integrations.ConditionalAccessEnabled.Value)
 
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
@@ -810,7 +810,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	}, http.StatusOK, &pr)
 	cp1 = pr.Policy
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 2;",
 		Name:                     "Other 1",
 		ConditionalAccessEnabled: false,
@@ -936,7 +936,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Create two conditional access policies.
 	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
@@ -944,7 +944,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
@@ -976,7 +976,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -1818,7 +1818,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	//
 
 	// conditional_access_enabled=true with platform="linux" should fail
-	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), map[string]any{
 		"name":                       "ca-linux",
 		"query":                      "SELECT 1;",
 		"platform":                   "linux",
@@ -1829,7 +1829,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	res.Body.Close()
 
 	// conditional_access_enabled=true with empty platform (all platforms) should fail
-	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), map[string]any{
 		"name":                       "ca-all-platforms",
 		"query":                      "SELECT 1;",
 		"platform":                   "",
@@ -1841,7 +1841,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// conditional_access_enabled=true with platform="darwin" should succeed
 	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), fleet.TeamPolicyRequest{
 		Name:                     "ca-darwin",
 		Query:                    "SELECT 1;",
 		Platform:                 "darwin",
@@ -1851,7 +1851,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// conditional_access_enabled=true with platform="windows" should succeed
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), fleet.TeamPolicyRequest{
 		Name:                     "ca-windows",
 		Query:                    "SELECT 2;",
 		Platform:                 "windows",
@@ -1861,7 +1861,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// conditional_access_enabled=true with platform="darwin,windows" should succeed
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), fleet.TeamPolicyRequest{
 		Name:                     "ca-darwin-windows",
 		Query:                    "SELECT 3;",
 		Platform:                 "darwin,windows",
@@ -1870,7 +1870,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// conditional_access_enabled=false with platform="linux" should succeed (no restriction when disabled)
 	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), fleet.TeamPolicyRequest{
 		Name:                     "no-ca-linux",
 		Query:                    "SELECT 4;",
 		Platform:                 "linux",
@@ -1884,12 +1884,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// Modify a darwin policy to enable conditional_access_enabled — should succeed (already darwin)
 	patchResp := &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, darwinPolicyID), fleet.ModifyTeamPolicyRequest{
 		ConditionalAccessEnabled: new(true),
 	}, http.StatusOK, patchResp)
 
 	// Modify a linux policy to enable conditional_access_enabled — should fail
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, linuxPolicyID), map[string]any{
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, linuxPolicyID), map[string]any{
 		"conditional_access_enabled": true,
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
@@ -1897,7 +1897,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	res.Body.Close()
 
 	// Modify a darwin conditional_access policy to change platform to linux — should fail
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), map[string]any{
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, darwinPolicyID), map[string]any{
 		"platform": "linux",
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
@@ -1906,7 +1906,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// Modify a windows conditional_access policy to change platform to darwin — should succeed
 	patchResp = &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, windowsPolicyID), fleet.ModifyTeamPolicyRequest{
 		Platform: new("darwin"),
 	}, http.StatusOK, patchResp)
 

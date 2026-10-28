@@ -134,7 +134,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
@@ -495,7 +495,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		SoftwareTitleID: &addMAResp.SoftwareTitleID,
 	}
 	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &tpResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
@@ -556,7 +556,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Policy should appear in the list of policies
 	var listPolResp fleet.ListTeamPoliciesResponse
 	s.DoJSON(
-		"GET", "/api/latest/fleet/teams/0/policies",
+		"GET", "/api/latest/fleet/fleets/0/policies",
 		fleet.ListTeamPoliciesRequest{},
 		http.StatusOK, &listPolResp,
 		"page", "0",
@@ -736,7 +736,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -992,7 +992,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	// --- setup: team with cloudflare-warp v1.0, self-service on ---
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1257,7 +1257,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	}
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1413,7 +1413,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// newTeam creates a new team with the given name and returns it.
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			Name: new(name),
 		}, http.StatusOK, &resp)
 		return *resp.Team
@@ -3420,7 +3420,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	})
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("fma_pin_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -3728,7 +3728,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, 1, pinRowCount())
 
 	// The policies attached above block a delete, so remove them first.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID),
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID),
 		fleet.DeleteTeamPoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
 		http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 

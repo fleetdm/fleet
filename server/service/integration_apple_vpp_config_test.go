@@ -59,7 +59,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", getVPPTokenResp.Tokens[0].ID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	const validPlist = `<dict><key>ServerURL</key><string>https://example.com</string></dict>`
@@ -221,7 +221,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		require.NoError(t, err)
 
 		var resPatchVPPBatch patchVPPTokensTeamsResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID),
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", getVPPTokenResp.Tokens[0].ID),
 			patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, batchTeam.ID}}, http.StatusOK, &resPatchVPPBatch)
 
 		var batchResp batchAssociateAppStoreAppsResponse
@@ -958,7 +958,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 
 	// Assign the token to all fleets so the apps can be added to Unassigned too
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", validToken.Token.ID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	asJSONString := func(s string) json.RawMessage {
@@ -1360,7 +1360,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 
 	// Assign the token to all fleets so the apps can be added to Unassigned too
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", validToken.Token.ID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	asJSONString := func(s string) json.RawMessage {
@@ -1661,7 +1661,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 	var tokensResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokensResp)
 	vppTokenID := tokensResp.Tokens[0].ID
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppTokenID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", vppTokenID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &patchVPPTokensTeamsResponse{})
 
 	// Adam ID "2" is the iOS app every case installs, it's registered for iOS in the mock proxy
@@ -1920,7 +1920,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
 		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &uploadResp)
 	var patchResp patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", uploadResp.Token.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", uploadResp.Token.ID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &patchResp)
 
 	var appsResp getAppStoreAppsResponse

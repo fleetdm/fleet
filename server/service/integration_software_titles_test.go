@@ -31,7 +31,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Enroll a host
@@ -620,9 +620,9 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 
 	// Create two teams
 	var team1Resp, team2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team1_" + t.Name())}}, http.StatusOK, &team1Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team1_" + t.Name())}, http.StatusOK, &team1Resp)
 	team1 := team1Resp.Team
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team2_" + t.Name())}}, http.StatusOK, &team2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team2_" + t.Name())}, http.StatusOK, &team2Resp)
 	team2 := team2Resp.Team
 
 	// Upload a software installer to team1
@@ -803,7 +803,7 @@ func (s *integrationMDMTestSuite) TestSoftwarePackageTitleValidation() {
 	ctx := t.Context()
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())}}, http.StatusOK, &teamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &teamResp)
 	team := teamResp.Team
 
 	type counts struct {
@@ -904,11 +904,11 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	var newTeam2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_2_" + t.Name())}}, http.StatusOK, &newTeam2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_2_" + t.Name())}, http.StatusOK, &newTeam2Resp)
 	team2 := newTeam2Resp.Team
 
 	// Enroll a host
@@ -1135,7 +1135,7 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
 		}, http.StatusOK, &resp)
 		return *resp.Team

@@ -42,7 +42,7 @@ For those preferring a hands-on approach, manually editing the `xxx.policies.yml
 While `fleetctl` currently lacks a direct command to export policies in YAML format (`fleetctl get policies --yaml`), there are workarounds:
 
 ```
-fleetctl api api/v1/fleet/teams/9/policies | jq .policies | yq -P
+fleetctl api api/v1/fleet/fleets/9/policies | jq .policies | yq -P
 ```
 
 This command sequence uses `fleetctl` to call the API, `jq` to parse the JSON output, and `yq` to convert it into pretty YAML format. Although not as straightforward as a single command, this method is useful for teams needing to automate their workflow until a dedicated command is available.

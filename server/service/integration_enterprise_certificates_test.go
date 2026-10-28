@@ -178,7 +178,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 
 	// Delete the team via API (this should delete all certificate templates on the team)
 	var deleteResp deleteTeamResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID), nil, http.StatusOK, &deleteResp)
 
 	// Verify the certificate templates were deleted
 	_, err = s.ds.GetCertificateTemplateById(ctx, certificateTemplateID1)

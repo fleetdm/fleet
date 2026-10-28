@@ -96,13 +96,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		Description: "team for testing recovery lock password",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
 	// enable recovery lock password via modify team endpoint
 	var modResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
@@ -113,14 +113,14 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 
 	// check it's returned by GET
 	teamResp := getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// patch with same value should not create new activity
 	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, 0)
 	modResp = teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 
 	// disable recovery lock password
 	modResp = teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(false),
 		},
@@ -142,7 +142,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 
 	// check it's returned by GET
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// test via apply team specs
@@ -152,11 +152,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's enabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// apply with recovery lock password disabled
@@ -166,11 +166,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(false),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's disabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// create a new team via spec with recovery lock password enabled
@@ -182,13 +182,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}}}
 	var specResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 	newTeamID := specResp.TeamIDsByName[newTeamName]
 	require.NotZero(t, newTeamID)
 
 	// check the new team has recovery lock password enabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", newTeamID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
@@ -652,12 +652,12 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Create a team with recovery lock enabled
 		teamName := "RecoveryLockTeam-" + uuid.NewString()[:8]
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
 		team := createTeamResp.Team
 
 		// Enable recovery lock for the team
 		var modTeamResp teamResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 			MDM: &fleet.TeamPayloadMDM{
 				EnableRecoveryLockPassword: optjson.SetBool(true),
 			},
@@ -696,7 +696,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Nil(t, rlpStatus2.Status, "host not in team should not get recovery lock")
 
 		// Disable team recovery lock
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 			MDM: &fleet.TeamPayloadMDM{
 				EnableRecoveryLockPassword: optjson.SetBool(false),
 			},
