@@ -4,17 +4,20 @@
 
 ## Key takeaways
 
-- **The order reaches past the DeepSeek app.** Exclusion and Removal Order #2026-01 covers DeepSeek, its affiliates, and third-party products built using DeepSeek implementations, so a search for one app name misses part of the scope.
-- **Self-reporting is not an inventory.** A survey or an acceptable-use reminder tells you what people remember installing. It doesn't tell you what is on the device today.
-- **Installed software is the first list to pull.** Fleet's software inventory records apps, packages, browser extensions, and IDE extensions on each host, so one name search can show where DeepSeek-branded software sits.
-- **A name match has limits you should state up front.** A tool that embeds a DeepSeek model without saying so won't match on "deepseek." Treat the first pass as a floor, then work the wrappers through vendor answers and procurement records.
-- **A policy turns the cleanup into a recheck.** A policy that fails on any host with matching software gives you a count to drive to zero, and the same count is your evidence afterward.
+- **This is a United States federal order.** It applies to US federal civilian executive branch agencies. Federal contractors can be pulled in through their contracts. Nobody else is bound by it.
+- **The order reaches past the DeepSeek app.** It also covers "third-party products and services developed using DeepSeek implementations," so a search for one app name misses part of the scope.
+- **Self-reporting is not an inventory.** A staff survey tells you what people remember installing. The device tells you what is installed today.
+- **DeepSeek lives in several places on a device.** Mobile and desktop apps, browser and IDE extensions, and model weights in a local runner such as Ollama. Fleet's software inventory covers the apps and extensions. Model weights don't show up as software.
+- **A name match is a floor.** A tool that calls a DeepSeek model under its own brand won't match "deepseek." Vendors and contracts answer that part, not a scan.
+- **Removal needs watching, not a one-time sweep.** Fleet's agent is built on osquery and refreshes inventory on its own, so a reinstall shows up without anyone asking.
 
-<a purpose="cta-button" href="https://fleetdm.com/guides/software-inventory-reference">See what Fleet's software inventory collects</a>
+<a purpose="cta-button" href="https://fleetdm.com/contact">Find DeepSeek on every device</a>
 
-DHS has ordered civilian federal agencies to remove DeepSeek from their IT systems, and to stop buying it. The order is Exclusion and Removal Order #2026-01, issued under the Federal Acquisition Supply Chain Security Act of 2018. It was signed July 24, became public October 19, and was published in the Federal Register on October 20. DHS cited possible data transfer to China, possible intelligence gathering on US persons, and possible malware or vulnerabilities in the models themselves.
+Exclusion and Removal Order #2026-01 tells United States federal civilian agencies to take DeepSeek off their systems and stop buying it. DHS Secretary Markwayne Mullin signed it July 24 under the Federal Acquisition Supply Chain Security Act of 2018 (FASCSA). The notice went up for public inspection on October 19 and appeared in the Federal Register on October 20.
 
-Most of the coverage is about the politics. The operational problem is simpler and harder: you can't remove what you can't find. If your fleet is a mix of macOS, Windows, and Linux hosts, the question for IT is where DeepSeek-related software actually is, today, on which devices.
+DHS gives three reasons: user data flowing to servers in China, where the state can reach private infrastructure; intelligence on US persons built from that data; and malware or flaws in the models themselves. The order also cites [NowSecure's teardown](https://www.nowsecure.com/blog/2025/02/06/nowsecure-uncovers-multiple-security-and-privacy-flaws-in-deepseek-ios-mobile-app/) of the DeepSeek iOS app, which found App Transport Security turned off, data sent in cleartext, and a hardcoded 3DES key.
+
+Most coverage is about the politics. The IT problem is plainer: you can't remove what you can't find.
 
 ## What the order covers
 
