@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,14 +36,17 @@ type FleetClient struct {
 	apiKey     string
 	httpClient *http.Client
 	// liveQueryClient is used only for the blocking single-host live query
-	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to
-	// FLEET_LIVE_QUERY_REST_PERIOD — longer than httpClient's timeout allows.
+	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to its
+	// live query period — longer than httpClient's timeout allows.
 	// It shares httpClient's Transport. Nil falls back to httpClient.
 	liveQueryClient *http.Client
+	// campaignWait bounds how long a multi-host live query waits for hosts.
+	campaignWait time.Duration
 	// tlsConfig is kept for the results websocket dialer: httpClient's
 	// transport is wrapped by fleethttp, so it can't be read back from there.
-	tlsConfig *tls.Config
-	logger    *slog.Logger
+	tlsConfig   *tls.Config
+	dialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	logger      *slog.Logger
 }
 
 // liveQueryTimeoutMargin is added to the server-side wait for the live query
@@ -50,18 +54,54 @@ type FleetClient struct {
 // server-side wait elapses.
 const liveQueryTimeoutMargin = 30 * time.Second
 
-// maxSingleHostBlock caps the server-side wait this timeout is derived from.
-// FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's wait budget,
-// set far above anything a server blocks for (900s in render.yaml) so fleet-wide
-// queries outlast asleep hosts; uncapped, that budget would let one stalled
-// connection hang for 15 minutes. Fleet's own period must stay under the request
-// timeout of any proxy in front of it, so real values are tens of seconds.
-const maxSingleHostBlock = 120 * time.Second
+// defaultLiveQueryWait matches Fleet's default FLEET_LIVE_QUERY_REST_PERIOD.
+const defaultLiveQueryWait = 25 * time.Second
 
-// singleHostQueryTimeout bounds the blocking POST /hosts/:id/query client.
-// liveQueryDeadline() stays uncapped for the campaign path.
-func singleHostQueryTimeout(ctx context.Context, logger *slog.Logger) time.Duration {
-	return min(liveQueryDeadline(ctx, logger), maxSingleHostBlock) + liveQueryTimeoutMargin
+type fleetClientOptions struct {
+	campaignWait    time.Duration
+	singleHostBlock time.Duration
+	dialContext     func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+type FleetClientOption func(*fleetClientOptions)
+
+// WithLiveQueryWaits sets how long multi-host live queries wait for hosts to
+// report (campaignWait) and how long Fleet blocks a single-host live query
+// (singleHostBlock). The two differ in standalone mode, where the campaign
+// wait can be minutes.
+func WithLiveQueryWaits(campaignWait, singleHostBlock time.Duration) FleetClientOption {
+	return func(o *fleetClientOptions) {
+		o.campaignWait = campaignWait
+		o.singleHostBlock = singleHostBlock
+	}
+}
+
+// WithDialContext routes every connection to Fleet, REST calls and the live
+// query results websocket alike, through dial.
+func WithDialContext(dial func(ctx context.Context, network, addr string) (net.Conn, error)) FleetClientOption {
+	return func(o *fleetClientOptions) {
+		o.dialContext = dial
+	}
+}
+
+type fleetTokenKey struct{}
+
+// ContextWithFleetToken makes Fleet API calls made with ctx authenticate with
+// token instead of the client's API key, so an embedded MCP acts as its caller.
+func ContextWithFleetToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, fleetTokenKey{}, token)
+}
+
+// LiveQueryWaits reports the multi-host wait and the single-host client timeout.
+func (fc *FleetClient) LiveQueryWaits() (campaignWait, singleHostTimeout time.Duration) {
+	return fc.campaignWait, fc.liveQueryClient.Timeout
+}
+
+func (fc *FleetClient) token(ctx context.Context) string {
+	if t, ok := ctx.Value(fleetTokenKey{}).(string); ok {
+		return t
+	}
+	return fc.apiKey
 }
 
 // PlatformBreakdown represents platform distribution data
@@ -107,7 +147,11 @@ type AggregateResponse struct {
 // NewFleetClient creates a new Fleet client.
 // tlsSkipVerify disables certificate verification (unsafe; use only in dev/test).
 // caFile, if non-empty, is a path to a PEM-encoded CA certificate to trust (for self-signed certs).
-func NewFleetClient(ctx context.Context, baseURL, apiKey string, tlsSkipVerify bool, caFile string, logger *slog.Logger) (*FleetClient, error) {
+func NewFleetClient(ctx context.Context, baseURL, apiKey string, tlsSkipVerify bool, caFile string, logger *slog.Logger, opts ...FleetClientOption) (*FleetClient, error) {
+	o := fleetClientOptions{campaignWait: defaultLiveQueryWait, singleHostBlock: defaultLiveQueryWait}
+	for _, opt := range opts {
+		opt(&o)
+	}
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
@@ -140,15 +184,31 @@ func NewFleetClient(ctx context.Context, baseURL, apiKey string, tlsSkipVerify b
 		logger.InfoContext(ctx, "loaded custom CA certificate", "path", caFile)
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsCfg), fleethttp.WithTimeout(30*time.Second))
+	clientOpts := []fleethttp.ClientOpt{fleethttp.WithTLSClientConfig(tlsCfg), fleethttp.WithTimeout(30 * time.Second)}
+	if o.dialContext != nil {
+		// Fleet's router answers some unclean paths with a redirect; following it
+		// would run the call on a route the embedded MCP never asked for.
+		clientOpts = append(clientOpts, fleethttp.WithFollowRedir(false))
+	}
+	httpClient := fleethttp.NewClient(clientOpts...)
+	if o.dialContext != nil {
+		// fleethttp's own dialer would apply Fleet's private-network blocking
+		// and any proxy settings to a connection that never leaves the process.
+		tr := fleethttp.NewTransport()
+		tr.DialContext = o.dialContext
+		tr.Proxy = nil
+		httpClient.Transport = tr
+	}
 	liveQueryClient := *httpClient
-	liveQueryClient.Timeout = singleHostQueryTimeout(ctx, logger)
+	liveQueryClient.Timeout = o.singleHostBlock + liveQueryTimeoutMargin
 	return &FleetClient{
 		baseURL:         baseURL,
 		apiKey:          apiKey,
 		httpClient:      httpClient,
 		liveQueryClient: &liveQueryClient,
+		campaignWait:    o.campaignWait,
 		tlsConfig:       tlsCfg,
+		dialContext:     o.dialContext,
 		logger:          logger,
 	}, nil
 }
@@ -433,7 +493,11 @@ func (fc *FleetClient) GetEndpoints(ctx context.Context, perPage int) ([]Endpoin
 // Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete host and label data.
 // Note: GetEndpoints already requests labels via populate_labels=true; this method is for targeted lookups of a single host.
 func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier string) (*Endpoint, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
+	segment, err := pathSegment("host identifier", identifier)
+	if err != nil {
+		return nil, err
+	}
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
@@ -521,7 +585,11 @@ func (fc *FleetClient) GetHostByIDWithPolicies(ctx context.Context, hostID uint)
 // Fleet UI — answer "is this host compliant?" with one call instead of
 // listing all policies and scanning by host.
 func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, identifier string) (*HostWithPolicies, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", url.PathEscape(identifier))
+	segment, err := pathSegment("host identifier", identifier)
+	if err != nil {
+		return nil, err
+	}
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host with policies: %w", err)
@@ -1514,8 +1582,8 @@ func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
 }
 
 // GetPolicyCompliance retrieves policy compliance data
-func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%s", url.PathEscape(policyID))
+func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (*PolicyCompliance, error) {
+	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policy compliance: %w", err)
@@ -1557,8 +1625,8 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string)
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
 // caller knows the policy belongs to a specific fleet, or when global counts
 // would be misleading because the policy is fleet-scoped.
-func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
+func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID uint) (*PolicyCompliance, error) {
+	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%d/policies/%d", teamID, policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get team policy compliance: %w", err)
@@ -2096,8 +2164,8 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
-	// Fleet blocks on this endpoint until the host reports or
-	// FLEET_LIVE_QUERY_REST_PERIOD elapses, so use the long-timeout client.
+	// Fleet blocks on this endpoint until the host reports or the
+	// live query period elapses, so use the long-timeout client.
 	resp, err := fc.makeFleetRequestWith(ctx, fc.liveQueryClient, "POST", endpointPath, AdHocQueryRequest{Query: sql})
 	if err != nil {
 		return nil, fmt.Errorf("ad hoc query failed: %w", err)
@@ -2192,13 +2260,12 @@ func (fc *FleetClient) makeFleetRequestWith(ctx context.Context, client *http.Cl
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+fc.apiKey)
+	req.Header.Set("Authorization", "Bearer "+fc.token(ctx))
 
 	// PII-safe debug: log the route shape (path before any query string)
 	// rather than the full endpoint, which can carry hostnames / emails /
 	// CVE IDs as filter values.
-	pathOnly, _, _ := strings.Cut(endpoint, "?")
-	fc.logger.DebugContext(ctx, "fleet API request", "method", method, "path", pathOnly)
+	fc.logger.DebugContext(ctx, "fleet API request", "method", method, "path", routeForLog(endpoint))
 
 	resp, err := client.Do(req)
 	if err != nil {

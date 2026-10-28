@@ -30,17 +30,21 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok\n"))
 }
 
-func NewHTTPHandler(mcpServer *server.MCPServer, authToken string, logger *slog.Logger) http.Handler {
-	transports := http.NewServeMux()
-	// No tool sends server-initiated messages, so neither sessions nor the
-	// optional GET stream (405, allowed by the spec) buy anything. mcp-go only
-	// frees a session on an explicit client DELETE, and stateless requests can be
-	// served by any replica.
-	transports.Handle("/mcp", server.NewStreamableHTTPServer(mcpServer,
+// No tool sends server-initiated messages, so neither sessions nor the
+// optional GET stream (405, allowed by the spec) buy anything. mcp-go only
+// frees a session on an explicit client DELETE, and stateless requests can be
+// served by any replica.
+func newStreamableHTTPServer(mcpServer *server.MCPServer, logger *slog.Logger) *server.StreamableHTTPServer {
+	return server.NewStreamableHTTPServer(mcpServer,
 		server.WithStateLess(true),
 		server.WithDisableStreaming(true),
 		server.WithLogger(mcpGoLogger{logger: logger}),
-	))
+	)
+}
+
+func NewHTTPHandler(mcpServer *server.MCPServer, authToken string, logger *slog.Logger) http.Handler {
+	transports := http.NewServeMux()
+	transports.Handle("/mcp", newStreamableHTTPServer(mcpServer, logger))
 	sseServer := server.NewSSEServer(mcpServer)
 	transports.Handle("/sse", sseServer)
 	transports.Handle("/message", sseServer)
@@ -54,6 +58,12 @@ func NewHTTPHandler(mcpServer *server.MCPServer, authToken string, logger *slog.
 	mux.HandleFunc("/healthz", healthzHandler)
 	mux.Handle("/", handler)
 	return mux
+}
+
+// NewEmbeddedHTTPHandler serves Streamable HTTP only; the Fleet server
+// authenticates the caller before this handler runs.
+func NewEmbeddedHTTPHandler(mcpServer *server.MCPServer, logger *slog.Logger) http.Handler {
+	return limitBodyMiddleware(newStreamableHTTPServer(mcpServer, logger))
 }
 
 // mcp-go's logger interface is printf-style and carries no context.

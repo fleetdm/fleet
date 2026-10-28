@@ -19,10 +19,11 @@ import (
 
 func newTestClient(serverURL string) *FleetClient {
 	return &FleetClient{
-		baseURL:    serverURL,
-		apiKey:     "test",
-		httpClient: http.DefaultClient,
-		logger:     slog.New(slog.DiscardHandler),
+		baseURL:      serverURL,
+		apiKey:       "test",
+		httpClient:   http.DefaultClient,
+		campaignWait: 5 * time.Second,
+		logger:       slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -414,7 +415,6 @@ func writeWSFrame(t *testing.T, conn *websocket.Conn, typ string, data interface
 // runMultiHostCampaign creates an ad-hoc campaign and streams results over the
 // websocket, aggregating each host's rows into one result.
 func TestRunMultiHostCampaign_AggregatesResults(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 	srv := campaignTestServer(t, 42, func(conn *websocket.Conn) {
 		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 2, "online": 2})
 		writeWSFrame(t, conn, "result", map[string]interface{}{
@@ -455,7 +455,6 @@ func TestRunMultiHostCampaign_AggregatesResults(t *testing.T) {
 // Offline hosts never report, so the stream stops once every online host has
 // responded rather than waiting out the deadline.
 func TestRunMultiHostCampaign_StopsWhenOnlineHostsRespond(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 	srv := campaignTestServer(t, 7, func(conn *websocket.Conn) {
 		// 3 targeted, only 2 online; host 30 is offline and silent.
 		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 3, "online": 2})
@@ -493,7 +492,6 @@ func TestRunMultiHostCampaign_StopsWhenOnlineHostsRespond(t *testing.T) {
 // A per-host osquery error in a result frame surfaces as an error on that host's
 // row without failing the whole query.
 func TestRunMultiHostCampaign_HostErrorRow(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 	srv := campaignTestServer(t, 1, func(conn *websocket.Conn) {
 		writeWSFrame(t, conn, "totals", map[string]interface{}{"count": 1, "online": 1})
 		writeWSFrame(t, conn, "result", map[string]interface{}{
@@ -538,7 +536,6 @@ func TestRunMultiHostCampaign_CreateFails(t *testing.T) {
 // An "error" frame from the server (campaign not found, unauthorized, pubsub
 // failure) must surface as an error, not a silent empty result.
 func TestRunMultiHostCampaign_ServerErrorFrame(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 	srv := campaignTestServer(t, 99, func(conn *websocket.Conn) {
 		writeWSFrame(t, conn, "error", "cannot find campaign for ID 99")
 	})
@@ -557,7 +554,6 @@ func TestRunMultiHostCampaign_ServerErrorFrame(t *testing.T) {
 // A mid-stream read failure (connection dropped before a terminal status) must
 // surface as an error rather than masquerading as an empty successful result.
 func TestRunMultiHostCampaign_StreamReadError(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 	srv := campaignTestServer(t, 5, func(conn *websocket.Conn) {
 		// Two hosts online but only one responds, then the connection drops
 		// abruptly (no "finished" status, no clean close handshake).
@@ -1352,48 +1348,6 @@ func TestLinuxPlatformNormalization(t *testing.T) {
 	}
 	if got := inferPlatformFromTargets([]Endpoint{{Platform: "flatcar"}, {Platform: "nixos"}}); got != "linux" {
 		t.Errorf("inferPlatformFromTargets = %q, want linux", got)
-	}
-}
-
-func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "45s")
-	logger := slog.New(slog.DiscardHandler)
-	fc, err := NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if got := fc.httpClient.Timeout; got != 30*time.Second {
-		t.Fatalf("default client timeout = %v, want 30s", got)
-	}
-	if got, want := fc.liveQueryClient.Timeout, 45*time.Second+liveQueryTimeoutMargin; got != want {
-		t.Fatalf("live query client timeout = %v, want %v", got, want)
-	}
-	if fc.liveQueryClient.Transport != fc.httpClient.Transport {
-		t.Fatal("live query client must share the default client's Transport (TLS config, connection pool)")
-	}
-
-	// A non-positive period would make Timeout <= 0, which net/http treats as no timeout.
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "-45s")
-	fc, err = NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := fc.liveQueryClient.Timeout, 25*time.Second+liveQueryTimeoutMargin; got != want {
-		t.Fatalf("live query client timeout with negative period = %v, want %v", got, want)
-	}
-
-	// The campaign wait budget can be minutes; the single-host client must not inherit that.
-	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "900s")
-	fc, err = NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := fc.liveQueryClient.Timeout, maxSingleHostBlock+liveQueryTimeoutMargin; got != want {
-		t.Fatalf("live query client timeout with 900s period = %v, want %v", got, want)
-	}
-	if got := liveQueryDeadline(t.Context(), logger); got != 900*time.Second {
-		t.Fatalf("liveQueryDeadline() = %v, want 900s (campaign path must stay uncapped)", got)
 	}
 }
 
