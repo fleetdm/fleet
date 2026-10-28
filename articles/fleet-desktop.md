@@ -14,7 +14,7 @@ Fleet Desktop is deployed automatically with Fleet's agent (fleetd) when you [en
 
 ### macOS
 
-The best practice on macOS is to deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin) and [hide the menu bar icon](#hide-the-menu-bar-icon-on-macos). The app is required for [patch notifications](https://fleetdm.com/guides/patching-end-user-experience#force-patch-notify-before-patching) and Fleet's [Platform SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet).
+The best practice on macOS is to also deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). The app is required for [patch notifications](https://fleetdm.com/guides/patching-end-user-experience#force-patch-notify-before-patching) and Fleet's [Platform SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet). If you want, you can [hide the menu bar icon](#hide-the-menu-bar-icon-on-macos).
 
 1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app).
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
