@@ -566,6 +566,53 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		require.Nil(t, status)
 		return err
 	})
+
+	// returns the TestProfile payload the device received, acknowledging every command
+	installedTestProfile := func() string {
+		s.awaitTriggerProfileSchedule(t)
+		var payload string
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				if p := string(fullCmd.Command.InstallProfile.Payload); strings.Contains(p, "TestProfile") {
+					payload = p
+				}
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return payload
+	}
+	testProfileStatus := func() fleet.MDMDeliveryStatus {
+		hostProfiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range hostProfiles {
+			if p.Identifier == "com.test.profile" {
+				require.NotNil(t, p.Status)
+				return *p.Status
+			}
+		}
+		require.FailNow(t, "TestProfile not found on host")
+		return ""
+	}
+
+	// the cleared username can't be resolved, so the profile fails
+	require.Empty(t, installedTestProfile())
+	require.Equal(t, fleet.MDMDeliveryFailed, testProfileStatus())
+
+	// without a SCIM user, every new IdP username resends the profile with that value
+	for _, email := range []string{"manual.one@example.com", "manual.two@example.com"} {
+		s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{
+			Email:  email,
+			Source: "idp",
+		}, http.StatusOK)
+		require.Equal(t, fleet.MDMDeliveryPending, testProfileStatus())
+		require.Contains(t, installedTestProfile(), email)
+		require.Equal(t, fleet.MDMDeliveryVerifying, testProfileStatus())
+	}
 }
 
 // Moving a host between fleets that hold a byte-identical profile must keep the

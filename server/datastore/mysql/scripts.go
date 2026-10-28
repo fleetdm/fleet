@@ -3143,6 +3143,9 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 
 	batchActivity := &fleet.BatchActivity{}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("batch execution").WithName(executionID))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
 	}
 

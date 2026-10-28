@@ -14154,8 +14154,9 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 			scimUserID := newScimUser(t, email)
 
 			// What PUT /hosts/:id/device_mapping {source: idp} does at the datastore layer.
-			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email))
-			_, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+			_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email)
+			require.NoError(t, err)
+			_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
 			require.NoError(t, err)
 			requireLinkedTo(t, host, scimUserID)
 			requireNoIdPAccount(t, host)
@@ -14200,7 +14201,8 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 			host := newDarwinHost(t, fmt.Sprintf("uuid-ade-override-%v", scepRenewal))
 			associateIdPAccount(t, host, fmt.Sprintf("staging-%v@example.com", scepRenewal))
 			realUser := fmt.Sprintf("real-%v@example.com", scepRenewal)
-			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser))
+			_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser)
+			require.NoError(t, err)
 
 			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
 

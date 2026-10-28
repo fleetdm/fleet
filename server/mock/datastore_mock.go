@@ -306,7 +306,7 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
-type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) error
+type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error)
 
 type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
@@ -1748,6 +1748,8 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
+type GetMDMProfileChecksumsFunc func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error)
+
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error)
@@ -2496,7 +2498,7 @@ type DeleteAllHostCertificateTemplatesFunc func(ctx context.Context, hostUUID st
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
-type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
+type ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc func(ctx context.Context, afterHostUUID string, limit int) ([]string, error)
 
 type GetAndTransitionCertificateTemplatesToDeliveringFunc func(ctx context.Context, hostUUID string) (*fleet.HostCertificateTemplatesForDelivery, error)
 
@@ -5211,6 +5213,9 @@ type DataStore struct {
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
 
+	GetMDMProfileChecksumsFunc        GetMDMProfileChecksumsFunc
+	GetMDMProfileChecksumsFuncInvoked bool
+
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
 
@@ -7515,7 +7520,7 @@ func (s *DataStore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, host
 	return s.SetOrUpdateCustomHostDeviceMappingFunc(ctx, hostID, email, source)
 }
 
-func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.SetOrUpdateIDPHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
@@ -12562,6 +12567,13 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
 }
 
+func (s *DataStore) GetMDMProfileChecksums(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+	s.mu.Lock()
+	s.GetMDMProfileChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMProfileChecksumsFunc(ctx, teamID)
+}
+
 func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
@@ -15180,11 +15192,11 @@ func (s *DataStore) ResendHostCertificateTemplate(ctx context.Context, hostID ui
 	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
 }
 
-func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
+func (s *DataStore) ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
 	s.mu.Lock()
 	s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, offset, limit)
+	return s.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc(ctx, afterHostUUID, limit)
 }
 
 func (s *DataStore) GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*fleet.HostCertificateTemplatesForDelivery, error) {

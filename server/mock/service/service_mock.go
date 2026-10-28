@@ -695,6 +695,8 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
+type VerifyMCPAvailableFunc func(ctx context.Context) error
+
 type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
@@ -801,7 +803,7 @@ type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, pr
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error
+type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error
 
 type LinuxHostDiskEncryptionStatusFunc func(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error)
 
@@ -2058,6 +2060,9 @@ type Service struct {
 
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
+
+	VerifyMCPAvailableFunc        VerifyMCPAvailableFunc
+	VerifyMCPAvailableFuncInvoked bool
 
 	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
 	VerifyMDMAndroidConfiguredFuncInvoked bool
@@ -4949,6 +4954,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
+func (s *Service) VerifyMCPAvailable(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMCPAvailableFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMCPAvailableFunc(ctx)
+}
+
 func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
 	s.mu.Lock()
 	s.VerifyMDMAndroidConfiguredFuncInvoked = true
@@ -5320,11 +5332,11 @@ func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt f
 	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
 }
 
-func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error {
+func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending, assumeEnabled, noCache)
+	return s.BatchSetMDMProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending, assumeEnabled, assumeProfileValidation, noCache)
 }
 
 func (s *Service) LinuxHostDiskEncryptionStatus(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error) {

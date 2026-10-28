@@ -488,6 +488,18 @@ export const getErrorMessage = (
     return generateGenericLearnMoreErrMsg(apiReason);
   }
 
+  const advancedOptions = "Organization settings > Advanced options";
+  if (apiReason.includes(advancedOptions)) {
+    const [before, ...rest] = apiReason.split(advancedOptions);
+    return (
+      <>
+        {before}
+        <strong>{advancedOptions}</strong>
+        {rest.join(advancedOptions)}
+      </>
+    );
+  }
+
   // // FIXME: Should we include a default case to catch any other learn more links from the API?
   // // Can we get rid of some/all of the specific cases above and just have this generic one?
   // if (apiReason.includes(" Learn more: https://")) {
