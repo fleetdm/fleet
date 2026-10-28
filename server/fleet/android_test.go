@@ -554,7 +554,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - extensionConfig",
 			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig" isn't supported because Fleet's agent is the companion app.`,
+			errorMsg:    `Couldn't update configuration. "extensionConfig" isn't supported.`,
 		},
 		{
 			name:        "valid - extensionConfig null",

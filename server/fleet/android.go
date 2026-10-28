@@ -441,7 +441,7 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	// Fleet's agent holds the COMPANION_APP role on every host, and Google rejects extensionConfig
 	// in a policy that has a COMPANION_APP app.
 	if cfg.ExtensionConfig != nil {
-		return &BadRequestError{Message: `Couldn't update configuration. "extensionConfig" isn't supported because Fleet's agent is the companion app.`}
+		return &BadRequestError{Message: `Couldn't update configuration. "extensionConfig" isn't supported.`}
 	}
 	// Google reads managedConfiguration as a protobuf Struct, which only a JSON object (or null) fits.
 	if managedConfig := bytes.TrimSpace(cfg.ManagedConfiguration); len(managedConfig) > 0 && managedConfig[0] != '{' && !bytes.Equal(managedConfig, []byte("null")) {
