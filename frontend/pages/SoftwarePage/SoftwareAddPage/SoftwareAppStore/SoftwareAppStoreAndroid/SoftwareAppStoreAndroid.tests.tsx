@@ -95,7 +95,7 @@ describe("SoftwareAppStoreAndroid", () => {
     await user.click(await screen.findByRole("radio", { name: "Custom" }));
 
     expect(
-      screen.getByRole("checkbox", { name: "Android pilot" })
+      await screen.findByRole("checkbox", { name: "Android pilot" })
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: "All Hosts" })
@@ -134,7 +134,7 @@ describe("SoftwareAppStoreAndroid", () => {
     await user.click(await screen.findByRole("radio", { name: "Custom" }));
 
     expect(
-      screen.getByRole("checkbox", { name: "Android pilot" })
+      await screen.findByRole("checkbox", { name: "Android pilot" })
     ).toBeInTheDocument();
     expect(requestedFleetId).toBe("global");
   });
