@@ -71,6 +71,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     metadata_url: "",
     idp_name: "",
   },
+  enable_profile_validation: true,
 };
 
 export const createMockMdmConfig = (
