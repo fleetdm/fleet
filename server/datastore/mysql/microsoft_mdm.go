@@ -1294,23 +1294,52 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.E
 	return allIDs, err
 }
 
-// getEnrollmentIDsByHostUUIDOrDeviceIDDB fetches enrollment IDs using a
-// per-row SELECT that supports both host_uuid and mdm_device_id lookups.
-// Used by the general-purpose command insertion path (typically 1-2 IDs).
+// getEnrollmentIDsByHostUUIDOrDeviceIDDB resolves each host UUID or MDM device ID to its latest enrollment (by created_at, then id),
+// skipping identifiers that match no enrollment. The result follows the order of the input.
 func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string) ([]uint, error) {
-	var allIDs []uint
-	for _, id := range hostUUIDsOrDeviceIDs {
-		var eid uint
-		err := sqlx.GetContext(ctx, tx, &eid,
-			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-			id, id)
+	type enrollmentRow struct {
+		ID          uint      `db:"id"`
+		HostUUID    string    `db:"host_uuid"`
+		MDMDeviceID string    `db:"mdm_device_id"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+
+	allIDs := make([]uint, 0, len(hostUUIDsOrDeviceIDs))
+	err := common_mysql.BatchProcessSimple(hostUUIDsOrDeviceIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(
+			`SELECT id, host_uuid, mdm_device_id, created_at FROM mdm_windows_enrollments WHERE host_uuid IN (?) OR mdm_device_id IN (?)`,
+			batch, batch,
+		)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue // host not enrolled, skip
-			}
-			return nil, ctxerr.Wrap(ctx, err, "looking up enrollment ID")
+			return ctxerr.Wrap(ctx, err, "building enrollment lookup")
 		}
-		allIDs = append(allIDs, eid)
+		var rows []enrollmentRow
+		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "looking up enrollment IDs")
+		}
+
+		latest := make(map[string]enrollmentRow, len(batch))
+		consider := func(key string, row enrollmentRow) {
+			if cur, ok := latest[key]; !ok || row.CreatedAt.After(cur.CreatedAt) ||
+				(row.CreatedAt.Equal(cur.CreatedAt) && row.ID > cur.ID) {
+				latest[key] = row
+			}
+		}
+		for _, row := range rows {
+			consider(row.HostUUID, row)
+			if row.MDMDeviceID != row.HostUUID {
+				consider(row.MDMDeviceID, row)
+			}
+		}
+		for _, id := range batch {
+			if row, ok := latest[id]; ok {
+				allIDs = append(allIDs, row.ID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return allIDs, nil
 }

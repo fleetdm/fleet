@@ -295,5 +295,10 @@ func testNewActivitiesBulk(t *testing.T, env *testEnv) {
 		require.NoError(t, env.DB.GetContext(t.Context(), &linked, `SELECT COUNT(*) FROM activity_host_past h
 			JOIN activity_past a ON a.id = h.activity_id WHERE a.activity_type = ?`, "bulk_ran_command"))
 		assert.Equal(t, hostCount, linked, "every host activity must have exactly one host link")
+
+		var distinctUUIDs int
+		require.NoError(t, env.DB.GetContext(t.Context(), &distinctUUIDs,
+			`SELECT COUNT(DISTINCT batch_row_uuid) FROM activity_past WHERE activity_type = ?`, "bulk_ran_command"))
+		assert.Equal(t, hostCount, distinctUUIDs, "every bulk row carries its own batch_row_uuid")
 	})
 }
