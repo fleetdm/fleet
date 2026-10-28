@@ -6131,6 +6131,8 @@ software:
 		unwantedErrs []string
 		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
 		wantCA *bool
+		// wantDeadline, when set, asserts the resulting PatchDeadline on the single policy.
+		wantDeadline *bool
 	}{
 		{
 			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
@@ -6197,7 +6199,8 @@ policies:
     platform: darwin
     fleet_maintained_app_slug: google-chrome/darwin
 `,
-			wantCA: new(false),
+			wantCA:       new(false),
+			wantDeadline: new(false),
 		},
 		{
 			name:     "notify_before_patching with continuous_automations omitted auto-sets it true",
@@ -6307,6 +6310,115 @@ policies:
 `,
 			wantCA: new(true),
 		},
+		{
+			name:     "patch_deadline with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: true
+`,
+			wantCA:       new(true),
+			wantDeadline: new(true),
+		},
+		{
+			name:     "patch_deadline with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    patch_deadline: true
+`,
+			wantErrs: []string{`If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`},
+		},
+		{
+			name:     "patch_deadline rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "patch_deadline" is true`},
+		},
+		{
+			name:     "patch_deadline on a dynamic policy is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome installed
+    type: dynamic
+    query: SELECT 1;
+    platform: darwin
+    patch_deadline: true
+`,
+			wantErrs: []string{`"patch_deadline" is only supported for patch policies`},
+		},
+		{
+			name:     "patch_deadline together with patch_when_closed is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+    patch_deadline: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+		},
+		{
+			name:     "patch_deadline together with notify_before_patching is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+    patch_deadline: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+		},
+		{
+			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_deadline: true
+`,
+			wantErrs:     []string{`"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`},
+			unwantedErrs: []string{"notify_before_patching"},
+		},
+		{
+			name:     "patch_deadline false applies and leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: false
+`,
+			wantCA:       new(false),
+			wantDeadline: new(false),
+		},
 	}
 
 	for _, tc := range tests {
@@ -6328,6 +6440,9 @@ policies:
 			require.Len(t, g.Policies, 1)
 			if tc.wantCA != nil {
 				assert.Equal(t, *tc.wantCA, g.Policies[0].ContinuousAutomationsEnabled)
+			}
+			if tc.wantDeadline != nil {
+				assert.Equal(t, *tc.wantDeadline, g.Policies[0].PatchDeadline)
 			}
 		})
 	}
@@ -6814,4 +6929,110 @@ labels:
 
 	_, err = gitOpsFromString(t, labelYAML(strings.Repeat("a", 256), "ok"))
 	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
+}
+
+func TestGitOpsPatchDeadlineSettings(t *testing.T) {
+	t.Parallel()
+
+	const prefix = `Couldn't edit patch deadline settings. `
+	const daysRequired = prefix + `"days" must include at least one day.`
+	const timeFormat = prefix + `"time" must be in HH:MM (24-hour) format, for example "17:00".`
+
+	parse := func(t *testing.T, fileName, software string) (*GitOps, error) {
+		exclude := []string{"name"}
+		name := "name: TeamName\n"
+		if fileName == "unassigned.yml" {
+			exclude = append(exclude, "settings")
+			name = "name: Unassigned\n"
+		}
+		config := getTeamConfig(exclude) + name + software
+		path, base := createNamedFileOnTempDir(t, fileName, config)
+		return GitOpsFromFile(path, base, premiumAppConfig(), nopLogf)
+	}
+
+	tests := []struct {
+		name     string
+		block    string
+		wantErr  string
+		wantDays []string
+		wantTime string
+	}{
+		{name: "days missing", block: "time: \"17:00\"", wantErr: daysRequired},
+		{name: "days empty list", block: "days: []\n    time: \"17:00\"", wantErr: daysRequired},
+		{name: "days empty object", block: "days: {}\n    time: \"17:00\"", wantErr: prefix + `"days" must be a list of days, for example ["monday", "wednesday"].`},
+		{name: "days not a list", block: "days: monday\n    time: \"17:00\"", wantErr: prefix + `"days" must be a list of days, for example ["monday", "wednesday"].`},
+		{
+			name:    "days invalid value",
+			block:   "days: [\"Mon\"]\n    time: \"17:00\"",
+			wantErr: prefix + `"days" includes an invalid value "Mon". Options are "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", and "sunday".`,
+		},
+		{name: "days duplicate", block: "days: [monday, monday]\n    time: \"17:00\"", wantErr: prefix + `"days" includes "monday" more than once.`},
+		{name: "time missing", block: "days: [monday]", wantErr: prefix + `"time" is required.`},
+		{name: "time empty", block: "days: [monday]\n    time: \"\"", wantErr: prefix + `"time" is required.`},
+		{name: "time 5pm", block: "days: [monday]\n    time: \"5pm\"", wantErr: timeFormat},
+		{name: "time 24:00", block: "days: [monday]\n    time: \"24:00\"", wantErr: timeFormat},
+		{name: "time 11:60", block: "days: [monday]\n    time: \"11:60\"", wantErr: timeFormat},
+		{name: "time number 1700", block: "days: [monday]\n    time: 1700", wantErr: prefix + `"time" must be wrapped in quotes, for example "17:00".`},
+		{name: "time number 17", block: "days: [monday]\n    time: 17", wantErr: prefix + `"time" must be wrapped in quotes, for example "17:00".`},
+		{name: "unknown key", block: "day: [monday]\n    days: [monday]\n    time: \"17:00\"", wantErr: `unknown key "software.patch_deadline_settings.day"`},
+		{name: "time without a leading zero is normalized", block: "days: [monday]\n    time: \"9:00\"", wantDays: []string{"monday"}, wantTime: "09:00"},
+		{name: "unquoted time is a string", block: "days: [monday]\n    time: 17:00", wantDays: []string{"monday"}, wantTime: "17:00"},
+		{
+			name:     "days come back in week order",
+			block:    "days: [sunday, wednesday, monday]\n    time: \"17:00\"",
+			wantDays: []string{"monday", "wednesday", "sunday"},
+			wantTime: "17:00",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g, err := parse(t, "team.yml", "software:\n  patch_deadline_settings:\n    "+tc.block+"\n")
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, g.Software.PatchDeadlineSettings)
+			assert.Equal(t, tc.wantDays, g.Software.PatchDeadlineSettings.Days)
+			assert.Equal(t, tc.wantTime, g.Software.PatchDeadlineSettings.Time)
+		})
+	}
+
+	t.Run("empty block reports the missing days", func(t *testing.T) {
+		t.Parallel()
+		_, err := parse(t, "team.yml", "software:\n  patch_deadline_settings: {}\n")
+		require.ErrorContains(t, err, daysRequired)
+	})
+
+	t.Run("null behaves like an omitted key", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "team.yml", "software:\n  patch_deadline_settings: null\n")
+		require.NoError(t, err)
+		assert.Nil(t, g.Software.PatchDeadlineSettings)
+	})
+
+	t.Run("omitted key leaves settings nil", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "team.yml", "software:\n")
+		require.NoError(t, err)
+		assert.Nil(t, g.Software.PatchDeadlineSettings)
+	})
+
+	t.Run("unassigned file accepts the settings", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "unassigned.yml", "software:\n  patch_deadline_settings:\n    days: [friday]\n    time: \"08:30\"\n")
+		require.NoError(t, err)
+		require.NotNil(t, g.Software.PatchDeadlineSettings)
+		assert.Equal(t, []string{"friday"}, g.Software.PatchDeadlineSettings.Days)
+		assert.Equal(t, "08:30", g.Software.PatchDeadlineSettings.Time)
+	})
+
+	t.Run("global file rejects the settings", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig(nil) + "software:\n  patch_deadline_settings:\n    days: [monday]\n    time: \"17:00\"\n"
+		path, base := createNamedFileOnTempDir(t, "default.yml", config)
+		_, err := GitOpsFromFile(path, base, premiumAppConfig(), nopLogf)
+		require.ErrorContains(t, err, "'software' cannot be set on global file")
+	})
 }

@@ -36,6 +36,8 @@ type MockClient struct {
 	WithoutVPP       bool
 	WithAssets       bool
 	WithActivations  bool
+	// counts GetPatchDeadlineSettings calls
+	PatchDeadlineCalls int
 	// adds two Windows profiles whose names sanitize to the same file name
 	WithCollidingProfileNames bool
 	// override the stored EULA file names, which come from the uploader
@@ -407,6 +409,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 			{
+				ID:         13,
+				Name:       "My Deadline FMA",
+				HashSHA256: new("deadline-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-deadline-fma.pkg",
+					Platform:             "darwin",
+					Version:              "1",
+					FleetMaintainedAppID: new(uint(5)),
+				},
+			},
+			{
 				ID:   12,
 				Name: "My Multi-Version App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
@@ -432,6 +445,7 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
 		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
 		{ID: 4, Slug: "fma4/darwin", Name: "My Notify FMA", Platform: "darwin", UniqueIdentifier: "com.my.notifyfma"},
+		{ID: 5, Slug: "fma5/darwin", Name: "My Deadline FMA", Platform: "darwin", UniqueIdentifier: "com.my.deadlinefma"},
 	}, nil
 }
 
@@ -523,6 +537,19 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			ContinuousAutomationsEnabled: true,
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 11,
+			},
+		},
+		{
+			ID:                           7,
+			Name:                         "My Deadline FMA up to date",
+			Resolution:                   new("Install the latest version from self-service"),
+			Description:                  "This is a team patch policy with a patch deadline",
+			Platform:                     "darwin",
+			Type:                         fleet.PolicyTypePatch,
+			PatchDeadline:                true,
+			ContinuousAutomationsEnabled: true,
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 13,
 			},
 		},
 		{
@@ -869,6 +896,25 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				},
 			},
 		}, nil
+	case 13:
+		return &fleet.SoftwareTitle{
+			ID:   13,
+			Name: "My Deadline FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				Platform:             "darwin",
+				FleetMaintainedAppID: new(uint(5)),
+				// Mirrors the API, which returns the managed app open query while patch_deadline is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Deadline FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           7,
+					Name:                         "My Deadline FMA up to date",
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+			},
+		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
@@ -1169,6 +1215,14 @@ func (c *MockClient) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
 	}, nil
 }
 
+func (c *MockClient) GetPatchDeadlineSettings(teamID uint) (*fleet.PatchDeadlineSettings, error) {
+	c.PatchDeadlineCalls++
+	if teamID == 1 {
+		return &fleet.PatchDeadlineSettings{TeamID: 1, Days: []string{"monday", "thursday"}, Time: "09:30"}, nil
+	}
+	return fleet.DefaultPatchDeadlineSettings(teamID), nil
+}
+
 func maskSecret(value string, shouldShowSecret bool) string {
 	if shouldShowSecret {
 		return value
@@ -1212,7 +1266,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}, {"name": "My Notify FMA", "slug": "fma4/darwin", "platform": "darwin", "unique_identifier": "com.my.notifyfma"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}, {"name": "My Notify FMA", "slug": "fma4/darwin", "platform": "darwin", "unique_identifier": "com.my.notifyfma"}, {"name": "My Deadline FMA", "slug": "fma5/darwin", "platform": "darwin", "unique_identifier": "com.my.deadlinefma"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -1477,6 +1531,63 @@ func TestGenerateGitopsFree(t *testing.T) {
 		if err := os.RemoveAll(tempDir); err != nil {
 			t.Fatalf("failed to remove temp dir: %v", err)
 		}
+	})
+}
+
+// noSoftwareMockClient has no software titles, so no patch policies either.
+type noSoftwareMockClient struct {
+	*MockClient
+}
+
+func (noSoftwareMockClient) ListSoftwareTitles(string) ([]fleet.SoftwareTitleListResult, error) {
+	return []fleet.SoftwareTitleListResult{}, nil
+}
+
+func (noSoftwareMockClient) GetPolicies(*uint) ([]*fleet.Policy, error) {
+	return nil, nil
+}
+
+func generateGitopsInto(t *testing.T, client generateGitopsClient) (string, string) {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	dir := t.TempDir()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", dir, "")
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
+	return dir, buf.String()
+}
+
+func TestGenerateGitopsPatchDeadlineSettings(t *testing.T) {
+	configureFMAManifestServer(t)
+
+	t.Run("fleet without software", func(t *testing.T) {
+		client := noSoftwareMockClient{&MockClient{}}
+		dir, _ := generateGitopsInto(t, client)
+
+		for file, want := range map[string]map[string]any{
+			"fleets/team-a-👍.yml":   {"days": []any{"monday", "thursday"}, "time": "09:30"},
+			"fleets/unassigned.yml": {"days": []any{"tuesday"}, "time": "17:00"},
+		} {
+			b, err := os.ReadFile(filepath.Join(dir, file))
+			require.NoError(t, err)
+			var parsed map[string]any
+			require.NoError(t, yaml.Unmarshal(b, &parsed))
+			require.Equal(t, map[string]any{"patch_deadline_settings": want}, parsed["software"], file)
+			// time must stay a quoted string, or applying the file hits the quotes error.
+			require.Contains(t, string(b), fmt.Sprintf("time: %q", want["time"]), file)
+			require.NotContains(t, string(b), "fleet_id", file)
+		}
+	})
+
+	t.Run("free tier", func(t *testing.T) {
+		client := &MockClient{IsFree: true}
+		dir, _ := generateGitopsInto(t, client)
+
+		require.Zero(t, client.PatchDeadlineCalls)
+		b, err := os.ReadFile(filepath.Join(dir, "default.yml"))
+		require.NoError(t, err)
+		require.NotContains(t, string(b), "patch_deadline_settings")
 	})
 }
 
@@ -2296,6 +2407,9 @@ func TestGenerateSoftware(t *testing.T) {
 	// The notify FMA is notify_before_patching, so its query is not written out either.
 	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-notify-fma-darwin-preinstallquery.yml")
 
+	// Same for the patch_deadline FMA.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-deadline-fma-darwin-preinstallquery.yml")
+
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
 	} else {
@@ -2941,6 +3055,10 @@ func TestGeneratePolicies(t *testing.T) {
 			11: {
 				MaintainedAppID: 4,
 				Slug:            "fma4/darwin",
+			},
+			13: {
+				MaintainedAppID: 5,
+				Slug:            "fma5/darwin",
 			},
 		},
 		ScriptList: map[uint]string{

@@ -100,6 +100,7 @@ type generateGitopsClient interface {
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
+	GetPatchDeadlineSettings(teamID uint) (*fleet.PatchDeadlineSettings, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -600,6 +601,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
 				return ErrGeneric
+			}
+			if cmd.AppConfig.License.IsPremium() {
+				if software == nil {
+					software = map[string]any{}
+				}
+				deadline, err := cmd.Client.GetPatchDeadlineSettings(team.ID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting patch deadline settings for %s: %s\n", teamFileName, err)
+					return ErrGeneric
+				}
+				// Not fleet.PatchDeadlineSettings, whose fleet_id key gitops rejects.
+				software["patch_deadline_settings"] = map[string]any{
+					"days": deadline.Days,
+					"time": deadline.Time,
+				}
 			}
 			if software == nil {
 				cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = nil
@@ -1947,6 +1963,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
+			policySpec[jsonFieldName(t, "PatchDeadline")] = policy.PatchDeadline
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2471,11 +2488,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
-				// open query, which gitops rejects.
+				// With patch_when_closed, notify_before_patching, or patch_deadline on, this holds Fleet's
+				// managed app open query, which gitops rejects.
 				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
 				if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
-					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
+					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching && !patchPolicy.PatchDeadline)) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
