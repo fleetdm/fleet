@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.2610221515",
+      "version": "4.3.2610271109",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop' AND version_compare(bundle_short_version, '4.3.2610221515') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.workflowy.desktop' AND version_compare(bundle_short_version, '4.3.2610271109') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.workflowy.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/workflowy/desktop/releases/download/v4.3.2610221515/WorkFlowy.zip",
+      "installer_url": "https://github.com/workflowy/desktop/releases/download/v4.3.2610271109/WorkFlowy.zip",
       "install_script_ref": "574a9d14",
       "uninstall_script_ref": "304e1468",
-      "sha256": "6edf7694954d15c48171f9c2af6bb4a3d599c7def15c1be12536ce566d851cca",
+      "sha256": "ea9056ba8f0bece6359fc5c4a9f8d5485d72047bf1f1b6ffa3948bdcf73577fb",
       "default_categories": [
         "Productivity"
       ]

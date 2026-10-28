@@ -2,14 +2,20 @@
 
 ## Purpose
 
-Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet Device Management is the open-core company behind the leading AI-native device management platform for Windows, Apple, Linux, Android, and more. Today, Fleet enrolls millions of devices and infrastructure at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
-Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
-- 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
-- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
-- 🪟 reducing complexity by eliminating tool overlap from multiple traditional systems.
+Fleet is dedicated to:
+- 🔌 giving IT admins the time to transform themselves into 5x AI engineers, cutting [KTLO](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32) so they can build the future. With AI and human review, experts can one-shot entire IT projects in minutes.
+- 🪟 unbundling the Microsoft suite and dispelling misconceptions about what is and isn't possible. Customers should choose the right IdP, MDM, EDR, and office suite for their needs, not their vendors'.
+- 🐧 remaining the best Linux management option on the market and the premier solution for managing every distro, deskside hardware, and new devices like ARM PCs and NVIDIA's DGX series.
+
+With Fleet, customers reduce maintenance effort by 50-80%, speed up employee onboarding by 98% (often down to under 5-10 minutes), and cut onboarding tickets and errors from 80-90% to less than 1%, compared with Intune, Jamf, Ivanti, and Workspace ONE.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
+
+> "If our grandchildren are going to be monitored all the time, at least let's set the precedent that they're monitored with open-source software."
+>
+> Mike McNeil, CEO
 
 
 ## Culture

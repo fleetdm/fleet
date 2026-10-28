@@ -791,6 +791,27 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 	return fleet.ApplyQuerySpecsResponse{}, nil
 }
 
+// validateQueryNamesUnderCollation rejects two queries for the same team whose names the name column's collation treats as equal,
+// which would otherwise be upserted into one row.
+func (svc *Service) validateQueryNamesUnderCollation(ctx context.Context, queries []*fleet.Query) error {
+	namesByTeam := make(map[uint][]string)
+	for _, query := range queries {
+		teamID := ptr.ValOrZero(query.TeamID)
+		namesByTeam[teamID] = append(namesByTeam[teamID], query.Name)
+	}
+	for _, names := range namesByTeam {
+		duplicateIndex, found, err := findDuplicateNameUnderCollation(ctx, svc.ds, names)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking for duplicate report names")
+		}
+		if found {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("name",
+				fmt.Sprintf("Couldn't edit reports. More than one report has the same name: %q", names[duplicateIndex])))
+		}
+	}
+	return nil
+}
+
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
 	// 1. Validate each spec (nil, premium label scoping, payload verification)
 	// and turn it into a query. Fail-fast on the first invalid spec.
@@ -830,6 +851,9 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 				Message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
+	}
+	if err := svc.validateQueryNamesUnderCollation(ctx, queries); err != nil {
+		return err
 	}
 	// 3. Apply the queries.
 
