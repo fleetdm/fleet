@@ -1450,6 +1450,122 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 	require.NotContains(t, script, "/usr/sbin/installer")
 }
 
+// TestUninstallScriptRmdirResolvesHome guards against emitting a single-quoted
+// "~" path to rmdir, where it never expands and the directory is always left
+// behind.
+func TestUninstallScriptRmdirResolvesHome(t *testing.T) {
+	newCask := func(dirs ...string) *brewCask {
+		return &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Zap: []*brewUninstall{
+						{RmDir: optjson.StringOr[[]string]{IsOther: true, Other: dirs}},
+					},
+				},
+			},
+		}
+	}
+
+	script := uninstallScriptForApp(inputApp{}, newCask("~/Library/Application Support/Cycling '74", "/Library/Google"))
+	require.Contains(t, script, `LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	require.Contains(t, script, `remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Cycling '\''74'`)
+	require.Contains(t, script, `remove_empty_dir "$LOGGED_IN_USER" '/Library/Google'`)
+	require.NotContains(t, script, "sudo rmdir '")
+
+	// Casks trash a vendor folder's contents and rmdir the folder itself, often
+	// from another entry or stanza, so every trash has to run first.
+	script = uninstallScriptForApp(inputApp{}, &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{RmDir: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor"}},
+				},
+			},
+			{
+				Zap: []*brewUninstall{
+					{
+						Trash: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor/App"},
+						RmDir: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor"},
+					},
+					{Trash: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor/App"}},
+				},
+			},
+		},
+	})
+	require.True(t, strings.HasSuffix(script, `
+trash "$LOGGED_IN_USER" '~/Library/Application Support/Vendor/App'
+trash "$LOGGED_IN_USER" '~/Library/Caches/Vendor/App'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Vendor'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Vendor'
+`), script)
+
+	// Children go before their parents, so nested folders that end up empty are
+	// all removed.
+	script = uninstallScriptForApp(inputApp{}, newCask("~/Library/Caches/Mozilla", "~/Library/Caches/Mozilla/updates", "~/Library/Caches/Mozilla/updates/Applications", "/Library/Vendor"))
+	require.True(t, strings.HasSuffix(script, `
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates/Applications'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla'
+remove_empty_dir "$LOGGED_IN_USER" '/Library/Vendor'
+`), script)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, stubs string, dirs ...string) string {
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, newCask(dirs...))).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("expands tilde to the console user's home", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Zotero", "~/Library/Caches/Foo Bar", "~", "/Library/Google", "/tmp/~/x")
+		require.Equal(t, "rmdir /Users/alice/Library/Caches/Foo Bar\nrmdir /tmp/~/x\nrmdir /Library/Google\nrmdir /Users/alice/Zotero\nrmdir /Users/alice\n", out)
+	})
+
+	t.Run("skips home paths without a console user", func(t *testing.T) {
+		stubs := `scutil() { :; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Zotero", "/Library/Google")
+		require.Equal(t, "rmdir /Library/Google\n", out)
+
+		stubs = `scutil() { echo "  Name : loginwindow"; }
+sudo() { echo "$*"; }
+`
+		out = run(t, stubs, "~/Zotero", "/Library/Google")
+		require.Equal(t, "rmdir /Library/Google\n", out)
+	})
+
+	t.Run("removes only empty directories, quietly", func(t *testing.T) {
+		tmp := t.TempDir()
+		empty := filepath.Join(tmp, "empty dir")
+		full := filepath.Join(tmp, "full")
+		require.NoError(t, os.Mkdir(empty, 0o755))
+		require.NoError(t, os.Mkdir(full, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(full, "data"), []byte("keep"), 0o600))
+		nested := filepath.Join(tmp, "nested")
+		require.NoError(t, os.MkdirAll(filepath.Join(nested, "a", "b"), 0o755))
+
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { "$@"; }
+`
+		out := run(t, stubs, nested, filepath.Join(nested, "a"), filepath.Join(nested, "a", "b"), empty, full, filepath.Join(tmp, "missing"))
+		require.Empty(t, out)
+		require.NoDirExists(t, empty)
+		require.NoDirExists(t, nested)
+		require.FileExists(t, filepath.Join(full, "data"))
+	})
+}
+
 // varNameDerivation is the line both generated functions share.
 const varNameDerivation = `  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"`
 
