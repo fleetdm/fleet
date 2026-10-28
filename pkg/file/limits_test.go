@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/blakesmith/ar"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,6 +46,26 @@ func zlibCompress(t *testing.T, b []byte) []byte {
 	require.NoError(t, err)
 	require.NoError(t, zw.Close())
 	return buf.Bytes()
+}
+
+func TestLimitedReaderBoundary(t *testing.T) {
+	setMemberLimit(t, 1024)
+
+	// Exactly at the cap must succeed, both when the reader reports EOF with
+	// the final bytes and when it reports EOF only on the next call.
+	exact := bytes.Repeat([]byte("x"), 1024)
+	got, err := readAllLimited(bytes.NewReader(exact))
+	require.NoError(t, err)
+	require.Len(t, got, 1024)
+
+	got, err = readAllLimited(iotest.DataErrReader(bytes.NewReader(exact)))
+	require.NoError(t, err)
+	require.Len(t, got, 1024)
+
+	// One byte past the cap must fail.
+	_, err = readAllLimited(bytes.NewReader(append(exact, 'x')))
+	require.ErrorIs(t, err, errMemberTooLarge)
+	require.ErrorIs(t, err, ErrInvalidInstaller)
 }
 
 func TestExtractZIPMetadataRejectsOversizedInfoPlist(t *testing.T) {
@@ -154,28 +175,30 @@ func TestDecodePropertyTableRejectsOutOfRangeStringIndex(t *testing.T) {
 	strs := []string{"ProductName", "Fleet"}
 	tbl := &msiTable{Name: "Property", Cols: []msiColumn{{Attributes: uint16(msiString)}, {Attributes: uint16(msiStringLocalized)}}}
 
-	for _, idx := range []uint16{0, 99} {
-		// Two rows, column-major: keys then values. Index 1-based into strs.
+	// Two rows, column-major: keys then values, 1-based into strs. Each layout
+	// puts one out-of-range index in either the key or the value column.
+	for _, layout := range [][]uint16{{1, 0, 2, 2}, {1, 99, 2, 2}, {1, 2, 2, 0}, {1, 2, 2, 99}} {
 		var b bytes.Buffer
-		for _, v := range []uint16{1, idx, 2, 2} {
+		for _, v := range layout {
 			require.NoError(t, binary.Write(&b, binary.LittleEndian, v))
 		}
 		_, err := decodePropertyTable(&b, tbl, strs)
-		require.Error(t, err, "index %d", idx)
+		require.Error(t, err, "layout %v", layout)
 	}
 }
 
 func TestDecodePropertyTableColumnsRejectsOutOfRangeStringIndex(t *testing.T) {
 	strs := []string{"Property", "Value"}
 
-	for _, idx := range []uint16{0, 99} {
-		// One row, column-major: table name id, col number, col name id, attrs.
+	// One row, column-major: table name id, col number, col name id, attrs.
+	// First the table-name id is out of range, then the column-name id.
+	for _, layout := range [][]uint16{{0, 1, 1, uint16(msiString)}, {99, 1, 1, uint16(msiString)}, {1, 1, 0, uint16(msiString)}, {1, 1, 99, uint16(msiString)}} {
 		var b bytes.Buffer
-		for _, v := range []uint16{idx, 1, 1, uint16(msiString)} {
+		for _, v := range layout {
 			require.NoError(t, binary.Write(&b, binary.LittleEndian, v))
 		}
 		_, err := decodePropertyTableColumns(&b, strs)
-		require.Error(t, err, "index %d", idx)
+		require.Error(t, err, "layout %v", layout)
 	}
 }
 
@@ -196,6 +219,6 @@ func TestExtractInstallerMetadataReturnsErrorOnParserPanic(t *testing.T) {
 	tfr := keepFileReader(t, "panic.deb", deb.Bytes())
 	require.NotPanics(t, func() {
 		_, err := ExtractInstallerMetadata(tfr)
-		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidInstaller)
 	})
 }

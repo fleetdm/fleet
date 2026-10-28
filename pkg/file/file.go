@@ -48,7 +48,7 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (meta *InstallerMetadat
 	// handler, where a panic would take down the process.
 	defer func() {
 		if r := recover(); r != nil {
-			meta, err = nil, fmt.Errorf("parsing installer: %v", r)
+			meta, err = nil, fmt.Errorf("%w: parsing installer: %v", ErrInvalidInstaller, r)
 		}
 	}()
 
@@ -328,7 +328,12 @@ func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
 // small, highly compressible installer could expand to gigabytes.
 var maxMetadataMemberSize int64 = 128 << 20
 
-var errMemberTooLarge = errors.New("installer metadata member exceeds size limit")
+// ErrInvalidInstaller marks failures caused by the installer's own content
+// (oversized members, malformed tables, parser panics) so callers can report a
+// bad upload rather than a server error.
+var ErrInvalidInstaller = errors.New("invalid installer")
+
+var errMemberTooLarge = fmt.Errorf("%w: archive member exceeds size limit", ErrInvalidInstaller)
 
 // limitedReader fails with errMemberTooLarge once more than limit bytes have
 // been read, unlike io.LimitReader which silently truncates.
@@ -342,17 +347,19 @@ func newLimitedReader(r io.Reader) *limitedReader {
 }
 
 func (l *limitedReader) Read(p []byte) (int, error) {
-	if l.remaining <= 0 {
+	if l.remaining < 0 {
 		return 0, errMemberTooLarge
 	}
+	// Read at most one byte past the limit: that byte is what proves the
+	// member is too large, and when remaining is 0 it doubles as the EOF probe
+	// for a member of exactly the limit.
 	if int64(len(p)) > l.remaining+1 {
-		// Read one past the limit so the overflow is detected on this call.
 		p = p[:l.remaining+1]
 	}
 	n, err := l.r.Read(p)
 	l.remaining -= int64(n)
 	if l.remaining < 0 {
-		return n, errMemberTooLarge
+		return 0, errMemberTooLarge
 	}
 	return n, err
 }

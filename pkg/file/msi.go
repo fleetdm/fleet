@@ -174,7 +174,7 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 // packages can set to 0 or past the end of the table.
 func msiStringAt(strings []string, idx uint16) (string, error) {
 	if idx == 0 || int(idx) > len(strings) {
-		return "", fmt.Errorf("string table index %d out of range (%d strings)", idx, len(strings))
+		return "", fmt.Errorf("%w: string table index %d out of range (%d strings)", ErrInvalidInstaller, idx, len(strings))
 	}
 	return strings[idx-1], nil
 }

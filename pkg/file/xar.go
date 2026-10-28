@@ -281,7 +281,7 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 
 func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
 	if f.Data == nil {
-		return nil, fmt.Errorf("file %s has no data section", f.Name)
+		return nil, fmt.Errorf("%w: file %s has no data section", ErrInvalidInstaller, f.Name)
 	}
 	var fileReader io.Reader
 	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)

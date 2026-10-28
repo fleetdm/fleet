@@ -2707,6 +2707,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
+		if errors.Is(err, file.ErrInvalidInstaller) {
+			return "", &fleet.BadRequestError{
+				Message:     "Uploaded file is not a valid installer package.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
