@@ -53,9 +53,11 @@ func (m *MockActivityService) NewActivity(ctx context.Context, user *activity_ap
 
 // NewActivities delegates to Delegate when set, then runs NewActivityFunc for each activity so tests intercept them one by one.
 func (m *MockActivityService) NewActivities(ctx context.Context, user *activity_api.User, activities []activity_api.ActivityDetails) error {
-	m.mu.Lock()
-	m.NewActivityFuncInvoked = true
-	m.mu.Unlock()
+	if len(activities) > 0 {
+		m.mu.Lock()
+		m.NewActivityFuncInvoked = true
+		m.mu.Unlock()
+	}
 	if m.Delegate != nil {
 		if err := m.Delegate.NewActivities(ctx, user, activities); err != nil {
 			return err

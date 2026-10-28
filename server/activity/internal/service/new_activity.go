@@ -146,7 +146,8 @@ func (s *Service) fireHostActivitiesWebhooks(
 	if err != nil {
 		// A transient failure here must not fail the surrounding operation recording the activities. Partial results are discarded:
 		// an incomplete hook list could deliver to some fleets and silently miss others.
-		s.logger.ErrorContext(ctx, "get host activities webhooks", slog.String("err", err.Error()))
+		s.logger.ErrorContext(ctx, "get host activities webhooks",
+			slog.String("activity", activities[0].ActivityName()), slog.Int("activities", len(activities)), slog.String("err", err.Error()))
 		return
 	}
 	for _, hook := range hooks {
