@@ -1436,7 +1436,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec1, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},

@@ -1130,6 +1130,19 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				Password:     maskSecret("some-smallstep-password", includeSecrets),
 			},
 		},
+		EJBCA: []fleet.EJBCA{
+			{
+				Name:                          "some-ejbca-name",
+				URL:                           "https://some-ejbca-url.com",
+				TrustCABundlePEM:              "-----BEGIN CERTIFICATE-----\nsome-ejbca-trust-bundle\n-----END CERTIFICATE-----\n",
+				CertificateAuthorityName:      "some-ejbca-certificate-authority-name",
+				CertificateProfileName:        "some-ejbca-certificate-profile-name",
+				EndEntityProfileName:          "some-ejbca-end-entity-profile-name",
+				CertificateCommonName:         "some-ejbca-certificate-common-name",
+				UsernameTemplate:              "some-ejbca-username-template",
+				CertificateUserPrincipalNames: []string{"some-ejbca-certificate-user-principal-name"},
+			},
+		},
 		GoogleCAS: []fleet.GoogleCASCA{
 			{
 				Name:       "some-google-cas-name",
@@ -4039,4 +4052,28 @@ func (c *noVPPTokenClient) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.S
 	}
 	title.AppStoreApp.VPPToken = nil
 	return title, nil
+}
+
+// Omitting enable_profile_validation means true, so a false must be exported on every tier
+// or applying the generated files would turn validation back on.
+func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
+	for _, free := range []bool{true, false} {
+		t.Run(fmt.Sprintf("free=%t", free), func(t *testing.T) {
+			client := &MockClient{IsFree: free}
+			appConfig, err := client.GetAppConfig()
+			require.NoError(t, err)
+			appConfig.MDM.EnableProfileValidation = false
+			cmd := &GenerateGitopsCommand{
+				Client:       client,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+			controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+			require.NoError(t, err)
+			require.Equal(t, false, controls["enable_profile_validation"])
+		})
+	}
 }

@@ -3677,7 +3677,7 @@ func (ds *Datastore) GetAppStoreAppVersionCount(ctx context.Context, teamID *uin
 }
 
 // GetDuplicateStringGroupsUnderCollation returns groups of strings from values that are duplicates under the utf8mb4_unicode_ci collation,
-// as the indices of the strings in values, one group per set of duplicates.
+// as the indices of the strings in values, one group per set of duplicates. Strings longer than 255 characters are never in a group.
 func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
 	valuesJSON, err := json.Marshal(values)
 	if err != nil {
@@ -3685,7 +3685,8 @@ func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context,
 	}
 
 	// Turn the JSON array into one row per string: '$[*]' reads each array element, PATH '$' reads the element itself,
-	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values
+	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values. A string too long for the column is read
+	// as NULL, so skip NULLs, or all such strings would group together.
 	var groupsJSON []string
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groupsJSON, `
 SELECT JSON_ARRAYAGG(jt.value_index - 1)
@@ -3693,6 +3694,7 @@ FROM JSON_TABLE(?, '$[*]' COLUMNS (
 	value_index FOR ORDINALITY,
 	value VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
 )) jt
+WHERE jt.value IS NOT NULL
 GROUP BY jt.value
 HAVING COUNT(*) > 1
 ORDER BY MIN(jt.value_index)`, valuesJSON)

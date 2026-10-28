@@ -1437,6 +1437,30 @@ func (ds *Datastore) applyHostFilters(
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		whereParams = append(whereParams, *softwareIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
+		// Reject a version or package filter that isn't one of the title's in the fleet
+		if opt.AppStoreAppVersionIDFilter != nil {
+			_, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id is not a version of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+			}
+		}
+		if opt.SoftwareInstallerIDFilter != nil {
+			_, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.SoftwareInstallerIDFilter, false)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id is not a package of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get software installer for title")
+			}
+		}
+
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
@@ -1469,17 +1493,6 @@ func (ds *Datastore) applyHostFilters(
 					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
-				}
-				if opt.AppStoreAppVersionIDFilter != nil {
-					_, err = ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
-					switch {
-					case fleet.IsNotFound(err):
-						return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-							Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
-						}, "mismatched child id for title")
-					case err != nil:
-						return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
-					}
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
@@ -4719,13 +4732,16 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
-func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
 	const (
 		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 	)
 
+	var resentCerts []fleet.ActivityTypeResentCertificate
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+
 		// Only a device-reported mapping takes its SCIM link with it, or the
 		// device-asserted link would outlive the manual value. The caller then
 		// links the user matching the new value.
@@ -4735,24 +4751,67 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			hostID, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "check for Entra join device mapping")
 		}
+		// A linked SCIM user supplies the IdP username, and adding or removing
+		// the link resends the profiles that use it.
+		var hadSCIMUser bool
+		if err := sqlx.GetContext(ctx, tx, &hadSCIMUser,
+			`SELECT EXISTS (SELECT 1 FROM host_scim_user WHERE host_id = ?)`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check for host SCIM user mapping")
+		}
+		// the IdP username variables resolve from the mappings replaced below
+		var prevUsernames []string
+		if err := sqlx.SelectContext(ctx, tx, &prevUsernames,
+			`SELECT email FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`,
+			hostID, fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
+			return ctxerr.Wrap(ctx, err, "get existing IDP usernames")
+		}
+		if len(prevUsernames) == 0 {
+			// no mapping resolves the same as an empty one
+			prevUsernames = []string{""}
+		}
+		// profiles get the value as stored, so a change in case alone resends too
+		usernameChanged := slices.ContainsFunc(prevUsernames, func(prev string) bool {
+			return prev != email
+		})
 		// the manual mapping replaces the authenticated and device-reported ones
 		if _, err := tx.ExecContext(ctx, delStmt, hostID,
 			fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
 		if hadEntraJoin {
-			if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			certs, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 			}
+			resentCerts = append(resentCerts, certs...)
 		}
 
 		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 
+		if !hadSCIMUser && usernameChanged {
+			// without a SCIM user, the IdP username variables resolve to this value
+			vars := []fleet.FleetVarName{
+				fleet.FleetVarHostEndUserIDPUsername,
+				fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			}
+			certs, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
+			if err != nil {
+				return err
+			}
+			if err := triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID}, vars); err != nil {
+				return err
+			}
+			resentCerts = append(resentCerts, certs...)
+		}
+
 		return nil
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {

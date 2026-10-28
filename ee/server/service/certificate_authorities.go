@@ -164,24 +164,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		if err := svc.validateEJBCA(ctx, p.EJBCA, errPrefix); err != nil {
 			return nil, err
 		}
-		caToCreate.Type = string(fleet.CATypeEJBCA)
-		caToCreate.Name = &p.EJBCA.Name
-		caToCreate.URL = &p.EJBCA.URL
-		caToCreate.MTLSCertPEM = &p.EJBCA.MTLSCertPEM
-		caToCreate.MTLSKeyPEM = &p.EJBCA.MTLSKeyPEM
-		if p.EJBCA.TrustCABundlePEM != "" {
-			caToCreate.TrustCABundlePEM = &p.EJBCA.TrustCABundlePEM
-		}
-		caToCreate.EJBCACAName = &p.EJBCA.CertificateAuthorityName
-		caToCreate.EJBCACertificateProfileName = &p.EJBCA.CertificateProfileName
-		caToCreate.EJBCAEndEntityProfileName = &p.EJBCA.EndEntityProfileName
-		caToCreate.CertificateCommonName = &p.EJBCA.CertificateCommonName
-		if p.EJBCA.UsernameTemplate != "" {
-			caToCreate.EJBCAUsernameTemplate = &p.EJBCA.UsernameTemplate
-		}
-		if len(p.EJBCA.CertificateUserPrincipalNames) > 0 {
-			caToCreate.CertificateUserPrincipalNames = &p.EJBCA.CertificateUserPrincipalNames
-		}
+		caToCreate = p.EJBCA.CertificateAuthority()
 		caDisplayType = "EJBCA"
 		activity = fleet.ActivityAddedEJBCA{Name: p.EJBCA.Name}
 	}
@@ -559,7 +542,7 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	if opts.SkipDeletes {
-		ops.Delete = nil
+		ops.Delete = deletesFreeingEJBCANames(ops)
 	}
 
 	if opts.DryRun {
@@ -568,6 +551,9 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	if err := svc.ds.BatchApplyCertificateAuthorities(ctx, *ops); err != nil {
+		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
+			return &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + err.Error()}
+		}
 		return err
 	}
 
@@ -576,6 +562,19 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	return nil
+}
+
+// deletesFreeingEJBCANames returns the deletes that have to run together with the adds and updates, because an EJBCA CA can't share a
+// name with a CA of another type. That is a CA that gives up its name to an EJBCA CA, or an EJBCA CA that gives up its name to another
+// type. The other deletes are left out, so that they can run after the certificate templates that use the CAs are cleaned up.
+func deletesFreeingEJBCANames(ops *fleet.CertificateAuthoritiesBatchOperations) []*fleet.CertificateAuthority {
+	upserts := slices.Concat(ops.Add, ops.Update)
+	return slices.DeleteFunc(slices.Clone(ops.Delete), func(deleted *fleet.CertificateAuthority) bool {
+		return !slices.ContainsFunc(upserts, func(upserted *fleet.CertificateAuthority) bool {
+			return deleted.Name != nil && upserted.Name != nil && caNameKey(*deleted.Name) == caNameKey(*upserted.Name) &&
+				(deleted.Type == string(fleet.CATypeEJBCA)) != (upserted.Type == string(fleet.CATypeEJBCA))
+		})
+	})
 }
 
 func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context, incoming fleet.GroupedCertificateAuthorities) (*fleet.CertificateAuthoritiesBatchOperations, error) {
@@ -592,11 +591,19 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
+	ejbcaNames := make(map[string]string)
 	checkAllNames := func(name, caType, displayCAType string) error {
 		key := caNameKey(name)
-		for i := 0; i < len(allNames[key]); i++ {
-			if allNames[key][i] == caType {
+		if caType == "ejbca" {
+			ejbcaNames[key] = name
+		}
+		for _, seenType := range allNames[key] {
+			if seenType == caType {
 				return fmtDuplicateCANameError(name, caType, displayCAType)
+			}
+			// the name of an EJBCA CA can't be shared with a CA of another type
+			if (seenType == "ejbca") != (caType == "ejbca") {
+				return &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ejbcaNames[key]}.Error()}
 			}
 		}
 		allNames[key] = append(allNames[key], caType)
@@ -611,6 +618,18 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
+			return nil, err
+		}
+	}
+	// preprocess ejbca, in place so the trimmed names are the ones that get stored
+	for i := range incoming.EJBCA {
+		ca := &incoming.EJBCA[i]
+		ca.Preprocess()
+		if ca.Name == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.ejbca: CA name cannot be empty.")
+		}
+
+		if err := checkAllNames(ca.Name, "ejbca", "EJBCA"); err != nil {
 			return nil, err
 		}
 	}
@@ -678,6 +697,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 	if err := svc.processDigiCertCAs(ctx, batchOps, incoming.DigiCert, existing.DigiCert); err != nil {
+		return nil, err
+	}
+	if err := svc.processEJBCACAs(ctx, batchOps, incoming.EJBCA, existing.EJBCA); err != nil {
 		return nil, err
 	}
 	if err := svc.processCustomSCEPProxyCAs(ctx, batchOps, incoming.CustomScepProxy, existing.CustomScepProxy); err != nil {
@@ -834,6 +856,52 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 
 		if err := svc.validateDigicert(ctx, incoming, "certificate_authorities.digicert: "); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) processEJBCACAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.EJBCA, existingCAs []fleet.EJBCA) error {
+	const errPrefix = "certificate_authorities.ejbca: "
+
+	// Names are matched without regard to case, like the database does, so a rename that only changes the case is an update.
+	incomingNames := make(map[string]struct{}, len(incomingCAs))
+	for _, incoming := range incomingCAs {
+		incomingNames[caNameKey(incoming.Name)] = struct{}{}
+	}
+	existingByName := make(map[string]*fleet.EJBCA, len(existingCAs))
+	for _, existing := range existingCAs {
+		if _, ok := incomingNames[caNameKey(existing.Name)]; !ok {
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), Name: &existing.Name})
+		}
+		existingByName[caNameKey(existing.Name)] = &existing
+	}
+
+	// Note: caller is responsible for ensuring incoming list has no duplicates
+	for i := range incomingCAs {
+		incoming := &incomingCAs[i]
+		existing, found := existingByName[caNameKey(incoming.Name)]
+		if found {
+			// An unchanged CA isn't validated, so a client certificate that expired after it was stored doesn't block the other changes.
+			creds, err := parseEJBCAClientP12(ctx, incoming.ClientP12, incoming.Password, errPrefix)
+			if err != nil {
+				return err
+			}
+			candidate := *incoming
+			candidate.MTLSCertPEM, candidate.MTLSKeyPEM = creds.CertPEM, creds.KeyPEM
+			if candidate.Equals(existing) {
+				continue
+			}
+		}
+
+		if err := svc.validateEJBCA(ctx, incoming, errPrefix); err != nil {
+			return err
+		}
+		if found {
+			batchOps.Update = append(batchOps.Update, incoming.CertificateAuthority())
+		} else {
+			batchOps.Add = append(batchOps.Add, incoming.CertificateAuthority())
 		}
 	}
 
@@ -1084,6 +1152,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
 			}
+		case string(fleet.CATypeEJBCA):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedEJBCA{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for added EJBCA")
+			}
 		case string(fleet.CATypeGoogleCAS):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedGoogleCAS{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added Google CAS")
@@ -1116,6 +1188,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
 			}
+		case string(fleet.CATypeEJBCA):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedEJBCA{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for edited EJBCA")
+			}
 		case string(fleet.CATypeGoogleCAS):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedGoogleCAS{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited Google CAS")
@@ -1147,6 +1223,10 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 		case string(fleet.CATypeSmallstep):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted smallstep SCEP proxy")
+			}
+		case string(fleet.CATypeEJBCA):
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedEJBCA{Name: *ca.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deleted EJBCA")
 			}
 		case string(fleet.CATypeGoogleCAS):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedGoogleCAS{Name: *ca.Name}); err != nil {

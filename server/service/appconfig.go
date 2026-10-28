@@ -735,6 +735,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
+		// absent means true, so an older fleetctl that doesn't send the key
+		// can't turn validation off; the unmarshal below applies it if present
+		appConfig.MDM.EnableProfileValidation = true
 	}
 
 	// We apply the config that is incoming to the old one

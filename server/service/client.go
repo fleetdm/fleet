@@ -826,6 +826,7 @@ func (c *Client) ApplyGroup(
 			}
 			// Figure out if MDM should be enabled.
 			assumeEnabled := false
+			assumptions := &fleet.TeamSpecsDryRunAssumptions{}
 			// This cast is safe because we've already checked AppConfig when extracting custom settings
 			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 			if ok {
@@ -834,15 +835,18 @@ func (c *Client) ApplyGroup(
 					assumeEnabled, ok = mdmEnabled.(bool)
 					assumeEnabled = ok && assumeEnabled
 				}
+				if v, ok := mdmConfigMap["enable_profile_validation"].(bool); ok {
+					assumptions.EnableProfileValidation = optjson.SetBool(v)
+				}
 			}
+			assumptions.WindowsEnabledAndConfigured = optjson.SetBool(assumeEnabled)
 			profilesSpecOptions := opts.ApplySpecOptions
 			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
 			// this HTTP request gets routed to another Fleet server.
 			profilesSpecOptions.NoCache = true
 			warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig,
-				&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(assumeEnabled)},
-				nil, fleet.DisplayNameNoTeam, fileContents, logfn)
-			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
+				assumptions, nil, fleet.DisplayNameNoTeam, fileContents, logfn)
+			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumptions); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 			if opts.DryRun {
@@ -2577,6 +2581,18 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
 		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
 			mdmAppConfig["only_allow_apple_business_enrollment"] = false
+		}
+
+		// unlike the other controls booleans, omitted means true
+		mdmAppConfig["enable_profile_validation"] = incoming.Controls.EnableProfileValidation
+		if incoming.Controls.EnableProfileValidation == nil {
+			mdmAppConfig["enable_profile_validation"] = true
+		}
+		if v, ok := mdmAppConfig["enable_profile_validation"].(bool); ok {
+			if teamAssumptions == nil {
+				teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{}
+			}
+			teamAssumptions.EnableProfileValidation = optjson.SetBool(v)
 		}
 
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured

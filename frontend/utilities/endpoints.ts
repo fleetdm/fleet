@@ -312,6 +312,8 @@ export default {
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
+  AUTOFILL_CONFIG_PROFILE_NAME_DESCRIPTION: `/${API_VERSION}/fleet/autofill/configuration_profile/name_description`,
+  AUTOFILL_CONFIG_PROFILE_CONTENT: `/${API_VERSION}/fleet/autofill/configuration_profile/content`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

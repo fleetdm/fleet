@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -3094,7 +3095,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID}, // stays nil
-		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": 1}`)}, // updates
+		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": {"key": 1}}`)}, // updates
 		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},
 		{VPPAppID: app4.VPPAppID, Configuration: config1},
 	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
@@ -3122,7 +3123,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	}
 
 	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration)
-	require.Equal(t, []byte(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, []byte(`{"managedConfiguration": {"key": 1}}`), assigned[app2.VPPAppID].Configuration)
 	require.Equal(t, []byte(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
 
@@ -5754,6 +5755,12 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Zero(t, versionCount)
 	}
+
+	// names equal by case, accents or trailing spaces are grouped, names too long for the column never are
+	longName := strings.Repeat("a", 256)
+	groups, err := ds.GetDuplicateStringGroupsUnderCollation(ctx, []string{longName, longName + "b", "alpha", "Beta", "gamma", "bêta", "Gamma", "beta "})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.DuplicateStringGroup{{Indices: []int{3, 5, 7}}, {Indices: []int{4, 6}}}, groups)
 }
 
 func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
