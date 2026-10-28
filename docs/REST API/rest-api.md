@@ -1830,23 +1830,15 @@ None.
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ]
-    },
     "apple_settings": {
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/declaration.json",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         }
       ],
       "enable_disk_encryption": true,
@@ -1862,16 +1854,10 @@ None.
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-         "path": "path/to/profile2.xml",
-         "labels": ["Label 3", "Label 4"]
-        }
-      ],
       "configuration_profiles": [
         {
          "path": "path/to/profile2.xml",
-         "labels": ["Label 3", "Label 4"]
+         "labels_include_all": ["Label 3", "Label 4"]
         }
       ],
       "enable_disk_encryption": true,
@@ -1903,11 +1889,11 @@ None.
       "end_user_local_account_type": "admin"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": false,
-      "manual_agent_install": false,
+      "apple_enable_release_device_manually": false,
+      "macos_manual_agent_install": false,
       "enable_managed_local_account": false,
       "end_user_local_account_type": "admin"
     },
@@ -2233,22 +2219,6 @@ Modifies the Fleet's configuration with the supplied information.
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        },
-        {
-          "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"]
-        },
-        {
-          "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"]
-        }
-      ]
-    },
     "apple_settings": {
       "configuration_profiles": [
         {
@@ -2277,12 +2247,6 @@ Modifies the Fleet's configuration with the supplied information.
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        }
-      ],
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
@@ -2316,7 +2280,7 @@ Modifies the Fleet's configuration with the supplied information.
       "macos_setup_assistant": "path/to/config.json"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "enable_managed_local_account": false,
       "end_user_local_account_type": "admin",
@@ -3104,11 +3068,11 @@ _Available in Fleet Premium._
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels_include_all": ["Label 3", "Label 4"]
         },
       ],
       "enable_disk_encryption": true,
@@ -3126,7 +3090,7 @@ _Available in Fleet Premium._
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         }
       ],
       "enable_disk_encryption": true,
@@ -3148,7 +3112,7 @@ _Available in Fleet Premium._
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
@@ -4364,10 +4328,6 @@ Returns the information of the specified host.
       "device_status": "unlocked",
       "pending_action": "",
       "bootstrap_token_escrowed": true,
-      "macos_settings": {
-        "disk_encryption": "verified",
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4704,10 +4664,6 @@ Returns the information of the specified host.
       "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5183,10 +5139,6 @@ If `hostname` is specified when there is more than one host with the same hostna
       "server_url": null,
       "device_status": "unlocked",
       "pending_action": "lock",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5464,10 +5416,6 @@ If `hostname` is specified when there is more than one host with the same hostna
       "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5909,10 +5857,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "bootstrap_token_escrowed": true,
-      "macos_settings": {
-        "disk_encryption": "verified",
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -16659,23 +16603,15 @@ _Available in Fleet Premium_
         "deadline_days": 5,
         "grace_period_days": 1
       },
-      "macos_settings": {
-        "custom_settings": [
-          {
-            "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
-          }
-        ]
-      },
       "apple_settings": {
         "configuration_profiles": [
           {
             "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
+            "labels_include_all": ["Label 1", "Label 2"]
           },
           {
             "path": "path/to/declaration.json",
-            "labels": ["Label 1", "Label 2"]
+            "labels_include_all": ["Label 1", "Label 2"]
           },
           {
             "path": "path/to/assets/asset.json"
@@ -16693,16 +16629,10 @@ _Available in Fleet Premium_
         }
       },
       "windows_settings": {
-        "custom_settings": [
-          {
-            "path": "path/to/profile2.xml",
-            "labels": ["Label 3", "Label 4"]
-          }
-        ],
         "configuration_profiles": [
           {
             "path": "path/to/profile2.xml",
-            "labels": ["Label 3", "Label 4"]
+            "labels_include_all": ["Label 3", "Label 4"]
           }
         ],
         "enable_disk_encryption": true,
@@ -16720,13 +16650,13 @@ _Available in Fleet Premium_
         "manual_agent_install": false
       },
       "setup_experience": {
-        "bootstrap_package": "",
+        "macos_bootstrap_package": "",
         "enable_end_user_authentication": false,
         "enable_managed_local_account": false,
         "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
-        "enable_release_device_manually": false,
-        "manual_agent_install": false
+        "apple_enable_release_device_manually": false,
+        "macos_manual_agent_install": false
       }
     }
   }
@@ -17218,11 +17148,11 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels_include_all": ["Label 3", "Label 4"]
         },
       ],
       "enable_disk_encryption": true,
@@ -17237,16 +17167,10 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       }
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ],
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels_include_all": ["Label 1", "Label 2"]
         }
       ],
       "enable_disk_encryption": true,
@@ -17419,23 +17343,15 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "deadline_days": 5,
         "grace_period_days": 1
       },
-      "macos_settings": {
-        "custom_settings": [
-          {
-           "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
-          }
-        ]
-      },
       "apple_settings": {
         "configuration_profiles": [
           {
            "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
+           "labels_include_all": ["Label 1", "Label 2"]
           },
           {
            "path": "path/to/declaration.json",
-           "labels": ["Label 1", "Label 2"]
+           "labels_include_all": ["Label 1", "Label 2"]
           },
           {
            "path": "path/to/assets/asset.json"
@@ -17453,16 +17369,10 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         }
       },
       "windows_settings": {
-        "custom_settings": [
-          {
-           "path": "path/to/profile2.xml",
-           "labels": ["Label 3", "Label 4"]
-          }
-        ],
         "configuration_profiles": [
           {
            "path": "path/to/profile2.xml",
-           "labels": ["Label 3", "Label 4"]
+           "labels_include_all": ["Label 3", "Label 4"]
           }
         ],
         "enable_disk_encryption": true,
@@ -17478,7 +17388,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "macos_setup_assistant": "path/to/config.json"
       },
       "setup_experience": {
-        "bootstrap_package": "",
+        "macos_bootstrap_package": "",
         "enable_end_user_authentication": false,
         "apple_setup_assistant": "path/to/config.json"
       }
