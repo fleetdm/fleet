@@ -66,6 +66,7 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 var fastPathExcluded = map[string]struct{}{
 	"GET /api/_version_/fleet/hosts/identifier/{identifier}":                                 {},
 	"GET /api/_version_/fleet/hosts/{id}/activities":                                         {},
+	"GET /api/_version_/fleet/hosts/{id}/ai_sessions":                                        {},
 	"GET /api/_version_/fleet/hosts/{id}/certificates":                                       {},
 	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":                             {},
 	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":                                     {},
