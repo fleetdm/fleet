@@ -34,7 +34,7 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 ### Triage new requests
 
-The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
+The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) daily, newest first, and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label. Every new request, from customers, prospects, and the community, is [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one business day.
 
 Once labeled, each Product Designer (PD) reviews the inbox and triages every new labeled request:
 
@@ -44,6 +44,20 @@ Once labeled, each Product Designer (PD) reviews the inbox and triages every new
 
 
 ### Unpacking the why
+
+A request is unpacked when a comment on the GitHub issue includes:
+
+- **Problem ("the why"):** What the user is trying to accomplish and why Fleet doesn't solve it today.
+- **Proposed solution:** How Fleet would solve it, including any workaround available today. If there's no proposed solution, write "No plans."
+- **Timing:** When we expect to ship it (e.g., a release, a quarter, or a customer promise date). If there's no timing, write "No plans."
+
+Example:
+
+```
+**Problem:** IT admins want to preserve the iOS/iPadOS data plan when wiping a device so the device stays connected after the wipe (available in Jamf).
+**Proposed solution:** Add a `PreserveDataPlan` option to the wipe action in the UI and API. Workaround today: send a custom MDM command.
+**Timing:** No plans.
+```
 
 During this call, the relevant product group's Product Designer (PD) and a former IT admin review all requests tagged with the `~product-maturity` label (applied during [triage](#triage-new-requests)) to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.
 
