@@ -1,6 +1,6 @@
 # Fleet Desktop
 
-Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux. Learn more about [Linux support](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
+Fleet Desktop is a self-service portal for your end users. On macOS, it's an app. On Windows and Linux, it shows up in the system tray. Learn more about [Linux support](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
 
 Fleet Desktop unlocks two key benefits:
 
@@ -8,13 +8,30 @@ Fleet Desktop unlocks two key benefits:
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can optionally deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open this app everytime the end user logs in or restarts their Mac. 
-
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
 
+### Deploy the Fleet Desktop app on macOS
+
+The best practice on macOS is to deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin) and hide the Fleet Desktop menu bar icon. The app is required for [patch notifications](https://fleetdm.com/guides/patching-end-user-experience#force-patch-notify-before-patching) and Fleet's [Platform SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet). The menu bar icon is easy to lose (for example, behind the notch), and having both gives end users two places to look.
+
+1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app).
+2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
+3. Install it on existing Macs with a policy. Create a policy with the query below, then add the Fleet Desktop app to the policy's [install software automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). If an end user deletes the app, Fleet reinstalls it.
+
+```sql
+SELECT 1 FROM apps WHERE path = '/Applications/Fleet Desktop.app' AND bundle_identifier = 'com.fleetdm.fleet-desktop';
+```
+
+4. Optional: To open the app every time the end user logs in or restarts their Mac, deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig).
+5. [Hide the menu bar icon](#hide-the-menu-bar-icon-on-macos) on Macs that have the app.
+
+> If an end user quits the app, it stays closed until they log in again.
+
 ## Upgrade Fleet Desktop
-Once installed, Fleet Desktop will be automatically updated via Fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+Once installed, the Fleet Desktop menu bar icon and system tray item are automatically updated via fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+
+The Fleet Desktop app on macOS is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically), so fleetd doesn't update it. To keep it up to date on hosts, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
 
 ## Custom transparency link
 Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.
@@ -66,75 +83,102 @@ On the settings page, go to **Organization Settings > Fleet Desktop > End user a
 
 ### Hide the menu bar icon on macOS
 
-Some Fleet users want to hide the menu bar icon on macOS because of the limited menu bar "real estate." 
+If you deploy the [Fleet Desktop app](#deploy-the-fleet-desktop-app-on-macos), hide the menu bar icon so end users have one place to find self-service.
 
-If you're enrolling Macs manually, generate a Fleet agent (fleetd) without Fleet Desktop menu bar by excluding the `--fleet-desktop` flag from the `fleetctl package` command.
+Hiding the icon stops the Fleet Desktop menu bar process entirely, so Fleet doesn't show a Fleet Desktop version for these hosts. The Fleet Desktop app and patch notifications keep working.
 
-How to hide the menu bar if you're automatically enrolling Macs via Apple Business:
+If you're enrolling Macs manually, generate a Fleet agent (fleetd) without the Fleet Desktop menu bar icon by excluding the `--fleet-desktop` flag from the `fleetctl package` command.
+
+If you're automatically enrolling Macs via Apple Business, hide the icon with a script:
 
 1. Add this script to Fleet:
 
 ```sh
 #!/bin/sh
+# Hide the Fleet Desktop menu bar icon on Macs that have Fleet Desktop.app.
+# Sets ORBIT_FLEET_DESKTOP to false, then reloads orbit from a temporary LaunchDaemon,
+# because orbit runs this script and booting it out directly would kill the script too.
 
-if [ ! -f "/Library/LaunchDaemons/com.fleetdm.orbit.plist" ]; then
+ORBIT_PLIST="/Library/LaunchDaemons/com.fleetdm.orbit.plist"
+RELOAD_LABEL="com.fleetdm.hide-fleet-desktop-menu-bar"
+
+if [ ! -f "$ORBIT_PLIST" ]; then
     echo "Fleet's agent (fleetd) is not installed."
     exit 1
 fi
 
-/usr/bin/plutil -replace EnvironmentVariables.ORBIT_FLEET_DESKTOP -string "false" /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/usr/bin/plutil -replace EnvironmentVariables.ORBIT_FLEET_DESKTOP -string "false" "$ORBIT_PLIST" || exit 1
 
-# Reload the LaunchDaemon out-of-band. Bootout-ing it directly from this
-# script would kill this script too, since orbit is what's running it.
-cat << 'EOF' > /private/tmp/fleet-hide-desktop-reload.sh
+dir=$(/usr/bin/mktemp -d /private/tmp/fleet-hide-desktop.XXXXXX) || exit 1
+
+cat << EOF > "$dir/reload.sh"
 #!/bin/sh
 /bin/sleep 15
-/bin/launchctl bootout system /Library/LaunchDaemons/com.fleetdm.orbit.plist
-/bin/launchctl bootstrap system /Library/LaunchDaemons/com.fleetdm.orbit.plist
-/bin/launchctl bootout system /private/tmp/com.fleetdm.reload.plist
+/bin/launchctl bootout system "$ORBIT_PLIST"
+/usr/bin/pkill -x fleet-desktop
+count=0
+until /bin/launchctl bootstrap system "$ORBIT_PLIST"; do
+    count=\$((count + 1))
+    [ "\$count" -ge 30 ] && break
+    /bin/sleep 1
+done
+# If orbit still isn't loaded, exit nonzero so launchd reruns this job (KeepAlive) until it is.
+/bin/launchctl print "system/com.fleetdm.orbit" > /dev/null 2>&1 || exit 1
+/bin/launchctl kickstart "system/com.fleetdm.orbit"
+/bin/rm -rf "$dir"
+/bin/launchctl bootout "system/$RELOAD_LABEL"
 EOF
-chmod 744 /private/tmp/fleet-hide-desktop-reload.sh
 
-cat << 'EOF' > /private/tmp/com.fleetdm.reload.plist
+cat << EOF > "$dir/reload.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$RELOAD_LABEL</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>$dir/reload.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
     <dict>
-        <key>Label</key>
-        <string>com.fleetdm.reload</string>
-        <key>ProgramArguments</key>
-        <array>
-            <string>/bin/sh</string>
-            <string>/private/tmp/fleet-hide-desktop-reload.sh</string>
-        </array>
-        <key>RunAtLoad</key>
-        <true/>
+        <key>SuccessfulExit</key>
+        <false/>
     </dict>
+</dict>
 </plist>
 EOF
 
-/bin/launchctl bootstrap system /private/tmp/com.fleetdm.reload.plist
+if ! /bin/launchctl bootstrap system "$dir/reload.plist"; then
+    /bin/rm -rf "$dir"
+    echo "Couldn't schedule the fleetd reload. Is one already pending?"
+    exit 1
+fi
 
 echo "Fleet Desktop menu bar icon will be hidden in about 15 seconds."
-exit 0
 ```
 
-This stops the Fleet Desktop process entirely, not just its icon. So, end users lose the menu bar entry point to self-service. If they still need self-service, deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin).
-
-2. Go to a hosts's **Host details** page.
-3. Select **Actions > Run script** and run the hide script.
-
-To run this script automatically across all macOS hosts create a policy in Fleet with the following query:
+2. Create a policy with the following query. It passes when the menu bar icon is hidden and fleetd has reloaded:
 
 ```sql
-SELECT 1 FROM plist WHERE
-  path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist' AND
-  key = 'EnvironmentVariables' AND
-  subkey = 'ORBIT_FLEET_DESKTOP' AND
-  value = 'false';
+SELECT 1 FROM plist p, orbit_info o
+WHERE p.path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist'
+  AND p.key = 'EnvironmentVariables'
+  AND p.subkey = 'ORBIT_FLEET_DESKTOP'
+  AND p.value = 'false'
+  AND o.desktop_version = '';
 ```
 
-Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
+3. Target the policy to a label that includes only Macs with the Fleet Desktop app installed, so Macs without the app keep the menu bar icon. For example, a label with this query:
+
+```sql
+SELECT 1 FROM apps WHERE path = '/Applications/Fleet Desktop.app';
+```
+
+4. Add the hide script to the policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script).
 
 Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
 
