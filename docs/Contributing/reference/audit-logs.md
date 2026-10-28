@@ -865,6 +865,29 @@ This activity contains the following fields:
 }
 ```
 
+## edited_patch_deadline_settings
+
+Generated when the patch deadline days or time are modified for a fleet.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "days": Days of the week when the deadline applies.
+- "time": The deadline, formatted as `HH:MM` in the host's local time.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
+}
+```
+
 ## enabled_macos_update_new_hosts
 
 Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
@@ -1816,14 +1839,14 @@ This activity contains the following fields:
 
 ## notified_end_user_before_patching
 
-Generated when Fleet shows an end user a notification before patching.
+Generated when Fleet shows an end user a notification before patching, for patch policies with `notify_before_patching` or `patch_deadline` set to `true`.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
 - "status": Whether notification is displayed or failed.
-- "software_titles": Names of the software titles included in the notification.
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-team override).
 - "policy_ids": IDs of the patch policies included in the notification.
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
@@ -1837,7 +1860,10 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
-  "software_titles": ["1Password", "Slack"],
+  "software": [
+    { "title": "1Password", "title_id": 42, "display_name": "1Password 8" },
+    { "title": "Slack", "title_id": 57 }
+  ],
   "status": "success",
   "policy_ids": [1337, 1338],
   "time_before": 3600,
@@ -2057,13 +2083,13 @@ This activity contains the following fields:
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
-- "location": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- "organization_unit": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location."
 
 #### Example
 
 ```json
 {
-  "location": "Acme Inc."
+  "organization_unit": "Acme Inc."
 }
 ```
 
@@ -2072,13 +2098,13 @@ This activity contains the following fields:
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
-- "location": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- "organization_unit": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location."
 
 #### Example
 
 ```json
 {
-  "location": "Acme Inc."
+  "organization_unit": "Acme Inc."
 }
 ```
 
@@ -2091,6 +2117,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -2106,6 +2136,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "organization_unit": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -2172,12 +2207,18 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -2188,10 +2229,35 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
+  "vpp_token": {
+    "id": 2,
+    "organization_unit": "Acme Japan",
+    "country_code": "jp"
+  },
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
@@ -2241,6 +2307,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -2261,6 +2331,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "organization_unit": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
@@ -3813,6 +3888,51 @@ This activity contains the following fields:
 ```json
 {
 	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
+## added_ejbca
+
+Generated when EJBCA certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## edited_ejbca
+
+Generated when EJBCA certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## deleted_ejbca
+
+Generated when EJBCA certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
 }
 ```
 
