@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 // MSIX/Appx packages are why the uninstall-key scan is not enough on its own.
