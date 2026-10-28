@@ -271,12 +271,14 @@ func TestValidateCVEID(t *testing.T) {
 func TestParsePositiveUintString(t *testing.T) {
 	cases := []struct {
 		in      string
-		wantN   uint64
+		wantN   uint
 		wantErr bool
 	}{
 		{"1", 1, false},
 		{"42", 42, false},
 		{"  42  ", 42, false},
+		{"4294967295", 4294967295, false},
+		{"4294967296", 0, true},
 		{"0", 0, true},
 		{"", 0, true},
 		{"   ", 0, true},

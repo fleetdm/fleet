@@ -170,16 +170,17 @@ func validateCVEID(cveID string) error {
 // Used to validate numeric path-segment params (policy_id, team_id) before
 // they're interpolated into Fleet API URLs. Returns an error naming the
 // field so the AI client gets a usable hint about what failed.
-func parsePositiveUintString(field, val string) (uint64, error) {
+func parsePositiveUintString(field, val string) (uint, error) {
 	val = strings.TrimSpace(val)
 	if val == "" {
 		return 0, fmt.Errorf("%s is required", field)
 	}
-	n, err := strconv.ParseUint(val, 10, 64)
+	// Fleet IDs are INT UNSIGNED columns.
+	n, err := strconv.ParseUint(val, 10, 32)
 	if err != nil || n == 0 {
 		return 0, fmt.Errorf("%s must be a positive integer (got %q)", field, val)
 	}
-	return n, nil
+	return uint(n), nil
 }
 
 // parseCSVUintArg reads an optional comma-separated list of unsigned integers.

@@ -60,9 +60,9 @@ func registerGetPolicyCompliance(s *server.MCPServer, fleetClient *FleetClient) 
 			if terr != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve fleet %q: %v", fleet, terr)), nil
 			}
-			compliance, err = fleetClient.GetTeamPolicyCompliance(ctx, teamIDs[0], uint(policyNum))
+			compliance, err = fleetClient.GetTeamPolicyCompliance(ctx, teamIDs[0], policyNum)
 		} else {
-			compliance, err = fleetClient.GetPolicyCompliance(ctx, uint(policyNum))
+			compliance, err = fleetClient.GetPolicyCompliance(ctx, policyNum)
 		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get policy compliance for ID %s: %v", policyID, err)), nil
