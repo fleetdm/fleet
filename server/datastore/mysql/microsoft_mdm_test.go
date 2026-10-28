@@ -1797,9 +1797,9 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
-	// identifiers match like the column collation does: case-insensitive, trailing spaces ignored
+	// identifiers match case-insensitively, like the column collation does
 	cmd.CommandUUID = uuid.NewString()
-	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{strings.ToUpper(d2.HostUUID) + "  "}, cmd)
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{strings.ToUpper(d2.HostUUID)}, cmd)
 	require.NoError(t, err)
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)

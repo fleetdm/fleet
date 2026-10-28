@@ -1325,15 +1325,13 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 				latest[key] = row
 			}
 		}
-		// The columns are utf8mb4_unicode_ci (case-insensitive, trailing spaces ignored), so the match here has to be too. Accent and
-		// ligature folding is not emulated: host UUIDs and device IDs are ASCII.
-		normalize := func(id string) string { return strings.ToLower(strings.TrimRight(id, " ")) }
+		// The columns are utf8mb4_unicode_ci, so the match here has to be case-insensitive too.
 		for _, row := range rows {
-			consider(normalize(row.HostUUID), row)
-			consider(normalize(row.MDMDeviceID), row)
+			consider(strings.ToLower(row.HostUUID), row)
+			consider(strings.ToLower(row.MDMDeviceID), row)
 		}
 		for _, id := range batch {
-			if row, ok := latest[normalize(id)]; ok {
+			if row, ok := latest[strings.ToLower(id)]; ok {
 				allIDs = append(allIDs, row.ID)
 			}
 		}
