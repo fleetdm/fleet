@@ -209,10 +209,23 @@ func testNonExistentHost(t *testing.T, s *Suite) {
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
 	require.NoError(t, err)
 
-	// Try to enroll with UUID for a host that doesn't exist
-	cert, err := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", testEnrollmentSecret)
-	requireSCEPFailure(t, err, "SCEP request should fail for non-existent host")
-	require.Nil(t, cert, "Certificate should not be issued for non-existent host")
+	// The SAN URI is matched against host UUIDs only, so a host's other identifiers don't resolve to it.
+	host, err := s.DS.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("test-osquery-id-non-existent"),
+		NodeKey:         new("test-node-key-non-existent"),
+		UUID:            "test-uuid-non-existent",
+		Hostname:        "test-hostname-non-existent",
+		HardwareSerial:  "test-serial-non-existent",
+		Platform:        "windows",
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	for _, identifier := range []string{"non-existent-uuid", host.Hostname, host.HardwareSerial, *host.OsqueryHostID, *host.NodeKey} {
+		cert, err := requestSCEPCertificateWithChallenge(t, s, identifier, testEnrollmentSecret)
+		requireSCEPFailure(t, err, "SCEP request should fail for "+identifier)
+		require.Nil(t, cert, "Certificate should not be issued for "+identifier)
+	}
 }
 
 // Helper functions

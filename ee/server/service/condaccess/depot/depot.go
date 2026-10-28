@@ -103,7 +103,7 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 	}
 
 	// Look up host BEFORE storing certificate
-	host, err := d.ds.HostByIdentifier(context.Background(), uuid)
+	host, err := d.ds.HostByUUID(context.Background(), uuid)
 	if err != nil {
 		return fmt.Errorf("host not found for UUID %s: %w", uuid, err)
 	}
