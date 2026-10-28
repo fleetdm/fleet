@@ -157,7 +157,19 @@ sudo rm -rf '/usr/local/bin/tctl'
 sudo rm -rf '/usr/local/bin/teleport'
 sudo rm -rf '/usr/local/bin/tsh'
 
-# Remove auto-updater client-tools caches for all users, then the console user's data
-sudo rm -rf /Users/*/.tsh/bin
+# Remove auto-updater client-tools caches for all users, then the console user's data.
+# ~/.tsh is user-owned, so a user could replace it with a symlink and aim
+# root's rm -rf at any other "bin" directory. Refuse symlinked components and
+# delete as the home's owner so the kernel bounds what can be removed.
+for home in /Users/*; do
+  tools_dir="$home/.tsh/bin"
+  if [ -L "$home/.tsh" ] || [ -L "$tools_dir" ] || [ ! -d "$tools_dir" ]; then
+    continue
+  fi
+  owner_uid=$(stat -f "%u" "$home" 2>/dev/null) || continue
+  [ "$owner_uid" != "0" ] || continue
+  echo "Removing Teleport client-tools cache '$tools_dir'."
+  sudo -u "#$owner_uid" rm -rf "$tools_dir" || echo "Failed to remove '$tools_dir'."
+done
 trash "$LOGGED_IN_USER" '~/.tsh'
 

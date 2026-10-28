@@ -111,6 +111,25 @@ relaunch_application() {
 }
 
 
+# Remove a path under a user's home with that user's privileges, refusing to
+# traverse symlinks, so a user can't aim root's rm -rf at another directory.
+remove_from_user_home() {
+  local home="$1" path="$1" part owner_uid
+  local -a parts
+  IFS='/' read -r -a parts <<< "$2"
+  for part in "${parts[@]}"; do
+    path="$path/$part"
+    if [ -L "$path" ]; then
+      return 0
+    fi
+  done
+  [ -e "$path" ] || return 0
+  owner_uid=$(stat -f "%u" "$home" 2>/dev/null) || return 0
+  [ "$owner_uid" != "0" ] || return 0
+  sudo -u "#$owner_uid" rm -rf "$path" || echo "Failed to remove '$path'."
+}
+
+
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
@@ -124,7 +143,9 @@ MOUNT_POINT=""
 # Quitting Docker Desktop with a staged self-update triggers its install-on-quit
 # updater, which renames Docker.app to Docker.app.back and races this script.
 # Remove the staging dir (staged bundle + updater state) first so it can't fire.
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install"
+done
 quit_and_track_application 'com.electron.dockerdesktop'
 # Wait out any updater already in flight before touching /Applications/Docker.app.
 SECONDS=0
@@ -163,4 +184,6 @@ done
 relaunch_application 'com.electron.dockerdesktop'
 # Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install/in_progress/Docker.app"
+done

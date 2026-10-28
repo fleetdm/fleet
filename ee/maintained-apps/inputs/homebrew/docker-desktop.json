@@ -6,7 +6,17 @@
   "installer_format": "dmg",
   "post_uninstall_scripts": [
     "sudo rm -rf '/Applications/Docker.app.back'",
-    "sudo rm -rf /Users/*/Library/'Application Support'/com.docker.install"
+    "# ~/Library is user-owned, so refuse symlinked components and delete as the",
+    "# home's owner so a planted symlink can't aim root's rm -rf elsewhere.",
+    "for home in /Users/*; do",
+    "  staging_dir=\"$home/Library/Application Support/com.docker.install\"",
+    "  if [ -L \"$home/Library\" ] || [ -L \"$home/Library/Application Support\" ] || [ -L \"$staging_dir\" ] || [ ! -e \"$staging_dir\" ]; then",
+    "    continue",
+    "  fi",
+    "  owner_uid=$(stat -f \"%u\" \"$home\" 2>/dev/null) || continue",
+    "  [ \"$owner_uid\" != \"0\" ] || continue",
+    "  sudo -u \"#$owner_uid\" rm -rf \"$staging_dir\" || echo \"Failed to remove '$staging_dir'.\"",
+    "done"
   ],
   "default_categories": ["Developer tools"],
   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/docker_desktop_install.sh"

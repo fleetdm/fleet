@@ -98,10 +98,18 @@ sudo installer -pkg "$INSTALLER_PATH" -target / || exit $?
 # those bundles, so they keep the patch policy failing after an update. Remove
 # the cache (config included, since tsh trusts it without checking the files);
 # tsh rebuilds it on demand.
-for tools_dir in /Users/*/.tsh/bin; do
-  [ -d "$tools_dir" ] || continue
+# ~/.tsh is user-owned, so a user could replace it with a symlink and aim
+# root's rm -rf at any other "bin" directory. Refuse symlinked components and
+# delete as the home's owner so the kernel bounds what can be removed.
+for home in /Users/*; do
+  tools_dir="$home/.tsh/bin"
+  if [ -L "$home/.tsh" ] || [ -L "$tools_dir" ] || [ ! -d "$tools_dir" ]; then
+    continue
+  fi
+  owner_uid=$(stat -f "%u" "$home" 2>/dev/null) || continue
+  [ "$owner_uid" != "0" ] || continue
   echo "Removing Teleport client-tools cache '$tools_dir'."
-  sudo rm -rf "$tools_dir"
+  sudo -u "#$owner_uid" rm -rf "$tools_dir" || echo "Failed to remove '$tools_dir'."
 done
 
 relaunch_application 'com.gravitational.teleport.tsh'
