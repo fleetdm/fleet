@@ -8,6 +8,7 @@ notes: |-
   - Every home directory on the host is scanned (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`). Agents configured to keep their files elsewhere through an environment variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `COPILOT_HOME`, `GEMINI_CLI_HOME`, `CURSOR_DATA_DIR`) aren't found, because fleetd can't see users' environments.
   - Agent coverage differs: Cursor records no model or token usage; Gemini CLI records no version; sessions Gemini CLI only kept in `logs.json` have prompts only. Claude Code on Bedrock or Vertex reports the provider's model names (e.g. `us.anthropic.claude-…`).
   - Transcripts are parsed once and cached until they change, so repeated queries only read new activity. One query reads at most 4 GiB of transcripts; what wasn't reached is read by the next query.
+  - At most 5,000 sessions per agent in one home directory are read in a query; the rest are skipped and fleetd logs a warning.
   - Only files owned by the home directory's user are read, so a link planted in one user's home can't report another user's sessions under their name.
   - `account_identifier` comes from the agent's own config files, which the user can edit; it is not an authenticated identity.
 description: AI coding agent sessions found in users' home directories, with the account each agent is signed in with and how much it did.
