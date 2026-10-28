@@ -27,7 +27,7 @@ Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the sys
 
 ### macOS
 
-The Fleet Desktop app is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically), so it isn't updated automatically. To keep it up to date, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
+The Fleet Desktop app is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically). To keep it up to date, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
 
 ## Custom transparency link
 Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.
