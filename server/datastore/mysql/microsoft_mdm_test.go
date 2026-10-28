@@ -1796,6 +1796,14 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
+
+	// identifiers match like the column collation does: case-insensitive, trailing spaces ignored
+	cmd.CommandUUID = uuid.NewString()
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{strings.ToUpper(d2.HostUUID) + "  "}, cmd)
+	require.NoError(t, err)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 4)
 }
 
 func testMDMWindowsBulkInsertCommands(t *testing.T, ds *Datastore) {
