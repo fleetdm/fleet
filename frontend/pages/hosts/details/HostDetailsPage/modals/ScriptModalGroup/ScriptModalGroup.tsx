@@ -166,7 +166,7 @@ const ScriptModalGroup = ({
     <>
       <RunScriptModal
         currentUser={currentUser}
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={onClickViewScript}
@@ -195,7 +195,7 @@ const ScriptModalGroup = ({
         isHidden={currentModal !== ModalGroupOption.ConfirmRun}
       />
       <ScriptDetailsModal
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         selectedScriptDetails={selectedScript}
         // script id and details both passed to accomodate various instances of this component, some
         // in a slightly different context

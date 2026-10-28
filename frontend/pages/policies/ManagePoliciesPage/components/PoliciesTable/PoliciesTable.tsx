@@ -207,7 +207,7 @@ const PoliciesTable = ({
   const pageHasSelectableRows =
     !viewingTeamPolicies ||
     isPrimoMode ||
-    policiesList.some((p) => p.team_id !== null);
+    policiesList.some((p) => p.fleet_id !== null);
 
   const hasPermissionAndPoliciesToDelete =
     canAddOrDeletePolicies && hasPoliciesToDelete && pageHasSelectableRows;

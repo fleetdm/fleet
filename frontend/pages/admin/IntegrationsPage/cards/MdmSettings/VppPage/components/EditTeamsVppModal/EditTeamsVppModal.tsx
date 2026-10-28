@@ -33,7 +33,7 @@ export const selectedValueFromToken = (token: IMdmVppToken) => {
     // if teams is an empty array, it means the token is configured to all teams
     return APP_CONTEXT_ALL_TEAMS_ID.toString();
   }
-  return token.teams.map((team) => team.team_id).join(",");
+  return token.teams.map((team) => team.fleet_id).join(",");
 };
 
 /** Returns an array of team ids for the API. It includes special handling for "All teams". */
@@ -94,7 +94,7 @@ const getUnavailableTeamIds = (
   tokens.forEach((token) => {
     if (token.id === currentTokenId) return;
     token.teams?.forEach((team) => {
-      unavailableTeamIds[team.team_id.toString()] = true;
+      unavailableTeamIds[team.fleet_id.toString()] = true;
     });
   });
   return unavailableTeamIds;

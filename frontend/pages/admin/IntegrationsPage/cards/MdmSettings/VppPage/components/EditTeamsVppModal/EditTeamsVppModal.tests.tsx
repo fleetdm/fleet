@@ -36,7 +36,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [{ team_id: 0, name: "Unassigned" }],
+    teams: [{ fleet_id: 0, name: "Unassigned" }],
   };
 
   const piratesAndNinjasToken = {
@@ -46,8 +46,8 @@ describe("EditTeamsVppModal", () => {
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
     teams: [
-      { team_id: 2, name: "Pirates" },
-      { team_id: 1, name: "Ninjas" },
+      { fleet_id: 2, name: "Pirates" },
+      { fleet_id: 1, name: "Ninjas" },
     ],
   };
 
@@ -57,7 +57,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "us",
-    teams: [{ team_id: 3, name: "Pandas" }],
+    teams: [{ fleet_id: 3, name: "Pandas" }],
   };
 
   // Legacy tokens surface as country_code "" until backfill runs, so
@@ -68,7 +68,7 @@ describe("EditTeamsVppModal", () => {
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
     country_code: "",
-    teams: [{ team_id: 4, name: "Penguins" }],
+    teams: [{ fleet_id: 4, name: "Penguins" }],
   };
 
   const availableTeams = [

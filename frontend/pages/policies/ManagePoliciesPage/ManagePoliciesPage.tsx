@@ -561,7 +561,7 @@ const ManagePolicyPage = ({
           (acc, policy) => {
             if (selectedSet.has(policy.id)) {
               // need to compare policy team id
-              if (policy.team_id === null) {
+              if (policy.fleet_id === null) {
                 // note `null` not `undefined` here
                 acc[0].push(policy.id);
               } else {
@@ -1044,7 +1044,7 @@ const ManagePolicyPage = ({
             // from within a fleet's list — its automations live on the global
             // config, so route the modal there.
             const isInheritedGlobal =
-              selectedPolicyForAutomations.team_id === null;
+              selectedPolicyForAutomations.fleet_id === null;
             const modalAutomationsConfig = isInheritedGlobal
               ? globalConfig
               : automationsConfig;
