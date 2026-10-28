@@ -1,3 +1,3 @@
-* Added native ARM64 Windows Fleet-maintained apps for 24 popular apps, including Google Chrome, Slack, 7-Zip, Visual Studio Code, Firefox, Zoom, Claude, Microsoft Teams, Microsoft Edge, and Git.
+* Added native ARM64 Windows Fleet-maintained apps for 23 popular apps, including Google Chrome, Slack, 7-Zip, Visual Studio Code, Firefox, Zoom, Claude, Microsoft Teams, and Git.
 * When the x64 and ARM64 builds of a Windows app share an MSI upgrade code (for example, Google Chrome) and are added to different fleets, the software title keeps the name of the first one added instead of switching names on each add.
 * Fixed the "app is open" check for ARM64 Windows Fleet-maintained apps so it looks for the same process as the x64 app.

@@ -3421,7 +3421,7 @@
       "name": "Mozilla Firefox ESR (ARM64)",
       "slug": "firefox@esr-arm64/windows",
       "platform": "windows",
-      "unique_identifier": "Mozilla Firefox ESR (AArch64)",
+      "unique_identifier": "Mozilla Firefox ESR (AArch64 en-US)",
       "description": "Mozilla Firefox ESR (ARM64) is the native ARM64 build of Firefox ESR, the Extended Support Release of the Firefox web browser."
     },
     {
@@ -5642,13 +5642,6 @@
       "platform": "windows",
       "unique_identifier": "Microsoft .NET SDK 9",
       "description": "Microsoft .NET SDK 9 is the software development kit for building, testing, and publishing .NET 9 apps, including the dotnet CLI and the .NET 9 runtimes."
-    },
-    {
-      "name": "Microsoft Edge (ARM64)",
-      "slug": "microsoft-edge-arm64/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Edge",
-      "description": "Microsoft Edge (ARM64) is the native ARM64 build of Microsoft Edge, a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
       "name": "Microsoft Edge",

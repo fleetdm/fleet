@@ -96,6 +96,9 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
+	// An ARM64 build gets the same per-app exceptions as its x64 sibling.
+	catalogName := strings.TrimSuffix(appName, " (ARM64)")
+
 	if len(results) > 0 {
 		for _, result := range results {
 			// Vendor is populated so name/version sanitizers that key off the
@@ -115,7 +118,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
-			if appName == "Sublime Text" && result.Version == "" {
+			if catalogName == "Sublime Text" && result.Version == "" {
 				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
 				return true, nil
 			}
@@ -144,7 +147,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// Google Chrome auto-updates immediately after installation, so the
 			// installed version may be newer than the installer version. If
 			// version didn't match above, fall back to existence-only check.
-			if appName == "Google Chrome" {
+			if catalogName == "Google Chrome" {
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
@@ -162,7 +165,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// manifest's exists/patched queries (publisher = 'Microsoft
 			// Corporation'), so a third-party app that happens to match a name
 			// prefix can't bypass the version check.
-			if appName == "Microsoft Office" &&
+			if catalogName == "Microsoft Office" &&
 				result.Publisher == "Microsoft Corporation" &&
 				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
 					strings.HasPrefix(result.Name, "Microsoft Office")) {

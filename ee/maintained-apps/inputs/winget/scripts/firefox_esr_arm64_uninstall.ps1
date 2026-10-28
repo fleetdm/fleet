@@ -1,8 +1,8 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-# Match the ARM64 ESR build only (e.g. "Mozilla Firefox 153.4.0 ESR (AArch64 en-US)"),
+# Match the ARM64 ESR build only (e.g. "Mozilla Firefox ESR (AArch64 en-US)"),
 # leaving an x64 ESR or regular Firefox on the same host alone
-$softwareNameLike = "Mozilla Firefox * ESR (AArch64 *"
+$softwareNameLike = "Mozilla Firefox*ESR (AArch64 *"
 
 # NSIS installers require /S flag for silent uninstall
 $uninstallArgs = "/S"
@@ -62,7 +62,6 @@ foreach ($key in $uninstallKeys) {
         $processOptions = @{
             FilePath = $uninstallCommand
             PassThru = $true
-            Wait = $true
         }
 
         if ($uninstallArgs -ne '') {
@@ -70,6 +69,30 @@ foreach ($key in $uninstallKeys) {
         }
 
         $process = Start-Process @processOptions
+        $null = $process.Handle
+        # The uninstaller hands off to a copy of itself, which waits on the Default Browser
+        # Agent's cleanup; as SYSTEM that cleanup can hang. Wait for the uninstall entry to go
+        # away, ending the agent's cleanup if it's still running after a minute.
+        $installDir = Split-Path (Split-Path $uninstallCommand)
+        $agentDeadline = (Get-Date).AddSeconds(60)
+        $deadline = (Get-Date).AddSeconds(300)
+        while ($true) {
+            $agent = @(Get-CimInstance Win32_Process | Where-Object {
+                $_.ExecutablePath -like "$installDir\*" -and
+                ($_.Name -eq 'default-browser-agent.exe' -or $_.CommandLine -like '*--backgroundtask*')
+            })
+            $registered = (Get-ItemProperty -Path $key.PSPath -ErrorAction SilentlyContinue).DisplayName -like $softwareNameLike
+            if (-not $registered -and $agent.Count -eq 0) {
+                break
+            }
+            if ((Get-Date) -gt $deadline) {
+                Throw "Firefox is still installed after 300 seconds."
+            }
+            if ($agent.Count -gt 0 -and (Get-Date) -gt $agentDeadline) {
+                $agent | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            }
+            Start-Sleep -Seconds 2
+        }
         $exitCode = $process.ExitCode
         Write-Host "Uninstall exit code: $exitCode"
         break

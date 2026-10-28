@@ -63,7 +63,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerConflictingFMAWindows", testMatchOrCreateSoftwareInstallerConflictingFMAWindows},
 		{"ConflictingFMAReplicaLag", testConflictingFMAReplicaLag},
 		{"SharedUpgradeCodeFMATitleName", testSharedUpgradeCodeFMATitleName},
-		{"BatchSetSoftwareInstallersSetupExperienceSideEffects",testBatchSetSoftwareInstallersSetupExperienceSideEffects},
+		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
