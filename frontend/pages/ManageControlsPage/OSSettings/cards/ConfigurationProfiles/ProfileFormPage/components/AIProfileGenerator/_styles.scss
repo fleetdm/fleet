@@ -18,22 +18,15 @@
     width: 240px;
   }
 
-  // The text and its button side by side, so long text wraps and scrolls
-  // beside the button rather than under it. The padding is the text's own,
-  // so its scroll bar runs the box's full height beside the button.
+  // A plain text box with its button in the bottom-right corner: the text
+  // keeps room for the button, and the button moves left of the text's scroll
+  // bar when one shows (widths measured in PromptBox).
   &__prompt {
-    display: flex;
-    gap: $pad-small;
+    position: relative;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
     background-color: $core-fleet-white;
     transition: border-color 100ms;
-    box-sizing: border-box;
-    min-height: 100px;
-    // The box resizes, not the text inside it, so the grip sits in its
-    // corner, per the design.
-    resize: vertical;
-    overflow: hidden;
 
     &:focus-within {
       border-color: $ui-fleet-black-50;
@@ -41,16 +34,23 @@
   }
 
   &__prompt-input {
-    flex: 1;
+    display: block;
+    width: 100%;
+    // 100px with the box's border, per the design
+    min-height: 98px;
     box-sizing: border-box;
-    padding: $pad-medium 0 $pad-medium $pad-medium;
+    padding: $pad-medium;
+    padding-right: calc(
+      #{$pad-medium} + var(--prompt-action-width, 0px) + #{$pad-small}
+    );
     font-family: inherit;
     font-size: $x-small;
     line-height: $line-height;
     color: $core-fleet-black;
     border: none;
+    border-radius: $border-radius;
     background: transparent;
-    resize: none;
+    resize: vertical;
 
     &::placeholder {
       color: $ui-fleet-black-50;
@@ -66,8 +66,9 @@
   }
 
   &__prompt-action {
-    align-self: flex-end;
-    padding: 0 $pad-medium $pad-medium 0;
+    position: absolute;
+    right: calc(#{$pad-medium} + var(--prompt-scrollbar-width, 0px));
+    bottom: $pad-medium;
   }
 
   // Sizes per the design: Send is smaller than the standard 36px icon

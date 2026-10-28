@@ -59,6 +59,18 @@ describe("GeneratedProfileSummary", () => {
     expect(onChangeDescription).toHaveBeenCalledWith("Turns off AirDrop.");
   });
 
+  it("keeps 1Password from offering to fill the name and description", () => {
+    renderSummary();
+    fireEvent.click(screen.getByRole("button", { name: "Edit name" }));
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveAttribute(
+      "data-1p-ignore"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit description" }));
+    expect(
+      screen.getByRole("textbox", { name: "Description" })
+    ).toHaveAttribute("data-1p-ignore");
+  });
+
   it("shows empty values as fields to fill in", () => {
     renderSummary({ name: "", description: "" });
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");

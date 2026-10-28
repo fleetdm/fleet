@@ -95,6 +95,9 @@ const EditableText = ({
       ) => setDraft(e.target.value),
       onBlur: commit,
       onKeyDown,
+      // "Name" is enough for 1Password to offer autofill; Fleet's InputField
+      // sets the same.
+      "data-1p-ignore": true,
     };
     return multiline ? (
       <textarea {...fieldProps} rows={2} />

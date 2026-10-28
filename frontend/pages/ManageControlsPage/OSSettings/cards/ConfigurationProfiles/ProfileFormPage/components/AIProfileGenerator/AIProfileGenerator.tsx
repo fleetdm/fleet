@@ -1,4 +1,11 @@
-import React, { useContext, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -101,20 +108,61 @@ interface IPromptBoxProps {
   action: React.ReactNode;
 }
 
-const PromptBox = ({ value, onChange, readOnly, action }: IPromptBoxProps) => (
-  <div className={`${baseClass}__prompt`}>
-    <textarea
-      aria-label="Instructions"
-      className={`${baseClass}__prompt-input`}
-      placeholder="Eg., disable the camera on Firefox."
-      value={value}
-      readOnly={readOnly}
-      onChange={(e) => onChange?.(e.target.value)}
-      rows={3}
-    />
-    <div className={`${baseClass}__prompt-action`}>{action}</div>
-  </div>
-);
+const PromptBox = ({ value, onChange, readOnly, action }: IPromptBoxProps) => {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const actionRef = useRef<HTMLDivElement>(null);
+  // The button sits inside the text's box, so the text keeps room for it and
+  // it moves left of a scroll bar that shows up; neither is known to CSS.
+  const [widths, setWidths] = useState({ scrollbar: 0, action: 0 });
+  const measure = useCallback(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    const scrollbar = input.offsetWidth - input.clientWidth;
+    const actionWidth = actionRef.current?.offsetWidth ?? 0;
+    setWidths((prev) =>
+      prev.scrollbar === scrollbar && prev.action === actionWidth
+        ? prev
+        : { scrollbar, action: actionWidth }
+    );
+  }, []);
+  useLayoutEffect(measure, [value, measure]);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined" || !inputRef.current) {
+      return undefined;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(inputRef.current);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  return (
+    <div
+      className={`${baseClass}__prompt`}
+      style={
+        {
+          "--prompt-scrollbar-width": `${widths.scrollbar}px`,
+          "--prompt-action-width": `${widths.action}px`,
+        } as React.CSSProperties
+      }
+    >
+      <textarea
+        ref={inputRef}
+        aria-label="Instructions"
+        className={`${baseClass}__prompt-input`}
+        placeholder="Eg., disable the camera on Firefox."
+        value={value}
+        readOnly={readOnly}
+        onChange={(e) => onChange?.(e.target.value)}
+        rows={3}
+      />
+      <div ref={actionRef} className={`${baseClass}__prompt-action`}>
+        {action}
+      </div>
+    </div>
+  );
+};
 
 interface IAIProfileGeneratorProps {
   router: InjectedRouter;

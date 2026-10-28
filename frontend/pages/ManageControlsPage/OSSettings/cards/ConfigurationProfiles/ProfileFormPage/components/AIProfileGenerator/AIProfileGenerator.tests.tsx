@@ -161,6 +161,25 @@ describe("AIProfileGenerator", () => {
     jest.restoreAllMocks();
   });
 
+  it("moves the button left of the instructions' scroll bar when one shows", () => {
+    // jsdom has no layout: give the instructions a 15px scroll bar.
+    jest
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockImplementation(function width(this: HTMLElement) {
+        return this.tagName === "TEXTAREA" ? 515 : 32;
+      });
+    jest
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockImplementation(function width(this: HTMLElement) {
+        return this.tagName === "TEXTAREA" ? 500 : 32;
+      });
+    renderGenerator();
+    const box = screen.getByRole("textbox", { name: "Instructions" })
+      .parentElement as HTMLElement;
+    expect(box.style.getPropertyValue("--prompt-scrollbar-width")).toBe("15px");
+    expect(box.style.getPropertyValue("--prompt-action-width")).toBe("32px");
+  });
+
   it("offers only the platforms whose MDM is on", async () => {
     const { user } = renderGenerator();
     expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
