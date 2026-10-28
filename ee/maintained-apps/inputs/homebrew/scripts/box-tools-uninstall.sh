@@ -63,10 +63,11 @@ for udir in /Users/* /var/root; do
   # Delete as the home's owner, never as root: the owner controls this tree,
   # so root following a planted symlink out of it could delete files anywhere
   # on the system. Root-owned entries under /Users (e.g. the world-writable
-  # /Users/Shared) are not user homes and are skipped.
+  # /Users/Shared) are not user homes, so nothing there is removed.
   owner_uid=$(stat -L -f "%u" "$udir")
   if [[ "$owner_uid" -eq 0 && "$udir" != /var/root ]]; then
     echo "skipping $box_edit_dir: $udir is not a user home"
+    failed=true
     continue
   fi
   if ! id -u "$owner_uid" >/dev/null 2>&1; then
