@@ -100,7 +100,6 @@ func parseCopilotCLI(src *source, r *recorder) {
 	var lastModel, shutdownModel, selectedModel, cwd string
 	assistantIDs := map[string]struct{}{}
 
-	r.file(src.files[0])
 	_ = scanJSONL(src.sc, src.files[0], func(line []byte) bool {
 		if r.done() {
 			return false

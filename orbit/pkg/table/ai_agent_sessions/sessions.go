@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -128,10 +127,6 @@ func newSource(a *agent, sc *scope, id string, files []string, cutoff time.Time)
 		return nil, false
 	}
 	return src, true
-}
-
-func (s *source) anyFile(match func(string) bool) bool {
-	return slices.ContainsFunc(s.files, match)
 }
 
 // parseSession reads a source into a Session. It reports false when the

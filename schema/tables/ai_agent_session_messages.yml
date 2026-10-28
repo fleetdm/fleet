@@ -6,6 +6,7 @@ notes: |-
   - This table returns conversation content: prompts, code, command output, and tool arguments, which can include secrets. That content leaves the host when queried. Query it on demand, constrained to a `session_id`; don't schedule it unconstrained.
   - A result is capped at about 1 MiB, counting every column, so it stays within what Fleet ingests from a host. When the cap is reached, the result stops and fleetd logs a warning. The cap can fall inside a message. To read further, ask for the rows after the last one returned, with M and B its `message_index` and `block_index`: `session_id = … AND ((message_index = M AND block_index > B) OR message_index > M)`. Calls made for an `IN` list share the cap; each still returns its first row until the shared total reaches twice the cap.
   - Each `content` value is cut to 8 KB, or to just under 1 MiB when the query names a `session_id`. `content_length` is the length before cutting.
+  - A `transcript_path` constraint selects the session whose main transcript that is, with its sub-agent transcripts; the `tool_use` rows it returns are the session's `tool_calls`. It keeps the 8 KB `content` cap, unlike naming the `session_id`.
   - One query reads at most 4 GiB of transcripts in total; past that, the result is partial and fleetd logs a warning.
   - `LIMIT` and `OFFSET` are applied by osquery after the cap, so they don't page through a session; use `message_index` instead.
   - Sessions written in the last 30 days are read by default. A `>` or `>=` constraint on `timestamp` replaces that window, a `<` or `<=` constraint alone reads all history, and naming a `session_id` reads that session whatever its age.
@@ -108,6 +109,6 @@ columns:
     type: integer
     required: false
   - name: transcript_path
-    description: The transcript file the row came from.
+    description: The session's transcript, as in `ai_agent_sessions`. Constraining it selects the whole session, sub-agent transcripts included; every row reports the main transcript's path.
     type: text
     required: false

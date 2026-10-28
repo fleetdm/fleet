@@ -139,7 +139,8 @@ func TestClaudeCodeMessages(t *testing.T) {
 	require.Equal(t, "/Users/alice/GitHub/fleet", rows[2]["cwd"])
 	require.Equal(t, "1786454840", rows[2]["timestamp"])
 	require.Equal(t, main, rows[0]["transcript_path"])
-	require.Equal(t, sub, rows[len(rows)-1]["transcript_path"])
+	require.Equal(t, main, rows[len(rows)-1]["transcript_path"], "sub-agent rows report the session's transcript")
+	require.FileExists(t, sub)
 
 	require.Equal(t, []string{
 		"Read | read | /Users/alice/GitHub/fleet/Makefile | allowed",

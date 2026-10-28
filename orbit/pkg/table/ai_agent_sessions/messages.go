@@ -148,7 +148,6 @@ type recorder struct {
 	seen bool
 
 	q      *query // nil when only the Session is wanted
-	path   string
 	ts     time.Time
 	model  string
 	cwd    string
@@ -177,9 +176,6 @@ func newMessageRecorder(src *source, q *query) *recorder {
 		pending:  map[string]int{},
 	}
 }
-
-// file switches to the next transcript file of the session.
-func (r *recorder) file(path string) { r.path = path }
 
 // done reports whether the parser can stop reading.
 func (r *recorder) done() bool {
@@ -283,7 +279,7 @@ func (r *recorder) decide(id, decision string) {
 
 // add appends a row unless it is empty or the size limit is reached.
 func (r *recorder) add(m Message, content string) bool {
-	if (content == "" && m.ToolName == "") || !r.q.paths.allows(r.path) {
+	if content == "" && m.ToolName == "" {
 		return false
 	}
 	m.Agent = r.source.agent.name
@@ -293,7 +289,10 @@ func (r *recorder) add(m Message, content string) bool {
 	m.BlockIndex = r.blockIndex
 	m.CWD = r.cwd
 	m.Timestamp = r.ts
-	m.TranscriptPath = r.path
+	// The session's main transcript, whichever of its files the row came
+	// from: osquery re-applies a transcript_path constraint to the rows it
+	// gets back, so a sub-agent row naming its own file would be dropped.
+	m.TranscriptPath = r.source.files[0]
 	if m.Role == roleAssistant {
 		m.Model = r.model
 	}

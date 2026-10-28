@@ -411,6 +411,105 @@ func TestPagingResumesInsideAMessage(t *testing.T) {
 	require.Equal(t, "after", after[0]["content"])
 }
 
+// A transcript_path constraint names a session by its main transcript and
+// selects all of it, sub-agent files included: osquery re-applies the
+// constraint to the rows it gets back, so every row reports that path.
+func TestPathConstraintSelectsWholeSession(t *testing.T) {
+	root := "11111111-0000-0000-0000-000000000001"
+	for _, tc := range []struct {
+		agent string
+		write func(t *testing.T, home string) (main, sub string)
+	}{
+		{agentClaudeCode, writeClaudeFixture},
+		{agentGeminiCLI, func(t *testing.T, home string) (string, string) {
+			chat := writeGeminiFixture(t, home)
+			return chat, filepath.Join(filepath.Dir(chat), geminiID, "sub1.jsonl")
+		}},
+		{agentCodexCLI, func(t *testing.T, home string) (string, string) {
+			main := codexPath(home, "rollout-2026-08-01T12-00-00-"+root+".jsonl")
+			sub := codexPath(home, "rollout-2026-08-01T12-00-02-22222222-0000-0000-0000-000000000002.jsonl")
+			writeFile(t, main, lines(
+				`{"timestamp":"2026-08-01T12:00:00.000Z","type":"session_meta","payload":{"id":"`+root+`","session_id":"`+root+`","cwd":"/w"}}`,
+				`{"timestamp":"2026-08-01T12:00:01.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\"}","call_id":"c1"}}`,
+			))
+			writeFile(t, sub, lines(
+				`{"timestamp":"2026-08-01T12:00:02.000Z","type":"session_meta","payload":{"id":"22222222-0000-0000-0000-000000000002","session_id":"`+root+`","parent_thread_id":"`+root+`","cwd":"/w"}}`,
+				`{"timestamp":"2026-08-01T12:00:02.500Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"pwd\"}","call_id":"s1"}}`,
+			))
+			return main, sub
+		}},
+		{agentCursor, func(t *testing.T, home string) (string, string) {
+			dir := filepath.Join(home, ".cursor", "projects", "tmp-x", "agent-transcripts", "p1")
+			main, sub := filepath.Join(dir, "p1.jsonl"), filepath.Join(dir, "subagents", "c1.jsonl")
+			writeFile(t, main, lines(
+				`{"role":"user","message":{"content":[{"type":"text","text":"go"}]}}`,
+				`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"ls"}}]}}`,
+			))
+			writeFile(t, sub, lines(
+				`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"a"}}]}}`,
+			))
+			return main, sub
+		}},
+	} {
+		t.Run(tc.agent, func(t *testing.T) {
+			home := setup(t)
+			_, sub := tc.write(t, home)
+			clock := setClock(t, time.Now())
+			for _, s := range sessionRows(t, eq("agent", tc.agent)) {
+				*clock = clock.Add(time.Second)
+				rows := messageRows(t, eq("transcript_path", s["transcript_path"]), eq("block_type", blockToolUse))
+				require.Len(t, rows, intCol(t, s, "tool_calls"), "tool_use rows for %s match the session's tool_calls", s["transcript_path"])
+				for _, r := range rows {
+					require.Equal(t, s["transcript_path"], r["transcript_path"])
+				}
+			}
+			*clock = clock.Add(time.Second)
+			require.Empty(t, messageRows(t, eq("transcript_path", sub)), "a sub-agent file isn't a session of its own")
+		})
+	}
+}
+
+func TestPagingResumesInsideASubagentFile(t *testing.T) {
+	home := setup(t)
+	blocks := make([]string, 200)
+	for i := range blocks {
+		blocks[i] = fmt.Sprintf(`{"type":"text","text":"%d %s"}`, i, strings.Repeat("z", 7000))
+	}
+	main := writeClaudeTranscript(t, home, "s",
+		`{"type":"user","timestamp":"2026-08-01T10:00:00.000Z","message":{"role":"user","content":"go"}}`,
+	)
+	writeFile(t, filepath.Join(claudeProject(home), "s", "subagents", "agent-a1.jsonl"), lines(
+		`{"type":"assistant","isSidechain":true,"agentId":"a1","timestamp":"2026-08-01T10:00:01.000Z","message":{"id":"a1","content":[`+strings.Join(blocks, ",")+`]}}`,
+		`{"type":"user","isSidechain":true,"agentId":"a1","timestamp":"2026-08-01T10:00:02.000Z","message":{"role":"user","content":"sub done"}}`,
+	))
+	clock := setClock(t, time.Now())
+
+	// Indices run on across the session's files: the sub-agent's message
+	// follows the prompt, so the pair stays unique for the whole session.
+	type key struct{ m, b int }
+	seen := map[key]bool{}
+	rows := messageRows(t, eq("transcript_path", main))
+	require.NotEmpty(t, rows)
+	require.Equal(t, "go", rows[0]["content"])
+	for page := 0; page < 10 && len(rows) > 0; page++ {
+		for _, r := range rows {
+			require.Equal(t, main, r["transcript_path"])
+			k := key{intCol(t, r, "message_index"), intCol(t, r, "block_index")}
+			require.False(t, seen[k], "row %v returned twice", k)
+			seen[k] = true
+		}
+		last := rows[len(rows)-1]
+		m, b := last["message_index"], last["block_index"]
+		*clock = clock.Add(time.Second)
+		rows = messageRows(t, eq("transcript_path", main), eq("message_index", m), cons{"block_index", table.OperatorGreaterThan, b})
+		*clock = clock.Add(10 * time.Millisecond)
+		rows = append(rows, messageRows(t, eq("transcript_path", main), cons{"message_index", table.OperatorGreaterThan, m})...)
+	}
+	require.Len(t, seen, 202, "the prompt, every block of the sub-agent's message, and its last message")
+	require.True(t, seen[key{1, 199}])
+	require.True(t, seen[key{2, 0}])
+}
+
 func TestLimitIsNotHonoured(t *testing.T) {
 	home := setup(t)
 	writeClaudePrompts(t, home, "s", "a", "b", "c")

@@ -216,7 +216,6 @@ func parseClaudeCode(src *source, r *recorder) {
 	// repeating the response's usage, so usage is counted once per id.
 	usage := map[string]claudeUsage{}
 	for i, path := range src.files {
-		r.file(path)
 		_ = scanJSONL(src.sc, path, func(line []byte) bool {
 			if r.done() {
 				return false

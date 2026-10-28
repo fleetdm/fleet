@@ -132,7 +132,6 @@ func parseCursor(src *source, r *recorder) {
 	var ts time.Time
 	for i, path := range src.files {
 		sub := i > 0
-		r.file(path)
 		_ = scanJSONL(src.sc, path, func(line []byte) bool {
 			if r.done() {
 				return false

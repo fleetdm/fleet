@@ -211,7 +211,9 @@ func generateMessages(qc table.QueryContext) []map[string]string {
 	var srcs []*source
 	homes := eachAgent(&q, reads, func(_ *scope, _ *agent, found []*source) {
 		for _, src := range found {
-			if q.sessionIDs.allows(src.id) && src.anyFile(q.paths.allows) {
+			// A transcript_path names a session by its main transcript and
+			// selects all of it; every row reports that path (see add).
+			if q.sessionIDs.allows(src.id) && q.paths.allows(src.files[0]) {
 				srcs = append(srcs, src)
 			}
 		}

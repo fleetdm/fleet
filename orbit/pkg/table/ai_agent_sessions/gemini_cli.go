@@ -489,7 +489,6 @@ func parseGeminiCLI(src *source, r *recorder) {
 		if !ok {
 			continue
 		}
-		r.file(path)
 		r.seen = true
 		if !sub {
 			s.observe(parseTime(c.StartTime))
@@ -655,7 +654,6 @@ func geminiDecision(tc geminiToolCall) string {
 }
 
 func parseGeminiLogs(src *source, entries []geminiLogEntry, r *recorder) {
-	r.file(src.files[0])
 	for _, e := range entries {
 		if e.Type != "user" || r.done() {
 			continue

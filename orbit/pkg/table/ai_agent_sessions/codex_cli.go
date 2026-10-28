@@ -251,7 +251,6 @@ func parseCodexCLI(src *source, r *recorder) {
 		var seed codexTokens
 		var forkStart time.Time
 		first := true
-		r.file(path)
 		_ = scanJSONL(src.sc, path, func(line []byte) bool {
 			if r.done() {
 				return false
