@@ -41,6 +41,10 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
 /ee/server/ @fleetdm/go
+# « FMA ingesters and validator aren't compiled into the server or fleetctl, so these entries intentionally have no
+#   owners (overriding *.go and /cmd/ above). Maintainer is set in website/config/custom.js.
+/ee/maintained-apps/ingesters/
+/cmd/maintained-apps/validate/
 /orbit/ @sharon-fdm @lucasmrod @lukeheath
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
