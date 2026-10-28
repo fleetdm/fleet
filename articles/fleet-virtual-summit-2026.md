@@ -62,7 +62,7 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   <tbody>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-bart-reardon-100x100@2x.jpg" alt="Bart Reardon" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Bart Reardon</a></strong>, Creator of swiftDialog</p></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/bart-reardon-00647889">Bart Reardon</a></strong>, Creator of swiftDialog</p></td>
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-daniel-moore-100x100@2x.png" alt="Daniel Moore" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
