@@ -13,7 +13,7 @@
 
 <a purpose="cta-button" href="https://fleetdm.com/guides/show-nudge-only-after-macos-prepares-an-update">Read the step-by-step guide</a>
 
-At MacDevOpsYUL 2026, Wes Whetstone from Stripe gave a seven-minute lightning talk called [But you called me?](https://www.youtube.com/watch?v=SggxxPCDCSI). Wes moved 10,000 Macs to Fleet, and the talk describes a small change with a big effect on how those Macs get updated.
+At MacDevOpsYUL 2026, Wes Whetstone from Stripe gave a seven-minute lightning talk called [But you called me?](https://www.youtube.com/watch?v=SggxxPCDCSI). Wes _famously_ moved 10,000 Macs to Fleet, and the talk describes a small change with a big effect on how those Macs get updated.
 
 We liked the idea so much that we rolled it out on Fleet's own Macs. This article walks through the problem, Wes's approach, and what we learned putting it into production. If you want to set it up yourself, the [companion guide](https://fleetdm.com/guides/show-nudge-only-after-macos-prepares-an-update) has the steps.
 
@@ -21,7 +21,7 @@ We liked the idea so much that we rolled it out on Fleet's own Macs. This articl
 
 The talk's title comes from a message Wes received from a senior leader at Stripe. Nudge had asked them to update macOS. They clicked **Update**, and Software Update started a download that took around 40 minutes. Their reaction: you called me, so why are you putting me on hold?
 
-It's a fair point. Nudge exists to get people to act, and it works. But when the action it asks for starts with a long download, the person who did the right thing pays for it. Multiply that by every Mac and every update, and the cost is hard to ignore.
+It's a fair point. Nudge exists to get people to act, and it works. But when the action it asks for starts with a long download, the person who did the right thing pays for it. Multiply that by every Mac and every update, and the cost is significant.
 
 ## Why Nudge can't fix it alone
 
@@ -39,7 +39,7 @@ So Wes blended the two:
 2. Software Update's own notifications are turned off (`Notifications: false` in the `com.apple.configuration.softwareupdate.settings` declaration), so Nudge is the only thing users see.
 3. Nudge appears only once the update is ready to install.
 
-Wes also shared a warning from experience. If you send an enforcement declaration to a large fleet all at once, every Mac starts downloading the update when it receives it. On a small network with a lot of Macs, that hurts, and a caching server isn't always an easy fix. Roll it out in waves.
+Wes also shared a warning from experience. If you send an enforcement declaration to a large fleet all at once, every Mac starts downloading the update when it receives it. On a small network with a lot of Macs, that hurts, and a caching server isn't always an easy fix. Wes suggests rolling it out in waves.
 
 ## The trigger: a status item and an activation
 
@@ -51,7 +51,7 @@ Fleet added support for custom activations in [Fleet 4.91.0](https://github.com/
 
 ## What we changed for Fleet's own Macs
 
-Fleet runs its own Macs with Fleet, and everything is in [our GitOps repository](https://github.com/fleetdm/fleet/tree/main/it-and-security). Putting Wes's approach into production there taught us a few things worth sharing.
+Fleet runs its own Macs with Fleet, and everything is in [our GitOps repository](https://github.com/fleetdm/fleet/tree/main/it-and-security). Putting Wes's approach into production taught us a few things worth sharing.
 
 ### The files
 
