@@ -1,5 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
+import { IHostAISession, IHostAISessionEvent } from "interfaces/ai_sessions";
 import { IHostCertificate } from "interfaces/certificates";
 import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
@@ -277,6 +278,35 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
 
 export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
+}
+
+export interface IGetHostAISessionsApiParams extends IListOptions {
+  host_id: number;
+}
+
+export interface IGetHostAISessionsResponse {
+  ai_sessions: IHostAISession[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+  count: number;
+}
+
+export interface IGetHostAISessionEventsApiParams {
+  host_id: number;
+  ai_session_id: number;
+  page: number;
+  per_page: number;
+}
+
+export interface IGetHostAISessionEventsResponse {
+  events: IHostAISessionEvent[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+  count: number;
 }
 
 export interface IGetHostDeviceURLResponse {
@@ -824,6 +854,37 @@ export default {
       order_key,
       order_direction,
     })}`;
+
+    return sendRequest("GET", path);
+  },
+  getHostAISessions: ({
+    host_id,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetHostAISessionsApiParams): Promise<IGetHostAISessionsResponse> => {
+    const { HOST_AI_SESSIONS } = endpoints;
+    const path = `${HOST_AI_SESSIONS(host_id)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
+
+    return sendRequest("GET", path);
+  },
+  getHostAISessionEvents: ({
+    host_id,
+    ai_session_id,
+    page,
+    per_page,
+  }: IGetHostAISessionEventsApiParams): Promise<IGetHostAISessionEventsResponse> => {
+    const { HOST_AI_SESSION_EVENTS } = endpoints;
+    const path = `${HOST_AI_SESSION_EVENTS(
+      host_id,
+      ai_session_id
+    )}?${buildQueryStringFromParams({ page, per_page })}`;
 
     return sendRequest("GET", path);
   },
