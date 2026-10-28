@@ -845,7 +845,11 @@ func TestNewActivities(t *testing.T) {
 		done := make(chan struct{})
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			n := inFlight.Add(1)
-			for old := maxInFlight.Load(); n > old && !maxInFlight.CompareAndSwap(old, n); old = maxInFlight.Load() {
+			for {
+				old := maxInFlight.Load()
+				if n <= old || maxInFlight.CompareAndSwap(old, n) {
+					break
+				}
 			}
 			time.Sleep(20 * time.Millisecond)
 			inFlight.Add(-1)
