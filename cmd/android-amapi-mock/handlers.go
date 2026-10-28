@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/google/uuid"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // ---- Coordination API handlers ----
@@ -356,16 +359,59 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 
 // ---- Other AMAPI handlers ----
 
+// defaultEnrollmentTokenSeconds is how long AMAPI makes a token valid for when
+// the request does not say.
+const defaultEnrollmentTokenSeconds = int64(3600)
+
 func handleEnrollmentTokenCreate() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var requested androidmanagement.EnrollmentToken
+		if err := readBody(r, &requested); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		token := uuid.New().String()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"name":   "enterprises/mock/enrollmentTokens/" + token,
-			"value":  token,
-			"qrCode": fmt.Sprintf(`{"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME":"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver","android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM":"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg","android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION":"https://play.google.com/managed/downloadManagingApp?identifier=setup","android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE":{"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN":"%s"}}`, token),
+			// The enterprise the token was asked for, not a literal "mock":
+			// Fleet stores this name against the token it created.
+			"name":  "enterprises/" + r.PathValue("eid") + "/enrollmentTokens/" + token,
+			"value": token,
+			// AMAPI always sets this, and Fleet's zero-touch configuration
+			// parses it rather than treating it as optional. Leaving it out
+			// failed that request with a time-parsing error that said nothing
+			// about which side was at fault.
+			"expirationTimestamp": enrollmentTokenExpiry(time.Now(), requested.Duration).Format(time.RFC3339),
+			"qrCode":              fmt.Sprintf(`{"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME":"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver","android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM":"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg","android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION":"https://play.google.com/managed/downloadManagingApp?identifier=setup","android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE":{"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN":"%s"}}`, token),
 		})
 	}
+}
+
+// enrollmentTokenExpiry resolves the expiry of a token from the duration asked
+// for, which AMAPI writes as a count of seconds with a trailing "s". A missing
+// or unreadable duration gets AMAPI's own default of one hour.
+//
+// The arithmetic is in Unix seconds rather than a time.Duration on purpose:
+// Fleet asks for 31536000000s for a zero-touch token, which is a thousand
+// years and does not fit in a time.Duration at all, so time.ParseDuration
+// rejects the one value this handler most needs to answer.
+func enrollmentTokenExpiry(now time.Time, duration string) time.Time {
+	seconds := defaultEnrollmentTokenSeconds
+	if trimmed := strings.TrimSuffix(duration, "s"); trimmed != duration {
+		// A fractional duration is legal; whole seconds are enough for an
+		// expiry.
+		whole, _, _ := strings.Cut(trimmed, ".")
+		if parsed, err := strconv.ParseInt(whole, 10, 64); err == nil && parsed > 0 {
+			seconds = parsed
+		}
+	}
+	// RFC 3339 has no year past 9999, so a longer duration is clamped rather
+	// than formatted into something no caller can read back.
+	latest := time.Date(9999, time.December, 31, 23, 59, 59, 0, time.UTC)
+	if seconds > latest.Unix()-now.Unix() {
+		return latest
+	}
+	return time.Unix(now.Unix()+seconds, 0).UTC()
 }
 
 func handleApplicationsGet() http.HandlerFunc {
