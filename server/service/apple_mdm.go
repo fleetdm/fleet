@@ -3987,7 +3987,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
 			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
-					profileValidationBatchMessage(mdmProf.Name, pvErr.finding, pvErr.windows)))
+					profileValidationBatchMessage(mdmProf.Name, pvErr.findings[0], pvErr.windows)))
 			}
 			if err != nil {
 				return err
