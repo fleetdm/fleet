@@ -610,7 +610,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil
 	}
 
-	// preprocess digicert, in place so the trimmed values are what gets stored
+	// preprocess digicert
 	for i := range incoming.DigiCert {
 		ca := &incoming.DigiCert[i]
 		ca.Preprocess()
@@ -634,7 +634,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// preprocess custom scep proxy, in place so the trimmed values are what gets stored
+	// preprocess custom scep proxy
 	for i := range incoming.CustomScepProxy {
 		ca := &incoming.CustomScepProxy[i]
 		ca.Preprocess()
@@ -646,7 +646,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// preprocess hydrant, in place so the trimmed values are what gets stored
+	// preprocess hydrant
 	for i := range incoming.Hydrant {
 		ca := &incoming.Hydrant[i]
 		ca.Preprocess()
@@ -658,7 +658,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// preprocess custom est proxy, in place so the trimmed values are what gets stored
+	// preprocess custom est proxy
 	for i := range incoming.EST {
 		ca := &incoming.EST[i]
 		ca.Preprocess()
@@ -670,7 +670,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, err
 		}
 	}
-	// preprocess smallstep, in place so the trimmed values are what gets stored
+	// preprocess smallstep
 	for i := range incoming.Smallstep {
 		ca := &incoming.Smallstep[i]
 		ca.Preprocess()
@@ -938,8 +938,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
-		// secret still goes through validation, which rejects it.
+		// An unchanged CA is left alone. A masked secret is not allowed and will be rejected later in validation.
 		if ok && incoming.Equals(existing) && incoming.Challenge != fleet.MaskedPassword {
 			continue
 		}
@@ -994,8 +993,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
-		// secret still goes through validation, which rejects it.
+		// An unchanged CA is left alone. A masked secret is not allowed and will be rejected later in validation.
 		if ok && incoming.Equals(existing) && incoming.ClientSecret != fleet.MaskedPassword {
 			continue
 		}
@@ -1053,8 +1051,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
-		// secret still goes through validation, which rejects it.
+		// An unchanged CA is left alone. A masked secret is not allowed and will be rejected later in validation.
 		if ok && incoming.Equals(existing) && incoming.Password != fleet.MaskedPassword {
 			continue
 		}
@@ -1113,8 +1110,7 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
-		// secret still goes through validation, which rejects it.
+		// An unchanged CA is left alone. A masked secret is not allowed and will be rejected later in validation.
 		if ok && incoming.Equals(existing) && incoming.Password != fleet.MaskedPassword {
 			continue
 		}
