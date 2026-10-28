@@ -985,6 +985,8 @@ type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM [
 
 type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
 
+type ConditionalAccessGetIdPWindowsProfilesFunc func(ctx context.Context) (*fleet.ConditionalAccessWindowsProfiles, error)
+
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
 type GetCertificateAuthorityFunc func(ctx context.Context, id uint) (*fleet.CertificateAuthority, error)
@@ -2489,6 +2491,9 @@ type Service struct {
 
 	ConditionalAccessGetIdPAppleProfileFunc        ConditionalAccessGetIdPAppleProfileFunc
 	ConditionalAccessGetIdPAppleProfileFuncInvoked bool
+
+	ConditionalAccessGetIdPWindowsProfilesFunc        ConditionalAccessGetIdPWindowsProfilesFunc
+	ConditionalAccessGetIdPWindowsProfilesFuncInvoked bool
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
@@ -5952,6 +5957,13 @@ func (s *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (prof
 	s.ConditionalAccessGetIdPAppleProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessGetIdPAppleProfileFunc(ctx)
+}
+
+func (s *Service) ConditionalAccessGetIdPWindowsProfiles(ctx context.Context) (*fleet.ConditionalAccessWindowsProfiles, error) {
+	s.mu.Lock()
+	s.ConditionalAccessGetIdPWindowsProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessGetIdPWindowsProfilesFunc(ctx)
 }
 
 func (s *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

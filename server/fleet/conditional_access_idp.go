@@ -29,6 +29,11 @@ const ConditionalAccessSCEPPath = "/api/fleet/conditional_access/scep"
 // issued by Fleet's conditional access SCEP server.
 const ConditionalAccessManagedCertificateCAName = "Conditional access"
 
+type ConditionalAccessWindowsProfiles struct {
+	SCEPProfile    string `json:"scep_profile"`
+	BrowserProfile string `json:"browser_profile"`
+}
+
 // OktaCACleanupTarget identifies where to run the Okta conditional access
 // keychain-cleanup script after a successful InstallProfile ack for the
 // Okta CA profile.
