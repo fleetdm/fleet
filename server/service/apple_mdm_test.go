@@ -9750,6 +9750,11 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
+			name:    "conditional access SCEP URL variable",
+			profile: customProfileForValidation(fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()),
+			errMsg:  "Fleet variable " + fleet.FleetVarConditionalAccessSCEPURL.WithPrefix() + " is not supported in configuration profiles.",
+		},
+		{
 			name:    "silent migration SCEP challenge variable",
 			profile: customProfileForValidation(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()),
 			errMsg:  "Fleet variable " + fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
