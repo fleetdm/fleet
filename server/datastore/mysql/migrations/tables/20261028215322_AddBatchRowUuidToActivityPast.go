@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261028164014, Down_20261028164014)
+	MigrationClient.AddMigration(Up_20261028215322, Down_20261028215322)
 }
 
-func Up_20261028164014(tx *sql.Tx) error {
+func Up_20261028215322(tx *sql.Tx) error {
 	// Correlates the rows of a bulk insert with their generated ids. Unindexed on purpose: it is only read back within the
 	// inserting transaction, through a primary key range.
 	if !columnExists(tx, "activity_past", "batch_row_uuid") {
@@ -21,6 +21,6 @@ func Up_20261028164014(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261028164014(tx *sql.Tx) error {
+func Down_20261028215322(tx *sql.Tx) error {
 	return nil
 }
