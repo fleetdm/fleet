@@ -134,7 +134,6 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
   </tbody>
 </table>
 
-*More panelists to be announced*
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
 
