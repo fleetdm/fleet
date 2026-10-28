@@ -19,12 +19,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -293,7 +295,10 @@ func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Clie
 		return nil, "", ctxerr.Errorf(ctx, msgCertExpired, pair.Leaf.NotAfter.UTC().Format(time.DateOnly))
 	}
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12}
+	// EJBCA Enterprise can ask for the client certificate by renegotiating the TLS 1.2 connection.
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, Renegotiation: tls.RenegotiateOnceAsClient,
+	}
 	if config.TrustCABundlePEM != "" {
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM([]byte(config.TrustCABundlePEM)) {
@@ -382,9 +387,9 @@ func errorMessage(body []byte) string {
 	if err := json.Unmarshal(body, &errResp); err == nil && errResp.ErrorMessage != "" {
 		return errResp.ErrorMessage
 	}
-	text := strings.TrimSpace(string(body))
-	if len(text) > 200 {
-		text = text[:200]
-	}
-	return text
+	// A proxy in front of EJBCA answers with an HTML page, so keep its text and drop the markup.
+	text := strings.Join(strings.Fields(htmlTag.ReplaceAllString(strings.ToValidUTF8(string(body), ""), " ")), " ")
+	return str.TruncateBytes(text, 200, "")
 }
+
+var htmlTag = regexp.MustCompile(`<[^>]*>`)

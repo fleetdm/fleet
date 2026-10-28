@@ -1204,6 +1204,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
+	// VerifyMCPAvailable verifies that Fleet's embedded MCP server is turned on
+	// (server_settings.mcp_disabled) and licensed. If an error is returned,
+	// authorization is skipped so it can run before authentication.
+	VerifyMCPAvailable(ctx context.Context) error
+
 	// VerifyMDMAndroidConfigured verifies that the server is configured for
 	// Android MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -1409,7 +1414,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

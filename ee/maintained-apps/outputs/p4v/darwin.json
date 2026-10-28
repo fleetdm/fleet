@@ -10,7 +10,7 @@
       "installer_url": "https://filehost.perforce.com/perforce/r26.3/bin.macosx12u/P4V.dmg",
       "install_script_ref": "68a5ee7a",
       "uninstall_script_ref": "c7af65de",
-      "sha256": "a074cdcf2a5db5c1334fbb18188693a1328bb142aa40eae8c6b07d8eb7de3d06",
+      "sha256": "80557912e9b5cae358a9051343e23742cb3ae7ed4338084c1268b392f434adc0",
       "default_categories": [
         "Developer tools"
       ]
