@@ -9,10 +9,10 @@ func init() {
 	MigrationClient.AddMigration(Up_20261027212007, Down_20261027212007)
 }
 
-// Up_20261027212007 clears the escrowed flag on Windows enrollments whose host has no live managed local account password under its
-// current UUID. An error-only row has no password, so it does not count. The password was escrowed under a UUID the host no longer has, so fleetd is never asked again and the host shows no
-// account. Clearing the flag makes fleetd re-create the account on its next config fetch, which resets the password and escrows it
-// under the current UUID. Enrollments of deleted hosts are left alone.
+// Up_20261027212007 clears the escrowed flag on Windows enrollments whose host has no live managed local account
+// password under its current UUID. An error-only row has no password, so it does not count. Clearing the flag makes
+// fleetd re-create the account on its next config fetch, which resets the password and escrows it under the current
+// UUID. Enrollments of deleted hosts are left alone.
 func Up_20261027212007(tx *sql.Tx) error {
 	// updated_at is kept because the stale enrollment cleanup keys off it.
 	if _, err := tx.Exec(`
