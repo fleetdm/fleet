@@ -18,7 +18,6 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 
 1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
-3. Optional: To open the app every time the end user logs in or restarts their Mac, deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig).
 
 > If an end user quits the app, it stays closed until they log in again.
 
