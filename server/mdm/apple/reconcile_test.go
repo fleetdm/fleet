@@ -2383,6 +2383,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 	const hostUUID = "uuid-A"
 	const identifier = "com.example.shared"
 	const queuedCmd = "queued-install-cmd"
+	varsUpdatedAt := time.Now().Add(-time.Hour)
 
 	newInstall := func(checksum string) *fleet.MDMAppleProfilePayload {
 		return &fleet.MDMAppleProfilePayload{
@@ -2395,6 +2396,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 			ProfileUUID: "aFleetAProfileUUID", ProfileIdentifier: identifier, ProfileName: "Shared",
 			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
 			OperationType: fleet.MDMOperationTypeInstall, Status: &status, CommandUUID: queuedCmd,
+			VariablesUpdatedAt: &varsUpdatedAt,
 		}
 	}
 
@@ -2409,11 +2411,13 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 
 		require.Len(t, res.cleanedUp, 1)
 		require.Equal(t, "aFleetAProfileUUID", res.cleanedUp[0].ProfileUUID)
+		require.Equal(t, "aFleetBProfileUUID", res.cleanedUp[0].AdoptedByProfileUUID, "managed certificates move to the adopter")
 
 		require.Len(t, res.upserted, 1)
 		require.Equal(t, "aFleetBProfileUUID", res.upserted[0].ProfileUUID)
 		require.Equal(t, queuedCmd, res.upserted[0].CommandUUID)
 		require.Equal(t, fleet.MDMDeliveryPending, *res.upserted[0].Status)
+		require.Equal(t, &varsUpdatedAt, res.upserted[0].VariablesUpdatedAt)
 	})
 
 	t.Run("pending install with different content: queued command replaced", func(t *testing.T) {
@@ -2424,6 +2428,9 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 
 		require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
 		require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+
+		require.Len(t, res.cleanedUp, 1)
+		require.Empty(t, res.cleanedUp[0].AdoptedByProfileUUID, "a reinstall tracks its own certificate")
 
 		require.Len(t, res.upserted, 1)
 		require.Equal(t, "aFleetBProfileUUID", res.upserted[0].ProfileUUID)

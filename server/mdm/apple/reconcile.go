@@ -225,21 +225,22 @@ func ComputeReconcileDeltas(
 			}
 
 			toRemove = append(toRemove, &fleet.MDMAppleProfilePayload{
-				ProfileUUID:       c.ProfileUUID,
-				ProfileIdentifier: c.ProfileIdentifier,
-				ProfileName:       c.ProfileName,
-				HostUUID:          host.UUID,
-				HostPlatform:      host.Platform,
-				Checksum:          c.Checksum,
-				SecretsUpdatedAt:  c.SecretsUpdatedAt,
-				Status:            c.Status,
-				OperationType:     c.OperationType,
-				Detail:            c.Detail,
-				CommandUUID:       c.CommandUUID,
-				IgnoreError:       c.IgnoreError,
-				Scope:             c.Scope,
-				DeviceEnrolledAt:  host.DeviceEnrolledAt,
-				CancelOnly:        cancelOnly,
+				ProfileUUID:        c.ProfileUUID,
+				ProfileIdentifier:  c.ProfileIdentifier,
+				ProfileName:        c.ProfileName,
+				HostUUID:           host.UUID,
+				HostPlatform:       host.Platform,
+				Checksum:           c.Checksum,
+				SecretsUpdatedAt:   c.SecretsUpdatedAt,
+				Status:             c.Status,
+				OperationType:      c.OperationType,
+				Detail:             c.Detail,
+				CommandUUID:        c.CommandUUID,
+				IgnoreError:        c.IgnoreError,
+				Scope:              c.Scope,
+				DeviceEnrolledAt:   host.DeviceEnrolledAt,
+				VariablesUpdatedAt: c.VariablesUpdatedAt,
+				CancelOnly:         cancelOnly,
 			})
 		}
 	}
@@ -568,20 +569,22 @@ func ExecuteReconcileBatch(
 			// install as "removing" and point it at the command we are about to delete.
 			if !pp.CancelOnly && (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileUUID:       p.ProfileUUID,
-					HostUUID:          p.HostUUID,
-					ProfileIdentifier: p.ProfileIdentifier,
-					ProfileName:       p.ProfileName,
-					Checksum:          p.Checksum,
-					SecretsUpdatedAt:  p.SecretsUpdatedAt,
-					OperationType:     pp.OperationType,
-					Status:            pp.Status,
-					CommandUUID:       pp.CommandUUID,
-					Detail:            pp.Detail,
-					Scope:             pp.Scope,
+					ProfileUUID:        p.ProfileUUID,
+					HostUUID:           p.HostUUID,
+					ProfileIdentifier:  p.ProfileIdentifier,
+					ProfileName:        p.ProfileName,
+					Checksum:           p.Checksum,
+					SecretsUpdatedAt:   p.SecretsUpdatedAt,
+					OperationType:      pp.OperationType,
+					Status:             pp.Status,
+					CommandUUID:        pp.CommandUUID,
+					Detail:             pp.Detail,
+					Scope:              pp.Scope,
+					VariablesUpdatedAt: pp.VariablesUpdatedAt,
 				}
 				hostProfiles = append(hostProfiles, hp)
 				hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hp
+				pp.AdoptedByProfileUUID = p.ProfileUUID
 				if pp.CommandUUID != "" {
 					adoptedCmds[hostCommandKey{hostUUID: p.HostUUID, commandUUID: pp.CommandUUID}] = struct{}{}
 				}
