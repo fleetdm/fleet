@@ -132,8 +132,8 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
     </tr>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Mercante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">John Mercante</a></strong>, US CIO, Deloitte</p></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Marcante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">John Marcante</a></strong>, US CIO, Deloitte</p></td>
     </tr>
   </tbody>
 </table>
