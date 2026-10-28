@@ -92,7 +92,7 @@ func TestStatOwnerNeverReportsANonUserOwner(t *testing.T) {
 func TestDiskConsistent(t *testing.T) {
 	dir := t.TempDir()
 	owner := ownerOf(t, dir)
-	_, ownerIsUser := userAccountForSID(owner)
+	_, ownerRes := lookupSID(owner)
 
 	if diskConsistent(sidLocalUser, filepath.Join(dir, "missing")) {
 		t.Error("a path with no directory behind it was accepted")
@@ -101,11 +101,38 @@ func TestDiskConsistent(t *testing.T) {
 		t.Errorf("a claim matching the on-disk owner %s was rejected", owner)
 	}
 	// sidLocalUser is a fabricated SID that exists on no host, so it never
-	// matches the real owner: the claim must be rejected exactly when the owner
-	// is itself a user account (which then contradicts the claim).
-	if got := diskConsistent(sidLocalUser, dir); got != !ownerIsUser {
-		t.Errorf("diskConsistent with a mismatched claim = %v; directory owner %s (user account: %v)",
-			got, owner, ownerIsUser)
+	// matches the real owner: the claim is accepted only when the owner is
+	// positively a group or service account, which says nothing about the user.
+	if got := diskConsistent(sidLocalUser, dir); got != (ownerRes == resolvedNonUser) {
+		t.Errorf("diskConsistent with a mismatched claim = %v; directory owner %s (resolution %d)",
+			got, owner, ownerRes)
+	}
+}
+
+func TestOwnsRefusesUnverifiedOwners(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	owner := ownerOf(t, path)
+	_, ownerRes := lookupSID(owner)
+
+	if !(Home{UID: owner.String()}).Owns(f, nil) {
+		t.Errorf("a file owned by the home's own account %s was refused", owner)
+	}
+	// As with diskConsistent: another home accepts the file only when its
+	// owner is positively not a user account.
+	if got := (Home{UID: sidLocalUser}).Owns(f, nil); got != (ownerRes == resolvedNonUser) {
+		t.Errorf("Owns from another home = %v; file owner %s (resolution %d)", got, owner, ownerRes)
+	}
+	// A SID no host can resolve is unverifiable, not harmless.
+	if _, res := resolveUserAccount(sidLocalUser); res != unresolved {
+		t.Errorf("resolveUserAccount(%s) = %d, want unresolved", sidLocalUser, res)
 	}
 }
 

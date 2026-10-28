@@ -55,8 +55,9 @@ func securityDescriptorOwner(dir string) (*windows.SID, bool) {
 //     (BUILTIN\Administrators on real admin profiles — the normal case) says
 //     nothing about which user the profile belongs to and contradicts nothing.
 //
-// An owner that cannot be read counts as inconsistent: this check exists to
-// veto forgery, and unverifiable is not verified.
+// An owner that cannot be read, or that the host cannot resolve (a deleted
+// account, a domain account while offline), counts as inconsistent: this
+// check exists to veto forgery, and unverifiable is not verified.
 func diskConsistent(profileSID, dir string) bool {
 	claim, err := windows.StringToSid(profileSID)
 	if err != nil {
@@ -73,8 +74,17 @@ func diskConsistent(profileSID, dir string) bool {
 	if owner.Equals(claim) {
 		return true
 	}
-	_, ownerIsUser := userAccountForSID(owner)
-	return !ownerIsUser
+	return foreignOwnerAcceptable(owner)
+}
+
+// foreignOwnerAcceptable reports whether a file or directory owned by owner,
+// which is not the user it is being attributed to, can still be that user's:
+// only when owner is positively a group or service account. A user account
+// contradicts the attribution, and an owner the host cannot resolve has not
+// been verified either way.
+func foreignOwnerAcceptable(owner *windows.SID) bool {
+	_, res := lookupSID(owner)
+	return res == resolvedNonUser
 }
 
 // resolveUserAccount resolves a SID string to its account name, distinguishing
@@ -83,14 +93,25 @@ func diskConsistent(profileSID, dir string) bool {
 // ProfileList grows "<SID>.bak" subkeys, which are duplicates of real entries —
 // counts as a non-user.
 func resolveUserAccount(sid string) (string, accountResolution) {
-	if isNonUserSID(sid) {
-		return "", resolvedNonUser
-	}
 	s, err := windows.StringToSid(sid)
 	if err != nil {
 		return "", resolvedNonUser
 	}
-	account, _, accType, err := s.LookupAccount("")
+	return lookupSID(s)
+}
+
+// lookupSID resolves sid to its bare account name and what the lookup
+// established — by SID value first (see nonUserSIDs) and by the reported
+// account type second.
+//
+// The name is deliberately bare: os/user formats Username as DOMAIN\account,
+// whereas osquery's own users table carries the account name alone, and these
+// columns exist to be lined up with that table.
+func lookupSID(sid *windows.SID) (string, accountResolution) {
+	if isNonUserSID(sid.String()) {
+		return "", resolvedNonUser
+	}
+	account, _, accType, err := sid.LookupAccount("")
 	if err != nil {
 		return "", unresolved
 	}
@@ -101,21 +122,10 @@ func resolveUserAccount(sid string) (string, accountResolution) {
 }
 
 // userAccountForSID returns the bare account name for sid, reporting false
-// unless the account is a user — established by SID value first (see
-// nonUserSIDs) and by the reported account type second.
-//
-// The name is deliberately bare: os/user formats Username as DOMAIN\account,
-// whereas osquery's own users table carries the account name alone, and these
-// columns exist to be lined up with that table.
+// unless the account is a user.
 func userAccountForSID(sid *windows.SID) (string, bool) {
-	if isNonUserSID(sid.String()) {
-		return "", false
-	}
-	account, _, accType, err := sid.LookupAccount("")
-	if err != nil || accType != windows.SidTypeUser {
-		return "", false
-	}
-	return account, true
+	account, res := lookupSID(sid)
+	return account, res == resolvedUser
 }
 
 // Windows records which user a profile directory belongs to in
@@ -318,4 +328,33 @@ func longPathName(path string) string {
 		}
 	}
 	return windows.UTF16ToString(buf[:n])
+}
+
+// Owns reports whether the open file f belongs to the home's user, read from
+// the handle so the check can't be raced by swapping the path. As with
+// diskConsistent, a group or service owner (BUILTIN\Administrators on admin
+// profiles) says nothing about the user and is accepted; another user
+// account's file, or one whose owner the host cannot resolve, is refused.
+func (h Home) Owns(f *os.File, _ os.FileInfo) bool {
+	sd, err := windows.GetSecurityInfo(windows.Handle(f.Fd()), windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION)
+	if err != nil {
+		return false
+	}
+	owner, _, err := sd.Owner()
+	if err != nil || owner == nil {
+		return false
+	}
+	if owner.String() == h.UID {
+		return true
+	}
+	return foreignOwnerAcceptable(owner)
+}
+
+// Owner returns the owning SID and account name of path, when a user owns it.
+func Owner(path string) (uid, username string, ok bool) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return "", "", false
+	}
+	return statOwner(path, fi)
 }
