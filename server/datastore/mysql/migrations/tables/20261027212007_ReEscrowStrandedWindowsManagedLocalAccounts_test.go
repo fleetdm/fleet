@@ -45,7 +45,7 @@ func TestUp_20261027212007(t *testing.T) {
 	var stillEscrowed []string
 	require.NoError(t, db.Select(&stillEscrowed,
 		`SELECT mdm_device_id FROM mdm_windows_enrollments WHERE managed_local_account_escrowed = 1 ORDER BY mdm_device_id`))
-	require.Equal(t, []string{"deleted", "healthy"}, stillEscrowed)
+	require.Equal(t, []string{"healthy"}, stillEscrowed)
 
 	var touched int
 	require.NoError(t, db.Get(&touched, `SELECT COUNT(*) FROM mdm_windows_enrollments WHERE updated_at != ?`, old))
