@@ -3,7 +3,6 @@ package fleet
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -73,15 +72,19 @@ func ValidateNoHostSecretVariables(document string) error {
 	return &BadRequestError{Message: fmt.Sprintf("Variable %s is reserved for profiles managed by Fleet and can't be used.", HostSecretPlaceholder(vars[0]))}
 }
 
-// ValidateNoHostSecretVariablesAdded rejects a $FLEET_HOST_SECRET_* placeholder in expanded that isn't in original.
-// Custom variables are expanded before host secrets at delivery, so one whose value is a host-secret placeholder would
-// otherwise be expanded like the placeholders Fleet writes.
+// ValidateNoHostSecretVariablesAdded rejects $FLEET_HOST_SECRET_* placeholders in expanded beyond those in original,
+// counting each occurrence. Custom variables are expanded before host secrets at delivery, so one whose value is a
+// host-secret placeholder would otherwise be expanded like the placeholders Fleet writes.
 func ValidateNoHostSecretVariablesAdded(original, expanded string) error {
-	written := ContainsPrefixVars(original, HostSecretPrefix)
+	written := make(map[string]int)
+	for _, v := range ContainsPrefixVars(original, HostSecretPrefix) {
+		written[v]++
+	}
 	for _, v := range ContainsPrefixVars(expanded, HostSecretPrefix) {
-		if !slices.Contains(written, v) {
+		if written[v] == 0 {
 			return fmt.Errorf("variable %s comes from a custom variable and can't be used", HostSecretPlaceholder(v))
 		}
+		written[v]--
 	}
 	return nil
 }

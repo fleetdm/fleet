@@ -33,4 +33,9 @@ func TestValidateNoHostSecretVariablesAdded(t *testing.T) {
 	require.ErrorContains(t, err, unlock)
 	err = ValidateNoHostSecretVariablesAdded(unlock+" $FLEET_SECRET_X", unlock+" "+recoveryLock)
 	require.ErrorContains(t, err, HostSecretPlaceholder(HostSecretRecoveryLockPassword))
+
+	// one more occurrence of a placeholder the document already had
+	err = ValidateNoHostSecretVariablesAdded(unlock+" $FLEET_SECRET_X", unlock+" "+unlock)
+	require.ErrorContains(t, err, unlock)
+	require.NoError(t, ValidateNoHostSecretVariablesAdded(unlock+" "+unlock, unlock+" "+unlock))
 }
