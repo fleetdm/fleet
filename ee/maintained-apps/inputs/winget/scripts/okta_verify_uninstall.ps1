@@ -86,6 +86,10 @@ try {
     }
 
     if ($null -eq $exitCode) {
+        if (@($candidates | Where-Object { $_ }).Count -gt 0) {
+            Write-Host "Okta Verify is registered, but no uninstaller ran."
+            Exit 1
+        }
         Write-Host "Uninstall entry not found for $displayNameLike"
         Exit 0
     }

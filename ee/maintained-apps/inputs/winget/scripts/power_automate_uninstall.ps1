@@ -12,6 +12,7 @@ $ExpectedExitCodes = @(0, 1641, 3010, 1223)
 Stop-Process -Name "PAD.Console.Host" -Force -ErrorAction SilentlyContinue
 
 $setupExe = $null
+$registered = $false
 
 # The Burn bundle's machine-wide (HKLM) ARP entry records the cached bootstrapper
 # in BundleCachePath.
@@ -20,13 +21,21 @@ $arpPaths = @(
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 foreach ($p in $arpPaths) {
-  $bundle = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like 'Power Automate for desktop*' -and $_.BundleCachePath
+  $entries = @(Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -like 'Power Automate for desktop*'
+  })
+  if ($entries.Count -gt 0) { $registered = $true }
+  $bundle = $entries | Where-Object {
+    $_.BundleCachePath -and (Test-Path -LiteralPath $_.BundleCachePath)
   } | Select-Object -First 1
   if ($bundle) { $setupExe = $bundle.BundleCachePath; break }
 }
 
-if (-not $setupExe -or -not (Test-Path $setupExe)) {
+if (-not $setupExe) {
+  if ($registered) {
+    Write-Host "Power Automate is registered, but its bootstrapper was not found."
+    Exit 1
+  }
   Write-Host "Power Automate bootstrapper not found; nothing to uninstall."
   Exit 0
 }

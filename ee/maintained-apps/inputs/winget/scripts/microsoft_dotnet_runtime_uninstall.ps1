@@ -23,6 +23,7 @@ function Invoke-Uninstaller {
 }
 
 $exitCode = $null
+$entryFound = $false
 
 # The bundle ARP entry, looked up by the bundle ProductCode. Its
 # UninstallString/QuietUninstallString points to the cached bootstrapper .exe.
@@ -35,6 +36,7 @@ foreach ($key in $keys) {
   if (-not (Test-Path $key)) { continue }
   $entry = Get-ItemProperty $key -ErrorAction SilentlyContinue
   if (-not $entry) { continue }
+  $entryFound = $true
 
   $raw = $entry.QuietUninstallString
   if (-not $raw) { $raw = $entry.UninstallString }
@@ -54,6 +56,10 @@ foreach ($key in $keys) {
 }
 
 if ($null -eq $exitCode) {
+  if ($entryFound) {
+    Write-Host "Uninstall entry found for product code $productCode, but no uninstaller ran"
+    Exit 1
+  }
   Write-Host "Uninstall entry not found for product code: $productCode"
   Exit 0
 }

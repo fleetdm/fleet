@@ -13,12 +13,13 @@ try {
     $bundlePath = $null
     foreach ($arpPath in $arpPaths) {
         $entry = Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -like 'Tableau 20*' -and $_.BundleCachePath
+            $_.DisplayName -like 'Tableau 20*' -and $_.BundleCachePath -and
+                (Test-Path -LiteralPath $_.BundleCachePath)
         } | Select-Object -First 1
         if ($entry) { $bundlePath = $entry.BundleCachePath; break }
     }
 
-    if (-not $bundlePath -or -not (Test-Path $bundlePath)) {
+    if (-not $bundlePath) {
         Write-Host "Tableau Desktop bundle not found in the uninstall registry."
         Exit 1
     }
