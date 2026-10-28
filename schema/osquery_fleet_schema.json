@@ -29523,6 +29523,39 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ssh_configs.yml"
   },
   {
+    "name": "sshd_config",
+    "platforms": [
+      "darwin",
+      "linux"
+    ],
+    "description": "The OpenSSH server's effective configuration, as printed by `sshd -G`. Returns one row per setting.\n\n`/etc/ssh/sshd_config` leaves most settings at their compiled-in defaults, pulls in drop-in files with `Include`, and can override settings per connection with `Match` blocks. `sshd -G` resolves all of that and prints the value sshd will actually use for every setting, so settings like `PermitRootLogin` and `PasswordAuthentication` can be checked without parsing config files.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "keyword",
+        "description": "The configuration keyword, lowercased (for example, `permitrootlogin`). sshd prints mixed-case keywords starting with OpenSSH 10.4, so the table lowercases them to keep queries working on every version. Repeatable keywords, such as `hostkey`, `listenaddress`, and `acceptenv`, return one row per value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "The effective value, exactly as sshd printed it (for example, `prohibit-password`). List settings such as `ciphers` and `kexalgorithms` are returned as a single comma-separated string.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "connection_spec",
+        "description": "The connection that `Match` blocks were evaluated against, passed to sshd as `-C`. Uses sshd's syntax: comma-separated `keyword=value` pairs from `user`, `host`, `addr`, `laddr`, `lport`, and `rdomain`. Empty for the global configuration. Only `=` and `IN` constraints are passed to sshd. Other operators filter the global configuration's rows.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "examples": "Check the settings most security baselines look at.\n\n```\nSELECT keyword, value FROM sshd_config\nWHERE keyword IN ('permitrootlogin', 'passwordauthentication', 'kbdinteractiveauthentication', 'permitemptypasswords', 'maxauthtries', 'x11forwarding');\n```\n\nFind hosts still offering a CBC cipher or a SHA-1 or MD5 MAC.\n\n```\nSELECT keyword, value FROM sshd_config\nWHERE (keyword = 'ciphers' AND value LIKE '%-cbc%')\n   OR (keyword = 'macs' AND (value LIKE '%hmac-sha1%' OR value LIKE '%hmac-md5%'));\n```\n\nPolicy that passes when password authentication is disabled. Writing the check as `NOT EXISTS` makes hosts without sshd pass instead of fail.\n\n```\nSELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM sshd_config\n  WHERE keyword = 'passwordauthentication' AND value != 'no'\n);\n```\n\nEvaluate `Match` blocks for a specific connection.\n\n```\nSELECT keyword, value FROM sshd_config\nWHERE connection_spec = 'user=root,host=bastion.example.com,addr=10.0.0.5'\n  AND keyword IN ('permitrootlogin', 'passwordauthentication');\n```\n\nGet the effective `PasswordAuthentication` setting for every local account. Use `CROSS JOIN` with `sshd_config` on the right. With a plain `JOIN`, SQLite can scan `sshd_config` first, so the connection spec never reaches sshd and nothing matches.\n\n```\nSELECT u.username, c.value AS passwordauthentication\nFROM users u\nCROSS JOIN sshd_config c ON c.connection_spec = 'user=' || u.username\nWHERE u.uid >= 500 AND u.uid < 65534\n  AND c.keyword = 'passwordauthentication';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- The table reports configuration, not whether sshd is running. On macOS it returns the configuration Remote Login would use even while Remote Login is off. To check whether sshd is listening, use `listening_ports`, `systemd_units`, or `launchd`.\n- If sshd isn't installed, the table returns no rows. sshd is run from `/usr/sbin/sshd` on macOS, and from `/usr/sbin`, `/usr/bin`, `/sbin`, `/usr/local/sbin`, or `/run/current-system/sw/bin` on Linux. `$PATH` is never searched. Because fleetd runs sshd as root, a binary is skipped unless root owns it and every directory and symlink leading to it, and none of them can be modified by other users.\n- Results are reused for up to 5 seconds, so a configuration change can take that long to show up. Errors aren't reused.\n- If sshd rejects its configuration, or a connection spec is invalid, the query fails with sshd's error message. A policy whose query fails has no result for that host, so a broken `sshd_config` shows up as a host with no policy response, not a failing host.\n- `sshd -G` was added in OpenSSH 9.3. On older sshd (Ubuntu 20.04 and 22.04, Debian 12), the table falls back to `sshd -T`, which also requires the host keys to exist. On Debian and Ubuntu, `sshd -T` also requires sshd to be running, because it needs `/run/sshd`. When these checks fail, the query fails with sshd's error.\n- A partial connection spec, such as `user=root`, requires OpenSSH 7.7 or later. Older sshd (RHEL 7, Amazon Linux 2, Ubuntu 18.04) requires `user`, `host`, and `addr` together.\n- Available keywords vary by OpenSSH version and platform. A keyword that a host's sshd doesn't support has no row.\n- The table reports the configuration at sshd's default path. A server started with `-f` and a different config file isn't reflected.",
+    "url": "https://fleetdm.com/tables/sshd_config",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sshd_config.yml"
+  },
+  {
     "name": "startup_items",
     "description": "Applications and binaries set as startup items.",
     "url": "https://fleetdm.com/tables/startup_items",

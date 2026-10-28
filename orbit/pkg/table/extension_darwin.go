@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/santa"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sshd_config"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
@@ -87,6 +88,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
 		table.NewPlugin("homebrew_outdated", homebrew_outdated.Columns(), homebrew_outdated.Generate),
+		table.NewPlugin("sshd_config", sshd_config.Columns(), sshd_config.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
