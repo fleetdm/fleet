@@ -22626,8 +22626,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Returns useful results on Intel Macs only.",
-    "examples": "See the total power usage of an Intel Mac.\n\n```\nSELECT * FROM power_sensors WHERE key='PSTR';\n```",
+    "notes": "Intel Macs return many sensors. Apple silicon Macs return only a few, including `PSTR` (System Total), which reports total system power draw in watts.",
+    "examples": "See the total power usage of a Mac, in watts.\n\n```\nSELECT * FROM power_sensors WHERE key='PSTR';\n```\n\nSee the total power usage of a Mac alongside its power source. On a Mac running on battery power, the battery's discharge rate is shown for comparison.\n\n```\nSELECT\n  CAST(p.value AS REAL) AS system_watts,\n  b.state AS power_source,\n  CASE WHEN b.amperage < 0 THEN ROUND(b.voltage / 1000.0 * -b.amperage / 1000.0, 2) END AS battery_discharge_watts\nFROM power_sensors p\nLEFT JOIN battery b\nWHERE p.key = 'PSTR';\n```",
     "columns": [
       {
         "name": "key",
