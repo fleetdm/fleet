@@ -8,6 +8,7 @@ package redis_nonces_store
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -54,6 +55,21 @@ func (r *RedisNoncesStore) Store(ctx context.Context, nonce string, expireTime t
 		return ctxerr.Wrap(ctx, err, "redis failed to set psso nonce")
 	}
 	return nil
+}
+
+// StoreIfAbsent stores value with a TTL of expireTime unless it's already stored, and reports whether it stored it.
+func (r *RedisNoncesStore) StoreIfAbsent(ctx context.Context, value string, expireTime time.Duration) (bool, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := redigo.String(conn.Do("SET", r.testPrefix+prefix+value, value, "PX", expireTime.Milliseconds(), "NX"))
+	if errors.Is(err, redigo.ErrNil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "redis failed to set psso value if absent")
+	}
+	return true, nil
 }
 
 // Consume removes nonce from Redis and reports whether it was present. A

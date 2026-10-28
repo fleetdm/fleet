@@ -73,6 +73,8 @@ type PSSOIdPClient interface {
 type PSSONonceStore interface {
 	Store(ctx context.Context, nonce string, ttl time.Duration) error
 	Consume(ctx context.Context, nonce string) (ok bool, err error)
+	// StoreIfAbsent stores value with ttl unless it's already stored, and reports whether it stored it.
+	StoreIfAbsent(ctx context.Context, value string, ttl time.Duration) (stored bool, err error)
 }
 
 // PSSODeviceRegistrationRequest carries the device-key enrollment the Mac

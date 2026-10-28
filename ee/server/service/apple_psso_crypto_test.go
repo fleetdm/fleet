@@ -292,7 +292,7 @@ func TestPSSO_ResolveLoginPassword(t *testing.T) {
 			}
 			return out, nil
 		}
-		return &Service{ds: ds, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		return &Service{ds: ds, pssoNonceStore: &memNonceStore{}, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	}
 
 	t.Run("plaintext password claim", func(t *testing.T) {
@@ -311,8 +311,94 @@ func TestPSSO_ResolveLoginPassword(t *testing.T) {
 		pw, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{
 			GrantType: pssocrypto.GrantTypeJWTBearer,
 			Assertion: string(jwe),
+			Nonce:     "nonce",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "secret", pw)
+	})
+}
+
+func TestPSSO_ResolveLoginPasswordTiedToRequest(t *testing.T) {
+	encKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	encDER, err := x509.MarshalECPrivateKey(encKey)
+	require.NoError(t, err)
+	encPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: encDER})
+
+	newSvc := func() *Service {
+		ds := new(mock.DataStore)
+		ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetPSSOEncryptionKey: {Name: fleet.MDMAssetPSSOEncryptionKey, Value: encPEM},
+			}, nil
+		}
+		return &Service{ds: ds, pssoNonceStore: &memNonceStore{}, logger: slog.New(slog.DiscardHandler)}
+	}
+	// macOS sends the assertion's apv as "Apple" || Fleet's key || session nonce, or with an empty label and the
+	// request_nonce.
+	assertion := func(t *testing.T, label string, recipient *ecdsa.PublicKey, nonce string) string {
+		t.Helper()
+		raw, err := pssocrypto.RawECPoint(recipient)
+		require.NoError(t, err)
+		apv := base64.RawURLEncoding.EncodeToString(pssocrypto.EncodeApplePartyInfo([]byte(label), raw, []byte(nonce)))
+		plaintext, err := pssocrypto.BuildEmbeddedAssertionPlaintext("secret")
+		require.NoError(t, err)
+		jwe, err := pssocrypto.BuildPartyInfoJWE(plaintext, &encKey.PublicKey, apv, pssocrypto.TypEncryptedLoginAssertion)
+		require.NoError(t, err)
+		return string(jwe)
+	}
+	var badRequest *fleet.BadRequestError
+
+	for _, tc := range []struct {
+		name   string
+		label  string
+		claims func(a string) *pssocrypto.TokenClaims
+	}{
+		{"session nonce", "Apple", func(a string) *pssocrypto.TokenClaims {
+			return &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce", RequestNonce: "request-nonce"}
+		}},
+		{"request_nonce", "", func(a string) *pssocrypto.TokenClaims {
+			return &pssocrypto.TokenClaims{Assertion: a, Nonce: "other-session-nonce", RequestNonce: "session-nonce"}
+		}},
+	} {
+		t.Run(tc.name+": accepted once in its own request", func(t *testing.T) {
+			svc := newSvc()
+			a := assertion(t, tc.label, &encKey.PublicKey, "session-nonce")
+			pw, err := svc.resolvePSSOLoginPassword(t.Context(), tc.claims(a))
+			require.NoError(t, err)
+			assert.Equal(t, "secret", pw)
+
+			_, err = svc.resolvePSSOLoginPassword(t.Context(), tc.claims(a))
+			require.ErrorAs(t, err, &badRequest)
+			require.ErrorContains(t, err, "already used")
+		})
+	}
+
+	t.Run("refused in a request with other nonces", func(t *testing.T) {
+		a := assertion(t, "Apple", &encKey.PublicKey, "session-nonce")
+		_, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{
+			Assertion: a, Nonce: "another-session-nonce", RequestNonce: "another-request-nonce",
+		})
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "for another request")
+	})
+
+	t.Run("refused when the request_nonce is copied into the session nonce after its own request used it", func(t *testing.T) {
+		svc := newSvc()
+		a := assertion(t, "", &encKey.PublicKey, "request-nonce")
+		_, err := svc.resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce", RequestNonce: "request-nonce"})
+		require.NoError(t, err)
+		_, err = svc.resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: a, Nonce: "request-nonce", RequestNonce: "fresh-request-nonce"})
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "already used")
+	})
+
+	t.Run("refused when the apv names another key", func(t *testing.T) {
+		otherKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		a := assertion(t, "Apple", &otherKey.PublicKey, "session-nonce")
+		_, err = newSvc().resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce"})
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "invalid login assertion")
 	})
 }

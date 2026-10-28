@@ -13,6 +13,7 @@ import (
 func TestRedisNoncesStore(t *testing.T) {
 	for _, f := range []func(*testing.T, *RedisNoncesStore){
 		testStoreConsume,
+		testStoreIfAbsent,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -75,4 +76,25 @@ func testStoreConsume(t *testing.T, store *RedisNoncesStore) {
 	ok, err = store.Consume(ctx, "once")
 	require.NoError(t, err)
 	require.False(t, ok)
+}
+
+func testStoreIfAbsent(t *testing.T, store *RedisNoncesStore) {
+	ctx := context.Background()
+
+	stored, err := store.StoreIfAbsent(ctx, "foo", 5*time.Second)
+	require.NoError(t, err)
+	require.True(t, stored)
+
+	stored, err = store.StoreIfAbsent(ctx, "foo", 5*time.Second)
+	require.NoError(t, err)
+	require.False(t, stored)
+
+	// stored again once it expires
+	stored, err = store.StoreIfAbsent(ctx, "bar", time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, stored)
+	time.Sleep(2 * time.Millisecond)
+	stored, err = store.StoreIfAbsent(ctx, "bar", time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, stored)
 }

@@ -98,6 +98,17 @@ func (s *memNonceStore) Consume(_ context.Context, nonce string) (bool, error) {
 	return true, nil
 }
 
+func (s *memNonceStore) StoreIfAbsent(_ context.Context, value string, _ time.Duration) (bool, error) {
+	if _, ok := s.nonces[value]; ok {
+		return false, nil
+	}
+	if s.nonces == nil {
+		s.nonces = map[string]struct{}{}
+	}
+	s.nonces[value] = struct{}{}
+	return true, nil
+}
+
 func TestPSSO_EndpointsGatedOnConfiguration(t *testing.T) {
 	configured := configuredPSSOTestConfig()
 	// When the public config is incomplete the feature is off for every

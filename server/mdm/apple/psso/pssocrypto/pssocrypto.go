@@ -20,6 +20,7 @@
 package pssocrypto
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
@@ -450,6 +451,49 @@ func DecryptPartyInfoJWE(compact []byte, recipientPriv *ecdsa.PrivateKey, expect
 		return nil, fmt.Errorf("pssocrypto: decrypt jwe: %w", err)
 	}
 	return plaintext, nil
+}
+
+// LoginAssertionNonce returns the nonce in the apv party-info of an embedded login assertion, after checking that the
+// apv names recipientPub. macOS sends "Apple" || recipient key || session nonce, or an empty label with the
+// request_nonce in place of the session nonce, so the label isn't checked. The apv is part of the JWE's authenticated
+// header, so it can't be changed without the assertion failing to decrypt.
+func LoginAssertionNonce(compact []byte, recipientPub *ecdsa.PublicKey) (string, error) {
+	protectedB64, _, ok := strings.Cut(string(compact), ".")
+	if !ok {
+		return "", errors.New("pssocrypto: not a compact JWE")
+	}
+	protected, err := DecodeJOSEB64(protectedB64)
+	if err != nil {
+		return "", fmt.Errorf("pssocrypto: decode protected header: %w", err)
+	}
+	var hdr struct {
+		APV string `json:"apv"`
+	}
+	if err := json.Unmarshal(protected, &hdr); err != nil {
+		return "", fmt.Errorf("pssocrypto: parse protected header: %w", err)
+	}
+	apv, err := DecodeJOSEB64(hdr.APV)
+	if err != nil {
+		return "", fmt.Errorf("pssocrypto: decode apv: %w", err)
+	}
+	fields, err := ParseApplePartyInfo(apv)
+	if err != nil {
+		return "", err
+	}
+	if len(fields) != 3 {
+		return "", fmt.Errorf("pssocrypto: apv has %d fields, want 3", len(fields))
+	}
+	recipient, err := RawECPoint(recipientPub)
+	if err != nil {
+		return "", err
+	}
+	if !bytes.Equal(fields[1], recipient) {
+		return "", errors.New("pssocrypto: apv doesn't name the recipient key")
+	}
+	if len(fields[2]) == 0 {
+		return "", errors.New("pssocrypto: apv has no nonce")
+	}
+	return string(fields[2]), nil
 }
 
 // BuildEmbeddedAssertionPlaintext returns the JSON plaintext a device encrypts
