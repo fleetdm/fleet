@@ -38,6 +38,14 @@ Each software type below lists its `source`, and browser and IDE extensions also
 
 ### Linux distributions
 
+Fleet treats Linux as a first-class platform, not an afterthought. It's open source, API-first, and built so every Linux device gets the same management as your Macs and PCs. Fleet supports these distributions, starting at these minimum versions:
+
+| <img src="../website/assets/images/os-icon-ubuntu-40x40@2x.png" alt="Ubuntu logo" width="40" /> | <img src="../website/assets/images/os-icon-debian-40x40@2x.png" alt="Debian logo" width="40" /> | <img src="../website/assets/images/os-icon-rhel-40x40@2x.png" alt="RHEL logo" width="40" /> | <img src="../website/assets/images/os-icon-fedora-40x40@2x.png" alt="Fedora logo" width="40" /> | <img src="../website/assets/images/os-icon-centos-40x40@2x.png" alt="CentOS logo" width="40" /> |
+| :---: | :---: | :---: | :---: | :---: |
+| Ubuntu<br>20.04+ | Debian<br>11+ | RHEL<br>7+ | Fedora<br>38+ | CentOS<br>7.1+ |
+| <img src="../website/assets/images/os-icon-amazon-linux-40x40@2x.png" alt="Amazon Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-opensuse-40x40@2x.png" alt="openSUSE logo" width="40" /> | <img src="../website/assets/images/os-icon-arch-linux-40x40@2x.png" alt="Arch Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-omarchy-40x40@2x.png" alt="Omarchy logo" width="40" /> | <img src="../website/assets/images/os-icon-nvidia-dgx-40x40@2x.png" alt="NVIDIA DGX OS logo" width="40" /> |
+| Amazon Linux<br>2+ | openSUSE<br>15.6+ | Arch<br>Rolling | Omarchy<br>Rolling | NVIDIA DGX OS<br>6+ |
+
 ✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
 
 | Distribution | Collected |

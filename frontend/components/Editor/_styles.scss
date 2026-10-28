@@ -1,12 +1,24 @@
 .editor {
   position: relative; // needed for copy button
 
+  &--disabled {
+    // Keep pointer events so help links, text selection, and scrolling still
+    // work in long readonly configs; `readOnly` on the Ace editor blocks edits.
+    @include disabled($allow-pointer-events: true);
+  }
+
   &__label {
     @include form-label;
 
     &--error {
       color: $core-vibrant-red;
     }
+  }
+
+  &__label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   // Ace styles its placeholder in Arial; match the form's other placeholders.

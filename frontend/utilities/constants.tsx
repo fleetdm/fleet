@@ -98,6 +98,7 @@ export const MAX_ENTITY_CHAR_LENGTH = 255;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.24.0 +", value: "5.24.0" },
   { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
@@ -498,6 +499,7 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  "google_device_id",
   // Android-only vitals. Absent for every other platform, so they're simply
   // dropped by the pick rather than needing a platform check here.
   "adb_enabled",

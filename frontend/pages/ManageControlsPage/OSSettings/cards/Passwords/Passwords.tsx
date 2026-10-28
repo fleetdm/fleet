@@ -79,7 +79,7 @@ const Passwords = ({
         );
       },
       onError: (err) => {
-        notify.error("Couldn't load team settings. Please try again.", {
+        notify.error("Couldn't load fleet settings. Please try again.", {
           response: err,
         });
       },

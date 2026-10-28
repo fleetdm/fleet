@@ -104,8 +104,8 @@ function Invoke-UninstallerAsUser {
         # enter and leave between polls.
         Start-Sleep -Seconds 2
         while ($true) {
-            $info = Get-ScheduledTaskInfo -TaskName $taskName
-            $state = (Get-ScheduledTask -TaskName $taskName).State
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
             if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
                 return $info.LastTaskResult
             }
@@ -123,7 +123,7 @@ function Invoke-UninstallerAsUser {
 }
 
 try {
-    $entries = Get-AppEntries
+    $entries = @(Get-AppEntries)
     if ($entries.Count -eq 0) {
         Write-Host "Biscuit is not installed."
         Exit 0
@@ -218,7 +218,7 @@ try {
         }
     }
 
-    $remaining = Get-AppEntries
+    $remaining = @(Get-AppEntries)
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) Biscuit registration(s) still present:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }

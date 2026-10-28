@@ -162,46 +162,42 @@ In the Google Admin console:
 
 6. Under **Installation Policy**, select **Block**.
 
-### Unenroll
+## Unenroll
+
+Unenroll a host when Fleet should stop managing it, for example when you repurpose the device or give it to an employee through a buyback program.
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
 2. If MDM is turned on, turn it off:
   - Windows: Skip to step 3 (Uninstall Fleet's agent).
   - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
-  - iOS/iPadOS & Android: On the **Host details** page, select **Actions > Unenroll**.
+  - iOS/iPadOS and personal (BYOD) Android: On the **Host details** page, select **Actions > Unenroll**.
+  - Company-owned Android: On the **Host details** page, select **Actions > Wipe**.
 
-3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
-4. Select **Actions > Delete** to delete the host from Fleet.
+4. For Apple Business (AB) hosts, release or reassign the device in AB.
+
+5. Select **Actions > Delete** to [delete the host](https://fleetdm.com/guides/enroll-hosts#delete-a-host) from Fleet.
 
 > Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
 
-> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
+### Delete a host
 
-## One-time enroll secrets
+To keep a host from coming back, follow the [unenroll steps](https://fleetdm.com/guides/enroll-hosts#unenroll) instead.
 
-> Applies only to Fleet Premium
+Deleting a host doesn't unenroll it, so most hosts come back:
 
-When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host that has MDM turned on instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
+| Platform | Comes back | Which fleet? |
+|---|---|---|
+| macOS | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted. Hosts assigned to Fleet in Apple Business (AB) come back right away as **Pending**. | Enroll secret's fleet. AB hosts go to AB's default fleet. |
+| Windows | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet. Hosts that got Fleet's agent when they turned on MDM, through [manual enrollment](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment), [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), or [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), go to "Unassigned." |
+| Linux | Yes, unless Fleet's agent is uninstalled or its enroll secret is deleted | Enroll secret's fleet |
+| iOS, iPadOS | Yes, at the next MDM check-in, unless you unenroll it first. AB hosts come back right away as **Pending**. | Fleet it was in when it last enrolled, even if you've since transferred it. AB hosts go to AB's default fleet. |
+| Android | Yes, at the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices), unless you unenroll it first | Fleet it was in when you deleted it, or "Unassigned" if that fleet was deleted. Coming soon: the enroll secret's fleet ([#53076](https://github.com/fleetdm/fleet/issues/53076)). |
+| ChromeOS | Yes, unless the extension is removed or its enroll secret is deleted | Enroll secret's fleet |
 
-This applies to all Apple hosts with MDM turned on: hosts that automatically enroll via Apple Business (AB) and hosts that enroll with a manual enrollment profile.
-
-Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that has MDM turned on or is assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
-
-### Best practice: monitor devices
-
-Because each secret is single-use, a host whose secret was spent can't re-enroll until it gets a new one. To monitor devices:
-
-1. Watch for `host_enrollment_rejected` activities. Fleet records at most one per host and reason per 12 hours.
-
-2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only IT admins can resend this profile, which keeps new secrets from being used to enroll a different host. End users see an error when they try to resend it from the **My device** page.
-
-## Delete a host
-
-Deleting a host removes it from Fleet. It does not unenroll the device or change anything in Apple Business (AB). The MDM enrollment and the management profile stay on the device. The device also stays assigned to Fleet in AB.
-
-Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
+> Google doesn't document when Android hosts send status reports. In testing, deleted Android hosts came back anywhere from less than an hour to several hours later, always within 24 hours.
 
 If [Windows one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) are enabled, a deleted Windows host that has MDM turned on re-enrolls at its next MDM check-in, in the fleet it was in. If that fleet was deleted, it goes to the [default fleet](https://fleetdm.com/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts), or "Unassigned" if none is set.
 
@@ -212,19 +208,13 @@ If [macOS one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-
 - AB hosts show up as **Pending**. To re-enroll, wipe the host or run `sudo profiles renew -type enrollment`.
 - Other Macs don't show up. To re-enroll, reinstall fleetd.
 
-Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
-
-To decommission a host:
-
-1. Unenroll or [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) in Fleet, and confirm it finished.
-2. For Apple hosts, release or reassign the device in AB.
-3. Delete the host in Fleet.
+Deleting a host also cancels its upcoming activities and clears its MDM command history, so Fleet can't report whether an in-progress command, like a wipe, finished. If Fleet can't reach AB, the delete fails.
 
 ## Debugging
 
 If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.
 
-### One-time enroll secrets
+### One-time enroll secret errors
 
 If a host fails to enroll or re-enroll, check its activities for `host_enrollment_rejected`:
 
@@ -237,6 +227,7 @@ For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 
 ## Advanced
 
+- [One-time enroll secrets](#one-time-enroll-secrets)
 - [Switch a workstation's operating system](#switch-a-workstations-operating-system)
 - [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
@@ -252,6 +243,24 @@ For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
 - [macOS Migration Assistant](#macos-migration-assistant)
+
+### One-time enroll secrets
+
+> Applies only to Fleet Premium
+
+When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host with MDM turned on instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
+
+This applies to all Apple hosts with MDM turned on: hosts that automatically enroll via Apple Business (AB) and hosts that enroll with a manual enrollment profile.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that has MDM turned on or is assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+#### Best practice: monitor devices
+
+Because each secret is single-use, a host whose secret was spent can't re-enroll until it gets a new one. To monitor devices:
+
+1. Watch for `host_enrollment_rejected` activities. Fleet records at most one per host and reason per 12 hours.
+
+2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only IT admins can resend this profile, which keeps new secrets from being used to enroll a different host. End users see an error when they try to resend it from the **My device** page.
 
 ### Switch a workstation's operating system
 

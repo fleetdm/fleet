@@ -68,7 +68,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Escrow disk encryption key on Linux
 
-Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts. Fleet doesn't support key escrow on Arch Linux or Arch-based distributions like Manjaro and CachyOS.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
@@ -82,6 +82,23 @@ Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encr
 3. Fleet verifies that the encryption is complete, and the key has been escrowed. Once successful, the host's status will be updated to "Verified" in the disk encryption status table.
 
 > Note: LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
+
+### Remove the end user's passphrase
+
+If you remove the end user's passphrase, only the escrowed key unlocks the disk. Someone with the disk and the end user's old passphrase can't decrypt or mount it.
+
+1. Run `sudo cryptsetup luksDump <device>` to list the key slots. On a standard install, the end user's passphrase is in slot 0 and Fleet's key is in slot 1.
+2. Save the escrowed key from **Actions > Show disk encryption key** to a file that only root can read.
+3. Run `sudo cryptsetup luksKillSlot <device> <slot> --key-file <file>`, using the end user's slot.
+
+After you remove the end user's passphrase:
+
+- The host asks for a passphrase every time it starts, and only the escrowed key unlocks it. The end user has to contact IT after every restart. The host can't finish restarting on its own, for example after an update or a power loss.
+- Fleet doesn't detect the change. The disk encryption status stays "Verified".
+- A saved copy of the LUKS header, for example from a backup tool, can bring the old passphrase back.
+- Don't remove Fleet's key slot. Fleet then shows "Action required" and asks the end user to create a new key.
+
+This applies to disks that unlock only with passphrases, which is the case on a standard Ubuntu or Fedora install. If the disk also unlocks with a TPM or a key file, removing the passphrase doesn't lock the end user out.
 
 ## Create a BitLocker PIN on Windows
 
@@ -219,6 +236,8 @@ Currently, on macOS and Linux, Fleet detects when the disk encryption key change
 On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
 
 For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#escrow-disk-encryption-key-on-linux).
+
+On Linux, adding, changing, or removing a passphrase doesn't change the disk's encryption key or the data on the disk. The other passphrases keep working. Only re-encrypting or reformatting the disk creates a new encryption key.
 
 ### BitLocker protection (Windows)
 

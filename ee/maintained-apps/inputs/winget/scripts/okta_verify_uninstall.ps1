@@ -1,6 +1,5 @@
-# Okta Verify installs as a WiX Burn bundle. Prefer the bundle's registry
-# uninstaller so all chained packages are removed, and fall back to the cached
-# bootstrapper under Package Cache when the registry command is unavailable.
+# Okta Verify installs as a WiX Burn bundle. Run the bundle's uninstaller from
+# its machine-wide (HKLM) registry entry so all chained packages are removed.
 
 $productCode = "{008b801f-b8a1-40df-911b-a77c60e029c7}"
 $displayNameLike = "Okta Verify*"
@@ -33,8 +32,9 @@ function Invoke-Uninstaller {
         if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
     } else {
         if ($existingArgs -notmatch '(?i)/uninstall') { $existingArgs = ("$existingArgs /uninstall").Trim() }
+        # Okta Verify 7+ rejects any argument that isn't key=value except /quiet,
+        # /q, and /log, so /norestart makes it exit 1.
         if ($existingArgs -notmatch '(?i)/quiet') { $existingArgs = ("$existingArgs /quiet").Trim() }
-        if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
     }
 
     Write-Host "Uninstall command: $exePath"
@@ -86,16 +86,10 @@ try {
     }
 
     if ($null -eq $exitCode) {
-        foreach ($cacheKey in @($productCode, $productCode.Trim('{}'))) {
-            $cached = Get-ChildItem -Path "C:\ProgramData\Package Cache\$cacheKey" -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cached) {
-                $exitCode = Invoke-Uninstaller -exePath $cached.FullName -existingArgs ""
-                break
-            }
+        if (@($candidates | Where-Object { $_ }).Count -gt 0) {
+            Write-Host "Okta Verify is registered, but no uninstaller ran."
+            Exit 1
         }
-    }
-
-    if ($null -eq $exitCode) {
         Write-Host "Uninstall entry not found for $displayNameLike"
         Exit 0
     }

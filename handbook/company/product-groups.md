@@ -143,7 +143,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 **Areas of expertise**:
 - Windows MDM protocol & configuration
 - Windows device onboarding (Autopilot)
-- Windows setup experience
+- Windows & Linux setup experience
 - Certificate Authorities (CAs)
 - Certificate delivery & renewal (except Apple)
 - Windows configuration profiles
@@ -155,11 +155,20 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
+| Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-g-61a750142/) _([@leanngove](https://github.com/leanngove))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Tech Lead                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_ [Terry Kwok](https://www.linkedin.com/in/terry-kwok) _([@terry-kwok-code](https://github.com/terry-kwok-code))_
 | Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
+
+**Areas of expertise**:
+- Android MDM (Android Management API) & configuration
+- Android configuration profiles
+- Android device onboarding (zero-touch)
+- Android setup experience
+- Personal (BYOD) enrollment (work profile)
+- Android agent (app)
+- Android OS updates
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
 
@@ -336,7 +345,7 @@ Sometimes a pull request is marked ready for review, but the author is away and 
 
 ### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patterns, can go straight to the "Ready" column during the next weekly planning.
 
 ### Weekly planning (1 hour, Monday)
 
@@ -374,7 +383,7 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 To make a change to Fleet:
 - First, [write it down](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=)
   - For every customer/prospect request, file a new GitHub issue. Whether the request is the same as an existing request will be determined by the Head of Product Design and a subject matter expert (SME) in the next step.
-- Then, it will be looked at by Fleet's [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and a SME [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review).
+- Then, it will be looked at by Fleet's [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and a SME [unpack the "why"](https://fleetdm.com/handbook/product-design#unpacking-the-why).
   - For customer/prospect requests to be looked at, they must have a Gong snippet.
 - Then, it will be [prioritized](https://fleetdm.com/handbook/company/product-groups#feature-fest) and written up as one or more user stories.
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
@@ -433,8 +442,6 @@ The website team will [periodically](https://fleetdm.com/handbook/marketing/webs
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
-
-This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
 
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 

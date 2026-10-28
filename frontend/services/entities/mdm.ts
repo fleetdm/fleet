@@ -23,6 +23,7 @@ export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
+  platform?: "darwin" | "windows";
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
@@ -418,22 +419,19 @@ const mdmService = {
   },
 
   getWindowsEULAMetadata: () => {
-    const { MDM_WINDOWS_EULA_METADATA } = endpoints;
-    return sendRequest("GET", MDM_WINDOWS_EULA_METADATA);
+    const { MDM_EULA_METADATA } = endpoints;
+    const query = buildQueryStringFromParams({ platform: "windows" });
+    return sendRequest("GET", `${MDM_EULA_METADATA}?${query}`);
   },
 
   uploadWindowsEULA: (file: File) => {
-    const { MDM_WINDOWS_EULA_UPLOAD } = endpoints;
+    const { MDM_EULA_UPLOAD } = endpoints;
 
     const formData = new FormData();
-    formData.append("windows_eula", file);
+    formData.append("platform", "windows");
+    formData.append("eula", file);
 
-    return sendRequest("POST", MDM_WINDOWS_EULA_UPLOAD, formData);
-  },
-
-  deleteWindowsEULA: (token: string) => {
-    const { MDM_WINDOWS_EULA } = endpoints;
-    return sendRequest("DELETE", MDM_WINDOWS_EULA(token));
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
   },
 
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {

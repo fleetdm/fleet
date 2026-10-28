@@ -57,6 +57,7 @@ const generateTableConfig = (
             position="right"
             tipOffset={6}
             fixedPositionStrategy
+            entityType="software"
             renderChildren={(disableChildren) => (
               <Checkbox
                 disabled={disableChildren || manualAgentInstallBlockingSoftware}

@@ -1,0 +1,1 @@
+- Fixed a bug where omitting an Android VPP app's `configuration` key in a GitOps file did not clear the stored configuration.

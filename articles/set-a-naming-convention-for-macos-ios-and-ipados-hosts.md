@@ -10,7 +10,7 @@ Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so y
 - A Fleet Premium license
 - Global admin, team admin, or team maintainer access
 - MDM turned on and configured for the hosts you want to rename
-- The hosts enrolled in Fleet's MDM (macOS, iOS, and iPadOS only; other platforms aren't supported)
+- Hosts enrolled to Fleet with MDM turned on (macOS, iOS, and iPadOS only; other platforms aren't supported)
 
 
 ## Set the template

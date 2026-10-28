@@ -376,6 +376,7 @@ FAST_PKGS_TO_TEST := \
 	./orbit/pkg/cryptoinfo \
 	./orbit/pkg/dataflatten \
 	./orbit/pkg/keystore \
+	./server/fleetmcp \
 	./server/goose \
 	./server/mdm/apple/appmanifest \
 	./server/mdm/lifecycle \
@@ -960,24 +961,6 @@ endif
 		echo "Extracted osqueryd.exe to $(out-path)/osqueryd.exe"
 	rm -rf $(TMP_DIR)
 
-# Generate nudge.app.tar.gz bundle from nudge repo.
-#
-# Usage:
-# make nudge-app-tar-gz version=1.1.10.81462 out-path=.
-nudge-app-tar-gz:
-ifneq ($(shell uname), Darwin)
-	@echo "Makefile target nudge-app-tar-gz is only supported on macOS"
-	@exit 1
-endif
-	$(eval TMP_DIR := $(shell mktemp -d))
-	curl -L https://github.com/macadmins/nudge/releases/download/v$(version)/Nudge-$(version).pkg --output $(TMP_DIR)/nudge-$(version).pkg
-	pkgutil --expand $(TMP_DIR)/nudge-$(version).pkg $(TMP_DIR)/nudge_pkg_expanded
-	mkdir -p $(TMP_DIR)/nudge_pkg_payload_expanded
-	tar xvf $(TMP_DIR)/nudge_pkg_expanded/nudge-$(version).pkg/Payload --directory $(TMP_DIR)/nudge_pkg_payload_expanded
-	$(TMP_DIR)/nudge_pkg_payload_expanded/Nudge.app/Contents/MacOS/Nudge --version
-	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/ Nudge.app
-	rm -r $(TMP_DIR)
-
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
@@ -1163,7 +1146,6 @@ UPDATE_GO_MODS := \
 	./tools/qacheck/go.mod \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
-	./cmd/fleet-mcp/go.mod \
 	./tools/dibble/go.mod \
 	./tools/gitops-auto-complete/go.mod \
 	./tools/upgrade/go.mod
@@ -1176,7 +1158,7 @@ update-go:
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
 		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
 		echo "Resolving index digest for $$tag ..." ; \
-		digest=$$(docker buildx imagetools inspect $$tag | awk '/^Digest:/ { print $$2 ; exit }') ; \
+		digest=$$(docker buildx imagetools inspect $$tag | awk '/^Digest:/ { print $$2 }') ; \
 		echo "$$digest" | grep -qE '^sha256:[0-9a-f]{64}$$' || { echo "Failed to resolve digest for $$tag (got: $$digest)" ; exit 1 ; } ; \
 		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
 		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \

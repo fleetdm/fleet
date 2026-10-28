@@ -175,6 +175,13 @@ func (c *Client) LiveQueryWithContext(
 				}
 				resHandler.status.Store(&status)
 
+			case "error":
+				var errMsg string
+				if err := json.Unmarshal(msg.Data, &errMsg); err != nil {
+					errMsg = string(msg.Data)
+				}
+				resHandler.errors <- ctxerr.New(ctx, errMsg)
+
 			default:
 				resHandler.errors <- ctxerr.Errorf(ctx, "unknown msg type %s", msg.Type)
 			}

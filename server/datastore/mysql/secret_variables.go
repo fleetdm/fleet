@@ -235,7 +235,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&scriptContents,
 			`SELECT 'script' AS entity, s.name,
-			COALESCE(t.name, 'No team') AS team_name, sc.contents
+			COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 			FROM script_contents sc
 			JOIN scripts s ON s.script_content_id = sc.id
 			LEFT JOIN teams t ON t.id = s.team_id;`,
@@ -260,7 +260,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleConfigurationProfileContents,
 			`SELECT 'apple_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.mobileconfig AS contents
 			FROM mdm_apple_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -284,7 +284,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleDeclarationContents,
 			`SELECT 'apple_declaration' AS entity, d.name,
-			COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, d.raw_json AS contents
 			FROM mdm_apple_declarations d
 			LEFT JOIN teams t ON t.id = d.team_id;`,
 		); err != nil {
@@ -308,7 +308,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&windowsProfileContents,
 			`SELECT 'windows_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 			FROM mdm_windows_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -522,7 +522,7 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 }
 
 // ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
-// The enrollmentID (typically UDID/host UUID) is used to look up host-specific secrets.
+// The enrollmentID is the enrollment's device channel ID (the UDID, or the EnrollmentID for ADUE).
 func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
 	// Check for host secret placeholders
 	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
@@ -568,6 +568,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretSCEPChallenge:
+			challenge, err := ds.findOrCreateAppleSCEPRenewalChallenge(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
 		case fleet.HostSecretFileVaultKey:
 			key, err := ds.getHostDiskEncryptionKeyDecrypted(ctx, enrollmentID)
 			if err != nil {

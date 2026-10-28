@@ -81,8 +81,7 @@ type uploadSoftwareInstallerResponse struct {
 	Err             error                    `json:"error,omitempty"`
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := updateSoftwareInstallerRequest{}
 
@@ -360,8 +359,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil, fleet.ErrMissingLicense
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 

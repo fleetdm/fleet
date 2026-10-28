@@ -22,7 +22,6 @@ interface IEulaPlatformConfig {
    */
   hasExample: boolean;
   upload: (file: File) => Promise<unknown>;
-  remove: (token: string) => Promise<unknown>;
 }
 
 export const EULA_PLATFORM_CONFIG: Record<EulaPlatform, IEulaPlatformConfig> = {
@@ -37,7 +36,6 @@ export const EULA_PLATFORM_CONFIG: Record<EulaPlatform, IEulaPlatformConfig> = {
       "End users won’t be required to agree to this EULA on macOS hosts that automatically enroll.",
     hasExample: false,
     upload: (file) => mdmAPI.uploadEULA(file),
-    remove: (token) => mdmAPI.deleteEULA(token),
   },
   windows: {
     extension: ".md",
@@ -56,7 +54,6 @@ export const EULA_PLATFORM_CONFIG: Record<EulaPlatform, IEulaPlatformConfig> = {
       "End users won’t be required to agree to these terms on Windows hosts that enroll through Microsoft Entra. Fleet’s default terms will be shown instead.",
     hasExample: true,
     upload: (file) => mdmAPI.uploadWindowsEULA(file),
-    remove: (token) => mdmAPI.deleteWindowsEULA(token),
   },
 };
 
