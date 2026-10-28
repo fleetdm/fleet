@@ -124,16 +124,16 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
     <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Marcante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/john-t-marcante">John Marcante</a></strong>, US CIO, Deloitte</p></td>
+    </tr>
+    <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-mohammed-saqr-100x100@2x.jpeg" alt="Mohammed Saqr" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/mohammed-saqr/">Mohammed Saqr</a></strong>, Block, Manager of Infrastructure and Platform Engineering</p></td>
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Marcante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">John Marcante</a></strong>, US CIO, Deloitte</p></td>
     </tr>
   </tbody>
 </table>
