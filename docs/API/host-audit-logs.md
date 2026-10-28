@@ -2,26 +2,11 @@
 
 _Available in Fleet Premium._
 
-Fleet can send a webhook request every time an activity linked to one of a fleet's hosts is created. Use this to send a fleet's host activities to your SIEM or trigger automations, without receiving activities for every fleet.
+Use host audit logs to automate based on what happens on one fleet's hosts. For example, send a fleet's host activities to your SIEM, without receiving activities for every fleet.
 
-To see a host's activities in the Fleet UI, go to the host's details page and select **Activity > Past**.
+Host audit logs use the same payload format as [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs), filtered to activities linked to the fleet's hosts.
 
-This webhook sends the same payload format as [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs), filtered to activities linked to the fleet's hosts. This page lists those activity types and their fields.
-
-## Configure
-
-Configure host audit logs per fleet, using the `host_activities_webhook` object under `webhook_settings`. Set it from the Hosts page in the Fleet UI, the [fleets API](./rest-api.md#update-fleet), or [Fleet's GitOps YAML](https://fleetdm.com/docs/configuration/yaml-files#host-activities-webhook):
-
-```yaml
-name: Workstations
-team_settings:
-  webhook_settings:
-    host_activities_webhook:
-      enable_host_activities_webhook: true
-      destination_url: https://example.org/webhook_handler
-```
-
-You can also configure this for "Unassigned" hosts in `unassigned.yml`.
+This page includes a list of activity types linked to hosts and their fields. To learn how to see a host's activities and send them to a webhook, see the [Automations guide](https://fleetdm.com/guides/automations#activity-automations).
 
 ## Certificates
 

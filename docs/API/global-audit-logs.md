@@ -1,10 +1,8 @@
 # Global audit logs
 
-Fleet logs activities.
+Use audit logs to automate based on what happens in Fleet. For example, send every activity to your SIEM, or trigger a workflow when a user runs a script.
 
-To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
-
-This page includes a list of activities. To only receive activities linked to a specific fleet's hosts, see [Host audit logs](https://fleetdm.com/docs/api/host-audit-logs).
+This page includes a list of activity types and their fields. To learn how to see activities and send them to a webhook or log destination, see the [Automations guide](https://fleetdm.com/guides/automations#activity-automations). To only receive activities linked to a specific fleet's hosts, see [Host audit logs](https://fleetdm.com/docs/api/host-audit-logs).
 
 ## Authentication
 
