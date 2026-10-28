@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.5.22",
+      "version": "1.5.23",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol' AND version_compare(bundle_short_version, '1.5.22') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol' AND version_compare(bundle_short_version, '1.5.23') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.crystalidea.macsfancontrol' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/crystalidea/macs-fan-control/releases/download/v1.5.22/macsfancontrol.zip",
+      "installer_url": "https://github.com/crystalidea/macs-fan-control/releases/download/v1.5.23/macsfancontrol.zip",
       "install_script_ref": "dbb81ff3",
       "uninstall_script_ref": "e6eb53e1",
-      "sha256": "d4c1cce8e183d656621bf0e6690f1678a844e88d5e4c61661c1c8a39fc92d55e",
+      "sha256": "d30936dfc5a8bb616dbf116120ca69a62fceaef359aa03472b3e38ae67e1d926",
       "default_categories": [
         "Productivity"
       ]
