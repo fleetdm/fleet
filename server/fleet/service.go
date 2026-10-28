@@ -505,7 +505,8 @@ type Service interface {
 	//	- matchQuery is the query SQL
 	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
 	//	- excludedHostIDs is an optional list of IDs to omit from the search
-	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
+	//	- excludeMobileHosts omits iOS, iPadOS, and Android hosts (used by the live report target picker)
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
@@ -1203,6 +1204,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
+	// VerifyMCPAvailable verifies that Fleet's embedded MCP server is turned on
+	// (server_settings.mcp_disabled) and licensed. If an error is returned,
+	// authorization is skipped so it can run before authentication.
+	VerifyMCPAvailable(ctx context.Context) error
+
 	// VerifyMDMAndroidConfigured verifies that the server is configured for
 	// Android MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -1378,6 +1384,15 @@ type Service interface {
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
+	// AutofillConfigProfileNameDescription asks fleetdm.com for a name and
+	// description for a profile described in natural language.
+	AutofillConfigProfileNameDescription(ctx context.Context, instructions, platform string) (name, description string, err error)
+
+	// AutofillConfigProfileContent asks fleetdm.com to generate a profile and
+	// runs the checks Fleet runs when the profile is added to teamID, without
+	// saving it.
+	AutofillConfigProfileContent(ctx context.Context, instructions, platform string, teamID uint) (*AutofilledConfigProfile, error)
+
 	// UpdateMDMConfigProfile updates an existing configuration profile's
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
@@ -1399,7 +1414,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

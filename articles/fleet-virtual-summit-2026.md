@@ -1,4 +1,4 @@
-![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png)
+![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png)
 
 
 # Join the Fleet Virtual Summit 2026
@@ -68,6 +68,11 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg" alt="Jarryd Stanbrook" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Jarryd Stanbrook</a></strong>, Easygo, IT Systems Administrator</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-bart-reardon-100x100@2x.jpg" alt="Bart Reardon" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Bart Reardon</a></strong>, Creator of swiftDialog</p></td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -92,10 +97,14 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg" alt="Jason Walton" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/cjasonwalton/">Jason Walton</a></strong>, Schrödinger, VP of Information Security</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-akira-okamoto-100x100@2x.jpeg" alt="Akira Okamoto" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/akira-okamoto-4990283a/">Akira Okamoto</a></strong>, Veeva Systems, Director IT Infrastructure</p></td>
+    </tr>
   </tbody>
 </table>
 
-*More panelists to be announced*
+
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
@@ -118,10 +127,13 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Mercante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">John Mercante</a></strong>, US CIO, Deloitte</p></td>
+    </tr>
   </tbody>
 </table>
 
-*More panelists to be announced*
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
 
@@ -141,5 +153,5 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png">
 <meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2030.">

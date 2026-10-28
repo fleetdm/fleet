@@ -100,6 +100,7 @@ const Tag = (props: ITagProps) => {
 
   return (
     <TooltipWrapper
+      className={`${baseClass}__tooltip-wrapper`}
       tipContent={tooltip}
       showArrow
       underline={false}

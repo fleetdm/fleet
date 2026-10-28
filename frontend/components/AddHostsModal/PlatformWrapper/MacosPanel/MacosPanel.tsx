@@ -31,7 +31,9 @@ const MacosPanel = ({
   enrollSecret,
   isManualAppleEnrollmentsBlocked,
 }: IMacosPanelProps) => {
-  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+  const { config, isMacMdmEnabledAndConfigured, isGlobalAdmin } = useContext(
+    AppContext
+  );
 
   const [deviceType, setDeviceType] = useState<DeviceType>("companyOwned");
 
@@ -43,7 +45,7 @@ const MacosPanel = ({
   if (!config) return null;
 
   if (isManualAppleEnrollmentsBlocked) {
-    return renderAppleManualEnrollmentDisabled("macOS");
+    return renderAppleManualEnrollmentDisabled("macOS", isGlobalAdmin);
   }
 
   if (isMacMdmEnabledAndConfigured) {

@@ -77,6 +77,8 @@ type extraHandlerOpts struct {
 	ssoRateLimit    *throttled.Rate
 	httpSigVerifier mux.MiddlewareFunc
 	agentWSHub      *agentws.Hub
+	mcpConn         *MCPConn
+	mcpHandler      http.Handler
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -117,6 +119,14 @@ func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
 func WithAgentWSHub(hub *agentws.Hub) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.agentWSHub = hub
+	}
+}
+
+// WithMCPConn provides the in-memory connection the embedded MCP uses to reach
+// this server's API; the caller starts it once the root handler exists.
+func WithMCPConn(conn *MCPConn) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.mcpConn = conn
 	}
 }
 
@@ -212,6 +222,14 @@ func MakeHandler(
 
 	for _, mw := range middlewares {
 		r.Use(mw)
+	}
+
+	if eopts.mcpConn == nil {
+		eopts.mcpConn = NewMCPConn()
+	}
+	eopts.mcpHandler, err = newMCPHandler(svc, logger.With("component", "mcp"), eopts.mcpConn, config.Server.URLPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("initializing the embedded MCP: %w", err)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -637,6 +655,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, fleet.AutofillPoliciesRequest{})
+	ue.POST("/api/_version_/fleet/autofill/configuration_profile/name_description", autofillConfigProfileNameDescriptionEndpoint, autofillConfigProfileNameDescriptionRequest{})
+	ue.POST("/api/_version_/fleet/autofill/configuration_profile/content", autofillConfigProfileContentEndpoint, autofillConfigProfileContentRequest{})
 
 	// Secret variables
 	ue.PUT("/api/_version_/fleet/spec/secret_variables", createSecretVariablesEndpoint, fleet.CreateSecretVariablesRequest{})
@@ -1319,6 +1339,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
 			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
 	}
+
+	// A raw handler: Streamable HTTP owns the request and response, and the
+	// handler runs Fleet's auth and license checks itself. Always registered,
+	// since server_settings.mcp_disabled can change at runtime.
+	ue.HandleHTTPHandler("/api/_version_/fleet/mcp", extra.mcpHandler, "POST")
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	ne.

@@ -87,12 +87,20 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
 				Version: "1.0",
+			}
+
+		case "lm-studio":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "0.4.26,4",
 			}
 
 		case "firefox@developer-edition":
@@ -151,6 +159,9 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
+		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
+		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
+		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
@@ -252,6 +263,28 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "wezterm":
+				// The bundle version is a placeholder, so the patched query pins the
+				// frozen release's code-directory hashes instead of comparing versions.
+				require.Equal(t,
+					"SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');",
+					out.Queries.Patched,
+				)
+			case "lm-studio":
+				require.Equal(t, "0.4.26+4", out.Version)
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
+					out.Queries.Patched,
+				)
+			case "logitech-g-hub":
+				// lghub.app has no CFBundleShortVersionString, so the patched query
+				// compares CFBundleVersion, which the cask version tracks.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub' AND version_compare(bundle_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":

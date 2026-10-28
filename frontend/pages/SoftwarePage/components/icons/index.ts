@@ -598,10 +598,12 @@ import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
 import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
 import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
@@ -1107,6 +1109,7 @@ import Webex from "./png/Webex.png";
 import WebStorm from "./png/WebStorm.png";
 import Wechat from "./png/Wechat.png";
 import Weektodo from "./png/Weektodo.png";
+import WezTerm from "./png/WezTerm.png";
 import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
@@ -1776,11 +1779,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
@@ -1833,6 +1838,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "merlin project": MerlinProject,
   "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft .net sdk": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
@@ -2313,6 +2319,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
+  wezterm: WezTerm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,

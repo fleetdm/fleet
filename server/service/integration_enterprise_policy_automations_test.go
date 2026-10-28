@@ -94,7 +94,7 @@ func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostAct
 
 	// Enable the per-fleet host activities webhook on the team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable:         true,
 			DestinationURL: srv.URL + "/host-activities",
@@ -211,7 +211,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 
 	var tmResp teamResponse
 	for teamID, path := range map[uint]string{teamA.ID: "/fleet-a", teamB.ID: "/fleet-b"} {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable:         true,
 				DestinationURL: srv.URL + path,
@@ -340,8 +340,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	var defaultTeamResp struct {
 		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/webhook",
 			PolicyIDs:      []uint{noTeamPol1.ID, noTeamPol2.ID}, // pol3 is NOT included
@@ -479,8 +479,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 
 	var tmResp teamResponse
 	// modify the team's config - enable the webhook
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://127/",
 			PolicyIDs:      []uint{createPol1.Policy.ID, createPol2.Policy.ID},
@@ -1738,7 +1738,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -1802,7 +1802,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	vimTitleID := resp.SoftwareTitles[0].ID
 
 	var vimDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail, "fleet_id", "0")
 	require.NotNil(t, vimDetail.SoftwareTitle)
 	require.NotNil(t, vimDetail.SoftwareTitle.SoftwarePackage)
 	vimInstallerID := vimDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -2081,7 +2081,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
