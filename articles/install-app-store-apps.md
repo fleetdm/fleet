@@ -18,6 +18,10 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
+> If the developer drops support for a platform (e.g., removes the iPad version), Fleet still shows that platform on fleets where the app was already added, but other fleets can only add the currently supported platforms. To match what Apple currently supports, delete the app from the fleet and add it again.
+>
+> If you install the app on an iPad from a fleet where iPadOS is still listed, Apple installs the iPhone-only version, which runs in compatibility mode (the iPhone layout scaled up for iPad).
+
 ### Google Play (Android)
 
 > Before using Fleet to manage Google Play Store apps, you must first [turn on Android MDM](https://fleetdm.com/guides/android-mdm-setup). Once you've completed that setup, you can follow the directions below for each app.
@@ -59,6 +63,8 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
+
+> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 

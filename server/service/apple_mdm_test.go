@@ -2680,6 +2680,50 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
+func TestMDMAuthenticateAccountDrivenUserEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	svc := MDMAppleCheckinAndCommandService{
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		keyValueStore:    redis_key_value.New(redistest.NopRedis()),
+		logger:           slog.New(slog.DiscardHandler),
+	}
+	ctx := t.Context()
+	enrollID, productName := "B24CC50B-75F5-4FF2-8D2C-25B4CD900703", "iPad15,7"
+
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
+		require.Equal(t, enrollID, mdmHost.UUID)
+		require.Equal(t, fleet.PersonalEnrollmentTypeAccountDriven, personalType)
+		return nil
+	}
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, enrollID, hostUUID)
+		return &fleet.HostMDMCheckinInfo{}, nil
+	}
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+		require.Equal(t, enrollID, hostUUID)
+		return nil
+	}
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		require.Equal(t, enrollID, hostUUID)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true), accessRights)
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice}},
+		&mdm.Authenticate{
+			EnrollmentID: enrollID,
+			ProductName:  productName,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
+	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+}
+
 func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
@@ -4758,6 +4802,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 			activityCmdResult = c
 			return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
 		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			return nil
+		}
 
 		cr := &mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
@@ -4868,6 +4915,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	}
 	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
+	}
+	ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+		return nil
 	}
 
 	_, err := svc.CommandAndReportResults(
@@ -6321,7 +6371,7 @@ func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScop
 	}
 	scopeEntry := ""
 	if scope != nil {
-		scopeEntry = fmt.Sprintf(`\n<key>PayloadScope</key>\n<string>%s</string>`, string(*scope))
+		scopeEntry = fmt.Sprintf("\n<key>PayloadScope</key>\n<string>%s</string>", string(*scope))
 	}
 
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -8145,6 +8195,21 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			wantDetail: "The device is not supervised.",
 		},
 		{
+			name:       "per-item CommandFormatError without an error chain fails without retry",
+			status:     fleet.MDMAppleStatusAcknowledged,
+			raw:        settingsAck(fleet.MDMAppleStatusCommandFormatError, nil),
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "The device rejected the host name. Apple only renames supervised iPhones and iPads.",
+		},
+		{
+			name:          "per-item error without an error chain reports the item status and is retried",
+			status:        fleet.MDMAppleStatusAcknowledged,
+			raw:           settingsAck(fleet.MDMAppleStatusError, nil),
+			wantStatus:    fleet.MDMDeliveryFailed,
+			wantDetail:    "Settings item returned status Error.",
+			wantRetryable: true,
+		},
+		{
 			name:          "command error fails with the apple error chain and is retried",
 			status:        fleet.MDMAppleStatusError,
 			errorChain:    []mdm.ErrorChain{{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"}},
@@ -8158,6 +8223,12 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 			errorChain: []mdm.ErrorChain{{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."}},
 			wantStatus: fleet.MDMDeliveryFailed,
 			wantDetail: "The device is not supervised.",
+		},
+		{
+			name:       "command format error without an error chain fails without retry",
+			status:     fleet.MDMAppleStatusCommandFormatError,
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "Settings command returned status CommandFormatError.",
 		},
 		{
 			name:         "stale result for a superseded command is ignored",
@@ -9588,6 +9659,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			newMockDigicertCA("https://example.com", "caName"),
 			newMockDigicertCA("https://example.com", "caName2"),
 		},
+		EJBCA: []fleet.EJBCA{{Name: "ejbcaName"}, {Name: "ejbcaName2"}},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			newMockCustomSCEPProxyCA("https://example.com", "scepName"),
 			newMockCustomSCEPProxyCA("https://example.com", "scepName2"),
@@ -9604,6 +9676,40 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		errMsg  string
 		vars    []string
 	}{
+		{
+			name: "EJBCA badCA",
+			profile: digiCertForValidation("$FLEET_VAR_EJBCA_PASSWORD_bad", "$FLEET_VAR_EJBCA_DATA_bad", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "_bad does not exist",
+		},
+		{
+			name:    "EJBCA password missing",
+			profile: digiCertForValidation("password", "$FLEET_VAR_EJBCA_DATA_ejbcaName", "Name", "com.apple.security.pkcs12"),
+			errMsg:  "Missing $FLEET_VAR_EJBCA_PASSWORD_ejbcaName",
+		},
+		{
+			name:    "EJBCA data missing",
+			profile: digiCertForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "data", "Name", "com.apple.security.pkcs12"),
+			errMsg:  "Missing $FLEET_VAR_EJBCA_DATA_ejbcaName",
+		},
+		{
+			name: "EJBCA profile is not pkcs12",
+			profile: digiCertForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "$FLEET_VAR_EJBCA_DATA_ejbcaName", "Name",
+				"com.apple.security.pkcs13"),
+			errMsg: "Variables $FLEET_VAR_EJBCA_PASSWORD_ejbcaName and $FLEET_VAR_EJBCA_DATA_ejbcaName can only be included in the 'com.apple.security.pkcs12' payload",
+		},
+		{
+			name: "EJBCA happy path",
+			profile: digiCertForValidation("${FLEET_VAR_EJBCA_PASSWORD_ejbcaName}", "${FLEET_VAR_EJBCA_DATA_ejbcaName}", "Name",
+				"com.apple.security.pkcs12"),
+			vars: []string{"EJBCA_PASSWORD_ejbcaName", "EJBCA_DATA_ejbcaName"},
+		},
+		{
+			name: "EJBCA and DigiCert in the same profile",
+			profile: digiCertForValidation2("${FLEET_VAR_EJBCA_PASSWORD_ejbcaName}", "${FLEET_VAR_EJBCA_DATA_ejbcaName}",
+				"$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName"),
+			vars: []string{"EJBCA_PASSWORD_ejbcaName", "EJBCA_DATA_ejbcaName", "DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName"},
+		},
 		{
 			name: "DigiCert profile is not pkcs12",
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName", "Name",
@@ -9647,7 +9753,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: renewalIDNotInSubjectMsg,
 		},
 		{
 			name: "Custom SCEP profile is not scep",
@@ -9736,7 +9842,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: renewalIDNotInSubjectMsg,
 		},
 		{
 			name: "NDES profile is not scep",
@@ -9831,13 +9937,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: renewalIDNotInSubjectMsg,
 		},
 		{
 			name: "Smallstep renewal ID in both CN and OU",
 			profile: customSCEPWithOURenewalIDForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
 				"Name $FLEET_VAR_SCEP_RENEWAL_ID", "com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: renewalIDDuplicateMsg,
 		},
 		{
 			name: "Smallstep challenge is not a fleet variable",
@@ -9861,6 +9967,17 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			)),
 			errMsg: "",
 			vars:   []string{"HOST_END_USER_IDP_FULL_NAME"},
+		},
+		{
+			name: "Custom profile with IdP external ID var",
+			profile: string(scopedMobileconfigForTest(
+				"ExternalID Var",
+				"com.example.externalid",
+				nil,
+				"HOST_END_USER_IDP_EXTERNAL_ID", // will be prefixed to $FLEET_VAR_ by helper
+			)),
+			errMsg: "",
+			vars:   []string{"HOST_END_USER_IDP_EXTERNAL_ID"},
 		},
 	}
 	for _, tc := range cases {

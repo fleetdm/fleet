@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,30 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestGetConfig(t *testing.T) {
-	t.Run(
-		"config cache", func(t *testing.T) {
-			oc := OrbitClient{}
-			oc.configCache.config = &fleet.OrbitConfig{}
-			oc.configCache.lastUpdated = time.Now().Add(1 * time.Second)
-			config, err := oc.GetConfig()
-			require.NoError(t, err)
-			require.Equal(t, oc.configCache.config, config)
-		},
-	)
-	t.Run(
-		"config cache error", func(t *testing.T) {
-			oc := OrbitClient{}
-			oc.configCache.config = nil
-			oc.configCache.err = errors.New("test error")
-			oc.configCache.lastUpdated = time.Now().Add(1 * time.Second)
-			config, err := oc.GetConfig()
-			require.Error(t, err)
-			require.Equal(t, oc.configCache.config, config)
-		},
-	)
-}
 
 func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
 	newClient := func(bypassEndUserAuth bool) *OrbitClient {
@@ -65,15 +40,10 @@ func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
 	require.Equal(t, fleet.GetOrbitClientCapabilities(), newClient(false).ClientCapabilities)
 }
 
-func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
-	ctx, cancel := context.WithCancel(context.Background())
-	oc := &OrbitClient{
-		receiverUpdateContext:    ctx,
-		receiverUpdateCancelFunc: cancel,
-	}
-	oc.configCache.config = cfg
-	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
-	return oc
+func clientWithConfig(t *testing.T, cfg *fleet.OrbitConfig) *OrbitClient {
+	srv := &configServer{}
+	srv.set(*cfg)
+	return newNudgeTestClient(t, srv)
 }
 
 func TestOrbitClientResponseHeaderTimeout(t *testing.T) {
@@ -97,7 +67,7 @@ func TestOrbitClientResponseHeaderTimeout(t *testing.T) {
 func TestConfigReceiverCalls(t *testing.T) {
 	var called1, called2 bool
 
-	testmsg := json.RawMessage("testing")
+	testmsg := json.RawMessage(`"testing"`)
 
 	rfunc1 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
@@ -114,7 +84,7 @@ func TestConfigReceiverCalls(t *testing.T) {
 		return nil
 	})
 
-	client := clientWithConfig(&fleet.OrbitConfig{Flags: testmsg})
+	client := clientWithConfig(t, &fleet.OrbitConfig{Flags: testmsg})
 	client.RegisterConfigReceiver(rfunc1)
 	client.RegisterConfigReceiver(rfunc2)
 
@@ -149,7 +119,7 @@ func TestConfigReceiverErrors(t *testing.T) {
 		panic("woah")
 	})
 
-	client := clientWithConfig(&fleet.OrbitConfig{})
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
 	client.RegisterConfigReceiver(efunc1)
 	client.RegisterConfigReceiver(rfunc1)
 	client.RegisterConfigReceiver(efunc2)
@@ -165,8 +135,8 @@ func TestConfigReceiverErrors(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversCancel(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var calls1, calls2 int
 	requiredCalls := 4
@@ -195,10 +165,10 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversInterrupt(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
 	defer client.receiverUpdateCancelFunc()
 
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var called bool
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
@@ -227,23 +197,20 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	}
 }
 
-func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
+func TestExecuteConfigReceiversNoBackoffOnError(t *testing.T) {
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
+	client.DefaultConfigPollInterval = 500 * time.Millisecond
 
 	var callTimes []time.Time
-	callCount := 0
-	// 3 failures then cancel: intervals should be ~1s (base tick), ~2s, ~4s.
 	targetCalls := 4
 
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		callTimes = append(callTimes, time.Now())
-		callCount++
-		if callCount >= targetCalls {
+		if len(callTimes) >= targetCalls {
 			client.receiverUpdateCancelFunc()
 			return nil
 		}
-		return errors.New("server error")
+		return errors.New("receiver failed")
 	})
 
 	client.RegisterConfigReceiver(rfunc)
@@ -256,61 +223,10 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("test timed out waiting for ExecuteConfigReceivers")
 	}
-	require.Equal(t, targetCalls, callCount)
+	require.Len(t, callTimes, targetCalls)
 
-	// Verify each successive interval is strictly longer than the previous.
-	// Call 0->1 is the base tick (~1s), 1->2 should be ~2s, 2->3 should be ~4s.
-	require.GreaterOrEqual(t, len(callTimes), 3, "need at least 3 calls to verify growth")
-	for i := 1; i < len(callTimes)-1; i++ {
-		prev := callTimes[i].Sub(callTimes[i-1])
-		curr := callTimes[i+1].Sub(callTimes[i])
-		assert.Greater(t, curr, prev,
-			"interval %d->%d (%v) should be greater than %d->%d (%v)",
-			i, i+1, curr, i-1, i, prev)
+	// Errors don't grow the interval: every run is a default interval after the previous one.
+	for i := 1; i < len(callTimes); i++ {
+		assert.Less(t, callTimes[i].Sub(callTimes[i-1]), 900*time.Millisecond, "interval %d->%d", i-1, i)
 	}
-}
-
-func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
-
-	callCount := 0
-	var intervalAfterRecovery time.Duration
-	var recoveryStart time.Time
-
-	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
-		callCount++
-		switch {
-		case callCount <= 2:
-			// First 2 calls fail -- build up backoff
-			return errors.New("server error")
-		case callCount == 3:
-			// Success -- should reset backoff
-			recoveryStart = time.Now()
-			return nil
-		case callCount == 4:
-			// Next call should be at base interval (~1s), not backed off
-			intervalAfterRecovery = time.Since(recoveryStart)
-			client.receiverUpdateCancelFunc()
-			return nil
-		}
-		return nil
-	})
-
-	client.RegisterConfigReceiver(rfunc)
-
-	done := make(chan error, 1)
-	go func() { done <- client.ExecuteConfigReceivers() }()
-	select {
-	case err := <-done:
-		require.NoError(t, err)
-	case <-time.After(30 * time.Second):
-		t.Fatal("test timed out waiting for ExecuteConfigReceivers")
-	}
-	require.Equal(t, 4, callCount)
-
-	// After recovery, interval should be close to base (1s), not backed off.
-	// Use 2s as the upper bound: base (1s) + jitter (up to 10%) + scheduling slack.
-	assert.Less(t, intervalAfterRecovery, 2*time.Second,
-		"after success, interval should reset near base, got %v", intervalAfterRecovery)
 }

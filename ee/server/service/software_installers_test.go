@@ -857,6 +857,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.ErrorAs(t, err, &permErr)
 
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersBucket = "test-bucket"
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
 
@@ -1017,9 +1018,10 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	require.NoError(t, err)
 	defaultMockCustomHostVitalsValidation(ds)
 	svc := &Service{
-		authz:  authorizer,
-		ds:     ds,
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Service: &svcmock.Service{VerifyMDMAppleConfiguredFunc: func(context.Context) error { return nil }},
+		authz:   authorizer,
+		ds:      ds,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }

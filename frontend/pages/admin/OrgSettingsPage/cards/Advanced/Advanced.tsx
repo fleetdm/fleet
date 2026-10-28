@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 
 import Button from "components/buttons/Button";
 import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { HistoricalDataConfigKey } from "interfaces/charts";
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -65,7 +65,7 @@ const validateFormData = ({
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
   } else if (
-    !validUrl({
+    !isValidURL({
       url: ssoUserURL,
     })
   ) {
@@ -75,7 +75,7 @@ const validateFormData = ({
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
   } else if (
-    !validUrl({
+    !isValidURL({
       url: mdmAppleServerURL,
       allowLocalHost: false,
       protocols: ["http", "https"],
@@ -86,7 +86,7 @@ const validateFormData = ({
 
   if (!domain) {
     delete errors.domain;
-  } else if (!validUrl({ url: domain })) {
+  } else if (!isValidURL({ url: domain })) {
     errors.domain = "Domain is not a valid URL";
   }
 

@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -191,6 +192,23 @@ func sameOrigin(origin, serverURL string) bool {
 	return strings.EqualFold(o.Scheme, s.Scheme) && strings.EqualFold(o.Hostname(), s.Hostname()) && port(o) == port(s)
 }
 
+func (svc *Service) VerifyMCPAvailable(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	switch {
+	case err != nil:
+		err = ctxerr.Wrap(ctx, err, "get app config")
+	case appCfg.ServerSettings.MCPDisabled:
+		err = &fleet.BadRequestError{Message: "Fleet's MCP server is disabled (server_settings.mcp_disabled)"}
+	case !license.IsPremium(ctx):
+		err = fleet.ErrMissingLicense
+	}
+	if err != nil {
+		// skipauth: this runs before authentication.
+		svc.authz.SkipAuthorization(ctx)
+	}
+	return err
+}
+
 func newMCPHandler(svc fleet.Service, logger *slog.Logger, conn *MCPConn, urlPrefix string) (http.Handler, error) {
 	toolLogger := slog.New(mcpUserLogHandler{logger.Handler()})
 	fleetClient, err := newEmbeddedFleetClient(conn, urlPrefix, toolLogger)
@@ -207,7 +225,17 @@ func newMCPHandler(svc fleet.Service, logger *slog.Logger, conn *MCPConn, urlPre
 			encodeError(ctx, err, w)
 		}
 
-		// Unauthenticated rejections are anyone's noise, so they stay at debug.
+		// Rejections before authentication are anyone's noise, so expected ones
+		// stay at debug.
+		if err := svc.VerifyMCPAvailable(ctx); err != nil {
+			level := slog.LevelDebug
+			var badRequest *fleet.BadRequestError
+			if !errors.As(err, &badRequest) && !errors.Is(err, fleet.ErrMissingLicense) {
+				level = slog.LevelError
+			}
+			reject(level, "embedded MCP unavailable", err)
+			return
+		}
 		bearer := token.FromHTTPRequest(r)
 		if bearer == "" {
 			reject(slog.LevelDebug, "no auth token", fleet.NewAuthHeaderRequiredError("no auth token"))
@@ -241,14 +269,6 @@ func newMCPHandler(svc fleet.Service, logger *slog.Logger, conn *MCPConn, urlPre
 		// a page on another origin must not drive this endpoint (DNS rebinding).
 		if origin := r.Header.Get("Origin"); origin != "" && !sameOrigin(origin, appConfig.ServerSettings.ServerURL) {
 			reject(slog.LevelInfo, "Origin doesn't match server_settings.server_url", fleet.NewPermissionError("Origin not allowed"), append(user, "origin", origin[:min(len(origin), 256)])...)
-			return
-		}
-		if !license.IsPremium(ctx) {
-			reject(slog.LevelInfo, "Fleet Premium required", fleet.ErrMissingLicense, user...)
-			return
-		}
-		if appConfig.ServerSettings.MCPDisabled {
-			reject(slog.LevelInfo, "server_settings.mcp_disabled is on", &fleet.BadRequestError{Message: "Fleet's MCP server is disabled (server_settings.mcp_disabled)"}, user...)
 			return
 		}
 		if granted := grantedMCPRoutes(v.User); granted != nil {

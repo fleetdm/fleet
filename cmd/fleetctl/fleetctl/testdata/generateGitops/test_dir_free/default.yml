@@ -30,6 +30,7 @@ controls:
       - Label C
       name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
+  enable_profile_validation: true
   windows_enabled_and_configured: true
   windows_settings:
     configuration_profiles:
@@ -90,6 +91,28 @@ org_settings:
       name: some-digicert-name
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
+    ejbca:
+    - certificate_authority_name: some-ejbca-certificate-authority-name
+      certificate_common_name: some-ejbca-certificate-common-name
+      certificate_profile_name: some-ejbca-certificate-profile-name
+      certificate_user_principal_names:
+      - some-ejbca-certificate-user-principal-name
+      client_p12: # TODO: Add your EJBCA client certificate PKCS#12 (base64) here
+      end_entity_profile_name: some-ejbca-end-entity-profile-name
+      name: some-ejbca-name
+      password: # TODO: Add your EJBCA client certificate PKCS#12 password here
+      trust_ca_bundle: |
+        -----BEGIN CERTIFICATE-----
+        some-ejbca-trust-bundle
+        -----END CERTIFICATE-----
+      url: https://some-ejbca-url.com
+      username_template: some-ejbca-username-template
+    google_cas:
+    - api_key_json: # TODO: Add your Google CAS service account key JSON here
+      ca_pool: some-google-cas-pool
+      location: us-central1
+      name: some-google-cas-name
+      project: some-google-cas-project
     hydrant:
     - client_id: some-hydrant-client-id
       client_secret: # TODO: Add your Hydrant client secret here
@@ -208,9 +231,7 @@ policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
   continuous_automations_enabled: false
-  critical: false
   description: This is a global policy
-  hidden: false
   install_software:
     hash_sha256: # TODO: Add your hash_sha256 here
   name: Global Policy
@@ -222,9 +243,7 @@ policies:
 - calendar_events_enabled: false
   conditional_access_enabled: false
   continuous_automations_enabled: false
-  critical: false
   description: This is a global policy with include_all scope
-  hidden: false
   name: Global Policy Include All
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 2

@@ -4,19 +4,59 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"testing"
 	"time"
 
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
+	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/fleetmcp"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestVerifyMCPAvailable(t *testing.T) {
+	ds := new(mock.Store)
+	premium, premiumCtx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true,
+	})
+	free, freeCtx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+	testErr := errors.New("test err")
+
+	for _, tc := range []struct {
+		name    string
+		svc     fleet.Service
+		ctx     context.Context
+		cfg     *fleet.AppConfig
+		cfgErr  error
+		wantErr func(*testing.T, error)
+	}{
+		{"available", premium, premiumCtx, &fleet.AppConfig{}, nil, func(t *testing.T, err error) { require.NoError(t, err) }},
+		{"app config error", premium, premiumCtx, nil, testErr, func(t *testing.T, err error) { require.ErrorIs(t, err, testErr) }},
+		{"turned off", premium, premiumCtx, &fleet.AppConfig{ServerSettings: fleet.ServerSettings{MCPDisabled: true}}, nil, func(t *testing.T, err error) {
+			var badRequest *fleet.BadRequestError
+			require.ErrorAs(t, err, &badRequest)
+			assert.Contains(t, badRequest.Message, "server_settings.mcp_disabled")
+		}},
+		{"Fleet Free", free, freeCtx, &fleet.AppConfig{}, nil, func(t *testing.T, err error) { require.ErrorIs(t, err, fleet.ErrMissingLicense) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return tc.cfg, tc.cfgErr }
+			authzCtx := &authz_ctx.AuthorizationContext{}
+			err := tc.svc.VerifyMCPAvailable(authz_ctx.NewContext(tc.ctx, authzCtx))
+			tc.wantErr(t, err)
+			// On success the request still has to authorize as usual.
+			assert.Equal(t, err != nil, authzCtx.Checked())
+		})
+	}
+}
 
 func TestSameOrigin(t *testing.T) {
 	const serverURL = "https://fleet.example.com/"

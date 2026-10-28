@@ -1,0 +1,1 @@
+- Fixed Android certificate delivery calling Google before a newly enrolled host's policy existed, which failed with a 404, and stopped logging "policy request not found" errors on status reports with no pending profiles.

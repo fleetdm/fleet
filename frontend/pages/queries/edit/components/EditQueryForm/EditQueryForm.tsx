@@ -95,7 +95,7 @@ interface IEditQueryFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: string } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     // queryError should be truthy at this point
