@@ -10,6 +10,7 @@ const renderAdvanced = (
   overrides: {
     historicalData?: { uptime: boolean; vulnerabilities: boolean };
     handleSubmit?: jest.Mock;
+    gitOpsModeEnabled?: boolean;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
@@ -25,7 +26,18 @@ const renderAdvanced = (
   const handleSubmit =
     overrides.handleSubmit ?? jest.fn().mockResolvedValue(true);
   const render = createCustomRenderer({
-    context: { app: { isPremiumTier: true } },
+    context: {
+      app: {
+        isPremiumTier: true,
+        config: {
+          ...config,
+          gitops: {
+            ...config.gitops,
+            gitops_mode_enabled: !!overrides.gitOpsModeEnabled,
+          },
+        },
+      },
+    },
   });
   const utils = render(
     <Advanced
@@ -138,5 +150,13 @@ describe("Advanced settings — Host lifecycle", () => {
     await user.click(screen.getByText("Host expiry"));
 
     expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
+  });
+});
+
+describe("Advanced settings — Features", () => {
+  it("disables the Profile validation checkbox in GitOps mode", () => {
+    renderAdvanced({ gitOpsModeEnabled: true });
+
+    expect(screen.getByLabelText("Profile validation")).toBeDisabled();
   });
 });

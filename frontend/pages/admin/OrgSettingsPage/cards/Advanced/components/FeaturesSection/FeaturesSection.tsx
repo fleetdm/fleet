@@ -138,7 +138,7 @@ const FeaturesSection = ({
               )
             }
           >
-            Profile Validation
+            Profile validation
           </Checkbox>
         )}
       />
