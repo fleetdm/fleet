@@ -260,7 +260,7 @@ func testNewActivitiesBulk(t *testing.T, env *testEnv) {
 		require.Error(t, env.ds.NewActivities(webhookCtx(t), user, activities, nil, time.Now()))
 	})
 
-	t.Run("each host gets only its own activity across chunks", func(t *testing.T) {
+	t.Run("links each activity to its host across chunks", func(t *testing.T) {
 		// more than one chunk, so the host links of every chunk are exercised
 		hostCount := newActivitiesChunkSize + 5
 		hostIDs := make([]uint, hostCount)
