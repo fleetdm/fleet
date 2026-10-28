@@ -157,9 +157,26 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 
 	kv := make(map[string]string, rowCount)
 	for i := 0; i < rowCount; i++ {
-		kv[strings[cols[0][i]-1]] = strings[cols[1][i]-1]
+		key, err := msiStringAt(strings, cols[0][i])
+		if err != nil {
+			return nil, err
+		}
+		val, err := msiStringAt(strings, cols[1][i])
+		if err != nil {
+			return nil, err
+		}
+		kv[key] = val
 	}
 	return kv, nil
+}
+
+// msiStringAt resolves a 1-based string table reference, which crafted
+// packages can set to 0 or past the end of the table.
+func msiStringAt(strings []string, idx uint16) (string, error) {
+	if idx == 0 || int(idx) > len(strings) {
+		return "", fmt.Errorf("string table index %d out of range (%d strings)", idx, len(strings))
+	}
+	return strings[idx-1], nil
 }
 
 func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTable, error) {
@@ -203,12 +220,19 @@ func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTabl
 	for i := 0; i < rowCount; i++ {
 		tblID, colNum, colNameID, colAttr := cols[0][i], cols[1][i], cols[2][i], cols[3][i]
 
-		tableName := strings[tblID-1]
+		tableName, err := msiStringAt(strings, tblID)
+		if err != nil {
+			return nil, err
+		}
 		if tableName == "Property" {
+			colName, err := msiStringAt(strings, colNameID)
+			if err != nil {
+				return nil, err
+			}
 			tbl.Name = tableName
 			tbl.Cols = append(tbl.Cols, msiColumn{
 				Number:     int(colNum),
-				Name:       strings[colNameID-1],
+				Name:       colName,
 				Attributes: colAttr,
 			})
 		}

@@ -1,0 +1,1 @@
+- Hardened software installer metadata parsing: decompressed archive members (`Info.plist`, deb `control`, pkg `Distribution`/`PackageInfo` and TOC) are now capped at 128 MiB, and malformed `.msi`, `.pkg`, and `.deb` files return an error instead of crashing the server during batch (GitOps) software uploads.

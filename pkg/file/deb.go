@@ -134,7 +134,7 @@ func parseControl(r io.Reader, ext string) (name, version string, err error) {
 		return "", "", errors.New("control.tar has no control file")
 	}
 
-	blob, err := io.ReadAll(tr)
+	blob, err := readAllLimited(tr)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to read tar file: %w", err)
 	}

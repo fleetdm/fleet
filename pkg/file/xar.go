@@ -270,7 +270,7 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	defer zr.Close()
 
 	// decode the TOC data (in XML inside the zlib-compressed data)
-	decoder := xml.NewDecoder(zr)
+	decoder := xml.NewDecoder(newLimitedReader(zr))
 	decoder.Strict = false
 	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&root); err != nil {
@@ -280,6 +280,9 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 }
 
 func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
+	if f.Data == nil {
+		return nil, fmt.Errorf("file %s has no data section", f.Name)
+	}
 	var fileReader io.Reader
 	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)
 	fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
@@ -300,7 +303,7 @@ func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, 
 	}
 	// TODO: what other compression methods are supported?
 
-	contents, err := io.ReadAll(fileReader)
+	contents, err := readAllLimited(fileReader)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s file: %w", f.Name, err)
 	}
@@ -684,7 +687,7 @@ func decompress(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	defer zr.Close()
-	return io.ReadAll(zr)
+	return readAllLimited(zr)
 }
 
 func parseTOC(r io.Reader, hashType crypto.Hash) (*toc, error) {

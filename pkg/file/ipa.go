@@ -51,7 +51,7 @@ func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		}
 		defer archiveFile.Close()
 
-		rawData, err := io.ReadAll(archiveFile)
+		rawData, err := readAllLimited(archiveFile)
 		if err != nil {
 			return nil, err
 		}
