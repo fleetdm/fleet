@@ -28,6 +28,7 @@ interface IAdvancedConfigFormData {
   disableLiveQuery: boolean;
   disableScripts: boolean;
   disableAIFeatures: boolean;
+  disableMCP: boolean;
   disableQueryReports: boolean;
   requireHardwareAttestation: boolean;
   onlyAllowAppleBusinessEnrollment: boolean;
@@ -124,6 +125,7 @@ const Advanced = ({
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableScripts: appConfig.server_settings.scripts_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
+    disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
     requireHardwareAttestation:
@@ -187,6 +189,7 @@ const Advanced = ({
         scripts_disabled: formData.disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: formData.disableAIFeatures,
+        mcp_disabled: formData.disableMCP,
       },
       smtp_settings: {
         domain: formData.domain,
@@ -263,7 +266,11 @@ const Advanced = ({
           formData={formData}
           onInputChange={onInputChange}
         />
-        <FeaturesSection formData={formData} onInputChange={onInputChange} />
+        <FeaturesSection
+          formData={formData}
+          onInputChange={onInputChange}
+          isPremiumTier={isPremiumLicense}
+        />
         <ServerAuthenticationSection
           formData={formData}
           onInputChange={onInputChange}
