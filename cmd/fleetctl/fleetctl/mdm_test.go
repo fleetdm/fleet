@@ -1512,6 +1512,9 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "", nil
+	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}

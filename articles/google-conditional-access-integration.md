@@ -6,13 +6,14 @@ How it works:
 
 1. Fleet installs Google Chrome on each managed device with a **Register with Google** bookmark. The bookmark's link includes the host's UUID in Fleet.
 2. The bookmark opens a page you host on Google Cloud behind Identity-Aware Proxy (IAP). IAP signs in the end user and adds the device's Google device ID to the request.
-3. The page asks Fleet whether the host is enrolled and company-owned. If so, it marks the device as managed in Google.
+3. The page asks Fleet whether the host is enrolled and company-owned. If so, it saves the device's Google device ID on the host in Fleet and marks the device as managed in Google. Once a host has a Google device ID, Fleet refuses a different one, so the link doesn't work on any other device. Fleet also refuses an ID that's already saved on another host.
 4. A Context-Aware Access level blocks sign-in from devices that aren't marked as managed.
 
 > **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, everything in this guide works today.
 
 ## Prerequisites
 
+- Fleet Premium.
 - Google Workspace Enterprise Standard, Enterprise Plus, or Enterprise for Education, or Cloud Identity Premium.
 - A Chrome Enterprise Premium license for each end user. Without it, IAP doesn't include the device ID.
 - A Google super admin account.
@@ -81,7 +82,10 @@ gcloud access-context-manager levels create fleet_mobile_device --policy=${POLIC
 
 ## Step 5: Create a Fleet API-only user
 
-The page asks Fleet about the host before it marks the device. [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the global **Observer** role, restricted to only the [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) endpoint.
+The page asks Fleet about the host and saves the host's Google device ID before it marks the device. [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the global **Maintainer** role, restricted to only these endpoints:
+
+- [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier)
+- [Update host's Google device ID](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-google-device-id)
 
 Save the user's API token in a file named `fleet-api-token.txt`. You'll use it in Step 6.
 
@@ -153,6 +157,19 @@ def check_host(host):
         raise NotAllowed(f"enrollment status is {status}")
 
 
+def set_device_id(host, device_id):
+    """Saves the Google device ID on the host. Fleet refuses a different ID than the one already saved, and an
+    ID that's saved on another host."""
+    r = requests.put(f"{FLEET_URL}/api/v1/fleet/hosts/{host['id']}/google_device_id",
+                     json={"google_device_id": device_id},
+                     headers={"Authorization": f"Bearer {FLEET_API_TOKEN}"}, timeout=20)
+    if r.status_code == 409:
+        errors = r.json().get("errors") or [{}]
+        raise NotAllowed(errors[0].get("reason", "Fleet refused the Google device ID"))
+    if not r.ok:
+        raise upstream_error("Fleet", r)
+
+
 def google_token():
     creds = service_account.Credentials.from_service_account_info(GOOGLE_SA_KEY, scopes=[DEVICES_SCOPE]).with_subject(ADMIN_EMAIL)
     creds.refresh(Request())
@@ -207,15 +224,24 @@ def register(host_uuid):
     host = fleet_host(host_uuid)
     check_host(host)
 
+    # Only a Fleet admin can remove a saved ID, so another device can't take over the host
+    stored_id = host.get("google_device_id") or ""
+    if stored_id and stored_id.lower() != device_id.lower():
+        raise NotAllowed("host is registered to a different Google device")
+
     token = google_token()
     device = next((d for d in google_devices(token) if (d.get("deviceId") or "").lower() == device_id.lower()), None)
     if not device:
         raise RuntimeError("Google doesn't list this device yet. Try again in a few minutes.")
+    # Save the ID as Google spells it, so the value in Fleet doesn't depend on the IAP token's casing
+    device_id = device.get("deviceId") or device_id
     if device.get("deviceType") != PLATFORMS[host["platform"]]:
         raise NotAllowed(f"Google device type {device.get('deviceType')} doesn't match Fleet platform {host['platform']}")
     user = next((u["name"] for u in device_users(token, device) if (u.get("userEmail") or "").lower() == email), None)
     if not user:
         raise RuntimeError(f"Google has no user {email} on this device.")
+    # Save the device ID in Fleet first, so a refused device is never marked as managed
+    set_device_id(host, device_id)
     mark_managed(token, user, host_uuid)
     return {"registered": user, "email": email, "device_id": device_id, "host": host_uuid}
 
@@ -366,10 +392,10 @@ The page shows one of three results:
 | Result | When |
 |---|---|
 | **You're done! 🎉** | The device is marked as managed in Google. |
-| **This device isn't allowed to access company data.** | The host isn't in Fleet or isn't company-owned (its enrollment status isn't **On (automatic)**). Also shown when Google sees a different platform than Fleet. |
+| **This device isn't allowed to access company data.** | The host isn't in Fleet or isn't company-owned (its enrollment status isn't **On (automatic)**). Also shown when Google sees a different platform than Fleet, when the host is already registered to a different device, for example when someone copies the link to another phone, or when the device is already registered to another host. |
 | **Something went wrong.** | A request to Fleet or Google failed, or the page couldn't verify the request from IAP. The page shows the error and a **Try again** link. |
 
-The page logs every result, with the reason, to Cloud Logging.
+The page logs every result, with the reason, to Cloud Logging. In Fleet, each registration shows up in the activity feed.
 
 ## Step 7: Add the bookmark to Chrome
 
@@ -440,31 +466,47 @@ Ask end users to follow these steps, in this order:
 2. Sign in to Chrome with the same work account. IAP identifies the device through Chrome's signed-in account, so the page is blocked when Chrome isn't signed in or is signed in to another account.
 3. In Chrome, open **Bookmarks > Work > Register with Google**.
 
-The page says "You're done!" In the Google Admin console, the device's **Third-party services** panel shows `<customer ID>-fleet` as **Managed**.
+The page says "You're done!" In the Google Admin console, the device's **Third-party services** panel shows `<customer ID>-fleet` as **Managed**. In Fleet, the host's **Host details** page shows the **Google device ID**.
 
 | Device | Expected result |
 |---|---|
 | Company-owned, enrolled to Fleet, and registered | Sign-in succeeds |
 | Not registered | Sign-in blocked |
 | Personal (BYOD) | Page says "This device isn't allowed to access company data." Sign-in blocked |
+| Another device opening a registered host's link | Page says "This device isn't allowed to access company data." Sign-in blocked |
 | Not enrolled to Fleet | No **Register with Google** bookmark. Sign-in blocked |
 
 ## Remove a device
 
-The page marks devices as managed, but it doesn't unmark them. When a host leaves Fleet or stops being company-owned, remove the device from Google: in the Google Admin console, head to **Devices > Mobile & endpoints > Devices**, select the device, and delete it.
+The page marks devices as managed, but it doesn't unmark them. When a host leaves Fleet or stops being company-owned:
+
+1. Remove the device from Google: in the Google Admin console, head to **Devices > Mobile & endpoints > Devices**, select the device, and delete it.
+2. Delete the host in Fleet. This also deletes its Google device ID, including when [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) deletes the host. If the host stays in Fleet, remove its Google device ID instead. Fleet keeps the ID when the device is wiped or enrolls again, so another device can't take over the host. Removing it shows up in the activity feed.
+
+```sh
+curl -X DELETE https://<your Fleet URL>/api/v1/fleet/hosts/<host ID>/google_device_id \
+  -H "Authorization: Bearer <your API token>"
+```
+
+Use an admin or maintainer's API token, not the page's API-only user from Step 5, which can't remove IDs.
 
 ## Troubleshooting
 
 - **"You don't have access"**: IAP can't tie the browser to a device Google knows about. Check that Chrome is signed in with the end user's work account, the same one signed in to Gmail. If Google doesn't list the device yet, it adds it the first time the end user signs in to a Google app on it, so ask them to sign in to Gmail, then open **Register with Google** again. If that doesn't help, check that the end user has a Chrome Enterprise Premium license.
 - **No Register with Google bookmark**: Check that Chrome is installed and that you saved the configuration from Step 7. On iOS and iPadOS, the end user has to quit and reopen Chrome.
-- **"This device isn't allowed to access company data."**: Check the reason in Cloud Logging. A company iPhone or iPad enrolled without Apple Business Manager shows as **On (manual)** in Fleet, and the page doesn't allow it.
+- **"This device isn't allowed to access company data."**: Check the reason in Cloud Logging. A company iPhone or iPad enrolled without Apple Business Manager shows as **On (manual)** in Fleet, and the page doesn't allow it. "Host is registered to a different Google device" means the host already has another Google device ID. Compare it with the **Google device ID** on the host's **Host details** page in Fleet. To let this device take over, remove the host's Google device ID as described in [Remove a device](#remove-a-device). "This Google device ID is already used by another host" means the device is already registered as a different host in Fleet, for example when someone opens another host's link on it. To find that host, list the activities that saved a Google device ID and look for the device's ID in `details.google_device_id`. Check the most recent match's **Host details** page to confirm it still has the ID:
+
+  ```sh
+  curl "https://<your Fleet URL>/api/v1/fleet/activities?activity_type=set_host_google_device_id&order_key=id&order_direction=desc" \
+    -H "Authorization: Bearer <your API token>"
+  ```
 - **"Couldn't verify the IAP token"**: `IAP_AUDIENCE` in Step 6 doesn't match the service.
-- **"Fleet returned 401"** or **"Fleet returned 403"**: The API-only user's token from Step 5 is wrong or can't call Get host by identifier.
+- **"Fleet returned 401"** or **"Fleet returned 403"**: The API-only user's token from Step 5 is wrong, or the user can't call Get host by identifier or Update host's Google device ID.
 - **"Google didn't identify this device"**: The IAP binding from Step 6 is missing the access level condition, so IAP doesn't send the device ID. Run the `gcloud iap web add-iam-policy-binding` command from Step 6 again.
 - **"Google has no user ... on this device"**: The end user signed in to the page with a different account than the one signed in to Gmail on the device. Sign in to both with the same work account.
 - **`unauthorized_client` error**: Domain-wide delegation from Step 3 isn't active yet. It can take a few minutes.
 - **"Google returned 403"**: The user from Step 1 is missing the **Mobile Device Management** or **Security settings** privilege, or the domain-wide delegation scope from Step 3 is wrong.
-- **Device blocked after a wipe**: Google creates a new device ID after a factory reset or a wipe. Sign in to Gmail on the device again, then open **Register with Google**.
+- **Device blocked after a wipe**: Google creates a new device ID after a factory reset or a wipe, and Fleet keeps the old one. Remove the host's Google device ID as described in [Remove a device](#remove-a-device). Then ask the end user to sign in to Gmail on the device again and open **Register with Google**.
 
 <meta name="articleTitle" value="Conditional access: Google">
 <meta name="authorFullName" value="Juan Fernandez">
