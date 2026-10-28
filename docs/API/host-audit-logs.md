@@ -23,36 +23,95 @@ team_settings:
 
 You can also configure this for "Unassigned" hosts in `unassigned.yml`.
 
-## Activity types
+## Certificates
 
-Each activity below includes its fields and an example payload.
+- [resent_certificate](#resent-certificate)
+- [installed_certificate](#installed-certificate)
 
-## reset_policy
+### resent_certificate
 
-Generated when a user resets a policy's results for a single host. Resets for every host a policy applies to aren't linked to specific hosts, so this webhook doesn't send them.
+Generated when a user resends a certificate to a host.
 
 This activity contains the following fields:
-- "policy_id": ID of the policy.
-- "policy_name": Name of the policy.
-- "fleet_id": ID of the fleet the policy belongs to. `-1` for global policies and `0` for Unassigned.
-- "fleet_name": Name of the fleet the policy belongs to. Omitted for global policies and Unassigned.
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "certificate_template_id": The ID of the certificate template
+- "certificate_name": The name of the certificate
 
 #### Example
 
 ```json
 {
-  "policy_id": 123,
-  "policy_name": "Disk encryption enabled",
-  "fleet_id": 1,
-  "fleet_name": "Workstations",
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "certificate_template_id": 123,
+  "certificate_name": "Zero trust certificate"
 }
 ```
 
-## host_enrollment_rejected
+### installed_certificate
+
+Generated when a certificate is installed on a host or fails to install.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "certificate_template_id": ID of the certificate template.
+- "certificate_name": Name of the certificate.
+- "status": Status of the certificate installation ("installed" or "failed_install").
+- "detail": Details of the failure. Only present when status is "failed_install".
+
+#### Example (success)
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-F946U",
+  "certificate_template_id": 19,
+  "certificate_name": "cert-6",
+  "status": "installed"
+}
+```
+
+#### Example (failure)
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-F946U",
+  "certificate_template_id": 19,
+  "certificate_name": "cert-6",
+  "status": "failed_install",
+  "detail": "Network error during SCEP enrollment: Failed to communicate with SCEP server"
+}
+```
+
+## Hosts
+
+- [host_enrollment_rejected](#host-enrollment-rejected)
+- [mdm_enrolled](#mdm-enrolled)
+- [mdm_unenrolled](#mdm-unenrolled)
+- [read_host_disk_encryption_key](#read-host-disk-encryption-key)
+- [viewed_host_recovery_lock_password](#viewed-host-recovery-lock-password)
+- [retrieved_host_my_device_url](#retrieved-host-my-device-url)
+- [set_host_recovery_lock_password](#set-host-recovery-lock-password)
+- [created_managed_local_account](#created-managed-local-account)
+- [created_disk_encryption_pin](#created-disk-encryption-pin)
+- [read_managed_local_account](#read-managed-local-account)
+- [locked_host](#locked-host)
+- [unlocked_host](#unlocked-host)
+- [wiped_host](#wiped-host)
+- [failed_wipe](#failed-wipe)
+- [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
+- [rotated_disk_encryption_key](#rotated-disk-encryption-key)
+- [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
+- [rotated_managed_local_account_password](#rotated-managed-local-account-password)
+- [failed_to_rotate_managed_local_account_password](#failed-to-rotate-managed-local-account-password)
+- [cleared_passcode](#cleared-passcode)
+- [failed_enrollment_profile_renewal](#failed-enrollment-profile-renewal)
+- [released_from_ab](#released-from-ab)
+
+### host_enrollment_rejected
 
 Generated when Fleet refuses an orbit or osquery enrollment because of the one-time enroll secret rules. Recorded by Fleet, rate-limited per host and reason.
 
@@ -79,7 +138,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_enrolled
+### mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
 
@@ -106,7 +165,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_unenrolled
+### mdm_unenrolled
 
 Generated when a host is unenrolled from Fleet's MDM.
 
@@ -131,7 +190,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_disk_encryption_key
+### read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
 
@@ -148,7 +207,7 @@ This activity contains the following fields:
 }
 ```
 
-## viewed_host_recovery_lock_password
+### viewed_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
@@ -165,7 +224,7 @@ This activity contains the following fields:
 }
 ```
 
-## retrieved_host_my_device_url
+### retrieved_host_my_device_url
 
 Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
 
@@ -182,7 +241,7 @@ This activity contains the following fields:
 }
 ```
 
-## set_host_recovery_lock_password
+### set_host_recovery_lock_password
 
 Generated when Fleet sets the Recovery Lock password on a host.
 
@@ -199,7 +258,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_managed_local_account
+### created_managed_local_account
 
 Generated when a local managed account and password is created for a host.
 
@@ -216,7 +275,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_disk_encryption_pin
+### created_disk_encryption_pin
 
 Generated when a BitLocker PIN is created.
 
@@ -233,7 +292,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_managed_local_account
+### read_managed_local_account
 
 Generated when a user reads the information for the local managed account for a host.
 
@@ -250,20 +309,14 @@ This activity contains the following fields:
 }
 ```
 
-## ran_script
+### locked_host
 
-Generated when a script is sent to be run for a host.
+Generated when a user sends a request to lock a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
-- "script_execution_id": Execution ID of the script run.
-- "batch_execution_id": Batch execution ID of the script run.
-- "script_name": Name of the script (empty if it was an anonymous script).
-- "async": Whether the script was executed asynchronously.
-- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
-- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
-- "from_setup_experience": Whether the script was run as part of the setup experience.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
 
 #### Example
 
@@ -271,17 +324,316 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
-  "script_name": "set-timezones.sh",
-  "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
-  "async": false,
-  "policy_id": 123,
-  "policy_name": "Ensure photon torpedoes are primed",
-  "from_setup_experience": false
+  "view_pin": true
 }
 ```
 
-## ran_custom_mdm_command
+### unlocked_host
+
+Generated when a user sends a request to unlock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}
+```
+
+### wiped_host
+
+Generated when a user sends a request to wipe a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}
+```
+
+### failed_wipe
+
+Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1",
+  "host_platform": "windows"
+}
+```
+
+### rotated_host_recovery_lock_password
+
+Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### rotated_disk_encryption_key
+
+Generated when a user requests a rotation of a host's disk encryption key. Recorded when the command is enqueued.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### failed_to_rotate_disk_encryption_key
+
+Generated when a host reports it failed to rotate its disk encryption key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": Reason the device reported for the failure. Omitted when the device doesn't send one.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "detail": "Rotation failed"
+}
+```
+
+### rotated_managed_local_account_password
+
+Generated when a managed local account password is rotated.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### failed_to_rotate_managed_local_account_password
+
+Generated when a host reports it failed to rotate the managed local account password.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": Reason the device reported for the failure. Only Windows hosts report one; omitted otherwise.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "detail": "Rotation failed"
+}
+```
+
+### cleared_passcode
+
+Generated when a user clears the passcode on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
+### released_from_ab
+
+Generated when a host has been released from Apple Business (AB).
+
+This activity contains the following fields:
+- "host_id": ID of the host being released from AB.
+- "host_display_name": Display name of the host being released from AB.
+- "host_serial": Hardware serial number of the host being released from AB.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_serial": "ABC123"
+}
+```
+
+## OS settings
+
+- [resent_configuration_profile](#resent-configuration-profile)
+- [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
+- [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
+
+### resent_configuration_profile
+
+Generated when a user resends a configuration profile to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.
+- "profile_uuid": The UUID of the configuration profile.
+- "policy_id": The ID of the policy whose failure triggered the resend. `null` if no associated policy.
+- "policy_name": The name of the policy whose failure triggered the resend. `null` if no associated policy.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements",
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab",
+  "policy_id": 123,
+  "policy_name": "Fix Wi-Fi"
+}
+```
+
+### installed_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is installed on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the end user (rather than an IT admin) opted in to the profile.
+- "profile_name": Name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Developer tools"
+}
+```
+
+### uninstalled_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is removed from a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the end user (rather than an IT admin) opted out of the profile.
+- "profile_name": Name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Developer tools"
+}
+```
+
+## Setup experience
+
+- [canceled_setup_experience](#canceled-setup-experience)
+
+### canceled_setup_experience
+
+Generated when macOS setup experience is canceled due to software install failure.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_display_name": Custom display name of the software, if one is set. Omitted otherwise.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 1234
+}
+```
+
+## Commands
+
+- [ran_custom_mdm_command](#ran-custom-mdm-command)
+- [canceled_mdm_command](#canceled-mdm-command)
+
+### ran_custom_mdm_command
 
 Generated when a user runs a custom MDM command via API or the fleetctl CLI.
 
@@ -319,182 +671,239 @@ Android example:
 }
 ```
 
-## locked_host
+### canceled_mdm_command
 
-Generated when a user sends a request to lock a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "view_pin": Whether lock PIN was viewed (for Apple devices).
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "view_pin": true
-}
-```
-
-## unlocked_host
-
-Generated when a user sends a request to unlock a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "host_platform": Platform of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "host_platform": "darwin"
-}
-```
-
-## wiped_host
-
-Generated when a user sends a request to wipe a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "host_platform": Platform of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "host_platform": "darwin"
-}
-```
-
-## failed_wipe
-
-Generated when a Windows host reports that a wipe MDM command failed.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "host_platform": Platform of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "DESKTOP-1C3ARC1",
-  "host_platform": "windows"
-}
-```
-
-## rotated_host_recovery_lock_password
-
-Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
-}
-```
-
-## rotated_disk_encryption_key
-
-Generated when a user requests a rotation of a host's disk encryption key. Recorded when the command is enqueued.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
-}
-```
-
-## failed_to_rotate_disk_encryption_key
-
-Generated when a host reports it failed to rotate its disk encryption key.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "detail": Reason the device reported for the failure. Omitted when the device doesn't send one.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "detail": "Rotation failed"
-}
-```
-
-## rotated_managed_local_account_password
-
-Generated when a managed local account password is rotated.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
-}
-```
-
-## failed_to_rotate_managed_local_account_password
-
-Generated when a host reports it failed to rotate the managed local account password.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "detail": Reason the device reported for the failure. Only Windows hosts report one; omitted otherwise.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "detail": "Rotation failed"
-}
-```
-
-## resent_configuration_profile
-
-Generated when a user resends a configuration profile to a host.
+Generated when a user cancels an upcoming MDM command.
 
 This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
-- "profile_name": The name of the configuration profile.
-- "profile_uuid": The UUID of the configuration profile.
-- "policy_id": The ID of the policy whose failure triggered the resend. `null` if no associated policy.
-- "policy_name": The name of the policy whose failure triggered the resend. `null` if no associated policy.
+- "command_type": The type of MDM command.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "command_type": "lock"
+}
+```
+
+## Policies
+
+- [reset_policy](#reset-policy)
+- [ran_automation_ticket](#ran-automation-ticket)
+- [failed_automation_ticket](#failed-automation-ticket)
+- [failed_automation_calendar_event](#failed-automation-calendar-event)
+- [ran_automation_calendar_event](#ran-automation-calendar-event)
+- [failed_automation_webhook](#failed-automation-webhook)
+- [ran_automation_webhook](#ran-automation-webhook)
+- [failed_automation_conditional_access](#failed-automation-conditional-access)
+- [ran_automation_conditional_access](#ran-automation-conditional-access)
+
+### reset_policy
+
+Generated when a user resets a policy's results for a single host. Resets for every host a policy applies to aren't linked to specific hosts, so this webhook doesn't send them.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy.
+- "policy_name": Name of the policy.
+- "fleet_id": ID of the fleet the policy belongs to. `-1` for global policies and `0` for Unassigned.
+- "fleet_name": Name of the fleet the policy belongs to. Omitted for global policies and Unassigned.
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "policy_name": "Disk encryption enabled",
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### ran_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ticket. One activity is recorded per created ticket and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "type": Ticket destination ("jira" or "zendesk").
+- "ticket_key": (Optional) Key of the created ticket.
+- "ticket_id": (Optional) ID of the created ticket.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "ticket_key": "ABC-123"
+}
+```
+
+### failed_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) fails to create a ticket. One activity is recorded per failed attempt and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "type": Ticket destination ("jira" or "zendesk").
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "error_response": "401 Unauthorized"
+}
+```
+
+### failed_automation_calendar_event
+
+Generated when a failing-calendar-policy automation fails. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the calendar provider.
+- "error_response": Error details.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "error_response": "calendar API error"
+}
+```
+
+### ran_automation_calendar_event
+
+Generated when a failing calendar policy results in a calendar event. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+### failed_automation_webhook
+
+Generated when a failing-policy webhook automation batch is rejected by the destination server. One activity is recorded per failed batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the destination.
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 500,
+  "error_response": "Internal Server Error"
+}
+```
+
+### ran_automation_webhook
+
+Generated when a failing-policy webhook automation batch is accepted by the destination server. One activity is recorded per successful batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 200
+}
+```
+
+### failed_automation_conditional_access
+
+Generated when a failing-policy conditional access automation fails to push a host's compliance status to the provider. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the provider.
+- "error_response": Error returned by the provider.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "status_code": 403,
+  "error_response": "Forbidden"
+}
+```
+
+### ran_automation_conditional_access
+
+Generated when a failing-policy conditional access automation pushes a host's compliance status to the provider as non-compliant. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+## Scripts
+
+- [ran_script](#ran-script)
+- [canceled_run_script](#canceled-run-script)
+
+### ran_script
+
+Generated when a script is sent to be run for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
+- "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
+- "from_setup_experience": Whether the script was run as part of the setup experience.
 
 #### Example
 
@@ -502,14 +911,47 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
-  "profile_name": "Passcode requirements",
-  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab",
+  "script_name": "set-timezones.sh",
+  "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
+  "async": false,
   "policy_id": 123,
-  "policy_name": "Fix Wi-Fi"
+  "policy_name": "Ensure photon torpedoes are primed",
+  "from_setup_experience": false
 }
 ```
 
-## installed_software
+### canceled_run_script
+
+Generated when upcoming activity `ran_script` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the script (empty if it was an anonymous script).
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
+}
+```
+
+## Software
+
+- [installed_software](#installed-software)
+- [notified_end_user_before_patching](#notified-end-user-before-patching)
+- [uninstalled_software](#uninstalled-software)
+- [installed_all_self_service_software](#installed-all-self-service-software)
+- [installed_app_store_app](#installed-app-store-app)
+- [canceled_install_software](#canceled-install-software)
+- [canceled_uninstall_software](#canceled-uninstall-software)
+- [canceled_install_app_store_app](#canceled-install-app-store-app)
+
+### installed_software
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
 
@@ -550,7 +992,7 @@ This activity contains the following fields:
 }
 ```
 
-## notified_end_user_before_patching
+### notified_end_user_before_patching
 
 Generated when Fleet notifies the end user that software will be patched on their host.
 
@@ -583,7 +1025,7 @@ This activity contains the following fields:
 }
 ```
 
-## uninstalled_software
+### uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
@@ -611,7 +1053,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_all_self_service_software
+### installed_all_self_service_software
 
 Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
 
@@ -634,7 +1076,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_app_store_app
+### installed_app_store_app
 
 Generated when an App Store app is installed on a device.
 
@@ -673,45 +1115,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_run_script
-
-Generated when upcoming activity `ran_script` is canceled.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "script_name": Name of the script (empty if it was an anonymous script).
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "script_name": "set-timezones.sh"
-}
-```
-
-## canceled_mdm_command
-
-Generated when a user cancels an upcoming MDM command.
-
-This activity contains the following fields:
-- "host_id": The ID of the host.
-- "host_display_name": The display name of the host.
-- "command_type": The type of MDM command.
-
-#### Example
-
-```json
-{
-  "host_id": 123,
-  "host_display_name": "Anna's MacBook Pro",
-  "command_type": "lock"
-}
-```
-
-## canceled_install_software
+### canceled_install_software
 
 Generated when upcoming activity `installed_software` is canceled.
 
@@ -734,7 +1138,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_uninstall_software
+### canceled_uninstall_software
 
 Generated when upcoming activity `uninstalled_software` is canceled.
 
@@ -756,7 +1160,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_install_app_store_app
+### canceled_install_app_store_app
 
 Generated when upcoming activity `installed_app_store_app` is canceled.
 
@@ -779,7 +1183,11 @@ This activity contains the following fields:
 }
 ```
 
-## edited_custom_host_vital_value
+## Custom host vitals
+
+- [edited_custom_host_vital_value](#edited-custom-host-vital-value)
+
+### edited_custom_host_vital_value
 
 Generated when a user edits the value of a custom host vital on a host.
 
@@ -797,341 +1205,6 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "custom_host_vital_id": 12,
   "custom_host_vital_name": "Asset tag"
-}
-```
-
-## resent_certificate
-
-Generated when a user resends a certificate to a host.
-
-This activity contains the following fields:
-- "host_id": The ID of the host.
-- "host_display_name": The display name of the host.
-- "certificate_template_id": The ID of the certificate template
-- "certificate_name": The name of the certificate
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "certificate_template_id": 123,
-  "certificate_name": "Zero trust certificate"
-}
-```
-
-## installed_certificate
-
-Generated when a certificate is installed on a host or fails to install.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "certificate_template_id": ID of the certificate template.
-- "certificate_name": Name of the certificate.
-- "status": Status of the certificate installation ("installed" or "failed_install").
-- "detail": Details of the failure. Only present when status is "failed_install".
-
-#### Example (success)
-
-```json
-{
-  "host_id": 42,
-  "host_display_name": "Samsung SM-F946U",
-  "certificate_template_id": 19,
-  "certificate_name": "cert-6",
-  "status": "installed"
-}
-```
-
-#### Example (failure)
-
-```json
-{
-  "host_id": 42,
-  "host_display_name": "Samsung SM-F946U",
-  "certificate_template_id": 19,
-  "certificate_name": "cert-6",
-  "status": "failed_install",
-  "detail": "Network error during SCEP enrollment: Failed to communicate with SCEP server"
-}
-```
-
-## cleared_passcode
-
-Generated when a user clears the passcode on a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
-}
-```
-
-## canceled_setup_experience
-
-Generated when macOS setup experience is canceled due to software install failure.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "software_title": Name of the software.
-- "software_display_name": Custom display name of the software, if one is set. Omitted otherwise.
-- "software_title_id": ID of the software title.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "software_title": "Adobe Acrobat.app",
-  "software_title_id": 1234
-}
-```
-
-## failed_enrollment_profile_renewal
-
-Generated when an enrollment profile renewal (SCEP or ACME) has failed.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "command_uuid": Command ID we display details for.
-
-#### Example
-
-```json
-{
-  "host_id": 123,
-  "host_display_name": "PWNED-VM-123",
-  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
-}
-```
-
-## ran_automation_ticket
-
-Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ticket. One activity is recorded per created ticket and is associated with every host in that batch.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "type": Ticket destination ("jira" or "zendesk").
-- "ticket_key": (Optional) Key of the created ticket.
-- "ticket_id": (Optional) ID of the created ticket.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1, 2, 3],
-  "type": "jira",
-  "ticket_key": "ABC-123"
-}
-```
-
-## failed_automation_ticket
-
-Generated when a failing-policy ticket automation (Jira or Zendesk) fails to create a ticket. One activity is recorded per failed attempt and is associated with every host in that batch.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "type": Ticket destination ("jira" or "zendesk").
-- "error_response": Error returned by the destination.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1, 2, 3],
-  "type": "jira",
-  "error_response": "401 Unauthorized"
-}
-```
-
-## failed_automation_calendar_event
-
-Generated when a failing-calendar-policy automation fails. The activity is associated with the affected host.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "status_code": (Optional) HTTP status code returned by the calendar provider.
-- "error_response": Error details.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1],
-  "error_response": "calendar API error"
-}
-```
-
-## ran_automation_calendar_event
-
-Generated when a failing calendar policy results in a calendar event. The activity is associated with the affected host.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1]
-}
-```
-
-## failed_automation_webhook
-
-Generated when a failing-policy webhook automation batch is rejected by the destination server. One activity is recorded per failed batch POST and is associated with every host in that batch.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "status_code": (Optional) HTTP status code returned by the destination.
-- "error_response": Error returned by the destination.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1, 2, 3],
-  "status_code": 500,
-  "error_response": "Internal Server Error"
-}
-```
-
-## ran_automation_webhook
-
-Generated when a failing-policy webhook automation batch is accepted by the destination server. One activity is recorded per successful batch POST and is associated with every host in that batch.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "status_code": (Optional) HTTP status code returned by the destination.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1, 2, 3],
-  "status_code": 200
-}
-```
-
-## failed_automation_conditional_access
-
-Generated when a failing-policy conditional access automation fails to push a host's compliance status to the provider. The activity is associated with the affected host.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-- "status_code": (Optional) HTTP status code returned by the provider.
-- "error_response": Error returned by the provider.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1],
-  "status_code": 403,
-  "error_response": "Forbidden"
-}
-```
-
-## ran_automation_conditional_access
-
-Generated when a failing-policy conditional access automation pushes a host's compliance status to the provider as non-compliant. The activity is associated with the affected host.
-
-This activity contains the following fields:
-- "policy_id": ID of the failing policy.
-- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
-
-#### Example
-
-```json
-{
-  "policy_id": 123,
-  "host_ids": [1]
-}
-```
-
-## released_from_ab
-
-Generated when a host has been released from Apple Business (AB).
-
-This activity contains the following fields:
-- "host_id": ID of the host being released from AB.
-- "host_display_name": Display name of the host being released from AB.
-- "host_serial": Hardware serial number of the host being released from AB.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "host_serial": "ABC123"
-}
-```
-
-## installed_opt_in_configuration_profile
-
-Generated when an opt-in configuration profile is installed on a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "self_service": Whether the end user (rather than an IT admin) opted in to the profile.
-- "profile_name": Name of the configuration profile.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "self_service": true,
-  "profile_name": "Developer tools"
-}
-```
-
-## uninstalled_opt_in_configuration_profile
-
-Generated when an opt-in configuration profile is removed from a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "self_service": Whether the end user (rather than an IT admin) opted out of the profile.
-- "profile_name": Name of the configuration profile.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "self_service": true,
-  "profile_name": "Developer tools"
 }
 ```
 
