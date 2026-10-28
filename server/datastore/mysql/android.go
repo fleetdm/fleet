@@ -3157,6 +3157,41 @@ WHERE
 	return hostIDsWithPendingInstall, nil
 }
 
+func (ds *Datastore) ListHostMDMAndroidVPPAppsInstalledDuringSetup(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	const stmt = `
+		SELECT
+			hvsi.host_id,
+			hvsi.adam_id,
+			hvsi.vpp_app_team_id
+		FROM
+			host_vpp_software_installs hvsi
+			JOIN hosts h ON h.id = hvsi.host_id
+			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id AND vat.team_id <=> h.team_id
+		WHERE
+			hvsi.host_id IN (?) AND
+			hvsi.platform = 'android' AND
+			hvsi.canceled = 0 AND
+			hvsi.removed = 0 AND
+			hvsi.created_at >= h.last_enrolled_at AND
+			hvsi.verification_at IS NOT NULL AND
+			hvsi.verification_failed_at IS NULL
+	`
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build android apps installed during setup query")
+	}
+	var installs []*fleet.HostAndroidVPPSoftwareInstall
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android apps installed during setup")
+	}
+	return installs, nil
+}
+
 func (ds *Datastore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil

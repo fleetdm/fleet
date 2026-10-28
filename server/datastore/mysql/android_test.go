@@ -4227,6 +4227,12 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 	_, err = ds.SetAndroidHostUnenrolled(ctx, unenrolledHost.Host.ID)
 	require.NoError(t, err)
 
+	// enroll a re-enrolled host whose applied policy its enrollment status report reset
+	reenrolledHost := createAndroidHost("reenrolled")
+	reenrolledHost.Device.AppliedPolicyID = nil
+	_, err = ds.NewAndroidHost(ctx, reenrolledHost, false)
+	require.NoError(t, err)
+
 	// list from the start, only the enrolled hosts on their host policy should be returned, in id order
 	hosts, err := ds.ListAndroidHostsOnHostPolicyAfterID(ctx, 0, 10)
 	require.NoError(t, err)

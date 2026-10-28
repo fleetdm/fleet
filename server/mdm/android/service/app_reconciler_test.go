@@ -53,6 +53,29 @@ func (c *appReconcilerRetryCounter) ResetInstallerAttempts(ctx context.Context, 
 	return nil
 }
 
+func reconcileAndroidApps(ctx context.Context, ds fleet.Datastore, androidSvc android.Service, retryCounter fleet.SoftwareInstallAttemptCounter, logger *slog.Logger, batchSize int) error {
+	reconciler := &profileReconciler{
+		DS:           ds,
+		Enterprise:   &android.Enterprise{EnterpriseID: "test"},
+		AndroidSvc:   androidSvc,
+		RetryCounter: retryCounter,
+		Logger:       logger,
+	}
+	appListsByHostUUID, err := reconciler.prepareAppLists(ctx, batchSize)
+	if err != nil {
+		return err
+	}
+	reconciler.sendHostApps(ctx, appListsByHostUUID, batchSize, 0)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, reconciler.appInstallsToUpsert, reconciler.appInstallsToRemove)
+	if err != nil {
+		return err
+	}
+	if reconciler.appSendsStoppedByQuota {
+		return nil
+	}
+	return ds.SetAndroidAppReconcileCursor(ctx, reconciler.appNextCursor)
+}
+
 type androidAppReconcileSentList struct {
 	hostUUID string
 	packages []string
@@ -69,6 +92,7 @@ type androidAppReconcileState struct {
 	secondVersionConfig    []byte
 	configs                map[string][]byte
 	pendingSetupHostIDs    map[uint]struct{}
+	setupApps              []*fleet.HostAndroidVPPSoftwareInstall
 	expandErr              error
 	agentErr               error
 	setAppsErrByHostUUID   map[string]error
@@ -118,6 +142,9 @@ func TestReconcileAndroidApps(t *testing.T) {
 	}
 	ds.GetAndroidHostIDsWithPendingSetupExperienceInstallFunc = func(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error) {
 		return state.pendingSetupHostIDs, nil
+	}
+	ds.ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		return state.setupApps, nil
 	}
 	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
 		return state.installs, nil
@@ -182,19 +209,6 @@ func TestReconcileAndroidApps(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	retryCounter := &appReconcilerRetryCounter{state: state}
 
-	t.Run("android mdm turned off sends nothing", func(t *testing.T) {
-		*state = androidAppReconcileState{
-			hosts:               []*fleet.Host{hostA},
-			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
-		}
-
-		// run the cron with Android MDM off, nothing should be sent and the cursor should not be saved
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
-		require.NoError(t, err)
-		require.Empty(t, state.sent)
-		require.False(t, state.cursorSaved)
-	})
-
 	t.Run("a host with a new app in scope gets the app and the fleet agent and another host with no changes gets no request", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			androidEnabled: true,
@@ -206,7 +220,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, only host A should get a request, recorded as pending in the returned policy version
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 		require.Len(t, state.upserted, 1)
@@ -233,7 +247,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 
 		// run the cron, host A should get both apps and the unchanged app one should not be upserted, so a status report
 		// that verifies it during the run is not overwritten
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.example.two", "com.fleetdm.agent"}}}, state.sent)
 		require.Len(t, state.upserted, 1)
@@ -251,7 +265,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get a list with only the fleet agent and its install of the app should be removed
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.fleetdm.agent"}}}, state.sent)
 		require.Empty(t, state.upserted)
@@ -273,7 +287,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app and its row should have the second version
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 		require.Len(t, state.upserted, 1)
@@ -293,7 +307,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent and host A's row should be updated to the second version
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.Len(t, state.upserted, 1)
@@ -316,7 +330,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app, the first version's configuration it was sent has changed since
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 	})
@@ -332,7 +346,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 	})
@@ -349,7 +363,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 	})
@@ -366,7 +380,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent and the cursor should go back to the first host
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.True(t, state.cursorSaved)
@@ -384,7 +398,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app and its new row should not be flagged
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 		require.False(t, state.upserted[0].NeedsResend)
@@ -399,7 +413,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 	})
@@ -411,7 +425,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 	})
@@ -425,7 +439,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A's apps should be recorded as failed and host B's as sent
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 2)
 		require.Len(t, state.upserted, 2)
@@ -449,7 +463,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent, including the removal of the app out of scope, and no retry counted
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.Zero(t, state.recordedRetries)
@@ -467,7 +481,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get the app and one retry should be counted
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 		require.Equal(t, 1, state.recordedRetries)
@@ -485,14 +499,14 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent and no retry counted
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.Zero(t, state.recordedRetries)
 
 		// expire the retry count and run the cron again, host A should get the app
 		state.retries = 0
-		err = ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err = reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 	})
@@ -512,7 +526,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, host A should get both apps
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.example.two", "com.fleetdm.agent"}}}, state.sent)
 		require.Zero(t, state.recordedRetries)
@@ -526,9 +540,9 @@ func TestReconcileAndroidApps(t *testing.T) {
 			setAppsErrByHostUUID: map[string]error{"host-a": &googleapi.Error{Code: http.StatusTooManyRequests}},
 		}
 
-		// run the cron, it should fail after host A, host B should not be sent and nothing should be recorded
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
-		require.Error(t, err)
+		// run the cron, it should stop after host A, host B should not be sent and nothing should be recorded
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 		require.Empty(t, state.upserted)
 		require.False(t, state.cursorSaved)
@@ -543,7 +557,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron, nothing should be sent or recorded
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.Empty(t, state.upserted)
@@ -563,7 +577,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 
 		// run the cron, host A should get the other app upserted as pending in the policy version, and the vital app should
 		// be upserted as failed with no policy version
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 		installByAdamID := make(map[string]fleet.HostAndroidSoftwareInstall, len(state.upserted))
@@ -584,7 +598,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 
 		// run the cron with a batch size of 1, only host A should be checked and saved as the cursor
-		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
+		err := reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
 		require.NoError(t, err)
 		require.Equal(t, 1, state.listedHostsN)
 		require.True(t, state.cursorSaved)
@@ -592,30 +606,16 @@ func TestReconcileAndroidApps(t *testing.T) {
 
 		// run the cron again from host A, host B should be checked and saved as the cursor
 		state.cursor = state.savedCursor
-		err = ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
+		err = reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
 		require.NoError(t, err)
 		require.Equal(t, 1, state.listedHostsN)
 		require.Equal(t, hostB.ID, state.savedCursor)
 
 		// run the cron again from host B, no host should be checked and the cursor should go back to the first host
 		state.cursor = state.savedCursor
-		err = ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
+		err = reconcileAndroidApps(t.Context(), ds, androidSvc, retryCounter, logger, 1)
 		require.NoError(t, err)
 		require.Zero(t, state.listedHostsN)
 		require.Zero(t, state.savedCursor)
-	})
-
-	t.Run("a run that times out doesn't save the cursor", func(t *testing.T) {
-		*state = androidAppReconcileState{
-			androidEnabled: true,
-			hosts:          []*fleet.Host{hostA},
-		}
-
-		// run the cron with a context that is already canceled, it should fail without saving the cursor
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		err := ReconcileApps(ctx, ds, androidSvc, retryCounter, logger, 0)
-		require.Error(t, err)
-		require.False(t, state.cursorSaved)
 	})
 }

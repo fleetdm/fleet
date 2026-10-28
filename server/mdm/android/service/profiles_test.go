@@ -95,6 +95,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
 		{"PolicyResetDuringBatchIsNotOverwritten", testPolicyResetDuringBatchIsNotOverwritten},
 		{"PolicyResetDuringFirstDeliveryIsNotOverwritten", testPolicyResetDuringFirstDeliveryIsNotOverwritten},
+		{"ProfilePolicyPatchesExcludeTheAppList", testProfilePolicyPatchesExcludeTheAppList},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -214,6 +215,34 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
+func testProfilePolicyPatchesExcludeTheAppList(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	var patchOpts []androidmgmt.PoliciesPatchOpts
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patchOpts = append(patchOpts, opts)
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	createAndroidHost(t, ds, 1)
+	p1 := androidProfileForTest("p1")
+	_, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	// deliver a profile to the host, every policy patch should leave the app list out, so it never overwrites the apps
+	// the Android app reconciler sends
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, patchOpts)
+	for _, opts := range patchOpts {
+		require.True(t, opts.ExcludeApps)
+		require.False(t, opts.OnlyUpdateApps)
+	}
+}
+
 func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datastore, client *mock.Client, _ *profileReconciler) {
 	ctx := t.Context()
 
@@ -244,7 +273,7 @@ func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datasto
 	err = ReconcileProfilesWithClient(ctx, ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
-	}, 0)
+	}, 0, nil)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)

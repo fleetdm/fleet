@@ -1980,6 +1980,8 @@ type SetAndroidAppReconcileCursorFunc func(ctx context.Context, cursor uint) err
 
 type GetAndroidHostIDsWithPendingSetupExperienceInstallFunc func(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error)
 
+type ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
 type ListHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error)
 
 type BulkUpsertHostAndroidSoftwareInstallsFunc func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error
@@ -5586,6 +5588,9 @@ type DataStore struct {
 
 	GetAndroidHostIDsWithPendingSetupExperienceInstallFunc        GetAndroidHostIDsWithPendingSetupExperienceInstallFunc
 	GetAndroidHostIDsWithPendingSetupExperienceInstallFuncInvoked bool
+
+	ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc        ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc
+	ListHostMDMAndroidVPPAppsInstalledDuringSetupFuncInvoked bool
 
 	ListHostAndroidSoftwareInstallsFunc        ListHostAndroidSoftwareInstallsFunc
 	ListHostAndroidSoftwareInstallsFuncInvoked bool
@@ -13442,6 +13447,13 @@ func (s *DataStore) GetAndroidHostIDsWithPendingSetupExperienceInstall(ctx conte
 	s.GetAndroidHostIDsWithPendingSetupExperienceInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidHostIDsWithPendingSetupExperienceInstallFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsInstalledDuringSetup(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsInstalledDuringSetupFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {

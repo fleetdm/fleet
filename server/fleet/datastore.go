@@ -3656,6 +3656,10 @@ type Datastore interface {
 	// install that isn't verified or failed yet.
 	GetAndroidHostIDsWithPendingSetupExperienceInstall(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error)
 
+	// ListHostMDMAndroidVPPAppsInstalledDuringSetup returns the verified setup experience installs of hostIDs since their
+	// last enrollment, of app versions in each host's current fleet.
+	ListHostMDMAndroidVPPAppsInstalledDuringSetup(ctx context.Context, hostIDs []uint) ([]*HostAndroidVPPSoftwareInstall, error)
+
 	// ListHostAndroidSoftwareInstalls returns the host_android_software_installs rows of hostIDs.
 	ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*HostAndroidSoftwareInstall, error)
 

@@ -2292,29 +2292,20 @@ func newAndroidMDMProfileManagerSchedule(
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
-	androidModule android.Service,
 	redisPool fleet.RedisPool,
 ) (*schedule.Schedule, error) {
 	const (
-		name                   = string(fleet.CronMDMAndroidProfileManager)
-		defaultInterval        = 30 * time.Second
-		appReconcileMaxRunTime = 5 * time.Minute
+		name            = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval = 30 * time.Second
 	)
 
 	logger = logger.With("cron", name)
 	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AndroidAppListPrefix)
-	// Run the app reconciler after the profiles in the same schedule, so its replace never overlaps the profile
-	// reconciler's Fleet agent send, and certificate templates are delivered before it builds the agent configuration
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
-		}),
-		schedule.WithJob("reconcile_android_apps", func(ctx context.Context) error {
-			workCtx, cancel := context.WithTimeout(ctx, appReconcileMaxRunTime)
-			defer cancel()
-			return android_svc.ReconcileApps(workCtx, ds, androidModule, retryCounter, logger, batchSize)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
 		}),
 	)
 
