@@ -209,11 +209,15 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
 
-4. Head to **Settings > Payments & Billing > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
+4. Head to **Settings > Organizational Units** and select the organizational unit you want to use. Each token is based on an organizational unit in Apple Business. Select **Download** next to **Content Token**.
 
 5. Upload the content token (.vpptoken file) to Fleet.
 
-6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
+6. Under **Fleets**, choose **All fleets**, or choose **Custom** and select which fleet(s) this VPP token should be assigned to.
+
+7. Select **Add VPP**.
+
+To edit the token's fleet assignments later, head back to **Settings > Integrations > MDM** and select **Edit** next to **Volume Purchasing Program (VPP)**. Select the token's **Actions** dropdown, and then select **Edit fleets**.
 
 ### Renew VPP:
 
@@ -225,11 +229,9 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 3. Select the **Actions > Renew** for the token.
 
-4. Sign in to [Apple Business](https://business.apple.com).
+4. Sign in to [Apple Business](https://business.apple.com), head to **Settings > Organizational Units**, and select the token's organizational unit. Select **Download** next to **Content Token**.
 
-5. Head to **Settings > Payments & Billing > Apps & Books** and download your content token.
-
-6. Upload the content token (.vpptoken file) to Fleet.
+5. Upload the content token (.vpptoken file) to Fleet.
 
 ## Best practice
 
@@ -294,6 +296,8 @@ The default fleets for each country's AB token will look like this:
 - iPadOS: 🔳🏢 Country A - Company-owned iPads
 
 Each country's VPP token will be assigned to the above fleets.
+
+Multiple VPP tokens can also be assigned to a single fleet. When adding an app to the fleet, select the VPP token it should be available from.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 

@@ -2207,7 +2207,7 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps, or if the VPP token was deleted before the install finished.
   - "id": ID of the VPP token.
   - "location": Name of the organization unit in Apple Business for the VPP token.
   - "country_code": Country code of the VPP token (e.g. `us`).
