@@ -1,2 +1,2 @@
 - Fixed GitOps recording an edited activity and calling the external service for unchanged custom SCEP, Hydrant, custom EST, and Smallstep certificate authorities on every run.
-- Fixed GitOps not trimming surrounding whitespace from DigiCert, custom SCEP, Hydrant, custom EST, and Smallstep certificate authority values before validating and storing them.
+- Fixed GitOps not trimming surrounding whitespace from certificate authority names and URLs, DigiCert profile IDs, and Smallstep challenge URLs and usernames before validating and storing them.

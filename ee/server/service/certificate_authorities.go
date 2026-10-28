@@ -938,8 +938,9 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
-		if ok && incoming.Equals(existing) {
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
+		// secret still goes through validation, which rejects it.
+		if ok && incoming.Equals(existing) && incoming.Challenge != fleet.MaskedPassword {
 			continue
 		}
 		if err := svc.validateCustomSCEPProxy(ctx, incoming, "certificate_authorities.custom_scep_proxy: "); err != nil {
@@ -993,8 +994,9 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
-		if ok && incoming.Equals(existing) {
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
+		// secret still goes through validation, which rejects it.
+		if ok && incoming.Equals(existing) && incoming.ClientSecret != fleet.MaskedPassword {
 			continue
 		}
 		if err := svc.validateHydrant(ctx, incoming, "certificate_authorities.hydrant: "); err != nil {
@@ -1051,8 +1053,9 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
-		if ok && incoming.Equals(existing) {
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
+		// secret still goes through validation, which rejects it.
+		if ok && incoming.Equals(existing) && incoming.Password != fleet.MaskedPassword {
 			continue
 		}
 		if err := svc.validateEST(ctx, incoming, "certificate_authorities.custom_est_proxy: "); err != nil {
@@ -1110,8 +1113,9 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 
 	for name, incoming := range incomingByName {
 		existing, ok := existingByName[name]
-		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it.
-		if ok && incoming.Equals(existing) {
+		// An unchanged CA is left alone, so GitOps runs don't call its external service or record an edited activity for it. A masked
+		// secret still goes through validation, which rejects it.
+		if ok && incoming.Equals(existing) && incoming.Password != fleet.MaskedPassword {
 			continue
 		}
 		if err := svc.validateSmallstepSCEPProxy(ctx, incoming, "certificate_authorities.smallstep: "); err != nil {
