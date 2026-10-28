@@ -215,9 +215,11 @@ func (r *recorder) message(ts time.Time, model, cwd string) {
 	r.ts, r.model, r.cwd = ts, model, cwd
 }
 
-// wanted reports whether blocks of the current message become rows.
+// wanted reports whether the current block becomes a row: its message is on
+// the page, and on the page's first message it is past the block a size cut
+// stopped at.
 func (r *recorder) wanted() bool {
-	return r.q != nil && !r.past && r.msgIndex >= r.q.lo
+	return r.q != nil && !r.past && r.msgIndex >= r.q.lo && (r.msgIndex > r.q.lo || r.blockIndex >= r.q.blockLo)
 }
 
 // Every block of a message takes a block index, whether or not it becomes a

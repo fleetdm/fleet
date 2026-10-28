@@ -5,7 +5,8 @@
 //     schedule (transcripts are parsed once and cached while unchanged);
 //   - ai_agent_session_messages: the conversation itself, one row per content
 //     block, for on-demand queries. Results are capped at about 1 MiB so they
-//     stay within what Fleet's server ingests; page with message_index.
+//     stay within what Fleet's server ingests; page with message_index and
+//     block_index.
 //
 // Ported from github.com/allenhouchins/fleet-extensions/ai_agent_sessions (MIT).
 package ai_agent_sessions
@@ -237,9 +238,9 @@ func generateMessages(qc table.QueryContext) []map[string]string {
 		if r.cut {
 			ev := log.Warn().Int("max_bytes", maxResultBytes).Str("session_id", logField(src.id))
 			if n := len(r.out); n > 0 {
-				ev = ev.Int64("message_index", r.out[n-1].MessageIndex)
+				ev = ev.Int64("message_index", r.out[n-1].MessageIndex).Int64("block_index", r.out[n-1].BlockIndex)
 			}
-			ev.Msg("ai_agent_session_messages: result cut at the size limit; query again with this session_id and message_index >= the last row's")
+			ev.Msg("ai_agent_session_messages: result cut at the size limit; query again with this session_id and (message_index = the last row's AND block_index > its block_index) OR message_index > the last row's")
 			break
 		}
 	}
@@ -327,6 +328,9 @@ type query struct {
 	// lo and hi bound message_index; hi only applies when hasHi is set.
 	lo, hi int64
 	hasHi  bool
+	// blockLo bounds block_index on message lo, to resume inside a message
+	// the size limit cut.
+	blockLo int64
 	// maxContent caps each content block, in bytes.
 	maxContent int
 	// rows counts the rows this call has returned so far.
@@ -387,6 +391,18 @@ func parseQuery(qc table.QueryContext, timeColumn string, at time.Time) query {
 			q.atMost(v - 1)
 		case table.OperatorLessThanOrEquals:
 			q.atMost(v)
+		}
+	}
+	for _, c := range qc.Constraints["block_index"].Constraints {
+		v, err := strconv.ParseInt(c.Expression, 10, 64)
+		if err != nil {
+			continue
+		}
+		switch c.Operator {
+		case table.OperatorEquals, table.OperatorGreaterThanOrEquals:
+			q.blockLo = max(q.blockLo, v)
+		case table.OperatorGreaterThan:
+			q.blockLo = max(q.blockLo, v+1)
 		}
 	}
 	return q

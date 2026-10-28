@@ -368,6 +368,49 @@ func TestPagingByMessageIndex(t *testing.T) {
 	require.Equal(t, "12", rows[1]["message_index"])
 }
 
+func TestPagingResumesInsideAMessage(t *testing.T) {
+	home := setup(t)
+	// One assistant message whose blocks together exceed the size limit.
+	blocks := make([]string, 200)
+	for i := range blocks {
+		blocks[i] = fmt.Sprintf(`{"type":"text","text":"%d %s"}`, i, strings.Repeat("z", 7000))
+	}
+	writeClaudeTranscript(t, home, "s",
+		`{"type":"assistant","timestamp":"2026-08-01T10:00:00.000Z","message":{"id":"m1","model":"m","content":[`+strings.Join(blocks, ",")+`]}}`,
+		`{"type":"user","timestamp":"2026-08-01T10:00:01.000Z","message":{"role":"user","content":"after"}}`,
+	)
+	clock := setClock(t, time.Now())
+
+	rows := messageRows(t, eq("session_id", "s"))
+	require.NotEmpty(t, rows)
+	require.Less(t, len(rows), 200)
+	last := rows[len(rows)-1]
+	require.Equal(t, "0", last["message_index"], "the cut fell inside the first message")
+
+	// The documented continuation is an OR, which osquery runs as one call
+	// per side: the rest of the cut message, then the messages after it.
+	seen := len(rows)
+	for page := 0; page < 10 && seen < 200; page++ {
+		*clock = clock.Add(time.Second)
+		from := intCol(t, last, "block_index")
+		rows = messageRows(t, eq("session_id", "s"), eq("message_index", "0"),
+			cons{"block_index", table.OperatorGreaterThan, strconv.Itoa(from)})
+		require.NotEmpty(t, rows, "paging must make progress")
+		for i, r := range rows {
+			require.Equal(t, "0", r["message_index"])
+			require.Equal(t, from+1+i, intCol(t, r, "block_index"), "blocks are contiguous")
+		}
+		seen += len(rows)
+		last = rows[len(rows)-1]
+	}
+	require.Equal(t, 200, seen, "every block of the cut message was returned once")
+
+	*clock = clock.Add(time.Second)
+	after := messageRows(t, eq("session_id", "s"), cons{"message_index", table.OperatorGreaterThan, "0"})
+	require.Len(t, after, 1)
+	require.Equal(t, "after", after[0]["content"])
+}
+
 func TestLimitIsNotHonoured(t *testing.T) {
 	home := setup(t)
 	writeClaudePrompts(t, home, "s", "a", "b", "c")
