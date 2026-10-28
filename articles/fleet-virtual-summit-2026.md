@@ -24,7 +24,7 @@ Engineering teams version-control production infrastructure, review changes in p
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-fletcher-previn-100x100@2x.jpeg" alt="Fletcher Previn" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/fletcherprevin/">Fletcher Previn</a></strong>, Cisco, Chief Information Officer</p></td>
     </tr>
     <tr>
