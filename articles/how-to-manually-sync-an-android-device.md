@@ -59,8 +59,8 @@ Host details, like the OS version and installed software, also come from these s
 
 Some changes don't use the host's policy, so manually syncing won't speed them up:
 
-- Commands like **Lock**, **Wipe**, and **Clear passcode** are sent to the host as MDM commands instead of policy changes.
-- Certificates are installed by the Fleet app on the host, which checks Fleet for new certificates every 15 minutes in ideal conditions. Ideal conditions means the device is connected to the internet and has sufficient battery.
+- Commands (lock, wipe, etc.): Google immediately sends the command to the device.
+- Certificates: deployed by the Fleet app. Takes up to 15 minutes unless the device has low battery or is in power saving mode.
 
 <meta name="articleTitle" value="How to manually sync an Android device">
 <meta name="authorFullName" value="Steven Palmesano">
