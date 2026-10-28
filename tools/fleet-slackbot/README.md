@@ -85,6 +85,7 @@ ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
 MAX_TOOL_CALLS=100                               # safety cap on tool calls per response (default: 100)
 
 FLEET_MCP_URL=http://localhost:8181/sse
+FLEET_MCP_TOOL_TIMEOUT_MS=240000                 # optional, per-tool-call timeout (default: 4 minutes)
 PORT=3000                                        # port for the GitHub webhook listener
 
 GITOPS_CI_CHECK_NAME=fleet-gitops               # name of the CI check to watch for auto-fix

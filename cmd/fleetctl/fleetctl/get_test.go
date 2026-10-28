@@ -419,8 +419,8 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		return map[uint]*fleet.VPPAppStatusSummary{1: {}}, nil
 	}
 
 	// The VPP app is part of the setup experience; this is the source of truth
@@ -2857,6 +2857,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			return team2, nil
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,

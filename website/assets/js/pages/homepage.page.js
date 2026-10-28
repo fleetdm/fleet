@@ -20,12 +20,12 @@ parasails.registerPage('homepage', {
     cloudSuccess: false,
 
     // For MDM comparison table
-    comparisonModeForIt: 'jamf',
+    comparisonModeForIt: 'intune',
     comparisonModeFriendlyNames: {
-      jamf: 'Jamf Pro',
-      sccm: 'SCCM',
-      omnissa: 'Workspace ONE',
       intune: 'Intune',
+      jamf: 'Jamf Pro',
+      omnissa: 'Workspace ONE',
+      ivanti: 'Ivanti',
       tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',

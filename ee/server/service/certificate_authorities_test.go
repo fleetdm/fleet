@@ -2148,3 +2148,13 @@ func TestProcessCustomSCEPProxyCAsChallengeChars(t *testing.T) {
 	err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, incoming, nil)
 	require.NoError(t, err)
 }
+
+func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
+	for _, v := range fleet.IDPFleetVariables {
+		t.Run(string(v), func(t *testing.T) {
+			require.NoError(t, validateDigicertCACN(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertSeatID(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertUserPrincipalNames([]string{v.WithPrefix() + "@example.com"}, ""))
+		})
+	}
+}
