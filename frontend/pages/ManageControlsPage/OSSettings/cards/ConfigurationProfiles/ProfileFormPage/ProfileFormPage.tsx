@@ -71,11 +71,13 @@ const ProfileFormPage = ({
     fleet_id: isPremiumTier ? teamId : undefined,
   });
 
-  // Adding defaults to the AI view. The manual view has its own URL, so the
-  // AI view's timeout can send the admin there and Back returns.
+  // Adding defaults to the AI view, once it's released. The manual view has
+  // its own URL, so the AI view's timeout can send the admin there and Back
+  // returns.
   const isManualPath =
     location.pathname === PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL;
   const showAIView =
+    featureFlags.showAIProfileBuilder === "true" &&
     !profileUUID &&
     !isManualPath &&
     !gitOpsModeEnabled &&

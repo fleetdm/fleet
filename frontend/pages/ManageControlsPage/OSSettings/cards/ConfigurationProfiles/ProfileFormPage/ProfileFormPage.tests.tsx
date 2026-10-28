@@ -1195,10 +1195,25 @@ describe("ProfileFormPage", () => {
     const isAIView = () =>
       !!screen.queryByRole("button", { name: "Generate profile" });
 
+    // Built in only on request until the AI features are released.
+    beforeEach(() => {
+      featureFlags.showAIProfileBuilder = "true";
+    });
+    afterEach(() => {
+      delete featureFlags.showAIProfileBuilder;
+    });
+
     it("opens by default when adding", () => {
       renderAt(NEW_PATH);
       expect(isAIView()).toBe(true);
       expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    });
+
+    it("isn't shown until the AI features are released, even with Generative AI on", () => {
+      delete featureFlags.showAIProfileBuilder;
+      renderAt(NEW_PATH);
+      expect(isAIView()).toBe(false);
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
     });
 
     it("isn't shown at the manual view's URL", () => {
