@@ -12,6 +12,7 @@ import SidePanelPage from "components/SidePanelPage";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { QueryContext } from "context/query";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import PATHS from "router/paths";
@@ -76,6 +77,12 @@ const SoftwareAddPage = ({
     QueryContext
   );
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
+  const { currentTeamName } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: true,
+  });
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -142,6 +149,7 @@ const SoftwareAddPage = ({
             {React.cloneElement(children, {
               router,
               currentTeamId: parseInt(location.query.fleet_id, 10),
+              currentTeamName,
               isSidePanelOpen,
               setSidePanelOpen,
             })}

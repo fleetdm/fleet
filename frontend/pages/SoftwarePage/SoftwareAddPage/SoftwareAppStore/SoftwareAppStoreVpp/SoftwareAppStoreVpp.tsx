@@ -12,6 +12,7 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import PATHS from "router/paths";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -61,25 +62,48 @@ const EnableVppMessage = ({
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
   isGlobalAdmin?: boolean;
+  /** Named-team display name, or null when useTeamIdParam hasn't resolved yet.
+   * Ignored when `isNoTeam` is true. */
+  currentTeamName: string | null;
+  isNoTeam: boolean;
 }
 
 const AddTeamToVppMessage = ({
   onEditVpp,
   isGlobalAdmin,
-}: IAddTeamToVppMessage) => (
-  <EmptyState
-    variant="list"
-    header="This fleet isn't added to Volume Purchasing Program (VPP)"
-    info={
-      isGlobalAdmin
-        ? "To add App Store apps, first add this fleet to VPP."
-        : "To add App Store apps, ask your admin to add this fleet to VPP."
-    }
-    primaryButton={
-      isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
-    }
-  />
-);
+  currentTeamName,
+  isNoTeam,
+}: IAddTeamToVppMessage) => {
+  let header: string;
+  let subject: string;
+  if (isNoTeam) {
+    header = "Unassigned hosts aren't in Volume Purchasing Program (VPP)";
+    subject = "unassigned hosts";
+  } else if (currentTeamName) {
+    header = `${currentTeamName} fleet isn't added to Volume Purchasing Program (VPP)`;
+    subject = `${currentTeamName} fleet`;
+  } else {
+    header = "This fleet isn't added to Volume Purchasing Program (VPP)";
+    subject = "this fleet";
+  }
+
+  return (
+    <EmptyState
+      variant="list"
+      header={header}
+      info={
+        isGlobalAdmin
+          ? `To add App Store apps, first add ${subject} to VPP.`
+          : `To add App Store apps, ask your admin to add ${subject} to VPP.`
+      }
+      primaryButton={
+        isGlobalAdmin ? (
+          <Button onClick={onEditVpp}>Edit VPP</Button>
+        ) : undefined
+      }
+    />
+  );
+};
 
 const NoVppAppsMessage = () => (
   <EmptyState
@@ -102,11 +126,13 @@ const NoVppAppsMessage = () => (
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
+  currentTeamName?: string;
   router: InjectedRouter;
 }
 
 const SoftwareAppStoreVpp = ({
   currentTeamId,
+  currentTeamName,
   router,
 }: ISoftwareAppStoreProps) => {
   const {
@@ -267,6 +293,8 @@ const SoftwareAppStoreVpp = ({
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
           isGlobalAdmin={isGlobalAdmin}
+          currentTeamName={currentTeamName ?? null}
+          isNoTeam={currentTeamId === APP_CONTEXT_NO_TEAM_ID}
         />
       );
     }
