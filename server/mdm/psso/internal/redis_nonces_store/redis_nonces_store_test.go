@@ -2,6 +2,7 @@ package redis_nonces_store
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 func TestRedisNoncesStore(t *testing.T) {
 	for _, f := range []func(*testing.T, *RedisNoncesStore){
 		testStoreConsume,
-		testStoreIfAbsent,
+		testMarkLoginAssertionUsed,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -78,23 +79,33 @@ func testStoreConsume(t *testing.T, store *RedisNoncesStore) {
 	require.False(t, ok)
 }
 
-func testStoreIfAbsent(t *testing.T, store *RedisNoncesStore) {
+func testMarkLoginAssertionUsed(t *testing.T, store *RedisNoncesStore) {
 	ctx := context.Background()
 
-	stored, err := store.StoreIfAbsent(ctx, "foo", 5*time.Second)
+	firstUse, err := store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
 	require.NoError(t, err)
-	require.True(t, stored)
+	require.True(t, firstUse)
 
-	stored, err = store.StoreIfAbsent(ctx, "foo", 5*time.Second)
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
 	require.NoError(t, err)
-	require.False(t, stored)
+	require.False(t, firstUse)
 
-	// stored again once it expires
-	stored, err = store.StoreIfAbsent(ctx, "bar", time.Millisecond)
+	// consuming a nonce named like the record, or its key, doesn't remove it
+	for _, nonce := range []string{"foo", usedLoginAssertionPrefix + "foo", strings.TrimPrefix(usedLoginAssertionPrefix+"foo", prefix)} {
+		ok, err := store.Consume(ctx, nonce)
+		require.NoError(t, err)
+		require.False(t, ok)
+	}
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
 	require.NoError(t, err)
-	require.True(t, stored)
+	require.False(t, firstUse)
+
+	// recorded again once it expires
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "bar", time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, firstUse)
 	time.Sleep(2 * time.Millisecond)
-	stored, err = store.StoreIfAbsent(ctx, "bar", time.Millisecond)
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "bar", time.Millisecond)
 	require.NoError(t, err)
-	require.True(t, stored)
+	require.True(t, firstUse)
 }

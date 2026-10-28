@@ -25,6 +25,10 @@ const DefaultNonceExpiration = 5 * time.Minute
 // calendar locks, ACME nonces).
 const prefix = "pssononce:"
 
+// usedLoginAssertionPrefix isn't under prefix, so Consume, which deletes the key named by a caller-supplied nonce,
+// can't reach these records.
+const usedLoginAssertionPrefix = "pssousedloginassertion:"
+
 // RedisPool is duplicated here (rather than imported from the parent psso
 // package) to avoid an import cycle: psso/providers.go imports this internal
 // package to expose its public constructor, so we can't import back the
@@ -57,17 +61,18 @@ func (r *RedisNoncesStore) Store(ctx context.Context, nonce string, expireTime t
 	return nil
 }
 
-// StoreIfAbsent stores value with a TTL of expireTime unless it's already stored, and reports whether it stored it.
-func (r *RedisNoncesStore) StoreIfAbsent(ctx context.Context, value string, expireTime time.Duration) (bool, error) {
+// MarkLoginAssertionUsed records the fingerprint with a TTL of expireTime, and reports whether it wasn't already
+// recorded.
+func (r *RedisNoncesStore) MarkLoginAssertionUsed(ctx context.Context, fingerprint string, expireTime time.Duration) (bool, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	_, err := redigo.String(conn.Do("SET", r.testPrefix+prefix+value, value, "PX", expireTime.Milliseconds(), "NX"))
+	_, err := redigo.String(conn.Do("SET", r.testPrefix+usedLoginAssertionPrefix+fingerprint, "1", "PX", expireTime.Milliseconds(), "NX"))
 	if errors.Is(err, redigo.ErrNil) {
 		return false, nil
 	}
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "redis failed to set psso value if absent")
+		return false, ctxerr.Wrap(ctx, err, "redis failed to record psso login assertion")
 	}
 	return true, nil
 }

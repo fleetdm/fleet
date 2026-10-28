@@ -457,12 +457,20 @@ func DecryptPartyInfoJWE(compact []byte, recipientPriv *ecdsa.PrivateKey, expect
 // apv names recipientPub. macOS sends "Apple" || recipient key || session nonce, or an empty label with the
 // request_nonce in place of the session nonce, so the label isn't checked. The apv is part of the JWE's authenticated
 // header, so it can't be changed without the assertion failing to decrypt.
+//
+// Each part must be canonical unpadded base64url, so an assertion has a single encoding: the unused bits of a part's
+// last character would otherwise give equivalent assertions that differ as strings.
 func LoginAssertionNonce(compact []byte, recipientPub *ecdsa.PublicKey) (string, error) {
-	protectedB64, _, ok := strings.Cut(string(compact), ".")
-	if !ok {
-		return "", errors.New("pssocrypto: not a compact JWE")
+	parts := strings.Split(string(compact), ".")
+	if len(parts) != 5 || parts[1] != "" {
+		return "", errors.New("pssocrypto: not a compact ECDH-ES JWE")
 	}
-	protected, err := DecodeJOSEB64(protectedB64)
+	for _, p := range parts {
+		if _, err := base64.RawURLEncoding.Strict().DecodeString(p); err != nil {
+			return "", fmt.Errorf("pssocrypto: non-canonical JWE encoding: %w", err)
+		}
+	}
+	protected, err := DecodeJOSEB64(parts[0])
 	if err != nil {
 		return "", fmt.Errorf("pssocrypto: decode protected header: %w", err)
 	}

@@ -5,11 +5,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -389,6 +392,48 @@ func TestPSSO_ResolveLoginPasswordTiedToRequest(t *testing.T) {
 		_, err := svc.resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce", RequestNonce: "request-nonce"})
 		require.NoError(t, err)
 		_, err = svc.resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: a, Nonce: "request-nonce", RequestNonce: "fresh-request-nonce"})
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "already used")
+	})
+
+	t.Run("refused when encoded differently after its own request used it", func(t *testing.T) {
+		svc := newSvc()
+		a := assertion(t, "Apple", &encKey.PublicKey, "session-nonce")
+		claims := &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce"}
+		_, err := svc.resolvePSSOLoginPassword(t.Context(), claims)
+		require.NoError(t, err)
+
+		// The 16-byte tag's last base64url character carries 4 unused bits, so flipping one gives an equivalent
+		// encoding that still decrypts.
+		const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+		last := strings.IndexByte(alphabet, a[len(a)-1])
+		variant := a[:len(a)-1] + string(alphabet[last^1])
+		tag, err := base64.RawURLEncoding.DecodeString(variant[strings.LastIndexByte(variant, '.')+1:])
+		require.NoError(t, err)
+		wantTag, err := base64.RawURLEncoding.DecodeString(a[strings.LastIndexByte(a, '.')+1:])
+		require.NoError(t, err)
+		require.Equal(t, wantTag, tag)
+
+		_, err = svc.resolvePSSOLoginPassword(t.Context(), &pssocrypto.TokenClaims{Assertion: variant, Nonce: "session-nonce"})
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "invalid login assertion")
+	})
+
+	t.Run("record survives consuming a nonce named after it", func(t *testing.T) {
+		svc := newSvc()
+		a := assertion(t, "Apple", &encKey.PublicKey, "session-nonce")
+		claims := &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce"}
+		_, err := svc.resolvePSSOLoginPassword(t.Context(), claims)
+		require.NoError(t, err)
+
+		sum := sha256.Sum256([]byte(a))
+		fingerprint := hex.EncodeToString(sum[:])
+		for _, nonce := range []string{fingerprint, "usedloginassertion:" + fingerprint, "pssousedloginassertion:" + fingerprint} {
+			ok, err := svc.pssoNonceStore.Consume(t.Context(), nonce)
+			require.NoError(t, err)
+			require.False(t, ok)
+		}
+		_, err = svc.resolvePSSOLoginPassword(t.Context(), claims)
 		require.ErrorAs(t, err, &badRequest)
 		require.ErrorContains(t, err, "already used")
 	})

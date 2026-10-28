@@ -671,13 +671,10 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 	return jwe, nil
 }
 
-const (
-	pssoUsedLoginAssertionPrefix = "usedloginassertion:"
-	// The nonces an assertion is matched against are chosen by whoever signs the request, so the record is all that
-	// keeps an assertion from being used again, and only until it expires. macOS only sends a password login at
-	// registration and on password changes, so long-lived records stay few.
-	pssoUsedLoginAssertionTTL = 90 * 24 * time.Hour
-)
+// The nonces an assertion is matched against are chosen by whoever signs the request, so the record is all that keeps
+// an assertion from being used again, and only until it expires. macOS only sends a password login at registration and
+// on password changes, so long-lived records stay few.
+const pssoUsedLoginAssertionTTL = 90 * 24 * time.Hour
 
 // resolvePSSOLoginPassword returns the plaintext password for a password login.
 // With password encryption disabled it's the plaintext Password claim. With it
@@ -715,11 +712,11 @@ func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssocr
 		return "", ctxerr.New(ctx, "psso nonce store not configured")
 	}
 	sum := sha256.Sum256([]byte(claims.Assertion))
-	stored, err := svc.pssoNonceStore.StoreIfAbsent(ctx, pssoUsedLoginAssertionPrefix+hex.EncodeToString(sum[:]), pssoUsedLoginAssertionTTL)
+	firstUse, err := svc.pssoNonceStore.MarkLoginAssertionUsed(ctx, hex.EncodeToString(sum[:]), pssoUsedLoginAssertionTTL)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "record psso login assertion")
 	}
-	if !stored {
+	if !firstUse {
 		return "", &fleet.BadRequestError{Message: "psso password login: login assertion was already used"}
 	}
 
