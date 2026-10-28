@@ -19,8 +19,6 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
 
-> If an end user quits the app, it stays closed until they log in again.
-
 ## Update Fleet Desktop
 
 Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
