@@ -11790,7 +11790,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 
 ### List policies
 
-`GET /api/v1/fleet/global/policies`
+`GET /api/v1/fleet/policies`
 
 #### Parameters
 
