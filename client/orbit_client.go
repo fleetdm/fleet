@@ -334,7 +334,7 @@ func (oc *OrbitClient) TransportConnected() {
 // It also drops pooled HTTP connections: a drop often follows sleep or a network change, which leaves them bound
 // to a dead local address, so reusing them would stall the next request.
 func (oc *OrbitClient) TransportDisconnected() {
-	oc.forceCloseIdleConnections()
+	oc.CloseIdleConnections()
 	select {
 	case oc.disconnectedCh <- struct{}{}:
 	default:
@@ -386,21 +386,7 @@ func (oc *OrbitClient) closeIdleConnections() {
 	}
 
 	oc.lastIdleConnectionsCleanup = time.Now()
-	oc.forceCloseIdleConnections()
-}
-
-func (oc *OrbitClient) forceCloseIdleConnections() {
-	rawClient := oc.GetRawHTTPClient()
-	c, ok := rawClient.(*http.Client)
-	if !ok {
-		return
-	}
-	t, ok := c.Transport.(*http.Transport)
-	if !ok {
-		return
-	}
-
-	t.CloseIdleConnections()
+	oc.CloseIdleConnections()
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {
