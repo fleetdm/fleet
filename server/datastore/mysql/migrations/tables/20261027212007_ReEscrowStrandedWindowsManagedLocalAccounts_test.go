@@ -28,6 +28,10 @@ func TestUp_20261027212007(t *testing.T) {
 		execNoErr(t, db, `INSERT INTO host_managed_local_account_passwords (host_uuid, encrypted_password, status, deleted)
 			VALUES (?, 'secret', 'verified', ?)`, hostUUID, deleted)
 	}
+	insertEscrowError := func(hostUUID string) {
+		execNoErr(t, db, `INSERT INTO host_managed_local_account_passwords (host_uuid, encrypted_password, status, client_error)
+			VALUES (?, NULL, 'failed', 'access denied')`, hostUUID)
+	}
 
 	// The host's UUID changed after escrow, so its live password is under the old UUID.
 	insertHost("drifted", "drifted-new-uuid")
@@ -38,6 +42,12 @@ func TestUp_20261027212007(t *testing.T) {
 	insertHost("retired", "retired-uuid")
 	insertEnrollment("retired", "retired-uuid", true)
 	insertPassword("retired-uuid", true)
+
+	// The UUID drifted and a later failed attempt left an error-only row, with no password, under the current UUID.
+	insertHost("error-only", "error-only-new-uuid")
+	insertEnrollment("error-only", "error-only-new-uuid", true)
+	insertPassword("error-only-old-uuid", false)
+	insertEscrowError("error-only-new-uuid")
 
 	insertHost("healthy", "healthy-uuid")
 	insertEnrollment("healthy", "healthy-uuid", true)
@@ -54,6 +64,7 @@ func TestUp_20261027212007(t *testing.T) {
 	want := map[string]bool{
 		"drifted":        false,
 		"retired":        false,
+		"error-only":     false,
 		"healthy":        true,
 		"deleted":        true,
 		"never-escrowed": false,
@@ -74,5 +85,5 @@ func TestUp_20261027212007(t *testing.T) {
 	// Passwords are left alone, including the stranded one.
 	var livePasswords []string
 	require.NoError(t, db.Select(&livePasswords, `SELECT host_uuid FROM host_managed_local_account_passwords WHERE deleted = 0 ORDER BY host_uuid`))
-	require.Equal(t, []string{"drifted-old-uuid", "healthy-uuid"}, livePasswords)
+	require.Equal(t, []string{"drifted-old-uuid", "error-only-new-uuid", "error-only-old-uuid", "healthy-uuid"}, livePasswords)
 }
