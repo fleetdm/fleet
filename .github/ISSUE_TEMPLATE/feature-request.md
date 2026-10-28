@@ -7,11 +7,15 @@ assignees: ''
 
 ---
 
+<!-- Product Design fills this in within one business day to unpack the request: https://fleetdm.com/handbook/product-design#unpacking-the-why -->
+**Problem:** TODO
+**Proposed solution:** TODO
+**Timing:** TODO
+
 <!-- 
 
 If you're a Fleetie and filling out this request on behalf of a Fleet customer, please uncomment this section, fill it out, and remove the "Screenshots" section. Otherwise, please fill out the "Screenshots" section. You can ignore this section.
 
-- [ ] Unpacked: TODO: Product Design checks this box once a comment includes the problem, proposed solution, and timing (within one business day): https://fleetdm.com/handbook/product-design#unpacking-the-why
 - [ ] Gong snippet: TODO
 
 ### Interpretation _(optional)_

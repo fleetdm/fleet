@@ -45,7 +45,7 @@ Once labeled, each Product Designer (PD) reviews the inbox and triages every new
 
 ### Unpacking the why
 
-A request is unpacked when a comment on the GitHub issue includes:
+A request is unpacked when the top of the GitHub issue description includes:
 
 - **Problem ("the why"):** What the user is trying to accomplish and why Fleet doesn't solve it today.
 - **Proposed solution:** How Fleet would solve it, including any workaround available today. If there's no proposed solution, write "No plans."
