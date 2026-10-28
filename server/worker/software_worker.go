@@ -224,7 +224,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	substitutionHost := androidHostToSubstitutionHost(androidHost)
 	availableAppIDs := make([]string, 0, len(appsInScope))
 	var availableApps []fleet.VPPAppTeam
-	var failedApps []fleet.VPPAppTeam
+	var appsWithUnresolvableValues []fleet.VPPAppTeam
 	for _, app := range appsInScope {
 		appID := app.AdamID
 		config, ok := configsByAppID[appID]
@@ -238,7 +238,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 			if profiles.IsUnresolvableAndroidAppConfigForHost(err) {
 				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
 					"host_uuid", hostUUID, "application_id", appID, "err", err)
-				failedApps = append(failedApps, app)
+				appsWithUnresolvableValues = append(appsWithUnresolvableValues, app)
 				continue
 			}
 			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
@@ -269,31 +269,8 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
-	var inPolicyVersion *int64
-	policyRequest := policyRequests[hostUUID]
-	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
-		inPolicyVersion = &policyRequest.PolicyVersion.V
-	}
-	installs := make([]*fleet.HostAndroidSoftwareInstall, 0, len(appsInScope))
-	for _, app := range availableApps {
-		installs = append(installs, &fleet.HostAndroidSoftwareInstall{
-			HostID:          hostID,
-			AdamID:          app.AdamID,
-			VPPAppTeamID:    &app.AppTeamID,
-			Status:          fleet.AndroidSoftwareInstallStatusPending,
-			InPolicyVersion: inPolicyVersion,
-			PolicyBuiltAt:   policyBuiltAt,
-		})
-	}
-	for _, app := range failedApps {
-		installs = append(installs, &fleet.HostAndroidSoftwareInstall{
-			HostID:        hostID,
-			AdamID:        app.AdamID,
-			VPPAppTeamID:  &app.AppTeamID,
-			Status:        fleet.AndroidSoftwareInstallStatusFailed,
-			PolicyBuiltAt: policyBuiltAt,
-		})
-	}
+
+	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(availableApps, appsWithUnresolvableValues, policyRequests[hostUUID], policyBuiltAt)
 	err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "replace host android software installs")
@@ -509,22 +486,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		}
 
 		// Record the sent list so the Android app reconciler doesn't send it again
-		var inPolicyVersion *int64
-		policyRequest := policyRequests[uuid]
-		if policyRequest != nil && policyRequest.PolicyVersion.Valid {
-			inPolicyVersion = &policyRequest.PolicyVersion.V
-		}
-		installs := make([]*fleet.HostAndroidSoftwareInstall, 0, len(appsInScope))
-		for _, app := range appsInScope {
-			installs = append(installs, &fleet.HostAndroidSoftwareInstall{
-				HostID:          hostID,
-				AdamID:          app.AdamID,
-				VPPAppTeamID:    &app.AppTeamID,
-				Status:          fleet.AndroidSoftwareInstallStatusPending,
-				InPolicyVersion: inPolicyVersion,
-				PolicyBuiltAt:   policyBuiltAt,
-			})
-		}
+		installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(appsInScope, nil, policyRequests[uuid], policyBuiltAt)
 		err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "replace host android software installs", map[string]any{"host_id": hostID})

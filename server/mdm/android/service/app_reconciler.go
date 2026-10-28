@@ -68,12 +68,12 @@ func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.S
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list host android software installs")
 	}
-	installByAdamIDByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall, len(hosts))
+	installByAppStoreIDByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall, len(hosts))
 	for _, install := range installs {
-		if installByAdamIDByHostID[install.HostID] == nil {
-			installByAdamIDByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
+		if installByAppStoreIDByHostID[install.HostID] == nil {
+			installByAppStoreIDByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
 		}
-		installByAdamIDByHostID[install.HostID][install.AdamID] = install
+		installByAppStoreIDByHostID[install.HostID][install.AdamID] = install
 	}
 
 	// Read every fleet's versions, so a host moved from another fleet gets a send only when the configuration differs
@@ -98,7 +98,7 @@ func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.S
 			continue
 		}
 
-		err = reconciler.reconcileHostApps(ctx, enterprise.Name(), host, installByAdamIDByHostID[host.ID], versionByID)
+		err = reconciler.reconcileHostApps(ctx, enterprise.Name(), host, installByAppStoreIDByHostID[host.ID], versionByID)
 		if err != nil {
 			// Stop on a quota error without moving the cursor, the next run starts this batch again
 			if androidmgmt.IsTooManyRequestsError(err) {
@@ -126,21 +126,20 @@ func ReconcileApps(ctx context.Context, ds fleet.Datastore, androidSvc android.S
 }
 
 func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName string, host *fleet.Host,
-	installByAdamID map[string]*fleet.HostAndroidSoftwareInstall, versionByID map[uint]*fleet.VPPAppStoreApp,
+	installByAppStoreID map[string]*fleet.HostAndroidSoftwareInstall, versionByID map[uint]*fleet.VPPAppStoreApp,
 ) error {
 	appsInScope, err := r.DS.GetAndroidAppsInScopeForHost(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	// A row set to failed and flagged for resend is from a failed request, which is retried with a wait. Any other
-	// difference from the apps in scope is sent right away.
+	// Retry a failed request after a wait, and send any other change right away
 	var needsSend bool
 	var needsRetry bool
 	var lastFailedAt time.Time
 	var versionOnlyInstalls []*fleet.HostAndroidSoftwareInstall
-	adamIDsInScope := make(map[string]struct{}, len(appsInScope))
-	for _, install := range installByAdamID {
+	appStoreIDsInScope := make(map[string]struct{}, len(appsInScope))
+	for _, install := range installByAppStoreID {
 		if install.Status == fleet.AndroidSoftwareInstallStatusFailed && install.NeedsResend {
 			needsRetry = true
 			if install.UpdatedAt.After(lastFailedAt) {
@@ -149,8 +148,8 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		}
 	}
 	for _, app := range appsInScope {
-		adamIDsInScope[app.AdamID] = struct{}{}
-		install, sent := installByAdamID[app.AdamID]
+		appStoreIDsInScope[app.AdamID] = struct{}{}
+		install, sent := installByAppStoreID[app.AdamID]
 		if !sent {
 			needsSend = true
 			continue
@@ -179,8 +178,8 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 			needsSend = true
 		}
 	}
-	for adamID, install := range installByAdamID {
-		if _, inScope := adamIDsInScope[adamID]; inScope {
+	for appStoreID, install := range installByAppStoreID {
+		if _, inScope := appStoreIDsInScope[appStoreID]; inScope {
 			continue
 		}
 		if install.Status != fleet.AndroidSoftwareInstallStatusFailed || !install.NeedsResend {
@@ -239,21 +238,21 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	// Leave out an app whose configuration has a value the host can't supply, and mark it failed so it isn't sent
-	// again until its configuration or a Fleet variable changes
+	// Leave out an app whose configuration uses a value the host doesn't have, it's sent once a change to that value flags
+	// it for resend
 	substitutionHost := profiles.AndroidAppConfigSubstitutionHost{
 		HostID:         host.ID,
 		UUID:           host.UUID,
 		HardwareSerial: host.HardwareSerial,
 		Platform:       host.Platform,
 	}
-	var sentApps []fleet.VPPAppTeam
-	var failedApps []fleet.VPPAppTeam
+	var appsToSend []fleet.VPPAppTeam
+	var appsWithUnresolvableValues []fleet.VPPAppTeam
 	var substituted map[string][]byte
 	for _, app := range appsInScope {
 		config, configured := configsByAppID[app.AdamID]
 		if !configured {
-			sentApps = append(sentApps, app)
+			appsToSend = append(appsToSend, app)
 			continue
 		}
 		substituted, err = profiles.SubstituteFleetVarsInAndroidAppConfigs(ctx, r.DS, map[string][]byte{app.AdamID: config}, substitutionHost)
@@ -261,20 +260,20 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 			if profiles.IsUnresolvableAndroidAppConfigForHost(err) {
 				r.Logger.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
 					"host_id", host.ID, "application_id", app.AdamID, "err", err)
-				failedApps = append(failedApps, app)
+				appsWithUnresolvableValues = append(appsWithUnresolvableValues, app)
 				continue
 			}
 			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
 		}
 		configsByAppID[app.AdamID] = substituted[app.AdamID]
-		sentApps = append(sentApps, app)
+		appsToSend = append(appsToSend, app)
 	}
 
-	sentAdamIDs := make([]string, 0, len(sentApps))
-	for _, app := range sentApps {
-		sentAdamIDs = append(sentAdamIDs, app.AdamID)
+	appStoreIDsToSend := make([]string, 0, len(appsToSend))
+	for _, app := range appsToSend {
+		appStoreIDsToSend = append(appStoreIDsToSend, app.AdamID)
 	}
-	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, sentAdamIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, appStoreIDsToSend, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
@@ -309,32 +308,8 @@ func (r *appReconciler) reconcileHostApps(ctx context.Context, enterpriseName st
 		}
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
-	var inPolicyVersion *int64
-	policyRequest := policyRequests[host.UUID]
-	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
-		inPolicyVersion = &policyRequest.PolicyVersion.V
-	}
 
-	installs := make([]*fleet.HostAndroidSoftwareInstall, 0, len(appsInScope))
-	for _, app := range sentApps {
-		installs = append(installs, &fleet.HostAndroidSoftwareInstall{
-			HostID:          host.ID,
-			AdamID:          app.AdamID,
-			VPPAppTeamID:    &app.AppTeamID,
-			Status:          fleet.AndroidSoftwareInstallStatusPending,
-			InPolicyVersion: inPolicyVersion,
-			PolicyBuiltAt:   policyBuiltAt,
-		})
-	}
-	for _, app := range failedApps {
-		installs = append(installs, &fleet.HostAndroidSoftwareInstall{
-			HostID:        host.ID,
-			AdamID:        app.AdamID,
-			VPPAppTeamID:  &app.AppTeamID,
-			Status:        fleet.AndroidSoftwareInstallStatusFailed,
-			PolicyBuiltAt: policyBuiltAt,
-		})
-	}
+	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(appsToSend, appsWithUnresolvableValues, policyRequests[host.UUID], policyBuiltAt)
 	err = r.DS.ReplaceHostAndroidSoftwareInstalls(ctx, host.ID, installs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "replace host android software installs")

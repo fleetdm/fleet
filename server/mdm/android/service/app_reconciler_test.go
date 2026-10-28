@@ -539,7 +539,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Empty(t, state.failed)
 	})
 
-	t.Run("an app with a value the host can't supply is left out and recorded as failed", func(t *testing.T) {
+	t.Run("an app whose configuration uses a value the host doesn't have is left out and saved as failed with no policy version", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			androidEnabled: true,
 			hosts:          []*fleet.Host{hostA},
@@ -551,19 +551,21 @@ func TestReconcileAndroidApps(t *testing.T) {
 			expandErr: &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Asset tag"}},
 		}
 
-		// run the cron, host A should get the other app and the vital app's row should be failed
+		// run the cron, host A should get the other app saved as pending in the policy version, and the vital app should be
+		// saved as failed with no policy version
 		err := ReconcileApps(t.Context(), ds, androidSvc, retryCounter, logger, 0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 		require.Len(t, state.replaced, 1)
-		statusByAdamID := make(map[string]string, len(state.replaced[0].installs))
+		installByAdamID := make(map[string]*fleet.HostAndroidSoftwareInstall, len(state.replaced[0].installs))
 		for _, install := range state.replaced[0].installs {
-			statusByAdamID[install.AdamID] = install.Status
+			installByAdamID[install.AdamID] = install
 		}
-		require.Equal(t, map[string]string{
-			"com.example.one":   fleet.AndroidSoftwareInstallStatusPending,
-			"com.example.vital": fleet.AndroidSoftwareInstallStatusFailed,
-		}, statusByAdamID)
+		require.Len(t, installByAdamID, 2)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, installByAdamID["com.example.one"].Status)
+		require.Equal(t, new(int64(5)), installByAdamID["com.example.one"].InPolicyVersion)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusFailed, installByAdamID["com.example.vital"].Status)
+		require.Nil(t, installByAdamID["com.example.vital"].InPolicyVersion)
 	})
 
 	t.Run("a full batch saves its last host as the cursor and the next run continues after it", func(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"howett.net/plist"
 )
@@ -489,3 +490,32 @@ type HostAppStoreAppVersion struct {
 
 // AppStoreAppVersionsByFleetAndTitleID holds App Store app versions indexed by fleet id and then software title id, first-added first.
 type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp
+
+// MergeHostAndroidInstallsWithPolicyDetails returns sentApps as pending in the policy version of policyRequest, and
+// notSentApps as failed with no policy version.
+func MergeHostAndroidInstallsWithPolicyDetails(sentApps []VPPAppTeam, notSentApps []VPPAppTeam, policyRequest *android.MDMAndroidPolicyRequest, policyBuiltAt time.Time) []*HostAndroidSoftwareInstall {
+	var inPolicyVersion *int64
+	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+		inPolicyVersion = &policyRequest.PolicyVersion.V
+	}
+
+	installs := make([]*HostAndroidSoftwareInstall, 0, len(sentApps)+len(notSentApps))
+	for _, app := range sentApps {
+		installs = append(installs, &HostAndroidSoftwareInstall{
+			AdamID:          app.AdamID,
+			VPPAppTeamID:    &app.AppTeamID,
+			Status:          AndroidSoftwareInstallStatusPending,
+			InPolicyVersion: inPolicyVersion,
+			PolicyBuiltAt:   policyBuiltAt,
+		})
+	}
+	for _, app := range notSentApps {
+		installs = append(installs, &HostAndroidSoftwareInstall{
+			AdamID:        app.AdamID,
+			VPPAppTeamID:  &app.AppTeamID,
+			Status:        AndroidSoftwareInstallStatusFailed,
+			PolicyBuiltAt: policyBuiltAt,
+		})
+	}
+	return installs
+}
