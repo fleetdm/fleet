@@ -1,22 +1,24 @@
-package main
+package fleetmcp
 
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/sirupsen/logrus"
 )
 
-func registerQueryTools(s *server.MCPServer, fleetClient *FleetClient) {
+func registerQueryTools(s *server.MCPServer, fleetClient *FleetClient, schemaRefresh bool) {
 	registerGetQueries(s, fleetClient)
-	registerGetVettedQueries(s)
+	registerGetVettedQueries(s, fleetClient.logger)
 	registerPrepareLiveQuery(s, fleetClient)
 	registerRunLiveQuery(s, fleetClient)
-	registerGetOsquerySchema(s)
-	registerRefreshOsquerySchema(s)
+	registerGetOsquerySchema(s, fleetClient.logger, schemaRefresh)
+	if schemaRefresh {
+		registerRefreshOsquerySchema(s, fleetClient.logger)
+	}
 }
 
 func registerGetQueries(s *server.MCPServer, fleetClient *FleetClient) {
@@ -27,7 +29,7 @@ func registerGetQueries(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_queries")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_queries")
 		queries, err := fleetClient.GetQueries(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get queries: %v", err)), nil
@@ -36,7 +38,7 @@ func registerGetQueries(s *server.MCPServer, fleetClient *FleetClient) {
 	})
 }
 
-func registerGetVettedQueries(s *server.MCPServer) {
+func registerGetVettedQueries(s *server.MCPServer, logger *slog.Logger) {
 	tool := mcp.NewTool("get_vetted_queries",
 		mcp.WithDescription("Get the library of 100% vetted, production-safe CIS-8.1 policy queries for macOS, Windows, and Linux. Always use these as a reference or starting point for creating new policies — they have been tested and use the correct table schemas for each platform."),
 		mcp.WithString("platform", mcp.Description("Filter by platform: 'darwin' or 'macos' for macOS, 'windows' for Windows, 'linux' for Linux, 'all' for everything. Defaults to 'all'.")),
@@ -46,7 +48,7 @@ func registerGetVettedQueries(s *server.MCPServer) {
 		mcp.WithOpenWorldHintAnnotation(false),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_vetted_queries")
+		logger.InfoContext(ctx, "tool invoked", "tool", "get_vetted_queries")
 
 		platform := getOptionalString(request, "platform")
 		if platform == "" {
@@ -82,7 +84,7 @@ func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: prepare_live_query")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "prepare_live_query")
 
 		spec, err := buildLiveQuerySpecFromRequest(request)
 		if err != nil {
@@ -107,7 +109,7 @@ func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 			schemaPlatform = inferPlatformFromTargets(targets)
 		}
 
-		schema, err := GetOsquerySchema(schemaPlatform)
+		schema, err := GetOsquerySchema(ctx, fleetClient.logger, schemaPlatform)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get schema for context: %v", err)), nil
 		}
@@ -202,7 +204,7 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(false),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: run_live_query")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "run_live_query")
 		sql, err := request.RequireString("sql")
 		if err != nil || strings.TrimSpace(sql) == "" {
 			return mcp.NewToolResultError("sql is required"), nil
@@ -309,9 +311,13 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 	})
 }
 
-func registerGetOsquerySchema(s *server.MCPServer) {
+func registerGetOsquerySchema(s *server.MCPServer, logger *slog.Logger, schemaRefresh bool) {
+	source := "The data is the schema this Fleet server was built with (also rendered at https://fleetdm.com/tables) and includes per-column TYPES and DESCRIPTIONS."
+	if schemaRefresh {
+		source = "The data is sourced from https://fleetdm.com/tables (refreshed periodically from the canonical JSON in the fleetdm/fleet repo) and includes per-column TYPES and DESCRIPTIONS — call refresh_osquery_schema if you suspect the response is stale."
+	}
 	tool := mcp.NewTool("get_osquery_schema",
-		mcp.WithDescription("Returns the canonical, source-of-truth schema for Fleet/osquery tables. The data is sourced from https://fleetdm.com/tables (refreshed periodically from the canonical JSON in the fleetdm/fleet repo) and includes per-column TYPES and DESCRIPTIONS — call refresh_osquery_schema if you suspect the response is stale.\n\nDefaults to a curated short list of common security-ops tables filtered by platform. Pass `tables` (comma-separated) to fetch the full canonical schema for specific tables — use this for any table not in the curated default. ALWAYS call this before writing SQL — column TYPES vary per table, and assumed types (e.g. assuming `result_code` is integer when it is text) cause silent zero-row queries."),
+		mcp.WithDescription("Returns the canonical, source-of-truth schema for Fleet/osquery tables. "+source+"\n\nDefaults to a curated short list of common security-ops tables filtered by platform. Pass `tables` (comma-separated) to fetch the full canonical schema for specific tables — use this for any table not in the curated default. ALWAYS call this before writing SQL — column TYPES vary per table, and assumed types (e.g. assuming `result_code` is integer when it is text) cause silent zero-row queries."),
 		mcp.WithString("platform", mcp.Description("Target platform: 'darwin'/'macos', 'windows', 'linux', 'chrome'/'chromeos', or 'all'. Mirrors the platform tabs on https://fleetdm.com/tables. Defaults to 'all'.")),
 		mcp.WithString("tables", mcp.Description("Optional comma-separated list of specific table names (e.g. 'windows_update_history,programs'). When set, returns the full canonical schema for those tables (every column, ignores `platform`). When unset, returns the curated short list filtered by platform.")),
 		mcp.WithReadOnlyHintAnnotation(true),
@@ -320,7 +326,7 @@ func registerGetOsquerySchema(s *server.MCPServer) {
 		mcp.WithOpenWorldHintAnnotation(false),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_osquery_schema")
+		logger.InfoContext(ctx, "tool invoked", "tool", "get_osquery_schema")
 
 		platform := getOptionalString(request, "platform")
 		if platform == "" {
@@ -347,7 +353,7 @@ func registerGetOsquerySchema(s *server.MCPServer) {
 				warn = err.Error()
 			}
 		} else {
-			tables, err = GetOsquerySchema(platform)
+			tables, err = GetOsquerySchema(ctx, logger, platform)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to get schema: %v", err)), nil
 			}
@@ -364,7 +370,7 @@ func registerGetOsquerySchema(s *server.MCPServer) {
 	})
 }
 
-func registerRefreshOsquerySchema(s *server.MCPServer) {
+func registerRefreshOsquerySchema(s *server.MCPServer, logger *slog.Logger) {
 	tool := mcp.NewTool("refresh_osquery_schema",
 		mcp.WithDescription("Force-refresh the in-memory osquery/Fleet schema from the canonical JSON at https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the same source that powers https://fleetdm.com/tables). Use when get_osquery_schema returns data that conflicts with the live docs, or after Fleet upstream releases a new osquery version. The schema also auto-refreshes in the background; manual refresh is for the rare 'I just saw a new column on fleetdm.com that the response is missing' case."),
 		mcp.WithReadOnlyHintAnnotation(true),
@@ -375,8 +381,8 @@ func registerRefreshOsquerySchema(s *server.MCPServer) {
 		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: refresh_osquery_schema")
-		if err := RefreshSchemaNow(); err != nil {
+		logger.InfoContext(ctx, "tool invoked", "tool", "refresh_osquery_schema")
+		if err := RefreshSchemaNow(ctx, logger); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Schema refresh failed (previous schema retained): %v", err)), nil
 		}
 		return jsonResult(map[string]interface{}{

@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import (
 	"context"
@@ -10,12 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 // createCampaignRequest is the body for POST /api/v1/fleet/reports/run. Selected
@@ -95,10 +93,10 @@ func (fc *FleetClient) runMultiHostCampaign(ctx context.Context, hostIDs []uint,
 		return nil, fmt.Errorf("failed to decode campaign response: %w", err)
 	}
 	if camp.Campaign.ID == 0 {
-		return nil, fmt.Errorf("live query campaign creation returned no campaign id")
+		return nil, errors.New("live query campaign creation returned no campaign id")
 	}
 
-	logrus.Infof("Created live query campaign ID=%d, streaming results for %d hosts", camp.Campaign.ID, len(hostIDs))
+	fc.logger.InfoContext(ctx, "created live query campaign, streaming results", "campaign_id", camp.Campaign.ID, "hosts", len(hostIDs))
 	return fc.streamCampaignResults(ctx, camp.Campaign.ID, hostIDs, endpointByID)
 }
 
@@ -116,6 +114,10 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 		HandshakeTimeout: 45 * time.Second,
 		TLSClientConfig:  fc.tlsClientConfig(),
 	}
+	if fc.dialContext != nil {
+		dialer.Proxy = nil
+		dialer.NetDialContext = fc.dialContext
+	}
 	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open live query results websocket: %w", err)
@@ -125,7 +127,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 	// Authenticate with the same token used for REST calls, then subscribe to
 	// the campaign. WriteJSON marshals an arbitrary value, matching the server's
 	// JSONMessage{Type, Data} envelope.
-	if err := conn.WriteJSON(map[string]interface{}{"type": "auth", "data": map[string]string{"token": fc.apiKey}}); err != nil {
+	if err := conn.WriteJSON(map[string]any{"type": "auth", "data": map[string]string{"token": fc.token(ctx)}}); err != nil {
 		return nil, fmt.Errorf("failed to authenticate results websocket: %w", err)
 	}
 	if err := conn.WriteJSON(map[string]interface{}{"type": "select_campaign", "data": map[string]interface{}{"campaign_id": campaignID}}); err != nil {
@@ -134,7 +136,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 
 	// Bound the read loop by the same deadline the synchronous REST endpoints
 	// use, so a wedged or offline-heavy fleet can't pin us indefinitely.
-	deadline := time.Now().Add(liveQueryDeadline())
+	deadline := time.Now().Add(fc.campaignWait)
 	_ = conn.SetReadDeadline(deadline)
 
 	// Closing the connection unblocks the blocking ReadJSON below, so a caller
@@ -184,19 +186,19 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 		case "result":
 			var r wsDistributedResult
 			if err := json.Unmarshal(msg.Data, &r); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode result frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode result frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			results = append(results, fc.campaignResultRow(r, endpointByID))
 		case "totals":
 			if err := json.Unmarshal(msg.Data, &totals); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode totals frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode totals frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			gotTotals = true
 		case "status":
 			if err := json.Unmarshal(msg.Data, &status); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode status frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode status frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			gotStatus = true
@@ -317,26 +319,7 @@ func (fc *FleetClient) campaignWebsocketURL() (string, error) {
 
 // tlsClientConfig returns the TLS settings configured on the REST HTTP client
 // (skip-verify / custom CA) so the websocket dialer trusts the same way. Returns
-// nil when the transport isn't a *http.Transport (e.g. test clients), in which
-// case the dialer uses its defaults.
+// nil for test clients, in which case the dialer uses its defaults.
 func (fc *FleetClient) tlsClientConfig() *tls.Config {
-	if tr, ok := fc.httpClient.Transport.(*http.Transport); ok {
-		return tr.TLSClientConfig
-	}
-	return nil
-}
-
-// liveQueryDeadline is how long to wait for hosts to report. It mirrors the
-// synchronous REST endpoints' FLEET_LIVE_QUERY_REST_PERIOD (default 25s).
-func liveQueryDeadline() time.Duration {
-	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
-	if period == "" {
-		return 25 * time.Second
-	}
-	d, err := time.ParseDuration(period)
-	if err != nil || d <= 0 {
-		logrus.Warnf("invalid FLEET_LIVE_QUERY_REST_PERIOD %q, defaulting to 25s", period)
-		return 25 * time.Second
-	}
-	return d
+	return fc.tlsConfig
 }

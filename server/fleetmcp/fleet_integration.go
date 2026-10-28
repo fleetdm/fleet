@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import (
 	"bytes"
@@ -6,8 +6,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
 // teamFanOutConcurrency caps the number of in-flight per-team API calls during
@@ -33,10 +36,17 @@ type FleetClient struct {
 	apiKey     string
 	httpClient *http.Client
 	// liveQueryClient is used only for the blocking single-host live query
-	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to
-	// FLEET_LIVE_QUERY_REST_PERIOD — longer than httpClient's timeout allows.
+	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to its
+	// live query period — longer than httpClient's timeout allows.
 	// It shares httpClient's Transport. Nil falls back to httpClient.
 	liveQueryClient *http.Client
+	// campaignWait bounds how long a multi-host live query waits for hosts.
+	campaignWait time.Duration
+	// tlsConfig is kept for the results websocket dialer: httpClient's
+	// transport is wrapped by fleethttp, so it can't be read back from there.
+	tlsConfig   *tls.Config
+	dialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	logger      *slog.Logger
 }
 
 // liveQueryTimeoutMargin is added to the server-side wait for the live query
@@ -44,18 +54,54 @@ type FleetClient struct {
 // server-side wait elapses.
 const liveQueryTimeoutMargin = 30 * time.Second
 
-// maxSingleHostBlock caps the server-side wait this timeout is derived from.
-// FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's wait budget,
-// set far above anything a server blocks for (900s in render.yaml) so fleet-wide
-// queries outlast asleep hosts; uncapped, that budget would let one stalled
-// connection hang for 15 minutes. Fleet's own period must stay under the request
-// timeout of any proxy in front of it, so real values are tens of seconds.
-const maxSingleHostBlock = 120 * time.Second
+// defaultLiveQueryWait matches Fleet's default FLEET_LIVE_QUERY_REST_PERIOD.
+const defaultLiveQueryWait = 25 * time.Second
 
-// singleHostQueryTimeout bounds the blocking POST /hosts/:id/query client.
-// liveQueryDeadline() stays uncapped for the campaign path.
-func singleHostQueryTimeout() time.Duration {
-	return min(liveQueryDeadline(), maxSingleHostBlock) + liveQueryTimeoutMargin
+type fleetClientOptions struct {
+	campaignWait    time.Duration
+	singleHostBlock time.Duration
+	dialContext     func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+type FleetClientOption func(*fleetClientOptions)
+
+// WithLiveQueryWaits sets how long multi-host live queries wait for hosts to
+// report (campaignWait) and how long Fleet blocks a single-host live query
+// (singleHostBlock). The two differ in standalone mode, where the campaign
+// wait can be minutes.
+func WithLiveQueryWaits(campaignWait, singleHostBlock time.Duration) FleetClientOption {
+	return func(o *fleetClientOptions) {
+		o.campaignWait = campaignWait
+		o.singleHostBlock = singleHostBlock
+	}
+}
+
+// WithDialContext routes every connection to Fleet, REST calls and the live
+// query results websocket alike, through dial.
+func WithDialContext(dial func(ctx context.Context, network, addr string) (net.Conn, error)) FleetClientOption {
+	return func(o *fleetClientOptions) {
+		o.dialContext = dial
+	}
+}
+
+type fleetTokenKey struct{}
+
+// ContextWithFleetToken makes Fleet API calls made with ctx authenticate with
+// token instead of the client's API key, so an embedded MCP acts as its caller.
+func ContextWithFleetToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, fleetTokenKey{}, token)
+}
+
+// LiveQueryWaits reports the multi-host wait and the single-host client timeout.
+func (fc *FleetClient) LiveQueryWaits() (campaignWait, singleHostTimeout time.Duration) {
+	return fc.campaignWait, fc.liveQueryClient.Timeout
+}
+
+func (fc *FleetClient) token(ctx context.Context) string {
+	if t, ok := ctx.Value(fleetTokenKey{}).(string); ok {
+		return t
+	}
+	return fc.apiKey
 }
 
 // PlatformBreakdown represents platform distribution data
@@ -101,11 +147,18 @@ type AggregateResponse struct {
 // NewFleetClient creates a new Fleet client.
 // tlsSkipVerify disables certificate verification (unsafe; use only in dev/test).
 // caFile, if non-empty, is a path to a PEM-encoded CA certificate to trust (for self-signed certs).
-func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *FleetClient {
+func NewFleetClient(ctx context.Context, baseURL, apiKey string, tlsSkipVerify bool, caFile string, logger *slog.Logger, opts ...FleetClientOption) (*FleetClient, error) {
+	o := fleetClientOptions{campaignWait: defaultLiveQueryWait, singleHostBlock: defaultLiveQueryWait}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
 	tlsCfg := &tls.Config{}
 
 	if tlsSkipVerify && caFile != "" {
-		logrus.Fatalf("conflicting TLS settings: tlsSkipVerify and caFile are mutually exclusive — use one or the other, not both")
+		return nil, errors.New("conflicting TLS settings: tlsSkipVerify and caFile are mutually exclusive — use one or the other, not both")
 	}
 
 	if tlsSkipVerify {
@@ -114,36 +167,50 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 		// can present any TLS cert and capture the admin Fleet API token in one
 		// handshake. Localhost is the only safe context for skip-verify.
 		if !isLoopbackURL(baseURL) {
-			logrus.Fatalf("FLEET_TLS_SKIP_VERIFY=true is only allowed when FLEET_BASE_URL points at localhost (got %s); refuse to start. Remove FLEET_TLS_SKIP_VERIFY or set FLEET_CA_FILE to a trusted PEM instead.", baseURL)
+			return nil, fmt.Errorf("FLEET_TLS_SKIP_VERIFY=true is only allowed when FLEET_BASE_URL points at localhost (got %s); refuse to start. Remove FLEET_TLS_SKIP_VERIFY or set FLEET_CA_FILE to a trusted PEM instead.", baseURL)
 		}
-		logrus.Warn("TLS certificate verification is disabled — localhost only; do not use in production")
+		logger.WarnContext(ctx, "TLS certificate verification is disabled — localhost only; do not use in production")
 		tlsCfg.InsecureSkipVerify = true //nolint:gosec
 	} else if caFile != "" {
 		pemData, err := os.ReadFile(caFile)
 		if err != nil {
-			logrus.Fatalf("failed to read CA certificate file %s: %v", caFile, err)
+			return nil, fmt.Errorf("failed to read CA certificate file %s: %w", caFile, err)
 		}
 		certPool := x509.NewCertPool()
 		if !certPool.AppendCertsFromPEM(pemData) {
-			logrus.Fatalf("failed to parse CA certificate from %s", caFile)
+			return nil, fmt.Errorf("failed to parse CA certificate from %s", caFile)
 		}
 		tlsCfg.RootCAs = certPool
-		logrus.Infof("loaded custom CA certificate from %s", caFile)
+		logger.InfoContext(ctx, "loaded custom CA certificate", "path", caFile)
 	}
 
-	transport := &http.Transport{TLSClientConfig: tlsCfg}
-	return &FleetClient{
-		baseURL: baseURL,
-		apiKey:  apiKey,
-		httpClient: &http.Client{
-			Timeout:   30 * time.Second,
-			Transport: transport,
-		},
-		liveQueryClient: &http.Client{
-			Timeout:   singleHostQueryTimeout(),
-			Transport: transport,
-		},
+	clientOpts := []fleethttp.ClientOpt{fleethttp.WithTLSClientConfig(tlsCfg), fleethttp.WithTimeout(30 * time.Second)}
+	if o.dialContext != nil {
+		// Fleet's router answers some unclean paths with a redirect; following it
+		// would run the call on a route the embedded MCP never asked for.
+		clientOpts = append(clientOpts, fleethttp.WithFollowRedir(false))
 	}
+	httpClient := fleethttp.NewClient(clientOpts...)
+	if o.dialContext != nil {
+		// fleethttp's own dialer would apply Fleet's private-network blocking
+		// and any proxy settings to a connection that never leaves the process.
+		tr := fleethttp.NewTransport(fleethttp.WithTLSConfig(tlsCfg))
+		tr.DialContext = o.dialContext
+		tr.Proxy = nil
+		httpClient.Transport = tr
+	}
+	liveQueryClient := *httpClient
+	liveQueryClient.Timeout = o.singleHostBlock + liveQueryTimeoutMargin
+	return &FleetClient{
+		baseURL:         baseURL,
+		apiKey:          apiKey,
+		httpClient:      httpClient,
+		liveQueryClient: &liveQueryClient,
+		campaignWait:    o.campaignWait,
+		tlsConfig:       tlsCfg,
+		dialContext:     o.dialContext,
+		logger:          logger,
+	}, nil
 }
 
 // isLoopbackURL parses a URL and returns true only if the hostname is exactly
@@ -426,7 +493,11 @@ func (fc *FleetClient) GetEndpoints(ctx context.Context, perPage int) ([]Endpoin
 // Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete host and label data.
 // Note: GetEndpoints already requests labels via populate_labels=true; this method is for targeted lookups of a single host.
 func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier string) (*Endpoint, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
+	segment, err := pathSegment("host identifier", identifier)
+	if err != nil {
+		return nil, err
+	}
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
@@ -514,7 +585,11 @@ func (fc *FleetClient) GetHostByIDWithPolicies(ctx context.Context, hostID uint)
 // Fleet UI — answer "is this host compliant?" with one call instead of
 // listing all policies and scanning by host.
 func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, identifier string) (*HostWithPolicies, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", url.PathEscape(identifier))
+	segment, err := pathSegment("host identifier", identifier)
+	if err != nil {
+		return nil, err
+	}
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host with policies: %w", err)
@@ -685,7 +760,7 @@ func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, 
 				return out, false, nil
 			}
 			if len(out) >= fetchSoftwareHardCap {
-				logrus.Warnf("host software fetch hit hard cap %d (host_id=%d) — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap, hostID)
+				fc.logger.WarnContext(ctx, "host software fetch hit hard cap, result truncated; tighten filters or raise fetchSoftwareHardCap", "cap", fetchSoftwareHardCap, "host_id", hostID)
 				return out, true, nil
 			}
 		}
@@ -771,7 +846,7 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 				return out, false, nil
 			}
 			if len(out) >= fetchSoftwareHardCap {
-				logrus.Warnf("software titles fetch hit hard cap %d — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap)
+				fc.logger.WarnContext(ctx, "software titles fetch hit hard cap, result truncated; tighten filters or raise fetchSoftwareHardCap", "cap", fetchSoftwareHardCap)
 				return out, true, nil
 			}
 		}
@@ -802,7 +877,7 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 
 	teams, err := fc.GetTeams(ctx)
 	if err != nil {
-		logrus.Warnf("skipping team queries: %v", err)
+		fc.logger.WarnContext(ctx, "skipping team queries", "err", err)
 		return result.Queries, nil
 	}
 	// Concurrent per-team fan-out (bounded by teamFanOutConcurrency). Each
@@ -823,19 +898,19 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 			defer func() { <-sem }()
 			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?team_id=%d", team.ID), nil)
 			if err != nil {
-				logrus.Warnf("team %d queries error: %v", team.ID, err)
+				fc.logger.WarnContext(ctx, "team queries error", "team_id", team.ID, "err", err)
 				return
 			}
 			defer teamResp.Body.Close()
 			if teamResp.StatusCode != http.StatusOK {
-				logrus.Warnf("team %d queries: status %d", team.ID, teamResp.StatusCode)
+				fc.logger.WarnContext(ctx, "team queries: unexpected status", "team_id", team.ID, "status", teamResp.StatusCode)
 				return
 			}
 			var tr struct {
 				Queries []Query `json:"queries"`
 			}
 			if derr := json.NewDecoder(teamResp.Body).Decode(&tr); derr != nil {
-				logrus.Warnf("team %d queries decode failed: %v", team.ID, derr)
+				fc.logger.WarnContext(ctx, "team queries decode failed", "team_id", team.ID, "err", derr)
 				return
 			}
 			for i := range tr.Queries {
@@ -879,7 +954,7 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 
 	teams, err := fc.GetTeams(ctx)
 	if err != nil {
-		logrus.Warnf("skipping team policies: %v", err)
+		fc.logger.WarnContext(ctx, "skipping team policies", "err", err)
 		return result.Policies, nil
 	}
 	// Concurrent per-team fan-out (same pattern as GetQueries).
@@ -898,19 +973,19 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 			defer func() { <-sem }()
 			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", team.ID), nil)
 			if err != nil {
-				logrus.Warnf("team %d policies error: %v", team.ID, err)
+				fc.logger.WarnContext(ctx, "team policies error", "team_id", team.ID, "err", err)
 				return
 			}
 			defer teamResp.Body.Close()
 			if teamResp.StatusCode != http.StatusOK {
-				logrus.Warnf("team %d policies: status %d", team.ID, teamResp.StatusCode)
+				fc.logger.WarnContext(ctx, "team policies: unexpected status", "team_id", team.ID, "status", teamResp.StatusCode)
 				return
 			}
 			var tr struct {
 				Policies []Policy `json:"policies"`
 			}
 			if derr := json.NewDecoder(teamResp.Body).Decode(&tr); derr != nil {
-				logrus.Warnf("team %d policies decode failed: %v", team.ID, derr)
+				fc.logger.WarnContext(ctx, "team policies decode failed", "team_id", team.ID, "err", derr)
 				return
 			}
 			for i := range tr.Policies {
@@ -1063,7 +1138,7 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 // returned set rather than the global inventory.
 func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
 	if policyResponse != "" && policyID == "" {
-		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
+		return 0, errors.New("policy_response is only valid when policy_id is also set")
 	}
 	if policyResponse != "" && policyResponse != "passing" && policyResponse != "failing" {
 		return 0, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
@@ -1212,9 +1287,6 @@ func (fc *FleetClient) fetchHostsFromPath(ctx context.Context, path string) ([]E
 // can surface "result is incomplete" to operators instead of silently
 // undercounting.
 func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path string, hardCap int) ([]Endpoint, bool, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if hardCap <= 0 {
 		hardCap = fetchHostsHardCap
 	}
@@ -1259,13 +1331,13 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 		// should either tighten filters or raise the cap.
 		remaining := hardCap - len(out)
 		if remaining <= 0 {
-			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			fc.logger.WarnContext(ctx, "fleet host fetch hit hard cap, result truncated; tighten filters or raise fetchHostsHardCap", "cap", hardCap, "path", base)
 			truncated = true
 			break
 		}
 		if len(result.Hosts) > remaining {
 			out = append(out, result.Hosts[:remaining]...)
-			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			fc.logger.WarnContext(ctx, "fleet host fetch hit hard cap, result truncated; tighten filters or raise fetchHostsHardCap", "cap", hardCap, "path", base)
 			truncated = true
 			break
 		}
@@ -1336,7 +1408,7 @@ func (fc *FleetClient) resolvePlatformOrLabelToLabelID(ctx context.Context, labe
 // policyResponse without policyID is rejected here as a sanity check.
 func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string, perPage int) ([]Endpoint, error) {
 	if policyResponse != "" && policyID == "" {
-		return nil, fmt.Errorf("policy_response is only valid when policy_id is also set")
+		return nil, errors.New("policy_response is only valid when policy_id is also set")
 	}
 	if policyResponse != "" && policyResponse != "passing" && policyResponse != "failing" {
 		return nil, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
@@ -1500,7 +1572,7 @@ func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
 			defer func() { <-sem }()
 			full, err := fc.GetHostByID(ctx, hosts[idx].ID)
 			if err != nil {
-				logrus.Warnf("enrichHostLabels: failed to fetch host %d: %v", hosts[idx].ID, err)
+				fc.logger.WarnContext(ctx, "enrichHostLabels: failed to fetch host", "host_id", hosts[idx].ID, "err", err)
 				return
 			}
 			hosts[idx].Labels = full.Labels
@@ -1510,8 +1582,8 @@ func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
 }
 
 // GetPolicyCompliance retrieves policy compliance data
-func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%s", url.PathEscape(policyID))
+func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (*PolicyCompliance, error) {
+	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policy compliance: %w", err)
@@ -1553,8 +1625,8 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID string)
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
 // caller knows the policy belongs to a specific fleet, or when global counts
 // would be misleading because the policy is fleet-scoped.
-func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%s/policies/%s", url.PathEscape(teamID), url.PathEscape(policyID))
+func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID uint) (*PolicyCompliance, error) {
+	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%d/policies/%d", teamID, policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get team policy compliance: %w", err)
@@ -1602,11 +1674,8 @@ func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, poli
 // numerically consistent — the price is N+1 extra HTTP calls per CVE, which
 // is fine because impact is a low-frequency operation.
 func (fc *FleetClient) GetVulnerabilityImpact(ctx context.Context, cveID string) (*VulnerabilityImpact, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if strings.TrimSpace(cveID) == "" {
-		return nil, fmt.Errorf("cve_id is required")
+		return nil, errors.New("cve_id is required")
 	}
 
 	// Reuse GetHostsForCVE with no filters and no per-page cap so the count
@@ -1660,11 +1729,8 @@ func (fc *FleetClient) GetVulnerabilityImpact(ctx context.Context, cveID string)
 // Callers that need an accurate count (e.g. GetVulnerabilityImpact) must
 // surface this so operators see "10000+" rather than a silent undercount.
 func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, platform, status, query, labelName string, perPage int) ([]Endpoint, bool, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if strings.TrimSpace(cveID) == "" {
-		return nil, false, fmt.Errorf("cve_id is required")
+		return nil, false, errors.New("cve_id is required")
 	}
 
 	// Resolve team once.
@@ -1745,12 +1811,12 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		}
 		detailResp, dErr := fc.makeFleetRequest(ctx, "GET", detailURL, nil)
 		if dErr != nil {
-			logrus.Warnf("failed to fetch software title %d detail: %v", tID, dErr)
+			fc.logger.WarnContext(ctx, "failed to fetch software title detail", "title_id", tID, "err", dErr)
 			continue
 		}
 		if detailResp.StatusCode != http.StatusOK {
 			detailResp.Body.Close()
-			logrus.Warnf("failed to fetch software title %d detail: status %d", tID, detailResp.StatusCode)
+			fc.logger.WarnContext(ctx, "failed to fetch software title detail: unexpected status", "title_id", tID, "status", detailResp.StatusCode)
 			continue
 		}
 		var detailResult struct {
@@ -1763,7 +1829,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		decErr := json.NewDecoder(detailResp.Body).Decode(&detailResult)
 		detailResp.Body.Close()
 		if decErr != nil {
-			logrus.Warnf("failed to decode software title %d detail: %v", tID, decErr)
+			fc.logger.WarnContext(ctx, "failed to decode software title detail", "title_id", tID, "err", decErr)
 			continue
 		}
 		for _, v := range detailResult.SoftwareTitle.Versions {
@@ -1816,7 +1882,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		params.Set("software_version_id", fmt.Sprintf("%d", vid))
 		page, pageTruncated, fErr := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
 		if fErr != nil {
-			logrus.Warnf("failed to fetch hosts for software_version_id=%d: %v", vid, fErr)
+			fc.logger.WarnContext(ctx, "failed to fetch hosts for software version", "software_version_id", vid, "err", fErr)
 			continue
 		}
 		if pageTruncated {
@@ -1955,19 +2021,19 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 	if spec.Fleet == "" && len(spec.LegacyFleets) > 0 {
 		spec.Fleet = strings.TrimSpace(spec.LegacyFleets[0])
 		if len(spec.LegacyFleets) > 1 {
-			logrus.Warnf("multi-fleet targeting not supported in single round-trip; using first: %q", spec.Fleet)
+			fc.logger.WarnContext(ctx, "multi-fleet targeting not supported in single round-trip; using first", "fleet", spec.Fleet)
 		}
 	}
 	if spec.Platform == "" && len(spec.LegacyPlatforms) > 0 {
 		spec.Platform = strings.TrimSpace(spec.LegacyPlatforms[0])
 		if len(spec.LegacyPlatforms) > 1 {
-			logrus.Warnf("multi-platform targeting not supported in single round-trip; using first: %q", spec.Platform)
+			fc.logger.WarnContext(ctx, "multi-platform targeting not supported in single round-trip; using first", "platform", spec.Platform)
 		}
 	}
 	if spec.Label == "" && len(spec.LegacyLabels) > 0 {
 		spec.Label = strings.TrimSpace(spec.LegacyLabels[0])
 		if len(spec.LegacyLabels) > 1 {
-			logrus.Warnf("multi-label targeting not supported in single round-trip; using first: %q", spec.Label)
+			fc.logger.WarnContext(ctx, "multi-label targeting not supported in single round-trip; using first", "label", spec.Label)
 		}
 	}
 
@@ -1976,7 +2042,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 		spec.PolicyResponse != "" || spec.CVEID != ""
 	hasExplicit := len(spec.Hostnames) > 0 || len(spec.HostIDs) > 0
 	if !hasFilter && !hasExplicit {
-		return nil, fmt.Errorf("at least one target dimension required (fleet, platform, label, status, query, policy_id, cve_id, hostnames, or host_ids)")
+		return nil, errors.New("at least one target dimension required (fleet, platform, label, status, query, policy_id, cve_id, hostnames, or host_ids)")
 	}
 
 	const livePerPage = 500
@@ -2098,8 +2164,8 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
-	// Fleet blocks on this endpoint until the host reports or
-	// FLEET_LIVE_QUERY_REST_PERIOD elapses, so use the long-timeout client.
+	// Fleet blocks on this endpoint until the host reports or the
+	// live query period elapses, so use the long-timeout client.
 	resp, err := fc.makeFleetRequestWith(ctx, fc.liveQueryClient, "POST", endpointPath, AdHocQueryRequest{Query: sql})
 	if err != nil {
 		return nil, fmt.Errorf("ad hoc query failed: %w", err)
@@ -2159,8 +2225,7 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 //
 // ctx propagation: when the MCP caller cancels the request (client disconnect,
 // deadline exceeded, transport-level cancellation), the in-flight Fleet HTTP
-// call cancels too. Callers that do NOT have a useful ctx may pass
-// context.Background(); long-running fan-outs (e.g. CVE compose, live-query
+// call cancels too. Long-running fan-outs (e.g. CVE compose, live-query
 // resolve) should pass the MCP handler's ctx directly.
 //
 // The previous implementation logged "%s %s" with the full request path —
@@ -2177,9 +2242,6 @@ func (fc *FleetClient) makeFleetRequest(ctx context.Context, method, endpoint st
 func (fc *FleetClient) makeFleetRequestWith(ctx context.Context, client *http.Client, method, endpoint string, body interface{}) (*http.Response, error) {
 	if client == nil {
 		client = fc.httpClient
-	}
-	if ctx == nil {
-		ctx = context.Background()
 	}
 	url := fmt.Sprintf("%s%s", fc.baseURL, endpoint)
 
@@ -2198,13 +2260,12 @@ func (fc *FleetClient) makeFleetRequestWith(ctx context.Context, client *http.Cl
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+fc.apiKey)
+	req.Header.Set("Authorization", "Bearer "+fc.token(ctx))
 
 	// PII-safe debug: log the route shape (path before any query string)
 	// rather than the full endpoint, which can carry hostnames / emails /
 	// CVE IDs as filter values.
-	pathOnly, _, _ := strings.Cut(endpoint, "?")
-	logrus.Debugf("%s %s", method, pathOnly)
+	fc.logger.DebugContext(ctx, "fleet API request", "method", method, "path", routeForLog(endpoint))
 
 	resp, err := client.Do(req)
 	if err != nil {

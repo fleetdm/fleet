@@ -1,6 +1,8 @@
-package main
+package fleetmcp
 
 import (
+	"context"
+
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -26,30 +28,49 @@ CRITICAL WORKFLOW for any tool that takes a 'sql' argument (run_live_query):
 3. Pay attention to column TYPE in the schema response. Many osquery columns are 'text' even when their values look numeric (e.g. windows_update_history.result_code is text with values like 'Succeeded' / 'Failed', NOT integer codes). Comparing a text column against an unquoted integer literal silently returns zero rows.
 4. prepare_live_query already returns the schema for the inferred platform — use it as a single 'preview targets + schema' call, then pass the same filter args to run_live_query.
 
-Schema freshness: the in-memory schema is refreshed periodically from https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the JSON behind https://fleetdm.com/tables). If you suspect a schema mismatch — e.g. fleet docs show a column the response is missing — call refresh_osquery_schema and try again.
+`
 
-Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument to run_live_query to restrict the targeted hosts to that team. Only omit 'fleet' when the user explicitly wants all teams.
+const schemaRefreshInstructions = `Schema freshness: the in-memory schema is refreshed periodically from https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the JSON behind https://fleetdm.com/tables). If you suspect a schema mismatch — e.g. fleet docs show a column the response is missing — call refresh_osquery_schema and try again.
+
+`
+
+const fleetMCPInstructionsTail = `Team (Fleet) scoping: when the user names a team in the conversation (e.g. "Workstations", "Servers"), pass it as the 'fleet' argument to run_live_query to restrict the targeted hosts to that team. Only omit 'fleet' when the user explicitly wants all teams.
 
 CONFIRM BEFORE RUNNING run_live_query: show the operator the exact SQL and the resolved target scope (the host_ids / label / 'fleet', or "all hosts" if unscoped), then wait for explicit confirmation. Never auto-approve.
 
 Skipping step 1 produces queries that parse and run but return wrong or empty results. Always verify before emitting SQL.`
 
-// SetupMCPServer creates and configures the MCP server with all available tools.
-// Tool registrations are split by domain across mcp_tools_*.go files.
-func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer {
+// SetupMCPServer creates the standalone MCP server. Tool registrations are
+// split by domain across mcp_tools_*.go files.
+func SetupMCPServer(ctx context.Context, fleetClient *FleetClient) *server.MCPServer {
+	// A standalone binary can outlive the Fleet version it was built against, so
+	// it keeps the embedded schema fresh from GitHub.
+	StartSchemaRefresh(ctx, fleetClient.logger, 0)
+	return newMCPServer(fleetClient, true)
+}
+
+// NewEmbeddedMCPServer creates the MCP server that runs inside the Fleet
+// server, whose embedded schema already matches its own version. Each request
+// sees the tools its ContextWithRouteFilter allows.
+func NewEmbeddedMCPServer(fleetClient *FleetClient) *server.MCPServer {
+	return newMCPServer(fleetClient, false, routeFilterOptions(fleetClient)...)
+}
+
+func newMCPServer(fleetClient *FleetClient, schemaRefresh bool, opts ...server.ServerOption) *server.MCPServer {
+	instructions := fleetMCPInstructions + fleetMCPInstructionsTail
+	if schemaRefresh {
+		instructions = fleetMCPInstructions + schemaRefreshInstructions + fleetMCPInstructionsTail
+	}
 	s := server.NewMCPServer(
 		"fleet-mcp", "1.0.0",
-		server.WithLogging(),
-		server.WithInstructions(fleetMCPInstructions),
+		append([]server.ServerOption{
+			server.WithLogging(),
+			server.WithInstructions(instructions),
+		}, opts...)...,
 	)
 
-	// Kick off background refresh of the osquery schema from the canonical
-	// fleetdm/fleet source. Reads the embedded snapshot synchronously at
-	// init() so this is purely best-effort freshness.
-	StartSchemaRefresh(0)
-
 	registerHostTools(s, fleetClient)
-	registerQueryTools(s, fleetClient)
+	registerQueryTools(s, fleetClient, schemaRefresh)
 	registerPolicyTools(s, fleetClient)
 	registerInventoryTools(s, fleetClient)
 
