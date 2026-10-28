@@ -98,7 +98,7 @@ Your AI tool only sees the tools whose endpoints the user is allowed to call. To
 | `get_host_users` | Lists a host's local user accounts | List hosts, Get host, Get host by identifier |
 | `get_labels` | Lists labels | List labels |
 | `get_osquery_schema` | Gets osquery table schemas | None |
-| `get_policies` | Lists policies with pass and fail counts | List fleets, List fleet-level policies, List policies |
+| `get_policies` | Lists policies with pass and fail counts | List fleets, List fleet-level policies, List policies (`GET /api/v1/fleet/global/policies`) |
 | `get_policy_compliance` | Gets a policy's pass and fail counts | List fleets, Get fleet-level policy, Get policy |
 | `get_policy_hosts` | Lists the hosts that pass or fail a policy | List fleets, List hosts, List labels, List label's hosts |
 | `get_queries` | Lists reports | List fleets, List reports |
