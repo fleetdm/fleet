@@ -4,7 +4,7 @@ _Available in Fleet Premium._
 
 Use host audit logs to automate based on what happens on hosts.
 
-This page includes a list of activity types and their fields. To learn how to see a host's activities and send them to a webhook, see the [Automations guide](https://fleetdm.com/guides/automations#activity-automations).
+This page includes a list of activity types and their fields. To learn how to see a host's activities and send them to a webhook, see the [Automations guide](https://fleetdm.com/guides/automations#activity-automations). For the webhook request format, see [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs).
 
 ## Certificates
 
