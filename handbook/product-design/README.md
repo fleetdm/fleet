@@ -34,7 +34,7 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 ### Triage new requests
 
-The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) daily, newest first, and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label. Every new request, from customers, prospects, and the community, is [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one business day.
+The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) daily, newest first, and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label. Every new request, from customers, prospects, and the community, is [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one week.
 
 Once labeled, each Product Designer (PD) reviews the inbox and triages every new labeled request:
 
