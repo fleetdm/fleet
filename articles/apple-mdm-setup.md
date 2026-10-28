@@ -227,7 +227,7 @@ To edit the token's fleet assignments later, head back to **Settings > Integrati
 
 2. Under **Apple Business (AB)**, select **Edit** next to **Volume Purchasing Program (VPP)** and then find the token that you want to renew.
 
-3. Select the **Actions > Renew** for the token.
+3. Select **Actions > Renew** for the token.
 
 4. Sign in to [Apple Business](https://business.apple.com), head to **Settings > Organizational Units**, and select the token's organizational unit. Select **Download** next to **Content Token**.
 
@@ -243,6 +243,8 @@ These organizations may need multiple AB and VPP tokens:
 - [Enterprises that acquire](#enterprises-that-acquire) new businesses and as a result inherit new hosts
 - [Umbrella organizations](#umbrella-organizations) that preside over entities with separated purchasing authority (i.e. a hospital or university)
 - [International organizations](#international-organizations) that manage hosts across multiple countries
+
+Multiple VPP tokens can be assigned to a single fleet. When adding an app to a fleet, select the VPP token it should be available from.
 
 ### MSPs
 
@@ -296,8 +298,6 @@ The default fleets for each country's AB token will look like this:
 - iPadOS: 🔳🏢 Country A - Company-owned iPads
 
 Each country's VPP token will be assigned to the above fleets.
-
-Multiple VPP tokens can also be assigned to a single fleet. When adding an app to the fleet, select the VPP token it should be available from.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 
