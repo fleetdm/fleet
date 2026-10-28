@@ -1381,11 +1381,12 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name                          = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval               = 1 * time.Hour
-		expiredHostsCleanupMaxRunTime = 10 * time.Minute
-		expiredHostsCleanupBatchSize  = 5000
-		installerCleanupMaxRunTime    = 10 * time.Minute
+		name                            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval                 = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime   = 10 * time.Minute
+		hostAISessionsCleanupMaxRunTime = 3 * time.Minute
+		expiredHostsCleanupBatchSize    = 5000
+		installerCleanupMaxRunTime      = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1669,7 +1670,7 @@ func newCleanupsAndAggregationSchedule(
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
 		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
-			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge))
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge), hostAISessionsCleanupMaxRunTime)
 			if deleted > 0 {
 				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
 			}
