@@ -16,15 +16,9 @@ Fleet Desktop is deployed automatically with Fleet's agent (fleetd) when you [en
 
 The best practice on macOS is to also deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). The app is required for [patch notifications](https://fleetdm.com/guides/patching-end-user-experience#force-patch-notify-before-patching) and Fleet's [Platform SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet). If you want, you can [hide the menu bar icon](#hide-the-menu-bar-icon-on-macos).
 
-1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app).
+1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
-3. Install it on existing Macs with a policy. Create a policy with the query below, then add the Fleet Desktop app to the policy's [install software automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). If an end user deletes the app, Fleet reinstalls it.
-
-```sql
-SELECT 1 FROM apps WHERE path = '/Applications/Fleet Desktop.app' AND bundle_identifier = 'com.fleetdm.fleet-desktop';
-```
-
-4. Optional: To open the app every time the end user logs in or restarts their Mac, deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig).
+3. Optional: To open the app every time the end user logs in or restarts their Mac, deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig).
 
 > If an end user quits the app, it stays closed until they log in again.
 
