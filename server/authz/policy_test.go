@@ -2599,6 +2599,44 @@ func TestAuthorizeABReleaseDevice(t *testing.T) {
 	})
 }
 
+func TestAuthorizeHostAISession(t *testing.T) {
+	t.Parallel()
+
+	noTeam := &fleet.HostAISessionAuthz{}
+	team1 := &fleet.HostAISessionAuthz{TeamID: new(uint(1))}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: noTeam, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1, action: read, allow: false},
+
+		{user: test.UserAdmin, object: noTeam, action: read, allow: true},
+		{user: test.UserAdmin, object: team1, action: read, allow: true},
+		{user: test.UserAdmin, object: team1, action: write, allow: false},
+		{user: test.UserMaintainer, object: noTeam, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1, action: read, allow: true},
+
+		{user: test.UserObserver, object: noTeam, action: read, allow: false},
+		{user: test.UserObserver, object: team1, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1, action: read, allow: false},
+		{user: test.UserTechnician, object: team1, action: read, allow: false},
+		{user: test.UserGitOps, object: noTeam, action: read, allow: false},
+		{user: test.UserGitOps, object: team1, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: team1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1TeamAdminTeam2, object: team1, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 	t.Parallel()
 
