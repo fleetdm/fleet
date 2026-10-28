@@ -26,7 +26,6 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 BIN  ?= ./fleet-mcp
 TOOL ?=
 ARGS ?= {}
-PORT ?= 8080
 
 # JSON-RPC handshake lines reused by call/tools.
 INIT   := {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"make","version":"1"}}}
@@ -71,4 +70,4 @@ posture: build
 
 # Run the HTTP server in the foreground (Ctrl-C to stop). `sse` is kept as an alias.
 serve sse: build
-	$(LOAD_ENV) PORT=$(PORT) $(BIN)
+	$(LOAD_ENV) $(if $(filter command line,$(origin PORT)),PORT=$(PORT) )$(BIN)

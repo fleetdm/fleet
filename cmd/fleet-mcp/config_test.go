@@ -17,8 +17,9 @@ func TestLiveQueryWaits(t *testing.T) {
 		{"", 25 * time.Second, 25 * time.Second},
 		{"45s", 45 * time.Second, 45 * time.Second},
 		// The campaign wait budget can be minutes; the single-host block must not inherit that.
-		{"900s", 900 * time.Second, maxSingleHostBlock},
+		{"900s", 900 * time.Second, 120 * time.Second},
 		{"-45s", 25 * time.Second, 25 * time.Second},
+		{"0s", 25 * time.Second, 25 * time.Second},
 		{"bogus", 25 * time.Second, 25 * time.Second},
 	}
 	for _, tc := range cases {

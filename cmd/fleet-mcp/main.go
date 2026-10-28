@@ -79,7 +79,7 @@ func main() {
 		fatal(ctx, logger, "FLEET_BASE_URL is required but is not set")
 	}
 	if strings.TrimSpace(config.FleetAPIKey) == "" {
-		fatal(ctx, logger, "FLEET_API_KEY is required but is not set")
+		fatal(ctx, logger, "FLEET_API_KEY is required but is not set. fleet-mcp doesn't read .env files: use the Makefile targets (e.g. `make serve`), or export it first with `set -a; . ./.env; set +a`.")
 	}
 	if strings.TrimSpace(config.MCPAuthToken) == "" {
 		fatal(ctx, logger, "MCP_AUTH_TOKEN is required at startup for all transports, including stdio, but is not set")

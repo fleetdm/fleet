@@ -194,7 +194,7 @@ func NewFleetClient(ctx context.Context, baseURL, apiKey string, tlsSkipVerify b
 	if o.dialContext != nil {
 		// fleethttp's own dialer would apply Fleet's private-network blocking
 		// and any proxy settings to a connection that never leaves the process.
-		tr := fleethttp.NewTransport()
+		tr := fleethttp.NewTransport(fleethttp.WithTLSConfig(tlsCfg))
 		tr.DialContext = o.dialContext
 		tr.Proxy = nil
 		httpClient.Transport = tr
