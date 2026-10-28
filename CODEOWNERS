@@ -46,6 +46,7 @@ go.mod @fleetdm/go
 /ee/maintained-apps/ingesters/
 /cmd/maintained-apps/validate/
 /orbit/ @sharon-fdm @lucasmrod @lukeheath
+/pkg/mdm/profilevalidation/outputs/ @fleetdm/go
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
 /orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
