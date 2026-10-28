@@ -269,7 +269,7 @@ When sharing access to a Google Doc outside of the company, first prefix the nam
 
 ## The archives
 
-The files in Google Drive are our history, our trade secrets, and our archives of thousands of call transcripts and meeting notes. That makes them extremely useful with AI. For example, generate a NotebookLM podcast from Google Docs.
+The files in Google Drive are our history, our unfiltered treasure trove, and our archives of thousands of call transcripts and meeting notes. That makes them extremely useful with AI. For example, generate a NotebookLM podcast from Google Docs.
 
 Before adding a file, check for duplicates. Update files with "Manage versions" so links keep working.
 
