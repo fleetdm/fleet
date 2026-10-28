@@ -1,0 +1,1 @@
+- Fixed Android app configuration accepting the `COMPANION_APP` role and `extensionConfig`, which Google always rejects because Fleet's agent is the companion app. Fleet now refuses them when the configuration is saved.

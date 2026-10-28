@@ -251,7 +251,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "valid - Fleet variable in a non-managedConfiguration field",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "$FLEET_VAR_HOST_UUID"}}`),
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": "$FLEET_VAR_HOST_UUID", "policy": "GRANT"}]}`),
 			expectError: false,
 		},
 		// Fleet variable tests
@@ -306,7 +306,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		// Values Google rejects
 		{
 			name:        "valid - every enum field with a supported value",
-			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "COMPANION_APP"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
+			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
 			expectError: false,
 		},
 		{
@@ -453,7 +453,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - roles roleType unspecified",
-			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "roles.1.roleType" is required.`,
 		},
@@ -465,9 +465,9 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - duplicate roles roleType",
-			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "COMPANION_APP"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "COMPANION_APP" is listed more than once in "roles".`,
+			errorMsg:    `Couldn't update configuration. "SYSTEM_HEALTH_MONITORING" is listed more than once in "roles".`,
 		},
 		{
 			name:        "invalid - KIOSK role",
@@ -476,13 +476,19 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "KIOSK" isn't supported for "roles.0.roleType".`,
 		},
 		{
+			name:        "invalid - COMPANION_APP role",
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "COMPANION_APP"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "COMPANION_APP" isn't supported for "roles.1.roleType".`,
+		},
+		{
 			name:        "valid - USER_CONTROL_ALLOWED without roles",
 			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED"}`),
 			expectError: false,
 		},
 		{
 			name:        "invalid - USER_CONTROL_ALLOWED with roles",
-			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED", "roles": [{"roleType": "COMPANION_APP"}]}`),
+			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED", "roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`,
 		},
@@ -545,32 +551,15 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
 		},
 		{
-			name:        "valid - extensionConfig hex fingerprint",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["5eb2ce291c7d227dd684ec83f9ddc05776e2fe9a0c4e62927b4592383e66fb28"]}}`),
+			name:        "invalid - extensionConfig",
+			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "extensionConfig" isn't supported because Fleet's agent is the companion app.`,
+		},
+		{
+			name:        "valid - extensionConfig null",
+			config:      json.RawMessage(`{"extensionConfig": null}`),
 			expectError: false,
-		},
-		{
-			name:        "invalid - extensionConfig fingerprint not hex",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["zz"]}}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
-		},
-		{
-			name:        "invalid - extensionConfig base64 fingerprint",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+yg="]}}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
-		},
-		{
-			name:        "valid - extensionConfig with another role",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
-			expectError: false,
-		},
-		{
-			name:        "invalid - extensionConfig with COMPANION_APP role",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "COMPANION_APP"}]}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig" can't be set for an app with the "COMPANION_APP" role.`,
 		},
 		{
 			name:        "valid - installPriority bounds",

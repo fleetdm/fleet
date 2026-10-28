@@ -3,7 +3,6 @@ package fleet
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -439,6 +438,11 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	if cfg.CustomAppConfig != nil {
 		return &BadRequestError{Message: `Couldn't update configuration. "customAppConfig" is only supported for custom apps, which Fleet doesn't install.`}
 	}
+	// Fleet's agent holds the COMPANION_APP role on every host, and Google rejects extensionConfig
+	// in a policy that has a COMPANION_APP app.
+	if cfg.ExtensionConfig != nil {
+		return &BadRequestError{Message: `Couldn't update configuration. "extensionConfig" isn't supported because Fleet's agent is the companion app.`}
+	}
 	// Google reads managedConfiguration as a protobuf Struct, which only a JSON object (or null) fits.
 	if managedConfig := bytes.TrimSpace(cfg.ManagedConfiguration); len(managedConfig) > 0 && managedConfig[0] != '{' && !bytes.Equal(managedConfig, []byte("null")) {
 		return &BadRequestError{Message: `Couldn't update configuration. "managedConfiguration" must be a JSON object.`}
@@ -502,8 +506,9 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 		if role.RoleType == "" || role.RoleType == "ROLE_TYPE_UNSPECIFIED" {
 			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q is required.", fieldPath)}
 		}
-		if role.RoleType == "KIOSK" {
-			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "KIOSK" isn't supported for %q.`, fieldPath)}
+		// Google allows one COMPANION_APP app per policy, and Fleet's agent is it.
+		if role.RoleType == "KIOSK" || role.RoleType == "COMPANION_APP" {
+			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. %q isn't supported for %q.`, role.RoleType, fieldPath)}
 		}
 		if _, dup := seenRoles[role.RoleType]; dup {
 			return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. %q is listed more than once in "roles".`, role.RoleType)}
@@ -513,9 +518,6 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 	if cfg.UserControlSettings == "USER_CONTROL_ALLOWED" && len(seenRoles) > 0 {
 		return &BadRequestError{Message: `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`}
 	}
-	if _, companion := seenRoles["COMPANION_APP"]; companion && cfg.ExtensionConfig != nil {
-		return &BadRequestError{Message: `Couldn't update configuration. "extensionConfig" can't be set for an app with the "COMPANION_APP" role.`}
-	}
 
 	for i, cert := range cfg.SigningKeyCerts {
 		if cert == nil {
@@ -523,13 +525,6 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 		}
 		if !isBase64SHA256(cert.SigningKeyCertFingerprintSha256) {
 			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q must be a base64-encoded SHA-256 hash.", fmt.Sprintf("signingKeyCerts.%d.signingKeyCertFingerprintSha256", i))}
-		}
-	}
-	if cfg.ExtensionConfig != nil {
-		for i, fingerprint := range cfg.ExtensionConfig.SigningKeyFingerprintsSha256 {
-			if decoded, err := hex.DecodeString(fingerprint); err != nil || len(decoded) != 32 {
-				return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q must be a 64-character hex SHA-256 hash.", fmt.Sprintf("extensionConfig.signingKeyFingerprintsSha256.%d", i))}
-			}
 		}
 	}
 
