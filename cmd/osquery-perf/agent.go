@@ -610,6 +610,9 @@ type agent struct {
 
 	softwareInstaller softwareInstaller
 
+	// aiSessions is nil when the host reports no AI agent sessions.
+	aiSessions *aiSessionsSim
+
 	linuxUniqueSoftwareVersion bool
 	linuxUniqueSoftwareTitle   bool
 
@@ -783,6 +786,7 @@ func newAgent(
 	softwareAdobePluginsCount softwareExtraEntityCount,
 	softwareGoBinariesCount entityCount,
 	softwareAIToolsCount softwareAIToolsCount,
+	aiSessions aiSessionsConfig,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -929,6 +933,11 @@ func newAgent(
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 		configTLSETag:            configTLSETag,
+	}
+
+	// AI agent sessions come from fleetd tables, so only fleetd hosts report them.
+	if deviceAuthToken != nil && rand.Float64() < aiSessions.prob { //nolint:gosec // ignore weak randomizer
+		agent.aiSessions = newAISessionsSim(aiSessions, agentOS, rand.Int63(), time.Now()) //nolint:gosec // ignore weak randomizer
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -4329,6 +4338,19 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareAITools()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"ai_agent_sessions" || name == hostDetailQueryPrefix+"ai_agent_session_events":
+		if a.deviceAuthToken == nil {
+			// Plain osquery has no fleetd tables, so the query's discovery fails.
+			return true, nil, nil, nil, nil
+		}
+		if a.aiSessions != nil {
+			if name == hostDetailQueryPrefix+"ai_agent_sessions" {
+				results = a.aiSessions.sessionsRows(time.Now())
+			} else {
+				results = a.aiSessions.eventsRows(query, time.Now())
+			}
+		}
+		return true, results, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -4769,6 +4791,13 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		aiSessionsProb          = flag.Float64("ai_sessions_prob", 0.0, "Probability of a fleetd host reporting AI agent sessions (Fleet Premium only asks for them)")
+		aiSessionsInitialCount  = flag.Int("ai_sessions_initial_count", 100, "Number of AI agent sessions, from the last 30 days, a host reporting them has when it starts")
+		aiSessionsPerDay        = flag.Float64("ai_sessions_per_day", 10, "Number of new AI agent sessions a host reporting them gets each day")
+		aiSessionsLongProb      = flag.Float64("ai_sessions_long_prob", 0.02, "Probability of an AI agent session having thousands of tool calls, which take several detail refreshes to collect")
+		aiSessionsDeletedProb   = flag.Float64("ai_sessions_deleted_prob", 0.02, "Probability of an AI agent session's transcript being deleted from the host after Fleet collected the session")
+		aiSessionsUncountedProb = flag.Float64("ai_sessions_uncounted_prob", 0.02, "Probability of an AI agent session counting tool calls fleetd doesn't return")
+
 		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
@@ -4916,6 +4945,17 @@ func main() {
 	}
 	if *commonAIToolsCount < 0 || *uniqueAIToolsCount < 0 || *aiToolsMarkedAppsCount < 0 {
 		log.Fatalf("Arguments common_ai_tools_count, unique_ai_tools_count and ai_tools_marked_apps_count cannot be negative")
+	}
+	aiSessions := aiSessionsConfig{
+		prob:          *aiSessionsProb,
+		initialCount:  *aiSessionsInitialCount,
+		perDay:        *aiSessionsPerDay,
+		longProb:      *aiSessionsLongProb,
+		deletedProb:   *aiSessionsDeletedProb,
+		uncountedProb: *aiSessionsUncountedProb,
+	}
+	if err := aiSessions.validate(); err != nil {
+		log.Fatal(err)
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -5138,6 +5178,7 @@ func main() {
 				unique:     *uniqueAIToolsCount,
 				markedApps: *aiToolsMarkedAppsCount,
 			},
+			aiSessions,
 			entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,
