@@ -706,6 +706,23 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	return ""
 }
 
+// AutomaticEnrollmentRefusedError is returned when the Apple automatic enrollment profile request is refused. Setup
+// Assistant treats a 401 there as a request for a username and password, so it's a 403, and the reason is only logged.
+type AutomaticEnrollmentRefusedError struct {
+	ErrorWithUUID
+	Reason string
+}
+
+func (e *AutomaticEnrollmentRefusedError) Error() string {
+	return "This device can't enroll right now. Please contact your IT administrator."
+}
+
+func (e *AutomaticEnrollmentRefusedError) StatusCode() int { return http.StatusForbidden }
+
+func (e *AutomaticEnrollmentRefusedError) Internal() string { return e.Reason }
+
+func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
+
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
 const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
