@@ -8507,8 +8507,6 @@ Deletes the label specified by ID.
 - [Get or download configuration profile](#get-or-download-configuration-profile)
 - [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
-- [Autofill configuration profile name and description](#autofill-configuration-profile-name-and-description)
-- [Autofill configuration profile content](#autofill-configuration-profile-content)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Create Apple asset declaration](#create-apple-asset-declaration)
 - [List Apple asset declarations](#list-apple-asset-declarations)
@@ -8840,157 +8838,6 @@ Update a configuration profile to target hosts with specific labels.
 
 > The `warning` field is only returned when deleting a **Windows** configuration profile. The warning is informational and the profile is successfully deleted regardless. Some settings may remain on hosts at their last configured value but are no longer enforced by Fleet. See [Removal behavior](https://fleetdm.com/guides/custom-os-settings#removal-behavior) for more information.
 
----
-
-### Autofill configuration profile name and description
-
-Generates a name and description for a configuration profile using AI.
-
-The generated name is meant for declaration (DDM) and Windows profiles. A .mobileconfig profile carries its own name, which [Autofill configuration profile content](#autofill-configuration-profile-content) returns as `name`.
-
-Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
-
-`POST /api/v1/fleet/autofill/configuration_profile/name_description`
-
-#### Parameters
-
-| Name                          | Type   | In   | Description                                    |
-| ----------------------------- | ------ | ---- | ---------------------------------------------- |
-| natural_language_instructions | string | body | **Required.** What the profile should enforce. |
-| platform                      | string | body | **Required.** One of `apple` or `windows`.     |
-
-#### Example
-
-`POST /api/v1/fleet/autofill/configuration_profile/name_description`
-
-##### Request body
-
-```json
-{
-  "natural_language_instructions": "Turn off AirDrop",
-  "platform": "apple"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "name": "Disable AirDrop (macOS)",
-  "description": "Sets `allowAirDrop` to `false` under the `com.apple.applicationaccess` restrictions payload, so AirDrop can't be turned on from Control Center or Finder on managed Macs."
-}
-```
-
-##### Generation failed
-
-`Status: 422 Unprocessable entity`
-
-Returned when Fleet can't reach the AI service, or the AI service returns an error or times out. Retrying might succeed.
-
-```json
-{
-  "message": "Couldn't generate configuration profile name and description",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "The AI service timed out."
-    }
-  ]
-}
-```
-
----
-
-### Autofill configuration profile content
-
-Generates configuration profile content using AI.
-
-For Apple, Fleet generates a declaration (DDM) profile when one declaration can enforce the instructions. Otherwise, Fleet generates a .mobileconfig profile. For Windows, Fleet generates an XML profile.
-
-Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
-
-`POST /api/v1/fleet/autofill/configuration_profile/content`
-
-#### Parameters
-
-| Name                          | Type    | In   | Description                                    |
-| ----------------------------- | ------- | ---- | ---------------------------------------------- |
-| natural_language_instructions | string  | body | **Required.** What the profile should enforce. |
-| platform                      | string  | body | **Required.** One of `apple` or `windows`.     |
-| fleet_id                      | integer | body | _Available in Fleet Premium_. The fleet ID for the profile. Fleet checks the generated profile against this fleet's settings, like OS updates, before returning it. If not specified, Fleet checks against hosts that are "Unassigned". |
-
-#### Example
-
-`POST /api/v1/fleet/autofill/configuration_profile/content`
-
-##### Request body
-
-```json
-{
-  "natural_language_instructions": "Turn off AirDrop",
-  "platform": "apple"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "type": "mobileconfig",
-  "name": "AirDrop Disabled",
-  "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n...\n</plist>",
-  "delivery_notes": ""
-}
-```
-
-`type` is one of `mobileconfig`, `declaration`, or `windows`.
-
-`name` is the .mobileconfig profile's `PayloadDisplayName`. It's the name end users see in System Settings, and the name Fleet gives the profile by default. It's `null` for declaration and Windows profiles.
-
-`delivery_notes` describes anything you need to do or decide that isn't visible in the profile, like adding a companion asset declaration. It's an empty string when there's nothing to note.
-
-##### Profile can't be generated
-
-`Status: 422 Unprocessable entity`
-
-Returned when AI can't turn the instructions into a single profile for the platform, like a setting that doesn't exist on the platform or a profile that needs more than one file. Also returned when the generated profile is one Fleet doesn't allow you to add, like settings Fleet manages through disk encryption or OS updates. Retrying with the same instructions usually returns the same error.
-
-```json
-{
-  "message": "Couldn't generate configuration profile",
-  "errors": [
-    {
-      "name": "natural_language_instructions",
-      "reason": "AirDrop is a macOS/iOS feature controlled via the Apple com.apple.applicationaccess payload; there is no corresponding Windows CSP node, so this setting cannot be enforced on Windows devices."
-    }
-  ]
-}
-```
-
-##### Generation failed
-
-`Status: 422 Unprocessable entity`
-
-Returned when Fleet can't reach the AI service, the AI service returns an error or times out, or the generated profile fails Fleet's profile validation, like a setting Apple or Microsoft doesn't document or a value of the wrong type. Retrying might succeed.
-
-```json
-{
-  "message": "Couldn't generate configuration profile",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "The AI service timed out."
-    }
-  ]
-}
-```
-
----
-
 ### Resend configuration profile
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
@@ -8999,10 +8846,10 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 #### Parameters
 
-| Name           | Type    | In   | Description                                                                |
-| -------------- | ------- | ---- | -------------------------------------------------------------------------- |
-| id             | integer | path | **Required.** The host's ID.                                               |
-| profile_uuid   | string  | path | **Required.** The UUID of the configuration profile to resend to the host. |
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example
 
@@ -9011,8 +8858,6 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 ##### Default response
 
 `Status: 202`
-
----
 
 ### Batch-update configuration profiles
 
@@ -11930,7 +11775,6 @@ None.
 - [Update policy](#update-policy)
 - [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
-- [Autofill policy](#autofill-policy)
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -12805,8 +12649,6 @@ Setting `patch_when_closed` or `notify_before_patching` to `false` after it was 
 }
 ```
 
----
-
 ### Reset policy automations
 
 Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fleet/automations#webhooks-and-tickets) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
@@ -12841,31 +12683,6 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ```json
 {}
-```
-
----
-
-### Autofill policy
-
-Generates a human-readable description and resolution for a policy query using AI. 
-
-`POST /api/v1/fleet/autofill/policy`
-
-#### Parameters
-
-| Name | Type   | In   | Description                           |
-| ---- | ------ | ---- | ------------------------------------- |
-| sql  | string | body | **Required.** The policy's SQL query. |
-
-#### Example response
-
-`Status: 200`
-
-```json
-{
-  "description": "Checks that FileVault is enabled on macOS devices.",
-  "resolution": "Turn on FileVault in System Settings > Privacy & Security."
-}
 ```
 
 ---
