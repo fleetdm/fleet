@@ -1,0 +1,109 @@
+name: ai_agent_sessions
+notes: |-
+  This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).
+
+  - One row per session of an AI coding agent: Claude Code (`~/.claude/projects/<project>/<session-id>.jsonl`), GitHub Copilot CLI (`~/.copilot/session-state/<session-id>/events.jsonl`), Cursor (`~/.cursor/projects/<project>/agent-transcripts/<session-id>/<session-id>.jsonl`), Codex CLI (`~/.codex/sessions/**/rollout-*.jsonl`) and Gemini CLI (`~/.gemini/tmp/<project-hash>/logs.json`). Sub-agent turns are counted in the session that spawned them.
+  - Only metadata is reported: no column is derived from prompt or response text, so this table is safe to schedule. Conversation content is in `ai_agent_session_messages`.
+  - Sessions whose transcript was written in the last 30 days are reported.
+  - Every local home directory is scanned, since fleetd runs as root. A deleted transcript is a deleted row: this is a picture of local state, not an audit log.
+  - Columns an agent does not record are empty or 0 rather than guessed at. Cursor transcripts carry no timestamps, model or token usage, so `started_at` is 0 and `ended_at` is the file's modification time; Cursor project paths are reconstructed from a dash-encoded directory name. Gemini CLI identifies projects by a hash of their path and records prompts only, so `project_path`, `assistant_messages`, `tool_calls`, `model` and the token columns stay empty or 0. Copilot CLI only writes token totals at shutdown, so a session killed mid-flight reports 0.
+  - The Codex CLI and Gemini CLI parsers follow those tools' documented formats and were not verified against real session data.
+description: AI coding agent sessions found in users' home directories, and how much each did.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  List the latest AI agent sessions on the host.
+
+  ```
+  SELECT agent, username, project_path, model, started_at, duration_seconds, tool_calls FROM ai_agent_sessions;
+  ```
+
+  Total token usage per agent.
+
+  ```
+  SELECT agent, SUM(input_tokens + cache_read_tokens) AS input, SUM(output_tokens) AS output FROM ai_agent_sessions GROUP BY agent;
+  ```
+columns:
+  - name: agent
+    description: "The agent: `claude_code`, `copilot_cli`, `cursor`, `codex_cli`, or `gemini_cli`."
+    type: text
+    required: false
+  - name: session_id
+    description: The agent's own identifier for the session.
+    type: text
+    required: false
+  - name: username
+    description: The local account the session belongs to; joins to `users.username`.
+    type: text
+    required: false
+  - name: project_path
+    description: The directory the session was started in.
+    type: text
+    required: false
+  - name: git_branch
+    description: The git branch the session ended on.
+    type: text
+    required: false
+  - name: git_repository
+    description: The repository the session was working in.
+    type: text
+    required: false
+  - name: agent_version
+    description: The version of the agent that ran the session.
+    type: text
+    required: false
+  - name: model
+    description: The model that served the session.
+    type: text
+    required: false
+  - name: started_at
+    description: Unix timestamp of the first recorded activity, or 0 if unknown.
+    type: bigint
+    required: false
+  - name: ended_at
+    description: Unix timestamp of the last recorded activity.
+    type: bigint
+    required: false
+  - name: duration_seconds
+    description: Wall-clock span of the session, or 0 if either end is unknown.
+    type: bigint
+    required: false
+  - name: user_messages
+    description: Prompts the person typed, excluding tool results fed back to the model.
+    type: bigint
+    required: false
+  - name: assistant_messages
+    description: Turns the model produced.
+    type: bigint
+    required: false
+  - name: tool_calls
+    description: Tools the model invoked.
+    type: bigint
+    required: false
+  - name: input_tokens
+    description: Uncached input tokens.
+    type: bigint
+    required: false
+  - name: output_tokens
+    description: Output tokens.
+    type: bigint
+    required: false
+  - name: cache_read_tokens
+    description: Tokens served from the prompt cache.
+    type: bigint
+    required: false
+  - name: cache_write_tokens
+    description: Tokens written to the prompt cache.
+    type: bigint
+    required: false
+  - name: transcript_path
+    description: The file the metadata was read from.
+    type: text
+    required: false
+  - name: transcript_size_bytes
+    description: Size of that file in bytes.
+    type: bigint
+    required: false
