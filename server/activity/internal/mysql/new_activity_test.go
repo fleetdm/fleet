@@ -290,5 +290,10 @@ func testNewActivitiesBulk(t *testing.T, env *testEnv) {
 			require.NotNil(t, acts[0].ActorEmail)
 			assert.Equal(t, "bulk@example.com", *acts[0].ActorEmail)
 		}
+
+		var linked int
+		require.NoError(t, env.DB.GetContext(t.Context(), &linked, `SELECT COUNT(*) FROM activity_host_past h
+			JOIN activity_past a ON a.id = h.activity_id WHERE a.activity_type = ?`, "bulk_ran_command"))
+		assert.Equal(t, hostCount, linked, "every host activity must have exactly one host link")
 	})
 }

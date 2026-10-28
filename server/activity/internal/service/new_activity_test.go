@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -839,8 +840,9 @@ func TestNewActivities(t *testing.T) {
 
 	t.Run("each fleet destination only receives its own hosts' activities", func(t *testing.T) {
 		type received struct {
-			path    string
-			hostIDs any
+			path         string
+			activityType string
+			hostIDs      any
 		}
 		got := make(chan received, 4)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -851,7 +853,7 @@ func TestNewActivities(t *testing.T) {
 			}
 			var details map[string]any
 			_ = json.Unmarshal(*body.Details, &details)
-			got <- received{path: r.URL.Path, hostIDs: details["host_ids"]}
+			got <- received{path: r.URL.Path, activityType: fmt.Sprint(details["name"]), hostIDs: details["host_ids"]}
 		}))
 		t.Cleanup(srv.Close)
 
@@ -874,12 +876,14 @@ func TestNewActivities(t *testing.T) {
 		require.NoError(t, svc.NewActivities(t.Context(), user, activities))
 
 		want := map[string]any{"/fleet-a": []any{float64(1)}, "/fleet-b": []any{float64(2)}}
+		wantType := map[string]string{"/fleet-a": "a", "/fleet-b": "b"}
 		for range len(want) {
 			select {
 			case <-time.After(3 * time.Second):
 				t.Fatal("timeout waiting for host activities webhooks")
 			case r := <-got:
 				assert.Equal(t, want[r.path], r.hostIDs, r.path)
+				assert.Equal(t, wantType[r.path], r.activityType, r.path)
 				delete(want, r.path)
 			}
 		}
