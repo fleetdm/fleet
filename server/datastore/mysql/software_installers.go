@@ -796,14 +796,12 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 		return err
 	}
 
-	if err := ds.RegeneratePatchPolicyQuery(ctx, payload.TeamID, payload.TitleID); err != nil {
-		return err
-	}
-
 	// Activation must run outside the transaction (it reads/writes via the
 	// datastore's own connection), mirroring ProcessInstallerUpdateSideEffects.
-	_, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
-	return err
+	// It runs first so a failure regenerating the patch policy can't stall the
+	// installs redirected above.
+	_, activateErr := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+	return errors.Join(activateErr, ds.RegeneratePatchPolicyQuery(ctx, payload.TeamID, payload.TitleID))
 }
 
 // redirectPendingInstallsToActiveInstaller moves installs queued against a superseded

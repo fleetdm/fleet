@@ -305,7 +305,22 @@ func testArchSiblingsPatchPolicy(t *testing.T, ds *Datastore) {
 	x64Query := policy.Query
 	require.NotContains(t, x64Query, "cpu_type")
 
-	// Adding the ARM64 build at a lagging version splits the query by CPU.
+	// Regenerating an unchanged query keeps the hosts' results.
+	host := test.NewHost(t, ds, "patch-host", "", "patch-host-key", "patch-host-uuid", time.Now())
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	membership := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policy.ID)
+		})
+		return n
+	}
+	require.Equal(t, 1, membership())
+	require.NoError(t, ds.RegeneratePatchPolicyQuery(ctx, &f.team.ID, titleID))
+	require.Equal(t, 1, membership())
+
+	// Adding the ARM64 build at a lagging version splits the query by CPU and resets the results.
 	arm64ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, f.installerArgs(f.arm64, "chrome-arm64-0", "0.9"))
 	require.NoError(t, err)
 	require.NoError(t, ds.RegeneratePatchPolicyQuery(ctx, &f.team.ID, titleID))
@@ -314,6 +329,7 @@ func testArchSiblingsPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Contains(t, policy.Query, "cpu_type LIKE 'ARM%'")
 	require.Contains(t, policy.Query, "'1.0'")
 	require.Contains(t, policy.Query, "'0.9'")
+	require.Zero(t, membership())
 
 	// One build can be deleted while the other backs the patch policy, which then covers it alone.
 	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, arm64ID))

@@ -241,15 +241,16 @@ func ScopeToWindowsARM(query string) string {
 }
 
 // CombineWindowsArchQueries joins the policy queries of the x64 and ARM64 builds of a Windows app,
-// which share a software title and so one patch policy: ARM hosts are checked against the ARM64
-// build's query and other hosts against the x64 build's.
+// which share a software title and so one patch policy. Other hosts are checked against the x64
+// build's query. ARM hosts pass with either build's: one outside the ARM64 build's labels gets the
+// x64 build, so holding it to the ARM64 build's version would leave it failing for good.
 func CombineWindowsArchQueries(x64Query, arm64Query string) string {
 	x64Query, _ = strings.CutSuffix(strings.TrimSpace(x64Query), ";")
 	arm64Query, _ = strings.CutSuffix(ScopeToWindowsARM(arm64Query), ";")
 	if x64Query == "" || arm64Query == "" {
 		return ""
 	}
-	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) AND (EXISTS (%s) OR EXISTS (%s));", arm64Query, x64Query, windowsARMHostQuery)
+	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) OR (EXISTS (%s) AND EXISTS (%s));", x64Query, windowsARMHostQuery, arm64Query)
 }
 
 func escapeSQLLiteral(s string) string {

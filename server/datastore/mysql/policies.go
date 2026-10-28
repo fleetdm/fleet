@@ -3503,6 +3503,15 @@ func (ds *Datastore) RegeneratePatchPolicyQuery(ctx context.Context, teamID *uin
 		return ctxerr.Wrap(ctx, err, "generating patch policy query")
 	}
 
+	// Results of an unchanged query still hold, and resetting would also restart automation retries.
+	var currentQuery string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &currentQuery, `SELECT query FROM policies WHERE id = ?`, patchPolicy.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting patch policy query")
+	}
+	if currentQuery == generated.Query {
+		return nil
+	}
+
 	if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating patch policy query")
 	}

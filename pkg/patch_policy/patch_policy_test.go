@@ -202,7 +202,10 @@ func TestCombineWindowsArchQueries(t *testing.T) {
 	// Scoping is idempotent, so a manifest's already-scoped ARM64 query isn't wrapped twice.
 	require.Equal(t, scopedARM64, patch_policy.ScopeToWindowsARM(scopedARM64))
 
-	want := "SELECT 1 WHERE EXISTS (SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0)) OR NOT EXISTS (" + armHosts + ")) AND (EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0)) OR EXISTS (" + armHosts + "));"
+	// Other hosts must meet the x64 build's version; ARM hosts either build's, since one outside the
+	// ARM64 build's labels gets the x64 build.
+	want := "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0))" +
+		" OR (EXISTS (" + armHosts + ") AND EXISTS (SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0)) OR NOT EXISTS (" + armHosts + ")));"
 	require.Equal(t, want, patch_policy.CombineWindowsArchQueries(x64, arm64))
 	require.Equal(t, want, patch_policy.CombineWindowsArchQueries(x64, scopedARM64))
 
