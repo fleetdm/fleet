@@ -96,20 +96,21 @@ func TestGeminiCLIMessages(t *testing.T) {
 		"assistant/text Sure.",
 		`assistant/tool_use {"command":"ls -la"}`,
 		"system/tool_result Command: ls -la\nExit Code: 2",
+		// The sub-agent's call, placed by its timestamp.
+		`assistant/tool_use {"pattern":"*.go"}`,
 		`assistant/tool_use {"file_path":"a.go"}`,
 		"system/tool_result User denied execution.",
 		`assistant/tool_use {"title":"x"}`,
 		"system/tool_result ok",
-		`assistant/tool_use {"pattern":"*.go"}`,
 	}, render(rows, false, "content"))
 	require.Equal(t, "gemini-3-pro", rows[2]["model"])
 	require.Equal(t, "tc1", rows[3]["tool_use_id"])
 
 	require.Equal(t, []string{
 		"run_shell_command | execute | ls -la | error",
+		"glob | search | *.go | allowed",
 		"read_file | read | a.go | denied",
 		"create_issue | mcp | github: create_issue | allowed",
-		"glob | search | *.go | allowed",
 	}, summary(toolRows(t, geminiID)))
 
 	logRows := messageRows(t, eq("session_id", "bbbb"))

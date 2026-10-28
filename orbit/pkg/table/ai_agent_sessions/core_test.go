@@ -181,6 +181,26 @@ func TestFiltersReturnASubsetOfAllRows(t *testing.T) {
 				check(func(r map[string]string) bool { return idx(r) >= k }, cons{"message_index", table.OperatorGreaterThanOrEquals, v})
 				check(func(r map[string]string) bool { return idx(r) <= k }, cons{"message_index", table.OperatorLessThanOrEquals, v})
 			}
+			// A tool_call_index bound selects tool calls only, numbered the
+			// same whether or not the calls before them were decoded.
+			calls := 0
+			for _, r := range all {
+				if r["block_type"] == blockToolUse {
+					calls++
+				}
+			}
+			call := func(r map[string]string) (int, bool) {
+				if r["block_type"] != blockToolUse {
+					return 0, false
+				}
+				return intCol(t, r, "tool_call_index"), true
+			}
+			for k := 0; k <= calls; k++ {
+				v := strconv.Itoa(k)
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i >= k }, cons{"tool_call_index", table.OperatorGreaterThanOrEquals, v})
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i <= k }, cons{"tool_call_index", table.OperatorLessThanOrEquals, v})
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i == k }, eq("tool_call_index", v))
+			}
 		})
 	}
 }
@@ -387,8 +407,9 @@ func TestPagingResumesInsideAMessage(t *testing.T) {
 	last := rows[len(rows)-1]
 	require.Equal(t, "0", last["message_index"], "the cut fell inside the first message")
 
-	// The documented continuation is an OR, which osquery runs as one call
-	// per side: the rest of the cut message, then the messages after it.
+	// Two queries read on: the rest of the cut message, then the messages
+	// after it. (osquery doesn't split the OR of the two into separate
+	// calls; it only passes the message_index lower bound down.)
 	seen := len(rows)
 	for page := 0; page < 10 && seen < 200; page++ {
 		*clock = clock.Add(time.Second)
@@ -542,6 +563,29 @@ func TestParseCache(t *testing.T) {
 	require.Len(t, sessionRows(t, cons{"ended_at", table.OperatorGreaterThan, strconv.FormatInt(time.Now().AddDate(0, 0, -1).Unix(), 10)}), 1)
 	require.Len(t, sessionRows(t), 2)
 	require.Equal(t, before, parsed(), "the narrower query evicted nothing")
+}
+
+func TestTopLevelString(t *testing.T) {
+	for _, tc := range []struct {
+		line, want string
+		ok         bool
+	}{
+		{`{"timestamp":"2026-08-01T10:00:00Z"}`, "2026-08-01T10:00:00Z", true},
+		{` { "a" : [1, {"timestamp":"nested"}, "x"] , "b":{"c":"timestamp"}, "timestamp" : "t" } `, "t", true},
+		{`{"a":"say \"timestamp\":\"x\"","timestamp":"t\u0041\\"}`, "tA\\", true},
+		{`{"a":-1.5e3,"b":true,"c":null,"timestamp":"t"}`, "t", true},
+		{`{"timestamp":12345}`, "", false},
+		{`{"a":"b"}`, "", false},
+		{`{"a":"b",}`, "", false},
+		{`{"a":{"b":1}`, "", false},
+		{`{"a":"unterminated`, "", false},
+		{`[1,2]`, "", false},
+		{``, "", false},
+	} {
+		got, ok := topLevelString([]byte(tc.line), "timestamp")
+		require.Equal(t, tc.ok, ok, tc.line)
+		require.Equal(t, tc.want, got, tc.line)
+	}
 }
 
 func TestScanJSONL(t *testing.T) {
