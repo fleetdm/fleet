@@ -130,15 +130,6 @@ func parseTime(s string) time.Time {
 	return t.UTC()
 }
 
-// parseUnixMillis converts a millisecond epoch, as written by some agents, to
-// a time.
-func parseUnixMillis(ms int64) time.Time {
-	if ms <= 0 {
-		return time.Time{}
-	}
-	return time.UnixMilli(ms).UTC()
-}
-
 // contentBlocks captures only the block *types* of a message body. The body
 // may be a plain string or an array of typed blocks; either way the prompt and
 // response text is skipped rather than read into memory.
