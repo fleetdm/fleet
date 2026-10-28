@@ -1,0 +1,107 @@
+# CIS Microsoft Windows 11 Enterprise Benchmark section 2.3.17 (User Account Control).
+# Enforced by ../configuration-profiles/CIS Level 2 User Account Control.xml.
+# Registry values are the ones checked in ee/cis/win-11/cis-policy-queries.yml.
+- name: CIS 2.3.17 - UAC Admin Approval Mode is enabled for the built-in Administrator account
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'FilterAdministratorToken'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies the built-in Administrator account runs in Admin Approval Mode, so elevated operations prompt for approval instead of running with full privileges.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_UseAdminApprovalMode = 1). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC elevation prompt for administrators uses the secure desktop
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'ConsentPromptBehaviorAdmin'
+      AND data IN ('1', '2');
+  critical: false
+  description: |-
+    CIS Level 1. Verifies administrators are prompted for consent (or credentials) on the secure desktop before elevating.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_BehaviorOfTheElevationPromptForAdministrators = 2, prompt for consent on the secure desktop). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC automatically denies elevation requests from standard users
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'ConsentPromptBehaviorUser'
+      AND data = '0';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies standard users can't elevate from their own session. To run something as an administrator, sign in with an administrator account.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_BehaviorOfTheElevationPromptForStandardUsers = 0). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC detects application installations and prompts for elevation
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'EnableInstallerDetection'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies Windows detects installer packages that need elevation and prompts for it.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_DetectApplicationInstallationsAndPromptForElevation = 1). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC only elevates UIAccess applications installed in secure locations
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'EnableSecureUIAPaths'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies UIAccess applications only get UIAccess integrity when installed under Program Files or Windows\System32.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_OnlyElevateUIAccessApplicationsThatAreInstalledInSecureLocations = 1). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC runs all administrators in Admin Approval Mode
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'EnableLUA'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies UAC is on. Turning this off disables Admin Approval Mode and every other UAC setting.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_RunAllAdministratorsInAdminApprovalMode = 1). A change to this setting takes effect after a restart. If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC switches to the secure desktop when prompting for elevation
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'PromptOnSecureDesktop'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies elevation prompts appear on the secure desktop, where other processes can't interact with or spoof them.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_SwitchToTheSecureDesktopWhenPromptingForElevation = 1). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
+- name: CIS 2.3.17 - UAC virtualizes file and registry write failures to per-user locations
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'EnableVirtualization'
+      AND data = '1';
+  critical: false
+  description: |-
+    CIS Level 1. Verifies writes by legacy applications to protected locations are redirected to per-user locations instead of failing.
+  resolution: |-
+    The CIS Level 2 User Account Control profile enforces this automatically (UserAccountControl_VirtualizeFileAndRegistryWriteFailuresToPerUserLocations = 1). If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
