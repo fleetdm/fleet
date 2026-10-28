@@ -216,6 +216,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!isPremiumTier,
       onSuccess: ({ certificate_authorities }) => {
+        // react-query runs onSuccess on disabled queries too when another observer shares the key
+        if (!isGlobalAdmin || !isPremiumTier) {
+          return;
+        }
         setEJBCAExpiry(getEarliestEJBCACertExpiry(certificate_authorities));
       },
     }

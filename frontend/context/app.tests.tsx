@@ -134,6 +134,11 @@ describe("AppProvider - setEJBCAExpiry", () => {
 
   it.each([
     ["no certificate authority", "", "false false"],
+    [
+      "a certificate that expires in more than 30 days",
+      daysFromNow(60),
+      "false false",
+    ],
     ["a certificate that expired", daysFromNow(-1), "true false"],
     [
       "a certificate that expires within 30 days",
