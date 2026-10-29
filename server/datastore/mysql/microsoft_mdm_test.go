@@ -2666,9 +2666,9 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
 	require.NoError(t, err)
 	require.Len(t, results, 3)
-	resultsByHost := make(map[string]*fleet.MDMCommandResult, len(results))
+	resultsByHost := make(map[string]fleet.MDMCommandResult, len(results))
 	for _, r := range results {
-		resultsByHost[r.HostUUID] = r
+		resultsByHost[r.HostUUID] = *r
 	}
 	require.Len(t, resultsByHost, 3)
 	require.Equal(t, cmdUUID, resultsByHost[dev.HostUUID].CommandUUID)
@@ -5261,9 +5261,9 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	require.NoError(t, err)
 	// Only the first device replied, the other two are still pending.
 	require.Len(t, results, 3)
-	resultsByHost := make(map[string]*fleet.MDMCommandResult, len(results))
+	resultsByHost := make(map[string]fleet.MDMCommandResult, len(results))
 	for _, res := range results {
-		resultsByHost[res.HostUUID] = res
+		resultsByHost[res.HostUUID] = *res
 	}
 	require.Len(t, resultsByHost, 3)
 	assert.Equal(t, cmd.CommandUUID, resultsByHost[enrolledDevice1.HostUUID].CommandUUID)
