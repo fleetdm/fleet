@@ -161,16 +161,27 @@ describe("SoftwareAppStoreVpp", () => {
       },
     });
 
-    render(<SoftwareAppStoreVpp currentTeamId={1} router={router} />);
+    render(
+      <SoftwareAppStoreVpp
+        currentTeamId={1}
+        currentTeamName="Workstations"
+        router={router}
+      />
+    );
 
     await waitFor(() => {
       expect(
         screen.getByText(
-          /This fleet isn't added to Volume Purchasing Program \(VPP\)/i
+          /Workstations fleet isn't added to Volume Purchasing Program \(VPP\)/i
         )
       ).toBeInTheDocument();
     });
 
+    expect(
+      screen.getByText(
+        "To add App Store apps, first add Workstations fleet to VPP."
+      )
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit VPP" })
     ).toBeInTheDocument();
@@ -190,6 +201,83 @@ describe("SoftwareAppStoreVpp", () => {
       },
     });
 
+    render(
+      <SoftwareAppStoreVpp
+        currentTeamId={1}
+        currentTeamName="Workstations"
+        router={router}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Workstations fleet isn't added to Volume Purchasing Program \(VPP\)/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(
+        "To add App Store apps, ask your admin to add Workstations fleet to VPP."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit VPP" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows unassigned-hosts copy when No team has no VPP token", async () => {
+    mockServer.use(teamMismatchVppHandler, labelsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
+          isGlobalAdmin: true,
+        },
+      },
+    });
+
+    render(
+      <SoftwareAppStoreVpp
+        currentTeamId={0}
+        currentTeamName="No team"
+        router={router}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Unassigned hosts aren't in Volume Purchasing Program \(VPP\)/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(
+        "To add App Store apps, first add unassigned hosts to VPP."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to generic copy when the fleet name hasn't resolved yet", async () => {
+    mockServer.use(teamMismatchVppHandler, labelsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
+          isGlobalAdmin: true,
+        },
+      },
+    });
+
     render(<SoftwareAppStoreVpp currentTeamId={1} router={router} />);
 
     await waitFor(() => {
@@ -201,12 +289,7 @@ describe("SoftwareAppStoreVpp", () => {
     });
 
     expect(
-      screen.getByText(
-        "To add App Store apps, ask your admin to add this fleet to VPP."
-      )
+      screen.getByText("To add App Store apps, first add this fleet to VPP.")
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit VPP" })
-    ).not.toBeInTheDocument();
   });
 });
