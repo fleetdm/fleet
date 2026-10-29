@@ -338,7 +338,7 @@ func TestPSSO_ResolveLoginPasswordTiedToRequest(t *testing.T) {
 		return &Service{ds: ds, pssoNonceStore: &memNonceStore{}, logger: slog.New(slog.DiscardHandler)}
 	}
 	// macOS sends the assertion's apv as "Apple" || Fleet's key || session nonce, or with an empty label and the
-	// request_nonce.
+	// request_nonce. Fleet's extension sends "Apple" with the request_nonce.
 	assertion := func(t *testing.T, label string, recipient *ecdsa.PublicKey, nonce string) string {
 		t.Helper()
 		raw, err := pssocrypto.RawECPoint(recipient)
@@ -361,6 +361,9 @@ func TestPSSO_ResolveLoginPasswordTiedToRequest(t *testing.T) {
 			return &pssocrypto.TokenClaims{Assertion: a, Nonce: "session-nonce", RequestNonce: "request-nonce"}
 		}},
 		{"request_nonce", "", func(a string) *pssocrypto.TokenClaims {
+			return &pssocrypto.TokenClaims{Assertion: a, Nonce: "other-session-nonce", RequestNonce: "session-nonce"}
+		}},
+		{"request_nonce from Fleet's extension", "Apple", func(a string) *pssocrypto.TokenClaims {
 			return &pssocrypto.TokenClaims{Assertion: a, Nonce: "other-session-nonce", RequestNonce: "session-nonce"}
 		}},
 	} {
