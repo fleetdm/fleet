@@ -58,7 +58,7 @@ Example:
   - @username: _Eventually_ No plans.
 ```
 
-Every new request goes through unpacking. Requests the PD can't unpack during [triage](https://fleetdm.com/handbook/product-design#triage-new-requests) go to the weekly "Unpacking the why" call. During the call, the relevant product group's Product Designer (PD) and a former IT admin review requests that aren't unpacked yet to synthesize why users are making each request (i.e. what problem they're trying to solve). Once a request is unpacked, the PD finishes [triaging](https://fleetdm.com/handbook/product-design#triage-new-requests) it.
+Every new request goes through unpacking. Requests the PD can't unpack during [triage](https://fleetdm.com/handbook/product-design#triage-new-requests) go to the weekly "Unpacking the why" call. During the call, the relevant product group's Product Designer (PD) and a former IT admin review requests that aren't unpacked yet to synthesize why users are making each request (i.e. what problem they're trying to solve). Once a request is unpacked, the PD finishes [triaging](https://fleetdm.com/handbook/product-design#triage-new-requests) it live on the call.
 
 If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
