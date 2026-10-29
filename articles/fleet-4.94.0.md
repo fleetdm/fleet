@@ -1,4 +1,4 @@
-# Fleet 4.94.0 | Configuration profile editor, self-service profiles, multiple App Store app versions, and more...
+# Fleet 4.94.0 | Configuration profile editor, self-service profiles, custom Windows EULA, and more...
 
 <!--
 <div purpose="embedded-content">
@@ -12,7 +12,7 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 
 - [Configuration profile editor with names and descriptions](#configuration-profile-editor-with-names-and-descriptions)
 - [Self-service configuration profiles for macOS](#self-service-configuration-profiles-for-macos)
-- [Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)
+- ~~[Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)~~ ([coming soon](https://github.com/fleetdm/fleet/issues/53642))
 - [Custom end user agreement for Windows enrollment](#custom-end-user-agreement-for-windows-enrollment)
 - [Filter software by type](#filter-software-by-type)
 - [Android: full app configuration and BYOD work profile wipe](#android-full-app-configuration-and-byod-work-profile-wipe)
@@ -37,11 +37,13 @@ Learn more in the [configuration profiles guide](https://fleetdm.com/guides/cust
 
 GitHub issue: [#46834](https://github.com/fleetdm/fleet/issues/46834)
 
-### Multiple versions of the same App Store app
+### ~~Multiple versions of the same App Store app~~
 
-IT admins can now add more than one version of the same App Store app to a fleet, each with its own labels, configuration, and categories. Roll an update out to a pilot group before the rest of the fleet, or ship different app configurations to different groups of hosts.
+This feature is [coming soon](https://github.com/fleetdm/fleet/issues/53642).
 
-Learn how to add a version in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).
+~~IT admins can now add more than one version of the same App Store app to a fleet, each with its own labels, configuration, and categories. Roll an update out to a pilot group before the rest of the fleet, or ship different app configurations to different groups of hosts.~~
+
+~~Learn how to add a version in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).~~
 
 GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
 
@@ -93,7 +95,7 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 - Added `name` and `description` fields to configuration profiles, set in the UI, the API, or GitOps YAML.
 - Changed profile renames so that uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. The exception is renaming a Windows, Android, or declaration (DDM) profile through GitOps, which re-creates the profile.
 - Deprecated `display_name` in favor of `name` on the batch configuration profiles endpoint.
-- Added support for multiple versions of the same App Store app per fleet, with separate labels, configuration, categories, etc.
+- ~~Added support for multiple versions of the same App Store app per fleet, with separate labels, configuration, categories, etc.~~ ([coming soon](https://github.com/fleetdm/fleet/issues/53642))
 - Added self-service configuration profiles for macOS hosts, which end users install from the My device page.
 - Added a `hidden` option for configuration profiles. Hidden profiles appear on My device > Controls only after the end user turns on the "Show hidden profiles" toggle, which is shown only when the host has hidden profiles.
 - Added an "Actions" column header on My device > Controls.
@@ -289,5 +291,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Luke Heath">
 <meta name="authorGitHubUsername" value="lukeheath">
 <meta name="publishedOn" value="2026-10-28">
-<meta name="articleTitle" value="Fleet 4.94.0 | Configuration profile editor, self-service profiles, multiple App Store app versions, and more...">
+<meta name="articleTitle" value="Fleet 4.94.0 | Configuration profile editor, self-service profiles, custom Windows EULA, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.94.0-1600x900@2x.png">
