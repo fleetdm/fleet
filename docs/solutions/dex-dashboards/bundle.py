@@ -17,7 +17,7 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILES = [
-    "run.py", "collect.py", "build.py",
+    "run.py", "collect.py", "vendor.py", "build.py",
     "templates/base.css", "templates/base.js",
     "templates/lifecycle.html", "templates/software.html", "templates/patch.html", "templates/ai.html",
     "templates/connectivity.html", "templates/analytics.html", "templates/sustainability.html",

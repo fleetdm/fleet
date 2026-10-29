@@ -264,7 +264,7 @@ function render() {
   ];
   mount("act", groups.length ? sortTable({ columns, groups, sort: ["age", "desc"], id: "shortlist" }) : empty("Nothing selected", "Pick a group above to list its computers."));
 
-  document.getElementById("gen-note").textContent = `Apple silicon is old when it's 3+ generations behind M${DATA.current_gen}, so M${DATA.current_gen - 3} and older. Intel and AMD CPUs are old ${DATA.old_cpu_years}+ years after their release year. Intel Macs are always old.`;
+  document.getElementById("gen-note").textContent = `Apple silicon is old when it's 3+ generations behind M${DATA.current_gen}${DATA.current_gen_source ? `, the newest chip in Apple's Mac models (from SOFA)` : ""}, so M${DATA.current_gen - 3} and older. Intel and AMD CPUs are old ${DATA.old_cpu_years}+ years after their release year. Intel Macs are always old.`;
   document.getElementById("vital-name").textContent = DATA.warranty_vital;
   document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API: List hosts, Get host, and the Device health report. Rebuilt daily.`;
 }

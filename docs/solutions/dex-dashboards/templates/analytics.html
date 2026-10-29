@@ -93,7 +93,7 @@
         <p><span class="term">Security posture:</span> disk encryption comes from Fleet (FileVault, BitLocker, or LUKS). The rest comes from the <code>DEX - System experience - Security posture</code> report on macOS, and the Windows Security Center, Secure Boot, and TPM reports on Windows. "No data" means the report hasn't run on that computer.</p>
       </div>
       <div>
-        <p><span class="term">Fleet agent:</span> the newest version is the highest one at least two computers run, so a lone test build doesn't set the bar.</p>
+        <p><span class="term">Fleet agent:</span> the newest version is the one on the stable channel of Fleet's update server (updates.fleetdm.com), checked on each run. When the update server can't be reached, it's the highest version at least two computers run, so a lone test build doesn't set the bar.</p>
         <p><span class="term">Restart overdue:</span> up for <span id="uptime-days"></span> days or more without a restart, which usually means updates are waiting.</p>
       </div>
     </div>
@@ -229,7 +229,8 @@ function render() {
     }), ph.length), legend([["On", "var(--good)"], ["Off", "var(--bad)"], ["No data", "var(--neutral)"]]));
   }) : [empty("No computers", "")]);
 
-  document.getElementById("agent-hint").textContent = DATA.newest.orbit ? `Newest fleetd ${DATA.newest.orbit}, osquery ${DATA.newest.osquery}` : "";
+  document.getElementById("agent-hint").textContent = DATA.newest.orbit
+    ? `Newest fleetd ${DATA.newest.orbit}, osquery ${DATA.newest.osquery}, ${DATA.newest_source === "stable" ? "from Fleet's stable channel" : "the newest your fleet runs (Fleet's update server wasn't reachable)"}` : "";
   const versionBars = (i, newest) => {
     const counts = {};
     for (const x of hosts) if (x.v[i]) counts[x.v[i]] = (counts[x.v[i]] || 0) + 1;

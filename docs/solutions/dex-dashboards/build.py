@@ -34,7 +34,8 @@ OLD_CPU_YEARS = 4
 NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
 
 # Apple silicon release years by generation and tier. Intel Macs are
-# treated as older than any Apple silicon.
+# treated as older than any Apple silicon. SOFA's Mac models raise the current
+# generation when Apple ships a newer one than this.
 CURRENT_APPLE_GEN = 5
 CHIP_YEARS = {
     1: {"base": 2020, "pro": 2021, "max": 2021, "ultra": 2022},
@@ -175,6 +176,12 @@ def vcmp(a, b):
     return (ka > kb) - (ka < kb)
 
 
+def vendor(snap, name):
+    """A source vendor.py fetched ("macos", "windows", or "fleetd"), or None when it failed."""
+    v = (snap.get("vendor") or {}).get(name)
+    return v if v and "error" not in v else None
+
+
 def quantile(xs, q):
     xs = sorted(xs)
     if not xs:
@@ -202,14 +209,14 @@ def intel_core_gen(brand):
     return int(digits[0])
 
 
-def parse_cpu(brand, this_year):
+def parse_cpu(brand, this_year, current_gen=CURRENT_APPLE_GEN):
     """CPU label, family, release year, and whether it's old enough to refresh."""
     b = re.sub(r"\s+", " ", (brand or "").replace("(R)", "").replace("(TM)", "")).strip()
     m = re.search(r"\bApple M(\d+)(?: (Pro|Max|Ultra))?\b", b, re.I)
     if m:
         gen, tier = int(m.group(1)), (m.group(2) or "base").lower()
         years = CHIP_YEARS.get(gen, {})
-        behind = max(0, CURRENT_APPLE_GEN - gen)
+        behind = max(0, current_gen - gen)
         return {"label": f"M{gen}" + ("" if tier == "base" else " " + tier.title()), "family": f"Apple M{gen}",
                 "year": years.get(tier) or years.get("base"), "gens_behind": behind, "old": behind >= 3}
     year, family, label = None, None, b or "Unknown"
@@ -405,6 +412,7 @@ def build_lifecycle(snap, hist):
     strain = hist.setdefault("strain", {})
     details = snap.get("host_details", {})
     dh_rows = snap.get("device_health", {})
+    current_gen = max(CURRENT_APPLE_GEN, (vendor(snap, "macos") or {}).get("chip_gen") or 0)
 
     devices = []
     for h in snap["hosts"]:
@@ -414,7 +422,7 @@ def build_lifecycle(snap, hist):
         hid = str(h["id"])
         dh = (dh_rows.get(hid) or {}) if plat == "macos" else {}
         det = details.get(hid) or {}
-        cpu = parse_cpu(h.get("cpu_brand") or dh.get("cpu_brand"), today.year)
+        cpu = parse_cpu(h.get("cpu_brand") or dh.get("cpu_brand"), today.year, current_gen)
         mkt = det.get("hardware_marketing_name") or ""
         ym = re.search(r"\b(20\d\d)\b", mkt)
         year = int(ym.group(1)) if ym else (cpu["year"] if cpu else None)
@@ -492,7 +500,8 @@ def build_lifecycle(snap, hist):
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "history_days": days_collected,
-        "devices": devices, "current_gen": CURRENT_APPLE_GEN, "old_cpu_years": OLD_CPU_YEARS,
+        "devices": devices, "current_gen": current_gen, "current_gen_source": "SOFA" if vendor(snap, "macos") else None,
+        "old_cpu_years": OLD_CPU_YEARS,
         "stale_days": STALE_DAYS, "warranty_vital": WARRANTY_VITAL,
         "trend": save_trend(hist, today, day),
     }
@@ -666,7 +675,9 @@ def patch_titles(snap, hid, h):
     if plat == "macos" and osv:
         out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip())
     elif plat == "windows" and (w := windows_os(osv)):
-        out["os:" + w[0]] = w
+        # One title per Windows version, so a computer on an older release counts as behind.
+        product = re.match(r"Windows \d+", w[0]).group(0)
+        out["os:" + product] = (product, w[1])
     elif plat == "linux" and (lx := linux_os(osv)):
         out["os:" + lx[0]] = lx
     return out
@@ -714,6 +725,53 @@ def patch_policy_matcher(platform, query):
     return match
 
 
+# A patch policy passes once the app reaches the version in its query, the latest in
+# Fleet's maintained-apps catalog. A few compare bundle_version, which isn't the
+# version Fleet's inventory reports, so they don't set a bar.
+PATCH_TARGET_RE = re.compile(r"version_compare\s*\(\s*(?:bundle_short_version|version)\s*,\s*" + SQL_STRING + r"\s*\)\s*<\s*0", re.I)
+
+
+def patch_targets(snap, keys):
+    """{title key: the newest version a patch policy for that app asks for}."""
+    out = {}
+    for p in (snap.get("policies") or {}).values():
+        query = p.get("query") or ""
+        if not p.get("patch") or not (target := PATCH_TARGET_RE.search(query)):
+            continue
+        if not (match := patch_policy_matcher(p.get("platform") or "", query)):
+            continue
+        ver = target.group(1).replace("''", "'")
+        for key in keys:
+            if match(key) and (key not in out or vcmp(ver, out[key]) > 0):
+                out[key] = ver
+    return out
+
+
+def os_line(key, v):
+    """The release an OS version belongs to: the major version on macOS ("27" in
+    27.0.1), the build on Windows ("26200" in 10.0.26200.9711)."""
+    if key == "os:macOS":
+        return v.split(".")[0]
+    parts = v.split(".")
+    return parts[2] if key.startswith("os:Windows") and len(parts) > 2 else None
+
+
+def os_bar(snap, key):
+    """The vendor's newest release for an OS title, as (newest, {release: its latest},
+    {release: its name}, source), or None without a vendor source."""
+    if key == "os:macOS" and (mac := vendor(snap, "macos")):
+        majors = mac["majors"]
+        top = max(majors.values(), key=lambda r: vkey(r["latest"]))
+        return top["latest"], {m: r["latest"] for m, r in majors.items()}, {m: r["name"] for m, r in majors.items()}, "Apple"
+    if key.startswith("os:Windows") and (win := vendor(snap, "windows")):
+        product = key[3:] + " "
+        builds = {t[len(product):]: b for t, b in win["releases"].items() if t.startswith(product)}
+        if builds:
+            return (max(builds.values(), key=vkey), {os_line(key, b): b for b in builds.values()},
+                    {os_line(key, b): r for r, b in builds.items()}, "Microsoft")
+    return None
+
+
 def patch_policy_titles(snap):
     """{host id: test on title keys} for the patch policies that apply to each host."""
     info = snap.get("policies") or {}
@@ -752,6 +810,18 @@ def migrate_patch_history(hist, since):
         for key, v in titles.items():
             if isinstance(v, list):
                 titles[key] = v[0]
+    # Each Windows release (25H2) was its own title. Merge them into one per Windows version.
+    split = re.compile(r"os:Windows \d+ \d\dH\d")
+    for key in [k for k in hist.get("versions") or {} if split.fullmatch(k)]:
+        merged = key.rsplit(" ", 1)[0]
+        hist["versions"].setdefault(merged, {}).update(hist["versions"].pop(key))
+        if key in (hist.get("events") or {}):
+            hist["events"].setdefault(merged, []).extend(hist["events"].pop(key))
+        if (hist.get("names") or {}).pop(key, None) is not None:
+            hist["names"][merged] = merged[3:]
+    for titles in (hist.get("hosts") or {}).values():
+        for key in [k for k in titles if split.fullmatch(k)]:
+            titles[key.rsplit(" ", 1)[0]] = titles.pop(key)
 
 
 def build_patch(snap, hist):
@@ -773,8 +843,20 @@ def build_patch(snap, hist):
     # weren't released today, so they aren't timed.
     known_titles = set(versions)
 
-    betas = {(r.get("os_version") or "") for r in snap.get("os_health", {}).values()
-             if re.search(r"[a-z]$", r.get("os_build") or "")}
+    # Macs on a beta build (one ending in a letter) count as current, but their updates
+    # aren't timed and their version doesn't set the bar, even when a release shares it.
+    os_health = snap.get("os_health") or {}
+    beta_hosts = {hid for hid, r in os_health.items() if re.search(r"[a-z]$", r.get("os_build") or "")}
+    betas = sorted({f"{os_health[hid].get('os_version')} ({os_health[hid].get('os_build')})" for hid in beta_hosts})
+
+    # Vendor release dates replace first-seen dates, so OS updates are timed from the release.
+    if mac := vendor(snap, "macos"):
+        vs = versions.setdefault("os:macOS", {})
+        vs.update(mac["releases"])
+        vs.update({r["latest"]: r["released"] for r in mac["majors"].values() if r["released"]})
+    if win := vendor(snap, "windows"):
+        for release, build in win["releases"].items():
+            versions.setdefault("os:" + release.rsplit(" ", 1)[0], {})[build] = win["released"]
 
     current = {}
     for hid, h in hosts.items():
@@ -787,10 +869,11 @@ def build_patch(snap, hist):
         for key, (name, ver) in titles.items():
             names[key] = name
             vs = versions.setdefault(key, {})
+            beta = key == "os:macOS" and hid in beta_hosts
             if ver not in vs:
-                vs[ver] = D if key in known_titles else None
+                vs[ver] = D if key in known_titles and not beta else None
             prev = prev_host.get(key)
-            if prev is not None and prev != ver and vcmp(ver, prev) > 0 and ver not in betas:
+            if prev is not None and prev != ver and vcmp(ver, prev) > 0 and not beta:
                 first = vs.get(ver)
                 lag = (today - dt.date.fromisoformat(first)).days if first else None
                 events.setdefault(key, []).append([int(hid), today_i, lag])
@@ -811,7 +894,9 @@ def build_patch(snap, hist):
 
     # Per-title installs on hosts that still check in, as [host, version], plus a 1
     # when a patch policy for that app applies to the host. The page aggregates these
-    # (per fleet and platform) against the fleet-wide newest release.
+    # (per fleet and platform) against each title's newest release: the vendor's for
+    # macOS and Windows, the patch policy's for apps that have one, and otherwise the
+    # highest version two computers run.
     active = [hid for hid in current if is_active(hosts[hid], now)]
     patched = patch_policy_titles(snap)
     by_title = {}
@@ -819,21 +904,27 @@ def build_patch(snap, hist):
         covers = patched.get(hid)
         for key, (name, ver) in current[hid].items():
             by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and covers(key) else [int(hid), ver])
+    targets = patch_targets(snap, by_title)
     recent = (today - dt.timedelta(days=45)).isoformat()
     titles, index = [], {}
     for key, hv in sorted(by_title.items()):
         if len(hv) < 2:
             continue
-        plat = platform_of(hosts[str(hv[0][0])])
-        newest = newest_release([e[1] for e in hv], betas)
+        t = {"key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app",
+             "p": platform_of(hosts[str(hv[0][0])]), "i": hv, "source": None}
+        if bar := os_bar(snap, key):
+            t["newest"], t["lines"], t["line_names"], t["source"] = bar
+        elif key in targets:
+            t["newest"], t["source"] = targets[key], "Fleet-maintained apps"
+        else:
+            release = [v for hid, v, *_ in hv if not (key == "os:macOS" and str(hid) in beta_hosts)]
+            t["newest"] = newest_release(release or [e[1] for e in hv], set())
+        t["newest_seen"] = versions.get(key, {}).get(t["newest"])
+        # Newest last; vendors release several versions the same day.
+        t["fresh"] = sorted([[v, seen] for v, seen in versions.get(key, {}).items() if seen and seen >= recent],
+                            key=lambda x: (x[1], vkey(x[0])))
         index[key] = len(titles)
-        titles.append({
-            "key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app", "p": plat,
-            "newest": newest, "newest_seen": versions.get(key, {}).get(newest),
-            "i": hv,
-            "fresh": sorted([[v, seen] for v, seen in versions.get(key, {}).items()
-                             if seen and seen >= recent and v not in betas], key=lambda x: x[1]),
-        })
+        titles.append(t)
 
     def fleet_of(hid):
         return hosts[str(hid)].get("team_name") or "Unassigned"
@@ -865,12 +956,16 @@ def build_patch(snap, hist):
     for t in titles:
         if len(t["i"]) < MIN_INSTALLS:
             continue
+        lines = t.get("lines") or {}
         for hid, v, *_ in t["i"]:
             current_v = int(vcmp(v, t["newest"]) >= 0)
             if t["type"] == "app":
                 count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
             else:
-                count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v)
+                # Patched: on the latest update for the release it runs, even when a newer release exists.
+                latest = lines.get(os_line(t["key"], v))
+                count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v,
+                           os_patched=int(vcmp(v, latest) >= 0) if latest else current_v)
     for rows in events.values():
         for hid, day_i, _ in rows:
             if day_i == today_i and str(hid) in hosts:
@@ -879,7 +974,7 @@ def build_patch(snap, hist):
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "sla_days": PATCH_SLA_DAYS, "stale_days": STALE_DAYS,
         "min_installs": MIN_INSTALLS, "hosts": host_map(hosts, active),
-        "titles": titles, "betas": sorted(betas),
+        "titles": titles, "betas": betas,
         "lags": {fp: sorted(c.items()) for fp, c in lags.items()},
         "by_host": by_host,
         "by_app": {fp: [[ti, n, total, len(hs)] for ti, (n, total, hs) in sorted(apps.items())] for fp, apps in by_app.items()},
@@ -1366,7 +1461,8 @@ def build_analytics(snap, hist):
         for k, field in (("orbit", "orbit_version"), ("osquery", "osquery_version"), ("desktop", "fleet_desktop_version")):
             if h.get(field):
                 vers[k].append(h[field])
-    newest = {k: newest_release(v, set()) if v else None for k, v in vers.items()}
+    stable = vendor(snap, "fleetd") or {}
+    newest = {k: stable.get(k) or (newest_release(v, set()) if v else None) for k, v in vers.items()}
 
     out, day = {}, {}
     for hid in ids:
@@ -1399,7 +1495,7 @@ def build_analytics(snap, hist):
         "sources": [{"key": k, "label": label, "domain": domain, "platforms": sorted(plats) if plats else None,
                      "found": found(k), "clipped": bool((info.get(k) or {}).get("clipped"))}
                     for k, label, domain, plats in ANALYTICS_SOURCES],
-        "hosts": out, "newest": newest, "trend": save_trend(hist, today, day),
+        "hosts": out, "newest": newest, "newest_source": "stable" if stable else None, "trend": save_trend(hist, today, day),
     }
 
 # ---------------------------------------------------------------- sustainability

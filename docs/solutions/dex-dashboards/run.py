@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One run: collect a Fleet snapshot, then rebuild every page.
+"""One run: collect a Fleet snapshot and the vendors' latest releases, then rebuild every page.
 
   run.py --work DIR --in DIR [--first-run] [--link lifecycle=URL ... --link overview=URL] [--site DIR]
 
@@ -32,6 +32,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import build  # noqa: E402
 import collect  # noqa: E402
+import vendor  # noqa: E402
 
 PAGES = ("lifecycle", "software", "patch", "ai", "connectivity", "analytics", "sustainability", "policies")
 # Room left in the time budget for building and writing pages.
@@ -96,8 +97,10 @@ def main():
             print(f"CONTINUE: collected {pages} pages of hosts so far and saved them under {args.work}. "
                   "Run the same command again to finish.")
             sys.exit(3)
+        snap["vendor"] = vendor.fetch()
         collect.write_json(snap_path, snap)
         print(collect.summary(snap))
+        print(vendor.summary(snap["vendor"]))
         if time.monotonic() > started + args.budget - BUILD_RESERVE:
             print("CONTINUE: collection finished and is saved. Run the same command again to build the pages.")
             sys.exit(3)

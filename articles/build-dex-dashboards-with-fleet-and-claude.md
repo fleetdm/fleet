@@ -4,7 +4,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
-- Patch velocity: how fast new versions reach every computer. Rollouts in progress can show only the apps you have patch policies for.
+- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft. Rollouts in progress can show only the apps you have patch policies for.
 - AI governance: which AI tools people use, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
@@ -29,7 +29,8 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 
 - There's nothing to host. You don't run or patch a server, database, or BI tool. Each dashboard keeps its own history in a file next to its page.
 - The scripts compute every number. Claude reads the artifacts, checks the code's hash, runs the scripts, and publishes the pages. It doesn't calculate, summarize, or write anything that appears on a dashboard.
-- Access is read-only. The API-only user can call five read endpoints and nothing else. The token stays in the cloud environment, which can reach only your Fleet server.
+- Access is read-only. The API-only user can call five read endpoints and nothing else. The token stays in the cloud environment, which can reach only your Fleet server and three public release feeds. The feeds never get the token.
+- Version targets come from outside your fleet. The newest macOS comes from SOFA, the Mac admins' public feed of Apple's releases. The newest Windows build comes from Microsoft's Security Update Guide. Fleet's agent versions come from Fleet's update server, and app versions from your patch policies. Each run checks them again, so the share of computers on the newest version drops the day a release ships and climbs as computers update.
 - The dashboards are easy to change. The scripts are plain Python and HTML with no dependencies. Ask Claude Code to add a chart or a whole dashboard, review the change, then ship it by updating the hash.
 - Nothing new runs on your computers. The dashboards use data Fleet already collects, plus the reports in step 1.
 
@@ -119,7 +120,13 @@ A global observer can read every host but can't change anything. Any request out
 
 The routine runs in a [cloud environment](https://code.claude.com/docs/en/cloud-environments) that holds the token. Create one named `DEX dashboards`:
 
-1. Set **Network access** to **Custom**, and allow only your Fleet server's hostname, for example `fleet.example.com`. Enter the hostname only, without `https://` or a path.
+1. Set **Network access** to **Custom**, and allow only these hostnames. Enter each hostname only, without `https://` or a path.
+   - Your Fleet server, for example `fleet.example.com`.
+   - `sofafeed.macadmins.io`, for the latest macOS releases.
+   - `api.msrc.microsoft.com`, for the latest Windows builds.
+   - `updates.fleetdm.com`, for the latest fleetd, osquery, and Fleet Desktop versions.
+
+   Without the last three, the dashboards still run, but they measure computers against the newest version your fleet runs and say so on the page.
 2. Add these environment variables, one per line, without quotes:
 
 ```
@@ -244,6 +251,10 @@ The routine isn't using the environment from step 3, or its variables didn't sav
 **"Tunnel connection failed: 403 Forbidden"**
 
 The environment's network access doesn't allow your Fleet server. Set **Network access** to **Custom** and add the hostname from `FLEET_URL`.
+
+**Patch velocity says "Couldn't check the latest release"**
+
+The environment's network access doesn't allow `sofafeed.macadmins.io` or `api.msrc.microsoft.com`. Add the one the notice names to the environment's **Network access**. Analytics says "Fleet's update server wasn't reachable" when `updates.fleetdm.com` is missing.
 
 **`403` with "endpoint not permitted for this API-only user"**
 

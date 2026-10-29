@@ -21,6 +21,8 @@
 .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 24px; }
 .split h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
 .app-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); }
+.notice b { color: var(--ink); }
 </style>
 
 <div class="wrap">
@@ -31,6 +33,7 @@
       <p class="subtitle">How fast new versions reach every computer, and which apps and computers fall behind. Covers OS updates and third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
     </div>
   </div>
+  <div id="notice"></div>
   <section class="hero" id="hero" aria-label="Summary"></section>
   <div class="stats" id="stats"></div>
 
@@ -53,7 +56,7 @@
   <section class="sec" aria-labelledby="apps-h">
     <div class="sec-head">
       <h2 id="apps-h">App by app</h2>
-      <span class="hint">Share of installs on the newest version the fleet runs</span>
+      <span class="hint">Share of installs on the newest version. Click a row for each computer's version.</span>
     </div>
     <div class="panel" id="app-lag"></div>
     <div class="act-bar"><div class="chips" id="drift-chips"></div><input class="search" id="app-search" type="search" placeholder="Search apps" aria-label="Search apps"></div>
@@ -63,7 +66,7 @@
   <section class="sec" aria-labelledby="roll-h">
     <div class="sec-head">
       <h2 id="roll-h">Rollouts in progress</h2>
-      <span class="hint">New versions first seen in the last 45 days</span>
+      <span class="hint">New versions released, or first seen in Fleet, in the last 45 days</span>
     </div>
     <div class="act-bar"><div class="chips" id="roll-chips"></div><span class="hint" id="roll-hint"></span></div>
     <div id="rollouts"></div>
@@ -92,15 +95,16 @@
     <summary>How this is measured</summary>
     <div class="cols">
       <div>
-        <p><span class="term">Clock starts</span> the first day Fleet sees a new version on any computer. <span class="term">Clock stops</span> the day each computer reports it. Days are wall-clock days, read once a day.</p>
+        <p><span class="term">Clock starts</span> the day Apple or Microsoft released the version, for macOS and Windows. For apps and Linux, it starts the first day Fleet sees the version on any computer. <span class="term">Clock stops</span> the day each computer reports it. Days are wall-clock days.</p>
         <p><span class="term">Who's counted:</span> only computers seen completing an update. One still on the old version isn't in the timing numbers yet, so the real picture is slower than shown, never faster. Fresh installs and downgrades aren't updates. Virtual machines are left out.</p>
       </div>
       <div>
         <p><span class="term">History:</span> Fleet keeps current versions only, so this page records a daily snapshot and times new versions from <span id="since"></span>. Versions already installed the first day an app or OS appears in the history aren't timed.</p>
-        <p><span class="term">Newest version:</span> the highest version that at least two computers run, so a lone test build doesn't count. macOS betas (builds ending in a letter) and Windows Insider builds are left out, and computers running one count as current.</p>
+        <p><span class="term">Newest version:</span> for macOS, Apple's newest release from SOFA, the Mac admins' public feed of Apple's updates. For Windows, the newest security build Microsoft lists in its Security Update Guide, across every release of that Windows version. For an app with a patch policy, the version the policy asks for, the latest in Fleet's maintained-apps catalog. Anything else is measured against the highest version at least two computers run. Each run checks the sources again, so the share on the newest version drops the day a new release ships and climbs as computers update.</p>
+        <p><span class="term">Patched:</span> an OS on the latest update for the release it runs, such as macOS 26.7.2 or Windows 11 25H2's newest build, even when a newer release exists. macOS betas (builds ending in a letter) and Windows Insider builds count as current but aren't timed.</p>
       </div>
       <div>
-        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
+        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build across Windows 11's releases (for example 25H2 and 26H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
         <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. Medians are used because patch times have a long tail.</p>
         <p><span class="term">Patch policy:</span> Rollouts in progress can show only apps with a patch policy in Fleet, counted on the computers each policy applies to. A policy is matched to an app by the bundle ID (macOS) or program name (Windows) in its query.</p>
       </div>
@@ -126,6 +130,16 @@ const HAS_PATCH = DATA.titles.some((t) => t.i.some((e) => e[2]));
 let rollScope = store.get("dex-rollouts") || (HAS_PATCH ? "patch" : "all");
 let showAll = false;
 let query = "";
+// An OS version's release: the major version on macOS, the build on Windows (26200 in 10.0.26200.9711).
+const lineOf = (t, v) => (t.key === "os:macOS" ? v.split(".")[0] : v.split(".")[2]);
+// "26H2 (26300.9711)" for a Windows build, the version itself for everything else.
+const verLabel = (t, v) => {
+  const name = t.key.startsWith("os:Windows") && t.line_names ? t.line_names[lineOf(t, v)] : null;
+  return name ? `${name} (${v.split(".").slice(2).join(".")})` : v;
+};
+// Days before the patched count was recorded would read as 0%, so that line starts here.
+const PATCHED_SINCE = ((DATA.trend || []).find(([, byKey]) => Object.values(byKey).some((c) => "os_patched" in c)) || [])[0];
+const SOURCES = { Apple: "Apple, via SOFA", Microsoft: "Microsoft Security Update Guide", "Fleet-maintained apps": "Patch policy" };
 const lagTone = (d) => (d <= SLA / 2 ? "good" : d <= SLA ? "info" : d <= SLA * 2 ? "warn" : "bad");
 const covTone = (p) => (p >= 90 ? "good" : p >= 60 ? "info" : p >= 30 ? "warn" : "bad");
 
@@ -135,7 +149,9 @@ function compute() {
     const inst = t.i.filter(([hid]) => ok(hid));
     const on = inst.filter(([, v]) => vcmp(v, t.newest) >= 0);
     const fresh = t.fresh.filter(([v]) => vcmp(v, t.newest) <= 0).slice(-1)[0];
-    return { ...t, _id: t.key, inst, installs: inst.length, on: on.length, pct: inst.length ? (100 * on.length) / inst.length : null,
+    // Behind the newest, but on the latest update for the release it runs.
+    const patched = t.lines ? inst.filter(([, v]) => vcmp(v, t.newest) < 0 && t.lines[lineOf(t, v)] && vcmp(v, t.lines[lineOf(t, v)]) >= 0).length : 0;
+    return { ...t, _id: t.key, inst, installs: inst.length, on: on.length, patched, pct: inst.length ? (100 * on.length) / inst.length : null,
       versions: new Set(inst.map(([, v]) => v)).size, fresh };
   }).filter((t) => t.installs >= DATA.min_installs);
   // Timed updates arrive as totals per "fleet|platform": lag (days) counts, per-computer
@@ -185,7 +201,7 @@ function render() {
   const lede = timed
     ? (p90 > SLA ? `The first half lands in ${fmt.days(p50)}. The slowest tenth takes ${fmt.n(Math.round(p90 - p50))} more days, past the ${SLA}-day target.`
       : `Nine in ten updates land within ${fmt.days(p90)}, inside the ${SLA}-day target.`)
-    : `${fmt.pct(pCur)} of app installs run the newest version the fleet has. ${noun(laggards.filter((l) => l.ts.length >= 3).length)} ${laggards.filter((l) => l.ts.length >= 3).length === 1 ? "is" : "are"} behind on three or more apps.`;
+    : `${fmt.pct(pCur)} of app installs run the newest version. ${noun(laggards.filter((l) => l.ts.length >= 3).length)} ${laggards.filter((l) => l.ts.length >= 3).length === 1 ? "is" : "are"} behind on three or more apps.`;
   const support = timed
     ? `${fmt.pct(pCur)} of app installs run the newest version today. Timing covers ${fmt.plural(timing.n, "update")} on ${noun(Object.keys(timing.byHost).length)} in the last 90 days.`
     : `Timing starts with the next release. Since ${fmt.date(DATA.history_since)}, every new version Fleet sees is timed until each computer reports it. ${timing.n ? `${fmt.plural(timing.n, "update")} timed so far.` : `No new versions timed yet (${fmt.plural(daysSince, "day")} of history).`}`;
@@ -199,7 +215,7 @@ function render() {
     h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support)),
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
       h("div", { class: "rail-row" }, h("span", {}, "App installs on newest"), h("b", {}, fmt.pct(pCur))),
-      osTs.slice(0, 2).map((t) => h("div", { class: "rail-row" }, h("span", {}, `On ${t.name === "macOS" ? `macOS ${t.newest}` : `newest ${t.name}`}+`), h("b", {}, fmt.pct(t.pct)))),
+      osTs.slice(0, 2).map((t) => h("div", { class: "rail-row" }, h("span", {}, `On ${t.p === "linux" ? `newest ${t.name}` : `${t.name} ${verLabel(t, t.newest)}`}+`), h("b", {}, fmt.pct(t.pct)))),
       h("div", { class: "rail-row" }, h("span", {}, "Apps under 50% current"), h("b", {}, fmt.n(apps.filter((t) => t.pct < 50).length))),
       h("div", { class: "rail-row" }, h("span", {}, `${Noun(true)} behind on 3+ apps`), h("b", {}, fmt.n(laggards.filter((l) => l.ts.length >= 3).length)))));
 
@@ -214,11 +230,12 @@ function render() {
     stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
     stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
 
-  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "updates"], [
+  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "os_patched", "updates"], [
     { title: "Installs on the newest version", yFmt: fmt.pct, yMax: 100, series: [
       { label: "Apps", color: "var(--info)", value: (r) => pct(r.app_current, r.app_installs) },
-      { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) }],
-      note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day.` },
+      { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) },
+      { label: "OS patched for its release", color: "var(--good)", value: (r) => (PATCHED_SINCE && r.date >= PATCHED_SINCE ? pct(r.os_patched, r.os_installs) : null) }],
+      note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day. It drops when a new release ships and climbs as computers update.` },
     { title: "Updates applied per day", kind: "bar", series: [{ label: "Updates", color: "var(--good)", value: (r) => r.updates }],
       note: "Computers seen moving to a newer version, counted on the day Fleet first reports it." },
   ]);
@@ -268,17 +285,27 @@ function render() {
   const columns = [
     { key: "name", label: "App", value: (t) => t.name.toLowerCase(), cell: (t) => [h("span", { class: "cell-main" }, t.name), t.type === "os" ? h("span", { class: "tag" }, "OS") : "", PLATFORM ? "" : h("span", { class: "plat" }, platformLabel(t.p))] },
     { key: "installs", label: "Installs", num: true, value: (t) => t.installs },
-    { key: "newest", label: "Newest", value: (t) => t.newest, cell: (t) => h("span", { class: "ver" }, t.newest) },
+    { key: "newest", label: "Newest", value: (t) => t.newest, cell: (t) => [h("span", { class: "ver" }, verLabel(t, t.newest)),
+      h("div", { class: "cell-sub" }, t.source ? SOURCES[t.source] : "Newest your fleet runs")] },
     { key: "pct", label: "On newest", num: true, value: (t) => t.pct, cell: (t) => [`${fmt.n(t.on)} of ${fmt.n(t.installs)}`, mini(t.pct, covTone(t.pct))] },
     { key: "versions", label: "Versions in use", num: true, value: (t) => t.versions },
-    { key: "seen", label: "Newest first seen", num: true, value: (t) => t.newest_seen, cell: (t) => (t.newest_seen ? fmt.date(t.newest_seen) : h("span", { class: "muted" }, `before ${fmt.date(DATA.history_since)}`)) },
+    { key: "seen", label: "Out since", num: true, value: (t) => t.newest_seen, cell: (t) => (t.newest_seen
+      ? [fmt.date(t.newest_seen), h("div", { class: "cell-sub" }, t.source === "Apple" || t.source === "Microsoft" ? "released" : "first seen")]
+      : h("span", { class: "muted" }, t.source === "Fleet-maintained apps" ? "not installed yet" : `before ${fmt.date(DATA.history_since)}`)) },
   ];
   const detail = (t) => {
     const counts = {};
     for (const [, v] of t.inst) counts[v] = (counts[v] || 0) + 1;
     const lag = t.inst.filter(([, v]) => vcmp(v, t.newest) < 0).sort((a, b) => vcmp(a[1], b[1]));
-    return [h("div", { class: "cell-sub" }, Object.entries(counts).sort((a, b) => vcmp(b[0], a[0])).map(([v, n]) => `${v}: ${n}`).join(" · ")),
-      lag.length ? h("div", { class: "split", style: "margin-top:10px" }, lag.map(([hid, v]) => h("div", { class: "app-line" }, hostLink(hid, DATA.hosts[hid].n), h("span", { class: "ver" }, v)))) : h("p", {}, "Every computer runs the newest version.")];
+    const status = (v) => {
+      if (!t.lines) return null;
+      const latest = t.lines[lineOf(t, v)];
+      return latest && vcmp(v, latest) >= 0 ? "patched, older release" : latest ? `needs ${verLabel(t, latest)}` : "release no longer updated";
+    };
+    return [h("div", { class: "cell-sub" }, Object.entries(counts).sort((a, b) => vcmp(b[0], a[0])).map(([v, n]) => `${verLabel(t, v)}: ${n}`).join(" · ")),
+      t.lines ? h("div", { class: "cell-sub" }, `${fmt.n(t.on)} on the newest release · ${fmt.n(t.patched)} patched on an older release · ${fmt.n(t.installs - t.on - t.patched)} missing updates`) : null,
+      lag.length ? h("div", { class: "split", style: "margin-top:10px" }, lag.map(([hid, v]) => h("div", { class: "app-line" }, hostLink(hid, DATA.hosts[hid].n),
+        h("span", {}, h("span", { class: "ver" }, verLabel(t, v)), status(v) ? h("span", { class: "tag" }, status(v)) : null)))) : h("p", {}, "Every computer runs the newest version.")];
   };
   mount("drift", rows.length ? [sortTable({ columns, groups: [{ rows }], sort: ["pct", "asc"], detail, id: "drift-table" }),
     total > 15 && !q ? h("button", { type: "button", class: "btn", style: "margin-top:8px", onclick: () => { showAll = !showAll; render(); } }, showAll ? "Show the 15 furthest behind" : `Show all ${total}`) : null]
@@ -290,7 +317,7 @@ function render() {
     if (!inst.length) return null;
     const [ver, seen] = t.fresh;
     const reached = inst.filter(([, v]) => vcmp(v, ver) >= 0).length;
-    return { _id: t.key, name: t.name, type: t.type, ver, seen, reached, installs: inst.length, pct: pct(reached, inst.length),
+    return { _id: t.key, t, name: t.name, type: t.type, ver, seen, reached, installs: inst.length, pct: pct(reached, inst.length),
       patch: t.inst.some((e) => e[2]), age: Math.round((new Date(DATA.generated_at) - new Date(seen + "T00:00:00Z")) / 864e5) };
   }).filter(Boolean).sort((a, b) => (a.seen < b.seen ? 1 : -1));
   const rollsBy = { patch: rollRows("patch"), all: rollRows("all") };
@@ -301,8 +328,8 @@ function render() {
   mount("rollouts", rolls.length ? sortTable({ id: "rollout-table", sort: ["seen", "desc"], groups: [{ rows: rolls }], columns: [
     { key: "name", label: "App", value: (r) => r.name.toLowerCase(), cell: (r) => [h("span", { class: "cell-main" }, r.name),
       rollScope === "all" && r.patch ? h("span", { class: "tag" }, "Patch policy") : ""] },
-    { key: "ver", label: "Version", value: (r) => r.ver, cell: (r) => h("span", { class: "ver" }, r.ver) },
-    { key: "seen", label: "First seen", num: true, value: (r) => r.seen, cell: (r) => fmt.date(r.seen) },
+    { key: "ver", label: "Version", value: (r) => r.ver, cell: (r) => h("span", { class: "ver" }, verLabel(r.t, r.ver)) },
+    { key: "seen", label: "Since", num: true, value: (r) => r.seen, cell: (r) => [fmt.date(r.seen), h("div", { class: "cell-sub" }, r.t.source === "Apple" || r.t.source === "Microsoft" ? "released" : "first seen")] },
     { key: "age", label: "Days out", num: true, value: (r) => r.age },
     { key: "pct", label: "Reached", num: true, value: (r) => r.pct, cell: (r) => [`${fmt.n(r.reached)} of ${fmt.n(r.installs)}`, mini(r.pct, r.age > SLA && r.pct < 90 ? "bad" : covTone(r.pct))] },
   ] }) : rollScope === "patch" && !HAS_PATCH ? empty("No patch policies yet", "Add a patch policy to a Fleet-maintained app in Fleet, and its new versions show here. Pick All to see every app.")
@@ -342,8 +369,8 @@ function render() {
       levers.push({ t: `Bring ${t.name} up to ${t.newest}`, e: `${behind} point release. Fleet can't set OS update deadlines on Linux, but a policy that runs an update script on computers that fall behind does the same job.`, x: fmt.pct(t.pct), s: "on the newest release" });
       continue;
     }
-    const label = t.name === "macOS" ? `macOS ${t.newest}` : `${t.name} build ${t.newest}`;
-    levers.push({ t: `Set a deadline for ${label}`, e: `${behind} build. A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
+    const upgrades = t.patched ? ` ${fmt.n(t.patched)} of them are patched but on an older release, so they need an upgrade, not just an update.` : "";
+    levers.push({ t: `Set a deadline for ${t.name} ${verLabel(t, t.newest)}`, e: `${behind} build.${upgrades} A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
   }
   mount("levers", levers.length ? levers.map((l) => h("div", { class: "lever" }, h("span", { class: "t" }, l.t), h("span", { class: "e" }, l.e), h("span", { class: "x" }, l.x, h("span", {}, l.s))))
     : empty("Nothing stands out", "Every app and computer is close to current."));
@@ -351,7 +378,15 @@ function render() {
   document.getElementById("since").textContent = fmt.date(DATA.history_since);
   document.getElementById("stale-days").textContent = DATA.stale_days;
   document.getElementById("sla").textContent = SLA;
-  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software). Rebuilt daily.${DATA.betas.length ? ` macOS betas left out: ${DATA.betas.join(", ")}.` : ""}`;
+  const missing = [["macos", "Apple's release feed (SOFA)", "Macs"], ["windows", "Microsoft's Security Update Guide", "Windows computers"]]
+    .filter(([p]) => inPlatform(p) && titles.some((t) => t.type === "os" && t.p === p && !t.source));
+  mount("notice", missing.length ? h("div", { class: "notice" }, h("b", {}, "Couldn't check the latest release. "),
+    missing.map(([, src, who]) => `${src} wasn't reachable on this run, so ${who} are measured against the newest version they run.`).join(" ")) : null);
+  const used = new Set(DATA.titles.map((t) => t.source));
+  const sources = [["Apple", "SOFA for macOS"], ["Microsoft", "Microsoft's Security Update Guide for Windows"], ["Fleet-maintained apps", "patch policies for apps"]]
+    .filter(([k]) => used.has(k)).map(([, label]) => label);
+  const list = sources.length > 1 ? `${sources.slice(0, -1).join(", ")}, and ${sources[sources.length - 1]}` : sources[0];
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software).${list ? ` Newest versions from ${list}.` : ""}${DATA.betas.length ? ` macOS beta builds: ${DATA.betas.join(", ")}.` : ""}`;
 }
 
 document.getElementById("app-search").addEventListener("input", (e) => { query = e.target.value; render(); });
