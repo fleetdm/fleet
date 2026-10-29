@@ -779,10 +779,11 @@ Only one of the objects is allowed in a single request.
 |------------------ |------- |------|-------------------------------------------------------------|
 | digicert          | object | body | See [digicert](#digicert) |
 | ndes_scep_proxy   | object | body | Used for both Microsoft NDES and Okta CAs (Okta uses NDES under the hood). See [ndes_scep_proxy](#ndes-scep-proxy) |
-| custom_scep_proxy | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
-| custom_est_proxy  | object | body | See [custom_est_proxy](#custom-est-proxy) |
-| hydrant           | object | body | See [hydrant](#hydrant) |
-| smallstep         | object | body | See [smallstep](#smallstep) |
+| custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
+| hydrant   | object | body | See [hydrant](#hydrant) |
+| google_cas   | object | body | See [google_cas](#google_cas) |
+| smallstep   | object | body | See [smallstep](#smallstep) |
 | ejbca             | object | body | See [ejbca](#ejbca) |
 
 ##### digicert
@@ -844,6 +845,19 @@ Object with the following structure:
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
+
+##### google_cas
+
+Object with the following structure:
+
+| Name               | Type      | Description                                                                                          |
+| ------------------ | --------- | ---------------------------------------------------------------------------------------------------- |
+| name               | string    | **Required**. Name of the certificate authority. Only letters, numbers, and underscores are allowed. |
+| project            | string    | **Required**. The Google Cloud project ID that contains the CA pool. |
+| location           | string    | **Required**. The Google Cloud location of the CA pool. |
+| ca_pool            | string    | **Required**. The name of the CA pool with an issuing CA. |
+| api_key_json       | string    | **Required**. The service account JSON key with the CA Service Certificate Manager role. |
+
 
 ##### smallstep
 
@@ -943,6 +957,11 @@ When Fleet adds or edits an EJBCA CA, it checks that EJBCA accepts the client ce
 ```json
 {
   "id": 7,
+  "name": "GOOGLE_WIFI",
+  "type": "google_cas"
+},
+{
+  "id": 8,
   "name": "EJBCA_WIFI",
   "type": "ejbca"
 }
@@ -1134,6 +1153,15 @@ Get details of the certificate authority. Secrets, like the API token of a DigiC
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+},
+{
+  "id": 7,
+  "type": "google_cas",
+  "name": "GOOGLE_WIFI",
+  "project": "my-project",
+  "location": "us-central1",
+  "ca_pool": "my-ca-pool",
+  "api_key_json": "********"
 }
 ```
 
@@ -1358,7 +1386,9 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 ### Request certificate
 
-Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623).
+Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), and [Google CAS](#google-cas) CAs.
+
+For Google CAS CAs, the CSR must instead contain exactly one UPN and no other named SANs (email, DNS, URI, IP). Google CAS rejects CSRs that mix named SANs with the UPN. The UPN must match the username returned by the IdP or the host's recorded end user, compared case-insensitively.
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 

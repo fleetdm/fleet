@@ -3891,6 +3891,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_google_cas
+
+Generated when Google CAS certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## edited_google_cas
+
+Generated when Google CAS certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## deleted_google_cas
+
+Generated when Google CAS certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
 ## added_ejbca
 
 Generated when EJBCA certificate authority configuration is added in Fleet.
