@@ -13,7 +13,7 @@ Check these before you start:
 
 ## Farewell, teams
 
-You'll be missed and we'll keep saying "teams" out of muscle memory.
+You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
 | Fleet 4 | Fleet 5 | Notes | Issue |
 |:--|:--|:--|:--|
