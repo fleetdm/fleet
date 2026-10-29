@@ -839,6 +839,14 @@ func TestEnrollmentTokenCreate(t *testing.T) {
 	t.Run("an empty body is not an error", func(t *testing.T) {
 		require.NotEmpty(t, create(t, "").ExpirationTimestamp)
 	})
+
+	t.Run("malformed JSON is a bad request", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte("{"))))
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
 }
 
 func TestEnrollmentTokenExpiry(t *testing.T) {
