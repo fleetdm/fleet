@@ -21,7 +21,7 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Configuration profile editor with names and descriptions
 
-IT admins can now add and edit configuration profiles on a dedicated page instead of a modal. Upload a file, paste the profile, or edit it inline. Give each profile a name and a description, so the team knows what it does without opening it. Names and descriptions can also be set through the [API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) and [GitOps YAML](https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings).
+IT admins can now add and edit configuration profiles on a dedicated page instead of a modal. Upload a file, paste the profile, or edit it inline. Give each profile a name and a description, so the team knows what it does without opening it. Names and descriptions can also be set through the [API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings).
 
 Uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. On the [batch endpoint](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles), `display_name` is deprecated in favor of `name`.
 
