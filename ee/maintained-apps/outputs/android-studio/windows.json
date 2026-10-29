@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.1.8",
+      "version": "2026.2.2.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2026.2.1.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2026.2.2.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.2.1.8/android-studio-rabbit1-windows.exe",
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.2.2.8/android-studio-rabbit2-windows.exe",
       "install_script_ref": "36676cba",
       "uninstall_script_ref": "7359f9ad",
-      "sha256": "4c26f92e0e78adb1381c9a76597dbd5f6bce13d2ff2bf88cd2b57d425d685f3d",
+      "sha256": "260af2d6220f1b7239eef0bce4970f9e444c881d42ed994c4fc0c68b07ef85f8",
       "default_categories": [
         "Developer tools"
       ]
