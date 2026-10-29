@@ -608,7 +608,6 @@ CREATE TABLE `host_additional` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_android_software_installs` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
   `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `vpp_app_team_id` int unsigned DEFAULT NULL,
@@ -619,8 +618,7 @@ CREATE TABLE `host_android_software_installs` (
   `policy_built_at` datetime(6) NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_host_android_software_installs_host_adam` (`host_id`,`adam_id`),
+  PRIMARY KEY (`host_id`,`adam_id`),
   KEY `idx_host_android_software_installs_vpp_app_team_id` (`vpp_app_team_id`),
   CONSTRAINT `fk_host_android_software_installs_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -2017,20 +2015,6 @@ CREATE TABLE `locks` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `log_android_software_installs` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_id` int unsigned NOT NULL,
-  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `vpp_app_team_id` int unsigned DEFAULT NULL,
-  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `in_policy_version` int DEFAULT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  KEY `idx_log_android_software_installs_host_adam_status` (`host_id`,`adam_id`,`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

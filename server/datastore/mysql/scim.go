@@ -2441,21 +2441,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	// Flag the affected Android apps for the Android app reconciler
-	const markAndroidResendStmt = `
-	UPDATE host_android_software_installs
-	SET needs_resend = 1
-	WHERE host_id IN (?) AND vpp_app_team_id IN (?)
-`
-	markStmt, markArgs, err := sqlx.In(markAndroidResendStmt, hostIDs, androidAppTeamIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare mark android app resend")
-	}
-	_, err = tx.ExecContext(ctx, markStmt, markArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "mark android app resend")
-	}
-
-	return nil
+	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, hostIDs, androidAppTeamIDs)
 }
 
 // emailsRequireUpdate compares two slices of emails and returns true if they are different

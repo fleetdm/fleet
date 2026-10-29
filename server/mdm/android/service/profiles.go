@@ -67,6 +67,12 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 			"err", cursorErr)
 		cursor = ""
 	}
+	// Start from the first host when the app cursor can't be read, checking hosts again only costs reads
+	appCursor, cursorErr := ds.GetAndroidAppReconcileCursor(ctx)
+	if cursorErr != nil {
+		logger.WarnContext(ctx, "failed to read android app reconcile cursor, starting from the first host", "err", cursorErr)
+		appCursor = 0
+	}
 
 	reconciler := &profileReconciler{
 		DS:                 ds,
@@ -74,14 +80,8 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 		Client:             client,
 		AndroidAgentConfig: androidAgentConfig,
 		Logger:             logger,
-		AndroidSvc: &Service{
-			logger:             logger,
-			ds:                 ds,
-			fleetDS:            ds,
-			androidAPIClient:   client,
-			androidAgentConfig: androidAgentConfig,
-		},
-		RetryCounter: retryCounter,
+		RetryCounter:       retryCounter,
+		appCursor:          appCursor,
 	}
 	hostCount, err := reconciler.ReconcileProfiles(ctx, cursor, batchSize)
 
@@ -119,7 +119,6 @@ type profileReconciler struct {
 	Client             androidmgmt.Client
 	AndroidAgentConfig config.AndroidAgentConfig
 	Logger             *slog.Logger
-	AndroidSvc         android.Service
 	RetryCounter       fleet.SoftwareInstallAttemptCounter
 	lastHostUUID       string
 
@@ -127,6 +126,7 @@ type profileReconciler struct {
 	// installs of every host during the run, upserted together at the end
 	appInstallsToUpsert    []fleet.HostAndroidSoftwareInstall
 	appInstallsToRemove    []fleet.HostAndroidSoftwareInstall
+	appCursor              uint
 	appNextCursor          uint
 	appSendsStoppedByQuota bool
 }
@@ -208,7 +208,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		}
 	}
 
-	appListsByHostUUID, err := r.prepareAppLists(ctx, batchSize)
+	appListsByHostUUID, err := r.prepareAppLists(ctx, batchSize, selectedAt)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "prepare android app lists")
 	}
@@ -216,7 +216,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	var bulkHostProfs []*fleet.MDMAndroidProfilePayload
 	for hostUUID, toInstallProfs := range profilesByHostUUID {
 		toRemove := toRemoveByHostUUID[hostUUID]
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents, certAliases, allCertStatuses[hostUUID], appListsByHostUUID[hostUUID])
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents, certAliases, allCertStatuses[hostUUID], appListsByHostUUID)
 		if err != nil {
 			return 0, ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
@@ -226,18 +226,17 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 
 	// if there are hosts with only profiles to remove, process them too
 	for hostUUID, toRemove := range toRemoveByHostUUID {
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil, nil, nil, appListsByHostUUID[hostUUID])
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil, nil, nil, appListsByHostUUID)
 		if err != nil {
 			return 0, ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
 		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 	}
 
-	// Remove the app lists sent with their host's profiles, so those hosts don't get a second patch
-	maps.DeleteFunc(appListsByHostUUID, func(_ string, appList *androidAppList) bool {
-		return appList.sentWithProfiles
-	})
-	r.sendHostApps(ctx, appListsByHostUUID, batchSize, hostCount)
+	err = r.sendHostApps(ctx, appListsByHostUUID, batchSize, hostCount)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "send android app lists")
+	}
 
 	if hostCount > 0 {
 		r.Logger.DebugContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
@@ -261,7 +260,7 @@ func (r *profileReconciler) sendHostProfiles(
 	profilesContents map[string]json.RawMessage,
 	certAliases map[string][]string,
 	certStatuses map[string]fleet.CertificateTemplateStatus,
-	appList *androidAppList,
+	appListsByHostUUID map[string]*androidAppList,
 ) ([]*fleet.MDMAndroidProfilePayload, error) {
 	const maxRequestFailures = 3
 
@@ -475,12 +474,20 @@ func (r *profileReconciler) sendHostProfiles(
 	// using the host uuid as policy id, so we don't need to track the id mapping
 	// to the host.
 	policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
-	// Send the host's app list in the same patch when its apps changed too, so the host gets one policy patch
 	patchOpts := androidmgmt.PoliciesPatchOpts{ExcludeApps: true}
+	appList := appListsByHostUUID[hostUUID]
+	// Remove the host's app list so it isn't sent in a second patch after the profiles
+	delete(appListsByHostUUID, hostUUID)
 	if appList != nil {
-		policy.Applications = appList.appPolicies
-		patchOpts = androidmgmt.PoliciesPatchOpts{}
-		appList.sentWithProfiles = true
+		applications, err := r.appListApplications(ctx, appList)
+		if err != nil {
+			r.Logger.ErrorContext(ctx, "failed to build android app list, sending the profiles without it", "host_uuid", hostUUID, "err", err)
+			appList = nil
+		} else {
+			// Replace the whole policy, apps included, so the profiles and apps go in one patch
+			policy.Applications = applications
+			patchOpts = androidmgmt.PoliciesPatchOpts{}
+		}
 	}
 	policyReq, skip, err := r.patchPolicy(ctx, hostUUID, policyName, &policy, settingFromProfile, patchOpts)
 	if err != nil {
@@ -503,9 +510,11 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 
-	// Leave the app list unrecorded on a quota error, so the next run sends it again without waiting to retry
-	if appList != nil && policyReq.StatusCode != http.StatusTooManyRequests {
-		r.recordAppListResult(appList, policyReq, patchPolicyReqFailed)
+	if appList != nil {
+		err = r.recordAppListRequest(ctx, appList, policyReq, skip)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "record app list for host %s", hostUUID)
+		}
 	}
 
 	if skip && !policyReq.PolicyVersion.Valid {

@@ -524,17 +524,7 @@ WHERE
 	if len(appTeamIDs) == 0 {
 		return nil
 	}
-
-	updateStmt, updateArgs, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1 WHERE host_id = ? AND vpp_app_team_id IN (?)`,
-		hostID, appTeamIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare mark android app resend for custom host vital")
-	}
-	_, err = tx.ExecContext(ctx, updateStmt, updateArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "mark android app resend for custom host vital")
-	}
-	return nil
+	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, []uint{hostID}, appTeamIDs)
 }
 
 func (ds *Datastore) GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {

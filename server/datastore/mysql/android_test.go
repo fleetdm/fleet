@@ -4256,26 +4256,45 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 1)
 	require.Equal(t, fleetHost.Host.ID, hosts[0].ID)
 
-	// insert a setup experience install for both listed hosts and set the fleet host's verified
-	for _, host := range []*fleet.AndroidHost{unassignedHost, fleetHost} {
+	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one for
+	// the Unassigned host
+	for _, commandUUID := range []string{"setup-unassigned", "setup-fleet", "setup-unassigned-failed"} {
+		host := unassignedHost
+		if commandUUID == "setup-fleet" {
+			host = fleetHost
+		}
 		err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
 			HostID:            host.Host.ID,
 			AdamID:            "com.example.setup",
-			CommandUUID:       "setup-" + host.Host.UUID,
+			CommandUUID:       commandUUID,
 			AssociatedEventID: "1",
 			VPPAppTeamID:      appTeamID,
 		})
 		require.NoError(t, err)
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE host_id = ?`, fleetHost.Host.ID)
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE command_uuid = 'setup-unassigned-failed'`)
 		return err
 	})
 
-	// read the hosts with a pending setup install, only the Unassigned host should be returned
-	hostIDs, err := ds.GetAndroidHostIDsWithPendingSetupExperienceInstall(ctx, []uint{unassignedHost.Host.ID, fleetHost.Host.ID, unenrolledHost.Host.ID})
+	// read the setup experience apps, only the Unassigned host's pending install should be returned, the fleet host's
+	// app version is in another fleet
+	setupApps, err := ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID, fleetHost.Host.ID, unenrolledHost.Host.ID})
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{unassignedHost.Host.ID: {}}, hostIDs)
+	require.Len(t, setupApps, 1)
+	require.Equal(t, unassignedHost.Host.ID, setupApps[0].HostID)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
+	require.Equal(t, appTeamID, setupApps[0].VPPAppTeamID)
+
+	// verify the Unassigned host's pending install, it should still be returned
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = 'setup-unassigned'`)
+		return err
+	})
+	setupApps, err = ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, setupApps, 1)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
 }
 
 func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
@@ -4309,18 +4328,17 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// upsert a failed request that sends the kept app on its new version and keeps the removed app, every row of the host
-	// should be failed and flagged for resend
+	// should be request failed
 	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
-		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, NeedsResend: true, PolicyBuiltAt: builtAt},
-		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, NeedsResend: true, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
 	}, nil)
 	require.NoError(t, err)
 	installs, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
 	require.NoError(t, err)
 	require.Len(t, installs, 2)
 	for _, install := range installs {
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusFailed, install.Status, install.AdamID)
-		require.True(t, install.NeedsResend, install.AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, install.Status, install.AdamID)
 	}
 
 	// read the other host's row, it should be untouched
@@ -4377,32 +4395,17 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installs[0].Status)
 	require.True(t, newBuiltAt.Equal(installs[0].PolicyBuiltAt))
 
-	// upsert the kept app again exactly as it exists, no log entry should be written for it
-	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{*installs[0]}, nil)
+	// send the kept app in policy version 3 and report applied policy version 5, the kept app should be verified
+	keptInstall = *installs[0]
+	keptInstall.Status = fleet.AndroidSoftwareInstallStatusPending
+	keptInstall.InPolicyVersion = new(int64(3))
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
 	require.NoError(t, err)
-
-	// read the host's log, it should have every change in order
-	type logRow struct {
-		AdamID          string `db:"adam_id"`
-		VPPAppTeamID    *uint  `db:"vpp_app_team_id"`
-		Status          string `db:"status"`
-		InPolicyVersion *int64 `db:"in_policy_version"`
-	}
-	var logRows []logRow
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &logRows,
-			`SELECT adam_id, vpp_app_team_id, status, in_policy_version FROM log_android_software_installs WHERE host_id = ? ORDER BY id`, host.Host.ID)
-	})
-	require.Equal(t, []logRow{
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1))},
-		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1))},
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed},
-		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusFailed, InPolicyVersion: new(int64(1))},
-		{AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusRemoved},
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2))},
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, Status: fleet.AndroidSoftwareInstallStatusVerified, InPolicyVersion: new(int64(2))},
-		{AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, Status: fleet.AndroidSoftwareInstallStatusVerified, InPolicyVersion: new(int64(2))},
-	}, logRows)
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 5)
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installs[0].Status)
 
 	// delete the kept app's first version, the host's row should be kept with no version
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4414,17 +4417,30 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Len(t, installs, 1)
 	require.Nil(t, installs[0].VPPAppTeamID)
 
-	// delete the host, its row should be deleted and its log rows kept
+	// flag the host's apps for resend, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installs[0].NeedsResend)
+
+	// replace the host's apps with only the removed app, the kept app's row should be deleted and the flag cleared
+	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.Host.ID, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(6)), PolicyBuiltAt: newBuiltAt},
+	})
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, "com.example.removed", installs[0].AdamID)
+	require.False(t, installs[0].NeedsResend)
+
+	// delete the host, its row should be deleted
 	err = ds.DeleteHost(ctx, host.Host.ID)
 	require.NoError(t, err)
 	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
 	require.NoError(t, err)
 	require.Empty(t, installs)
-	var logCount int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &logCount, `SELECT COUNT(*) FROM log_android_software_installs WHERE host_id = ?`, host.Host.ID)
-	})
-	require.Equal(t, len(logRows), logCount)
 }
 
 func testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt(t *testing.T, ds *Datastore) {

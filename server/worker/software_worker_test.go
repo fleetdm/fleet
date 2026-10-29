@@ -78,10 +78,7 @@ func (m *mockAndroidModule) SetAppsForAndroidPolicy(ctx context.Context, enterpr
 	return nil, nil
 }
 
-// TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent verifies that the Fleet Agent
-// is preserved when an Android host is transferred between teams. This prevents the agent
-// from being uninstalled (and losing state) during team transfers.
-func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
+func TestUpdateAndroidHostsAfterFleetTransferFlagsAppsForResend(t *testing.T) {
 	ctx := t.Context()
 	hostUUID := "test-host-uuid"
 	hostID := uint(1)
@@ -100,52 +97,31 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	ds.SetHostCertificateTemplatesToPendingRemoveForHostFunc = func(ctx context.Context, hostUUID string) error {
 		return nil
 	}
+	var newTeamID uint
 	ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		newTeamID = teamID
 		return 0, nil
 	}
-	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
-		return []fleet.VPPAppTeam{{AdamID: "com.example.teamapp", AppTeamID: 1}}, nil
-	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
-		return map[string][]byte{}, nil
-	}
-	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
+	var flaggedHostIDs []uint
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint) error {
+		flaggedHostIDs = hostIDs
 		return nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return nil, nil
-	}
-
-	var capturedAppPolicies []*androidmanagement.ApplicationPolicy
 	androidModule := &mockAndroidModule{
-		buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
-			return &androidmanagement.ApplicationPolicy{
-				PackageName: "com.fleetdm.agent",
-				InstallType: "FORCE_INSTALLED",
-			}, nil
-		},
 		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
-			capturedAppPolicies = appPolicies
+			t.Fatal("the Android profile reconciler sends the app list after a fleet transfer, not the worker")
 			return nil
 		},
 	}
+	worker := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	worker := &SoftwareWorker{
-		Datastore:     ds,
-		AndroidModule: androidModule,
-		Log:           slog.New(slog.DiscardHandler),
-	}
-
-	err := worker.bulkSetAndroidAppsAvailableForHosts(ctx, map[string]uint{hostUUID: hostID}, "enterprises/test")
+	// run the fleet transfer task, the host's certificate templates should be moved to its new fleet and its apps
+	// flagged for resend, with no app list sent
+	err := worker.updateAndroidHostsAfterFleetTransfer(ctx, map[string]uint{hostUUID: hostID})
 	require.NoError(t, err)
-
-	// Verify both the team app and Fleet Agent are in the policy
-	require.Len(t, capturedAppPolicies, 2, "expected team app + Fleet Agent")
-	capturedPackageNames := make([]string, len(capturedAppPolicies))
-	for i, policy := range capturedAppPolicies {
-		capturedPackageNames[i] = policy.PackageName
-	}
-	require.ElementsMatch(t, []string{"com.example.teamapp", "com.fleetdm.agent"}, capturedPackageNames)
+	require.True(t, ds.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked)
+	require.Equal(t, teamID, newTeamID)
+	require.Equal(t, []uint{hostID}, flaggedHostIDs)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {
@@ -203,15 +179,17 @@ func TestSoftwareWorkerRunDisablesAMAPIRetry(t *testing.T) {
 	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return nil, nil
+	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+		return nil
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
 	args, err := json.Marshal(softwareWorkerArgs{
-		Task:           bulkSetAndroidAppsAvailableForHostsTask,
+		Task:           makeAndroidAppsAvailableForHostTask,
 		EnterpriseName: "enterprises/test",
-		UUIDsToIDs:     map[string]uint{"host-1": 1},
+		HostUUID:       "host-1",
+		HostID:         1,
+		PolicyID:       "host-1",
 	})
 	require.NoError(t, err)
 	require.NoError(t, w.Run(t.Context(), args))
@@ -288,8 +266,8 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 		upsertedInstalls = append(upsertedInstalls, installs...)
 		return nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return nil, nil
+	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+		return nil
 	}
 	var installs []*fleet.HostAndroidVPPSoftwareInstall
 	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
@@ -351,8 +329,8 @@ func TestRunAndroidSetupExperienceWithInstallConstraint(t *testing.T) {
 	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return nil, nil
+	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+		return nil
 	}
 	var installs []*fleet.HostAndroidVPPSoftwareInstall
 	ds.InsertAndroidSetupExperienceSoftwareInstallFunc = func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
@@ -473,11 +451,12 @@ func TestMakeAndroidAppsAvailableForHostReplacesAppList(t *testing.T) {
 			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 				return map[string][]byte{}, nil
 			}
-			ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
+			var upsertedAdamIDs []string
+			ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+				for _, install := range installs {
+					upsertedAdamIDs = append(upsertedAdamIDs, install.AdamID)
+				}
 				return nil
-			}
-			ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-				return nil, nil
 			}
 
 			buildAgent := c.buildAgent
@@ -516,6 +495,9 @@ func TestMakeAndroidAppsAvailableForHostReplacesAppList(t *testing.T) {
 			require.Equal(t, 1, setCalls)
 			require.Equal(t, map[string]string{hostUUID: hostUUID}, setHosts)
 			require.Equal(t, c.wantPackages, setPackages)
+
+			// read the upserted installs, they should match the sent list, the fleet agent included
+			require.Equal(t, c.wantPackages, upsertedAdamIDs)
 		})
 	}
 }
@@ -564,8 +546,8 @@ func TestMakeAndroidAppsAvailableForHostSkipsUnresolvableAppConfig(t *testing.T)
 			ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 				return nil
 			}
-			ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-				return nil, nil
+			ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+				return nil
 			}
 			ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
 				return "", c.expandErr
@@ -652,8 +634,8 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
 		return nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return nil, nil
+	ds.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+		return nil
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 

@@ -1978,13 +1978,15 @@ type GetAndroidAppReconcileCursorFunc func(ctx context.Context) (uint, error)
 
 type SetAndroidAppReconcileCursorFunc func(ctx context.Context, cursor uint) error
 
-type GetAndroidHostIDsWithPendingSetupExperienceInstallFunc func(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error)
-
-type ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+type ListHostMDMAndroidVPPAppsFromSetupExperienceFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
 
 type ListHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error)
 
 type BulkUpsertHostAndroidSoftwareInstallsFunc func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error
+
+type ReplaceHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error
+
+type SetHostAndroidSoftwareInstallsNeedsResendFunc func(ctx context.Context, hostIDs []uint) error
 
 type SetHostAndroidSoftwareInstallsVerifiedFunc func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
 
@@ -5586,17 +5588,20 @@ type DataStore struct {
 	SetAndroidAppReconcileCursorFunc        SetAndroidAppReconcileCursorFunc
 	SetAndroidAppReconcileCursorFuncInvoked bool
 
-	GetAndroidHostIDsWithPendingSetupExperienceInstallFunc        GetAndroidHostIDsWithPendingSetupExperienceInstallFunc
-	GetAndroidHostIDsWithPendingSetupExperienceInstallFuncInvoked bool
-
-	ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc        ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc
-	ListHostMDMAndroidVPPAppsInstalledDuringSetupFuncInvoked bool
+	ListHostMDMAndroidVPPAppsFromSetupExperienceFunc        ListHostMDMAndroidVPPAppsFromSetupExperienceFunc
+	ListHostMDMAndroidVPPAppsFromSetupExperienceFuncInvoked bool
 
 	ListHostAndroidSoftwareInstallsFunc        ListHostAndroidSoftwareInstallsFunc
 	ListHostAndroidSoftwareInstallsFuncInvoked bool
 
 	BulkUpsertHostAndroidSoftwareInstallsFunc        BulkUpsertHostAndroidSoftwareInstallsFunc
 	BulkUpsertHostAndroidSoftwareInstallsFuncInvoked bool
+
+	ReplaceHostAndroidSoftwareInstallsFunc        ReplaceHostAndroidSoftwareInstallsFunc
+	ReplaceHostAndroidSoftwareInstallsFuncInvoked bool
+
+	SetHostAndroidSoftwareInstallsNeedsResendFunc        SetHostAndroidSoftwareInstallsNeedsResendFunc
+	SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked bool
 
 	SetHostAndroidSoftwareInstallsVerifiedFunc        SetHostAndroidSoftwareInstallsVerifiedFunc
 	SetHostAndroidSoftwareInstallsVerifiedFuncInvoked bool
@@ -13442,18 +13447,11 @@ func (s *DataStore) SetAndroidAppReconcileCursor(ctx context.Context, cursor uin
 	return s.SetAndroidAppReconcileCursorFunc(ctx, cursor)
 }
 
-func (s *DataStore) GetAndroidHostIDsWithPendingSetupExperienceInstall(ctx context.Context, hostIDs []uint) (map[uint]struct{}, error) {
+func (s *DataStore) ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 	s.mu.Lock()
-	s.GetAndroidHostIDsWithPendingSetupExperienceInstallFuncInvoked = true
+	s.ListHostMDMAndroidVPPAppsFromSetupExperienceFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAndroidHostIDsWithPendingSetupExperienceInstallFunc(ctx, hostIDs)
-}
-
-func (s *DataStore) ListHostMDMAndroidVPPAppsInstalledDuringSetup(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
-	s.mu.Lock()
-	s.ListHostMDMAndroidVPPAppsInstalledDuringSetupFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListHostMDMAndroidVPPAppsInstalledDuringSetupFunc(ctx, hostIDs)
+	return s.ListHostMDMAndroidVPPAppsFromSetupExperienceFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
@@ -13468,6 +13466,20 @@ func (s *DataStore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, i
 	s.BulkUpsertHostAndroidSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkUpsertHostAndroidSoftwareInstallsFunc(ctx, installs, removedInstalls)
+}
+
+func (s *DataStore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+	s.mu.Lock()
+	s.ReplaceHostAndroidSoftwareInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceHostAndroidSoftwareInstallsFunc(ctx, hostID, installs)
+}
+
+func (s *DataStore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostAndroidSoftwareInstallsNeedsResendFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error {

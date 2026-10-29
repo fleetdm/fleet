@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"howett.net/plist"
 )
@@ -271,7 +270,6 @@ type HostAndroidVPPSoftwareInstall struct {
 
 // HostAndroidSoftwareInstall is the app Fleet last put in an Android host's policy, one per host and app.
 type HostAndroidSoftwareInstall struct {
-	ID              uint      `db:"id"`
 	HostID          uint      `db:"host_id"`
 	AdamID          string    `db:"adam_id"`
 	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
@@ -287,9 +285,12 @@ type HostAndroidSoftwareInstall struct {
 const (
 	AndroidSoftwareInstallStatusPending  = "pending"
 	AndroidSoftwareInstallStatusVerified = "verified"
-	AndroidSoftwareInstallStatusFailed   = "failed"
-	// AndroidSoftwareInstallStatusRemoved is only written to log_android_software_installs.
-	AndroidSoftwareInstallStatusRemoved = "removed"
+	// AndroidSoftwareInstallStatusFailed is an app left out of the host's policy because its configuration uses a value
+	// the host doesn't have.
+	AndroidSoftwareInstallStatusFailed = "failed"
+	// AndroidSoftwareInstallStatusRequestFailed is an app whose host's last app list request failed, sent again after a
+	// wait.
+	AndroidSoftwareInstallStatusRequestFailed = "request_failed"
 )
 
 const (
@@ -491,36 +492,3 @@ type HostAppStoreAppVersion struct {
 
 // AppStoreAppVersionsByFleetAndTitleID holds App Store app versions indexed by fleet id and then software title id, first-added first.
 type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp
-
-// MergeHostAndroidInstallsWithPolicyDetails returns sentApps as pending in the policy version of policyRequest, and
-// notSentApps as failed with no policy version.
-func MergeHostAndroidInstallsWithPolicyDetails(hostID uint, sentApps []VPPAppTeam, notSentApps []VPPAppTeam, policyRequest *android.MDMAndroidPolicyRequest, policyBuiltAt time.Time) []HostAndroidSoftwareInstall {
-	var inPolicyVersion *int64
-	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
-		inPolicyVersion = &policyRequest.PolicyVersion.V
-	}
-
-	installs := make([]HostAndroidSoftwareInstall, 0, len(sentApps)+len(notSentApps))
-	for _, app := range sentApps {
-		installs = append(installs, HostAndroidSoftwareInstall{
-			HostID:          hostID,
-			AdamID:          app.AdamID,
-			VPPAppTeamID:    &app.AppTeamID,
-			InstallType:     android.AppStatusAvailable,
-			Status:          AndroidSoftwareInstallStatusPending,
-			InPolicyVersion: inPolicyVersion,
-			PolicyBuiltAt:   policyBuiltAt,
-		})
-	}
-	for _, app := range notSentApps {
-		installs = append(installs, HostAndroidSoftwareInstall{
-			HostID:        hostID,
-			AdamID:        app.AdamID,
-			VPPAppTeamID:  &app.AppTeamID,
-			InstallType:   android.AppStatusAvailable,
-			Status:        AndroidSoftwareInstallStatusFailed,
-			PolicyBuiltAt: policyBuiltAt,
-		})
-	}
-	return installs
-}

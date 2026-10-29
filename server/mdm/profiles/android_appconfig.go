@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -187,7 +188,7 @@ func BuildAndroidApplicationPolicies(ctx context.Context, appIDs []string,
 		appPolicy.InstallType = installType
 		// Google rejects installConstraint on AVAILABLE apps, which fails the whole request.
 		// It only applies to installs Google starts, like the setup experience's.
-		if installType == "AVAILABLE" {
+		if installType == android.AppStatusAvailable {
 			appPolicy.InstallConstraint = nil
 		}
 		appPolicies = append(appPolicies, appPolicy)

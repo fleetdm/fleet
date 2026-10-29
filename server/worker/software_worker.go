@@ -112,11 +112,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		)
 
 	case bulkSetAndroidAppsAvailableForHostsTask:
-		return ctxerr.Wrapf(ctx, v.bulkSetAndroidAppsAvailableForHosts(
-			ctx,
-			args.UUIDsToIDs,
-			args.EnterpriseName,
-		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
+		return ctxerr.Wrapf(ctx, v.updateAndroidHostsAfterFleetTransfer(ctx, args.UUIDsToIDs), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
 	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
 		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
@@ -223,32 +219,36 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	// from moving to its host policy. Whichever value is missing has its own resend trigger.
 	substitutionHost := androidHostToSubstitutionHost(androidHost)
 	availableAppIDs := make([]string, 0, len(appsInScope))
-	var availableApps []fleet.VPPAppTeam
-	var appsWithUnresolvableValues []fleet.VPPAppTeam
+	installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(appsInScope)+1)
+	var failedInstalls []fleet.HostAndroidSoftwareInstall
+	var substituted []byte
 	for _, app := range appsInScope {
 		appID := app.AdamID
+		install := fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: appID, VPPAppTeamID: new(app.AppTeamID), InstallType: android.AppStatusAvailable,
+			Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: policyBuiltAt}
 		config, ok := configsByAppID[appID]
 		if !ok {
 			availableAppIDs = append(availableAppIDs, appID)
-			availableApps = append(availableApps, app)
+			installs = append(installs, install)
 			continue
 		}
-		substituted, err := profiles.SubstituteFleetVarsInAndroidAppConfigs(ctx, v.Datastore, map[string][]byte{appID: config}, substitutionHost)
+		substituted, err = profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, v.Datastore, config, substitutionHost)
 		if err != nil {
 			if profiles.IsUnresolvableAndroidAppConfigForHost(err) {
 				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
 					"host_uuid", hostUUID, "application_id", appID, "err", err)
-				appsWithUnresolvableValues = append(appsWithUnresolvableValues, app)
+				install.Status = fleet.AndroidSoftwareInstallStatusFailed
+				failedInstalls = append(failedInstalls, install)
 				continue
 			}
-			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+			return ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
 		}
-		configsByAppID[appID] = substituted[appID]
+		configsByAppID[appID] = substituted
 		availableAppIDs = append(availableAppIDs, appID)
-		availableApps = append(availableApps, app)
+		installs = append(installs, install)
 	}
 
-	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, availableAppIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
@@ -270,23 +270,20 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
 
-	installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(hostID, availableApps, appsWithUnresolvableValues, policyRequests[hostUUID], policyBuiltAt)
-	existingInstalls, err := v.Datastore.ListHostAndroidSoftwareInstalls(ctx, []uint{hostID})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list host android software installs")
+	var inPolicyVersion *int64
+	policyRequest := policyRequests[hostUUID]
+	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+		inPolicyVersion = &policyRequest.PolicyVersion.V
 	}
-	// Remove the existing installs of a previous enrollment, the replace took their apps out of the policy
-	sentAppStoreIDs := make(map[string]struct{}, len(installs))
-	for _, install := range installs {
-		sentAppStoreIDs[install.AdamID] = struct{}{}
+	for i := range installs {
+		installs[i].InPolicyVersion = inPolicyVersion
 	}
-	var removedInstalls []fleet.HostAndroidSoftwareInstall
-	for _, existingInstall := range existingInstalls {
-		if _, sent := sentAppStoreIDs[existingInstall.AdamID]; !sent {
-			removedInstalls = append(removedInstalls, *existingInstall)
-		}
+	installs = append(installs, failedInstalls...)
+	if fleetAgentPolicy != nil {
+		installs = append(installs, fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: fleetAgentPolicy.PackageName, InstallType: android.AppStatusForceInstalled,
+			Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: inPolicyVersion, PolicyBuiltAt: policyBuiltAt})
 	}
-	err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, removedInstalls)
+	err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "replace host android software installs")
 	}
@@ -459,9 +456,8 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, uuidsToIDs map[string]uint, enterpriseName string) error {
-	// for each host
-	// get the set of self-service apps that are in scope for it
+func (v *SoftwareWorker) updateAndroidHostsAfterFleetTransfer(ctx context.Context, uuidsToIDs map[string]uint) error {
+	hostIDs := make([]uint, 0, len(uuidsToIDs))
 	for uuid, hostID := range uuidsToIDs {
 		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, uuid)
 		if err != nil {
@@ -473,79 +469,20 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		// Update certificate templates for team transfer:
 		// 1. Mark old templates as pending removal
 		// 2. Create new pending templates for the new team
-		// This must happen before building the managed config, which includes certificate template IDs.
 		if err := v.Datastore.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, uuid); err != nil {
 			return ctxerr.Wrap(ctx, err, "set host certificate templates to pending remove for host")
 		}
 		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, uuid, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 		}
-
-		appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
-		}
-
-		appIDs := make([]string, 0, len(appsInScope))
-		vppAppTeamIDs := make([]uint, 0, len(appsInScope))
-		for _, app := range appsInScope {
-			appIDs = append(appIDs, app.AdamID)
-			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
-		}
-
-		policyBuiltAt := time.Now()
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
-		}
-
-		configsByAppID, err = profiles.SubstituteFleetVarsInAndroidAppConfigs(ctx, v.Datastore, configsByAppID, androidHostToSubstitutionHost(androidHost))
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
-		}
-
-		appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, appIDs, configsByAppID, "AVAILABLE")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building application policies with config")
-		}
-
-		// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
-		fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, uuid)
-		if err != nil {
-			v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
-		} else if fleetAgentPolicy != nil {
-			appPolicies = append(appPolicies, fleetAgentPolicy)
-		}
-
-		policyRequests, err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
-		}
-
-		// Record the sent list so the Android app reconciler doesn't send it again
-		installs := fleet.MergeHostAndroidInstallsWithPolicyDetails(hostID, appsInScope, nil, policyRequests[uuid], policyBuiltAt)
-		existingInstalls, err := v.Datastore.ListHostAndroidSoftwareInstalls(ctx, []uint{hostID})
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "list host android software installs", map[string]any{"host_id": hostID})
-		}
-		// Remove the existing installs of the previous fleet's apps, the replace took them out of the policy
-		sentAppStoreIDs := make(map[string]struct{}, len(installs))
-		for _, install := range installs {
-			sentAppStoreIDs[install.AdamID] = struct{}{}
-		}
-		var removedInstalls []fleet.HostAndroidSoftwareInstall
-		for _, existingInstall := range existingInstalls {
-			if _, sent := sentAppStoreIDs[existingInstall.AdamID]; !sent {
-				removedInstalls = append(removedInstalls, *existingInstall)
-			}
-		}
-		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, removedInstalls)
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "replace host android software installs", map[string]any{"host_id": hostID})
-		}
-
+		hostIDs = append(hostIDs, hostID)
 	}
 
+	// Flag the hosts' apps for resend, so the Android profile reconciler sends their new fleet's apps and agent configuration
+	err := v.Datastore.SetHostAndroidSoftwareInstallsNeedsResend(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "flag android software installs for resend after fleet transfer")
+	}
 	return nil
 }
 

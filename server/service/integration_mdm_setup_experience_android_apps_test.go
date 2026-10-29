@@ -789,11 +789,24 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	patchAppsPolicies = nil
 
-	// the device reports applying its own policy, so later app changes are sent to it
+	// the device reports applying its own policy and installing the setup experience apps, so later app changes are sent
+	// to it
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE host_id = ?`, host.UUID, host.ID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(t.Context(), `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE host_id = ?`, host.ID)
 		return err
 	})
+	appPolicyByPackage := func(policies []*androidmanagement.ApplicationPolicy, packageName string) *androidmanagement.ApplicationPolicy {
+		for _, policy := range policies {
+			if policy.PackageName == packageName {
+				return policy
+			}
+		}
+		return nil
+	}
 
 	// add app3 to Fleet
 	addAppResp = addAppStoreAppResponse{}
@@ -803,14 +816,13 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}, http.StatusOK, &addAppResp)
 	app3TitleID := addAppResp.TitleID
 
-	s.runWorkerUntilDoneWithChecks(true)
-
-	// worker should have:
-	// 1. made the apps available to the host (for self-service), without any config provided
+	// run the Android profile schedule, the host should get its app list with app3 available without any config, and
+	// the setup experience apps still preinstalled
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, patchAppsPolicies, 1)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
-	}, patchAppsPolicies[0])
+	require.Equal(t, &androidmanagement.ApplicationPolicy{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, appPolicyByPackage(patchAppsPolicies[0], app3.VPPAppID.AdamID)) // #nosec G101 - AMAPI enum value, not a credential
+	require.Equal(t, "PREINSTALLED", appPolicyByPackage(patchAppsPolicies[0], app1.VPPAppID.AdamID).InstallType)
+	require.Equal(t, "PREINSTALLED", appPolicyByPackage(patchAppsPolicies[0], app2.VPPAppID.AdamID).InstallType)
 
 	patchAppsPolicies = nil
 
@@ -820,14 +832,10 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
-
-	// worker should have:
-	// 1. made the app available with its config
+	// run the Android profile schedule, the host should get app3 with its config
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, patchAppsPolicies, 1)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`)},
-	}, patchAppsPolicies[0])
+	require.Equal(t, &androidmanagement.ApplicationPolicy{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`)}, appPolicyByPackage(patchAppsPolicies[0], app3.VPPAppID.AdamID))
 
 	patchAppsPolicies = nil
 
@@ -837,8 +845,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
-
+	// run the Android profile schedule, nothing should be sent
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Empty(t, patchAppsPolicies)
 
 	// set the other two supported top-level keys for app3
@@ -847,14 +855,11 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
-
-	// worker should have:
-	// 1. made the app available with both policies set, not just the managed configuration
+	// run the Android profile schedule, the host should get app3 with both policies set, not just the managed
+	// configuration
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, patchAppsPolicies, 1)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, // #nosec G101 - AMAPI enum value, not a credential
-	}, patchAppsPolicies[0])
+	require.Equal(t, &androidmanagement.ApplicationPolicy{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`{"key":3}`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, appPolicyByPackage(patchAppsPolicies[0], app3.VPPAppID.AdamID)) // #nosec G101 - AMAPI enum value, not a credential
 
 	patchAppsPolicies = nil
 
@@ -864,19 +869,17 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 3}, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
-
+	// run the Android profile schedule, the host should get app3 with the other fields
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, patchAppsPolicies, 1)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{
-			PackageName:          app3.VPPAppID.AdamID,
-			InstallType:          "AVAILABLE",
-			ManagedConfiguration: googleapi.RawMessage(`{"key":3}`),
-			AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
-			MinimumVersionCode:   42,
-			PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
-		},
-	}, patchAppsPolicies[0])
+	require.Equal(t, &androidmanagement.ApplicationPolicy{
+		PackageName:          app3.VPPAppID.AdamID,
+		InstallType:          "AVAILABLE",
+		ManagedConfiguration: googleapi.RawMessage(`{"key":3}`),
+		AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
+		MinimumVersionCode:   42,
+		PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
+	}, appPolicyByPackage(patchAppsPolicies[0], app3.VPPAppID.AdamID))
 
 	patchAppsPolicies = nil
 
@@ -889,10 +892,11 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		require.Contains(t, extractServerErrorText(res.Body), `"packageName" and "installType" are not supported as top-level keys.`)
 	}
 
-	s.runWorkerUntilDoneWithChecks(true)
+	// run the Android profile schedule, nothing should be sent
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Empty(t, patchAppsPolicies)
 
-	// patch with a different config just to trigger the worker
+	// patch with a different config so app3 is sent again
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{}`),
@@ -913,14 +917,10 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		return err
 	})
 
-	s.runWorkerUntilDoneWithChecks(true)
-
-	// worker should have:
-	// 1. made the app available with its config cleared
+	// run the Android profile schedule, the host should get app3 with its config cleared
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, patchAppsPolicies, 1)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
-	}, patchAppsPolicies[0])
+	require.Equal(t, &androidmanagement.ApplicationPolicy{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, appPolicyByPackage(patchAppsPolicies[0], app3.VPPAppID.AdamID)) // #nosec G101 - AMAPI enum value, not a credential
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() {
@@ -958,6 +958,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		patchAppsCallCount++
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if opts.ExcludeApps {
+			return &androidmanagement.Policy{}, nil
+		}
 		patchAppsCallCount++
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
@@ -1105,7 +1112,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 1}}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
+	s.awaitTriggerAndroidProfileSchedule(t)
 
 	// the verified install should now be back to pending for host1
 	getHostSw = getHostSoftwareResponse{}
@@ -1157,7 +1164,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 2}}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
+	s.awaitTriggerAndroidProfileSchedule(t)
 
 	// install for host1 will still be pending, but will now be verified only when that
 	// latest policy version will get reported
@@ -1247,7 +1254,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 		Configuration: json.RawMessage(`{"managedConfiguration": {"key": 2}}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.runWorkerUntilDoneWithChecks(true)
+	s.awaitTriggerAndroidProfileSchedule(t)
 
 	// status stays installed
 	getHostSw = getHostSoftwareResponse{}
@@ -1556,13 +1563,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidInstallConstraint() 
 		}
 	}
 
-	// a configuration change sends the app to every host in scope
+	// the devices report applying their own policies, then change the constrained app's configuration and run the
+	// Android profile schedule, every host in scope should get the app, still preinstalled with its constraint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE host_id IN (?, ?)`, personalHost.ID, companyHost.ID)
+		return err
+	})
 	clear(sentApps)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", constrainedTitleID), &updateAppStoreAppRequest{
 		Configuration: json.RawMessage(`{"installConstraint": [{"networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
 	}, http.StatusOK, &updateAppStoreAppResponse{})
-	s.runWorkerUntilDoneWithChecks(true)
-	requireNoJobErrors()
+	s.awaitTriggerAndroidProfileSchedule(t)
 	var configPushes int
 	for _, policyApps := range sentApps {
 		for _, app := range policyApps {
@@ -1575,7 +1586,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidInstallConstraint() 
 	require.Equal(t, 2, configPushes, "one push per host in scope")
 
 	// a fleet transfer sends the destination fleet's apps
-	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "install constraint fleet"})
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "install constraint fleet", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
 	require.NoError(t, err)
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:        &tm.ID,
@@ -1585,6 +1596,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidInstallConstraint() 
 	}, http.StatusOK, &addAppStoreAppResponse{})
 	s.runWorkerUntilDoneWithChecks(true)
 
+	// transfer the personal host and run the worker and the Android profile schedule, the host should get the
+	// destination fleet's app once
 	clear(sentApps)
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm.ID,
@@ -1592,5 +1605,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidInstallConstraint() 
 	}, http.StatusOK, &addHostsToTeamResponse{})
 	s.runWorkerUntilDoneWithChecks(true)
 	requireNoJobErrors()
+	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Len(t, sentFor(personalHost, constrainedApp.AdamID), 1)
 }
