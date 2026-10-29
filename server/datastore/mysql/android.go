@@ -3089,8 +3089,7 @@ func (ds *Datastore) ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, af
 			h.id,
 			h.uuid,
 			h.hardware_serial,
-			h.platform,
-			h.team_id
+			h.platform
 		FROM
 			android_devices ad
 			JOIN hosts h ON h.id = ad.host_id
@@ -3119,7 +3118,10 @@ func (ds *Datastore) SetAndroidAppReconcileCursor(_ context.Context, _ uint) err
 	return nil
 }
 
-func (ds *Datastore) ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+func (ds *Datastore) ListHostMDMAndroidVPPAppsFromSetupExperience(
+	ctx context.Context,
+	hostIDs []uint,
+) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
@@ -3150,10 +3152,17 @@ func (ds *Datastore) ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Co
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list android setup experience apps")
 	}
-	return installs, nil
+	installsByHostID := make(map[uint][]*fleet.HostAndroidVPPSoftwareInstall)
+	for _, install := range installs {
+		installsByHostID[install.HostID] = append(installsByHostID[install.HostID], install)
+	}
+	return installsByHostID, nil
 }
 
-func (ds *Datastore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
+func (ds *Datastore) ListHostAndroidSoftwareInstalls(
+	ctx context.Context,
+	hostIDs []uint,
+) (map[uint]map[string]*fleet.HostAndroidSoftwareInstall, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
@@ -3184,11 +3193,49 @@ func (ds *Datastore) ListHostAndroidSoftwareInstalls(ctx context.Context, hostID
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host android software installs")
 	}
-	return installs, nil
+	installsByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall)
+	for _, install := range installs {
+		if installsByHostID[install.HostID] == nil {
+			installsByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
+		}
+		installsByHostID[install.HostID][install.AdamID] = install
+	}
+	return installsByHostID, nil
+}
+
+func (ds *Datastore) GetAndroidAppStoreAppVersionsByID(ctx context.Context) (map[uint]*fleet.VPPAppStoreApp, error) {
+	const stmt = `
+		SELECT
+			id,
+			configuration,
+			configuration_updated_at
+		FROM
+			vpp_apps_teams
+		WHERE
+			platform = 'android'
+	`
+	var versions []struct {
+		ID                     uint       `db:"id"`
+		Configuration          []byte     `db:"configuration"`
+		ConfigurationUpdatedAt *time.Time `db:"configuration_updated_at"`
+	}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android app store app versions")
+	}
+	versionByID := make(map[uint]*fleet.VPPAppStoreApp, len(versions))
+	for _, version := range versions {
+		versionByID[version.ID] = &fleet.VPPAppStoreApp{
+			VPPAppsTeamsID:         version.ID,
+			Configuration:          version.Configuration,
+			ConfigurationUpdatedAt: version.ConfigurationUpdatedAt,
+		}
+	}
+	return versionByID, nil
 }
 
 func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
-	// Write at most 100 installs per statement, the cron's batch size can be set to any number of hosts
+	// Write at most 100 installs per statement, because the cron's batch size can be any number of hosts
 	const batchSize = 100
 
 	for batch := range slices.Chunk(removedInstalls, batchSize) {
@@ -3211,7 +3258,7 @@ func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, 
 			VALUES
 				%s
 			ON DUPLICATE KEY UPDATE
-				-- Don't clear a resend flag set after the policy was built, the sent policy doesn't have its change
+				-- Don't clear a resend flag set after the policy was built, because the sent policy doesn't have that change
 				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
 				vpp_app_team_id = VALUES(vpp_app_team_id),
 				install_type = VALUES(install_type),
@@ -3253,7 +3300,7 @@ func (ds *Datastore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hos
 	return ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
 }
 
-func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
+func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -3262,6 +3309,10 @@ func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Conte
 	if builtAfter != nil {
 		stmt += ` AND policy_built_at > ?`
 		args = append(args, *builtAfter)
+	}
+	if adamID != nil {
+		stmt += ` AND adam_id = ?`
+		args = append(args, *adamID)
 	}
 	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {

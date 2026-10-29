@@ -283,13 +283,14 @@ type HostAndroidSoftwareInstall struct {
 }
 
 const (
-	AndroidSoftwareInstallStatusPending  = "pending"
+	// AndroidSoftwareInstallStatusPending means the app was sent in the host's
+	// policy and the device hasn't applied that policy version yet.
+	AndroidSoftwareInstallStatusPending = "pending"
+	// AndroidSoftwareInstallStatusVerified means the device applied a policy version that includes the app.
 	AndroidSoftwareInstallStatusVerified = "verified"
-	// AndroidSoftwareInstallStatusFailed is an app left out of the host's policy because its configuration uses a value
-	// the host doesn't have.
+	// AndroidSoftwareInstallStatusFailed means the app's configuration uses a value the host doesn't have.
 	AndroidSoftwareInstallStatusFailed = "failed"
-	// AndroidSoftwareInstallStatusRequestFailed is an app whose host's last app list request failed, sent again after a
-	// wait.
+	// AndroidSoftwareInstallStatusRequestFailed means the request that sent the host's app list failed.
 	AndroidSoftwareInstallStatusRequestFailed = "request_failed"
 )
 

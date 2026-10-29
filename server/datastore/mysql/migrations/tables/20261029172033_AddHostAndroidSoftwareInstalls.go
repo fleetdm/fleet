@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS host_android_software_installs (
   host_id           INT UNSIGNED NOT NULL,
   adam_id           VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   vpp_app_team_id   INT UNSIGNED DEFAULT NULL,
-  install_type      VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  status            VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  install_type      ENUM('AVAILABLE','PREINSTALLED','FORCE_INSTALLED') COLLATE utf8mb4_unicode_ci NOT NULL,
+  status            ENUM('pending','verified','failed','request_failed') COLLATE utf8mb4_unicode_ci NOT NULL,
   needs_resend      TINYINT(1) NOT NULL DEFAULT '0',
   in_policy_version INT DEFAULT NULL,
   policy_built_at   DATETIME(6) NOT NULL,
@@ -30,8 +30,9 @@ CREATE TABLE IF NOT EXISTS host_android_software_installs (
 		return fmt.Errorf("create host_android_software_installs table: %w", err)
 	}
 
-	// Insert a row for an app that's never in scope for every existing Android host, so the Android profile reconciler
-	// sends each host its whole app list once and deletes the row
+	// Insert a row for an app that's never in scope for every existing Android
+	// host, so the Android profile reconciler will send each host its whole app
+	// list once and delete the row
 	_, err = tx.Exec(`
 INSERT IGNORE INTO host_android_software_installs (host_id, adam_id, install_type, status, policy_built_at)
 SELECT host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM android_devices`)

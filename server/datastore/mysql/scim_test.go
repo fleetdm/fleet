@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -3520,6 +3521,7 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		HostID:        host.ID,
 		AdamID:        appID,
 		VPPAppTeamID:  new(uint(appTeamID)), //nolint:gosec // dismiss G115
+		InstallType:   android.AppStatusAvailable,
 		Status:        fleet.AndroidSoftwareInstallStatusVerified,
 		PolicyBuiltAt: time.Now(),
 	}}, nil)
@@ -3563,10 +3565,11 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
 
 	// (3) Assert the host's managed app config was flagged for the Android app reconciler.
-	installs, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.ID})
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.ID})
 	require.NoError(t, err)
-	require.Len(t, installs, 1)
-	assert.True(t, installs[0].NeedsResend, "android app install should be flagged for resend")
+	require.Len(t, installsByHostID[host.ID], 1)
+	require.NotNil(t, installsByHostID[host.ID][appID])
+	assert.True(t, installsByHostID[host.ID][appID].NeedsResend, "android app install should be flagged for resend")
 }
 
 // scimIdPMappingHost is a host after an IdP-authenticated MDM enrollment and SCIM

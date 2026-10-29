@@ -489,8 +489,9 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
-// Flags the host's Android apps whose configuration references $FLEET_HOST_VITAL_<vitalID>, so the Android app
-// reconciler sends them with the new value.
+// Flags the host's Android apps whose configuration references
+// $FLEET_HOST_VITAL_<vitalID>, so the Android app reconciler will send them
+// with the new value.
 func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
 	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
 

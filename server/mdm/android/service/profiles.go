@@ -100,7 +100,7 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 		}
 	}
 
-	// Advance the app cursor on success too, except after a quota error, so the next tick checks the same hosts
+	// Advance the app cursor on success too, except after a quota error, so the next run will check the same hosts
 	if err == nil && !reconciler.appSendsStoppedByQuota {
 		cursorErr = ds.SetAndroidAppReconcileCursor(ctx, reconciler.appNextCursor)
 		if cursorErr != nil {
@@ -234,6 +234,8 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 	}
 
+	// Send the app lists that are left. The profile sends above removed the
+	// hosts whose app list they sent in the same patch as the profiles.
 	err = r.sendHostApps(ctx, appListsByHostUUID, batchSize, hostCount)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "send android app lists")
@@ -247,8 +249,10 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upsert host android software installs")
 	}
-	// Flag the rows written for a sent host during this run, its sent list was built before them
-	err = r.DS.SetHostAndroidSoftwareInstallsNeedsResend(ctx, r.appSentHostIDs, &selectedAt)
+	// Flag the apps another job saved for a sent host after this run built the
+	// host's list, so the next run will send them, because the list this run
+	// sent doesn't have them
+	err = r.DS.SetHostAndroidSoftwareInstallsNeedsResend(ctx, r.appSentHostIDs, &selectedAt, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "flag host android software installs written during the run")
 	}
@@ -482,10 +486,10 @@ func (r *profileReconciler) sendHostProfiles(
 	policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
 	patchOpts := androidmgmt.PoliciesPatchOpts{ExcludeApps: true}
 	appList := appListsByHostUUID[hostUUID]
-	// Remove the host's app list so it isn't sent in a second patch after the profiles
+	// Remove the host's app list so it won't be sent again in a second patch after the profiles
 	delete(appListsByHostUUID, hostUUID)
 	if appList != nil {
-		applications, err := r.appListApplications(ctx, appList)
+		applications, err := r.buildApplicationsWithAgent(ctx, appList)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to build android app list, sending the profiles without it", "host_uuid", hostUUID, "err", err)
 			appList = nil

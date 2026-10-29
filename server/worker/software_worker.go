@@ -99,8 +99,9 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		)
 
 	case makeAndroidAppAvailableTask, makeAndroidAppAvailableBatchTask, makeAndroidAppUnavailableTask, bulkSetAndroidAppsAvailableForHostTask:
-		// these tasks are deprecated, the Android app reconciler cron sends the app list, but they must be kept here in
-		// case some pending jobs are still in the queue.
+		// these tasks are deprecated, the Android app reconciler cron sends the
+		// app list, but they must be kept here in case some pending jobs are
+		// still in the queue.
 		return nil
 
 	case runAndroidSetupExperienceTask:
@@ -457,8 +458,7 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 }
 
 func (v *SoftwareWorker) updateAndroidHostsAfterFleetTransfer(ctx context.Context, uuidsToIDs map[string]uint) error {
-	hostIDs := make([]uint, 0, len(uuidsToIDs))
-	for uuid, hostID := range uuidsToIDs {
+	for uuid := range uuidsToIDs {
 		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, uuid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", uuid)
@@ -475,13 +475,6 @@ func (v *SoftwareWorker) updateAndroidHostsAfterFleetTransfer(ctx context.Contex
 		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, uuid, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 		}
-		hostIDs = append(hostIDs, hostID)
-	}
-
-	// Flag the hosts' apps for resend, so the Android profile reconciler sends their new fleet's apps and agent configuration
-	err := v.Datastore.SetHostAndroidSoftwareInstallsNeedsResend(ctx, hostIDs, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "flag android software installs for resend after fleet transfer")
 	}
 	return nil
 }

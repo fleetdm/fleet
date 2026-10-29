@@ -107,18 +107,28 @@ func TestReconcileAndroidApps(t *testing.T) {
 		state.listedHostsN = len(hosts)
 		return hosts, nil
 	}
-	ds.ListHostMDMAndroidVPPAppsFromSetupExperienceFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
-		return state.setupApps, nil
+	ds.ListHostMDMAndroidVPPAppsFromSetupExperienceFunc = func(ctx context.Context, hostIDs []uint) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		setupAppsByHostID := make(map[uint][]*fleet.HostAndroidVPPSoftwareInstall)
+		for _, setupApp := range state.setupApps {
+			setupAppsByHostID[setupApp.HostID] = append(setupAppsByHostID[setupApp.HostID], setupApp)
+		}
+		return setupAppsByHostID, nil
 	}
-	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) ([]*fleet.HostAndroidSoftwareInstall, error) {
-		return state.installs, nil
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) (map[uint]map[string]*fleet.HostAndroidSoftwareInstall, error) {
+		installsByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall)
+		for _, install := range state.installs {
+			if installsByHostID[install.HostID] == nil {
+				installsByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
+			}
+			installsByHostID[install.HostID][install.AdamID] = install
+		}
+		return installsByHostID, nil
 	}
-	ds.GetAppStoreAppVersionsByFleetAndTitleFunc = func(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
-		require.Equal(t, []fleet.InstallableDevicePlatform{fleet.AndroidPlatform}, platforms)
-		return fleet.AppStoreAppVersionsByFleetAndTitleID{0: {1: {
-			{VPPAppsTeamsID: firstVersionID, ConfigurationUpdatedAt: state.configurationUpdatedAt, Configuration: state.firstVersionConfig},
-			{VPPAppsTeamsID: secondVersionID, Configuration: state.secondVersionConfig},
-		}}}, nil
+	ds.GetAndroidAppStoreAppVersionsByIDFunc = func(ctx context.Context) (map[uint]*fleet.VPPAppStoreApp, error) {
+		return map[uint]*fleet.VPPAppStoreApp{
+			firstVersionID:  {VPPAppsTeamsID: firstVersionID, ConfigurationUpdatedAt: state.configurationUpdatedAt, Configuration: state.firstVersionConfig},
+			secondVersionID: {VPPAppsTeamsID: secondVersionID, Configuration: state.secondVersionConfig},
+		}, nil
 	}
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
 		return state.appsInScopeByHostID[hostID], nil
@@ -156,7 +166,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		state.pendingApplyConfigAppIDs = append(state.pendingApplyConfigAppIDs, applicationID)
 		return nil
 	}
-	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
 		state.flaggedSentHostIDs = append(state.flaggedSentHostIDs, hostIDs...)
 		return nil
 	}

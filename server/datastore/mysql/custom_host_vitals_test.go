@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -818,6 +819,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 				HostID:        androidHost.Host.ID,
 				AdamID:        appID,
 				VPPAppTeamID:  new(appTeamIDs[appID]),
+				InstallType:   android.AppStatusAvailable,
 				Status:        fleet.AndroidSoftwareInstallStatusVerified,
 				PolicyBuiltAt: time.Now(),
 			})

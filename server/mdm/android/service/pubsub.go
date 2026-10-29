@@ -1090,8 +1090,8 @@ func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseNam
 		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
 		return
 	}
-	// Delete the host's rows too, so the reconciler sends its whole app list if it checks the host before the
-	// setup experience runs
+	// Clear the host's sent apps too, so the reconciler will send its whole app
+	// list if it checks the host before the setup experience runs
 	err = svc.fleetDS.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, nil)
 	if err != nil {
 		svc.logger.WarnContext(ctx, "failed to delete the android software installs of the previous enrollment", "host_uuid", hostUUID, "err", err)

@@ -78,7 +78,7 @@ func (m *mockAndroidModule) SetAppsForAndroidPolicy(ctx context.Context, enterpr
 	return nil, nil
 }
 
-func TestUpdateAndroidHostsAfterFleetTransferFlagsAppsForResend(t *testing.T) {
+func TestUpdateAndroidHostsAfterFleetTransferMovesCertificateTemplates(t *testing.T) {
 	ctx := t.Context()
 	hostUUID := "test-host-uuid"
 	hostID := uint(1)
@@ -102,12 +102,6 @@ func TestUpdateAndroidHostsAfterFleetTransferFlagsAppsForResend(t *testing.T) {
 		newTeamID = teamID
 		return 0, nil
 	}
-	var flaggedHostIDs []uint
-	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
-		require.Nil(t, builtAfter)
-		flaggedHostIDs = hostIDs
-		return nil
-	}
 	androidModule := &mockAndroidModule{
 		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
 			t.Fatal("the Android profile reconciler sends the app list after a fleet transfer, not the worker")
@@ -116,13 +110,13 @@ func TestUpdateAndroidHostsAfterFleetTransferFlagsAppsForResend(t *testing.T) {
 	}
 	worker := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	// run the fleet transfer task, the host's certificate templates should be moved to its new fleet and its apps
-	// flagged for resend, with no app list sent
+	// run the fleet transfer task, the host's certificate templates should be moved to its new fleet, with its apps
+	// not flagged and no app list sent
 	err := worker.updateAndroidHostsAfterFleetTransfer(ctx, map[string]uint{hostUUID: hostID})
 	require.NoError(t, err)
 	require.True(t, ds.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked)
 	require.Equal(t, teamID, newTeamID)
-	require.Equal(t, []uint{hostID}, flaggedHostIDs)
+	require.False(t, ds.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {
