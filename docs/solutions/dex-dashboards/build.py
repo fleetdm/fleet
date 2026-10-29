@@ -774,6 +774,25 @@ def os_bar(snap, key):
     return None
 
 
+def update_name(month):
+    """"October 2026" for Microsoft's "2026-Oct" release ID, or None."""
+    m = re.match(r"(\d{4})-([A-Za-z]{3})", month or "")
+    try:
+        return dt.datetime.strptime(f"{m[1]}-{m[2]}", "%Y-%b").strftime("%B %Y") if m else None
+    except ValueError:
+        return None
+
+
+def os_targets(snap):
+    """{"fleet|windows": [deadline days, grace days]} for fleets with a Windows OS update deadline."""
+    out = {}
+    for f in snap.get("fleets") or []:
+        wu = f.get("windows_updates") or {}
+        if wu.get("deadline_days") is not None:
+            out[f"{f['name']}|windows"] = [wu["deadline_days"], wu.get("grace_period_days") or 0]
+    return out
+
+
 def patch_policy_titles(snap):
     """{host id: test on title keys} for the patch policies that apply to each host."""
     info = snap.get("policies") or {}
@@ -916,6 +935,11 @@ def build_patch(snap, hist):
              "p": platform_of(hosts[str(hv[0][0])]), "i": hv, "source": None}
         if bar := os_bar(snap, key):
             t["newest"], t["lines"], t["line_names"], t["source"] = bar
+            if t["source"] == "Microsoft":
+                # Windows OS update deadlines make each month's update mandatory but never move a
+                # computer to a newer release, so each one is measured against its own release.
+                t["per_release"] = True
+                t["update"] = update_name(vendor(snap, "windows")["month"])
         elif key in targets:
             t["newest"], t["source"] = targets[key], "Fleet-maintained apps"
         else:
@@ -935,7 +959,8 @@ def build_patch(snap, hist):
     # large fleet. Keys are "fleet|platform" so the page's filters can add them up;
     # lags are whole days, so the page's medians match a per-update list exactly.
     active_set = set(active)
-    lags, by_host, by_app = {}, {}, {}
+    # OS updates are also counted on their own, since a fleet's OS update deadline sets their target.
+    lags, os_lags, by_host, by_app = {}, {}, {}, {}
     for key, rows in events.items():
         ti = index.get(key)
         if ti is None:
@@ -944,8 +969,9 @@ def build_patch(snap, hist):
             if lag is None or day_i < first_day or str(hid) not in active_set:
                 continue
             fp = f"{fleet_of(hid)}|{titles[ti]['p']}"
-            counts = lags.setdefault(fp, {})
-            counts[lag] = counts.get(lag, 0) + 1
+            for tally in (lags, os_lags) if titles[ti]["type"] == "os" else (lags,):
+                counts = tally.setdefault(fp, {})
+                counts[lag] = counts.get(lag, 0) + 1
             bh = by_host.setdefault(str(hid), [0, 0])
             bh[0] += 1
             bh[1] += lag
@@ -960,12 +986,12 @@ def build_patch(snap, hist):
             continue
         lines = t.get("lines") or {}
         for hid, v, *_ in t["i"]:
-            current_v = int(vcmp(v, t["newest"]) >= 0)
+            # Patched: on the latest update for the release it runs, even when a newer release exists.
+            latest = lines.get(os_line(t["key"], v)) if t["type"] == "os" else None
+            current_v = int(vcmp(v, latest if t.get("per_release") and latest else t["newest"]) >= 0)
             if t["type"] == "app":
                 count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
             else:
-                # Patched: on the latest update for the release it runs, even when a newer release exists.
-                latest = lines.get(os_line(t["key"], v))
                 count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v,
                            os_patched=int(vcmp(v, latest) >= 0) if latest else current_v)
     for rows in events.values():
@@ -978,6 +1004,8 @@ def build_patch(snap, hist):
         "min_installs": MIN_INSTALLS, "hosts": host_map(hosts, active),
         "titles": titles, "betas": betas,
         "lags": {fp: sorted(c.items()) for fp, c in lags.items()},
+        "os_lags": {fp: sorted(c.items()) for fp, c in os_lags.items()},
+        "os_targets": os_targets(snap),
         "by_host": by_host,
         "by_app": {fp: [[ti, n, total, len(hs)] for ti, (n, total, hs) in sorted(apps.items())] for fp, apps in by_app.items()},
         "trend": save_trend(hist, today, day),

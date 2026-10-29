@@ -106,7 +106,7 @@ const CARDS = [
   { page: "patch", title: "Patch velocity", about: "How fast new versions reach every computer.",
     label: () => "App installs on the newest version", spark: (r) => pct(r.app_current, r.app_installs), keyFmt: fmt.pct, yMax: 100,
     unit: (r) => `${fmt.n(r.app_current)} of ${fmt.n(r.app_installs)}`,
-    rows: (r, rows) => [["OS on the newest version", fmt.pct(pct(r.os_current, r.os_installs))],
+    rows: (r, rows) => [["OS up to date", fmt.pct(pct(r.os_current, r.os_installs))],
       [`Updates, ${windowLabel("patch", 7)}`, fmt.n(sumSince(rows, "updates", 7))]] },
   { page: "software", title: "Software usage", about: "Seats nobody opens, to reclaim at renewal.",
     label: () => "Seats idle", spark: (r) => pct(r.idle, r.seats), keyFmt: fmt.pct, yMax: 100,

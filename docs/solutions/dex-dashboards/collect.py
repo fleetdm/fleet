@@ -347,7 +347,8 @@ def collect(fleet, keep=None, workers=None, per_page=20, checkpoint=None, deadli
         "schema": 1,
         "generated_at": started.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "fleet_url": fleet.url,
-        "fleets": [{"id": f["id"], "name": f["name"]} for f in fleets],
+        "fleets": [{"id": f["id"], "name": f["name"], "windows_updates": (f.get("mdm") or {}).get("windows_updates")}
+                   for f in fleets],
         "hosts": hosts,
         "software_columns": SOFTWARE_COLUMNS,
         "software": software,
