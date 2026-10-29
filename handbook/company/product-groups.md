@@ -701,7 +701,7 @@ Anyone in the company is invited to submit requests or simply listen in on the ð
 
 To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `:product` label to it.
 
-New requests, including prospect requests, are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design and [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one week. To expedite a request, @mention the Head of Product Design in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5). If the Head of Product Design is out of office, @mention the [VP of IT Strategy](https://fleetdm.com/handbook/it#team). If the request meets the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
+New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design and [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one week. To expedite a request, @mention the Head of Product Design in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5). If the Head of Product Design is out of office, @mention the [VP of IT Strategy](https://fleetdm.com/handbook/it#team). 
 
 
 ### Criteria for prioritization
