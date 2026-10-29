@@ -180,7 +180,7 @@ for type in $TYPES; do
       fi
       mv "$f.new" "$f"; chmod 0755 "$f"
     done
-    out="$OUT_DIR/$(basename "$stock" .deb | sed 's/^fleet-osquery/fleetd-proxy/').deb"
+    out="$OUT_DIR/$(basename "$stock" .deb | sed -E 's/^fleet-(osquery|linux)/fleetd-proxy/').deb"
     dpkg-deb --root-owner-group -b "$WORK/deb" "$out" >/dev/null || die "dpkg-deb -b"
     echo "-- verify"
     debls() { dpkg-deb -c "$1" | awk '$6 != "./" { m = $1; if (m ~ /^l/) m = "l"; print m, $2, $3, $6, $7, $8 }' | sort; }  # symlink modes are meaningless
@@ -207,7 +207,7 @@ EOF
       --change-spec-post="$WORK/post-filter.sh" --change-spec-postun="$WORK/postun-filter.sh" \
       "$stock" >/dev/null || die "rpmrebuild failed"
     built="$(find "$WORK/rpmout" -name '*.rpm' | head -1)"; [ -f "$built" ] || die "rebuilt rpm not found"
-    out="$OUT_DIR/$(basename "$stock" | sed 's/^fleet-osquery/fleetd-proxy/')"
+    out="$OUT_DIR/$(basename "$stock" | sed -E 's/^fleet-(osquery|linux)/fleetd-proxy/')"
     cp -f "$built" "$out"
     echo "-- verify"
     rpmls() { rpm -qp --qf '[%{FILEMODES:perms} %{FILEUSERNAME} %{FILEGROUPNAME} %{FILEDIGESTS} %{FILENAMES} %{FILELINKTOS}\n]' "$1" 2>/dev/null \
