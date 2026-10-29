@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -124,7 +125,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) Configure(
 		TokenURL:   google.JWTTokenURL,
 		Subject:    userToImpersonateEmail,
 	}
-	client := conf.Client(ctx)
+	client := conf.Client(fleethttp.WithOAuth2Client(ctx))
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return err
