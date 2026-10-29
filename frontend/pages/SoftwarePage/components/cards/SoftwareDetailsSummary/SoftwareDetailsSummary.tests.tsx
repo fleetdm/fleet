@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
+import { renderWithSetup } from "test/test-utils";
+
 import SoftwareDetailsSummary, {
   buildActionOptions,
   ACTION_EDIT_APPEARANCE,
@@ -252,5 +254,82 @@ describe("SoftwareDetailsSummary IDs", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+  });
+});
+
+describe("SoftwareDetailsSummary VPP token", () => {
+  const vppToken = {
+    id: 2,
+    org_name: "Acme K.K.",
+    location: "Acme K.K.",
+    country_code: "JP",
+  };
+
+  it("links the App Store ID to the token's storefront", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={vppToken}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/jp/app/id1435783608"
+    );
+  });
+
+  it("links the App Store ID without a country segment when there's no token", () => {
+    render(
+      <SoftwareDetailsSummary displayName="PayPay" appStoreId="1435783608" />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/app/id1435783608"
+    );
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
+  });
+
+  it("links the App Store ID without a country segment when the token's country is empty", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={{ ...vppToken, country_code: "" }}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/app/id1435783608"
+    );
+  });
+
+  it("renders the VPP token label and its tooltip copy", async () => {
+    const { user } = renderWithSetup(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={vppToken}
+      />
+    );
+
+    expect(screen.getByText("Acme K.K. • 🇯🇵 Japan")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("VPP token"));
+    expect(
+      await screen.findByText(
+        "This is an organization unit in your Apple Business account, and licenses will be assigned from it."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders neither field for a title without an App Store ID or token", () => {
+    render(<SoftwareDetailsSummary displayName="Chrome" />);
+
+    expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
   });
 });

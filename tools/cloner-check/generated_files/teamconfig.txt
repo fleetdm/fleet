@@ -185,6 +185,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Platform	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Location	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Configuration	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AutoUpdateEnabled	*bool

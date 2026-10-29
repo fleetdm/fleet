@@ -3262,8 +3262,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
-	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-	if err != nil {
+	if err := svc.EnterpriseOverrides.CheckCanInstallVPPApps(ctx, true, host); err != nil {
 		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
 	}
 
@@ -3361,7 +3360,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, fleet.HostSoftwareInstallOptions{
 			SelfService:     false,
 			PolicyID:        &policyID,
 			DeferActivation: svc.deferFleetInitiatedActivation(),

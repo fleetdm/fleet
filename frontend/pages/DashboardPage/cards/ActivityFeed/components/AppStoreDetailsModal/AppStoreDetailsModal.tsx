@@ -88,6 +88,9 @@ const AppStoreDetailsModal = ({
             />
           }
         />
+        {details.vpp_token && (
+          <DataSet title="VPP token" value={details.vpp_token.location} />
+        )}
         {isVersionedApp && configurationDisplay && (
           <Editor
             label="Configuration"

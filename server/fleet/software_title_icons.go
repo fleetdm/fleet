@@ -57,6 +57,7 @@ type DetailsForSoftwareIconActivity struct {
 	InHouseAppID        *uint   `db:"in_house_app_id"`
 	AdamID              *string `db:"adam_id"`
 	VPPAppTeamID        *uint   `db:"vpp_app_team_id"`
+	VPPTokenID          *uint   `db:"vpp_token_id"`
 	// VersionName is the admin-provided label of the first-added App Store app
 	// version on this title (`MIN(vpp_apps_teams.id)` for the title+team). It
 	// reflects the first-added version by design — icon-edit activities fire

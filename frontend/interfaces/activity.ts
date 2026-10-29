@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
@@ -356,6 +357,8 @@ export interface INotifySoftwareTitle {
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
+  /** Snapshot of the VPP token on App Store app activities. Null for Google Play apps. */
+  vpp_token?: Omit<IVppTokenSummary, "org_name"> | null;
   app_store_id?: number;
   bootstrap_package_name?: string;
   batch_execution_id?: string;
