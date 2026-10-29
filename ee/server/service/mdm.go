@@ -412,12 +412,14 @@ func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, en
 }
 
 // bootstrapPackageRequirement returns a func that fails with msg when the team
-// has no bootstrap package. The package is read at most once, on first use.
+// has no bootstrap package. The package is read at most once, on first use. It
+// reads the datastore directly since the caller is already authorized and the
+// gitops role can't read bootstrap packages.
 func (svc *Service) bootstrapPackageRequirement(ctx context.Context, teamID uint) func(msg string) error {
 	var checked, exists bool
 	return func(msg string) error {
 		if !checked {
-			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, teamID, false)
+			_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
 			}

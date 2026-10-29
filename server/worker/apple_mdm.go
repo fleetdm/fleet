@@ -134,7 +134,7 @@ func isMacOS(platform string) bool {
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
 	// order is guaranteed for manual enrollments to be:
-	// 1. fleetd if manual agent install is not enabled
+	// 1. fleetd, unless the bootstrap package replaces it (see below)
 	// 2. bootstrap package if configured for manual enrollments
 	// 3. apps/profiles
 
@@ -156,13 +156,17 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 			allowBootstrapDuringManualEnrollment = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
 		}
 
-		if !manualAgentInstall {
+		installBootstrap := license.IsPremium(ctx) && allowBootstrapDuringManualEnrollment
+		// Manual agent install only skips fleetd when the bootstrap package (expected to contain
+		// fleetd) is also sent on manual enrollments, so configs that only use it for automatic
+		// enrollment keep getting fleetd here.
+		if !manualAgentInstall || !installBootstrap {
 			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 			}
 		}
 
-		if license.IsPremium(ctx) && allowBootstrapDuringManualEnrollment {
+		if installBootstrap {
 			if _, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
 			}
@@ -234,7 +238,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 
 		// the env var overrides the config value when set to true
-		allowBootstrapDuringMigration := fleet.BootstrapPackageDuringMigrationEnvEnabled() || allowBootstrapDuringMigrationConfig
+		allowBootstrapDuringMigration := fleet.BootstrapPackageDuringMigrationEnvEnabled() || (allowBootstrapDuringMigrationConfig && license.IsPremium(ctx))
 
 		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			a.Log.InfoContext(ctx, "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)

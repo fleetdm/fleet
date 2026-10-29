@@ -2156,6 +2156,35 @@ func TestAppleMDMBootstrapPackageManualEnrollment(t *testing.T) {
 		requireNoBootstrap(t, h)
 	})
 
+	t.Run("installs fleetd with manual agent install when the bootstrap package is disabled for manual enrollments", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		// manual agent install only used for automatic enrollments
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.ManualAgentInstall = optjson.SetBool(true) })
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("installs fleetd with manual agent install without a premium license", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, true)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
 	t.Run("installs fleetd when the bootstrap package fails", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)
@@ -2213,6 +2242,8 @@ func TestAppleMDMBootstrapPackageDuringMigration(t *testing.T) {
 	ds := mysqltest.CreateMySQLDS(t)
 	mysqltest.TruncateTables(t, ds)
 	const testOrgName = "fleet-test"
+	// the setting only applies with a premium license, unlike the env var
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	requireSkipped := func(t *testing.T, h *fleet.Host) {
 		// the post-DEP release device job is not queued anymore
@@ -2259,7 +2290,7 @@ func TestAppleMDMBootstrapPackageDuringMigration(t *testing.T) {
 		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
 		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
 
-		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
 		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
@@ -2277,12 +2308,25 @@ func TestAppleMDMBootstrapPackageDuringMigration(t *testing.T) {
 		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
 		setTestMacOSSetup(t, ds, &tm.ID, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
 
-		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
 		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
 		require.NoError(t, err)
 		require.Equal(t, "custom-team-bootstrap", setup.BootstrapPackageName)
+	})
+
+	t.Run("skips bootstrap package during migration when enabled in config without a premium license", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+
+		requireSkipped(t, h)
 	})
 
 	t.Run("enabled config of another team does not apply", func(t *testing.T) {
@@ -2295,7 +2339,7 @@ func TestAppleMDMBootstrapPackageDuringMigration(t *testing.T) {
 		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
 		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
 
-		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
 
 		// only fleetd, the bootstrap package is recorded as skipped
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))

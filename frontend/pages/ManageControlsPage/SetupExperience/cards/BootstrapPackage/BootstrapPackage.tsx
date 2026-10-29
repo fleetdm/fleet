@@ -143,10 +143,10 @@ const BootstrapPackage = ({
   const onDelete = async () => {
     try {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
+      // the manual enrollment and migration settings are kept, they do nothing
+      // without a package. Manual agent install isn't, since hosts would get no fleetd.
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        macos_enable_bootstrap_package_during_manual_enrollment: false,
-        macos_enable_bootstrap_package_during_migration: false,
         macos_manual_agent_install: false,
       });
       notify.success("Successfully deleted.");

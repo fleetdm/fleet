@@ -1044,6 +1044,39 @@ type MacOSSetup struct {
 	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
 }
 
+// NewlyEnabledBootstrapPackageSettings returns the setup_experience keys of the settings that need a
+// bootstrap package and are turned on in s but not in old.
+func (s MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
+	var keys []string
+	if s.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		keys = append(keys, "macos_enable_bootstrap_package_during_manual_enrollment")
+	}
+	if s.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
+		keys = append(keys, "macos_enable_bootstrap_package_during_migration")
+	}
+	return keys
+}
+
+// validateBootstrapPackageSettings checks that the bootstrap package settings turned on compared to
+// old come with a bootstrap package in the same payload.
+func (mos *MacOSSetup) validateBootstrapPackageSettings(old MacOSSetup) error {
+	keys := mos.NewlyEnabledBootstrapPackageSettings(old)
+	if len(keys) == 0 || (mos.BootstrapPackage.Valid && mos.BootstrapPackage.Value != "") {
+		return nil
+	}
+	return BootstrapPackageRequiredError(keys)
+}
+
+// BootstrapPackageRequiredError returns the error for bootstrap package settings (setup_experience
+// keys) that can't be turned on without a bootstrap package.
+func BootstrapPackageRequiredError(keys []string) *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+	for _, key := range keys {
+		invalid.Append("setup_experience."+key, fmt.Sprintf("Couldn't enable %s. To use this option, first specify a bootstrap package.", key))
+	}
+	return invalid
+}
+
 // Validate checks the payload is in a valid state.
 // If needed to compare against old values (for partial patches) use ValidateAgainst instead.
 func (mos *MacOSSetup) Validate() error {
@@ -1053,6 +1086,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if err := mos.validateBootstrapPackageSettings(MacOSSetup{}); err != nil {
+		return err
 	}
 
 	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {

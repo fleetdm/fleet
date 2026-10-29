@@ -20,6 +20,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3/s3test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -15005,7 +15006,8 @@ func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
 }
 
 func testBootstrapPackageStatusPendingMigration(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
+	// the migration setting only applies with a premium license
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)

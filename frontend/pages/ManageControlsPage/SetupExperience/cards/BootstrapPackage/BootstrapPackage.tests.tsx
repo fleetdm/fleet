@@ -6,6 +6,7 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import mdmAPI from "services/entities/mdm";
 import { createGetConfigHandler } from "test/handlers/config-handlers";
 import {
   createSetupExperienceBootstrapMetadataHandler,
@@ -45,6 +46,10 @@ const setupDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("renders the page description on the empty state when MDM isn't configured", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
@@ -217,5 +222,34 @@ describe("BootstrapPackage", () => {
       screen.getByLabelText("Install during manual enrollment")
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("only turns off the custom agent option when deleting the bootstrap package", async () => {
+    setupDefaultBackendMocks();
+    jest.spyOn(mdmAPI, "deleteBootstrapPackage").mockResolvedValue({});
+    const updateSpy = jest
+      .spyOn(mdmAPI, "updateSetupExperienceSettings")
+      .mockResolvedValue({});
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
+
+    await screen.findByText(/status/gi);
+    await user.click(
+      screen.getByRole("button", { name: "Delete bootstrap package" })
+    );
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith({
+        fleet_id: 0,
+        macos_manual_agent_install: false,
+      });
+    });
   });
 });

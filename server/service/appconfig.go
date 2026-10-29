@@ -2532,6 +2532,20 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates.minimum_version", v)
 	}
 
+	// The bootstrap package can come from the payload's URL (GitOps uploads it before applying the
+	// config, and dry runs don't upload it at all) or from a package already uploaded via the UI/API.
+	if keys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup); len(keys) > 0 && mdm.MacOSSetup.BootstrapPackage.Value == "" {
+		_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+		switch {
+		case fleet.IsNotFound(err):
+			for _, arg := range fleet.BootstrapPackageRequiredError(keys).Errors {
+				invalid.AppendInvalidArgument(arg)
+			}
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+		}
+	}
+
 	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {

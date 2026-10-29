@@ -1526,6 +1526,8 @@ func TestMDMConfig(t *testing.T) {
 		expectedMDM   fleet.MDM
 		expectedError string
 		findTeam      bool
+		// hasBootstrapPackage is whether the no team bootstrap package was uploaded (e.g. via the UI)
+		hasBootstrapPackage bool
 	}{
 		{
 			name:        "nochange",
@@ -1802,6 +1804,44 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
+			name:        "bootstrap package for manual enrollment enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:                "bootstrap package settings enabled with a bootstrap package uploaded via the UI",
+			licenseTier:         "premium",
+			hasBootstrapPackage: true,
+			oldMDM:              fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSEnableBootstrapPackageDuringManualEnrollment: true,
+					MacOSEnableBootstrapPackageDuringMigration:        true,
+				},
+			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EnabledAndConfigured = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+			}),
+		},
+		{
+			name:        "bootstrap package for migration enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.",
+		},
+		{
 			name:        "bootstrap package for manual enrollment requires premium",
 			licenseTier: "free",
 			newMDM: fleet.MDM{
@@ -1981,6 +2021,12 @@ func TestMDMConfig(t *testing.T) {
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+				if tt.hasBootstrapPackage {
+					return &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, nil
+				}
+				return nil, &notFoundError{}
 			}
 			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 				raw := json.RawMessage("{}")

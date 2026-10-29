@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -326,6 +327,9 @@ func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *
 func (ds *Datastore) bootstrapPackageAllowedDuringMigration(ctx context.Context, teamID *uint) (bool, error) {
 	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
 		return true, nil
+	}
+	if !license.IsPremium(ctx) {
+		return false, nil
 	}
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
