@@ -3,6 +3,12 @@
     @include vertical-page-layout;
   }
 
+  &__action-buttons {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: $gap-action-elements;
+  }
+
   &__premium-message,
   &__error {
     margin-top: $pad-xxxlarge;

@@ -9,6 +9,7 @@ import { IMdmVppToken } from "interfaces/mdm";
 import PATHS from "router/paths";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { getPathWithQueryParams } from "utilities/url";
 
 import SoftwareAppStoreVpp from "./SoftwareAppStoreVpp";
 
@@ -537,6 +538,25 @@ describe("SoftwareAppStoreVpp", () => {
       ).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Renew" }));
       expect(push).toHaveBeenCalledWith(PATHS.ADMIN_INTEGRATIONS_VPP);
+    });
+
+    it("keeps a disabled Add software and a working Cancel for an expired token", async () => {
+      mockServer.use(tokensHandler([expiredUs]));
+      useAppsHandler();
+      const push = jest.fn();
+
+      const { user } = renderPage(false, undefined, 1, {
+        pageRouter: createMockRouter({ push }),
+      });
+
+      expect(await screen.findByText("Token expired")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Add software" })
+      ).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(push).toHaveBeenCalledWith(
+        getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, { fleet_id: 1 })
+      );
     });
 
     it("tells a non-admin to ask their admin to renew an expired token", async () => {

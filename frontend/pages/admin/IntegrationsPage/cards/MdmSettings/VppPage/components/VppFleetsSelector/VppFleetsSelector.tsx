@@ -79,6 +79,7 @@ const VppFleetsSelector = ({
                     url={tooltipLearnMoreUrl}
                     text="Learn more"
                     newTab
+                    variant="tooltip-link"
                   />
                 </>
               )}
