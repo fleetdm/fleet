@@ -217,7 +217,7 @@ _Available in Fleet Premium_
 
 By default, configuration profiles are enforced when Fleet automatically installs and removes them on targeted hosts. You can instead make a profile self-service (opt-in), so it appears on the end user's **My device > Controls** tab and is only installed when the user chooses to install it.
 
-Self-service profiles are available for `.mobileconfig` profiles (macOS, iOS, iPadOS). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+Self-service profiles are available for macOS `.mobileconfig` profiles. Support for iOS and iPadOS is [coming soon](https://github.com/fleetdm/fleet/issues/52841). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
 
 When a profile is self-service:
 - Fleet does **not** automatically install it on targeted hosts.
