@@ -1453,7 +1453,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
-	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
+	query, whereParams, err = ds.filterHostsByMDMBootstrapPackageStatus(ctx, query, opt, whereParams)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building bootstrap package status filter")
+	}
 	if opt.OSSettingsFilter.IsValid() {
 		query, whereParams = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {

@@ -101,6 +101,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
 		{"TestBootstrapPackageStatusManuallyEnrolledHosts", testBootstrapPackageStatusManuallyEnrolledHosts},
+		{"TestBootstrapPackageStatusPendingMigration", testBootstrapPackageStatusPendingMigration},
 		{"TestMDMAppleResetEnrollmentScimLink", testMDMAppleResetEnrollmentScimLink},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
@@ -15001,4 +15002,85 @@ func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
 			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
 	})
 	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
+}
+
+func testBootstrapPackageStatusPendingMigration(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org", EncryptedToken: []byte("token"), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+
+	// DEP hosts that haven't enrolled yet, one of them with a migration in progress
+	newDEPHost := func(name string, teamID *uint, migrating bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new(name),
+			NodeKey:        new(name),
+			UUID:           name,
+			HardwareSerial: name,
+			Platform:       "darwin",
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		deadlines := map[uint]time.Time{}
+		if migrating {
+			deadlines[h.ID] = time.Now().Add(24 * time.Hour)
+		}
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, deadlines))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "foo.mdm.example.com", true, "", "", fleet.PersonalEnrollmentTypeNone))
+		return h
+	}
+	noTeamHost, noTeamMigrating := newDEPHost("no-team", nil, false), newDEPHost("no-team-migrating", nil, true)
+	teamHost, teamMigrating := newDEPHost("team", &tm.ID, false), newDEPHost("team-migrating", &tm.ID, true)
+
+	listPending := func(teamID *uint) []uint {
+		status := fleet.MDMBootstrapPackagePending
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, MDMBootstrapPackageFilter: &status})
+		require.NoError(t, err)
+		var ids []uint
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	requirePending := func(teamID *uint, want ...*fleet.Host) {
+		sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, ptr.ValOrZero(teamID))
+		require.NoError(t, err)
+		require.EqualValues(t, len(want), sum.Pending)
+		var wantIDs []uint
+		for _, h := range want {
+			wantIDs = append(wantIDs, h.ID)
+		}
+		require.ElementsMatch(t, wantIDs, listPending(teamID))
+	}
+
+	// by default, migrating hosts will skip the package so they aren't pending
+	requirePending(nil, noTeamHost)
+	requirePending(&tm.ID, teamHost)
+
+	// enabled for no team only
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = false
+		require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
+	})
+	requirePending(nil, noTeamHost, noTeamMigrating)
+	requirePending(&tm.ID, teamHost)
+
+	// enabled for the team as well
+	tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+	_, err = ds.SaveTeam(ctx, tm)
+	require.NoError(t, err)
+	requirePending(&tm.ID, teamHost, teamMigrating)
+
+	// once the migrating host enrolls and gets skipped, it's no longer pending even if enabled
+	require.NoError(t, ds.RecordSkippedHostBootstrapPackage(ctx, teamMigrating.UUID))
+	requirePending(&tm.ID, teamHost)
 }

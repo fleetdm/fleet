@@ -4323,12 +4323,18 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	// DEP hosts are included from the start (so they show as pending before they enroll). Manually
-	// enrolled hosts are included only once Fleet has sent them the bootstrap package.
+	// enrolled hosts are included only once Fleet has sent them the bootstrap package. Hosts with a
+	// pending migration only count as pending if they'll get the package once they migrate.
+	allowedDuringMigration, err := ds.bootstrapPackageAllowedDuringMigration(ctx, &teamID)
+	if err != nil {
+		return nil, err
+	}
+
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -4343,7 +4349,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
               (hm.installed_from_dep = 1 OR hmabp.host_uuid IS NOT NULL) AND COALESCE(h.team_id, 0) = ? AND h.platform = 'darwin'`
 
 	var bp fleet.MDMAppleBootstrapPackageSummary
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, allowedDuringMigration, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
 	}
 	return &bp, nil

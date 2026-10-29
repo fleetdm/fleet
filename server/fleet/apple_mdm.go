@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -2216,4 +2217,12 @@ type AppleSCEPChallengeInfo struct {
 	UUID           *string             `db:"host_uuid"`
 	Serial         *string             `db:"hardware_serial"`
 	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}
+
+// BootstrapPackageDuringMigrationEnvEnabled reports whether FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION
+// forces the bootstrap package to be installed during MDM migrations, regardless of the
+// macos_enable_bootstrap_package_during_migration setting.
+func BootstrapPackageDuringMigrationEnvEnabled() bool {
+	v := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+	return v == "1" || strings.EqualFold(v, "true")
 }

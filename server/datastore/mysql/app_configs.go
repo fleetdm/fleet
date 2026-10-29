@@ -321,6 +321,26 @@ func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *
 	return ac.MDM.DiskEncryptionConfig(), nil
 }
 
+// bootstrapPackageAllowedDuringMigration reports whether hosts migrating to Fleet in the team (or
+// no team) get the bootstrap package, matching the decision made by the Apple MDM worker.
+func (ds *Datastore) bootstrapPackageAllowedDuringMigration(ctx context.Context, teamID *uint) (bool, error) {
+	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
+		return true, nil
+	}
+	if teamID != nil && *teamID > 0 {
+		tc, err := ds.TeamMDMConfig(ctx, *teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team mdm config")
+		}
+		return tc.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration, nil
+	}
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	return ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration, nil
+}
+
 func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyYaraRulesDB(ctx, tx, rules)

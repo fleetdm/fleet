@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -234,16 +233,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		allowBootstrapDuringMigration := false
-		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
-		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
-			allowBootstrapDuringMigration = true
-		}
-
-		if !allowBootstrapDuringMigration {
-			// EV always overrides the mdm config value if set to true.
-			allowBootstrapDuringMigration = allowBootstrapDuringMigrationConfig
-		}
+		// the env var overrides the config value when set to true
+		allowBootstrapDuringMigration := fleet.BootstrapPackageDuringMigrationEnvEnabled() || allowBootstrapDuringMigrationConfig
 
 		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			a.Log.InfoContext(ctx, "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
