@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.19.4",
+      "version": "1.19.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator' AND version_compare(bundle_short_version, '1.19.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator' AND version_compare(bundle_short_version, '1.19.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.cryptomator' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.4/Cryptomator-1.19.4-arm64.dmg",
+      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.5/Cryptomator-1.19.5-arm64.dmg",
       "install_script_ref": "d8ea90f8",
       "uninstall_script_ref": "117117e4",
-      "sha256": "413a48806e7aa2f4c416b84e3a23dbcba83ae20b2ad55534b798f6db65a85860",
+      "sha256": "0df28420179f63a3a9b44c2212907c590b7cd92875970f54a16960db29de3beb",
       "default_categories": [
         "Security"
       ]

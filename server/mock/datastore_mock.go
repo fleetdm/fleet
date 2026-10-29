@@ -1290,6 +1290,10 @@ type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []st
 
 type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context, clearCommandUUID string) ([]string, error)
 
+type ClaimHostsForRecoveryLockVerifyFunc func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error)
+
+type UnclaimHostForRecoveryLockVerifyFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
+
 type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
 type InitiateRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, setCommandUUID string, newPassword string) error
@@ -4531,6 +4535,12 @@ type DataStore struct {
 
 	ClaimHostsForRecoveryLockClearFunc        ClaimHostsForRecoveryLockClearFunc
 	ClaimHostsForRecoveryLockClearFuncInvoked bool
+
+	ClaimHostsForRecoveryLockVerifyFunc        ClaimHostsForRecoveryLockVerifyFunc
+	ClaimHostsForRecoveryLockVerifyFuncInvoked bool
+
+	UnclaimHostForRecoveryLockVerifyFunc        UnclaimHostForRecoveryLockVerifyFunc
+	UnclaimHostForRecoveryLockVerifyFuncInvoked bool
 
 	DeleteHostRecoveryLockPasswordFunc        DeleteHostRecoveryLockPasswordFunc
 	DeleteHostRecoveryLockPasswordFuncInvoked bool
@@ -10977,6 +10987,20 @@ func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCom
 	s.ClaimHostsForRecoveryLockClearFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClaimHostsForRecoveryLockClearFunc(ctx, clearCommandUUID)
+}
+
+func (s *DataStore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+	s.mu.Lock()
+	s.ClaimHostsForRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClaimHostsForRecoveryLockVerifyFunc(ctx)
+}
+
+func (s *DataStore) UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.UnclaimHostForRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnclaimHostForRecoveryLockVerifyFunc(ctx, hostUUID, verifyCommandUUID)
 }
 
 func (s *DataStore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
