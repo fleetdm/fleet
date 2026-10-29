@@ -1803,6 +1803,54 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
+
+	t.Run("ps1 with pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
+	})
+
+	t.Run("ps1 with env pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
+	})
 }
 
 func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
