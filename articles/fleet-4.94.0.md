@@ -89,7 +89,6 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 - Added `name` and `description` fields to configuration profiles, set in the UI, the API, or GitOps YAML.
 - Changed profile renames so that uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. The exception is renaming a Windows, Android, or declaration (DDM) profile through GitOps, which re-creates the profile.
 - Deprecated `display_name` in favor of `name` on the batch configuration profiles endpoint.
-- ~~Added support for multiple versions of the same App Store app per fleet, with separate labels, configuration, categories, etc.~~ ([coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/47904))
 - Added self-service configuration profiles for macOS hosts, which end users install from the My device page.
 - Added a `hidden` option for configuration profiles. Hidden profiles appear on My device > Controls only after the end user turns on the "Show hidden profiles" toggle, which is shown only when the host has hidden profiles.
 - Added an "Actions" column header on My device > Controls.
