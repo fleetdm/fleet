@@ -2209,7 +2209,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByMDMBootstrapPackageStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}, error) {
+func (ds *Datastore) filterHostsByMDMBootstrapPackageStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any) (string, []any, error) {
 	if opt.MDMBootstrapPackageFilter == nil || !opt.MDMBootstrapPackageFilter.IsValid() {
 		return sql, params, nil
 	}
@@ -2434,7 +2434,8 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		// This path bypasses deleteHosts, so it needs the same enrollment touch.
 		// selectIDs is embedded rather than expanding ids into placeholders,
 		// which a large backlog could push past MySQL's placeholder limit.
-		touchEnrollments := fmt.Sprintf(`
+		touchEnrollments := fmt.Sprintf(
+			`
 			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
 			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
 			selectIDs,

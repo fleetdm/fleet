@@ -1046,12 +1046,12 @@ type MacOSSetup struct {
 
 // NewlyEnabledBootstrapPackageSettings returns the setup_experience keys of the settings that need a
 // bootstrap package and are turned on in s but not in old.
-func (s MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
+func (mos MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
 	var keys []string
-	if s.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
+	if mos.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
 		keys = append(keys, "macos_enable_bootstrap_package_during_manual_enrollment")
 	}
-	if s.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
+	if mos.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
 		keys = append(keys, "macos_enable_bootstrap_package_during_migration")
 	}
 	return keys

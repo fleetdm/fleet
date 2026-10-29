@@ -85,7 +85,8 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 			return ctxerr.Wrap(ctx, err, "marshaling config")
 		}
 
-		_, err = tx.ExecContext(ctx,
+		_, err = tx.ExecContext(
+			ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 			configBytes,
 		)
@@ -335,6 +336,9 @@ func (ds *Datastore) bootstrapPackageAllowedDuringMigration(ctx context.Context,
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "get team mdm config")
+		}
+		if tc == nil {
+			return false, errors.New("team MDM config was nil but no error")
 		}
 		return tc.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration, nil
 	}

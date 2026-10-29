@@ -21,7 +21,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1932,8 +1931,8 @@ func createEnrolledAppleHost(t *testing.T, ds *mysql.Datastore, i int, teamID *u
 	// create the host
 	h, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       fmt.Sprintf("test-host%d-name", i),
-		OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
-		NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
 		UUID:           uuid.New().String(),
 		Platform:       platform,
 		HardwareSerial: fmt.Sprintf("serial-%d", i),
