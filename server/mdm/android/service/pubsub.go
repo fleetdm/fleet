@@ -1062,7 +1062,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.UUID, host.Device.AppliedPolicyID)
+		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.ID, host.Host.UUID, host.Device.AppliedPolicyID)
 
 		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 			host.Host.UUID, host.Host.TeamID, enterprise.Name())
@@ -1080,13 +1080,21 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 // previous enrollment, and the profile reconciler may move the device to it before the setup
 // experience replaces them. On failure the setup experience still replaces them before it
 // moves the device, so this only logs.
-func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName, hostUUID string, appliedPolicyID *string) {
+func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName string, hostID uint, hostUUID string, appliedPolicyID *string) {
 	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
 		return
 	}
 	// Don't hold the Pub/Sub push on quota errors, this is best-effort.
-	if _, err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+	_, err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID})
+	if err != nil {
 		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
+		return
+	}
+	// Delete the host's rows too, so the reconciler sends its whole app list if it checks the host before the
+	// setup experience runs
+	err = svc.fleetDS.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, nil)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to delete the android software installs of the previous enrollment", "host_uuid", hostUUID, "err", err)
 	}
 }
 
@@ -1406,7 +1414,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.UUID, host.Device.AppliedPolicyID)
+	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.ID, fleetHost.Host.UUID, host.Device.AppliedPolicyID)
 
 	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())

@@ -129,6 +129,7 @@ type profileReconciler struct {
 	appCursor              uint
 	appNextCursor          uint
 	appSendsStoppedByQuota bool
+	appSentHostIDs         []uint
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -245,6 +246,11 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	err = r.DS.BulkUpsertHostAndroidSoftwareInstalls(ctx, r.appInstallsToUpsert, r.appInstallsToRemove)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upsert host android software installs")
+	}
+	// Flag the rows written for a sent host during this run, its sent list was built before them
+	err = r.DS.SetHostAndroidSoftwareInstallsNeedsResend(ctx, r.appSentHostIDs, &selectedAt)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "flag host android software installs written during the run")
 	}
 	if err := r.DS.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, bulkHostProfs, selectedAt); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")

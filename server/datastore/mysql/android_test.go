@@ -4418,7 +4418,39 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.Nil(t, installs[0].VPPAppTeamID)
 
 	// flag the host's apps for resend, the kept app's row should be flagged
-	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID})
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, nil)
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installs[0].NeedsResend)
+
+	// upsert the kept app's row from a policy built before it was flagged, the kept app's row should still be flagged
+	keptInstall = *installs[0]
+	keptInstall.NeedsResend = false
+	keptInstall.PolicyBuiltAt = builtAt.Add(-time.Hour)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installs[0].NeedsResend)
+
+	// upsert the kept app's row from a policy built after it was flagged, the kept app's row should not be flagged
+	keptInstall.PolicyBuiltAt = newBuiltAt
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installs[0].NeedsResend)
+
+	// flag the host's rows built after the kept app's policy, the kept app's row should not be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &newBuiltAt)
+	require.NoError(t, err)
+	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installs[0].NeedsResend)
+
+	// flag the host's rows built after an earlier time, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &builtAt)
 	require.NoError(t, err)
 	installs, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
 	require.NoError(t, err)

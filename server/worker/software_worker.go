@@ -479,7 +479,7 @@ func (v *SoftwareWorker) updateAndroidHostsAfterFleetTransfer(ctx context.Contex
 	}
 
 	// Flag the hosts' apps for resend, so the Android profile reconciler sends their new fleet's apps and agent configuration
-	err := v.Datastore.SetHostAndroidSoftwareInstallsNeedsResend(ctx, hostIDs)
+	err := v.Datastore.SetHostAndroidSoftwareInstallsNeedsResend(ctx, hostIDs, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "flag android software installs for resend after fleet transfer")
 	}

@@ -404,6 +404,7 @@ func (r *profileReconciler) recordAppListRequest(ctx context.Context, appList *a
 		r.appInstallsToUpsert = append(r.appInstallsToUpsert, install)
 	}
 	r.appInstallsToRemove = append(r.appInstallsToRemove, appList.installsToRemove...)
+	r.appSentHostIDs = append(r.appSentHostIDs, host.ID)
 
 	// Set the setup experience install of an app whose configuration changed back to pending in the new policy version,
 	// so the next status report verifies it with the new configuration applied

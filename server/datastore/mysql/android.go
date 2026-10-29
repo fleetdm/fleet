@@ -3111,14 +3111,10 @@ func (ds *Datastore) ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, af
 	return hosts, nil
 }
 
-// GetAndroidAppReconcileCursor returns 0 since the bare mysql.Datastore has no place to keep the cursor, the mysqlredis
-// wrapper keeps it in Redis.
 func (ds *Datastore) GetAndroidAppReconcileCursor(_ context.Context) (uint, error) {
 	return 0, nil
 }
 
-// SetAndroidAppReconcileCursor does nothing since the bare mysql.Datastore has no place to keep the cursor, the
-// mysqlredis wrapper keeps it in Redis.
 func (ds *Datastore) SetAndroidAppReconcileCursor(_ context.Context, _ uint) error {
 	return nil
 }
@@ -3215,10 +3211,11 @@ func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, 
 			VALUES
 				%s
 			ON DUPLICATE KEY UPDATE
+				-- Don't clear a resend flag set after the policy was built, the sent policy doesn't have its change
+				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
 				vpp_app_team_id = VALUES(vpp_app_team_id),
 				install_type = VALUES(install_type),
 				status = VALUES(status),
-				needs_resend = VALUES(needs_resend),
 				in_policy_version = VALUES(in_policy_version),
 				policy_built_at = VALUES(policy_built_at)
 		`
@@ -3256,11 +3253,17 @@ func (ds *Datastore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hos
 	return ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
 }
 
-func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint) error {
+func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1 WHERE host_id IN (?)`, hostIDs)
+	stmt := `UPDATE host_android_software_installs SET needs_resend = 1, updated_at = NOW(6) WHERE host_id IN (?)`
+	args := []any{hostIDs}
+	if builtAfter != nil {
+		stmt += ` AND policy_built_at > ?`
+		args = append(args, *builtAfter)
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build flag host android software installs for resend query")
 	}
@@ -3272,7 +3275,7 @@ func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Conte
 }
 
 func setHostAndroidSoftwareInstallsNeedsResendTx(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vppAppTeamIDs []uint) error {
-	stmt, args, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1 WHERE host_id IN (?) AND vpp_app_team_id IN (?)`, hostIDs, vppAppTeamIDs)
+	stmt, args, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1, updated_at = NOW(6) WHERE host_id IN (?) AND vpp_app_team_id IN (?)`, hostIDs, vppAppTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build flag host android software installs of versions for resend query")
 	}

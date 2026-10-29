@@ -103,7 +103,8 @@ func TestUpdateAndroidHostsAfterFleetTransferFlagsAppsForResend(t *testing.T) {
 		return 0, nil
 	}
 	var flaggedHostIDs []uint
-	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint) error {
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
+		require.Nil(t, builtAfter)
 		flaggedHostIDs = hostIDs
 		return nil
 	}

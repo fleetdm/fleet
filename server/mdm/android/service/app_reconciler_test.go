@@ -71,6 +71,7 @@ type androidAppReconcileState struct {
 	savedCursor              uint
 	listedHostsN             int
 	pendingApplyConfigAppIDs []string
+	flaggedSentHostIDs       []uint
 }
 
 func TestReconcileAndroidApps(t *testing.T) {
@@ -153,6 +154,10 @@ func TestReconcileAndroidApps(t *testing.T) {
 	}
 	ds.SetAndroidAppInstallPendingApplyConfigFunc = func(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
 		state.pendingApplyConfigAppIDs = append(state.pendingApplyConfigAppIDs, applicationID)
+		return nil
+	}
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
+		state.flaggedSentHostIDs = append(state.flaggedSentHostIDs, hostIDs...)
 		return nil
 	}
 
@@ -480,6 +485,19 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
 		require.Equal(t, hostB.ID, state.upserted[2].HostID)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[2].Status)
+	})
+
+	t.Run("a host whose list was sent has the rows written during the run flagged and a rejected host doesn't", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts:                []*fleet.Host{hostA, hostB},
+			appsInScopeByHostID:  map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}},
+			setAppsErrByHostUUID: map[string]error{"host-a": &googleapi.Error{Code: http.StatusBadRequest}},
+		}
+
+		// run the cron with host A's request rejected, only host B's rows written during the run should be flagged
+		err := reconcile(0)
+		require.NoError(t, err)
+		require.Equal(t, []uint{hostB.ID}, state.flaggedSentHostIDs)
 	})
 
 	t.Run("a host whose app was left out for a missing value and then flagged for resend gets the app right away", func(t *testing.T) {

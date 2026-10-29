@@ -1986,7 +1986,7 @@ type BulkUpsertHostAndroidSoftwareInstallsFunc func(ctx context.Context, install
 
 type ReplaceHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error
 
-type SetHostAndroidSoftwareInstallsNeedsResendFunc func(ctx context.Context, hostIDs []uint) error
+type SetHostAndroidSoftwareInstallsNeedsResendFunc func(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error
 
 type SetHostAndroidSoftwareInstallsVerifiedFunc func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
 
@@ -13475,11 +13475,11 @@ func (s *DataStore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, host
 	return s.ReplaceHostAndroidSoftwareInstallsFunc(ctx, hostID, installs)
 }
 
-func (s *DataStore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint) error {
+func (s *DataStore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error {
 	s.mu.Lock()
 	s.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostAndroidSoftwareInstallsNeedsResendFunc(ctx, hostIDs)
+	return s.SetHostAndroidSoftwareInstallsNeedsResendFunc(ctx, hostIDs, builtAfter)
 }
 
 func (s *DataStore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error {

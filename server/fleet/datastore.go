@@ -3667,8 +3667,9 @@ type Datastore interface {
 	// other apps.
 	ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []HostAndroidSoftwareInstall) error
 
-	// SetHostAndroidSoftwareInstallsNeedsResend flags every host_android_software_installs row of hostIDs for resend.
-	SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint) error
+	// SetHostAndroidSoftwareInstallsNeedsResend flags the host_android_software_installs rows of hostIDs for resend, only
+	// the ones whose policy was built after builtAfter when it's set.
+	SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time) error
 
 	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows that were sent
 	// in appliedPolicyVersion or before to verified.
