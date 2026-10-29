@@ -104,6 +104,83 @@ func TestToolCallIndexResumesAfterBudgetSpent(t *testing.T) {
 	}
 }
 
+// Fleet can start collecting a session at its tool_calls count, so that count
+// must be the index the session's next call will get, for every agent.
+func TestToolCallsCountMatchesToolCallIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		write func(t *testing.T, home string)
+	}{
+		{"claude code with sub-agent", func(t *testing.T, home string) { writeClaudeFixture(t, home) }},
+		{"codex cli", func(t *testing.T, home string) { writeCodexRollout(t, home, codexLegacy) }},
+		{"copilot cli", func(t *testing.T, home string) { writeFile(t, copilotPath(home, "24b9ca9f"), copilotEvents) }},
+		{"cursor", func(t *testing.T, home string) { copyCursorCapture(t, home) }},
+		{"cursor with sub-agent", func(t *testing.T, home string) {
+			dir := filepath.Join(home, ".cursor", "projects", "tmp-x", "agent-transcripts", "p1")
+			writeFile(t, filepath.Join(dir, "p1.jsonl"), lines(
+				`{"role":"user","message":{"content":[{"type":"text","text":"go"}]}}`,
+				`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"ls"}}]}}`,
+			))
+			writeFile(t, filepath.Join(dir, "subagents", "c1.jsonl"), lines(
+				`{"role":"user","message":{"content":[{"type":"text","text":"sub task"}]}}`,
+				`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"a"}}]}}`,
+			))
+		}},
+		{"gemini cli", func(t *testing.T, home string) { writeGeminiFixture(t, home) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := setup(t)
+			tc.write(t, home)
+
+			var total int
+			for _, s := range sessionRows(t) {
+				calls := toolRows(t, s["session_id"])
+				require.Equal(t, strconv.Itoa(len(calls)), s["tool_calls"], s["session_id"])
+				for i, r := range calls {
+					require.Equal(t, strconv.Itoa(i), r["tool_call_index"], s["session_id"])
+				}
+				total += len(calls)
+			}
+			require.Positive(t, total, "the fixture has tool calls")
+		})
+	}
+}
+
+// Files past those read side by side are still merged by timestamp, here with
+// more sub-agents running at once than that, named against their time order.
+func TestToolCallIndexMergesEverySubagentFile(t *testing.T) {
+	home := setup(t)
+	const subagents, rounds = maxOpenMergedFiles + 8, 3
+	at := func(sec int) string {
+		return time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Add(time.Duration(sec) * time.Second).Format(time.RFC3339Nano)
+	}
+
+	var want []string
+	var main []string
+	subs := make([][]string, subagents)
+	for round := range rounds {
+		id := fmt.Sprintf("main-%d", round)
+		main = append(main, claudeCall(id, at(round*1000), 0))
+		want = append(want, id)
+		for order := range subagents {
+			k := subagents - 1 - order
+			id := fmt.Sprintf("sub-%02d-%d", k, round)
+			subs[k] = append(subs[k], claudeCall(id, at(round*1000+1+order), 0))
+			want = append(want, id)
+		}
+	}
+	writeClaudeTranscript(t, home, "s", main...)
+	for k, records := range subs {
+		writeFile(t, filepath.Join(claudeProject(home), "s", "subagents", fmt.Sprintf("agent-%02d.jsonl", k)), lines(records...))
+	}
+
+	calls := toolRows(t, "s")
+	require.Equal(t, want, column(calls, "tool_use_id"))
+	for i, r := range calls {
+		require.Equal(t, strconv.Itoa(i), r["tool_call_index"])
+	}
+}
+
 // A tool call keeps its index as the session goes on: calls across the
 // session's files are ordered by when they were written, so a sub-agent's
 // calls don't move when the main transcript grows after them.

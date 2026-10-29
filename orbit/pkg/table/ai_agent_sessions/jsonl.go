@@ -3,10 +3,12 @@ package ai_agent_sessions
 import (
 	"bufio"
 	"bytes"
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -128,9 +130,11 @@ func scanJSONL(sc *scope, path string, fn func(line []byte) bool) error {
 	}
 }
 
-// maxMergedFiles bounds how many of a session's files are read side by side
-// (each holds a scan buffer open); any further files are read after them.
-const maxMergedFiles = 32
+// maxOpenMergedFiles bounds how many of a session's files are held open while
+// they are merged (each holds a scan buffer and a descriptor, and a session
+// can have thousands of sub-agents). The others wait closed, remembering
+// where their next record starts.
+const maxOpenMergedFiles = 32
 
 // scanFiles hands the records of a session's files to fn, with the index of
 // the file each came from, in the order they were written: files are merged
@@ -141,82 +145,144 @@ const maxMergedFiles = 32
 // sub-agent's would move the latter every time the former grew. A nil stamp
 // reads the files one after another.
 func scanFiles(sc *scope, files []string, stamp func(line []byte) time.Time, fn func(file int, line []byte) bool) {
-	merged := files
 	if stamp == nil || len(files) < 2 {
-		merged = nil
-	} else if len(files) > maxMergedFiles {
-		merged = files[:maxMergedFiles]
-	}
-
-	var streams []*recordStream
-	defer func() {
-		for _, st := range streams {
-			st.close()
-		}
-	}()
-	for i, path := range merged {
-		st, err := openRecordStream(sc, path, i)
-		if err != nil {
-			continue
-		}
-		if st.advance(stamp) {
-			streams = append(streams, st)
-		} else {
-			st.close()
-		}
-	}
-	for len(streams) > 0 {
-		best := 0
-		for i, st := range streams[1:] {
-			if st.ts.Before(streams[best].ts) {
-				best = i + 1
+		for i, path := range files {
+			more := true
+			_ = scanJSONL(sc, path, func(line []byte) bool {
+				more = fn(i, line)
+				return more
+			})
+			if !more {
+				return
 			}
 		}
-		st := streams[best]
+		return
+	}
+
+	m := &fileMerge{sc: sc, stamp: stamp}
+	defer m.closeAll()
+	for i, path := range files {
+		st := &recordStream{file: i, path: path}
+		if m.open(st) && st.advance(stamp) {
+			heap.Push(&m.queue, st)
+		} else {
+			m.close(st)
+		}
+	}
+	for m.queue.Len() > 0 {
+		st := m.queue[0]
+		if st.f == nil && !m.reopen(st) {
+			heap.Pop(&m.queue)
+			continue
+		}
+		m.tick++
+		st.used = m.tick
 		if !fn(st.file, st.line) {
 			return
 		}
-		if !st.advance(stamp) {
-			st.close()
-			streams = append(streams[:best], streams[best+1:]...)
-		}
-	}
-
-	for i := len(merged); i < len(files); i++ {
-		more := true
-		_ = scanJSONL(sc, files[i], func(line []byte) bool {
-			more = fn(i, line)
-			return more
-		})
-		if !more {
-			return
+		if st.advance(stamp) {
+			heap.Fix(&m.queue, 0)
+		} else {
+			heap.Pop(&m.queue)
+			m.close(st)
 		}
 	}
 }
 
-// recordStream is one file being merged: its current record and timestamp.
+// fileMerge is the state of one scanFiles merge: the files still to be read,
+// ordered by their next record, and those of them held open.
+type fileMerge struct {
+	sc     *scope
+	stamp  func(line []byte) time.Time
+	queue  streamQueue
+	opened []*recordStream
+	tick   uint64
+}
+
+// open opens st's file at its next record, first closing the least recently
+// read open file when as many as allowed are open.
+func (m *fileMerge) open(st *recordStream) bool {
+	if len(m.opened) >= maxOpenMergedFiles {
+		lru := 0
+		for i, o := range m.opened {
+			if o.used < m.opened[lru].used {
+				lru = i
+			}
+		}
+		m.close(m.opened[lru])
+	}
+	f, err := m.sc.open(st.path)
+	if err != nil {
+		return false
+	}
+	if st.next > 0 {
+		if _, err := f.Seek(st.next, io.SeekStart); err != nil {
+			_ = f.Close()
+			return false
+		}
+	}
+	st.f = f
+	st.base = st.next
+	st.src = &countingReader{r: m.sc.reader(f, maxTranscriptBytes-st.next)}
+	st.r = readers.Get().(*bufio.Reader)
+	st.r.Reset(st.src)
+	st.err = nil
+	m.opened = append(m.opened, st)
+	return true
+}
+
+// reopen opens a closed st and reads its next record again. The file may
+// have changed meanwhile; a record that is no longer there ends st.
+func (m *fileMerge) reopen(st *recordStream) bool {
+	ts := st.ts
+	if !m.open(st) || !st.advance(m.stamp) {
+		m.close(st)
+		return false
+	}
+	st.ts = ts
+	return true
+}
+
+// close closes st's file, keeping where its next record starts.
+func (m *fileMerge) close(st *recordStream) {
+	if st.f == nil {
+		return
+	}
+	st.r.Reset(nil)
+	readers.Put(st.r)
+	_ = st.f.Close()
+	st.f, st.r, st.src, st.line = nil, nil, nil, nil
+	if i := slices.Index(m.opened, st); i >= 0 {
+		m.opened = slices.Delete(m.opened, i, i+1)
+	}
+}
+
+func (m *fileMerge) closeAll() {
+	for len(m.opened) > 0 {
+		m.close(m.opened[0])
+	}
+}
+
+// recordStream is one file being merged: its current record and timestamp,
+// and, while it is closed, where that record starts.
 type recordStream struct {
 	file int
+	path string
 	f    *os.File
 	r    *bufio.Reader
+	src  *countingReader
+	base int64 // file offset src started at
+	next int64 // file offset of line
 	line []byte
 	ts   time.Time
 	err  error
-}
-
-func openRecordStream(sc *scope, path string, file int) (*recordStream, error) {
-	f, err := sc.open(path)
-	if err != nil {
-		return nil, err
-	}
-	r := readers.Get().(*bufio.Reader)
-	r.Reset(sc.reader(f, maxTranscriptBytes))
-	return &recordStream{file: file, f: f, r: r}, nil
+	used uint64
 }
 
 // advance reads the next non-empty record, reporting false at the end.
 func (st *recordStream) advance(stamp func(line []byte) time.Time) bool {
 	for st.err == nil {
+		st.next = st.base + st.src.n - int64(st.r.Buffered())
 		st.line, st.err = readRecord(st.r)
 		if len(st.line) == 0 {
 			continue
@@ -229,10 +295,35 @@ func (st *recordStream) advance(stamp func(line []byte) time.Time) bool {
 	return false
 }
 
-func (st *recordStream) close() {
-	st.r.Reset(nil)
-	readers.Put(st.r)
-	_ = st.f.Close()
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
+}
+
+// streamQueue orders streams by their next record's timestamp, then by file.
+type streamQueue []*recordStream
+
+func (q streamQueue) Len() int { return len(q) }
+func (q streamQueue) Less(i, j int) bool {
+	if !q[i].ts.Equal(q[j].ts) {
+		return q[i].ts.Before(q[j].ts)
+	}
+	return q[i].file < q[j].file
+}
+func (q streamQueue) Swap(i, j int) { q[i], q[j] = q[j], q[i] }
+func (q *streamQueue) Push(x any)   { *q = append(*q, x.(*recordStream)) }
+func (q *streamQueue) Pop() any {
+	old := *q
+	st := old[len(old)-1]
+	*q = old[:len(old)-1]
+	return st
 }
 
 // recordStamp reads the timestamp Claude Code and Codex put on every record.
