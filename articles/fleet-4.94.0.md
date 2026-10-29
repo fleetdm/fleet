@@ -16,6 +16,7 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 - [Custom end user agreement for Windows enrollment](#custom-end-user-agreement-for-windows-enrollment)
 - [Filter software by type](#filter-software-by-type)
 - [Android: full app configuration and BYOD work profile wipe](#android-full-app-configuration-and-byod-work-profile-wipe)
+- [Android zero-touch enrollment to any fleet](#android-zero-touch-enrollment-to-any-fleet)
 - [Dynamic SCEP challenges for Apple MDM enrollment](#dynamic-scep-challenges-for-apple-mdm-enrollment)
 - [Rotate a Mac's FileVault recovery key on demand](#rotate-a-macs-filevault-recovery-key-on-demand)
 
@@ -63,11 +64,19 @@ GitHub issue: [#51823](https://github.com/fleetdm/fleet/issues/51823)
 
 ### Android: full app configuration and BYOD work profile wipe
 
-[Android app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) now accepts every Android Management API [`ApplicationPolicy`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) field, such as `autoUpdateMode`, `permissionGrants`, and `minimumVersionCode`. It also accepts `credentialProviderPolicy`, so end users on Android 14 and later can pick an approved password manager as their autofill and passkey provider in the work profile. [Zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment#enroll-hosts-to-multiple-fleets) can now land company-owned devices in a fleet of your choosing.
+[Android app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) now accepts every Android Management API [`ApplicationPolicy`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) field, such as `autoUpdateMode`, `permissionGrants`, and `minimumVersionCode`. It also accepts `credentialProviderPolicy`, so end users on Android 14 and later can pick an approved password manager as their autofill and passkey provider in the work profile.
 
 Personally-owned (BYOD) Android hosts can now be wiped from the [API](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) and fleetctl. Only the work profile is removed, so the end user's personal data stays untouched.
 
-GitHub issues: [#51454](https://github.com/fleetdm/fleet/issues/51454), [#51479](https://github.com/fleetdm/fleet/issues/51479), [#53471](https://github.com/fleetdm/fleet/issues/53471)
+GitHub issues: [#51454](https://github.com/fleetdm/fleet/issues/51454), [#53471](https://github.com/fleetdm/fleet/issues/53471)
+
+### Android zero-touch enrollment to any fleet
+
+IT admins can now choose which fleet company-owned Android hosts land in when they enroll with zero-touch enrollment. Create a zero-touch configuration for each fleet, then apply the right configuration to each device in the zero-touch portal.
+
+Learn how in the [Android zero-touch enrollment guide](https://fleetdm.com/guides/android-zero-touch-enrollment#enroll-hosts-to-multiple-fleets).
+
+GitHub issue: [#51479](https://github.com/fleetdm/fleet/issues/51479)
 
 ### Dynamic SCEP challenges for Apple MDM enrollment
 
