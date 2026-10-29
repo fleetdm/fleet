@@ -16,7 +16,7 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 - [Custom end user agreement for Windows enrollment](#custom-end-user-agreement-for-windows-enrollment)
 - [Filter software by type](#filter-software-by-type)
 - [Android: full app configuration and BYOD work profile wipe](#android-full-app-configuration-and-byod-work-profile-wipe)
-- [New Android devices land in the right fleet](#new-android-devices-land-in-the-right-fleet)
+- [Android zero-touch enrollment to any fleet](#android-zero-touch-enrollment-to-any-fleet)
 - [Dynamic SCEP challenges for Apple MDM enrollment](#dynamic-scep-challenges-for-apple-mdm-enrollment)
 - [Rotate a Mac's FileVault recovery key on demand](#rotate-a-macs-filevault-recovery-key-on-demand)
 
@@ -70,9 +70,9 @@ Personally-owned (BYOD) Android hosts can now be wiped from the [API](https://fl
 
 GitHub issues: [#51454](https://github.com/fleetdm/fleet/issues/51454), [#53471](https://github.com/fleetdm/fleet/issues/53471)
 
-### New Android devices land in the right fleet
+### Android zero-touch enrollment to any fleet
 
-When an end user turns on a new company-owned Android device, it can now go straight to the right fleet. For example, sales phones land in the Sales fleet and warehouse scanners in the Warehouse fleet, each with the right apps and settings from the start. No more moving devices by hand after they enroll.
+IT admins can now choose which fleet company-owned Android hosts land in when they enroll with zero-touch enrollment. Create a zero-touch configuration for each fleet, then apply the right configuration to each device in the zero-touch portal.
 
 Learn how in the [Android zero-touch enrollment guide](https://fleetdm.com/guides/android-zero-touch-enrollment#enroll-hosts-to-multiple-fleets).
 
