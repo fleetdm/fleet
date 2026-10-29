@@ -69,6 +69,18 @@ quit_application() {
 }
 
 
+remove_empty_dir() {
+  local logged_in_user="$1"
+  local dir="$2"
+
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+    dir="/Users/$logged_in_user${dir:1}"
+  fi
+
+  sudo rmdir "$dir" 2>/dev/null || true
+}
+
 remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -264,8 +276,6 @@ sudo rm -rf '/Library/LaunchAgents/com.microsoft.update.agent.plist'
 sudo rm -rf '/Library/LaunchDaemons/com.microsoft.autoupdate.helper.plist'
 sudo rm -rf '/Library/Preferences/com.microsoft.autoupdate2.plist'
 sudo rm -rf '/Library/PrivilegedHelperTools/com.microsoft.autoupdate.helper'
-sudo rmdir '~/Library/Caches/Microsoft'
-sudo rmdir '~/Library/Caches/Microsoft/uls'
 trash "$LOGGED_IN_USER" '~/Library/Application Scripts/UBF8T346G9.com.microsoft.oneauth'
 trash "$LOGGED_IN_USER" '~/Library/Application Support/Microsoft AutoUpdate'
 trash "$LOGGED_IN_USER" '~/Library/Caches/com.microsoft.autoupdate.fba'
@@ -282,3 +292,5 @@ trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate.fba.plis
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate2.plist'
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.shared.plist'
 trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.microsoft.autoupdate2.savedState'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft/uls'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft'

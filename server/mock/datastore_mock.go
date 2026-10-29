@@ -306,7 +306,7 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
-type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) error
+type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error)
 
 type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
@@ -7530,7 +7530,7 @@ func (s *DataStore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, host
 	return s.SetOrUpdateCustomHostDeviceMappingFunc(ctx, hostID, email, source)
 }
 
-func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+func (s *DataStore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.SetOrUpdateIDPHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()

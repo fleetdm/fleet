@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "156.3.20.2",
+      "version": "156.3.22.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox' AND version_compare(bundle_short_version, '156.3.20.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.wavebox.wavebox' AND version_compare(bundle_short_version, '156.3.22.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.wavebox.wavebox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_156.3.20.2.zip",
+      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_156.3.22.2.zip",
       "install_script_ref": "98aa14ef",
       "uninstall_script_ref": "2c70f608",
-      "sha256": "7d874398f1f7ef4b2295d16816fa1ca213ed396a6b8b8caf8e2b7de4ba545537",
+      "sha256": "a266d4e809dd9fbba4afeaf0f2ec259deb3eef76deccf9005974f61aa97ae77a",
       "default_categories": [
         "Browsers"
       ]

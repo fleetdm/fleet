@@ -249,7 +249,6 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
             group: "Settings" as const,
             path: paths.ADMIN_FLEETS,
             keywords: [
-              "teams",
               "groups",
               "add fleet",
               "create fleet",

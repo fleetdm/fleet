@@ -62,6 +62,14 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestNewClientWithoutOTEL(t *testing.T) {
+	cli := NewClient(WithoutOTEL())
+	assert.IsType(t, &http.Transport{}, cli.Transport) //nolint:gocritic
+
+	cli = NewClient(WithoutOTEL(), WithMaxResponseSize(1))
+	assert.IsType(t, &SizeLimitTransport{}, cli.Transport)
+}
+
 func TestTransport(t *testing.T) {
 	defaultTLSConf := http.DefaultTransport.(*http.Transport).TLSClientConfig
 
