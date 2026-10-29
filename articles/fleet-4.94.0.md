@@ -31,7 +31,7 @@ GitHub issue: [#51814](https://github.com/fleetdm/fleet/issues/51814)
 
 ### Self-service configuration profiles for macOS
 
-IT admins can now offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Profiles can also be marked hidden, so they only appear after the end user turns on **Show hidden profiles**.
+IT admins can now offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Self-service profiles for iOS and iPadOS are [coming soon](https://github.com/fleetdm/fleet/issues/52841). Profiles can also be marked hidden, so they only appear after the end user turns on **Show hidden profiles**.
 
 Learn more in the [configuration profiles guide](https://fleetdm.com/guides/custom-os-settings#self-service), or set `self_service` and `hidden` in [GitOps](https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings).
 
