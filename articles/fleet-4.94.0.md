@@ -1,4 +1,4 @@
-# Fleet 4.94.0 | Configuration profile editor, self-service profiles, custom Windows EULA, and more...
+# Fleet 4.94.0 | Configuration profile editor, self-service profiles, multiple App Store app versions, and more...
 
 <!--
 <div purpose="embedded-content">
@@ -291,5 +291,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Luke Heath">
 <meta name="authorGitHubUsername" value="lukeheath">
 <meta name="publishedOn" value="2026-10-28">
-<meta name="articleTitle" value="Fleet 4.94.0 | Configuration profile editor, self-service profiles, custom Windows EULA, and more...">
+<meta name="articleTitle" value="Fleet 4.94.0 | Configuration profile editor, self-service profiles, multiple App Store app versions, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.94.0-1600x900@2x.png">
