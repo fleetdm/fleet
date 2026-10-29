@@ -92,7 +92,7 @@ describe("Certificates tab-header", () => {
 
     // Wait for the "no CAs" empty state to confirm the CA fetch resolved.
     expect(
-      await screen.findByText(/Add certificate authority/i)
+      await screen.findByText("No certificate authority")
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Add certificate$/i })
