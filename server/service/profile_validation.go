@@ -127,15 +127,24 @@ const (
 	profileSchemaWindowsProfile
 )
 
-// profileValidationError carries the first schema finding for a profile. It
-// never holds profile content, so it's safe for expanded profiles with secrets.
+// profileValidationError carries a profile's schema findings; Error describes
+// the first. It never holds profile content, so it's safe for expanded profiles
+// with secrets.
 type profileValidationError struct {
-	finding profilevalidation.Finding
-	windows bool
+	findings []profilevalidation.Finding
+	windows  bool
 }
 
 func (e *profileValidationError) Error() string {
-	return profileValidationSentence(e.finding, e.windows)
+	return profileValidationSentence(e.findings[0], e.windows)
+}
+
+func (e *profileValidationError) sentences() []string {
+	out := make([]string, 0, len(e.findings))
+	for _, f := range e.findings {
+		out = append(out, profileValidationSentence(f, e.windows))
+	}
+	return out
 }
 
 // lenientProfileValidationMode returns the mode for an admin-uploaded profile:
@@ -206,7 +215,7 @@ func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profi
 	if len(findings) == 0 {
 		return nil
 	}
-	return &profileValidationError{finding: findings[0], windows: kind == profileSchemaWindowsProfile}
+	return &profileValidationError{findings: findings, windows: kind == profileSchemaWindowsProfile}
 }
 
 // profileValidationUserError turns a *profileValidationError from the single
@@ -216,9 +225,9 @@ func profileValidationUserError(err error, edit bool) error {
 	if !ok {
 		return err
 	}
-	msg := profileValidationAddMessage(pvErr.finding, pvErr.windows)
+	msg := profileValidationAddMessage(pvErr.findings[0], pvErr.windows)
 	if edit {
-		msg = profileValidationEditMessage(pvErr.finding, pvErr.windows)
+		msg = profileValidationEditMessage(pvErr.findings[0], pvErr.windows)
 	}
 	return fleet.NewInvalidArgumentError("profile", msg)
 }
@@ -278,7 +287,7 @@ func (svc *Service) validateBatchProfileSchemas(
 		if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 			// "profiles" rather than the profile's name: the message already names it,
 			// and fleetctl would prefix a matching name again
-			return fleet.NewInvalidArgumentError("profiles", profileValidationBatchMessage(name, pvErr.finding, pvErr.windows))
+			return fleet.NewInvalidArgumentError("profiles", profileValidationBatchMessage(name, pvErr.findings[0], pvErr.windows))
 		}
 		if err != nil {
 			return err

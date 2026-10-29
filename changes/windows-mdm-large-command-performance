@@ -1,0 +1,1 @@
+- Fixed the Windows MDM custom command API timing out (502) when a command targets thousands of hosts, and the command result details taking over a minute to load when a command was sent to thousands of hosts.

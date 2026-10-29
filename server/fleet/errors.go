@@ -57,7 +57,7 @@ var (
 	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
 	SoftwareAlreadyHasFleetMaintainedAppMessage  = "%s already has a Fleet-maintained app on the %s fleet."
 	SoftwareAlreadyHasPackageMessage             = "%s already has a software package on the %s fleet."
-	SoftwarePackageLimitMessage                  = "%s already has %d packages. Before adding, delete one you no longer use."
+	SoftwarePackageLimitMessage                  = "%s already has %d versions. Before adding, delete one you no longer use."
 	SoftwareSelfServiceCategoriesConflictMessage = "Couldn't add software (%q). self_service and categories can be specified either in the fleet-level file or in the package YAML file."
 	SoftwareSetupExperienceFleetLevelOnlyMessage = "Couldn't add software (%q). setup_experience can be specified only in the fleet-level file."
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
@@ -722,6 +722,23 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	}
 	return ""
 }
+
+// AutomaticEnrollmentRefusedError is returned when the Apple automatic enrollment profile request is refused. Setup
+// Assistant treats a 401 there as a request for a username and password, so it's a 403, and the reason is only logged.
+type AutomaticEnrollmentRefusedError struct {
+	ErrorWithUUID
+	Reason string
+}
+
+func (e *AutomaticEnrollmentRefusedError) Error() string {
+	return "This device can't enroll right now. Please contact your IT administrator."
+}
+
+func (e *AutomaticEnrollmentRefusedError) StatusCode() int { return http.StatusForbidden }
+
+func (e *AutomaticEnrollmentRefusedError) Internal() string { return e.Reason }
+
+func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 

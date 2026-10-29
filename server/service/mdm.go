@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -662,20 +663,22 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for _, uuid := range result.FailedUUIDs {
 		failedUUIDs[uuid] = struct{}{}
 	}
+	activities := make([]activity_api.ActivityDetails, 0, len(hosts))
 	for _, h := range hosts {
 		if _, failed := failedUUIDs[h.UUID]; failed {
 			continue
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeRanCustomMDMCommand{
+		activities = append(activities, &fleet.ActivityTypeRanCustomMDMCommand{
 			HostID:          h.ID,
 			HostDisplayName: h.DisplayName(),
 			HostUUID:        h.UUID,
 			CommandUUID:     result.CommandUUID,
 			RequestType:     result.RequestType,
 			Platform:        commandPlatform,
-		}); err != nil {
-			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
-		}
+		})
+	}
+	if err := svc.NewActivities(ctx, authz.UserFromContext(ctx), activities); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to log activities for ran custom mdm command", "err", err, "command_uuid", result.CommandUUID)
 	}
 
 	return result, nil
@@ -816,6 +819,11 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
 		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
+	}
+
+	// Host-secret placeholders are Fleet's to write, never an admin's
+	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate apple mdm command")
 	}
 
 	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
