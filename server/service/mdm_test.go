@@ -4130,7 +4130,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			false,
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
-			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
+			`Couldn't add. Android OS updates ("systemUpdate") is Fleet Premium only.`,
 		},
 		{
 			"premium-only android profile with premium license",
@@ -4146,7 +4146,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			false,
 			0,
 			`{"playStoreMode": "BLACKLIST"}`,
-			`Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+			`Couldn't add. Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
 		},
 		{
 			"android software setting with premium license",
@@ -4154,7 +4154,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			true,
 			0,
 			`{"playStoreMode": "BLACKLIST"}`,
-			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
+			`Couldn't add. Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",
@@ -4523,7 +4523,11 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "Invalid JSON payload")
+		assert.ErrorContains(t, err, "Couldn't edit. Invalid JSON payload")
+
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", []byte(`{"playStoreMode": "BLACKLIST"}`), nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, `Couldn't edit. Android configuration profile can't include "playStoreMode" setting.`)
 	})
 
 	t.Run("label appearing in both include and exclude lists is rejected", func(t *testing.T) {
