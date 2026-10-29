@@ -125,6 +125,7 @@ export interface IMdmConfig {
   windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
   only_allow_apple_business_enrollment: boolean;
+  enable_profile_validation: boolean;
 }
 
 /** Settings for new user-driven Windows MDM enrollments (Premium only). */

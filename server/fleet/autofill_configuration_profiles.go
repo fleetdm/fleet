@@ -36,9 +36,11 @@ type AutofilledConfigProfile struct {
 // API documents, which neither InvalidArgumentError ("Validation Failed") nor
 // AutofillError (always "base") can produce.
 type AutofillConfigProfileError struct {
-	Message     string
-	Field       string
-	Reason      string
+	Message string
+	Field   string
+	Reason  string
+	// MoreReasons are reported under Field after Reason, one error each.
+	MoreReasons []string
 	InternalErr error
 }
 

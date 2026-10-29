@@ -2436,6 +2436,34 @@ func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
 	return a.Automated
 }
 
+type ActivityTypeSetHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
+	return "set_host_google_device_id"
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeDeletedHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) ActivityName() string {
+	return "deleted_host_google_device_id"
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeEditedHostIdpData struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

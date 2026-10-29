@@ -619,6 +619,23 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// HostGoogleDeviceIDConflictError is returned when a host is already bound to a different Google device ID.
+type HostGoogleDeviceIDConflictError struct {
+	StoredID string
+}
+
+func (e *HostGoogleDeviceIDConflictError) Error() string {
+	return "This host already has a different Google device ID."
+}
+
+func (e *HostGoogleDeviceIDConflictError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "google_device_id", "reason": e.Error()}}
+}
+
+func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConflict }
+
+func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
+
 // EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
 // certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
 type EJBCANameInUseError struct {
@@ -705,6 +722,23 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	}
 	return ""
 }
+
+// AutomaticEnrollmentRefusedError is returned when the Apple automatic enrollment profile request is refused. Setup
+// Assistant treats a 401 there as a request for a username and password, so it's a 403, and the reason is only logged.
+type AutomaticEnrollmentRefusedError struct {
+	ErrorWithUUID
+	Reason string
+}
+
+func (e *AutomaticEnrollmentRefusedError) Error() string {
+	return "This device can't enroll right now. Please contact your IT administrator."
+}
+
+func (e *AutomaticEnrollmentRefusedError) StatusCode() int { return http.StatusForbidden }
+
+func (e *AutomaticEnrollmentRefusedError) Internal() string { return e.Reason }
+
+func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 

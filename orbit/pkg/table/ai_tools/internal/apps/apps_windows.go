@@ -3,7 +3,7 @@
 package apps
 
 import (
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 	"golang.org/x/sys/windows/registry"
 )
 
