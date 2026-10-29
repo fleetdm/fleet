@@ -64,6 +64,8 @@ A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enroll secret)
 
 To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
 
+`fleetctl` names the package after the platform and architecture, like `fleet-macos.pkg`, `fleet-windows-amd64.msi`, or `fleet-linux-arm64.deb`. If you're logged in to `fleetctl` and the enroll secret belongs to a fleet, `fleetctl` adds the fleet's name, like `fleet-macos-workstations.pkg`. If the enroll secret is global, it adds `unassigned`, like `fleet-macos-unassigned.pkg`. To choose the file name yourself, use the `--outfile` flag.
+
 #### Example
 
 Generate fleetd on macOS (.pkg)

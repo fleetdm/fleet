@@ -44,7 +44,7 @@ Head over to the Hosts page on Fleet and click on the “Add hosts” button, wh
 
 Next, head over to your Windows command prompt (making sure that you are running with administrator privilege and Docker is running), paste the copied command, and then hit enter.
 
-Once `fleetctl` has finished creating your osquery installer, it will produce an installer file called `fleet-osquery.msi` in your current directory and display instructions on how to proceed.
+Once `fleetctl` has finished creating your osquery installer, it will produce an installer file called `fleet-windows-amd64.msi` in your current directory and display instructions on how to proceed.
 
 ## Running the installer
 
