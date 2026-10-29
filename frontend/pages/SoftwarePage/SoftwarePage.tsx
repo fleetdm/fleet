@@ -7,6 +7,7 @@ import AutomationsButton from "components/buttons/AutomationsButton";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TeamsHeader from "components/TeamsHeader";
@@ -17,11 +18,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
+import { getSoftwareTypes } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { ISoftwareApiParams } from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { getNextLocationPath } from "utilities/helpers";
 import {
@@ -33,9 +34,10 @@ import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
-  buildSoftwareVulnFiltersQueryParams,
-  getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFiltersParams,
+  buildSoftwareFiltersQueryParams,
+  getSoftwareFiltersFromQueryParams,
+  removePremiumOnlyFilters,
+  ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
 interface ISoftwareSubNavItem {
@@ -202,9 +204,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
+  const parsedSoftwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const softwareFilters = isPremiumTier
+    ? parsedSoftwareFilters
+    : removePremiumOnlyFilters(parsedSoftwareFilters);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -264,27 +267,39 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
   // Open manage automations modal via deep-link (e.g. from the command
-  // palette). Mirror the in-page action's gate: software automations
-  // are global-admin only, and only available on All fleets (or the
-  // single fleet in Primo). Wait for config to load before deciding,
-  // then always strip the param so a team-scoped or unauthorized load
-  // doesn't leave it stuck in the URL.
+  // palette). Capture the intent synchronously on mount: the inventory
+  // table's own URL rewrite runs on its first render and drops params it
+  // doesn't recognize, so by the time softwareConfig finishes loading
+  // the flag is already gone from the URL. Mirror the in-page action's
+  // gate: global-admin only, All fleets (or the single fleet in Primo).
+  const [pendingDeepLinkAutomations, setPendingDeepLinkAutomations] = useState(
+    () => queryParams?.manage_automations === "1"
+  );
+
+  // Strip the param from the URL as soon as we see it so a race with
+  // other URL writers can't leave it stuck, and a refresh doesn't
+  // re-trigger the modal. Also catches palette triggers after first mount
+  // (the initializer only runs once; SoftwarePage persists across tabs).
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
+    setPendingDeepLinkAutomations(true);
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [queryParams, location.pathname, router]);
+
+  useEffect(() => {
+    if (!pendingDeepLinkAutomations) return;
     if (!isSoftwareConfigLoaded) return;
     if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = queryParams;
-    router.replace({ pathname: location.pathname, query: rest });
+    setPendingDeepLinkAutomations(false);
   }, [
-    queryParams,
+    pendingDeepLinkAutomations,
     isSoftwareConfigLoaded,
     isAllTeamsSelected,
     isPrimoMode,
     isGlobalAdmin,
-    location.pathname,
-    router,
   ]);
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -371,14 +386,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
   ]);
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
-    const newQueryParams: ISoftwareApiParams = {
+  const onApplyFilters = (filters: ISoftwareFilters) => {
+    const newQueryParams = {
       query,
       teamId: currentTeamId,
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFiltersQueryParams(filters),
     };
 
     router.replace(
@@ -511,24 +526,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Tabs>
         </TabNav>
         <div key={location?.pathname} className="tab-nav-routed-content">
-          {React.cloneElement(children, {
-            router,
-            isSoftwareEnabled: Boolean(
-              softwareConfig?.features?.enable_software_inventory
-            ),
-            perPage: DEFAULT_PAGE_SIZE,
-            orderDirection: sortDirection,
-            orderKey: sortHeader,
-            currentPage: page,
-            teamId: teamIdForApi,
-            // TODO: move down into the Software Titles component
-            platform,
-            query,
-            showExploitedVulnerabilitiesOnly,
-            selfServiceOnly,
-            vulnFilters: softwareVulnFilters,
-            onAddFiltersClick: toggleSoftwareFiltersModal,
-          })}
+          {/* Until the tier is known, softwareFilters can't tell a Premium-only
+          filter in the URL from one to drop on Free. */}
+          {isPremiumTier === undefined ? (
+            <Spinner />
+          ) : (
+            React.cloneElement(children, {
+              router,
+              isSoftwareEnabled: Boolean(
+                softwareConfig?.features?.enable_software_inventory
+              ),
+              perPage: DEFAULT_PAGE_SIZE,
+              orderDirection: sortDirection,
+              orderKey: sortHeader,
+              currentPage: page,
+              teamId: teamIdForApi,
+              // TODO: move down into the Software Titles component
+              platform,
+              query,
+              showExploitedVulnerabilitiesOnly,
+              selfServiceOnly,
+              filters: softwareFilters,
+              onAddFiltersClick: toggleSoftwareFiltersModal,
+            })
+          )}
         </div>
       </div>
     );
@@ -581,9 +602,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
-            onSubmit={onApplyVulnFilters}
-            vulnFilters={softwareVulnFilters}
+            onSubmit={onApplyFilters}
+            filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
+            availableTypes={getSoftwareTypes({ premium: isPremiumTier })}
+            showAiToolFilter
           />
         )}
       </>

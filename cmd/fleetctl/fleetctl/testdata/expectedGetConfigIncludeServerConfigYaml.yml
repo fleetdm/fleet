@@ -57,6 +57,7 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     apple_require_hardware_attestation: false
     only_allow_apple_business_enrollment: false
+    enable_profile_validation: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
     microsoft_graph_credential_invalid: false
@@ -197,6 +198,7 @@ spec:
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

@@ -88,7 +88,7 @@ While Fleet may still function partially or fully with OS versions older than th
 
 Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
 
-Enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+Enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#escrow-disk-encryption-key-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
 Fleet's default install/uninstall scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
@@ -491,9 +491,9 @@ No. The agent options set using your software orchestration tool will override t
 
 #### Online hosts
 
-**Online** hosts will respond to a live query.
+**Online** hosts have recently checked into Fleet.
 
-A host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
+For hosts running fleetd, a host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
 and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
@@ -506,10 +506,12 @@ A host is considered online if it has connected to Fleet in the last 70 (10+60) 
 `distributed_interval=30, config_tls_refresh=20`
 A host is considered online if it has connected to Fleet in the last 80 (20+60) seconds.
 
+For mobile hosts (iOS, iPadOS, Android), online status reflects the device's MDM check-in cadence rather than the fleetd interval settings above.
+
 #### Offline hosts
 
-**Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
-A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
+**Offline** hosts haven't recently checked into Fleet. These hosts may be shut down, asleep, or not connected to the internet.
+A fleetd host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
 
 ### Why aren't "additional queries" being applied to hosts enrolled in a team?
 
@@ -545,9 +547,9 @@ The "Packs" section of the UI has been removed, but [access to query packs via t
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
-To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
+To enforce macOS settings, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
 ### What does "package root files: heat failed" mean?
 

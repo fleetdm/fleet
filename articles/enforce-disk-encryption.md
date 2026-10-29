@@ -14,9 +14,15 @@ For macOS hosts that automatically enroll, end users are forced to enable disk e
 
 > Fleet offers two options for macOS disk encryption:
   - Enable disk encryption: Fleet enforces FileVault and escrows the recovery key.
-  - Escrow recovery key with Fleet: Fleet stores the recovery key but does not prompt users to turn on FileVault. Use when a third-party tool (e.g. XCreds) handles enforcement.
+  - Escrow recovery key: Fleet stores the recovery key but does not prompt users to turn on FileVault. Use when a third-party tool (e.g. XCreds) handles enforcement.
 
 For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
+
+## End user interaction
+
+- **Windows**: Automatic. Fleet turns on BitLocker and escrows the recovery key without any end user action. If you require a BitLocker PIN, end users are prompted to set one on their **My device** page.
+- **macOS**: Usually automatic. Hosts that automatically enroll turn on FileVault during Setup Assistant, and the key is escrowed right away. Hosts that manually enroll, or that are [migrated](#migrate-macos-hosts) from another MDM solution, need the end user to log out and log back in before Fleet can escrow the key.
+- **Linux**: Requires the end user. The disk must be encrypted during OS setup, and Fleet Desktop prompts the end user to enter their disk password so Fleet can escrow a key. [Learn more](#escrow-disk-encryption-key-on-linux).
 
 ## Enforce disk encryption
 
@@ -28,11 +34,11 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 2. Choose which fleet you want to enforce disk encryption on by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
-3. Under macOS, check **Enable disk encryption** and/or **Escrow recovery key with Fleet**.
+3. Under macOS, check **Enable disk encryption (FileVault)** and/or **Escrow recovery key**.
 
-4. Under Windows, check **Enable disk encryption** and optionally **Require BitLocker PIN**.
+4. Under Windows, check **Enable disk encryption (BitLocker) and escrow recovery key** and optionally **Require BitLocker PIN**.
 
-5. Under Linux, check **Escrow recovery key with Fleet**.
+5. Under Linux, check **Escrow recovery key**.
 
 6. Select **Save**.
 
@@ -50,9 +56,9 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 > It may take up to two hours for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when the disk is encrypted and the key is escrowed but BitLocker protection is off (e.g., suspended for a BIOS update or due to a TPM configuration issue).
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when BitLocker protection is off and Fleet couldn't turn it back on. The host's disk encryption details give the reason. If the end user can resolve it, they'll be asked to on their **My device** page, either to restart the host or to create a BitLocker PIN.
 
-* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online.
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted.
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
@@ -62,7 +68,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Escrow disk encryption key on Linux
 
-Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts. Fleet doesn't support key escrow on Arch Linux or Arch-based distributions like Manjaro and CachyOS.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
@@ -77,6 +83,38 @@ Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encr
 
 > Note: LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
 
+### Remove the end user's passphrase
+
+If you remove the end user's passphrase, only the escrowed key unlocks the disk. Someone with the disk and the end user's old passphrase can't decrypt or mount it.
+
+1. Run `sudo cryptsetup luksDump <device>` to list the key slots. On a standard install, the end user's passphrase is in slot 0 and Fleet's key is in slot 1.
+2. Save the escrowed key from **Actions > Show disk encryption key** to a file that only root can read.
+3. Run `sudo cryptsetup luksKillSlot <device> <slot> --key-file <file>`, using the end user's slot.
+
+After you remove the end user's passphrase:
+
+- The host asks for a passphrase every time it starts, and only the escrowed key unlocks it. The end user has to contact IT after every restart. The host can't finish restarting on its own, for example after an update or a power loss.
+- Fleet doesn't detect the change. The disk encryption status stays "Verified".
+- A saved copy of the LUKS header, for example from a backup tool, can bring the old passphrase back.
+- Don't remove Fleet's key slot. Fleet then shows "Action required" and asks the end user to create a new key.
+
+This applies to disks that unlock only with passphrases, which is the case on a standard Ubuntu or Fedora install. If the disk also unlocks with a TPM or a key file, removing the passphrase doesn't lock the end user out.
+
+## Create a BitLocker PIN on Windows
+
+When a fleet requires a BitLocker PIN, Windows hosts stay in **Action required** until the end user creates one. The PIN is required at startup to unlock the disk, and the end user doesn't need administrator rights to create it.
+
+1. Fleet Desktop shows a notification once per Windows login: "Set your BitLocker PIN to protect this device."
+
+2. Selecting **Create PIN** opens the host's **My device** page. The end user can also get there from the **Disk encryption** banner on that page.
+
+3. The end user enters the PIN twice and selects **Save**. A PIN is 6 to 20 characters.
+
+4. Fleet stores the PIN encrypted and hands it to fleet's agent (fleetd) the next time the host checks in, which is within 30 seconds. fleetd applies it and Fleet deletes its copy. Fleet never shows the PIN again, to the end user or to an admin.
+
+5. The **My device** page reports the result. Disk encryption moves to **Verified** once the host confirms the PIN.
+
+If the end user's device is running a version of fleetd that's too old to set a PIN, **Create PIN** instead shows instructions for creating one through Windows' **Manage BitLocker**, which does require administrator rights.
 
 ## View disk encryption key
 
@@ -169,6 +207,18 @@ Currently, on macOS and Linux, Fleet detects when the disk encryption key change
 On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
 
 For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#escrow-disk-encryption-key-on-linux).
+
+On Linux, adding, changing, or removing a passphrase doesn't change the disk's encryption key or the data on the disk. The other passphrases keep working. Only re-encrypting or reformatting the disk creates a new encryption key.
+
+### BitLocker protection (Windows)
+
+A Windows disk can be fully encrypted while BitLocker protection is off. This happens when something suspends BitLocker and never resumes it, such as a firmware update, an installer, or another management tool. The data stays encrypted, but the key is available in the clear, so the disk isn't protected.
+
+Fleet turns protection back on for these hosts. While Fleet is working, the host shows "Enforcing". If Fleet can't finish, the host moves to "Action required" and the reason appears in the host's disk encryption details.
+
+Two of those reasons are things the end user can resolve, and they'll be asked to on their **My device** page: restarting the host, when a restart is already pending and Fleet is waiting for it, and creating a BitLocker PIN, when your fleet requires one and the host doesn't have one yet. Reasons the end user can't resolve, such as a TPM that isn't ready, are shown to the admin without asking the end user to do anything.
+
+If a policy on the host forbids the key protector Fleet needs, Fleet clears that policy so protection can be restored.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

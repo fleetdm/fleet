@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 // apiTimeoutOverrideHandler wraps the main API handler with per-route request
@@ -17,11 +19,12 @@ import (
 // synchronous script runs, large software-installer and bootstrap-package
 // uploads, the Android enterprise signup SSE stream, and large MDM profile
 // batch operations. For package-upload routes it also caps the request body and
-// threads the configured max installer size through the request context.
+// threads the configured max installer size through the request context; their
+// read deadline is lifted by the route's pre-auth, after authentication.
 //
 // Deadline overrides are best-effort: if the ResponseWriter does not support
 // SetReadDeadline/SetWriteDeadline the error is logged and the request proceeds.
-func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, logger *slog.Logger) http.HandlerFunc {
+func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, logger *slog.Logger, serverWriteTimeout func() time.Duration) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
 			// when running a script synchronously, we wait a while for a script
@@ -49,19 +52,6 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 			(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
 			var zeroTime time.Time
 			rc := http.NewResponseController(rw)
-			// For large software installers and bootstrap packages, the server time needs time to read the full
-			// request body so we use the zero value to remove the deadline and override the
-			// default read timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetReadDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
 			// For large software installers, the server time needs time to store the
 			// installer to S3 (or the configured storage location) and write the response
 			// body so we use the zero value to remove the deadline and override the
@@ -81,6 +71,26 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 			// parsing, which happens somewhere where we're only passed the request (and not the service object)
 			req.Body = http.MaxBytesReader(rw, req.Body, cfg.Server.MaxInstallerSizeBytes)
 			req = req.WithContext(installersize.NewContext(req.Context(), cfg.Server.MaxInstallerSizeBytes))
+		}
+
+		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mcp") {
+			// An embedded MCP tool call can run a live query, which waits the
+			// live query period before the response is written.
+			period, _ := service.LiveQueryRestPeriod()
+			deadline := time.Now().Add(max(serverWriteTimeout(), period+30*time.Second))
+			rc := http.NewResponseController(rw)
+			if err := rc.SetWriteDeadline(deadline); err != nil {
+				logger.ErrorContext(req.Context(),
+					"http middleware failed to override endpoint write timeout for the embedded MCP",
+					"response_writer_type", fmt.Sprintf("%T", rw),
+					"err", err,
+				)
+			}
+			// Nothing can be written after the deadline, so stop the tools'
+			// internal API calls then too.
+			ctx, cancel := context.WithDeadline(req.Context(), deadline)
+			defer cancel()
+			req = req.WithContext(ctx)
 		}
 
 		if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {

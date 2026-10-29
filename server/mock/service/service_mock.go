@@ -261,7 +261,7 @@ type DeleteHostsFunc func(ctx context.Context, ids []uint, filters *map[string]i
 
 type CountHostsFunc func(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error)
 
-type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error)
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
@@ -429,7 +429,7 @@ type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
 
 type SetAgentCheckInNotifierFunc func(notifier fleet.AgentCheckInNotifier)
 
-type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string) (string, error)
+type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string, purpose fleet.AppleMDMCertPurpose, enrollmentID *string) (string, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
@@ -513,8 +513,6 @@ type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamI
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error
-
 type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
@@ -537,7 +535,7 @@ type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.
 
 type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error)
 
-type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, string, error)
+type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error)
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error)
 
@@ -697,6 +695,8 @@ type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
 
+type VerifyMCPAvailableFunc func(ctx context.Context) error
+
 type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
@@ -713,9 +713,9 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID *ui
 
 type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
 
-type MDMCreateEULAFunc func(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
+type MDMCreateEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
 
 type MDMDeleteEULAFunc func(ctx context.Context, token string, dryRun bool) error
 
@@ -726,6 +726,8 @@ type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fle
 type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
+
+type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
 
 type HasCustomSetupAssistantConfigurationWebURLFunc func(ctx context.Context, teamID *uint) (bool, error)
 
@@ -793,11 +795,15 @@ type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uin
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
+type AutofillConfigProfileNameDescriptionFunc func(ctx context.Context, instructions string, platform string) (name string, description string, err error)
+
+type AutofillConfigProfileContentFunc func(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error)
+
 type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error
+type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error
 
 type LinuxHostDiskEncryptionStatusFunc func(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error)
 
@@ -885,7 +891,7 @@ type CreateStagedUploadFunc func(ctx context.Context, target fleet.StagedUploadT
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
-type DeleteSoftwareInstallerFunc func(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
+type DeleteSoftwareInstallerFunc func(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error
 
 type GenerateSoftwareInstallerTokenFunc func(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
 
@@ -1782,9 +1788,6 @@ type Service struct {
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
 
-	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
-	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
-
 	GetVPPTokenIfCanInstallVPPAppsFunc        GetVPPTokenIfCanInstallVPPAppsFunc
 	GetVPPTokenIfCanInstallVPPAppsFuncInvoked bool
 
@@ -2058,6 +2061,9 @@ type Service struct {
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
 
+	VerifyMCPAvailableFunc        VerifyMCPAvailableFunc
+	VerifyMCPAvailableFuncInvoked bool
+
 	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
 	VerifyMDMAndroidConfiguredFuncInvoked bool
 
@@ -2102,6 +2108,9 @@ type Service struct {
 
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
+
+	RotateMDMAppleAutomaticEnrollmentTokenFunc        RotateMDMAppleAutomaticEnrollmentTokenFunc
+	RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked bool
 
 	HasCustomSetupAssistantConfigurationWebURLFunc        HasCustomSetupAssistantConfigurationWebURLFunc
 	HasCustomSetupAssistantConfigurationWebURLFuncInvoked bool
@@ -2201,6 +2210,12 @@ type Service struct {
 
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
+
+	AutofillConfigProfileNameDescriptionFunc        AutofillConfigProfileNameDescriptionFunc
+	AutofillConfigProfileNameDescriptionFuncInvoked bool
+
+	AutofillConfigProfileContentFunc        AutofillConfigProfileContentFunc
+	AutofillConfigProfileContentFuncInvoked bool
 
 	UpdateMDMConfigProfileFunc        UpdateMDMConfigProfileFunc
 	UpdateMDMConfigProfileFuncInvoked bool
@@ -3420,11 +3435,11 @@ func (s *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.Host
 	return s.CountHostsFunc(ctx, labelID, opts)
 }
 
-func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (s *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	s.mu.Lock()
 	s.SearchHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs)
+	return s.SearchHostsFunc(ctx, matchQuery, queryID, excludedHostIDs, excludeMobileHosts)
 }
 
 func (s *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
@@ -4008,11 +4023,11 @@ func (s *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
 	s.SetAgentCheckInNotifierFunc(notifier)
 }
 
-func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
+func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string, purpose fleet.AppleMDMCertPurpose, enrollmentID *string) (string, error) {
 	s.mu.Lock()
 	s.NewACMEEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewACMEEnrollmentFunc(ctx, hostIdentifier)
+	return s.NewACMEEnrollmentFunc(ctx, hostIdentifier, purpose, enrollmentID)
 }
 
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -4302,13 +4317,6 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	s.mu.Lock()
-	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
-}
-
 func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
 	s.mu.Lock()
 	s.GetVPPTokenIfCanInstallVPPAppsFuncInvoked = true
@@ -4386,7 +4394,7 @@ func (s *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.V
 	return s.GetAppStoreAppsFunc(ctx, teamID)
 }
 
-func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, string, error) {
+func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.AddAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
@@ -4946,6 +4954,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
 }
 
+func (s *Service) VerifyMCPAvailable(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMCPAvailableFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMCPAvailableFunc(ctx)
+}
+
 func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
 	s.mu.Lock()
 	s.VerifyMDMAndroidConfiguredFuncInvoked = true
@@ -5002,18 +5017,18 @@ func (s *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDM
 	return s.MDMGetEULABytesFunc(ctx, token)
 }
 
-func (s *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
+func (s *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error {
 	s.mu.Lock()
 	s.MDMCreateEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMCreateEULAFunc(ctx, name, file, dryRun)
+	return s.MDMCreateEULAFunc(ctx, platform, name, file, dryRun)
 }
 
 func (s *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
@@ -5049,6 +5064,13 @@ func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error) {
+	s.mu.Lock()
+	s.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateMDMAppleAutomaticEnrollmentTokenFunc(ctx, gracePeriodHours)
 }
 
 func (s *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
@@ -5282,6 +5304,20 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
 }
 
+func (s *Service) AutofillConfigProfileNameDescription(ctx context.Context, instructions string, platform string) (name string, description string, err error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileNameDescriptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileNameDescriptionFunc(ctx, instructions, platform)
+}
+
+func (s *Service) AutofillConfigProfileContent(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileContentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileContentFunc(ctx, instructions, platform, teamID)
+}
+
 func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error {
 	s.mu.Lock()
 	s.UpdateMDMConfigProfileFuncInvoked = true
@@ -5296,11 +5332,11 @@ func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt f
 	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
 }
 
-func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error {
+func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending, assumeEnabled, noCache)
+	return s.BatchSetMDMProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending, assumeEnabled, assumeProfileValidation, noCache)
 }
 
 func (s *Service) LinuxHostDiskEncryptionStatus(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error) {
@@ -5604,11 +5640,11 @@ func (s *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.Up
 	return s.UpdateSoftwareInstallerFunc(ctx, payload)
 }
 
-func (s *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (s *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteSoftwareInstallerFunc(ctx, titleID, teamID, installerID)
+	return s.DeleteSoftwareInstallerFunc(ctx, titleID, teamID, installerID, appStoreAppVersionID)
 }
 
 func (s *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error) {

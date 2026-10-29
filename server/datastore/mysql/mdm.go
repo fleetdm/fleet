@@ -670,6 +670,39 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
+func (ds *Datastore) GetMDMProfileChecksums(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+	const stmt = `
+SELECT 'a' AS kind, identifier AS ` + "`key`" + `, checksum FROM mdm_apple_configuration_profiles WHERE team_id = ?
+UNION ALL
+SELECT 'd', name, UNHEX(MD5(raw_json)) FROM mdm_apple_declarations WHERE team_id = ?
+UNION ALL
+SELECT 'w', name, checksum FROM mdm_windows_configuration_profiles WHERE team_id = ?`
+	var rows []struct {
+		Kind     string `db:"kind"`
+		Key      string `db:"key"`
+		Checksum []byte `db:"checksum"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, teamID, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm profile checksums")
+	}
+	res := &fleet.MDMProfileChecksums{
+		AppleByIdentifier:  map[string][]byte{},
+		DeclarationsByName: map[string][]byte{},
+		WindowsByName:      map[string][]byte{},
+	}
+	for _, r := range rows {
+		switch r.Kind {
+		case "a":
+			res.AppleByIdentifier[strings.ToLower(r.Key)] = r.Checksum
+		case "d":
+			res.DeclarationsByName[strings.ToLower(r.Key)] = r.Checksum
+		case "w":
+			res.WindowsByName[strings.ToLower(r.Key)] = r.Checksum
+		}
+	}
+	return res, nil
+}
+
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updates fleet.MDMProfilesUpdates, err error) {
@@ -2201,12 +2234,10 @@ func batchSetProfileLabelAssociationsDB(
 	return updatedDB, nil
 }
 
-func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	// Currently, there can only be one EULA in the database, and we're
-	// hardcoding it's id to be 1 in order to enforce this restriction.
-	stmt := "SELECT name, created_at, token, sha256 FROM eulas WHERE id = 1"
+func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+	stmt := "SELECT name, created_at, token, sha256, platform FROM eulas WHERE platform = ?"
 	var eula fleet.MDMEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, platform); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
 		}
@@ -2215,10 +2246,12 @@ func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, er
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
+func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
+	// The platform is matched too, so a token found under one platform can't
+	// read the other's file.
+	stmt := "SELECT name, bytes, platform FROM eulas WHERE token = ? AND platform = ?"
 	var eula fleet.MDMEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token, platform); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
 		}
@@ -2227,18 +2260,34 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.
 	return &eula, nil
 }
 
+func (ds *Datastore) MDMGetEULAPlatform(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	var platform fleet.MDMEULAPlatform
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &platform, "SELECT platform FROM eulas WHERE token = ?", token); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("MDMEULA"))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get EULA platform")
+	}
+	return platform, nil
+}
+
 func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
-	// We're intentionally hardcoding the id to be 1 because we only want to
-	// allow one EULA.
+	switch eula.Platform {
+	case fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows:
+	default:
+		return ctxerr.Errorf(ctx, "insert EULA: unsupported platform %q", eula.Platform)
+	}
+
+	// The unique key on platform allows one EULA per platform.
 	stmt := `
-          INSERT INTO eulas (id, name, bytes, token, sha256)
-	  VALUES (1, ?, ?, ?, ?)
+          INSERT INTO eulas (name, bytes, token, sha256, platform)
+	  VALUES (?, ?, ?, ?, ?)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token, eula.Sha256)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token, eula.Sha256, eula.Platform)
 	if err != nil {
 		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Token))
+			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Platform))
 		}
 		return ctxerr.Wrap(ctx, err, "create EULA")
 	}
@@ -2246,9 +2295,9 @@ func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) err
 	return nil
 }
 
-func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
-	stmt := "DELETE FROM eulas WHERE token = ?"
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token)
+func (ds *Datastore) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+	stmt := "DELETE FROM eulas WHERE token = ? AND platform = ?"
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token, platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete EULA")
 	}

@@ -38,6 +38,11 @@ type MockClient struct {
 	WithActivations  bool
 	// adds two Windows profiles whose names sanitize to the same file name
 	WithCollidingProfileNames bool
+	// override the stored EULA file names, which come from the uploader
+	EULAName        string
+	WindowsEULAName string
+	// no EULA uploaded on either platform
+	WithoutEULAs bool
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -401,6 +406,14 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: new(uint(4)),
 				},
 			},
+			{
+				ID:   12,
+				Name: "My Multi-Version App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "4444333322",
+					Platform:   string(fleet.IOSPlatform),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -729,6 +742,47 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				AutoUpdateEndTime:   ptr.String("03:00"),
 			},
 		}, nil
+	case 12:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		productionConfig, err := json.Marshal(`<dict><key>env</key><string>production</string></dict>`)
+		if err != nil {
+			return nil, err
+		}
+		testConfig, err := json.Marshal(`<dict><key>env</key><string>test</string></dict>`)
+		if err != nil {
+			return nil, err
+		}
+		production := &fleet.VPPAppStoreApp{
+			AdamID:              "4444333322",
+			Platform:            fleet.IOSPlatform,
+			VPPAppsTeamsID:      30,
+			VersionName:         "Production",
+			SelfService:         true,
+			Categories:          []string{"Productivity"},
+			LabelsExcludeAny:    []fleet.SoftwareScopeLabel{{LabelName: "Label C"}},
+			Configuration:       productionConfig,
+			AutoUpdateEnabled:   new(true),
+			AutoUpdateStartTime: new("01:00"),
+			AutoUpdateEndTime:   new("03:00"),
+		}
+		test := &fleet.VPPAppStoreApp{
+			AdamID:           "4444333322",
+			Platform:         fleet.IOSPlatform,
+			VPPAppsTeamsID:   31,
+			VersionName:      "Test",
+			LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelName: "Label C"}},
+			Configuration:    testConfig,
+		}
+		return &fleet.SoftwareTitle{
+			ID:                  12,
+			AppStoreApp:         production,
+			AppStoreApps:        []fleet.AppStoreAppVersion{production.AppStoreAppVersion(), test.AppStoreAppVersion()},
+			AutoUpdateEnabled:   new(true),
+			AutoUpdateStartTime: new("01:00"),
+			AutoUpdateEndTime:   new("03:00"),
+		}, nil
 	case 8:
 		return &fleet.SoftwareTitle{
 			ID: 8,
@@ -870,15 +924,39 @@ func (MockClient) Me() (*fleet.User, error) {
 	}, nil
 }
 
-func (MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+func (c MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	if c.WithoutEULAs {
+		return nil, &client.NotFoundErr{}
+	}
+	name := "test.pdf"
+	if c.EULAName != "" {
+		name = c.EULAName
+	}
 	return &fleet.MDMEULA{
-		Name:  "test.pdf",
+		Name:  name,
 		Token: "test-eula-token",
 	}, nil
 }
 
 func (MockClient) GetEULAContent(token string) ([]byte, error) {
+	if token == "test-windows-eula-token" {
+		return []byte("# Windows terms\n"), nil
+	}
 	return []byte("This is the EULA content."), nil
+}
+
+func (c MockClient) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
+	if c.WithoutEULAs {
+		return nil, &client.NotFoundErr{}
+	}
+	name := "terms.md"
+	if c.WindowsEULAName != "" {
+		name = c.WindowsEULAName
+	}
+	return &fleet.MDMEULA{
+		Name:  name,
+		Token: "test-windows-eula-token",
+	}, nil
 }
 
 func (MockClient) GetOrgLogoContent(mode fleet.OrgLogoMode) ([]byte, string, error) {
@@ -1050,6 +1128,28 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				ChallengeURL: "https://some-smallstep-challenge-url.com",
 				Username:     "some-smallstep-username",
 				Password:     maskSecret("some-smallstep-password", includeSecrets),
+			},
+		},
+		EJBCA: []fleet.EJBCA{
+			{
+				Name:                          "some-ejbca-name",
+				URL:                           "https://some-ejbca-url.com",
+				TrustCABundlePEM:              "-----BEGIN CERTIFICATE-----\nsome-ejbca-trust-bundle\n-----END CERTIFICATE-----\n",
+				CertificateAuthorityName:      "some-ejbca-certificate-authority-name",
+				CertificateProfileName:        "some-ejbca-certificate-profile-name",
+				EndEntityProfileName:          "some-ejbca-end-entity-profile-name",
+				CertificateCommonName:         "some-ejbca-certificate-common-name",
+				UsernameTemplate:              "some-ejbca-username-template",
+				CertificateUserPrincipalNames: []string{"some-ejbca-certificate-user-principal-name"},
+			},
+		},
+		GoogleCAS: []fleet.GoogleCASCA{
+			{
+				Name:       "some-google-cas-name",
+				Project:    "some-google-cas-project",
+				Location:   "us-central1",
+				CAPool:     "some-google-cas-pool",
+				APIKeyJSON: fleet.GoogleCASKeyJSON(maskSecret(`{"type":"service_account"}`, includeSecrets)),
 			},
 		},
 	}
@@ -1311,6 +1411,68 @@ func TestGenerateGitopsWithoutMDM(t *testing.T) {
 			t.Fatalf("failed to remove temp dir: %v", err)
 		}
 	})
+}
+
+func TestGenerateGitopsWindowsEULA(t *testing.T) {
+	configureFMAManifestServer(t)
+
+	cases := []struct {
+		name                          string
+		eulaName, windowsName         string
+		wantEULAPath, wantWindowsPath string
+	}{
+		{
+			// Names are what the uploader sent; "\" is a separator on Windows.
+			"names carrying paths", `..\..\..\Startup\run.pdf`, "../../agreement.md",
+			"lib/eula/run.pdf", "lib/eula/agreement.md",
+		},
+		{"names that collide", "terms.md", "terms.md", "lib/eula/terms.md", "lib/eula/windows-terms.md"},
+		{"names that differ only in case", "Terms.md", "terms.md", "lib/eula/Terms.md", "lib/eula/windows-terms.md"},
+		{"characters windows rejects", "eula.pdf", `Terms: v2?.md`, "lib/eula/eula.pdf", "lib/eula/Terms- v2-.md"},
+		// Names Windows can't write fall back to the default name.
+		{"names windows reserves", "CON.pdf", "lpt1.md", "lib/eula/eula.pdf", "lib/eula/terms.md"},
+		{"names ending in a dot", "agreement.pdf.", "terms v2.md.", "lib/eula/eula.pdf", "lib/eula/terms.md"},
+		{"names too long to write", strings.Repeat("é", 120) + ".pdf", "terms.md", "lib/eula/eula.pdf", "lib/eula/terms.md"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := runGenerateGitopsToDir(t, &MockClient{EULAName: tc.eulaName, WindowsEULAName: tc.windowsName})
+
+			defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
+			require.NoError(t, err)
+			assert.Contains(t, string(defaultYML), "end_user_license_agreement: ./"+tc.wantEULAPath)
+			assert.Contains(t, string(defaultYML), "windows_eula: ./"+tc.wantWindowsPath)
+
+			content, err := os.ReadFile(filepath.Join(tempDir, filepath.FromSlash(tc.wantWindowsPath)))
+			require.NoError(t, err)
+			assert.Equal(t, "# Windows terms\n", string(content))
+			_, err = os.Stat(filepath.Join(tempDir, filepath.FromSlash(tc.wantEULAPath)))
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestGenerateGitopsWithoutEULAs(t *testing.T) {
+	configureFMAManifestServer(t)
+	tempDir := runGenerateGitopsToDir(t, &MockClient{WithoutEULAs: true})
+
+	defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(defaultYML), "lib/eula")
+	_, err = os.Stat(filepath.Join(tempDir, "lib", "eula"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+// runGenerateGitopsToDir runs generate-gitops against client and returns the directory it wrote to.
+func runGenerateGitopsToDir(t *testing.T, client *MockClient) string {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	dir := t.TempDir()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", dir, "")
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
+	return dir
 }
 
 func TestGenerateGitopsFree(t *testing.T) {
@@ -2167,6 +2329,19 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected iOS configuration file not found")
 	}
+
+	// Each version of the multi-version app writes its own configuration file.
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-multi-version-app-ios-production-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>env</key><string>production</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected Production version configuration file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-multi-version-app-ios-test-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>env</key><string>test</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected Test version configuration file not found")
+	}
 }
 
 // TestGenerateSoftwareScriptPackages tests that script packages (.sh and .ps1)
@@ -2979,6 +3154,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		"apple_server_url",
 		"end_user_authentication",
 		"end_user_license_agreement",
+		"windows_eula",
 		"volume_purchasing_program",
 	} {
 		require.Contains(t, mdmRaw, key)
@@ -3193,12 +3369,25 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 			},
 		},
 		{
-			name: "token assigned to all teams (empty teams slice)",
+			name: "token assigned to all fleets (empty teams slice) is written as All fleets",
 			vppTokens: []*fleet.VPPTokenDB{
 				{
 					ID:       1,
 					Location: "Acme Inc.",
 					Teams:    []fleet.TeamTuple{},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{fleet.DisplayNameAllTeams}},
+			},
+		},
+		{
+			name: "token assigned to no fleets (nil teams slice) is written with no fleets",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams:    nil,
 				},
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
@@ -3697,4 +3886,28 @@ func TestGenerateProfilesFilenameCollision(t *testing.T) {
 		"Team Win": "<xml>team win</xml>",
 		"Team-Win": "<xml>team-win</xml>",
 	}, contentsByName)
+}
+
+// Omitting enable_profile_validation means true, so a false must be exported on every tier
+// or applying the generated files would turn validation back on.
+func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
+	for _, free := range []bool{true, false} {
+		t.Run(fmt.Sprintf("free=%t", free), func(t *testing.T) {
+			client := &MockClient{IsFree: free}
+			appConfig, err := client.GetAppConfig()
+			require.NoError(t, err)
+			appConfig.MDM.EnableProfileValidation = false
+			cmd := &GenerateGitopsCommand{
+				Client:       client,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+			controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+			require.NoError(t, err)
+			require.Equal(t, false, controls["enable_profile_validation"])
+		})
+	}
 }

@@ -295,6 +295,12 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+
+		return &fleet.MDMProfileChecksums{}, nil
+
+	}
+
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1508,6 +1514,9 @@ func TestApplyAsGitOps(t *testing.T) {
 		}
 		teamEnrollSecrets = secrets
 		return nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -3019,7 +3028,7 @@ spec:
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
-		assert.True(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 		mockStore.Lock()
 		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -4205,6 +4214,57 @@ spec:
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
 		},
 		{
+			desc: "team custom_settings invalid path",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: 123
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.path': expected string but got float64`,
+		},
+		{
+			desc: "team custom_settings invalid labels",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: a
+            labels: Engineering
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.labels': expected array of strings but got string`,
+		},
+		{
+			desc: "team custom_settings invalid label element",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings:
+          - path: a
+            labels_include_any: [1, Engineering]
+`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.labels_include_any': expected string but got float64`,
+		},
+		{
+			// macOS disk encryption doesn't require Apple MDM
 			desc: "team config macos_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
@@ -4216,7 +4276,7 @@ spec:
       apple_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
+			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",
@@ -4484,6 +4544,9 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		teamsByName[team.Name] = team
 		return team, nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil

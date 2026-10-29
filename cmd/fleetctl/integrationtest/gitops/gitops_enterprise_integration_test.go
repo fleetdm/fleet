@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 	"text/template"
+	"time"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -549,7 +551,7 @@ settings:
 	})
 }
 
-// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
+// TestCAIntegrations enables DigiCert, Custom SCEP, and EJBCA CAs via GitOps.
 // At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
@@ -588,6 +590,22 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t.Cleanup(digiCertServer.Close)
 
 	scepServer := scep_server.StartTestSCEPServer(t)
+
+	fakeEJBCA := ejbcatest.New(t, nil)
+	t.Setenv("EJBCA_WIFI_CLIENT_P12", fakeEJBCA.ClientP12(t, time.Now().Add(90*24*time.Hour), "p12-password"))
+	t.Setenv("EJBCA_WIFI_PASSWORD", "p12-password")
+	ejbcaYAML := fmt.Sprintf(`    ejbca:
+      - name: EJBCA_WIFI
+        url: %s
+        client_p12: $EJBCA_WIFI_CLIENT_P12
+        password: $EJBCA_WIFI_PASSWORD
+        trust_ca_bundle: %q
+        certificate_authority_name: %s
+        certificate_profile_name: %s
+        end_entity_profile_name: %s
+        certificate_common_name: ejbca_cn
+        certificate_user_principal_names: ["ejbca_upn"]
+`, fakeEJBCA.HTTP.URL, fakeEJBCA.ServerPEM, ejbcatest.CAName, ejbcatest.CertProfile, ejbcatest.EndEntityProfile)
 
 	// Get the path to the directory of this test file
 	_, currentFile, _, ok := runtime.Caller(0)
@@ -651,12 +669,13 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		scepServer.URL+"/scep",
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -691,6 +710,14 @@ reports:
 	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
 	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
 
+	// check EJBCA, which was added and whose client certificate and key were read out of the PKCS#12
+	require.Len(t, groupedCAs.EJBCA, 1)
+	ejbcaCA := groupedCAs.EJBCA[0]
+	require.Equal(t, "EJBCA_WIFI", ejbcaCA.Name)
+	require.Contains(t, ejbcaCA.MTLSCertPEM, "BEGIN CERTIFICATE")
+	ejbcaRequests := len(fakeEJBCA.Requests())
+	require.NotZero(t, ejbcaRequests)
+
 	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
@@ -722,13 +749,14 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -752,6 +780,42 @@ reports:
 	gotProfileMu.Lock()
 	require.True(t, gotProfile) // external digicert service was called because stored config was modified
 	gotProfileMu.Unlock()
+	require.Len(t, fakeEJBCA.Requests(), ejbcaRequests) // EJBCA was NOT called because its stored config was not modified
+
+	// A CA that changes type and keeps its name is replaced, even though GitOps applies the deletes later, because an EJBCA CA can't
+	// share its name with a CA of another type.
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
+agent_options:
+controls:
+  apple_settings:
+    configuration_profiles:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    custom_scep_proxy:
+      - name: EJBCA_WIFI
+        url: %s
+        challenge: challenge
+policies:
+reports:
+`,
+		scepServer.URL+"/scep",
+	))
+	require.NoError(t, err)
+
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	assert.Empty(t, groupedCAs.EJBCA)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	assert.Equal(t, "EJBCA_WIFI", groupedCAs.CustomScepProxy[0].Name)
 
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
@@ -777,6 +841,7 @@ reports:
 	require.NoError(t, err)
 	assert.Empty(t, groupedCAs.DigiCert)
 	assert.Empty(t, groupedCAs.CustomScepProxy)
+	assert.Empty(t, groupedCAs.EJBCA)
 }
 
 // TestDeleteCAWithCertificateTemplates tests the GitOps ordering when deleting a certificate
@@ -4437,7 +4502,7 @@ reports:
 	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
 
 	teamFile := filepath.Join(baseDir, "team.yml")
-	apply := func(softwareBody string) {
+	writeTeamFile := func(softwareBody string) {
 		cfg := fmt.Sprintf(`
 controls:
 software:
@@ -4451,10 +4516,20 @@ settings:
 reports:
 `, softwareBody, teamName)
 		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+	}
+	apply := func(softwareBody string) {
+		writeTeamFile(softwareBody)
 		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
 		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 		}), "gitops succeeded")
+	}
+	applyWithError := func(softwareBody string) error {
+		writeTeamFile(softwareBody)
+		_, err := fleetctltest.RunAppNoChecks([]string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		})
+		return err
 	}
 
 	type applied struct {
@@ -4487,14 +4562,13 @@ reports:
 	// inline. Each run starts from empty so the comparison isn't reading stale state.
 	apply("")
 	require.Empty(t, assigned(team.ID))
-	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
-	viaReferences := assigned(team.ID)
-
-	apply("")
+	err = applyWithError("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
 	require.Empty(t, assigned(team.ID))
-	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
-	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
-	require.Len(t, viaReferences, 1)
+
+	err = applyWithError("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
+	require.Empty(t, assigned(team.ID))
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
@@ -4599,10 +4673,11 @@ settings:
 	var schedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &schedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, schedules, 2)
@@ -4670,10 +4745,11 @@ settings:
 	var updatedSchedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &updatedSchedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, updatedSchedules, 2)

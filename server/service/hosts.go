@@ -500,6 +500,9 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						yield(nil, ctxerr.Wrapf(ctx, err, "get software vulnerability details for host %d", host.ID))
 						return
 					}
+					if !premiumLicense {
+						omitHostSoftwareAITool(host.HostSoftware.Software)
+					}
 				}
 
 				if opt.PopulatePolicies {
@@ -834,6 +837,9 @@ type searchHostsRequest struct {
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+	// ExcludeMobileHosts omits iOS, iPadOS, and Android hosts, which can't be
+	// targeted by live reports.
+	ExcludeMobileHosts bool `json:"exclude_mobile_hosts"`
 }
 
 type searchHostsResponse struct {
@@ -846,7 +852,7 @@ func (r searchHostsResponse) Error() error { return r.Err }
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
-	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs, req.ExcludeMobileHosts)
 	if err != nil {
 		return searchHostsResponse{Err: err}, nil
 	}
@@ -862,7 +868,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -886,7 +892,7 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 
 	results := []*fleet.Host{}
 
-	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludeMobileHosts, excludedHostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -988,6 +994,31 @@ func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error
 		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 			return err
 		}
+		if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Technician is a Premium-only role, but sessions and API tokens issued before a
+// downgrade to Free keep working.
+func checkTechnicianDeleteLicense(ctx context.Context, host *fleet.Host) error {
+	if license.IsPremium(ctx) {
+		return nil
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	isTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
+	if host.TeamID != nil {
+		isTechnician = isTechnician || vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+			return t.Role == fleet.RoleTechnician
+		})[*host.TeamID]
+	}
+	if isTechnician {
+		return fleet.ErrMissingLicense
 	}
 	return nil
 }
@@ -1215,6 +1246,9 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 		return err
 	}
+	if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
+		return err
+	}
 
 	// Settle the host's Apple Business assignment before anything is written, so
 	// the activity below can never claim a deletion that the restore path is
@@ -1369,6 +1403,8 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
+	hostIDs = server.RemoveDuplicatesFromSlice(hostIDs)
+
 	// Authorize transfer access to the source teams of the hosts being transferred.
 	// Read from the primary so a host enrolled moments ago isn't reported as
 	// missing by a lagging replica, and so authorization sees the same state
@@ -1480,26 +1516,16 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			return ctxerr.Wrap(ctx, err, "list hosts by ids")
 		}
 
-		// index the hosts by ids to get the names in the same order as hostIDs
-		hostsByID := make(map[uint]*fleet.Host, len(hosts))
-		for _, h := range hosts {
-			hostsByID[h.ID] = h
-		}
-
 		// Derive the activity's host IDs and names exclusively from the hosts
-		// that actually exist, preserving the requested order. IDs that don't
-		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// that actually exist. IDs that don't resolve to a host (e.g. a host
 		// deleted right after the transfer) are excluded so they can't be
 		// injected into the audit trail.
-		existingIDs := make([]uint, 0, len(hostIDs))
-		hostNames = make([]string, 0, len(hostIDs))
-		for _, hid := range hostIDs {
-			if h, ok := hostsByID[hid]; ok {
-				existingIDs = append(existingIDs, hid)
-				hostNames = append(hostNames, h.DisplayName())
-			}
+		hostIDs = make([]uint, 0, len(hosts))
+		hostNames = make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.ID)
+			hostNames = append(hostNames, h.DisplayName())
 		}
-		hostIDs = existingIDs
 
 		// If none of the requested hosts exist, there's nothing to record.
 		if len(hostIDs) == 0 {
@@ -1843,10 +1869,21 @@ func (svc *Service) verifyMDMConfiguredAndConnected(ctx context.Context, host *f
 	return nil
 }
 
+// omitHostSoftwareAITool clears the ai_tool field, which is Fleet Premium, so it's omitted on Free.
+// That also hides software flagged before a downgrade, since the flag is never reset in the database.
+func omitHostSoftwareAITool(software []fleet.HostSoftwareEntry) {
+	for i := range software {
+		software[i].AITool = nil
+	}
+}
+
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	if !opts.ExcludeSoftware {
 		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
+		if !license.IsPremium(ctx) {
+			omitHostSoftwareAITool(host.HostSoftware.Software)
 		}
 	}
 
@@ -2741,12 +2778,39 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
+		// Check if the user is a valid SCIM user to manage the join table. Looked up before the
+		// update, which can resend profiles, so a lookup error doesn't leave them unlogged.
+		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
+		}
+		scimUserFound := err == nil && scimUser != nil
+
+		var resentCerts []fleet.ActivityTypeResentCertificate
+		// Each step commits its resends, so they're logged even when a later step fails. Linking a SCIM user resends a
+		// certificate that the new IdP username already resent.
+		defer func() {
+			seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
+			for _, cert := range resentCerts {
+				key := [2]uint{cert.HostID, cert.CertificateTemplateID}
+				if _, dup := seenCerts[key]; dup {
+					continue
+				}
+				seenCerts[key] = struct{}{}
+				if err := svc.NewActivity(ctx, nil, cert); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
+			}
+		}()
+
 		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
-			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+			certs, err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email)
+			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 			}
+			resentCerts = certs
 
 			if err := svc.NewActivity(
 				ctx,
@@ -2761,37 +2825,24 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
-		// Check if the user is a valid SCIM user to manage the join table
-		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
-		}
-		if err == nil && scimUser != nil {
+		if scimUserFound {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			certs, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
 			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			certs, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
 			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		}
 
@@ -2933,10 +2984,10 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
-	// Without an ABM token ID we can't resolve which org name to use for the
-	// Apple API call, so return what we have from Fleet's DB.
+	// Deleting an ABM token nulls abm_token_id but leaves the assignment, so
+	// there's nothing to ask Apple about: treat the host as not a DEP host.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, "", nil
+		return nil, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
@@ -4220,6 +4271,34 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchive
 	return key, nil
 }
 
+// windowsKeyReescrowPending reports whether the server is asking a Windows host for a new recovery key, so a failed read
+// can say one is coming. It follows the orbit config and the escrow endpoint: the stored key is not known to be
+// decryptable, Windows MDM is on, the host is enrolled in it, and its fleet enforces disk encryption.
+func (svc *Service) windowsKeyReescrowPending(ctx context.Context, host *fleet.Host, storedKeyUndecryptable bool) (bool, error) {
+	if !storedKeyUndecryptable {
+		return false, nil
+	}
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return false, nil
+	}
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get disk encryption config")
+	}
+	if !diskEncryption.WindowsEnabled {
+		return false, nil
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check whether host is connected to Fleet MDM")
+	}
+	return connected, nil
+}
+
 func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
@@ -4232,15 +4311,26 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
 		}
 	case host.FleetPlatform() == "windows":
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return nil, err
-		}
-		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		// The server private key is tried first: it reads every key escrowed by this release and is cheap to try. Keys
+		// escrowed by older releases are encrypted to the WSTEP certificate until the hourly job re-encrypts them, so
+		// the certificate is the fallback, loaded only then. Older releases needed no private key, so a deployment
+		// without one still reads its legacy keys. Windows MDM does not need to be on to read a key.
+		if svc.config.Server.PrivateKey == "" && !svc.config.MDM.IsMicrosoftWSTEPSet() {
+			return nil, errors.New("private key is unavailable")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			plain, err := "", errors.New("private key is unavailable")
+			if svc.config.Server.PrivateKey != "" {
+				plain, err = mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			}
+			if err == nil || !svc.config.MDM.IsMicrosoftWSTEPSet() {
+				return plain, err
+			}
+			cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+			}
+			b, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 			return string(b), err
 		}
 	default:
@@ -4265,6 +4355,8 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
+	// Captured before the decrypt attempt below overwrites it.
+	storedKeyUndecryptable := key != nil && (key.Decryptable == nil || !*key.Decryptable)
 	// Same rule the rotate endpoint uses, so a marker it would replace isn't
 	// reported as pending.
 	var rotationPending bool
@@ -4352,9 +4444,22 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 
 	if key == nil || key.DecryptedValue == "" {
 		if len(decryptErrs) > 0 {
-			// Decryption failed, likely due to rotated MDM certificates
+			// On Apple hosts this happens after MDM was turned off and back on, which replaces the CA that the host
+			// encrypted to. On Windows the server did the encrypting, so the host is asked for a new key once the stored
+			// one is marked undecryptable.
+			msg := "Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."
+			if host.FleetPlatform() == "windows" {
+				msg = "Couldn't decrypt the disk encryption key."
+				reescrow, err := svc.windowsKeyReescrowPending(ctx, host, storedKeyUndecryptable)
+				if err != nil {
+					return nil, err
+				}
+				if reescrow {
+					msg += " The host will escrow a new one when it comes online."
+				}
+			}
 			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(
-				errors.New("Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."),
+				errors.New(msg),
 				http.StatusUnprocessableEntity,
 			), "host encryption key decryption failed")
 		}
@@ -4810,15 +4915,21 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
-	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// Vulnerability severity filters (CVSS score, known exploit) and the AI tools filter are Fleet Premium features.
 	// This applies to both the user-authenticated host software endpoint and the
 	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
-	// these filters is enforced in the datastore.
-	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+	// the severity filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit || opts.AITool {
 		if !license.IsPremium(ctx) {
 			return nil, nil, fleet.ErrMissingLicense
 		}
 	}
+
+	typeFilter, err := fleet.ParseSoftwareTypeFilter(opts.Source, opts.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.TypeFilter = typeFilter
 
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
@@ -4841,6 +4952,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+	if !license.IsPremium(ctx) {
+		for _, s := range software {
+			s.AITool = nil
+		}
 	}
 
 	if len(software) > 0 {
@@ -5184,6 +5300,14 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 // availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
 // with a nil status so they read as available to install.
 func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return nil, nil
+	}
+
 	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")

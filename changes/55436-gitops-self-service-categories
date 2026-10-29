@@ -1,0 +1,1 @@
+- Fixed an issue where self-service categories could still be added, edited, and deleted from the UI while GitOps mode was enabled. The Add category, Edit, and Delete buttons are now disabled with a GitOps tooltip on hover.

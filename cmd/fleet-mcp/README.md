@@ -20,7 +20,7 @@ Watch the 1 hr walkthrough demonstrating how to use Claude Desktop to instantly 
 
 This server provides an MCP interface to Fleet, enabling AI systems (Claude Desktop, Claude Code, Cursor, and any MCP-compatible client) to natively interact with your Fleet deployment. Instead of raw API endpoints, it exposes typed **Tools** that AI agents can call directly — listing hosts with rich server-side filters, drilling into per-host policy compliance, finding hosts impacted by a CVE, running live osquery, and more.
 
-Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The same tool surface is exposed identically on both.
+**Streamable HTTP**, legacy **SSE** (Server-Sent Events), and **stdio** transports are supported. The same tool surface is exposed identically on all of them.
 
 ## Tools
 
@@ -65,7 +65,7 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 
 | Tool | Description |
 |------|-------------|
-| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) is a client-side case-insensitive filter against the osquery source table name. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
+| `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) filters by osquery source table name, case-insensitively; `extension_for` (requires `source`) narrows an extension source to one browser or IDE (e.g. `source=chrome_extensions` with `extension_for=brave`). In cross-host mode Fleet applies both server-side and rejects unknown values; per-host mode filters client-side. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
 | `get_host_users` | List OS-local user accounts on a single host as inventoried by osquery (uid, username, type, groupname, shell). Accepts `host_id` (preferred) or `host_identifier` (same disambiguation as `get_host`). Optional `query` substring filters the returned users client-side across username / uid / groupname / shell. |
 
 ### Filter dimensions at a glance
@@ -90,14 +90,14 @@ If your AI agent gets a candidate list back, it should pick the right `id` and r
 
 ## Configuration
 
-Configure the server using environment variables or a `.env` file (in the same directory as the binary).
+Configure the server using environment variables. For local development, the `Makefile` targets that run the binary (`serve`, `call`, `tools`, `posture`) load a `.env` file from this directory, overriding the calling shell; when running the binary directly, export the variables first (e.g. `set -a; . ./.env; set +a`).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://your-fleet.example.com` |
 | `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). **Use the least-privileged Fleet role that covers your tools:** an **observer** / **observer-plus** token is enough for all tools - **admin is not required** |
-| `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32` (**min 32 chars — the server refuses a weaker one**). **Required on every transport (including stdio); the server refuses to start without it.** In SSE mode the server validates it on every request; in stdio mode it must be set but is not checked at runtime (the client launches the binary as a local subprocess). |
-| `PORT` | `8080` | HTTP port for SSE transport. Ignored in stdio mode. Render injects this automatically. |
+| `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32` (**min 32 chars — the server refuses a weaker one**). **Required on every transport (including stdio); the server refuses to start without it.** In HTTP mode (Streamable HTTP and SSE) the server validates it on every request; in stdio mode it must be set but is not checked at runtime (the client launches the binary as a local subprocess). |
+| `PORT` | `8080` | Port for the HTTP listener (Streamable HTTP and SSE). Ignored in stdio mode. Render injects this automatically. |
 | `LOG_LEVEL` | `info` | Log verbosity: `debug` / `info` / `warn` / `error`. Note: `debug` logs the route shape of every Fleet API call (path before query string only — no PII identifiers). Avoid `debug` in production deployments where logs are shipped to a centralized aggregator. |
 | `FLEET_TLS_SKIP_VERIFY` | `false` | Skip TLS certificate verification. **Hard-gated to localhost — the server refuses to start with this set and a non-loopback `FLEET_BASE_URL`.** Conflicts with `FLEET_CA_FILE`. |
 | `FLEET_CA_FILE` | *(optional)* | Path to a PEM CA certificate for self-signed Fleet instances |
@@ -125,9 +125,10 @@ cp .env.example .env
 ```bash
 git clone https://github.com/fleetdm/fleet
 cd fleet/cmd/fleet-mcp
-go mod tidy
 go build -o fleet-mcp .
 ```
+
+fleet-mcp is part of Fleet's root Go module: the standalone binary lives in `cmd/fleet-mcp`, and the MCP server itself lives in `server/fleetmcp`.
 
 ### Generate an MCP auth token
 
@@ -135,27 +136,34 @@ go build -o fleet-mcp .
 openssl rand -hex 32
 ```
 
-Use the output as `MCP_AUTH_TOKEN` in your `.env` (SSE) or your Claude Desktop config (stdio).
+Use the output as `MCP_AUTH_TOKEN` in your `.env` (HTTP) or your Claude Desktop config (stdio).
 
 ## Usage
 
-### SSE Transport (Claude Code, Cursor, web clients)
+### Streamable HTTP Transport (Claude Code, Cursor, remote clients)
 
-Start the server — it will listen for SSE connections:
+Start the server — it listens on `PORT` and serves Streamable HTTP at `/mcp` (and legacy SSE at `/sse`, see below):
 
 ```bash
 ./fleet-mcp
-# transport: SSE — listening on :8080
+# transport: HTTP — listening on :8080 (Streamable HTTP at /mcp, SSE at /sse)
 ```
 
-Configure your MCP client to connect to `http://localhost:8080/sse` and include the bearer token. For **Claude Code**, add to your project's `.mcp.json` or your global MCP config:
+Configure your MCP client to connect to `http://localhost:8080/mcp` and include the bearer token. For **Claude Code**:
+
+```bash
+claude mcp add --transport http fleet http://localhost:8080/mcp \
+  --header "Authorization: Bearer <your-MCP_AUTH_TOKEN>"
+```
+
+Or add it to your project's `.mcp.json` or your global MCP config:
 
 ```json
 {
   "mcpServers": {
     "fleet": {
-      "type": "sse",
-      "url": "http://localhost:8080/sse",
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
       "headers": {
         "Authorization": "Bearer <your-MCP_AUTH_TOKEN>"
       }
@@ -164,14 +172,20 @@ Configure your MCP client to connect to `http://localhost:8080/sse` and include 
 }
 ```
 
-For a remote deployment (e.g. Render):
+For a remote deployment (e.g. Render), use `https://your-fleet-mcp.onrender.com/mcp` as the URL.
+
+The endpoint is stateless: it issues no `Mcp-Session-Id` and answers `GET /mcp` with `405` (no server-initiated stream), which the MCP spec allows. Every tool is plain request/response, so nothing is lost, and clients keep working across server restarts and redeploys.
+
+### SSE Transport (legacy)
+
+The MCP spec deprecated SSE in favor of Streamable HTTP, but the same listener still serves it at `/sse` for clients that haven't moved over:
 
 ```json
 {
   "mcpServers": {
     "fleet": {
       "type": "sse",
-      "url": "https://your-fleet-mcp.onrender.com/sse",
+      "url": "http://localhost:8080/sse",
       "headers": {
         "Authorization": "Bearer <your-MCP_AUTH_TOKEN>"
       }
@@ -270,19 +284,53 @@ This means Claude Desktop will surface a confirmation prompt before it fires —
 
 The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's Fleet role — with a role that can run live queries (observer-plus or higher), compromise of the MCP gives an attacker full host inventory access plus arbitrary osquery against every enrolled device. Defenses:
 
-- **Terminate TLS in front (the SSE listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, run it behind a TLS-terminating layer: **Render's edge already does this**; for a self-hosted / private-network deployment, put a reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
-- **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
+- **Terminate TLS in front (the listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, run it behind a TLS-terminating layer: **Render's edge already does this**; for a self-hosted / private-network deployment, put a reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
+- **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
 - **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (Render's edge; or a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
-- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user).
+- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). To limit the user to the endpoints the MCP calls, see [Required API endpoints](#required-api-endpoints).
 - **Read vs run = the token's Fleet role.** The MCP acts with exactly the role of `FLEET_API_KEY` (it has no mode of its own), and Fleet enforces it. The read-only tools work with an **observer** token; the one mutating tool, `run_live_query`, needs **observer_plus** (or admin / maintainer / technician) per Fleet's RBAC — an observer token gets a `403`. **No maintainer or admin role is required.** Recommended: an API-only user with the **lowest role** your tools need — **observer** for a read-only deployment, **observer_plus** if you use `run_live_query`. The MCP doesn't infer or log these rights — it only enforces the API-only requirement above.
 - **Live queries run arbitrary osquery (scope the token).** `run_live_query` dispatches arbitrary osquery to devices — exactly like Fleet's own UI / `fleetctl` / live-query REST API, which the MCP proxies. Tables such as `curl` / `curl_certificate` / `carves` can make outbound requests or exfiltrate file content from a managed device (e.g. cloud-metadata credentials). **This is a Fleet/osquery capability, not specific to the MCP** — the MCP does not (and should not) special-case it. The MCP-layer control is a **least-privilege `FLEET_API_KEY`** (an observer token → Fleet rejects live queries entirely). To remove the capability everywhere (UI, `fleetctl`, scheduled, MCP), disable the tables on the osquery agent: `--disable_tables=curl,curl_certificate,carves,yara,yara_events` via fleetd/orbit agent options.
-- **Body size cap on SSE transport.** `http.MaxBytesReader` caps every incoming request body at 1 MiB. Hostile clients cannot OOM the MCP via oversized JSON-RPC payloads.
+- **Body size cap on HTTP transports.** `http.MaxBytesReader` caps every incoming request body at 1 MiB. Hostile clients cannot OOM the MCP via oversized JSON-RPC payloads.
 - **HTTP server timeouts.** `ReadHeaderTimeout=10s`, `ReadTimeout=30s`, `IdleTimeout=120s` defeat Slowloris-style header/body starvation.
 - **Saved-query sweeper at startup.** Any `fleet-mcp-temp-*` saved queries left over from previous runs (whose deferred DELETE failed during a crash or 5xx) are deleted on the next MCP boot. Temp query names use `crypto/rand` suffixes so concurrent invocations cannot collide.
 - **PII-safe debug logs.** The Fleet API call log was changed to log only the route shape (path before any `?` query string) — host serials, user emails passed via `?query=`, and CVE IDs no longer leak to debug logs.
 - **CVE / policy / per_page input validation at the MCP layer.** `cve_id` must match `^CVE-\d{4}-\d{4,}$`, `policy_id` must be a positive integer, `per_page` is clamped to 200. Malformed inputs get a usable error message before any Fleet API call.
 - **Context propagation end-to-end.** Every FleetClient method takes `ctx context.Context`; MCP handler cancellation propagates through to in-flight Fleet API calls, including between iterations of fan-out paths (CVE compose, label intersection). A cancelled MCP request stops the whole fan-out instead of running every remaining HTTP call to completion.
+
+### Required API endpoints
+
+In Fleet Premium, you can limit an API-only user to specific endpoints. When you create the user, select **Specific API endpoints** (`api_endpoints` in [Create API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user)), then select the endpoints below. Names match what Fleet shows in the endpoint picker.
+
+Always required (the MCP calls it at startup and won't start without it):
+
+- [Get current user](https://fleetdm.com/docs/rest-api/rest-api#me)
+
+Read-only tools:
+
+- [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts)
+- [Count hosts](https://fleetdm.com/docs/rest-api/rest-api#count-hosts)
+- [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary)
+- [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host)
+- [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier)
+- [List host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software)
+- [List software titles](https://fleetdm.com/docs/rest-api/rest-api#list-software)
+- [Get software title](https://fleetdm.com/docs/rest-api/rest-api#get-software)
+- [List policies](https://fleetdm.com/docs/rest-api/rest-api#list-policies)
+- [Get policy](https://fleetdm.com/docs/rest-api/rest-api#get-policy)
+- [List fleet-level policies](https://fleetdm.com/docs/rest-api/rest-api#list-fleet-level-policies)
+- [Get fleet-level policy](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-policy)
+- [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports)
+- [List labels](https://fleetdm.com/docs/rest-api/rest-api#list-labels)
+- [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts)
+- [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets)
+
+`run_live_query` (also needs the read-only endpoints above to resolve targets):
+
+- [Run live query on host (ad hoc)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-on-host-ad-hoc)
+- [Run live report (async)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-ad-hoc)
+
+Live report results stream over a WebSocket, which isn't subject to endpoint restrictions, so there's nothing else to select. The `-seed` flag also needs [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report).
 
 ## Deploying to Render
 
@@ -305,10 +353,12 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 
 ```
 cmd/fleet-mcp/
-  main.go                  # entrypoint, flag parsing, transport selection, http.Server timeouts, body-size cap
+  main.go                  # standalone entrypoint: flag parsing, startup checks, transport selection, http.Server timeouts
   config.go                # env-var loading
-  auth.go                  # bearer-auth middleware (SSE)
-  route_guard.go           # SSE route allow-list
+server/fleetmcp/
+  http_handler.go          # HTTP handler: Streamable HTTP + SSE transports, /healthz, body-size cap
+  auth.go                  # bearer-auth middleware (Streamable HTTP and SSE)
+  route_guard.go           # MCP route allow-list (/mcp, /sse, /message)
   fleet_integration.go     # FleetClient — wraps Fleet REST API. Every method takes ctx context.Context as first param.
   mcp_server.go            # SetupMCPServer orchestrator
   mcp_helpers.go           # getOptionalString, parseCSVArg, parsePerPageArg, validateCVEID, parsePositiveUintString, jsonResult
@@ -316,8 +366,7 @@ cmd/fleet-mcp/
   mcp_tools_queries.go     # query-domain MCP tools
   mcp_tools_policies.go    # policy/vuln MCP tools
   mcp_tools_inventory.go   # inventory MCP tools
-  schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
-  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Written by `generate-merged-schema` in `website/`.
+  schema.go                # canonical osquery schema (embedded fallback from /schema + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```
@@ -355,7 +404,7 @@ A few non-obvious behaviors discovered while building this:
 - **Per-fleet fan-out (`get_queries`, `get_policies`) is bounded-concurrent.** 8 in-flight goroutines, order-stable merge by fleet index. On enterprise Fleet instances with 50+ fleets the sequential path was the dominant latency source; the bounded concurrency amortizes round-trip count without flooding Fleet with thousands of simultaneous requests.
 - **CSV args drop empty segments.** `parseCSVArg("foo,,bar")` returns `["foo", "bar"]` — the legacy split-and-trim behavior leaked zero-value strings into filter logic, and a leading empty segment could silently disable filters that read `parts[0]`.
 - **macOS Gatekeeper caches adhoc signatures** keyed to file identity. Replacing the binary at the same path silently invalidates the cached approval — re-run `codesign --force --sign -` after every rebuild before Claude Desktop will launch it.
-- **Claude Desktop reads `env` from the JSON config**, not from a `.env` file. The `.env` template in this repo is for SSE/local development only.
+- **Claude Desktop reads `env` from the JSON config**, not from a `.env` file. The `.env` template in this repo is for HTTP/local development only.
 
 ## License
 

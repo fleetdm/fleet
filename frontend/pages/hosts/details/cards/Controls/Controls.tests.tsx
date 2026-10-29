@@ -549,7 +549,7 @@ describe("Controls card", () => {
         ...selfServiceProps,
         isDeviceUser: true,
         isPremiumTier: true,
-        controls: [installed],
+        controls: [{ ...installed, hidden: true }],
       });
       await user.hover(screen.getByText("Show hidden profiles"));
       expect(
@@ -606,6 +606,32 @@ describe("Controls card", () => {
     renderControls({
       isDeviceUser: true,
       isPremiumTier: false,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the hidden profile toggle for other platforms", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
+      isMacOSHost: false,
+      controls: [
+        control({ profile_uuid: "w", status: "verified", hidden: true }),
+      ],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the hidden profile toggle when no profiles are hidden", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
       isMacOSHost: true,
       controls: [control({ profile_uuid: "a", status: "verified" })],
     });

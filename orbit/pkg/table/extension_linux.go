@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup_luks_salt"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_nix_packages"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
 	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/osquery/osquery-go"
@@ -19,16 +20,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// /run/current-system/sw/bin is where NixOS links system packages (it has no /usr/bin).
+var linuxBinDirs = []string{"/usr/bin", "/usr/sbin", "/run/current-system/sw/bin"}
+
 func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	return []osquery.OsqueryPlugin{
 		cryptsetup.TablePlugin(log.Logger),            // table name is "cryptsetup_status"
 		falconctl.NewFalconctlOptionTable(log.Logger), // table name is "falconctl_option"
 		falcon_kernel_check.TablePlugin(log.Logger),   // table name is "falcon_kernel_check"
-		dataflattentable.TablePluginExec(log.Logger, "nftables", dataflattentable.JsonType, []string{"nft", "-jat", "list", "ruleset"}, dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin")), // -j (json) -a (show object handles) -t (terse, omit set contents)
+		dataflattentable.TablePluginExec(log.Logger, "nftables", dataflattentable.JsonType, []string{"nft", "-jat", "list", "ruleset"}, dataflattentable.WithBinDirs(linuxBinDirs...)), // -j (json) -a (show object handles) -t (terse, omit set contents)
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd.ContainersColumns(), containerd.GenerateContainers),
 		table.NewPlugin("containerd_mounts", containerd.MountsColumns(), containerd.GenerateMounts),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
+		table.NewPlugin(fleetd_nix_packages.TableName, fleetd_nix_packages.Columns(), fleetd_nix_packages.Generate),
 		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
@@ -40,7 +45,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 			"lsblk",
 			dataflattentable.JsonType,
 			[]string{"lsblk", "-n", "-O", "--json"}, // -n (no header) -O (all vars) --json (output in json)
-			dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin"),
+			dataflattentable.WithBinDirs(linuxBinDirs...),
 		),
 
 		table.NewPlugin(

@@ -4,7 +4,9 @@ import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
-import createMockHost from "__mocks__/hostMock";
+import createMockHost, {
+  createMockGetHostSoftwareResponse,
+} from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
 import { ActivityType } from "interfaces/activity";
@@ -385,6 +387,58 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("HostDetailsPage - software library", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("shows the unsupported empty state on NixOS hosts, explaining that software is installed outside of Fleet", async () => {
+    const host = createMockHost({ platform: "nixos", status: "online" });
+    stubQueries(host);
+
+    renderHostDetails({
+      location: { ...mockLocation, pathname: "/hosts/1/software/library" },
+    });
+
+    expect(
+      await screen.findByText(
+        /Installing software on NixOS hosts happens outside of Fleet./
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Software library is currently not supported on this host"
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/nixos-package-management"
+    );
+    expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
+  });
+
+  it("doesn't apply the Inventory tab's filters to the Library", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.getHostSoftware as jest.Mock).mockResolvedValue(
+      createMockGetHostSoftwareResponse()
+    );
+
+    renderHostDetails({
+      location: {
+        ...mockLocation,
+        pathname: "/hosts/1/software/library",
+        query: { types: "windows_app", ai_tool: "true" },
+      },
+    });
+
+    await waitFor(() => expect(hostAPI.getHostSoftware).toHaveBeenCalled());
+    const params = (hostAPI.getHostSoftware as jest.Mock).mock.calls[0][0];
+    expect(params.available_for_install).toBe(true);
+    expect(params).not.toHaveProperty("types");
+    expect(params).not.toHaveProperty("ai_tool");
   });
 });
 

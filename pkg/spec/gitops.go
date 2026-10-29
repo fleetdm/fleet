@@ -196,6 +196,7 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -216,7 +217,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil || c.EnableProfileValidation != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -397,6 +398,7 @@ type FleetMaintainedApp struct {
 type GitOpsMDM struct {
 	fleet.MDM
 	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+	WindowsEULA             any `json:"windows_eula,omitempty"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
@@ -844,6 +846,9 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
 		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
 			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+		if winEULA, ok := mdm["windows_eula"].(string); ok && winEULA != "" {
+			mdm["windows_eula"] = anchor(winEULA)
 		}
 	}
 }
@@ -1329,16 +1334,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
 
-	// apple_account_provisioning is a global-only MDM setting (it maps to global
-	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
-	// global configuration (or the no-team/unassigned file).
-	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
-		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
-		))
-	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
+
+	// apple_account_provisioning and enable_profile_validation are global-only MDM
+	// settings (they map to global AppConfig.MDM). Reject them in a specific team's
+	// file; they belong in the global configuration (or the no-team/unassigned file).
+	// Checked after path resolution, so a referenced controls file can't bypass it.
+	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		if result.Controls.AppleAccountProvisioning != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+		if result.Controls.EnableProfileValidation != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error
@@ -1385,6 +1399,19 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
 		} else if err := LookupEnvSecrets(tmpl, result.FleetSecrets); err != nil {
 			multiError = multierror.Append(multiError, err)
+		}
+	}
+
+	for _, c := range []struct {
+		key   string
+		value any
+	}{
+		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
+		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
+	} {
+		if _, ok := c.value.(bool); c.value != nil && !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.%s' must be a boolean in %s", c.key, controlsFilePath))
 		}
 	}
 
@@ -1992,6 +2019,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}
 		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -2013,10 +2045,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Labels, func(l *fleet.LabelSpec) string {
 			return l.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
@@ -2550,10 +2582,10 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Queries, func(q *fleet.QuerySpec) string {
 			return q.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
@@ -2572,14 +2604,52 @@ func validateAppStoreApp(item fleet.TeamSpecAppStoreApp, resolveDir string) (fle
 		return item, errors.New("software app store id required")
 	}
 
-	var count int
-	for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
-		if len(set) > 0 {
-			count++
+	if len(item.Versions) > 0 {
+		if item.SelfService || len(item.LabelsIncludeAny) > 0 || len(item.LabelsExcludeAny) > 0 || len(item.LabelsIncludeAll) > 0 ||
+			item.Categories != nil || item.Configuration.Path != "" ||
+			item.AutoUpdateEnabled != nil || item.AutoUpdateStartTime != nil || item.AutoUpdateEndTime != nil {
+			return item, fmt.Errorf("Couldn't add software (%q). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.", item.AppStoreID)
+		}
+		if len(item.Versions) > fleet.MaxAppStoreAppVersions {
+			return item, fmt.Errorf("Couldn't add software (%q). An app can have at most %d versions.", item.AppStoreID, fleet.MaxAppStoreAppVersions)
+		}
+		if item.Platform == string(fleet.MacOSPlatform) && len(item.Versions) > 1 {
+			return item, fmt.Errorf("Couldn't add software (%q). macOS App Store apps can have only one version.", item.AppStoreID)
 		}
 	}
-	if count > 1 {
-		return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID)
+
+	// Validate the version names of the app
+	var versionNames []string
+	for i, version := range item.Versions {
+		name := strings.TrimSpace(version.Name)
+		if name == "" {
+			return item, fmt.Errorf("Couldn't add software (%q). Version %d is missing a name.", item.AppStoreID, i+1)
+		}
+		if utf8.RuneCountInString(name) > fleet.MaxAppStoreAppVersionNameLength {
+			return item, fmt.Errorf("Couldn't add software (%q). The version name %q can't be longer than %d characters.", item.AppStoreID, name, fleet.MaxAppStoreAppVersionNameLength)
+		}
+		if slices.ContainsFunc(versionNames, func(versionName string) bool {
+			return strings.EqualFold(versionName, name)
+		}) {
+			return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
+		}
+		versionNames = append(versionNames, name)
+	}
+
+	for _, version := range item.ListVersions() {
+		var count int
+		for _, set := range [][]string{version.LabelsExcludeAny, version.LabelsIncludeAny, version.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			var versionSuffix string
+			if version.Name != "" {
+				versionSuffix = fmt.Sprintf(" version %q", version.Name)
+			}
+			return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q%s`, item.AppStoreID, versionSuffix)
+		}
 	}
 
 	// Validate display_name length (matches database VARCHAR(255))
@@ -3007,22 +3077,38 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {
-	// We are using the allKeys map as a set here. True means the item is a duplicate.
-	allKeys := make(map[string]bool)
+	return getDuplicateNamesBy(slice, getComparableString, func(name string) string { return name })
+}
+
+// getDuplicateNamesBy groups items by key(getName(item)) and reports the first name as written for each group with duplicates.
+func getDuplicateNamesBy[T any](slice []T, getName func(T) string, key func(string) string) []string {
+	// idx is the position in duplicates, or -1 if the key hasn't been reported yet.
+	type entry struct {
+		name string
+		idx  int
+	}
+	seen := make(map[string]entry)
 	var duplicates []string
 	for _, item := range slice {
-		name := getComparableString(item)
-		if isDuplicate, exists := allKeys[name]; exists {
-			// If this name hasn't already been marked as a duplicate.
-			if !isDuplicate {
-				duplicates = append(duplicates, name)
-			}
-			allKeys[name] = true
-		} else {
-			allKeys[name] = false
+		name := getName(item)
+		k := key(name)
+		e, exists := seen[k]
+		if !exists {
+			seen[k] = entry{name: name, idx: -1}
+			continue
+		}
+		if e.idx == -1 {
+			duplicates = append(duplicates, e.name)
+			seen[k] = entry{name: e.name, idx: len(duplicates) - 1}
 		}
 	}
 	return duplicates
+}
+
+// nameCollationKey matches how MySQL compares label and report names (case-insensitive, trailing spaces ignored), so duplicates fail
+// before anything is applied.
+func nameCollationKey(name string) string {
+	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
 func isASCII(s string) bool {

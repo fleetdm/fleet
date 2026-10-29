@@ -1231,6 +1231,54 @@ func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigEnableProfileValidation(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, initial bool) (fleet.Service, context.Context, *fleet.AppConfig) {
+		ds := new(mock.Store)
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		dsAppConfig.MDM.EnableProfileValidation = initial
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig.Copy(), nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(context.Context, *activity_api.User, activity_api.ActivityDetails) error { return nil }
+		return svc, viewer.NewContext(ctx, viewer.Viewer{User: admin}), dsAppConfig
+	}
+
+	cases := []struct {
+		name      string
+		initial   bool
+		body      string
+		overwrite bool
+		want      bool
+	}{
+		{"patch false persists", true, `{"mdm":{"enable_profile_validation":false}}`, false, false},
+		{"patch without key keeps false", false, `{"org_info":{"org_name":"Renamed"}}`, false, false},
+		{"overwrite without key sets true", false, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite without mdm keeps true", true, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite false sets false", true, `{"mdm":{"enable_profile_validation":false}}`, true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, ctx, dsAppConfig := newSvc(t, c.initial)
+			modified, err := svc.ModifyAppConfig(ctx, []byte(c.body), fleet.ApplySpecOptions{Overwrite: c.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, c.want, modified.MDM.EnableProfileValidation)
+			require.Equal(t, c.want, dsAppConfig.MDM.EnableProfileValidation)
+		})
+	}
+}
+
 // TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
 // template stored while premium is cleared on a Free-tier ModifyAppConfig (so
 // the cron, which enforces on MDM.EnabledAndConfigured rather than the license,
@@ -2227,6 +2275,7 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		wantErr        string  // non-empty => ModifyAppConfig should fail containing this
 		wantMasked     bool    // response secret should be the masked placeholder
 		wantActivity   bool    // edited_account_provisioning activity expected
+		verifiedSecret *string // non-nil => the IdP check is expected, using this secret
 	}
 
 	type trackers struct {
@@ -2234,9 +2283,10 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		deleted        bool
 		saved          *fleet.AppConfig
 		activityFired  bool
+		verifiedSecret *string
 	}
 
-	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning) (fleet.Service, context.Context, *mock.Store, *trackers) {
+	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning, verifyErr error) (fleet.Service, context.Context, *mock.Store, *trackers) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
@@ -2245,6 +2295,16 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 		tr := &trackers{}
+		if tier == fleet.TierPremium {
+			// Stand in for the IdP check so these cases don't reach the network.
+			svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+				VerifyAppleAccountProvisioning: func(_ context.Context, settings fleet.AppleAccountProvisioning, clientSecret string) error {
+					require.True(t, settings.Configured())
+					tr.verifiedSecret = &clientSecret
+					return verifyErr
+				},
+			})
+		}
 		dsAppConfig := &fleet.AppConfig{
 			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
 			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
@@ -2304,13 +2364,15 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		stored    fleet.AppleAccountProvisioning
 		body      string
 		overwrite bool // GitOps (overwrite) mode rather than a PATCH
+		dryRun    bool
+		verifyErr error // returned by the IdP check
 		want      asserts
 	}{
 		{
 			name: "configure stores secret and masks response",
 			tier: fleet.TierPremium,
 			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
-			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true, verifiedSecret: new(secret)},
 		},
 		{
 			name: "free tier rejected",
@@ -2342,14 +2404,14 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			tier:   fleet.TierPremium,
 			stored: configuredAAP(),
 			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, "rotated-secret"),
-			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true},
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true, verifiedSecret: new("rotated-secret")},
 		},
 		{
 			name:   "masked secret preserved on unrelated change",
 			tier:   fleet.TierPremium,
 			stored: configuredAAP(),
 			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"new-client-id","oauth_idp_client_secret":%q}}}`, tokenURL, fleet.MaskedPassword),
-			want:   asserts{wantMasked: true, wantActivity: true}, // client_id changed; secret preserved (neither insert nor delete)
+			want:   asserts{wantMasked: true, wantActivity: true, verifiedSecret: new(secret)}, // client_id changed; checked with the stored secret, which is preserved
 		},
 		{
 			name:   "clearing config soft-deletes secret",
@@ -2387,7 +2449,7 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			tier:      fleet.TierPremium,
 			overwrite: true,
 			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
-			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true, verifiedSecret: new(secret)},
 		},
 		{
 			name:      "gitops public fields without secret rejected",
@@ -2423,13 +2485,66 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
 			want:   asserts{wantMasked: true}, // no insert, no delete, no activity
 		},
+		{
+			// GitOps resends the secret on every run; unchanged settings must not
+			// contact the IdP.
+			name:      "gitops reapply of identical config skips the IdP check",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:      asserts{wantMasked: true},
+		},
+		{
+			// The UI omits the masked secret when saving an unchanged form.
+			name:   "UI resave of unchanged config skips the IdP check",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:   asserts{wantMasked: true},
+		},
+		{
+			name:   "new secret alone is checked",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":"rotated-secret"}}}`, tokenURL, clientID),
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true, verifiedSecret: new("rotated-secret")},
+		},
+		{
+			name:      "IdP rejection blocks the save",
+			tier:      fleet.TierPremium,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			verifyErr: fleet.NewInvalidArgumentError("mdm.apple_account_provisioning", "Your IdP rejected the client ID or client secret (invalid_client)."),
+			want:      asserts{wantErr: "Your IdP rejected the client ID or client secret", verifiedSecret: new(secret)},
+		},
+		{
+			name:   "dry run checks with the IdP without saving",
+			tier:   fleet.TierPremium,
+			dryRun: true,
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:   asserts{verifiedSecret: new(secret)},
+		},
+		{
+			name:      "dry run reports an IdP rejection",
+			tier:      fleet.TierPremium,
+			dryRun:    true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			verifyErr: fleet.NewInvalidArgumentError("mdm.apple_account_provisioning.oauth_idp_token_url", "Fleet couldn't get an OAuth response from the token URL"),
+			want:      asserts{wantErr: "couldn't get an OAuth response", verifiedSecret: new(secret)},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored)
+			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored, tc.verifyErr)
 
-			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite})
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite, DryRun: tc.dryRun})
+			if tc.want.verifiedSecret != nil {
+				require.NotNil(t, tr.verifiedSecret, "expected the IdP check")
+				require.Equal(t, *tc.want.verifiedSecret, *tr.verifiedSecret)
+			} else {
+				require.Nil(t, tr.verifiedSecret, "expected no IdP check")
+			}
 			if tc.want.wantErr != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.want.wantErr)
@@ -2439,6 +2554,10 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			if tc.dryRun {
+				require.False(t, ds.SaveAppConfigFuncInvoked)
+				return
+			}
 
 			if tc.want.insertedSecret != nil {
 				require.NotNil(t, tr.insertedSecret)
@@ -3474,6 +3593,56 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, updated.Features.HistoricalData)
 			require.Equal(t, tt.expected, dsAppConfig.Features.HistoricalData)
+		})
+	}
+}
+
+// server_settings is merged rather than replaced in overwrite mode, so a GitOps
+// payload without mcp_disabled keeps the server's value.
+func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name     string
+		initial  bool
+		payload  string
+		expected bool
+	}{
+		{"omitted keeps it disabled", true, `{"server_settings":{"server_url":"https://example.org"}}`, true},
+		{"omitted keeps it enabled", false, `{"server_settings":{"server_url":"https://example.org"}}`, false},
+		{"no server_settings keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, true},
+		{"explicit true disables it", false, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":true}}`, true},
+		{"explicit false enables it", true, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":false}}`, false},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org", MCPDisabled: tt.initial},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: true})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.ServerSettings.MCPDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.MCPDisabled)
 		})
 	}
 }

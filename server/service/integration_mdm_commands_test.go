@@ -1462,4 +1462,26 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	require.Len(t, commandResultResp.Results, 1)
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
 	require.NotNil(t, commandResultResp.Results[0].Result)
+
+	// Once the device checks out, the request must be rejected without queuing a
+	// command or logging an activity, even though the unlock token is still stored.
+	require.NoError(t, iosMDMClient.Checkout())
+	lastActID := s.lastActivityMatches("", "", 0)
+
+	countQueuedClearPasscode := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &n, `
+				SELECT COUNT(*) FROM nano_enrollment_queue neq
+				JOIN nano_commands nc ON nc.command_uuid = neq.command_uuid
+				WHERE neq.id = ? AND nc.request_type = ?`, iosMDMClient.UUID, fleet.AppleMDMCommandTypeClearPasscode)
+		})
+		return n
+	}
+	queuedBefore := countQueuedClearPasscode()
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), "doesn't have MDM turned on")
+	s.lastActivityMatches("", "", lastActID)
+	require.Equal(t, queuedBefore, countQueuedClearPasscode())
 }

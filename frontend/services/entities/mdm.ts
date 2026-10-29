@@ -23,6 +23,7 @@ export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
+  platform?: "darwin" | "windows";
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
@@ -416,6 +417,22 @@ const mdmService = {
   downloadEULA: (token: string) => {
     const { MDM_EULA } = endpoints;
     return sendRequest("GET", MDM_EULA(token));
+  },
+
+  getWindowsEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    const query = buildQueryStringFromParams({ platform: "windows" });
+    return sendRequest("GET", `${MDM_EULA_METADATA}?${query}`);
+  },
+
+  uploadWindowsEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("platform", "windows");
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
   },
 
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {

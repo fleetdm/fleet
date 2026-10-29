@@ -36,6 +36,14 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ### Linux distributions
 
+Fleet treats Linux as a first-class platform, not an afterthought. It's open source, API-first, and built so every Linux device gets the same management as your Macs and PCs. Fleet supports these distributions, starting at these minimum versions:
+
+| <img src="../website/assets/images/os-icon-ubuntu-40x40@2x.png" alt="Ubuntu logo" width="40" /> | <img src="../website/assets/images/os-icon-debian-40x40@2x.png" alt="Debian logo" width="40" /> | <img src="../website/assets/images/os-icon-rhel-40x40@2x.png" alt="RHEL logo" width="40" /> | <img src="../website/assets/images/os-icon-fedora-40x40@2x.png" alt="Fedora logo" width="40" /> | <img src="../website/assets/images/os-icon-centos-40x40@2x.png" alt="CentOS logo" width="40" /> |
+| :---: | :---: | :---: | :---: | :---: |
+| Ubuntu<br>20.04+ | Debian<br>11+ | RHEL<br>7+ | Fedora<br>38+ | CentOS<br>7.1+ |
+| <img src="../website/assets/images/os-icon-amazon-linux-40x40@2x.png" alt="Amazon Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-opensuse-40x40@2x.png" alt="openSUSE logo" width="40" /> | <img src="../website/assets/images/os-icon-arch-linux-40x40@2x.png" alt="Arch Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-omarchy-40x40@2x.png" alt="Omarchy logo" width="40" /> | <img src="../website/assets/images/os-icon-nvidia-dgx-40x40@2x.png" alt="NVIDIA DGX OS logo" width="40" /> |
+| Amazon Linux<br>2+ | openSUSE<br>15.6+ | Arch<br>Rolling | Omarchy<br>Rolling | NVIDIA DGX OS<br>6+ |
+
 ✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
 
 | Distribution | Collected |
@@ -86,15 +94,19 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 | openSUSE MicroOS and Aeon | ❌ |
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
+| Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
+| IGEL OS | ❌ |
 | Any other distribution | ❌ |
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
 - NVIDIA DGX OS reports as Ubuntu (DGX OS 7 as Ubuntu 24.04, DGX OS 6 as Ubuntu 22.04) because its `/etc/os-release` is Ubuntu's. Fleet doesn't read `/etc/dgx-release`, so the host appears as Ubuntu on the **Software** > **OS** page and the DGX OS version isn't reported. DGX Spark is arm64; use the `arm64` fleetd package.
 - Raspberry Pi OS 64-bit reports as Debian and is covered. Raspberry Pi OS 32-bit reports as `raspbian`, which Fleet doesn't recognize.
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
-- SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
+- Fedora Atomic desktops, Bazzite, Bluefin, and Aurora use rpm-ostree, which keeps the OS read-only. Fleet's agent package can't be installed on them. Support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
+- SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
+- [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
 
 ## Browser extensions
 
@@ -168,6 +180,7 @@ Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/
 | AI browser extensions | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `browser_extension` type, separate from the general [browser extensions](#browser-extensions) above. |
 | AI skills | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Files such as Claude Code's `SKILL.md` or a project's `.agents/skills` directory aren't inventoried as their own entities.  |
 | AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't enumerate installed model weights or which model a local runner has loaded. Only the runner app or listening socket is visible, under AI desktop apps and Live AI and MCP sockets above. |
+| AI sessions | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't track AI agent sessions, such as which user ran Claude Code, Codex, or Cursor, when, or in which project. A `sessions` or `memory` directory only counts as evidence of an agent workspace; its contents aren't read. Seeing AI sessions on the **Host details** page is [coming soon](https://github.com/fleetdm/fleet/issues/51825). |
 
 ## Binaries and other
 

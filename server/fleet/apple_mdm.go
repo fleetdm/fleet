@@ -22,6 +22,14 @@ import (
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
+// DefaultAutomaticEnrollmentTokenGracePeriodHours and
+// MaxAutomaticEnrollmentTokenGracePeriodHours bound how long the previous
+// automatic enrollment token keeps working after a rotation.
+const (
+	DefaultAutomaticEnrollmentTokenGracePeriodHours = 24
+	MaxAutomaticEnrollmentTokenGracePeriodHours     = 720
+)
+
 // MDMAppleDEPEnrollmentChallengeExpiration is how long the one-time token
 // handed out after end user authentication during automatic enrollment (ADE)
 // stays valid.
@@ -2181,3 +2189,30 @@ const (
 	TokenSourceDefault       = "default"
 	TokenSourceDEPAssignment = "dep_assignment"
 )
+
+type AppleMDMCertPurpose string
+
+const (
+	AppleMDMCertPurposeADE         AppleMDMCertPurpose = "ade"
+	AppleMDMCertPurposeOTAPhaseOne AppleMDMCertPurpose = "ota_phase1"
+	AppleMDMCertPurposeOTAPhaseTwo AppleMDMCertPurpose = "ota_phase2"
+	AppleMDMCertPurposeADUE        AppleMDMCertPurpose = "adue"
+	AppleMDMCertPurposeSCEPRenewal AppleMDMCertPurpose = "renewal"
+	AppleMDMCertPurposeACME        AppleMDMCertPurpose = "acme"
+	AppleMDMCertPurposeACMERenewal AppleMDMCertPurpose = "acme_renewal"
+)
+
+// AppleSCEPEnrollmentChallengeTTL is how long a challenge handed out in an enrollment profile is valid. Devices
+// use it right after receiving the profile.
+const AppleSCEPEnrollmentChallengeTTL = time.Hour
+
+// AppleSCEPRenewalChallengeTTL is how long a renewal challenge is valid. Devices can defer a renewal command
+// (NotNow), and every re-delivery returns the same challenge until it's consumed or expires.
+const AppleSCEPRenewalChallengeTTL = 30 * 24 * time.Hour
+
+type AppleSCEPChallengeInfo struct {
+	Purpose        AppleMDMCertPurpose `db:"purpose"`
+	UUID           *string             `db:"host_uuid"`
+	Serial         *string             `db:"hardware_serial"`
+	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}

@@ -24,7 +24,7 @@ try {
 
     # Fleet's installer directory is not readable by that user.
     $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
-    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
+    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
 
     $installArgs = "/S"
     if ($installArgs) {
@@ -45,8 +45,8 @@ try {
     # enter and leave between polls.
     Start-Sleep -Seconds 2
     while ($true) {
-        $info = Get-ScheduledTaskInfo -TaskName $taskName
-        $state = (Get-ScheduledTask -TaskName $taskName).State
+        $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+        $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
         if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
             $exitCode = $info.LastTaskResult
             break
@@ -70,4 +70,6 @@ try {
     }
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

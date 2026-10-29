@@ -118,6 +118,10 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		}
 	}
 
+	if !host.SupportsOsquery() {
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
@@ -198,6 +202,8 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
+	// The identity cert's name is the derived identifier the host enrolls under, not the raw provided one.
+	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
 		recordErrorDetail(ctx, err)
@@ -208,9 +214,11 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find cert in DB
@@ -223,7 +231,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("generate node key failed")
 	}
 
-	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
 	if err != nil {
 		recordErrorDetail(ctx, err)
@@ -1695,10 +1702,8 @@ func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fl
 //
 // The deletion is skipped for hosts in setup experience: they are sent a
 // filtered subset of policy queries (see policyQueriesForHost), so their stale
-// set is not meaningful. Under async policy processing this is a no-op, since
-// the task layer buffers results in Redis and always reports no stale policies.
-// Errors are logged and swallowed: this cleanup is best-effort and self-heals
-// on the host's next policy reporting cycle.
+// set is not meaningful. Errors are logged and swallowed: this cleanup is
+// best-effort and self-heals on the host's next policy reporting cycle.
 func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
 	if len(stalePolicyIDs) == 0 {
 		return
@@ -2399,6 +2404,9 @@ func preProcessSoftwareResults(
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
 	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
+	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
@@ -2412,6 +2420,28 @@ func preProcessSoftwareResults(
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
 		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
+
+	// The flag lands on the software row shared by every host, so a host must not be able to set
+	// it directly: only the ai_tools merge below may. Every software detail query is stripped,
+	// not just the ones the merge runs on, since any of them can reach directIngestSoftware.
+	for query, rows := range results {
+		if !strings.HasPrefix(query, hostDetailQueryPrefix+"software_") {
+			continue
+		}
+		for _, row := range rows {
+			delete(row, "ai_tool")
+		}
+	}
+
+	// Merged last so every row it can flag is already present, including rows the overrides add
+	// or re-append.
+	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
+	aiToolsMerge := osquery_utils.DetailQuery{
+		SoftwareProcessResults: func(mainRows, aiRows []map[string]string) []map[string]string {
+			return osquery_utils.AIToolsProcessResults(host.Platform, mainRows, aiRows)
+		},
+	}
+	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, aiToolsMerge, logger)
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
@@ -3029,6 +3059,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		policyID := failingPolicyWithInstaller.ID
 		_, newlyFailing := newFailingSet[policyID]
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if fleet.IsNotFound(err) {
+			// A GitOps run deleted the installer after the policy was read. Keep going with the host's other policies.
+			svc.logger.DebugContext(ctx, "policy automation installer was deleted", "host_id", hostID, "policy_id", policyID)
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
@@ -3139,6 +3174,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
+		if fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "policy automation installer was deleted before the install was queued")
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrapf(
 				ctx, err,
@@ -3219,7 +3258,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	host, err := svc.ds.Host(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
@@ -3245,6 +3284,11 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	recentAppInstalls, err := svc.ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, hostID, int(svc.config.Osquery.PolicyUpdateInterval.Seconds()))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
+	}
+
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get the host's App Store app versions")
 	}
 
 	// When two policies are bound to one app only the first queues an install, so sort to make that
@@ -3275,12 +3319,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
-		}
-
-		if !scoped {
+		hostVersion, ok := hostVersionByTitleID[vppMetadata.TitleID]
+		if !ok || !hostVersion.InScope {
 			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
@@ -3312,7 +3352,16 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, vppMetadata.TitleID, hostVersion.VPPAppTeamID)
+		if err != nil {
+			logger.ErrorContext(
+				ctx, "failed to get the host's VPP app version",
+				"err", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 			SelfService:     false,
 			PolicyID:        &policyID,
 			DeferActivation: svc.deferFleetInitiatedActivation(),

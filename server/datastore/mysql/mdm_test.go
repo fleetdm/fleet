@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec // content comparison, not security
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
@@ -49,6 +50,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
 		{"TestListMDMCommandsPagination", testListMDMCommandsPagination},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
+		{"TestGetMDMProfileChecksums", testGetMDMProfileChecksums},
 		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
@@ -3487,11 +3489,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 func testMDMEULA(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	const darwin, windows = fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows
+
 	eula := &fleet.MDMEULA{
-		Token:  uuid.New().String(),
-		Name:   "eula.pdf",
-		Bytes:  []byte("contents"),
-		Sha256: []byte("test-sha256"),
+		Token:    uuid.New().String(),
+		Name:     "eula.pdf",
+		Bytes:    []byte("contents"),
+		Sha256:   []byte("test-sha256"),
+		Platform: darwin,
 	}
 
 	err := ds.MDMInsertEULA(ctx, eula)
@@ -3500,31 +3505,89 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 	var ae fleet.AlreadyExistsError
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.ErrorAs(t, err, &ae)
+	// The unique key is on platform, so that is what the conflict names.
+	require.ErrorContains(t, err, string(darwin))
 
-	gotEULA, err := ds.MDMGetEULAMetadata(ctx)
+	gotEULA, err := ds.MDMGetEULAMetadata(ctx, darwin)
 	require.NoError(t, err)
 	require.NotEmpty(t, gotEULA.CreatedAt)
 	require.Equal(t, eula.Token, gotEULA.Token)
 	require.Equal(t, eula.Name, gotEULA.Name)
+	require.Equal(t, darwin, gotEULA.Platform)
 
-	gotEULABytes, err := ds.MDMGetEULABytes(ctx, eula.Token)
+	gotEULABytes, err := ds.MDMGetEULABytes(ctx, darwin, eula.Token)
 	require.NoError(t, err)
 	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
 	require.Equal(t, eula.Name, gotEULABytes.Name)
 
-	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, darwin, eula.Token)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
-	_, err = ds.MDMGetEULAMetadata(ctx)
+	_, err = ds.MDMGetEULAMetadata(ctx, darwin)
 	require.ErrorAs(t, err, &nfe)
-	_, err = ds.MDMGetEULABytes(ctx, eula.Token)
+	_, err = ds.MDMGetEULABytes(ctx, darwin, eula.Token)
 	require.ErrorAs(t, err, &nfe)
-	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, darwin, eula.Token)
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
+
+	t.Run("unsupported platform", func(t *testing.T) {
+		for _, platform := range []fleet.MDMEULAPlatform{"", "window", "macos"} {
+			err := ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Token: uuid.New().String(), Name: "eula.pdf", Bytes: []byte("x"), Platform: platform})
+			require.ErrorContains(t, err, "unsupported platform", platform)
+		}
+	})
+
+	t.Run("one agreement per platform, isolated by platform", func(t *testing.T) {
+		terms := &fleet.MDMEULA{
+			Token:    uuid.New().String(),
+			Name:     "terms.md",
+			Bytes:    []byte("# Terms"),
+			Sha256:   []byte("windows-sha256"),
+			Platform: windows,
+		}
+		require.NoError(t, ds.MDMInsertEULA(ctx, terms))
+
+		gotDarwin, err := ds.MDMGetEULAMetadata(ctx, darwin)
+		require.NoError(t, err)
+		require.Equal(t, eula.Token, gotDarwin.Token)
+		gotWindows, err := ds.MDMGetEULAMetadata(ctx, windows)
+		require.NoError(t, err)
+		require.Equal(t, terms.Token, gotWindows.Token)
+		require.Equal(t, windows, gotWindows.Platform)
+
+		gotTerms, err := ds.MDMGetEULABytes(ctx, windows, terms.Token)
+		require.NoError(t, err)
+		require.Equal(t, terms.Bytes, gotTerms.Bytes)
+
+		// The token alone tells the agreements apart.
+		platform, err := ds.MDMGetEULAPlatform(ctx, terms.Token)
+		require.NoError(t, err)
+		require.Equal(t, windows, platform)
+		platform, err = ds.MDMGetEULAPlatform(ctx, eula.Token)
+		require.NoError(t, err)
+		require.Equal(t, darwin, platform)
+		_, err = ds.MDMGetEULAPlatform(ctx, uuid.New().String())
+		require.ErrorAs(t, err, &nfe)
+
+		// A token only reaches the file of the platform asked for.
+		_, err = ds.MDMGetEULABytes(ctx, windows, eula.Token)
+		require.ErrorAs(t, err, &nfe)
+		_, err = ds.MDMGetEULABytes(ctx, darwin, terms.Token)
+		require.ErrorAs(t, err, &nfe)
+		err = ds.MDMDeleteEULA(ctx, windows, eula.Token)
+		require.ErrorAs(t, err, &nfe)
+
+		// Deleting one platform's agreement leaves the other in place.
+		require.NoError(t, ds.MDMDeleteEULA(ctx, windows, terms.Token))
+		_, err = ds.MDMGetEULAMetadata(ctx, windows)
+		require.ErrorAs(t, err, &nfe)
+		_, err = ds.MDMGetEULAMetadata(ctx, darwin)
+		require.NoError(t, err)
+	})
 }
 
 func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
@@ -6945,4 +7008,48 @@ func testMDMConfigProfileRenameThenDeleteShowsOnHosts(t *testing.T, ds *Datastor
 	setup("team", &deletedTeam.ID)
 	require.NoError(t, ds.DeleteTeam(ctx, deletedTeam.ID))
 	requireHostNames("team")
+}
+
+func testGetMDMProfileChecksums(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	md5Of := func(b []byte) []byte {
+		sum := md5.Sum(b) //nolint:gosec // content comparison, not security
+		return sum[:]
+	}
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "checksums-team"})
+	require.NoError(t, err)
+
+	empty, err := ds.GetMDMProfileChecksums(ctx, team.ID)
+	require.NoError(t, err)
+	require.Empty(t, empty.AppleByIdentifier)
+	require.Empty(t, empty.DeclarationsByName)
+	require.Empty(t, empty.WindowsByName)
+
+	noTeamApple := configProfileForTest(t, "N1", "checksums.noteam", "a")
+	noTeamDecl := declForTest("Decl-NoTeam", "checksums.noteam", "a")
+	noTeamWin := windowsConfigProfileForTest(t, "W-NoTeam", "./Device/NoTeam")
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{noTeamApple}, []*fleet.MDMWindowsConfigProfile{noTeamWin},
+		[]*fleet.MDMAppleDeclaration{noTeamDecl}, nil, nil)
+	require.NoError(t, err)
+
+	teamApple := configProfileForTest(t, "T1", "checksums.team", "b")
+	teamDecl := declForTest("Decl-Team", "checksums.team", "b")
+	teamWin := windowsConfigProfileForTest(t, "W-Team", "./Device/Team")
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, []*fleet.MDMAppleConfigProfile{teamApple}, []*fleet.MDMWindowsConfigProfile{teamWin},
+		[]*fleet.MDMAppleDeclaration{teamDecl}, nil, nil)
+	require.NoError(t, err)
+
+	noTeam, err := ds.GetMDMProfileChecksums(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{"checksums.noteam": md5Of(noTeamApple.Mobileconfig)}, noTeam.AppleByIdentifier)
+	// keys are lowercased, matching the columns' case-insensitive unique keys
+	require.Equal(t, map[string][]byte{"decl-noteam": md5Of(noTeamDecl.RawJSON)}, noTeam.DeclarationsByName)
+	require.Equal(t, map[string][]byte{"w-noteam": md5Of(noTeamWin.SyncML)}, noTeam.WindowsByName)
+
+	forTeam, err := ds.GetMDMProfileChecksums(ctx, team.ID)
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{"checksums.team": md5Of(teamApple.Mobileconfig)}, forTeam.AppleByIdentifier)
+	require.Equal(t, map[string][]byte{"decl-team": md5Of(teamDecl.RawJSON)}, forTeam.DeclarationsByName)
+	require.Equal(t, map[string][]byte{"w-team": md5Of(teamWin.SyncML)}, forTeam.WindowsByName)
 }

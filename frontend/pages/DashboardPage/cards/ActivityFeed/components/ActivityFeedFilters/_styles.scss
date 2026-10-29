@@ -1,4 +1,9 @@
 .activity-feed-filters {
+  // The container is scoped to the filters rather than the whole card: Floating
+  // UI treats any `container-type` ancestor as a containing block, which
+  // misplaces tooltips inside the activity modals rendered within the card.
+  container-type: inline-size;
+  container-name: activity-feed-filters;
   display: flex;
   flex-direction: column;
   gap: $pad-medium;
@@ -26,9 +31,7 @@
   }
 }
 
-// we check the container of the whole activity card to adjust the filter layout.
-// this container is defined in the dashboard page .scss file
-@container activity-feed-card (width < 436px) {
+@container activity-feed-filters (width < 436px) {
   .activity-feed-filters__dropdown-filters {
     grid-template-columns: repeat(2, 1fr);
     grid-template-areas:

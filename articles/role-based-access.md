@@ -104,8 +104,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                  |          |            |            |            | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            |            | ✅         | ✅    | ✅      |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅         | ✅         | ✅    | ✅      |
-| Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            |            | ✅         | ✅    | ✅      |
-| View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| Execute MDM commands\**                                                                                         |          |            |            | ✅         | ✅    | ✅      |
+| View results of MDM commands\**                                                                        | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
 | View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
@@ -128,6 +128,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View custom host vitals                                                                                                                    | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom host vitals                                                                                                |          |            |            | ✅         | ✅    | ✅      |
 | Set custom host vital values on hosts                                                                                                      |          |            |            | ✅         | ✅    |         |
+| Clear iOS/iPadOS passcodes from hosts                                                                                                      |          |            |✅          | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -192,8 +193,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                        |               |                |                 |                 | ✅         | ✅          |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                |                 | ✅              | ✅         | ✅          |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                  |               |                | ✅              | ✅              | ✅         | ✅          |
-| Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                |                 | ✅              | ✅         |             |
-| View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Execute MDM commands*                                                                                 |               |                |                 | ✅              | ✅         |             |
+| View results of MDM commands*                                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Edit a fleet's [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                  |               |                |                 | ✅              | ✅         | ✅          |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                           |               |                |                 | ✅              | ✅         | ✅          |
 | Run saved scripts on hosts                                                                                                       |               |                | ✅              | ✅              | ✅         |             |
@@ -208,6 +209,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 | View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         | ✅         |
 | Set custom host vital values on hosts                                                                                            |               |                |                 | ✅              | ✅         |             |
+| Clear iOS/iPadOS passcodes from hosts                                                                                                      |          |            |✅          | ✅         | ✅    |         |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

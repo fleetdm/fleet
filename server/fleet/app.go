@@ -294,6 +294,9 @@ type MDM struct {
 	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
 	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	// EnableProfileValidation turns on schema validation of admin-uploaded
+	// configuration profiles. Defaults to true.
+	EnableProfileValidation bool `json:"enable_profile_validation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -704,7 +707,7 @@ type AppleOSUpdateSettings struct {
 	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
-	// Deadline the required installation date for Nudge to enforce the required
+	// Deadline is the required installation date to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
 	// DeadlineDays is the number of days after an OS version's release date
@@ -897,20 +900,34 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
-		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
-			for _, label := range labels {
-				if strLabel, ok := label.(string); ok {
-					ret = append(ret, strLabel)
-				}
+	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return nil, nil
+		}
+		labels, ok := v.([]any)
+		if !ok {
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[[]string](),
+				Field: "macos_settings.custom_settings." + fieldName,
 			}
 		}
-		return ret
+		var ret []string
+		for _, label := range labels {
+			strLabel, ok := label.(string)
+			if !ok {
+				return nil, &json.UnmarshalTypeError{
+					Value: fmt.Sprintf("%T", label),
+					Type:  reflect.TypeFor[string](),
+					Field: "macos_settings.custom_settings." + fieldName,
+				}
+			}
+			ret = append(ret, strLabel)
+		}
+		return ret, nil
 	}
 
-	// unlike a bad label, a wrong type here is an error: dropping it would
-	// clear the stored name or description
 	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
 		v, ok := parentMap[fieldName]
 		if !ok || v == nil {
@@ -936,11 +953,10 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			for _, v := range vals {
 				if m, ok := v.(map[string]interface{}); ok {
 					var spec MDMProfileSpec
-					// extract the Path field
-					if path, ok := m["path"].(string); ok {
-						spec.Path = path
-					}
 					var err error
+					if spec.Path, err = extractStringField(m, "path"); err != nil {
+						return nil, err
+					}
 					if spec.Name, err = extractStringField(m, "name"); err != nil {
 						return nil, err
 					}
@@ -948,10 +964,18 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						return nil, err
 					}
 
-					spec.Labels = extractLabelField(m, "labels")
-					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
-					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
-					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
+					if spec.Labels, err = extractLabelField(m, "labels"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAll, err = extractLabelField(m, "labels_include_all"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsExcludeAny, err = extractLabelField(m, "labels_exclude_any"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAny, err = extractLabelField(m, "labels_include_any"); err != nil {
+						return nil, err
+					}
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -1627,6 +1651,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+	c.MDM.EnableProfileValidation = true
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
@@ -1839,6 +1864,7 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 

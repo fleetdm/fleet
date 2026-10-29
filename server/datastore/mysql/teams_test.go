@@ -279,7 +279,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					},
 					BundleIdentifier: "b5",
 				}
-				_, err = ds.InsertVPPAppWithTeam(t.Context(), vppApp, &team.ID)
+				_, err = ds.InsertVPPAppWithTeam(t.Context(), vppApp, &team.ID, nil)
 				require.NoError(t, err)
 
 				// Record a label membership on the team label.
@@ -768,6 +768,11 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 	defaultMDM := fleet.TeamMDM{}
 	ctx := context.Background()
+
+	t.Run("missing team", func(t *testing.T) {
+		_, err := ds.TeamMDMConfig(ctx, 999999)
+		require.True(t, fleet.IsNotFound(err))
+	})
 
 	t.Run("NULL config in the database", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config"})

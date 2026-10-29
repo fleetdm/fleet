@@ -1,0 +1,1 @@
+- Added the ability to choose a destination fleet for Android zero-touch enrollment. `GET /api/v1/fleet/android_enterprise/zero_touch_configuration` now accepts an optional `fleet_id` query parameter, and the Android zero-touch page has a fleet picker.
