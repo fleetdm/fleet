@@ -45,6 +45,8 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | Ubuntu<br>20.04+ | Debian<br>11+ | RHEL<br>7+ | Fedora<br>38+ | CentOS<br>7.1+ |
 | <img src="../website/assets/images/os-icon-amazon-linux-40x40@2x.png" alt="Amazon Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-opensuse-40x40@2x.png" alt="openSUSE logo" width="40" /> | <img src="../website/assets/images/os-icon-arch-linux-40x40@2x.png" alt="Arch Linux logo" width="40" /> | <img src="../website/assets/images/os-icon-omarchy-40x40@2x.png" alt="Omarchy logo" width="40" /> | <img src="../website/assets/images/os-icon-nvidia-dgx-40x40@2x.png" alt="NVIDIA DGX OS logo" width="40" /> |
 | Amazon Linux<br>2+ | openSUSE<br>15.6+ | Arch<br>Rolling | Omarchy<br>Rolling | NVIDIA DGX OS<br>6+ |
+| <img src="../website/assets/images/os-icon-nixos-40x40@2x.png" alt="NixOS logo" width="40" /> | | | | |
+| NixOS<br>Unstable | | | | |
 
 ✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
 
