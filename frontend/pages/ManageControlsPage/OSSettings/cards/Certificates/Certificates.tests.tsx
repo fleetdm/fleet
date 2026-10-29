@@ -111,8 +111,14 @@ describe("Certificates tab-header", () => {
 
     render(<Certificates {...baseProps} />);
 
+    expect(await screen.findByText("No certificates")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: /Add certificate$/i })
+      screen.getByText(
+        "Add a certificate to help your end users connect to your corporate network."
+      )
     ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /Add certificate$/i })
+    ).toHaveLength(2);
   });
 });
