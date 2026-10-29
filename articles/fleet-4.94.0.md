@@ -17,7 +17,7 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 - [Filter software by type](#filter-software-by-type)
 - [Android: full app configuration and BYOD work profile wipe](#android-full-app-configuration-and-byod-work-profile-wipe)
 - [Android zero-touch enrollment to any fleet](#android-zero-touch-enrollment-to-any-fleet)
-- [More secure Apple MDM enrollment](#more-secure-apple-mdm-enrollment)
+- [More secure way to turn on MDM for Apple hosts](#more-secure-way-to-turn-on-mdm-for-apple-hosts)
 - [Rotate a Mac's FileVault recovery key on demand](#rotate-a-macs-filevault-recovery-key-on-demand)
 
 ### Configuration profile editor with names and descriptions
@@ -78,13 +78,13 @@ Learn how in the [Android zero-touch enrollment guide](https://fleetdm.com/guide
 
 GitHub issue: [#51479](https://github.com/fleetdm/fleet/issues/51479)
 
-### More secure Apple MDM enrollment
+### More secure way to turn on MDM for Apple hosts
 
-Fleet now makes it harder for an unknown device to get into your Apple MDM. Before, every Mac, iPhone, and iPad used the same shared secret (a static SCEP challenge) to enroll. Anyone who got that secret could use it to enroll a device. Now Fleet gives each device its own one-time secret when it enrolls.
+Fleet now makes it harder for an unknown device to turn on MDM. Before, every Mac, iPhone, and iPad used the same shared secret (a static SCEP challenge) to turn on MDM. Anyone who got that secret could use it to turn on MDM on a device. Now Fleet gives each host its own one-time secret when it turns on MDM.
 
 To shut the shared secret off completely, use the [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) server setting. Manual enrollment profiles stop working when you do.
 
-If a fleet requires end users to sign in with your identity provider (IdP), Fleet now also turns away devices that try to enroll without signing in. Learn more about [rejected automatic enrollments](https://fleetdm.com/guides/setup-experience#rejected-automatic-enrollments). Global admins can also rotate the token in automatic enrollment (ADE) profiles through the API.
+If a fleet requires end users to sign in with your identity provider (IdP), Fleet now also blocks devices from turning on MDM without signing in. Learn more about [rejected automatic enrollments](https://fleetdm.com/guides/setup-experience#rejected-automatic-enrollments). Global admins can also rotate the token in automatic enrollment (ADE) profiles through the API.
 
 GitHub issue: [#51785](https://github.com/fleetdm/fleet/issues/51785)
 
