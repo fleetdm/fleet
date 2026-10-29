@@ -7360,7 +7360,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, fmt.Sprintf("already has %d packages", fleet.MaxPackagesPerTitle))
+	require.ErrorContains(t, err, fmt.Sprintf("already has %d versions", fleet.MaxPackagesPerTitle))
 }
 
 func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {

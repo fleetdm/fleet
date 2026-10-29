@@ -1,1 +1,0 @@
-- Added an hourly cleanup that deletes script results more than 30 days old, configurable with `server.script_results_retention`.

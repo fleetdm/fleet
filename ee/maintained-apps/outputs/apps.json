@@ -4310,7 +4310,7 @@
       "name": "HoudahSpot",
       "slug": "houdahspot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.houdah.HoudahSpot6",
+      "unique_identifier": "com.houdah.HoudahSpot4",
       "description": "HoudahSpot is a file searching application."
     },
     {
@@ -7768,7 +7768,7 @@
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.witt-software.Rocket-Typist-3",
+      "unique_identifier": "com.witt-software.Rocket-Typist-2",
       "description": "Rocket Typist is a text expander for common phrases."
     },
     {
