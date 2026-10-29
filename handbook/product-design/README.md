@@ -39,7 +39,7 @@ The Head of Product Design is responsible for going through the inbox on the [ðŸ
 Once labeled, each Product Designer (PD) reviews the inbox, [unpacks](https://fleetdm.com/handbook/product-design#unpacking-the-why) every new labeled request, and triages it:
 
 - **Meets the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization):** if it contributes to [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or a [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups), add the `~product-maturity` label. Then remove the issue from the intake & outtake board and either prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) for immediate [drafting](https://fleetdm.com/handbook/company/product-groups#drafting) or add it to the [release planning project](https://github.com/orgs/fleetdm/projects/87) for later. Then add the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
-- **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board.
+- **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board and notify the requester.
 
 
 ### Unpacking the why
