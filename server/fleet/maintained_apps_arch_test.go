@@ -57,8 +57,11 @@ func TestMaintainedAppArchFitForHost(t *testing.T) {
 		// A host that hasn't reported its CPU counts as x64.
 		{unknownHost, "slack-arm64/windows", true, MaintainedAppArchIncompatible},
 		{unknownHost, "slack/windows", true, MaintainedAppArchNative},
-		// Arch only applies when the title holds both builds.
-		{x64Host, "slack-arm64/windows", false, MaintainedAppArchNative},
+		// An ARM64 build that's its title's only build still can't run on other hosts.
+		{x64Host, "slack-arm64/windows", false, MaintainedAppArchIncompatible},
+		{unknownHost, "slack-arm64/windows", false, MaintainedAppArchIncompatible},
+		{armHost, "slack-arm64/windows", false, MaintainedAppArchNative},
+		// An x64 build that's its title's only build is what an ARM host gets.
 		{armHost, "slack/windows", false, MaintainedAppArchNative},
 		// Not a Windows FMA.
 		{armHost, "", true, MaintainedAppArchNative},

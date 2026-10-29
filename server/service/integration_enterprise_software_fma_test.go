@@ -3886,3 +3886,71 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppArchSiblings() {
 	require.Equal(t, x64InstallerID, titleResp.SoftwareTitle.Packages[0].InstallerID)
 	require.NotContains(t, patchPolicyQuery(), "cpu_type")
 }
+
+// Firefox's x64 and ARM64 builds report different program names, so each lands on a title of its own.
+func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppArchSiblingsSeparateTitles() {
+	t := s.T()
+	ctx := t.Context()
+
+	startFMAServers(t, s.ds, map[string]*fmaTestState{
+		"/firefox/windows.json":       {version: "150.0", installerBytes: []byte("firefox-x64"), installerPath: "/firefox-x64.msi"},
+		"/firefox-arm64/windows.json": {version: "150.0", installerBytes: []byte("firefox-arm64"), installerPath: "/firefox-arm64.msi"},
+	})
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &teamResp)
+	team := teamResp.Team
+
+	addFMA := func(slug string) uint {
+		var appID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &appID, "SELECT id FROM fleet_maintained_apps WHERE slug = ?", slug)
+		})
+		require.NotZero(t, appID, slug)
+		var resp addFleetMaintainedAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+			&addFleetMaintainedAppRequest{AppID: appID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &resp)
+		require.NotZero(t, resp.SoftwareTitleID)
+		return resp.SoftwareTitleID
+	}
+	x64TitleID, arm64TitleID := addFMA("firefox/windows"), addFMA("firefox-arm64/windows")
+	require.NotEqual(t, x64TitleID, arm64TitleID)
+
+	newHost := func(cpuType string) (*fleet.Host, string) {
+		host := createOrbitEnrolledHost(t, "windows", "-firefox-"+cpuType, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE hosts SET cpu_type = ? WHERE id = ?", cpuType, host.ID)
+			return err
+		})
+		token := uuid.NewString()
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		return host, token
+	}
+	armHost, armToken := newHost("ARM")
+	x64Host, x64Token := newHost("x86_64")
+
+	selfService := func(token string) []uint {
+		var resp getDeviceSoftwareResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		ids := make([]uint, 0, len(resp.Software))
+		for _, sw := range resp.Software {
+			ids = append(ids, sw.ID)
+		}
+		return ids
+	}
+	// Each host is offered the build for its CPU.
+	require.Equal(t, []uint{arm64TitleID}, selfService(armToken))
+	require.Equal(t, []uint{x64TitleID}, selfService(x64Token))
+
+	// The ARM64 build can't be installed on a host that isn't ARM, by an admin or through self-service.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", x64Host.ID, arm64TitleID), installSoftwareRequest{}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "only available for Windows hosts with an ARM CPU")
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", x64Token, arm64TitleID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "only available for Windows hosts with an ARM CPU")
+
+	// An admin can still install either build on an ARM host.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", armHost.ID, arm64TitleID), installSoftwareRequest{}, http.StatusAccepted)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", armHost.ID, x64TitleID), installSoftwareRequest{}, http.StatusAccepted)
+}

@@ -881,16 +881,21 @@ func (ds *Datastore) ResolveFleetMaintainedAppBuildForHost(ctx context.Context, 
 		SiblingSlug               string `db:"sibling_slug"`
 		SiblingInstallDuringSetup bool   `db:"sibling_install_during_setup"`
 	}
+	// The installer's own row comes back even without a sibling on its title, for the lone ARM64 build check below.
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, `
-		SELECT sib.id AS sibling_id, fma.slug, sib_fma.slug AS sibling_slug, sib.install_during_setup AS sibling_install_during_setup
+		SELECT
+			COALESCE(sib.id, 0) AS sibling_id,
+			fma.slug,
+			COALESCE(sib_fma.slug, '') AS sibling_slug,
+			COALESCE(sib.install_during_setup, 0) AS sibling_install_during_setup
 		FROM software_installers si
 		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
-		JOIN software_installers sib
+		LEFT JOIN software_installers sib
 			ON sib.global_or_team_id = si.global_or_team_id
 			AND sib.title_id = si.title_id
 			AND sib.fleet_maintained_app_id != si.fleet_maintained_app_id
 			AND sib.is_active = 1
-		JOIN fleet_maintained_apps sib_fma ON sib_fma.id = sib.fleet_maintained_app_id
+		LEFT JOIN fleet_maintained_apps sib_fma ON sib_fma.id = sib.fleet_maintained_app_id
 		WHERE si.id = ? AND si.platform = 'windows'`, installerID); err != nil {
 		return 0, false, ctxerr.Wrap(ctx, err, "get arch sibling of fleet-maintained app installer")
 	}
@@ -941,6 +946,9 @@ func (ds *Datastore) ResolveFleetMaintainedAppBuildForHost(ctx context.Context, 
 		default:
 			return 0, false, nil
 		}
+	}
+	if len(rows) > 0 && fleet.MaintainedAppArchFitForHost(host, rows[0].Slug, false) == fleet.MaintainedAppArchIncompatible {
+		return 0, false, nil
 	}
 	return installerID, true, nil
 }

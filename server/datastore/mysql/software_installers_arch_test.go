@@ -26,6 +26,7 @@ func TestFleetMaintainedAppArchSiblings(t *testing.T) {
 		{"PatchPolicy", testArchSiblingsPatchPolicy},
 		{"SetupExperience", testArchSiblingsSetupExperience},
 		{"BatchSet", testArchSiblingsBatchSet},
+		{"SeparateTitles", testArchSiblingsSeparateTitles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -207,6 +208,19 @@ func testArchSiblingsVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"2.0", "1.0"}, versions(f.arm64.ID))
 }
 
+// queuedSetupInstallers enqueues the host's setup experience and returns the installers queued for it.
+func queuedSetupInstallers(t *testing.T, ds *Datastore, teamID uint, host *fleet.Host) []uint {
+	ctx := t.Context()
+	_, err := ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host.UUID, teamID)
+	require.NoError(t, err)
+	var ids []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &ids,
+			`SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND software_installer_id IS NOT NULL`, host.UUID)
+	})
+	return ids
+}
+
 func testArchSiblingsRouting(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	f := newArchSiblingsFixture(t, ds)
@@ -386,16 +400,7 @@ func testArchSiblingsSetupExperience(t *testing.T, ds *Datastore) {
 	f := newArchSiblingsFixture(t, ds)
 	x64ID, arm64ID, _ := f.addBoth(t, ds)
 
-	queued := func(host *fleet.Host) []uint {
-		_, err := ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host.UUID, f.team.ID)
-		require.NoError(t, err)
-		var ids []uint
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &ids,
-				`SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND software_installer_id IS NOT NULL`, host.UUID)
-		})
-		return ids
-	}
+	queued := func(host *fleet.Host) []uint { return queuedSetupInstallers(t, ds, f.team.ID, host) }
 	setForSetup := func(x64, arm64 bool) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = (id = ? AND ?) OR (id = ? AND ?) WHERE id IN (?, ?)`,
@@ -527,4 +532,116 @@ func testArchSiblingsBatchSet(t *testing.T, ds *Datastore) {
 		f.installerArgs(f.x64, "chrome-x64-2", "2.0"), f.installerArgs(other, "chromium-1", "1.0"),
 	})
 	require.ErrorContains(t, err, "Only one of Google Chrome or Chromium can be added to the same fleet")
+}
+
+// testArchSiblingsSeparateTitles covers builds whose programs report different names, like Firefox's, so each
+// build is on a title of its own.
+func testArchSiblingsSeparateTitles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newArchSiblingsFixture(t, ds)
+	add := func(name, slug, storage string) (installerID, titleID uint) {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: name, Slug: slug, Platform: "windows", UniqueIdentifier: name})
+		require.NoError(t, err)
+		args := f.installerArgs(app, storage, "150.0")
+		args.Title = name
+		args.UpgradeCode = ""
+		args.SelfService = true
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, args)
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+	x64ID, x64TitleID := add("Mozilla Firefox (x64 en-US)", "firefox/windows", "firefox-x64")
+	arm64ID, arm64TitleID := add("Mozilla Firefox (ARM64 en-US)", "firefox-arm64/windows", "firefox-arm64")
+	require.NotEqual(t, x64TitleID, arm64TitleID)
+	titleIDs := []uint{x64TitleID, arm64TitleID}
+
+	armHost := newWindowsHostWithCPU(t, ds, f.team.ID, "ARM")
+	x64Host := newWindowsHostWithCPU(t, ds, f.team.ID, "x86_64")
+	unknownHost := newWindowsHostWithCPU(t, ds, f.team.ID, "")
+
+	// The ARM64 build is out of scope on hosts that aren't ARM, even on a title of its own. The admin's list
+	// for an ARM host offers both builds.
+	inScope := func(host *fleet.Host) []uint {
+		_, scoped, err := ds.resolveFirstAddedInstallersForHost(ctx, host, titleIDs)
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(scoped))
+		for id := range scoped {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	require.Equal(t, []uint{x64TitleID}, inScope(x64Host))
+	require.Equal(t, []uint{x64TitleID}, inScope(unknownHost))
+	require.ElementsMatch(t, titleIDs, inScope(armHost))
+
+	// Policy automations never send it there either.
+	for _, host := range []*fleet.Host{x64Host, unknownHost} {
+		_, ok, err := ds.ResolveFleetMaintainedAppBuildForHost(ctx, arm64ID, host, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		require.False(t, ok, "cpu_type %q", host.CPUType)
+	}
+	for _, installerID := range []uint{x64ID, arm64ID} {
+		id, ok, err := ds.ResolveFleetMaintainedAppBuildForHost(ctx, installerID, armHost, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, installerID, id)
+	}
+
+	// Self-service, and install all, offer an ARM host one build: the one installed, or else the ARM64 build.
+	selfService := func(host *fleet.Host) []uint {
+		software, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			SelfServiceOnly: true, IncludeAvailableForInstall: true, ListOptions: fleet.ListOptions{PerPage: 10},
+		})
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(software))
+		for _, s := range software {
+			ids = append(ids, s.ID)
+		}
+		return ids
+	}
+	installAll := func(host *fleet.Host) []uint {
+		software, _, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil, "")
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(software))
+		for _, s := range software {
+			ids = append(ids, s.ID)
+		}
+		return ids
+	}
+	require.Equal(t, []uint{arm64TitleID}, selfService(armHost))
+	require.Equal(t, []uint{arm64TitleID}, installAll(armHost))
+	require.Equal(t, []uint{x64TitleID}, selfService(x64Host))
+	require.Equal(t, []uint{x64TitleID}, installAll(x64Host))
+	require.Equal(t, []uint{x64TitleID}, selfService(unknownHost))
+
+	markInstalled := func(host *fleet.Host, titleID uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO software (name, source, version, title_id, checksum)
+				SELECT name, source, '150.0', id, UNHEX(MD5(CONCAT(name, ?))) FROM software_titles WHERE id = ?`, host.ID, titleID)
+			if err != nil {
+				return err
+			}
+			softwareID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host.ID, softwareID)
+			return err
+		})
+	}
+	markInstalled(armHost, x64TitleID)
+	require.Equal(t, []uint{x64TitleID}, selfService(armHost))
+	markInstalled(armHost, arm64TitleID)
+	require.ElementsMatch(t, titleIDs, selfService(armHost))
+
+	// Setup experience skips the ARM64 build on a host known not to be ARM. One that hasn't reported its CPU
+	// yet may be ARM.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, arm64ID)
+		return err
+	})
+	require.Equal(t, []uint{arm64ID}, queuedSetupInstallers(t, ds, f.team.ID, armHost))
+	require.Empty(t, queuedSetupInstallers(t, ds, f.team.ID, x64Host))
+	require.Equal(t, []uint{arm64ID}, queuedSetupInstallers(t, ds, f.team.ID, unknownHost))
 }

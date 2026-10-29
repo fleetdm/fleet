@@ -3486,8 +3486,8 @@ type Datastore interface {
 	// When installerID is a build of a Windows Fleet-maintained app whose title also holds the other build
 	// (x64 or ARM64) in the same fleet, that's the active installer of the build for the host's CPU, if the
 	// host is in its label scope (or, with opts.ForSetupExperience, it's selected for setup experience). ok
-	// is false when the host can't run any such build (an ARM64 build on a host that isn't ARM). Otherwise
-	// it returns installerID.
+	// is false when the host can't run any such build: an ARM64 build on a host that isn't ARM, whether or
+	// not its title holds the x64 build. Otherwise it returns installerID.
 	ResolveFleetMaintainedAppBuildForHost(ctx context.Context, installerID uint, host *Host, opts HostSoftwareInstallOptions) (resolvedID uint, ok bool, err error)
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already

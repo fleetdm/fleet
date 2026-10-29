@@ -4425,6 +4425,7 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 type resolvedInstaller struct {
 	ID          uint
 	SelfService bool
+	FMASlug     string
 }
 
 // resolveFirstAddedInstallersForHost resolves, for each of the given titles, the package to display
@@ -4599,9 +4600,9 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		return nil, nil, ctxerr.Wrap(ctx, err, "select scoped installers for host")
 	}
 
-	// A title holding the x64 and ARM64 builds of a Windows Fleet-maintained app routes each host to the
-	// build for its CPU: the ARM64 build is out of scope on other hosts, and the x64 build ranks below the
-	// ARM64 build on ARM hosts, where it runs under emulation.
+	// An ARM64 build of a Windows Fleet-maintained app is out of scope on hosts that aren't ARM. A title
+	// holding both builds routes each host to the build for its CPU: the x64 build ranks below the ARM64
+	// build on ARM hosts, where it runs under emulation.
 	fmaSlugsByTitle := make(map[uint]map[string]struct{})
 	for _, r := range rows {
 		if r.FMASlug == "" {
@@ -4630,7 +4631,7 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 		compat := r.Platform == hostPlatform || ((r.Extension == "sh" || r.Extension == "py") && r.Platform == "linux" && fleet.IsUnixLike(host.Platform))
 		compat = compat && archFit != fleet.MaintainedAppArchIncompatible
 		rowInScope := r.InScope && archFit != fleet.MaintainedAppArchIncompatible
-		pkg := resolvedInstaller{ID: r.InstallerID, SelfService: r.SelfService}
+		pkg := resolvedInstaller{ID: r.InstallerID, SelfService: r.SelfService, FMASlug: r.FMASlug}
 		c := byTitle[r.TitleID]
 		if c == nil {
 			c = &candidate{}
@@ -5821,6 +5822,42 @@ func filterSelfServiceOutOfScopeHostSoftware(
 				// remove the software title from byInHouseID
 				delete(byInHouseID, inHouseID)
 			}
+		}
+	}
+}
+
+// filterSelfServiceArchSiblingTitles keeps one build of a Windows Fleet-maintained app in an ARM host's self-service
+// list when its x64 and ARM64 builds are on separate titles, because their programs report different names or upgrade
+// codes. Installing the other build would add a second copy of the app, so the list keeps the build that's installed,
+// or the ARM64 build when neither is (both, when both are). Callers apply this only when opts.SelfServiceOnly is set.
+// Maps are mutated in place.
+func filterSelfServiceArchSiblingTitles(
+	filteredBySoftwareTitleID map[uint]*hostSoftware,
+	resolvedInstallers map[uint]resolvedInstaller,
+	hostInstalledSoftwareTitleSet map[uint]struct{},
+) {
+	titleBySlug := make(map[string]uint)
+	for titleID := range filteredBySoftwareTitleID {
+		if r, ok := resolvedInstallers[titleID]; ok && r.SelfService && r.FMASlug != "" {
+			titleBySlug[r.FMASlug] = titleID
+		}
+	}
+	for slug, x64TitleID := range titleBySlug {
+		if fleet.MaintainedAppSlugIsARM64(slug) {
+			continue
+		}
+		arm64TitleID, ok := titleBySlug[fleet.MaintainedAppArchSiblingSlug(slug)]
+		if !ok || arm64TitleID == x64TitleID {
+			continue
+		}
+		_, x64Installed := hostInstalledSoftwareTitleSet[x64TitleID]
+		_, arm64Installed := hostInstalledSoftwareTitleSet[arm64TitleID]
+		switch {
+		case x64Installed && arm64Installed:
+		case x64Installed:
+			delete(filteredBySoftwareTitleID, arm64TitleID)
+		default:
+			delete(filteredBySoftwareTitleID, x64TitleID)
 		}
 	}
 }
@@ -7031,6 +7068,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	applyResolvedInstallerStatus(filteredBySoftwareTitleID, installDataByTitleInstaller, resolvedInstallers)
+	if opts.SelfServiceOnly && host.IsWindowsARM() {
+		filterSelfServiceArchSiblingTitles(filteredBySoftwareTitleID, resolvedInstallers, hostInstalledSoftwareTitleSet)
+	}
 
 	// filter out VPP apps due to label scoping
 	filteredByVPPAdamID, otherVppAppsInInventory := filterVPPAppsByLabel(

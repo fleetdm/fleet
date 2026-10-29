@@ -67,7 +67,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 
 	// Picks between the x64 and ARM64 builds of a Windows Fleet-maintained app on one title. A host that
 	// hasn't reported its CPU yet counts as x64.
-	var hostIsWindowsARM bool
+	var hostIsWindowsARM, hostReportedCPU bool
 
 	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
 		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
@@ -101,6 +101,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		}
 		lastEnrolledAt := hostRow.LastEnrolledAt
 		hostIsWindowsARM = (&fleet.Host{Platform: hostPlatform, CPUType: hostRow.CPUType}).IsWindowsARM()
+		hostReportedCPU = hostRow.CPUType != ""
 		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
@@ -242,15 +243,19 @@ LEFT JOIN software_title_display_names stdn
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND si.is_active = TRUE
--- an ARM64 build can't run on other hosts, which get its x64 build when the title holds it
+-- an ARM64 build can't run on other hosts, which get its x64 build when the title holds it. A lone ARM64 build
+-- is still queued for a host that hasn't reported its CPU yet, which may be ARM.
 AND NOT (
 	? = FALSE
 	AND COALESCE(fma.slug, '') LIKE '%%-arm64/windows'
-	AND EXISTS (
-		SELECT 1 FROM software_installers sib
-		JOIN fleet_maintained_apps sib_fma ON sib_fma.id = sib.fleet_maintained_app_id
-		WHERE sib.global_or_team_id = si.global_or_team_id AND sib.title_id = si.title_id AND sib.is_active = 1
-			AND sib_fma.slug = REPLACE(fma.slug, '-arm64/windows', '/windows')
+	AND (
+		? = TRUE
+		OR EXISTS (
+			SELECT 1 FROM software_installers sib
+			JOIN fleet_maintained_apps sib_fma ON sib_fma.id = sib.fleet_maintained_app_id
+			WHERE sib.global_or_team_id = si.global_or_team_id AND sib.title_id = si.title_id AND sib.is_active = 1
+				AND sib_fma.slug = REPLACE(fma.slug, '-arm64/windows', '/windows')
+		)
 	)
 )
 AND (
@@ -289,8 +294,9 @@ AND %s`
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
 		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), arch_rank, stdn.team_id, global_or_team_id,
-		// ARM64 build check, si.platform, deb-distro check, rpm-distro check.
-		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, hostIsWindowsARM, teamID, teamID, hostIsWindowsARM, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		// ARM64 build checks (2), si.platform, deb-distro check, rpm-distro check.
+		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, hostIsWindowsARM, teamID, teamID, hostIsWindowsARM, hostReportedCPU,
+			fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
 		}

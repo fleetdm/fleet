@@ -2569,6 +2569,21 @@ func TestResolveFirstAddedInScopeInstallerArchSiblings(t *testing.T) {
 			require.Equal(t, want, build.InstallerID, "cpu_type %q", cpuType)
 		}
 	}
+
+	// An ARM64 build on a title of its own still can't go to a host that isn't ARM, and the error says why.
+	outOfScope = map[uint]struct{}{}
+	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
+		return []*fleet.SoftwareInstaller{arm64}, nil
+	}
+	require.Equal(t, arm64.InstallerID, resolve("ARM"))
+	for _, cpuType := range []string{"x86_64", ""} {
+		installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(t.Context(), &fleet.Host{ID: 1, Platform: "windows", CPUType: cpuType}, 5, false)
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, "ARM CPU")
+		require.True(t, anyPackages)
+		require.Nil(t, installer)
+	}
 }
 
 func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {

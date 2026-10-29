@@ -1736,8 +1736,8 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 	}
 	anyPackages = len(pkgs) > 0
 
-	// A title holding the x64 and ARM64 builds of a Windows Fleet-maintained app routes the host to the
-	// build for its CPU (see fleet.MaintainedAppArchFitForHost).
+	// An ARM64 build of a Windows Fleet-maintained app can't run on a host that isn't ARM, and a title
+	// holding both builds routes the host to the build for its CPU (see fleet.MaintainedAppArchFitForHost).
 	fmaSlugs := make(map[string]struct{}, len(pkgs))
 	for _, pkg := range pkgs {
 		if pkg.FleetMaintainedAppSlug != "" {
@@ -1751,6 +1751,7 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 	// with no compatible package still hits the downstream platform error (matching single-package
 	// behavior).
 	var emulated, fallback *fleet.SoftwareInstaller
+	var anyIncompatible, anyArchFit bool
 	for _, pkg := range pkgs {
 		if requireSelfService && !pkg.SelfService {
 			continue
@@ -1758,8 +1759,10 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 		_, hasArchSibling := fmaSlugs[fleet.MaintainedAppArchSiblingSlug(pkg.FleetMaintainedAppSlug)]
 		archFit := fleet.MaintainedAppArchFitForHost(host, pkg.FleetMaintainedAppSlug, hasArchSibling)
 		if archFit == fleet.MaintainedAppArchIncompatible {
+			anyIncompatible = true
 			continue
 		}
+		anyArchFit = true
 		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, pkg.InstallerID, host.ID)
 		if err != nil {
 			return nil, anyPackages, ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
@@ -1784,6 +1787,9 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 
 	if emulated != nil {
 		return emulated, anyPackages, nil
+	}
+	if anyIncompatible && !anyArchFit {
+		return nil, anyPackages, &fleet.BadRequestError{Message: "Software title is only available for Windows hosts with an ARM CPU."}
 	}
 	return fallback, anyPackages, nil
 }

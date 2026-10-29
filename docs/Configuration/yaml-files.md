@@ -907,7 +907,7 @@ Fleet-maintained apps support `path:` (single file) and `paths:` (glob pattern) 
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a fleet. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Some Windows apps have a separate ARM64 build whose slug ends in `-arm64` (for example, `google-chrome-arm64/windows`). You can add both builds to a fleet. Each host gets the build for its CPU, and each build keeps its own labels and `version`.
+Some Windows apps have a separate ARM64 build whose slug ends in `-arm64` (for example, `google-chrome-arm64/windows`). You can add both builds to a fleet. Each host gets the build for its CPU, and each build keeps its own labels and `version`. An ARM64 build is never offered to, or installed on, a host that isn't ARM. Some apps' builds show up as two software titles (for example, `firefox/windows` and `firefox-arm64/windows`); self-service on an ARM host then lists one of them: the build that's installed, or the ARM64 build if neither is.
 
 By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 

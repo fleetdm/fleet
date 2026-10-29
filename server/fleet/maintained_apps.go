@@ -80,18 +80,21 @@ const (
 	MaintainedAppArchIncompatible
 )
 
-// MaintainedAppArchFitForHost returns how the build with the given slug fits the host. Arch only
-// applies when the title also holds the build's sibling (hasArchSibling); otherwise the package is the
-// title's only build and is treated as native, as before siblings could share a title.
+// MaintainedAppArchFitForHost returns how the build with the given slug fits the host. An ARM64 build
+// never fits a host that isn't ARM, including one that hasn't reported its CPU yet. An x64 build only
+// ranks as emulated when the title also holds its ARM64 sibling (hasArchSibling); as the title's only
+// build it's what an ARM host gets.
 func MaintainedAppArchFitForHost(host *Host, slug string, hasArchSibling bool) MaintainedAppArchFit {
-	if !hasArchSibling || MaintainedAppArchSiblingSlug(slug) == "" {
+	if MaintainedAppArchSiblingSlug(slug) == "" {
 		return MaintainedAppArchNative
 	}
 	switch isARMBuild, isARMHost := MaintainedAppSlugIsARM64(slug), host.IsWindowsARM(); {
 	case isARMBuild == isARMHost:
 		return MaintainedAppArchNative
-	case isARMHost:
+	case isARMHost && hasArchSibling:
 		return MaintainedAppArchEmulated
+	case isARMHost:
+		return MaintainedAppArchNative
 	default:
 		return MaintainedAppArchIncompatible
 	}
