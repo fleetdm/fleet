@@ -65,6 +65,7 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 			d.PolicyVersion = 0
 		} else if d.PolicyName != "" {
 			store.raisePolicyVersionCounter(d.PolicyVersion)
+			store.notePolicyRestored(d.PolicyName)
 		}
 
 		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
@@ -327,6 +328,16 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 		// policyID strips the action suffix, without which the device lookup in
 		// extractAndStoreCertTemplateIDs never matches.
 		hostUUID := policyID(r)
+
+		// Only a simulated device's policy is checked: a real device's policy can be created
+		// through Google, which this process doesn't track.
+		if store.requirePolicies && store.getByESID(hostUUID) != nil && !store.policyExists(name) {
+			// The body Fleet sees from AMAPI, through the fleetdm.com proxy, for a policy that
+			// doesn't exist.
+			log.Printf("Policy action on missing policy %q", name) // #nosec G706 -- load testing tool
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 
 		// Try to extract cert template IDs from the request body
 		var bodyBytes []byte

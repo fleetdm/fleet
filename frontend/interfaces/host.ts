@@ -568,6 +568,9 @@ export interface IHost {
   end_users?: IHostEndUser[];
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
+  /** The host's device ID in Google. Only returned for iOS, iPadOS, and
+   * Android hosts, and "" until it's set. */
+  google_device_id?: string;
   mdm_enrollment_hardware_attested?: boolean;
   dep_assigned_to_fleet: boolean;
   /** The OS version this host is required to reach. Null when OS updates

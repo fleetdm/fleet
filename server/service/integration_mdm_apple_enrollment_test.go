@@ -1616,7 +1616,7 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		apple_mdm.SetMachineInfoVerificationForTest(t, false)
 		// the request proceeds past signature verification and fails later on
 		// the unknown enrollment token instead
-		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusUnauthorized)
+		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusForbidden)
 		require.NoError(t, res.Body.Close())
 	})
 }

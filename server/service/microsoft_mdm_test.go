@@ -4165,3 +4165,29 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPendingMDMCmdsSkipsHostSecretFromCustomVariable(t *testing.T) {
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{
+			{CommandUUID: "aliased", RawCommand: []byte(
+				`<Replace><CmdID>aliased</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>$FLEET_SECRET_ALIAS</Data></Item></Replace>`)},
+			{CommandUUID: "good", RawCommand: []byte(
+				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
+		}, nil
+	}
+	// a custom variable whose value is a host-secret placeholder
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)), nil
+	}
+	ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+		return "one-time-secret", nil
+	}
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, "good", cmds[0].CmdID.Value)
+	require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
+}

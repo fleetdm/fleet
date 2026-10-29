@@ -6371,7 +6371,7 @@ func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScop
 	}
 	scopeEntry := ""
 	if scope != nil {
-		scopeEntry = fmt.Sprintf(`\n<key>PayloadScope</key>\n<string>%s</string>`, string(*scope))
+		scopeEntry = fmt.Sprintf("\n<key>PayloadScope</key>\n<string>%s</string>", string(*scope))
 	}
 
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -10847,8 +10847,10 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 	}
 	requireAuthFailed := func(t *testing.T, err error) {
 		t.Helper()
-		var authErr *fleet.AuthFailedError
-		require.ErrorAs(t, err, &authErr)
+		var refusedErr *fleet.AutomaticEnrollmentRefusedError
+		require.ErrorAs(t, err, &refusedErr)
+		require.Equal(t, http.StatusForbidden, refusedErr.StatusCode())
+		require.NotEmpty(t, refusedErr.Internal())
 	}
 
 	t.Run("unknown token fails before any serial lookup", func(t *testing.T) {

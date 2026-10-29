@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -288,9 +289,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, true, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, varNames, teamName, err := svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	cp, varNames, teamName, err := svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	cp.Description = description
 	cp.SelfService, cp.Hidden = selfService, hidden
@@ -337,7 +342,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 // and the original unexpanded Mobileconfig set), the Fleet variable names it
 // uses, and the team's name (empty string for no team). An empty name means
 // the profile is named after its PayloadDisplayName.
-func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, validation *profilevalidation.Mode) (*fleet.MDMAppleConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Apple MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just Windows
 	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -421,6 +426,9 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 	}
 	if err := fleet.ValidateMDMProfileName(cp.Name); err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.validateProfileSchema(ctx, profileSchemaAppleProfile, []byte(expanded), validation, cp.Name, teamID); err != nil {
+		return nil, nil, "", err
 	}
 
 	// Save the original unexpanded profile
@@ -1016,9 +1024,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	d.Description = description
 	d.Hidden = hidden
@@ -1062,7 +1074,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 // and update paths. It returns the constructed declaration (DeclarationUUID
 // not yet set), the Fleet variable names it references, and the team's name
 // (empty string for no team).
-func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, validation *profilevalidation.Mode) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
 	// Get license for team lookup and variable validation
 	lic, _ := license.FromContext(ctx)
 
@@ -1133,6 +1145,9 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 	}
 
 	if err := rawDecl.ValidateScope(); err != nil {
+		return nil, nil, "", err
+	}
+	if err := svc.validateProfileSchema(ctx, profileSchemaAppleDeclaration, []byte(dataWithSecrets), validation, name, teamID); err != nil {
 		return nil, nil, "", err
 	}
 
@@ -1233,9 +1248,15 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		varNames []fleet.FleetVarName
 	)
 	if len(profile) > 0 {
-		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.RawJSON) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 		if decl.Identifier != existing.Identifier {
 			return fleet.NewInvalidArgumentError("profile",
@@ -2009,9 +2030,15 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 	var cp *fleet.MDMAppleConfigProfile
 	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, varNames, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.Mobileconfig) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		cp, varNames, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 		if cp.Identifier != existing.Identifier {
 			return fleet.NewInvalidArgumentError("profile",
@@ -2991,10 +3018,11 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	}
 
 	defer func() {
-		if _, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
+		if authErr, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
 			// Every refusal looks the same to the device, so the server log is
 			// the only place to tell which device was refused and why.
 			logging.WithExtras(ctx, "serial", machineInfo.Serial, "udid", machineInfo.UDID, "product", machineInfo.Product)
+			err = &fleet.AutomaticEnrollmentRefusedError{Reason: authErr.Internal()}
 		}
 	}()
 
@@ -3887,6 +3915,20 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+	// only new or changed profiles are validated, matched by identifier
+	var schema *profilevalidation.ProfileValidationSchema
+	var stored *fleet.MDMProfileChecksums
+	if appCfg.MDM.EnableProfileValidation {
+		schema = currentProfileValidationSchema()
+		if stored, err = svc.ds.GetMDMProfileChecksums(ctx, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get stored profile checksums")
+		}
+	}
+
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
@@ -3939,6 +3981,18 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(
 					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch",
 				))
+		}
+
+		sum := md5.Sum(prof) //nolint:gosec // content comparison, not security
+		if stored != nil && !bytes.Equal(stored.AppleByIdentifier[strings.ToLower(mdmProf.Identifier)], sum[:]) {
+			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
+			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
+					profileValidationBatchMessage(mdmProf.Name, pvErr.findings[0], pvErr.windows)))
+			}
+			if err != nil {
+				return err
+			}
 		}
 
 		// Store original unexpanded profile

@@ -515,6 +515,11 @@ type Service interface {
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	DeleteHostIDP(ctx context.Context, id uint) error
+	// SetHostGoogleDeviceID binds an iOS, iPadOS or Android host to its device ID in Google. A different
+	// value than the stored one, or one bound to another host, is refused with a 409. Only
+	// DeleteHostGoogleDeviceID removes it.
+	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
+	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -1204,6 +1209,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
 
+	// VerifyMCPAvailable verifies that Fleet's embedded MCP server is turned on
+	// (server_settings.mcp_disabled) and licensed. If an error is returned,
+	// authorization is skipped so it can run before authentication.
+	VerifyMCPAvailable(ctx context.Context) error
+
 	// VerifyMDMAndroidConfigured verifies that the server is configured for
 	// Android MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -1409,7 +1419,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -193,23 +194,37 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 		DeliveryNotes: generated.DeliveryNotes,
 	}
 	data := []byte(generated.Profile)
+	// Generated output is always checked strictly, regardless of the setting, and
+	// never leniently, so the toggle hint can't appear.
+	strict := new(profilevalidation.ModeStrict)
 	switch {
 	case generated.ProfileType == "mobileconfig" && platform == fleet.AutofillConfigProfilePlatformApple:
 		result.Type = fleet.AutofillConfigProfileTypeMobileconfig
 		var cp *fleet.MDMAppleConfigProfile
-		cp, _, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil)
+		cp, _, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil, strict)
 		if err == nil {
 			result.Name = &cp.Name
 		}
 	case generated.ProfileType == "ddm" && platform == fleet.AutofillConfigProfilePlatformApple:
 		result.Type = fleet.AutofillConfigProfileTypeDeclaration
-		_, _, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil)
+		_, _, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, "", data, nil, fleet.LabelsIncludeAll, nil, strict)
 	case generated.ProfileType == "csp" && platform == fleet.AutofillConfigProfilePlatformWindows:
 		result.Type = fleet.AutofillConfigProfileTypeWindows
-		_, _, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, autofillWindowsProfileCheckName, data, nil, fleet.LabelsIncludeAll, nil, "Couldn't add. ")
+		_, _, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, autofillWindowsProfileCheckName, data, nil, fleet.LabelsIncludeAll, nil, "Couldn't add. ", strict)
 	default:
 		return nil, autofillUnreadableError(ctx, fleet.AutofillConfigProfileContentErrorMessage,
 			errors.New("unexpected profile type "+generated.ProfileType+" for platform "+platform))
+	}
+	if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
+		// "base" like an AI service failure: the model wrote the bad profile, so the
+		// decline banner under natural_language_instructions would blame the admin.
+		reasons := pvErr.sentences()
+		return nil, ctxerr.Wrap(ctx, &fleet.AutofillConfigProfileError{
+			Message:     fleet.AutofillConfigProfileContentErrorMessage,
+			Field:       "base",
+			Reason:      reasons[0],
+			MoreReasons: reasons[1:],
+		}, "generated profile failed schema validation")
 	}
 	if err != nil {
 		return nil, autofillCheckError(ctx, err)

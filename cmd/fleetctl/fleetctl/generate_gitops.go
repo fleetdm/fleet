@@ -1700,6 +1700,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if teamId == nil || *teamId == 0 {
 		mdmT := reflect.TypeFor[fleet.MDM]()
+		// Every tier: omitting it means true, so a Free export must carry a false.
+		result[jsonFieldName(mdmT, "EnableProfileValidation")] = cmd.AppConfig.MDM.EnableProfileValidation
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
 		}
