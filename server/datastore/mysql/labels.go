@@ -31,6 +31,7 @@ var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"author_id":             "l.author_id",
 	"criteria":              "l.criteria",
 	"team_id":               "l.team_id",
+	"fleet_id":              "l.team_id",
 
 	// dependent on include_host_counts being set on request
 	// (checked on transport layer).
@@ -1186,6 +1187,7 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"refetch_requested":              "h.refetch_requested",
 	"refetch_critical_queries_until": "h.refetch_critical_queries_until",
 	"team_id":                        "h.team_id",
+	"fleet_id":                       "h.team_id",
 	"policy_updated_at":              "h.policy_updated_at",
 	"public_ip":                      "h.public_ip",
 
@@ -1203,7 +1205,8 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"timezone":          "h.timezone",
 	// must match SELECT clause subquery so cursor pagination (WHERE) and
 	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
-	"team_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"team_name":  "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"fleet_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent

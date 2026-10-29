@@ -34,3 +34,18 @@ func TestTargetTypeJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTargetTypeFleet(t *testing.T) {
+	for _, s := range []string{"team", "fleet"} {
+		got, err := fleet.ParseTargetType(s)
+		require.NoError(t, err, s)
+		assert.Equal(t, fleet.TargetTeam, got, s)
+	}
+
+	var target fleet.TargetType
+	require.NoError(t, json.Unmarshal([]byte(`"fleet"`), &target))
+	assert.Equal(t, fleet.TargetTeam, target)
+
+	_, err := fleet.ParseTargetType("fleets")
+	require.Error(t, err)
+}
