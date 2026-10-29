@@ -44,18 +44,20 @@ Once labeled, each Product Designer (PD) reviews the inbox, [unpacks](https://fl
 
 ### Unpacking the why
 
-A request is unpacked when the top of the GitHub issue description includes:
+A request is unpacked when the top of the GitHub issue description includes these three lines, each starting with the GitHub username of the person who wrote it:
 
-- **Problem ("the why"):** What the user is trying to accomplish and why Fleet doesn't solve it today.
-- **Proposed solution:** How Fleet would solve it, including any workaround available today. If there's no proposed solution, write "No plans."
-- **Timing:** When we expect to ship it (e.g., a release, a quarter, or a customer promise date). If there's no timing, write "No plans."
+- _User requested this because_: What the user is trying to accomplish and why Fleet doesn't solve it today.
+- _In the interim_: The workaround available today. If there's no workaround, write "No workaround."
+- _Eventually_: How Fleet would solve it and when we expect to ship it (e.g., a release, a quarter, or a customer promise date). If there's no plan, write "No plans."
+
+The Product Designer (PD) decides who writes each line. If the PD understands the why, they can unpack the request themselves.
 
 Example:
 
 ```
-**Problem:** IT admins want to preserve the iOS/iPadOS data plan when wiping a device so the device stays connected after the wipe (available in Jamf).
-**Proposed solution:** Add a `PreserveDataPlan` option to the wipe action in the UI and API. Workaround today: send a custom MDM command.
-**Timing:** No plans.
+- @username: _User requested this because_ IT admins want to preserve the iOS/iPadOS data plan when wiping a device so the device stays connected after the wipe (available in Jamf).
+  - @username: _In the interim_ send a custom MDM command.
+  - @username: _Eventually_ No plans.
 ```
 
 Every new request goes through unpacking. PDs don't have to wait for the weekly "Unpacking the why" call. They can unpack a request as soon as they [triage](https://fleetdm.com/handbook/product-design#triage-new-requests) it. During the call, the relevant product group's Product Designer (PD) and a former IT admin review requests that aren't unpacked yet to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.

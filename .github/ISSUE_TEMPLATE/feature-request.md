@@ -19,11 +19,12 @@ Community members can ignore this section.
 
 If you're a Fleetie and filling out this request on behalf of a Fleet customer, please uncomment this section, add the Gong snippet, and remove the above "Screenshots..." section.
 
-Leave the problem, proposed solution, and timing TODOs for Product Designers to fill out during unpacking: https://fleetdm.com/handbook/product-design#unpacking-the-why
+Leave the TODOs below the Gong snippet for Product Designers to fill out during unpacking: https://fleetdm.com/handbook/product-design#unpacking-the-why
 
 - [ ] Gong snippet: TODO
-- [ ] Problem: TODO
-- [ ] Proposed solution: TODO
-- [ ] Timing: TODO
+
+- @username: _User requested this because_ TODO
+  - @username: _In the interim_ TODO
+  - @username: _Eventually_ TODO
 
 -->
