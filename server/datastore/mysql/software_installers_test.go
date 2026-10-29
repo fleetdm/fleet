@@ -5543,8 +5543,8 @@ func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
 }
 
 // The x64 and ARM64 Chrome MSIs share an upgrade code, so the two FMAs land on one title
-// when added to different fleets. The title keeps the first FMA's name instead of being
-// renamed on every add.
+// when added to different fleets. The title takes the x64 FMA's name whichever is added
+// first, instead of being renamed on every add.
 func testSharedUpgradeCodeFMATitleName(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -5608,6 +5608,15 @@ func testSharedUpgradeCodeFMATitleName(t *testing.T, ds *Datastore) {
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-later", "158.0.8200.1"))
 	require.NoError(t, err)
 	require.Equal(t, "Google Chrome (ARM64)", titleName(titleID))
+
+	// Adding the x64 FMA after the ARM64 one takes the name back, and it stays.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamX64.ID, chrome, "chrome-x64-later", "158.0.8200.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-latest", "159.0.8300.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
 }
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {

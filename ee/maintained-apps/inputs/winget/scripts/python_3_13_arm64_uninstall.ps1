@@ -121,20 +121,27 @@ try {
         if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
     }
 
-    # --- Remove the bundle. With its components gone its own uninstall is quick;
-    # if a registration lingers, delete the orphaned key so detection clears. ---
-    foreach ($e in (Get-PythonEntries -Roots $roots | Where-Object { $_.DisplayName -match $bundleNamePattern })) {
+    # --- Remove the bundle. With its components gone its own uninstall is quick.
+    # A registration left behind with no components is orphaned (its cached EXE
+    # is gone, or it outlived a successful uninstall), so delete it to clear
+    # detection. After a failed uninstall, keep it so detection and a retry see it. ---
+    foreach ($e in @(Get-PythonEntries -Roots $roots | Where-Object { $_.DisplayName -match $bundleNamePattern })) {
         $command = if ($e.QuietUninstall) { $e.QuietUninstall } else { $e.Uninstall }
         $exe = if ($command) { Get-ExePath $command } else { $null }
+        $bundleFailed = $false
         if ($exe -and (Test-Path -LiteralPath $exe)) {
             Write-Host "Uninstalling bundle: '$($e.DisplayName)' via $exe"
-            $p = Start-Process -FilePath $exe -ArgumentList "/uninstall /quiet /norestart" -PassThru -Wait
+            $p = Start-Process -FilePath $exe -ArgumentList "/uninstall /quiet /norestart" -PassThru -Wait -ErrorAction Stop
             Write-Host "  Exit code: $($p.ExitCode)"
-            if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
+            if ($ExpectedExitCodes -notcontains $p.ExitCode) {
+                $bundleFailed = $true
+                if ($exitCode -eq 0) { $exitCode = $p.ExitCode }
+            }
         }
+        $componentsLeft = @(Get-PythonEntries -Roots $roots | Where-Object { $_.DisplayName -notmatch $bundleNamePattern }).Count -gt 0
         $still = Get-ItemProperty $e.KeyPath -ErrorAction SilentlyContinue
-        if ($still -and $still.DisplayName) {
-            Write-Host "Removing leftover bundle registration: '$($e.DisplayName)'"
+        if ($still -and $still.DisplayName -and -not $bundleFailed -and -not $componentsLeft) {
+            Write-Host "Removing orphaned bundle registration: '$($e.DisplayName)'"
             Remove-Item -Path $e.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
         }
     }

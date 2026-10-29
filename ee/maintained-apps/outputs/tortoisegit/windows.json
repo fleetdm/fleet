@@ -3,9 +3,9 @@
     {
       "version": "2.19.1.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND version_compare(version, '2.19.1.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tortoisegit.exe');"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND upgrade_code = '{F46D0E11-F71A-48A0-8A7B-FD8669B5080C}';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND upgrade_code = '{F46D0E11-F71A-48A0-8A7B-FD8669B5080C}' AND version_compare(version, '2.19.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'tortoisegit%');"
       },
       "installer_url": "https://download.tortoisegit.org/tgit/2.19.0.0/TortoiseGit-2.19.1.0-64bit.msi",
       "install_script_ref": "22e48c46",

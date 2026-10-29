@@ -3,9 +3,9 @@
     {
       "version": "2.19.1.0",
       "queries": {
-        "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND version_compare(version, '2.19.1.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tortoisegit.exe');"
+        "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND upgrade_code = '{30C990FF-5B18-4DA6-9881-64DDC0093FA3}') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND upgrade_code = '{30C990FF-5B18-4DA6-9881-64DDC0093FA3}' AND version_compare(version, '2.19.1.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'tortoisegit%');"
       },
       "installer_url": "https://download.tortoisegit.org/tgit/2.19.0.0/TortoiseGit-2.19.1.0-arm64.msi",
       "install_script_ref": "22e48c46",

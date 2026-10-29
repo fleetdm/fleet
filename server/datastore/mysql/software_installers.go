@@ -591,9 +591,10 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		// Name the title after a Windows FMA with an upgrade code. We already update software titles with
 		// macOS FMA names on FMA catalog sync, so we only do Windows here.
 		renameToFMA := payload.FleetMaintainedAppID != nil && current.Name != payload.Title
-		if renameToFMA {
+		if renameToFMA && strings.HasSuffix(payload.Title, " (ARM64)") {
 			// The x64 and ARM64 builds of an MSI can share an upgrade code, putting two FMAs (in different
-			// fleets) on one title. The first keeps its name; renaming on every add would flip it back and forth.
+			// fleets) on one title. The x64 name wins regardless of add order, since x64 hosts' inventory
+			// lands on the same title; renaming on every add would flip it back and forth.
 			var otherFMAOwnsTitle bool
 			if err := sqlx.GetContext(ctx, tx, &otherFMAOwnsTitle,
 				`SELECT EXISTS (SELECT 1 FROM software_installers WHERE title_id = ? AND fleet_maintained_app_id != ?)`,
