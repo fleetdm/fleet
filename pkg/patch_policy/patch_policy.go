@@ -163,7 +163,8 @@ func GenerateFromInstallers(p PolicyData, installers []*fleet.SoftwareInstaller)
 	if err != nil {
 		return nil, err
 	}
-	generated.Query = CombineWindowsArchQueries(generated.Query, arm64Generated.Query)
+	arm64Unscoped := len(arm64.LabelsIncludeAny) == 0 && len(arm64.LabelsExcludeAny) == 0 && len(arm64.LabelsIncludeAll) == 0
+	generated.Query = CombineWindowsArchQueries(generated.Query, arm64Generated.Query, arm64Unscoped)
 	return generated, nil
 }
 
@@ -242,13 +243,18 @@ func ScopeToWindowsARM(query string) string {
 
 // CombineWindowsArchQueries joins the policy queries of the x64 and ARM64 builds of a Windows app,
 // which share a software title and so one patch policy. Other hosts are checked against the x64
-// build's query. ARM hosts pass with either build's: one outside the ARM64 build's labels gets the
-// x64 build, so holding it to the ARM64 build's version would leave it failing for good.
-func CombineWindowsArchQueries(x64Query, arm64Query string) string {
+// build's query. ARM hosts are checked against the ARM64 build's when they all get that build;
+// otherwise they pass with either build's, since one outside the ARM64 build's labels gets the x64
+// build and holding it to the ARM64 build's version would leave it failing for good.
+func CombineWindowsArchQueries(x64Query, arm64Query string, armHostsGetARM64 bool) string {
 	x64Query, _ = strings.CutSuffix(strings.TrimSpace(x64Query), ";")
 	arm64Query, _ = strings.CutSuffix(ScopeToWindowsARM(arm64Query), ";")
 	if x64Query == "" || arm64Query == "" {
 		return ""
+	}
+	if armHostsGetARM64 {
+		return fmt.Sprintf("SELECT 1 WHERE (NOT EXISTS (%s) AND EXISTS (%s)) OR (EXISTS (%s) AND EXISTS (%s));",
+			windowsARMHostQuery, x64Query, windowsARMHostQuery, arm64Query)
 	}
 	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) OR (EXISTS (%s) AND EXISTS (%s));", x64Query, windowsARMHostQuery, arm64Query)
 }

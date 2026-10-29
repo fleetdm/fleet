@@ -140,7 +140,7 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-If a fleet has both the x64 and ARM64 builds of a Windows app, add one patch policy using either slug. Hosts that aren't ARM must be on the x64 build's version. ARM hosts pass on either build's version, because an ARM host outside the ARM64 build's labels gets the x64 build.
+If a fleet has both the x64 and ARM64 builds of a Windows app, add one patch policy using either slug. Hosts that aren't ARM must be on the x64 build's version, and ARM hosts on the ARM64 build's version. If the ARM64 build is scoped with labels, ARM hosts pass on either build's version, because an ARM host outside those labels gets the x64 build.
 
 To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 

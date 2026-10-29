@@ -937,6 +937,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				if err := svc.ds.ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
 				}
+
+				// On a title with both builds, the ARM64 build's labels decide which build's version ARM hosts are held to.
+				if existingInstaller.FleetMaintainedAppID != nil {
+					if err := svc.ds.RegeneratePatchPolicyQuery(ctx, payload.TeamID, payload.TitleID); err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "regenerating patch policy after label change")
+					}
+				}
 			}
 
 			for field := range dirty {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -75,7 +76,7 @@ func newArchSiblingsFixture(t *testing.T, ds *Datastore) *archSiblingsFixture {
 			Platform:             "windows",
 			InstallScript:        "install " + storage,
 			UninstallScript:      "uninstall " + storage,
-			PatchQuery:           "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND version_compare(version, '" + version + "') < 0);",
+			PatchQuery:           chromePatchQuery(version),
 			FleetMaintainedAppID: new(app.ID),
 			FMAName:              app.Name,
 			FMASlug:              app.Slug,
@@ -85,6 +86,10 @@ func newArchSiblingsFixture(t *testing.T, ds *Datastore) *archSiblingsFixture {
 		}
 	}
 	return f
+}
+
+func chromePatchQuery(version string) string {
+	return "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND version_compare(version, '" + version + "') < 0);"
 }
 
 // addBoth adds the x64 and ARM64 builds at the same version and returns their installer IDs and the shared title.
@@ -323,12 +328,46 @@ func testArchSiblingsPatchPolicy(t *testing.T, ds *Datastore) {
 	// Adding the ARM64 build at a lagging version splits the query by CPU and resets the results.
 	arm64ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, f.installerArgs(f.arm64, "chrome-arm64-0", "0.9"))
 	require.NoError(t, err)
-	require.NoError(t, ds.RegeneratePatchPolicyQuery(ctx, &f.team.ID, titleID))
-	policy, err = ds.Policy(ctx, policy.ID)
+	regenerated := func() string {
+		require.NoError(t, ds.RegeneratePatchPolicyQuery(ctx, &f.team.ID, titleID))
+		p, err := ds.Policy(ctx, policy.ID)
+		require.NoError(t, err)
+		return p.Query
+	}
+	recordResult := func() {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		require.Equal(t, 1, membership())
+	}
+	// Every ARM host gets the ARM64 build, so ARM hosts are held to its version.
+	strictQuery := patch_policy.CombineWindowsArchQueries(chromePatchQuery("1.0"), chromePatchQuery("0.9"), true)
+	require.Equal(t, strictQuery, regenerated())
+	require.Zero(t, membership())
+
+	// Labels on the ARM64 build can send an ARM host the x64 build, so ARM hosts then pass with either build's version.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
-	require.Contains(t, policy.Query, "cpu_type LIKE 'ARM%'")
-	require.Contains(t, policy.Query, "'1.0'")
-	require.Contains(t, policy.Query, "'0.9'")
+	setARM64Labels := func(labelIDs ...uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `DELETE FROM software_installer_labels WHERE software_installer_id = ?`, arm64ID); err != nil {
+				return err
+			}
+			for _, id := range labelIDs {
+				if _, err := q.ExecContext(ctx, `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all) VALUES (?, ?, 1, 0)`, arm64ID, id); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	recordResult()
+	setARM64Labels(label.ID)
+	require.Equal(t, patch_policy.CombineWindowsArchQueries(chromePatchQuery("1.0"), chromePatchQuery("0.9"), false), regenerated())
+	require.Zero(t, membership())
+
+	recordResult()
+	setARM64Labels()
+	require.Equal(t, strictQuery, regenerated())
 	require.Zero(t, membership())
 
 	// One build can be deleted while the other backs the patch policy, which then covers it alone.

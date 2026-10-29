@@ -3858,7 +3858,19 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppArchSiblings() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
 		return resp.Policy.Query
 	}
-	require.Contains(t, patchPolicyQuery(), "cpu_type LIKE 'ARM%'")
+	// Every ARM host gets the ARM64 build, so ARM hosts are held to its version.
+	const armHostsFirst = "SELECT 1 WHERE (NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%') AND EXISTS ("
+	require.True(t, strings.HasPrefix(patchPolicyQuery(), armHostsFirst), patchPolicyQuery())
+
+	// Once labels scope the ARM64 build, an ARM host outside them gets the x64 build, so ARM hosts pass with either build's version.
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{Name: t.Name(), Platform: "windows", Query: "SELECT 1"}, http.StatusOK, &labelResp)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, TeamID: &team.ID, InstallerID: arm64InstallerID, LabelsIncludeAny: []string{labelResp.Label.Name},
+	}, http.StatusOK, "")
+	scopedQuery := patchPolicyQuery()
+	require.Contains(t, scopedQuery, "cpu_type LIKE 'ARM%'")
+	require.False(t, strings.HasPrefix(scopedQuery, armHostsFirst), scopedQuery)
 
 	// Deleting the whole title is refused up front rather than after removing one build.
 	teamParam := strconv.Itoa(int(team.ID)) //nolint:gosec // dismiss G115
