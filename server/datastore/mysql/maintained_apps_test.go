@@ -2348,8 +2348,8 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
-			VALUES (0, ?, '7.373.2')`, staleTitleID)
+			INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+			VALUES (0, ?, 0, '7.373.2')`, staleTitleID)
 		return err
 	})
 
@@ -2703,7 +2703,7 @@ func testWindowsFMAReconcileMovesTitleReferences(t *testing.T, ds *Datastore) {
 	// An admin pins a version on that title.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (0, ?, '7.373.2')`,
+			`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (0, ?, 0, '7.373.2')`,
 			staleTitleID)
 		return err
 	})
@@ -2769,8 +2769,8 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 	// Both titles carry a pin for the same team.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
-			 VALUES (0, ?, '7.373.2'), (0, ?, '9.9.9')`, staleTitleID, canonicalID)
+			`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+			 VALUES (0, ?, 0, '7.373.2'), (0, ?, 0, '9.9.9')`, staleTitleID, canonicalID)
 		return err
 	})
 

@@ -703,7 +703,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	}
 
 	// Newest download first, and it is on a major the pin doesn't allow.
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
 		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "27.0.0"}, {ID: 2, Version: "26.0.0"}}, nil
 	}
 
@@ -2521,6 +2521,56 @@ func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
 	}
 }
 
+func TestResolveFirstAddedInScopeInstallerArchSiblings(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	x64 := &fleet.SoftwareInstaller{InstallerID: 1, Name: "slack-x64.msi", Platform: "windows", FleetMaintainedAppID: new(uint(7)), FleetMaintainedAppSlug: "slack/windows"}
+	arm64 := &fleet.SoftwareInstaller{InstallerID: 2, Name: "slack-arm64.msi", Platform: "windows", FleetMaintainedAppID: new(uint(8)), FleetMaintainedAppSlug: "slack-arm64/windows"}
+	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
+		return []*fleet.SoftwareInstaller{x64, arm64}, nil
+	}
+	outOfScope := map[uint]struct{}{}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(_ context.Context, installerID, _ uint) (bool, error) {
+		_, out := outOfScope[installerID]
+		return !out, nil
+	}
+	resolve := func(cpuType string) uint {
+		installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(t.Context(), &fleet.Host{ID: 1, Platform: "windows", CPUType: cpuType}, 5, false)
+		require.NoError(t, err)
+		require.True(t, anyPackages)
+		if installer == nil {
+			return 0
+		}
+		return installer.InstallerID
+	}
+
+	require.Equal(t, arm64.InstallerID, resolve("ARM"))
+	require.Equal(t, x64.InstallerID, resolve("x86_64"))
+	// A host that hasn't reported its CPU gets the x64 build, which runs everywhere.
+	require.Equal(t, x64.InstallerID, resolve(""))
+
+	// An ARM host out of scope for the ARM64 build falls back to the x64 build.
+	outOfScope[arm64.InstallerID] = struct{}{}
+	require.Equal(t, x64.InstallerID, resolve("ARM"))
+
+	// An x64 host out of scope for the x64 build is never sent the ARM64 build.
+	outOfScope = map[uint]struct{}{x64.InstallerID: {}}
+	require.Zero(t, resolve("x86_64"))
+	require.Equal(t, arm64.InstallerID, resolve("ARM"))
+
+	// Uninstalls use the host's build, whatever the labels.
+	for cpuType, want := range map[string]uint{"ARM": arm64.InstallerID, "x86_64": x64.InstallerID, "": x64.InstallerID} {
+		build, err := svc.nativeFleetMaintainedAppBuild(t.Context(), &fleet.Host{ID: 1, Platform: "windows", CPUType: cpuType}, 5)
+		require.NoError(t, err)
+		require.NotNil(t, build)
+		if build != nil {
+			require.Equal(t, want, build.InstallerID, "cpu_type %q", cpuType)
+		}
+	}
+}
+
 func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -4073,7 +4123,7 @@ func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecover
 		return &fleet.MaintainedApp{Version: "1.0", SHA256: opts.hash, InstallerURL: url,
 			Platform: opts.platform, InstallScript: "echo install", UninstallScript: "echo uninstall"}, nil
 	}
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(context.Context, *uint, uint) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(context.Context, *uint, uint, uint) ([]fleet.FleetMaintainedVersion, error) {
 		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
 	}
 	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {

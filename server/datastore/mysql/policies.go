@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -1546,15 +1547,15 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Type = fleet.PolicyTypeDynamic
 	}
 	if args.Type == fleet.PolicyTypePatch {
-		installer, err := ds.getPatchPolicyInstaller(ctx, teamID, *args.PatchSoftwareTitleID)
+		installers, err := ds.getPatchPolicyInstallers(ctx, teamID, *args.PatchSoftwareTitleID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting patch policy installer")
 		}
-		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
+		generated, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{
 			Name:        args.Name,
 			Description: args.Description,
 			Resolution:  args.Resolution,
-		}, installer)
+		}, installers)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
 		}
@@ -2109,12 +2110,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							Message: fmt.Sprintf("fleet_maintained_app_slug must be set for patch policy: %s", spec.Name),
 						})
 					}
-					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
+					installers, err := ds.getPatchPolicyInstallers(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
 					}
 
-					if spec.NotifyBeforePatching && installer.Platform != "darwin" {
+					if spec.NotifyBeforePatching && installers[0].Platform != "darwin" {
 						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 							Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error(),
 						})
@@ -2122,19 +2123,24 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 					// Defensive: this can only happen if this endpoint is being called not via gitops
 					// and batch software didn't get called before.
-					if (spec.PatchWhenClosed || spec.NotifyBeforePatching) && installer.PreInstallQuery != "" {
-						patchOption := "patch_when_closed"
-						if spec.NotifyBeforePatching {
-							patchOption = "notify_before_patching"
+					if spec.PatchWhenClosed || spec.NotifyBeforePatching {
+						for _, installer := range installers {
+							if installer.PreInstallQuery == "" {
+								continue
+							}
+							patchOption := "patch_when_closed"
+							if spec.NotifyBeforePatching {
+								patchOption = "notify_before_patching"
+							}
+							return ctxerr.Errorf(ctx, "policy %q: pre_install_query can't be set on Fleet-maintained app %q when %s is true", spec.Name, spec.FleetMaintainedAppSlug, patchOption)
 						}
-						return ctxerr.Errorf(ctx, "policy %q: pre_install_query can't be set on Fleet-maintained app %q when %s is true", spec.Name, spec.FleetMaintainedAppSlug, patchOption)
 					}
 
-					generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
+					generated, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{
 						Name:        spec.Name,
 						Description: spec.Description,
 						Resolution:  spec.Resolution,
-					}, installer)
+					}, installers)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "generating patch policy fields")
 					}
@@ -3451,17 +3457,65 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	return policies, nil
 }
 
-func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareInstaller, error) {
-	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+// getPatchPolicyInstallers returns the title's active Fleet-maintained app installers, first-added first:
+// one, or the x64 and ARM64 builds of a Windows app.
+func (ds *Datastore) getPatchPolicyInstallers(ctx context.Context, teamID uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+	// A lagging replica could miss a build added just before, shaping the query for one build only.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	pkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &teamID, titleID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
+		return nil, ctxerr.Wrap(ctx, err, "getting software installers")
 	}
-	if installer.FleetMaintainedAppID == nil {
+	if len(pkgs) == 0 {
+		return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "getting software installer")
+	}
+	installers := make([]*fleet.SoftwareInstaller, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if pkg.FleetMaintainedAppID != nil {
+			installers = append(installers, pkg)
+		}
+	}
+	if len(installers) == 0 {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
 		})
 	}
-	return installer, nil
+	return installers, nil
+}
+
+func (ds *Datastore) RegeneratePatchPolicyQuery(ctx context.Context, teamID *uint, titleID uint) error {
+	// Callers have just changed the title's installers, so read the policy from the primary too.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	patchPolicy, err := ds.GetPatchPolicy(ctx, teamID, titleID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy")
+	}
+
+	installers, err := ds.getPatchPolicyInstallers(ctx, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting installers for patch policy")
+	}
+	generated, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, installers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating patch policy query")
+	}
+
+	// Results of an unchanged query still hold, and resetting would also restart automation retries.
+	var currentQuery string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &currentQuery, `SELECT query FROM policies WHERE id = ?`, patchPolicy.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting patch policy query")
+	}
+	if currentQuery == generated.Query {
+		return nil
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating patch policy query")
+	}
+	return ds.ResetPolicy(ctx, patchPolicy.ID)
 }
 
 func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {

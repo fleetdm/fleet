@@ -356,6 +356,9 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		_, _ = w.Write(installerBytes)
 	}))
 	defer installerServer.Close()
+	ds.GetPatchPolicyFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+		return nil, &notFoundError{}
+	}
 	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
 		require.Equal(t, spoofedSHA, payload.StorageID)
 		require.Empty(t, payload.BundleIdentifier)
@@ -427,6 +430,9 @@ func TestAddFleetMaintainedAppReconcilesWindowsTitles(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
+	}
+	ds.GetPatchPolicyFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+		return nil, &notFoundError{}
 	}
 	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
 		return 1, 42, nil
@@ -571,6 +577,9 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 		_, _ = w.Write(installerBytes)
 	}))
 	defer installerServer.Close()
+	ds.GetPatchPolicyFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+		return nil, &notFoundError{}
+	}
 	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
 		require.Equal(t, spoofedSHA, payload.StorageID)
 		require.Equal(t, "1.0.0", payload.Version)

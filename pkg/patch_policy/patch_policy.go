@@ -140,6 +140,34 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 	return &PolicyData{Query: query, Platform: installer.Platform, Name: p.Name, Description: p.Description, Resolution: p.Resolution}, nil
 }
 
+// GenerateFromInstallers creates a patch policy for a title's Fleet-maintained app installers. A title
+// holds one, or the x64 and ARM64 builds of a Windows app, whose query checks each host against the
+// build for its CPU.
+func GenerateFromInstallers(p PolicyData, installers []*fleet.SoftwareInstaller) (*PolicyData, error) {
+	if len(installers) == 0 {
+		return nil, errors.New("no installers to generate a patch policy from")
+	}
+	if len(installers) != 2 || !fleet.MaintainedAppsAreArchSiblings(installers[0].FleetMaintainedAppSlug, installers[1].FleetMaintainedAppSlug) {
+		return GenerateFromInstaller(p, installers[0])
+	}
+
+	x64, arm64 := installers[0], installers[1]
+	if fleet.MaintainedAppSlugIsARM64(x64.FleetMaintainedAppSlug) {
+		x64, arm64 = arm64, x64
+	}
+	generated, err := GenerateFromInstaller(p, x64)
+	if err != nil {
+		return nil, err
+	}
+	arm64Generated, err := GenerateFromInstaller(p, arm64)
+	if err != nil {
+		return nil, err
+	}
+	arm64Unscoped := len(arm64.LabelsIncludeAny) == 0 && len(arm64.LabelsExcludeAny) == 0 && len(arm64.LabelsIncludeAll) == 0
+	generated.Query = CombineWindowsArchQueries(generated.Query, arm64Generated.Query, arm64Unscoped)
+	return generated, nil
+}
+
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
 	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
@@ -207,7 +235,28 @@ func ScopeToWindowsARM(query string) string {
 	if query == "" {
 		return ""
 	}
+	if strings.HasSuffix(query, " OR NOT EXISTS ("+windowsARMHostQuery+")") {
+		return query + ";"
+	}
 	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) OR NOT EXISTS (%s);", query, windowsARMHostQuery)
+}
+
+// CombineWindowsArchQueries joins the policy queries of the x64 and ARM64 builds of a Windows app,
+// which share a software title and so one patch policy. Other hosts are checked against the x64
+// build's query. ARM hosts are checked against the ARM64 build's when they all get that build;
+// otherwise they pass with either build's, since one outside the ARM64 build's labels gets the x64
+// build and holding it to the ARM64 build's version would leave it failing for good.
+func CombineWindowsArchQueries(x64Query, arm64Query string, armHostsGetARM64 bool) string {
+	x64Query, _ = strings.CutSuffix(strings.TrimSpace(x64Query), ";")
+	arm64Query, _ = strings.CutSuffix(ScopeToWindowsARM(arm64Query), ";")
+	if x64Query == "" || arm64Query == "" {
+		return ""
+	}
+	if armHostsGetARM64 {
+		return fmt.Sprintf("SELECT 1 WHERE (NOT EXISTS (%s) AND EXISTS (%s)) OR (EXISTS (%s) AND EXISTS (%s));",
+			windowsARMHostQuery, x64Query, windowsARMHostQuery, arm64Query)
+	}
+	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) OR (EXISTS (%s) AND EXISTS (%s));", x64Query, windowsARMHostQuery, arm64Query)
 }
 
 func escapeSQLLiteral(s string) string {

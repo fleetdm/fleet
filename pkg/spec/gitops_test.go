@@ -6010,6 +6010,8 @@ software:
     - slug: google-chrome/darwin
     - slug: 1password/darwin
     - slug: firefox/darwin
+    - slug: slack/windows
+    - slug: slack-arm64/windows
 `
 
 	tests := []struct {
@@ -6060,6 +6062,32 @@ policies:
 				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "google-chrome/darwin".`,
 				`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": "1password/darwin".`,
 			},
+		},
+		{
+			// The x64 and ARM64 builds of a Windows app share a title, and so one patch policy.
+			name: "patch policies for both builds of a Windows app",
+			policies: `
+policies:
+  - name: Slack up to date
+    type: patch
+    platform: windows
+    fleet_maintained_app_slug: slack/windows
+  - name: Slack (ARM64) up to date
+    type: patch
+    platform: windows
+    fleet_maintained_app_slug: slack-arm64/windows
+`,
+			wantErrs: []string{`Couldn't add policies with type "patch" for both "slack/windows" and "slack-arm64/windows". One patch policy covers both builds, so keep only one.`},
+		},
+		{
+			name: "one patch policy for both builds of a Windows app is allowed",
+			policies: `
+policies:
+  - name: Slack up to date
+    type: patch
+    platform: windows
+    fleet_maintained_app_slug: slack-arm64/windows
+`,
 		},
 		{
 			// A slug used by three patch policies is still reported a single time.

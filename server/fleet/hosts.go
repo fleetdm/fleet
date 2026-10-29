@@ -1276,6 +1276,13 @@ func (h *Host) IsAppleSilicon() bool {
 	return h.Platform == "darwin" && h.CPUType != "" && strings.HasPrefix(strings.ToLower(h.CPUType), "arm")
 }
 
+// IsWindowsARM returns true if the host is a Windows device with an ARM64 CPU. osquery reports
+// cpu_type "ARM" there, natively or under x64 emulation; an empty cpu_type (not reported yet) is
+// treated as x64, which runs everywhere.
+func (h *Host) IsWindowsARM() bool {
+	return h.FleetPlatform() == "windows" && strings.HasPrefix(strings.ToLower(h.CPUType), "arm")
+}
+
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {

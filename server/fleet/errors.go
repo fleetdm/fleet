@@ -43,7 +43,8 @@ var (
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
-	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	CantAddConflictingFMAMessage         = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	DeleteSoftwareWithPatchPolicyMessage = "Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again."
 	// Args: the Fleet-maintained app name.
 	FleetMaintainedAppManifestUnreachableMessage = "Fleet couldn't fetch the manifest for %s. Please try again."
 	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer

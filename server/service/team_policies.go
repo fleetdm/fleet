@@ -259,7 +259,7 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
 		}
 		// SoftwareInstallerID intentionally omitted — patch policies target FMA
-		// titles (single installer per title) so per-package pinning doesn't apply.
+		// titles, and a title holding x64 and ARM64 builds installs each host's build.
 		p.PatchSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,

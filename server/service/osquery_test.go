@@ -6554,6 +6554,74 @@ func TestContinuousAutomationOnCooldown(t *testing.T) {
 	require.False(t, svcImpl.continuousAutomationOnCooldown(now.Add(-2*time.Hour)))
 }
 
+// A policy pointing at one build of a Windows Fleet-maintained app installs the build for the host's CPU.
+func TestProcessSoftwareForNewlyFailingPoliciesArchSiblings(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID   = uint(1)
+		x64ID      = uint(100)
+		arm64ID    = uint(101)
+		hostID     = uint(42)
+		x64AppID   = uint(7)
+		arm64AppID = uint(8)
+	)
+	titleID := uint(5)
+
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{ID: policyID, InstallerID: x64ID}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		appID := new(x64AppID)
+		if id == arm64ID {
+			appID = new(arm64AppID)
+		}
+		return &fleet.SoftwareInstaller{InstallerID: id, TitleID: &titleID, Platform: "windows", FleetMaintainedAppID: appID}, nil
+	}
+	var resolveOK bool
+	ds.ResolveFleetMaintainedAppBuildForHostFunc = func(ctx context.Context, installerID uint, host *fleet.Host, opts fleet.HostSoftwareInstallOptions) (uint, bool, error) {
+		require.Equal(t, hostID, host.ID)
+		if host.IsWindowsARM() {
+			return arm64ID, resolveOK, nil
+		}
+		return installerID, resolveOK, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var installed []uint
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		installed = append(installed, swInstallerID)
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	newlyFailing := map[uint]struct{}{policyID: {}}
+	run := func(cpuType string) map[uint]*bool {
+		installed = nil
+		results := map[uint]*bool{policyID: new(false)}
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", cpuType, &orbitKey, "", results, newlyFailing))
+		return results
+	}
+
+	resolveOK = true
+	run("ARM")
+	require.Equal(t, []uint{arm64ID}, installed)
+	run("x86_64")
+	require.Equal(t, []uint{x64ID}, installed)
+
+	// No build runs on the host: nothing is installed and the policy isn't reported as failing.
+	resolveOK = false
+	results := run("x86_64")
+	require.Empty(t, installed)
+	require.Nil(t, results[policyID])
+}
+
 // TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown verifies that a
 // continuous policy automation (continuous_automations_enabled) does not re-queue a
 // software install more than once per policy update interval. This prevents the tight
@@ -6606,32 +6674,32 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	// Continuous re-fire with a recent successful install => throttled.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-10*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, noNewlyFailing))
 	require.False(t, insertCalled, "continuous install should be throttled within the policy update interval")
 
 	// Continuous re-fire after the interval elapsed => fires.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-2*time.Hour))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire once the cooldown elapses")
 
 	// Newly failing (pass→fail) bypasses the cooldown even with a recent install.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, map[uint]struct{}{policyID: {}}))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, insertCalled, "newly-failing install should fire regardless of cooldown")
 
 	// A recent FAILED install does not throttle: only successful installs request the
 	// refetch that drives the loop, and failures are retried via the dedicated path.
 	insertCalled = false
 	setLastInstall(&failedInstall, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install failed")
 
 	// A recent install with nil status (installed then removed) does not throttle.
 	insertCalled = false
 	setLastInstall(nil, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install has no resolved status")
 
 	// No prior install => fires.
@@ -6639,7 +6707,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "install should fire when there is no prior install")
 }
 
@@ -6902,7 +6970,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
 			return []uint{policyID}, nil
 		}
-		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", "", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.False(t, insertCalled, "policy automation must be suppressed during setup experience")
 	})
 
@@ -6911,7 +6979,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
 			return nil, nil
 		}
-		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", "", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
 	})
 }
@@ -6965,13 +7033,13 @@ func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
 	canSkipWhileAppIsOpen = true
 	appHasDisplayedPatchNotification = true
 	insertCalled = false
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, newlyFailing))
 	require.False(t, insertCalled, "a displayed patch notification already covers this app, so no second install should queue")
 
 	// no displayed notification lists the app, so the policy automation installs it
 	appHasDisplayedPatchNotification = false
 	insertCalled = false
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, newlyFailing))
 	require.True(t, insertCalled, "an app with no displayed patch notification should install")
 
 	// an install that cannot skip never opens a notification, so the check is not made
@@ -6979,7 +7047,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
 	appHasDisplayedPatchNotification = true
 	insertCalled = false
 	ds.DisplayedPatchNotificationExistsForAppFuncInvoked = false
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", "", &orbitKey, "", failing, newlyFailing))
 	require.True(t, insertCalled, "an install that cannot skip should not be held back by a notification")
 	require.False(t, ds.DisplayedPatchNotificationExistsForAppFuncInvoked)
 }
@@ -7028,7 +7096,7 @@ func TestPolicyAutomationDeferredActivation(t *testing.T) {
 		svcImpl := svc.(validationMiddleware).Service.(*Service)
 		deferred := setupMocks(ds)
 
-		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", "", &orbitKey, "", failing, newlyFailing))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.True(t, *deferred, "policy automation must defer activation when the release budget is on")
 	})
@@ -7039,7 +7107,7 @@ func TestPolicyAutomationDeferredActivation(t *testing.T) {
 		svcImpl := svc.(validationMiddleware).Service.(*Service)
 		deferred := setupMocks(ds)
 
-		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", "", &orbitKey, "", failing, newlyFailing))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.False(t, *deferred, "with the budget off, enqueue must keep inline activation")
 	})
@@ -7752,7 +7820,7 @@ func TestPolicyAutomationSkipsDeletedInstaller(t *testing.T) {
 			policyFailed := false
 			failing := map[uint]*bool{1: &policyFailed, 2: &policyFailed}
 			newlyFailing := map[uint]struct{}{1: {}, 2: {}}
-			require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+			require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", "", &orbitKey, "", failing, newlyFailing))
 			require.Equal(t, []uint{200}, queued)
 		})
 	}

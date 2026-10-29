@@ -206,7 +206,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 
 				_, err = q.ExecContext(
 					context.Background(),
-					"INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)",
+					"INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (?, ?, 0, ?)",
 					team.ID,
 					titleID,
 					"^1",

@@ -1,0 +1,1 @@
+* Added support for adding both the x64 and ARM64 builds of a Windows Fleet-maintained app (for example, Google Chrome and Google Chrome (ARM64)) to the same fleet. Each host gets the build for its CPU, labels still apply to each build, each build keeps its own version pin, and one patch policy covers both builds.

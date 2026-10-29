@@ -978,8 +978,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	setPin := func(teamID, titleID uint, pin string) {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)
-				 ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)`, teamID, titleID, pin)
+				`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+				 SELECT ?, ?, fleet_maintained_app_id, ? FROM software_installers
+				 WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1 AND fleet_maintained_app_id IS NOT NULL
+				 ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)`, teamID, titleID, pin, teamID, titleID)
 			return err
 		})
 	}
@@ -3763,4 +3765,124 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		http.StatusAccepted, &emptyResp, "team_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, emptyResp.RequestUUID)
 	require.Zero(t, teamPinCount(), "removing all software via GitOps must delete all team pins")
+}
+
+// The x64 and ARM64 builds of a Windows Fleet-maintained app share a title in one fleet, and each host
+// gets the build for its CPU.
+func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppArchSiblings() {
+	t := s.T()
+	ctx := t.Context()
+
+	startFMAServers(t, s.ds, map[string]*fmaTestState{
+		"/google-chrome/windows.json":       {version: "150.0", installerBytes: []byte("chrome-x64"), installerPath: "/chrome-x64.msi"},
+		"/google-chrome-arm64/windows.json": {version: "150.0", installerBytes: []byte("chrome-arm64"), installerPath: "/chrome-arm64.msi"},
+	})
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &teamResp)
+	team := teamResp.Team
+
+	fmaID := func(slug string) uint {
+		var id uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM fleet_maintained_apps WHERE slug = ?", slug)
+		})
+		require.NotZero(t, id, slug)
+		return id
+	}
+	x64AppID, arm64AppID := fmaID("google-chrome/windows"), fmaID("google-chrome-arm64/windows")
+
+	var x64Resp, arm64Resp addFleetMaintainedAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+		&addFleetMaintainedAppRequest{AppID: x64AppID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &x64Resp)
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+		&addFleetMaintainedAppRequest{AppID: arm64AppID, TeamID: &team.ID, SelfService: true}, http.StatusOK, &arm64Resp)
+	titleID := x64Resp.SoftwareTitleID
+	require.NotZero(t, titleID)
+	require.Equal(t, titleID, arm64Resp.SoftwareTitleID)
+
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.Packages, 2)
+	installerByApp := make(map[uint]uint, 2)
+	for _, pkg := range titleResp.SoftwareTitle.Packages {
+		require.NotNil(t, pkg.FleetMaintainedAppID)
+		require.Len(t, pkg.FleetMaintainedVersions, 1)
+		installerByApp[*pkg.FleetMaintainedAppID] = pkg.InstallerID
+	}
+	x64InstallerID, arm64InstallerID := installerByApp[x64AppID], installerByApp[arm64AppID]
+	require.NotZero(t, x64InstallerID)
+	require.NotZero(t, arm64InstallerID)
+
+	// Edits name the build.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &team.ID, SelfService: new(false)},
+		http.StatusBadRequest, "installer_id is required")
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &team.ID, InstallerID: arm64InstallerID, SelfService: new(false)},
+		http.StatusOK, "")
+
+	queuedInstaller := func(hostID uint) uint {
+		var id uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `
+				SELECT siua.software_installer_id FROM upcoming_activities ua
+				JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ?`, hostID)
+		})
+		return id
+	}
+	for _, c := range []struct {
+		cpuType string
+		want    uint
+	}{
+		{"ARM", arm64InstallerID},
+		{"x86_64", x64InstallerID},
+		{"", x64InstallerID},
+	} {
+		host := createOrbitEnrolledHost(t, "windows", "-"+c.cpuType, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE hosts SET cpu_type = ? WHERE id = ?", c.cpuType, host.ID)
+			return err
+		})
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+		require.Equal(t, c.want, queuedInstaller(host.ID), "cpu_type %q", c.cpuType)
+	}
+
+	// One patch policy covers both builds.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	// Every ARM host gets the ARM64 build, so ARM hosts are held to its version.
+	const armHostsFirst = "SELECT 1 WHERE (NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%') AND EXISTS ("
+	require.True(t, strings.HasPrefix(patchPolicyQuery(), armHostsFirst), patchPolicyQuery())
+
+	// Once labels scope the ARM64 build, an ARM host outside them gets the x64 build, so ARM hosts pass with either build's version.
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{Name: t.Name(), Platform: "windows", Query: "SELECT 1"}, http.StatusOK, &labelResp)
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID: titleID, TeamID: &team.ID, InstallerID: arm64InstallerID, LabelsIncludeAny: []string{labelResp.Label.Name},
+	}, http.StatusOK, "")
+	scopedQuery := patchPolicyQuery()
+	require.Contains(t, scopedQuery, "cpu_type LIKE 'ARM%'")
+	require.False(t, strings.HasPrefix(scopedQuery, armHostsFirst), scopedQuery)
+
+	// Deleting the whole title is refused up front rather than after removing one build.
+	teamParam := strconv.Itoa(int(team.ID)) //nolint:gosec // dismiss G115
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", teamParam)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.Packages, 2)
+
+	// One build can go; the patch policy then covers the other alone.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
+		"team_id", teamParam, "installer_id", fmt.Sprint(arm64InstallerID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.Packages, 1)
+	require.Equal(t, x64InstallerID, titleResp.SoftwareTitle.Packages[0].InstallerID)
+	require.NotContains(t, patchPolicyQuery(), "cpu_type")
 }

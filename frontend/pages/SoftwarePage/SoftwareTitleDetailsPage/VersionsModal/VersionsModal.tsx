@@ -6,7 +6,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import { notify } from "components/ToastNotification";
-import { ISoftwareTitleDetails } from "interfaces/software";
+import { ISoftwarePackage, ISoftwareTitleDetails } from "interfaces/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import softwareAPI from "services/entities/software";
 
@@ -22,6 +22,11 @@ export interface IVersionPinFormData {
 
 interface IVersionsModalProps {
   softwareTitle: ISoftwareTitleDetails;
+  /** The Fleet-maintained app build whose version is pinned. */
+  softwarePackage: ISoftwarePackage;
+  /** Set when the title holds more than one build (x64 and ARM64), so the
+   * request targets this one. */
+  installerId?: number;
   softwareId: number;
   teamId: number;
   refetchSoftwareTitle: () => void;
@@ -30,16 +35,17 @@ interface IVersionsModalProps {
 
 const VersionsModal = ({
   softwareTitle,
+  softwarePackage: pkg,
+  installerId,
   softwareId,
   teamId,
   refetchSoftwareTitle,
   onExit,
 }: IVersionsModalProps) => {
-  const pkg = softwareTitle.software_package;
-  const initialValue = getPreselectedVersionValue(pkg?.pinned_version);
+  const initialValue = getPreselectedVersionValue(pkg.pinned_version);
 
   const options = useMemo(() => {
-    const opts = deriveVersionOptions(pkg?.fleet_maintained_versions ?? []);
+    const opts = deriveVersionOptions(pkg.fleet_maintained_versions ?? []);
     // A pin no longer among the cached versions still needs an option so the
     // modal opens on the right radio. Format a caret major the same way as the
     // derived options rather than leaking "^N" into the label.
@@ -50,7 +56,7 @@ const VersionsModal = ({
       opts.push({ value: initialValue, label });
     }
     return opts;
-  }, [pkg?.fleet_maintained_versions, initialValue]);
+  }, [pkg.fleet_maintained_versions, initialValue]);
 
   const [selectedValue, setSelectedValue] = useState(initialValue);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,6 +71,7 @@ const VersionsModal = ({
         data: { pinnedVersion: selectedValue },
         softwareId,
         teamId,
+        installerId,
       });
       notify.success(
         <>

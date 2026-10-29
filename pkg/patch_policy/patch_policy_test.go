@@ -192,3 +192,81 @@ func TestScopeToWindowsARM(t *testing.T) {
 	require.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1) OR NOT EXISTS ("+armHosts+");", patch_policy.ScopeToWindowsARM("SELECT 1 \n"))
 	require.Empty(t, patch_policy.ScopeToWindowsARM(""))
 }
+
+func TestCombineWindowsArchQueries(t *testing.T) {
+	const armHosts = "SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%'"
+	const x64 = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0);"
+	const arm64 = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0);"
+
+	scopedARM64 := patch_policy.ScopeToWindowsARM(arm64)
+	// Scoping is idempotent, so a manifest's already-scoped ARM64 query isn't wrapped twice.
+	require.Equal(t, scopedARM64, patch_policy.ScopeToWindowsARM(scopedARM64))
+
+	const x64Patched = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0)"
+	const arm64Patched = "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0)) OR NOT EXISTS (" + armHosts + ")"
+
+	// Every ARM host gets the ARM64 build: ARM hosts must meet its version, other hosts the x64 build's.
+	strict := "SELECT 1 WHERE (NOT EXISTS (" + armHosts + ") AND EXISTS (" + x64Patched + ")) OR (EXISTS (" + armHosts + ") AND EXISTS (" + arm64Patched + "));"
+	require.Equal(t, strict, patch_policy.CombineWindowsArchQueries(x64, arm64, true))
+	require.Equal(t, strict, patch_policy.CombineWindowsArchQueries(x64, scopedARM64, true))
+
+	// An ARM host outside the ARM64 build's labels gets the x64 build, so ARM hosts pass with either build's version.
+	lenient := "SELECT 1 WHERE EXISTS (" + x64Patched + ") OR (EXISTS (" + armHosts + ") AND EXISTS (" + arm64Patched + "));"
+	require.Equal(t, lenient, patch_policy.CombineWindowsArchQueries(x64, arm64, false))
+	require.Equal(t, lenient, patch_policy.CombineWindowsArchQueries(x64, scopedARM64, false))
+
+	for _, armHostsGetARM64 := range []bool{true, false} {
+		require.Empty(t, patch_policy.CombineWindowsArchQueries("", arm64, armHostsGetARM64))
+		require.Empty(t, patch_policy.CombineWindowsArchQueries(x64, "", armHostsGetARM64))
+	}
+}
+
+func TestGenerateFromInstallers(t *testing.T) {
+	x64 := &fleet.SoftwareInstaller{
+		Platform: "windows", SoftwareTitle: "Slack", Version: "4.47",
+		FleetMaintainedAppSlug: "slack/windows",
+		PatchQuery:             "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.47') < 0);",
+	}
+	arm64 := &fleet.SoftwareInstaller{
+		Platform: "windows", SoftwareTitle: "Slack", Version: "4.46",
+		FleetMaintainedAppSlug: "slack-arm64/windows",
+		PatchQuery:             "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.46') < 0);",
+	}
+
+	single, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, []*fleet.SoftwareInstaller{x64})
+	require.NoError(t, err)
+	require.Equal(t, x64.PatchQuery, single.Query)
+	require.Equal(t, "Windows - Slack up to date", single.Name)
+
+	generate := func(installers ...*fleet.SoftwareInstaller) string {
+		combined, err := patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, installers)
+		require.NoError(t, err)
+		require.Equal(t, "Windows - Slack up to date", combined.Name)
+		require.Equal(t, "windows", combined.Platform)
+		return combined.Query
+	}
+	strict := patch_policy.CombineWindowsArchQueries(x64.PatchQuery, arm64.PatchQuery, true)
+	lenient := patch_policy.CombineWindowsArchQueries(x64.PatchQuery, arm64.PatchQuery, false)
+
+	// Either order: the ARM64 build's query applies to ARM hosts, the x64 build's to the rest.
+	require.Equal(t, strict, generate(x64, arm64))
+	require.Equal(t, strict, generate(arm64, x64))
+
+	// Only the ARM64 build's labels decide whether an ARM host can end up with the x64 build.
+	x64.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelName: "Engineering", LabelID: 1}}
+	require.Equal(t, strict, generate(x64, arm64))
+	x64.LabelsIncludeAny = nil
+	for _, scope := range []func(*fleet.SoftwareInstaller){
+		func(i *fleet.SoftwareInstaller) { i.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelName: "ARM pilot", LabelID: 2}} },
+		func(i *fleet.SoftwareInstaller) { i.LabelsExcludeAny = []fleet.SoftwareScopeLabel{{LabelName: "Kiosks", LabelID: 3}} },
+		func(i *fleet.SoftwareInstaller) { i.LabelsIncludeAll = []fleet.SoftwareScopeLabel{{LabelName: "ARM pilot", LabelID: 2}} },
+	} {
+		scopedARM64 := *arm64
+		scope(&scopedARM64)
+		require.Equal(t, lenient, generate(x64, &scopedARM64))
+		require.Equal(t, lenient, generate(&scopedARM64, x64))
+	}
+
+	_, err = patch_policy.GenerateFromInstallers(patch_policy.PolicyData{}, nil)
+	require.Error(t, err)
+}

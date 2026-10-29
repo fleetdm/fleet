@@ -6563,6 +6563,7 @@ func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error)
 		"computer_name",
 		"platform",
 		"os_version",
+		"cpu_type",
 		"team_id",
 		"distributed_interval",
 		"logger_tls_period",
