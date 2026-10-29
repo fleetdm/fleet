@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -27,6 +28,8 @@ type VPPAppTeam struct {
 
 	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
+	// VPPTokenID is the VPP token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint `db:"vpp_token_id" json:"-"`
 	// VersionName is the name of this version of the app on the fleet. Empty means DefaultAppStoreAppVersionName.
 	VersionName string `db:"version_name" json:"-"`
 
@@ -124,6 +127,9 @@ type VPPAppStoreApp struct {
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID
 	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	// VPPTokenID is the token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint            `db:"vpp_token_id" json:"-"`
+	VPPToken   *VPPTokenSummary `db:"-" json:"vpp_token"`
 
 	VersionName         string  `db:"version_name" json:"-"`
 	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
@@ -217,15 +223,6 @@ type VPPAppStatusSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the VPP app installation failed.
 	Failed uint `json:"failed" db:"failed"`
-}
-
-type ErrVPPTokenTeamConstraint struct {
-	Name string
-	ID   *uint
-}
-
-func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }
 
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
@@ -417,6 +414,39 @@ type VPPInstallReleaseInfo struct {
 	AdamID                string
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
+	// VPPTokenID is the token that assigned the license. Nil when unknown.
+	VPPTokenID *uint
+}
+
+// VPPTokenSummary is the VPP token an App Store app was added from, in the software title response.
+type VPPTokenSummary struct {
+	ID          uint   `json:"id"`
+	OrgName     string `json:"org_name"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPToken is the VPP token snapshot in App Store app activities.
+type ActivityVPPToken struct {
+	ID          uint   `json:"id"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPTokenByID returns the activity snapshot of the token with id, or
+// nil when id is nil or the token was deleted.
+func ActivityVPPTokenByID(ctx context.Context, ds Datastore, id *uint) (*ActivityVPPToken, error) {
+	if id == nil {
+		return nil, nil
+	}
+	tok, err := ds.GetVPPToken(ctx, *id)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ActivityVPPToken{ID: tok.ID, Location: tok.Location, CountryCode: tok.CountryCode}, nil
 }
 
 type DuplicateStringGroup struct {

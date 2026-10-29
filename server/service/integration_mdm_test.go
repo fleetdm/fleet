@@ -139,13 +139,26 @@ type integrationMDMTestSuite struct {
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
 type appleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
-	Location      string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token file's
+	// base64 content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
+	Location       string
 	// Disassociations records every /assets/disassociate request the mock
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// AuthCalls records the path and Authorization header of every
+	// /assets/associate and /assets/disassociate request, in order. Used by
+	// tests that assert which VPP token an operation used.
+	AuthCalls []appleVPPAuthCall
+}
+
+type appleVPPAuthCall struct {
+	Path          string
+	Authorization string
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -629,10 +642,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assetsForRequest := func() []vpp.Asset {
+			if assets, ok := s.appleVPPConfigSrvConfig.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]; ok {
+				return assets
+			}
+			return s.appleVPPConfigSrvConfig.Assets
+		}
+
 		// Handle /assets/disassociate — must come before the /associate
 		// catch-all below (HasSuffix prevents the substring "associate" from
 		// swallowing this case). Records every call so tests can assert Fleet
 		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") || strings.HasSuffix(r.URL.Path, "/associate") {
+			s.appleVPPConfigSrvConfig.AuthCalls = append(s.appleVPPConfigSrvConfig.AuthCalls, appleVPPAuthCall{Path: r.URL.Path, Authorization: r.Header.Get("Authorization")})
+		}
 		if strings.HasSuffix(r.URL.Path, "/disassociate") {
 			var req vpp.DisassociateAssetsRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -684,7 +707,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var badAssets []vpp.Asset
 			for _, reqAsset := range associations.Assets {
 				var found bool
-				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
+				for _, goodAsset := range assetsForRequest() {
 					if reqAsset == goodAsset {
 						found = true
 					}
@@ -747,9 +770,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var assets []vpp.Asset
 			switch adamID {
 			case "":
-				assets = s.appleVPPConfigSrvConfig.Assets
+				assets = assetsForRequest()
 			default:
-				for _, a := range s.appleVPPConfigSrvConfig.Assets {
+				for _, a := range assetsForRequest() {
 					if a.AdamID == adamID {
 						assets = []vpp.Asset{a}
 					}

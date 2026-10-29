@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.1",
+      "version": "2.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.eatbiscuit.biscuit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.eatbiscuit.biscuit' AND version_compare(bundle_short_version, '2.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.eatbiscuit.biscuit' AND version_compare(bundle_short_version, '2.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.eatbiscuit.biscuit' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/agata/dl.biscuit/releases/download/2.2.1/Biscuit-2.2.1-arm64.dmg",
+      "installer_url": "https://github.com/agata/dl.biscuit/releases/download/2.2.2/Biscuit-2.2.2-arm64.dmg",
       "install_script_ref": "9ef53110",
       "uninstall_script_ref": "9ab75dab",
-      "sha256": "3d5bc5f8126a236f6fda719c9ece75f291f01998e64173eb9fb3e42e26c6e12e",
+      "sha256": "9571774b7ba44470ee29614169cea9179ac81552c17438a1067c55c6d88f5025",
       "default_categories": [
         "Productivity"
       ]

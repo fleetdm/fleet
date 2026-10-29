@@ -1079,6 +1079,7 @@ type VPPBatchPayload struct {
 	IconPath            string                    `json:"-"`
 	IconHash            string                    `json:"-"`
 	Platform            InstallableDevicePlatform `json:"platform"`
+	Location            string                    `json:"location,omitempty"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
@@ -1098,6 +1099,7 @@ type VPPBatchPayloadWithPlatform struct {
 	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
+	Location           string                    `json:"location,omitempty"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
