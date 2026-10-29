@@ -322,6 +322,48 @@ To reduce these risks:
 - Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
 
+### Python (.py) packages on macOS
+
+A new Mac doesn't include a Python interpreter. Python comes with Apple's Command Line Tools (CLT). Without CLT, `.py` packages in setup experience fail with an `xcode-select: error: No developer tools were found` error.
+
+To run `.py` packages during setup experience, install CLT first:
+
+1. Save the script below as a `.sh` file and [add it as a custom package](https://fleetdm.com/guides/deploy-software-packages).
+2. Give the package a name that sorts before your `.py` packages, for example "1. Install Python". Fleet installs setup experience software alphabetically, by display name or by title if there's no display name.
+3. Add both the `.sh` package and your `.py` packages to setup experience.
+
+```sh
+#!/bin/sh
+
+# Skip if Command Line Tools are already installed
+if /usr/bin/xcode-select -p >/dev/null 2>&1; then
+  exit 0
+fi
+
+# This file makes softwareupdate list Command Line Tools without a GUI prompt
+flag="/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
+touch "$flag"
+
+label=$(/usr/sbin/softwareupdate --list 2>/dev/null \
+  | grep -E '^\s*\* Label: Command Line Tools' \
+  | sed 's/^.*Label: //' \
+  | sort -V \
+  | tail -n 1)
+
+if [ -z "$label" ]; then
+  rm -f "$flag"
+  echo "Command Line Tools not found in Software Update"
+  exit 1
+fi
+
+/usr/sbin/softwareupdate --install "$label" --verbose
+status=$?
+rm -f "$flag"
+exit $status
+```
+
+CLT is about a 520 MB download and takes a few minutes to install, so expect setup to take longer. Use a package, not the setup experience [script](#run-script), because the script runs after all software is installed.
+
 ### Host stuck during setup experience
 
 If a host gets stuck, you can send the [`DeviceConfigured`](https://developer.apple.com/documentation/devicemanagement/device-configured-command) command using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the end user through.
