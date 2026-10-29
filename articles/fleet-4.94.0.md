@@ -79,7 +79,7 @@ GitHub issue: [#51479](https://github.com/fleetdm/fleet/issues/51479)
 
 ### Rotate a Mac's FileVault recovery key on demand
 
-Security engineers can now rotate a macOS host's FileVault recovery key whenever they need to, for example after the key has been viewed to unlock a device. Rotate it from the **Disk encryption key** modal on **Host details**, or with the [rotate host's disk encryption key API](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-disk-encryption-key).
+IT admins can now rotate a macOS host's FileVault recovery key whenever they need to, for example after the key has been viewed to unlock a device. Rotate it from the **Disk encryption key** modal on **Host details**, or with the [rotate host's disk encryption key API](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-disk-encryption-key).
 
 Learn more in the [disk encryption guide](https://fleetdm.com/guides/enforce-disk-encryption#rotate-disk-encryption-key).
 
