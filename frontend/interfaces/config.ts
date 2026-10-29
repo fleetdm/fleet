@@ -94,7 +94,8 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     apple_setup_assistant: string | null;
     apple_enable_release_device_manually: boolean | null;
-    macos_bootstrap_package_manual_enrollment: boolean | null;
+    macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+    macos_enable_bootstrap_package_during_migration: boolean;
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
     require_all_software_windows: boolean | null;

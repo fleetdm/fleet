@@ -7,6 +7,8 @@
     // use this so we dont center the text.
     justify-content: normal;
     align-self: flex-start;
+    // additional 8px margin on top of the gap
+    margin-top: $pad-small;
   }
 
   &__settings-card {
@@ -16,6 +18,12 @@
     align-items: center;
     justify-content: space-between;
     gap: $pad-large;
+
+    &-content {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-medium;
+    }
 
     // .form-field is styled globally at width: 100%, which forces the
     // checkbox to consume the whole row, leaving no room for Save.

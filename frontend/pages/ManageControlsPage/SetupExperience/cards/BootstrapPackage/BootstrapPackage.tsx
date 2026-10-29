@@ -1,5 +1,5 @@
 import { AxiosError, AxiosResponse } from "axios";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
@@ -10,11 +10,16 @@ import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IApiError } from "interfaces/errors";
 import { ISoftwareTitle } from "interfaces/software";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import mdmAPI, {
   IGetBootstrapPackageMetadataResponse,
   IGetSetupExperienceScriptResponse,
@@ -27,8 +32,10 @@ import {
 } from "utilities/constants";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting, {
+import {
+  getManualAgentInstallSetting,
   getBootstrapPackageManualEnrollmentSetting,
+  getBootstrapPackageMigrationSetting,
 } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
@@ -48,14 +55,6 @@ const BootstrapPackage = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
-  const [
-    selectedManualAgentInstall,
-    setSelectedManualAgentInstall,
-  ] = useState<boolean>(false);
-  const [
-    selectedManualEnrollmentInstall,
-    setSelectedManualEnrollmentInstall,
-  ] = useState<boolean>(false);
   const [
     showDeleteBootstrapPackageModal,
     setShowDeleteBootstrapPackageModal,
@@ -97,20 +96,20 @@ const BootstrapPackage = ({
     () => configAPI.loadAll(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      onSuccess: (data) => {
-        if (currentTeamId === API_NO_TEAM_ID) {
-          setSelectedManualAgentInstall(
-            getManualAgentInstallSetting(currentTeamId, data)
-          );
-          setSelectedManualEnrollmentInstall(
-            getBootstrapPackageManualEnrollmentSetting(currentTeamId, data)
-          );
-        }
-      },
     }
   );
 
+  const { data: globalEnrollSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: currentTeamId === API_NO_TEAM_ID,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
+
   const {
+    data: teamConfig,
     isLoading: isLoadingTeamConfig,
     refetch: refetchTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
@@ -120,18 +119,6 @@ const BootstrapPackage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
       select: (res) => res.fleet,
-      onSuccess: (data) => {
-        setSelectedManualAgentInstall(
-          getManualAgentInstallSetting(currentTeamId, undefined, data)
-        );
-        setSelectedManualEnrollmentInstall(
-          getBootstrapPackageManualEnrollmentSetting(
-            currentTeamId,
-            undefined,
-            data
-          )
-        );
-      },
     }
   );
 
@@ -158,7 +145,8 @@ const BootstrapPackage = ({
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        macos_bootstrap_package_manual_enrollment: false,
+        macos_enable_bootstrap_package_during_manual_enrollment: false,
+        macos_enable_bootstrap_package_during_migration: false,
         macos_manual_agent_install: false,
       });
       notify.success("Successfully deleted.");
@@ -184,6 +172,28 @@ const BootstrapPackage = ({
     getInstallSoftwareDuringSetupCount(macSoftwareTitles) !== 0;
   const hasSetupExperienceScript = !!script;
 
+  // memoized since BootstrapAdvancedOptions resets its form whenever this changes
+  const advancedOptionsInitialValues = useMemo(
+    () => ({
+      macos_manual_agent_install: getManualAgentInstallSetting(
+        currentTeamId,
+        globalConfig,
+        teamConfig
+      ),
+      macos_enable_bootstrap_package_during_manual_enrollment: getBootstrapPackageManualEnrollmentSetting(
+        currentTeamId,
+        globalConfig,
+        teamConfig
+      ),
+      macos_enable_bootstrap_package_during_migration: getBootstrapPackageMigrationSetting(
+        currentTeamId,
+        globalConfig,
+        teamConfig
+      ),
+    }),
+    [currentTeamId, globalConfig, teamConfig]
+  );
+
   const renderBootstrapView = () => {
     const bootstrapPackageView = noPackageUploaded ? (
       <PackageUploader currentTeamId={currentTeamId} onUpload={onUpload} />
@@ -200,16 +210,16 @@ const BootstrapPackage = ({
         {bootstrapPackageView}
         <BootstrapAdvancedOptions
           currentTeamId={currentTeamId}
-          disableInstallManually={
-            noPackageUploaded ||
-            hasSetupExperienceInstallSoftware ||
-            hasSetupExperienceScript
+          hasSetupExperienceSoftwareOrScript={
+            hasSetupExperienceInstallSoftware || hasSetupExperienceScript
           }
-          selectManualAgentInstall={selectedManualAgentInstall}
-          onChangeManualAgentInstall={setSelectedManualAgentInstall}
-          disableManualEnrollmentInstall={noPackageUploaded}
-          selectManualEnrollmentInstall={selectedManualEnrollmentInstall}
-          onChangeManualEnrollmentInstall={setSelectedManualEnrollmentInstall}
+          enrollSecret={
+            (currentTeamId === API_NO_TEAM_ID
+              ? globalEnrollSecrets?.[0]?.secret
+              : teamConfig?.secrets?.[0]?.secret) ?? null
+          }
+          hasUploadedPackage={!noPackageUploaded}
+          initialValues={advancedOptionsInitialValues}
         />
       </>
     );
@@ -227,10 +237,7 @@ const BootstrapPackage = ({
       return <Spinner />;
     }
 
-    const mdmNotConfigured = !(
-      globalConfig?.mdm.enabled_and_configured &&
-      globalConfig?.mdm.apple_bm_enabled_and_configured
-    );
+    const mdmNotConfigured = !globalConfig?.mdm.enabled_and_configured;
 
     if (mdmNotConfigured) {
       return (
@@ -239,8 +246,7 @@ const BootstrapPackage = ({
           header="Additional configuration required"
           info={
             <>
-              Turn on MDM and automatic enrollment to deploy a custom bootstrap
-              package.
+              Turn on MDM to deploy a custom bootstrap package.
               <br />
               Supported on macOS.
             </>

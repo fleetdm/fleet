@@ -1,5 +1,4 @@
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import React from "react";
 
 import { createMockMdmConfig } from "__mocks__/configMock";
@@ -61,7 +60,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Turn on MDM and automatic enrollment/)
+        screen.getByText(/Turn on MDM to deploy a custom bootstrap package/)
       ).toBeInTheDocument();
     });
     expect(
@@ -69,26 +68,7 @@ describe("BootstrapPackage", () => {
     ).toBeVisible();
   });
 
-  it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
-    setupDefaultBackendMocks();
-    mockServer.use(
-      createGetConfigHandler({
-        mdm: createMockMdmConfig({ enabled_and_configured: false }),
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Turn on MDM and automatic enrollment/)
-      ).toBeInTheDocument();
-    });
-  });
-  it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
+  it("renders the bootstrap package when MDM is configured, but ABM is not", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
       createGetConfigHandler({
@@ -104,11 +84,11 @@ describe("BootstrapPackage", () => {
 
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Turn on MDM and automatic enrollment/)
-      ).toBeInTheDocument();
-    });
+    await screen.findByText(/status/gi);
+    expect(screen.getByText("foo-package.pkg")).toBeVisible();
+    expect(
+      screen.queryByText(/Turn on MDM to deploy a custom bootstrap package/)
+    ).not.toBeInTheDocument();
   });
   it("renders the status table and bootstrap package if a package has been uploaded", async () => {
     setupDefaultBackendMocks();
@@ -153,58 +133,15 @@ describe("BootstrapPackage", () => {
     expect(screen.getByText("Upload")).toBeVisible();
   });
 
-  it("renders the advanced options as disabled if there is no bootstrap package uploaded", async () => {
-    setupDefaultBackendMocks();
-    mockServer.use(errorNoBootstrapPackageMetadataHandler);
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
-    );
-
-    await screen.findByText("Advanced options");
-    await user.click(screen.getByText("Advanced options"));
-
-    expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
-    ).toBeDisabled();
-    expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
-    ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  });
-
-  it("renders the manual enrollment option as enabled if there is a bootstrap package uploaded", async () => {
-    setupDefaultBackendMocks();
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
-    );
-
-    await screen.findByText("Advanced options");
-    await user.click(screen.getByText("Advanced options"));
-
-    expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
-    ).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
-  });
-
-  it("checks the manual enrollment option when it is enabled in the config", async () => {
+  it("checks the advanced options that are enabled in the config", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
       createGetConfigHandler({
         mdm: createMockMdmConfig({
           setup_experience: {
             ...createMockMdmConfig().setup_experience,
-            macos_bootstrap_package_manual_enrollment: true,
+            macos_enable_bootstrap_package_during_manual_enrollment: true,
+            macos_enable_bootstrap_package_during_migration: true,
           },
         }),
       })
@@ -222,11 +159,13 @@ describe("BootstrapPackage", () => {
     await user.click(screen.getByText("Advanced options"));
 
     expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
+      screen.getByLabelText("Install during manual enrollment")
     ).toBeChecked();
+    expect(screen.getByLabelText("Install during migration")).toBeChecked();
+    expect(screen.getByLabelText("Deploy custom agent")).not.toBeChecked();
   });
 
-  it("only disables the fleetd option if there are already added install software", async () => {
+  it("only disables the custom agent option if there are already added install software", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
       createSetupExperienceSoftwareHandler({
@@ -251,16 +190,14 @@ describe("BootstrapPackage", () => {
     await screen.findByText("Advanced options");
     await user.click(screen.getByText("Advanced options"));
 
+    expect(screen.getByLabelText("Deploy custom agent")).toBeDisabled();
     expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
-    ).toBeDisabled();
-    expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
+      screen.getByLabelText("Install during manual enrollment")
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
-  it("only disables the fleetd option if there is already a run script added", async () => {
+  it("only disables the custom agent option if there is already a run script added", async () => {
     setupDefaultBackendMocks();
     mockServer.use(createSetupExperienceScriptHandler());
 
@@ -275,46 +212,10 @@ describe("BootstrapPackage", () => {
     await screen.findByText("Advanced options");
     await user.click(screen.getByText("Advanced options"));
 
+    expect(screen.getByLabelText("Deploy custom agent")).toBeDisabled();
     expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
-    ).toBeDisabled();
-    expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
+      screen.getByLabelText("Install during manual enrollment")
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
-  });
-
-  it("saves both advanced options when the manual enrollment option is checked", async () => {
-    setupDefaultBackendMocks();
-    let requestBody: unknown;
-    mockServer.use(
-      http.patch("/api/latest/fleet/setup_experience", async ({ request }) => {
-        requestBody = await request.json();
-        return new HttpResponse(null, { status: 204 });
-      })
-    );
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
-    );
-
-    await screen.findByText("Advanced options");
-    await user.click(screen.getByText("Advanced options"));
-    await user.click(screen.getByText("Install on manually enrolled hosts"));
-    expect(
-      screen.getByLabelText("Install on manually enrolled hosts")
-    ).toBeChecked();
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => {
-      expect(requestBody).toEqual({
-        macos_bootstrap_package_manual_enrollment: true,
-        macos_manual_agent_install: false,
-      });
-    });
   });
 });
