@@ -60,6 +60,20 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return svc.activitySvc.NewActivity(ctx, apiUser, activity)
 }
 
+// NewActivities creates one activity per item of activities, with the cost of a few queries for the whole batch.
+func (svc *Service) NewActivities(ctx context.Context, user *fleet.User, activities []activity_api.ActivityDetails) error {
+	var apiUser *activity_api.User
+	if user != nil {
+		apiUser = &activity_api.User{
+			ID:      user.ID,
+			Name:    user.Name,
+			Email:   user.Email,
+			Deleted: user.Deleted,
+		}
+	}
+	return svc.activitySvc.NewActivities(ctx, apiUser, activities)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // List host upcoming activities
 ////////////////////////////////////////////////////////////////////////////////
