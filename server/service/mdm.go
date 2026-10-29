@@ -821,6 +821,11 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
 
+	// Host-secret placeholders are Fleet's to write, never an admin's
+	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate apple mdm command")
+	}
+
 	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 		lic, err := svc.License(ctx)
 		if err != nil {

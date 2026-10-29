@@ -2268,6 +2268,13 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
+		if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
+			// Skipped like a command whose host secrets can't be expanded, below.
+			err = ctxerr.Wrapf(ctx, err, "refusing Windows pending command %s", pendingCmd.CommandUUID)
+			logging.WithErr(ctx, err)
+			ctxerr.Handle(ctx, err)
+			continue
+		}
 		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
 		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
 		if err != nil {
