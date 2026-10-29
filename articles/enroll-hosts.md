@@ -271,7 +271,6 @@ If an end user wants to switch their workstation's operating system (e.g., Windo
 
 ### Enroll NixOS hosts
 
-
 Fleet's agent (fleetd) is installed via the [NixOS module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/monitoring/orbit.nix) instead of a package generated via `fleetctl package`. The module uses osquery and Fleet Desktop from nixpkgs instead of Fleet's update server.
 
 A Fleet-maintained Nix flake for fleetd is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54457).
@@ -305,6 +304,17 @@ To enroll a NixOS host:
    ```
 
 4. Run `sudo nixos-rebuild switch`. The host appears in Fleet within a minute.
+
+#### Enroll hosts without physical access
+
+End users don't need access to Fleet. Add the configuration above to your organization's NixOS configuration repository so every host built from it enrolls automatically. Then, either:
+
+- Install NixOS on the device from your repository before shipping it, for example with [nixos-anywhere](https://github.com/nix-community/nixos-anywhere).
+- Build a custom installer image from your repository ([NixOS manual](https://nixos.org/manual/nixos/stable/#sec-building-image)) and send it to end users on a USB drive. The host enrolls on first boot.
+
+In both cases, provision the enroll secret with sops-nix or agenix so it isn't stored in the image's Nix store.
+
+To roll out later changes, like a new Fleet URL or fleetd version, set [`system.autoUpgrade.flake`](https://search.nixos.org/options?show=system.autoUpgrade.flake) to your repository so hosts periodically rebuild from it.
 
 fleetd 1.63.0 is the first version that supports NixOS. To check which `fleet-orbit` version your nixpkgs packages, run one of the following on the host:
 
