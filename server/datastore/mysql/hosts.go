@@ -3984,7 +3984,9 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	return host, nil
 }
 
-// HostByUUID matches only against the uuid column.
+// HostByUUID matches only against the uuid column. Hosts with an empty uuid
+// (e.g. ABM-assigned devices that haven't enrolled) never match as they are
+// placeholders
 func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {
 	stmt := `
     SELECT
@@ -4042,7 +4044,7 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     ` + hostMDMJoin + `
-    WHERE h.uuid = ?
+    WHERE h.uuid = ? AND h.uuid != ''
     LIMIT 1
 	`
 	host := &fleet.Host{}
