@@ -131,7 +131,7 @@ func TestToolCallIndexIsStableWhenTheMainTranscriptGrows(t *testing.T) {
 	require.Equal(t, map[string]int{"a": 0, "agent": 1, "s1": 2, "s2": 3}, before)
 
 	// The sub-agent reports back and the main agent goes on.
-	f, err := os.OpenFile(main, os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(main, os.O_APPEND|os.O_WRONLY, 0o600)
 	require.NoError(t, err)
 	_, err = f.WriteString(lines(
 		claudeResult("agent", "2026-08-01T10:00:04.000Z"),
