@@ -150,7 +150,7 @@ describe("ConfigurationProfiles header", () => {
 describe("ConfigurationProfiles add and edit", () => {
   const profile = {
     profile_uuid: "w-123",
-    team_id: 2,
+    fleet_id: 2,
     name: "Firewall",
     platform: "windows",
     identifier: null,
@@ -235,7 +235,7 @@ describe("ConfigurationProfiles assets", () => {
           profiles: [
             {
               profile_uuid: "p-1",
-              team_id: 0,
+              fleet_id: 0,
               name: "Firewall",
               platform: "windows",
               identifier: null,

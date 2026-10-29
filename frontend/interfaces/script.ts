@@ -2,7 +2,7 @@ import { HOST_LINUX_PLATFORMS } from "./platform";
 
 export interface IScript {
   id: number;
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   created_at: string;
   updated_at: string;

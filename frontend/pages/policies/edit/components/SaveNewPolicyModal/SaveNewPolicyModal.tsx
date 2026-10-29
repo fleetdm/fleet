@@ -142,7 +142,7 @@ const SaveNewPolicyModal = ({
     () =>
       ({
         id: -1,
-        team_id: policyTeamId ?? null,
+        fleet_id: policyTeamId ?? null,
         calendar_events_enabled: false,
         conditional_access_enabled: false,
         continuous_automations_enabled: false,

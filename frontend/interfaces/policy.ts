@@ -19,7 +19,7 @@ export default PropTypes.shape({
   resolution: PropTypes.string.isRequired,
   critical: PropTypes.bool,
   response: PropTypes.string,
-  team_id: PropTypes.number,
+  fleet_id: PropTypes.number,
   updated_at: PropTypes.string.isRequired,
 });
 
@@ -62,7 +62,7 @@ export interface IPolicy {
   author_email: string;
   resolution: string;
   platform: CommaSeparatedPlatformString;
-  team_id: number | null;
+  fleet_id: number | null;
   created_at: string;
   updated_at: string;
   // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it

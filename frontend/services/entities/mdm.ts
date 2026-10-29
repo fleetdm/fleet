@@ -104,7 +104,7 @@ interface IUpdateSetupExperienceFormData {
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
@@ -133,7 +133,7 @@ export interface IMDMAppleEnrollmentProfileParams {
 
 export interface IGetSetupExperienceScriptResponse {
   id: number;
-  team_id: number | null; // The API return null for no team in this case.
+  fleet_id: number | null; // The API return null for no team in this case.
   name: string;
   created_at: string;
   updated_at: string;

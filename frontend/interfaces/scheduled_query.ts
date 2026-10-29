@@ -55,7 +55,7 @@ export interface IScheduledQuery {
   denylist?: boolean;
   logging_type?: string;
   stats: ISchedulableQueryStats;
-  team_id?: number;
+  fleet_id?: number;
 }
 export interface IEditScheduledQuery extends IScheduledQuery {
   type: "global_scheduled_query" | "team_scheduled_query";

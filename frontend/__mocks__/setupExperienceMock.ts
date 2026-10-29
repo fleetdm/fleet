@@ -9,7 +9,7 @@ import { createMockSoftwareTitle } from "./softwareMock";
 
 const DEFAULT_SETUP_EXPIERENCE_SCRIPT: IGetSetupExperienceScriptResponse = {
   id: 1,
-  team_id: null,
+  fleet_id: null,
   name: "Test Script.sh",
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",
@@ -40,7 +40,7 @@ export const createMockSetupExperienceSoftwareResponse = (
 
 const DEFAULT_BOOTSTRAP_PACKAGE_METADATA: IGetBootstrapPackageMetadataResponse = {
   name: "test-package.pkg",
-  team_id: 0,
+  fleet_id: 0,
   sha256: "123abc-sha256",
   token: "123abc-token",
   created_at: "2021-01-01T00:00:00Z",

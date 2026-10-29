@@ -42,9 +42,9 @@ const HOST_ID = {
     distributed_interval: 1337,
     config_tls_refresh: 1337,
     logger_tls_period: 1337,
-    team_id: null,
+    fleet_id: null,
     pack_stats: [],
-    team_name: null,
+    fleet_name: null,
     users: [
       {
         uid: 1337,
@@ -70,8 +70,8 @@ const HOST_ID = {
 };
 const HOST_1337 = {
   ...HOST_ID,
-  team_id: 1337,
-  team_name: "h4x0r",
+  fleet_id: 1337,
+  fleet_name: "h4x0r",
 };
 
 export default {
@@ -79,7 +79,7 @@ export default {
     hosts: [HOST_ID.host],
   },
   HOSTS_TEAM_ID: {
-    hosts: [{ ...HOST_ID.host, team_id: 2, team_name: "n00bz" }],
+    hosts: [{ ...HOST_ID.host, fleet_id: 2, fleet_name: "n00bz" }],
   },
   HOSTS_TEAM_1337: {
     hosts: [HOST_1337.host],

@@ -112,7 +112,9 @@ const ProfileFormPage = ({
 
   // The edit URL is shareable, so its fleet_id can disagree with the fleet
   // the profile belongs to; follow the profile so labels and the footer match.
-  const profileTeamId = profile ? profile.team_id ?? API_NO_TEAM_ID : undefined;
+  const profileTeamId = profile
+    ? profile.fleet_id ?? API_NO_TEAM_ID
+    : undefined;
   const isWrongFleet =
     !!isPremiumTier &&
     profileTeamId !== undefined &&

@@ -185,7 +185,7 @@ const QueryEditor = ({
         notify.success("Policy created.");
         router.push(
           getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
-            fleet_id: policy.team_id,
+            fleet_id: policy.fleet_id,
           })
         );
       } catch (createError) {
@@ -230,12 +230,12 @@ const QueryEditor = ({
 
     const updateAPIRequest = () => {
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
-      const team_id = storedPolicy?.team_id ?? undefined;
+      const fleet_id = storedPolicy?.fleet_id ?? undefined;
 
-      return team_id !== undefined
+      return fleet_id !== undefined
         ? teamPoliciesAPI.update(policyIdForEdit, {
             ...updatedPolicy,
-            team_id,
+            fleet_id,
           })
         : globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
     };

@@ -738,7 +738,7 @@ describe("Device User Page", () => {
       author_email: "test@example.com",
       resolution: "Fix the issue",
       platform: "darwin",
-      team_id: null,
+      fleet_id: null,
       created_at: "2022-01-01T12:00:00Z",
       updated_at: "2022-01-02T12:00:00Z",
       critical: false,

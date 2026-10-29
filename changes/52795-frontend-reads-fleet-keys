@@ -1,0 +1,1 @@
+- Updated the Fleet UI to read the new "fleet" field names from the API (for example `fleet_id` and `fleet_name`). Activities recorded before the rename still show the correct fleet name.
