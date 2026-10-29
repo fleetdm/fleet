@@ -58,7 +58,7 @@ To change a value later, reinstall the same package with just the new value. Val
 sudo env ORBIT_PROXY_URL=http://new-proxy.example.internal:3128 apt-get install --reinstall -y ./fleetd-proxy_1.60.0_amd64.deb
 ```
 
-The package is still named `fleet-osquery`, like Fleet's standard package. To uninstall, run `sudo apt-get purge fleet-osquery` or `sudo dnf remove fleet-osquery`.
+The package is still named `fleet`, like Fleet's standard package. To uninstall, run `sudo apt-get purge fleet` or `sudo dnf remove fleet`.
 
 
 ## What the script does
@@ -68,7 +68,7 @@ The script builds Fleet's stock packages with `fleetctl package --type deb` and 
 The added install step:
 
 - writes the Fleet URL, enroll secret and `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` to `/etc/default/orbit-proxy` (root-only).
-- adds a systemd drop-in, `/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf`. It loads that file after `/etc/default/orbit`, so its values win, and it adds `-- --proxy_hostname=...` to Orbit's command line, which Orbit passes through to osqueryd.
+- adds a systemd drop-in, `/etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf`. It loads that file after `/etc/default/orbit`, so its values win, and it adds `-- --proxy_hostname=...` to Orbit's command line, which Orbit passes through to osqueryd.
 
 The osquery proxy goes on the command line rather than in `osquery.flags`, because Orbit rewrites `osquery.flags` whenever a team's agent options set `command_line_flags`.
 
@@ -136,8 +136,8 @@ Options, all set as env vars:
 ## Verify on a host
 
 ```
-systemctl status orbit
-cat /etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf
+systemctl status Fleet
+cat /etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf
 ps -eo args | grep '[o]squeryd' | grep -o -- '--proxy_hostname=[^ ]*'
 ```
 

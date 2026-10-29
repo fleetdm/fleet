@@ -74,7 +74,7 @@ To uninstall: `msiexec /x C:\fleetd-proxy.msi /qn`
 
 The script builds a stock MSI with `fleetctl package`, then edits it with msitools:
 
-- `ORBIT_PROXY_URL` and `NO_PROXY` go into the service's own environment, `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\Environment`, so Orbit has them from the first service start.
+- `ORBIT_PROXY_URL` and `NO_PROXY` go into the service's own environment, `HKLM\SYSTEM\CurrentControlSet\Services\Fleet\Environment`, so Orbit has them from the first service start.
 - `OSQUERY_PROXY` is appended to the service arguments as `-- --proxy_hostname=...`, and Orbit passes it through to osqueryd.
 - `FLEET_URL` and `FLEET_SECRET` behave the same as in the stock MSI.
 
@@ -167,8 +167,8 @@ msiexec, Intune and SCCM don't require a signature. If you enforce AppLocker or 
 ## Verify on a host
 
 ```
-reg query "HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery" /v Environment
-sc qc "Fleet osquery"
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Fleet" /v Environment
+sc qc "Fleet"
 ```
 
 `Environment` should list `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`. `BINARY_PATH_NAME` should end with `-- --proxy_hostname="<proxy>"`.
