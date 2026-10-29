@@ -1408,7 +1408,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		t.Helper()
 		tx, err := s.ds.TestPrimaryDB().BeginTx(t.Context(), nil)
 		require.NoError(t, err)
-		require.NoError(t, tables.Up_20261027131010(tx))
+		require.NoError(t, tables.Up_20261029055700(tx))
 		require.NoError(t, tx.Commit())
 	}
 
@@ -1634,6 +1634,116 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
 		assert.Contains(t, string(setCmd.Raw), "<string>"+*getPasswordResp.RecoveryLockPassword.Password+"</string>",
 			"the readable password must be the one the rotation set")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("first set in flight at upgrade from 4.92 is retried as a first set", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+
+		var setCmdUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &setCmdUUID,
+				`SELECT pending_set_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		})
+		require.NotEmpty(t, setCmdUUID)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(t.Context(), `
+				UPDATE host_recovery_key_passwords
+				SET encrypted_password = pending_encrypted_password, pending_encrypted_password = NULL
+				WHERE host_uuid = ?`, host.UUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(t.Context(), `UPDATE nano_commands SET command = REPLACE(command, ?, ?) WHERE command_uuid = ?`,
+				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword,
+				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword,
+				setCmdUUID)
+			return err
+		})
+		clearRecoveryLockCommandUUIDs(t, host.UUID)
+
+		runUpgradeRepair(t)
+
+		// The device rejects the first attempt with a retryable error.
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, setCmdUUID, setCmd.CommandUUID)
+		_, err = mdmClient.Err(setCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
+		})
+		require.NoError(t, err)
+
+		// The device holds no password, so the retry must not be a rotation from one.
+		runRecoveryLockCron(t)
+		retryCmd := ackSetThenVerify(t, mdmClient)
+		assert.NotContains(t, string(retryCmd.Raw), "CurrentPassword")
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("rotation failed before the upgrade from 4.92 can rotate again", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
+
+		// 4.92 marked a rejected rotation failed and kept its new password in the pending slot.
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+		clearRecoveryLockCommandUUIDs(t, host.UUID)
+		rotateCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, rotateCmd)
+		_, err = mdmClient.Err(rotateCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
+		})
+		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `UPDATE host_recovery_key_passwords SET status = 'failed' WHERE host_uuid = ?`, host.UUID)
+			return err
+		})
+
+		runUpgradeRepair(t)
+		runRecoveryLockCron(t)
+
+		verifyCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, verifyCmd, "the cron should verify the password the device kept")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password)
+
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
