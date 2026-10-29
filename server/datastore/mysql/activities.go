@@ -251,7 +251,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install',
-				'host_platform', h.platform
+				'host_platform', h.platform,
+				'vpp_token', IF(vt.id IS NULL, NULL, JSON_OBJECT(
+					'id', vt.id,
+					'location', vt.location,
+					'country_code', COALESCE(vt.country_code, '')
+				))
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -260,6 +265,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			upcoming_activities ua
 		INNER JOIN
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		LEFT JOIN
+			vpp_tokens vt ON vt.id = vaua.vpp_token_id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN
@@ -1768,7 +1775,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id)
+	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id, vpp_token_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1778,7 +1785,8 @@ SELECT
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
 	vaua.policy_id,
-	vaua.vpp_app_team_id
+	vaua.vpp_app_team_id,
+	vaua.vpp_token_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua

@@ -297,6 +297,9 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
+
+	vppTokens       []*fleet.VPPTokenDB
+	vppTokensLoaded bool
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -1349,6 +1352,34 @@ func (cmd *GenerateGitopsCommand) writeEULA(
 	return "./" + fileName, nil
 }
 
+// getVPPTokens fetches the VPP tokens once and caches them.
+func (cmd *GenerateGitopsCommand) getVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	if !cmd.vppTokensLoaded {
+		tokens, err := cmd.Client.GetVPPTokens()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
+			return nil, err
+		}
+		cmd.vppTokens, cmd.vppTokensLoaded = tokens, true
+	}
+	return cmd.vppTokens, nil
+}
+
+// vppTokenCount returns how many VPP tokens are available to the fleet.
+func (cmd *GenerateGitopsCommand) vppTokenCount(teamID uint) (int, error) {
+	tokens, err := cmd.getVPPTokens()
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, t := range tokens {
+		if t.AvailableToTeam(teamID) {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeFor[spec.GitOpsMDM]()
 	result := map[string]interface{}{
@@ -1358,9 +1389,8 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "WindowsAutomaticEnrollment")] = mdm.WindowsAutomaticEnrollment
-		vppTokens, err := cmd.Client.GetVPPTokens()
+		vppTokens, err := cmd.getVPPTokens()
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
 			return nil, err
 		}
 		var vppConfig []fleet.MDMAppleVolumePurchasingProgramInfo
@@ -2570,6 +2600,16 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+
+			if tok := softwareTitle.AppStoreApp.VPPToken; tok != nil && softwareTitle.AppStoreApp.Platform != fleet.AndroidPlatform {
+				tokenCount, err := cmd.vppTokenCount(teamID)
+				if err != nil {
+					return nil, err
+				}
+				if tokenCount > 1 {
+					softwareSpec["location"] = tok.Location
+				}
+			}
 
 			if softwareTitle.DisplayName != "" {
 				softwareSpec["display_name"] = softwareTitle.DisplayName

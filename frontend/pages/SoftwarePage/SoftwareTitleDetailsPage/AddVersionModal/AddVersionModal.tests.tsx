@@ -1,8 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import { createMockAppStoreAppIos } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import AddVersionModal from "./AddVersionModal";
@@ -153,6 +155,54 @@ describe("AddVersionModal", () => {
       auto_update_enabled: true,
       auto_update_window_start: "22:00",
       auto_update_window_end: "02:00",
+    });
+  });
+
+  describe("POST body", () => {
+    const submitVersion = async (
+      overrides: Partial<React.ComponentProps<typeof AddVersionModal>>
+    ) => {
+      let body: Record<string, unknown> | undefined;
+      mockServer.use(
+        http.post(
+          "/api/latest/fleet/software/app_store_apps",
+          async ({ request }) => {
+            body = (await request.json()) as Record<string, unknown>;
+            return HttpResponse.json({});
+          }
+        )
+      );
+      const { user } = renderModal(overrides);
+      await user.type(screen.getByLabelText(/Name/i), "Production");
+      await user.click(screen.getByRole("button", { name: /^Add$/i }));
+      await waitFor(() => expect(body).toBeDefined());
+      return body as Record<string, unknown>;
+    };
+
+    beforeEach(() => {
+      // The auto-update test above leaves addAppStoreAppVersion stubbed.
+      jest.restoreAllMocks();
+    });
+
+    it("sends the title's VPP token id", async () => {
+      const body = await submitVersion({
+        appStore: createMockAppStoreAppIos({
+          vpp_token: {
+            id: 2,
+            location: "Acme K.K.",
+            country_code: "jp",
+            org_name: "Acme K.K.",
+          },
+        }),
+      });
+      expect(body).toMatchObject({ fleet_id: 1, vpp_token_id: 2 });
+    });
+
+    it("omits vpp_token_id when the title has no token", async () => {
+      const body = await submitVersion({
+        appStore: createMockAppStoreAppIos({ vpp_token: null }),
+      });
+      expect(body).not.toHaveProperty("vpp_token_id");
     });
   });
 
