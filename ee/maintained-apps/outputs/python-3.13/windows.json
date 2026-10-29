@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.15150.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'python 3.13.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python313%\\%');"
       },
       "installer_url": "https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe",
       "install_script_ref": "8272e48d",

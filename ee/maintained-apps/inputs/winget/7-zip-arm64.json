@@ -1,0 +1,13 @@
+{
+  "name": "7-zip (ARM64)",
+  "slug": "7-zip-arm64/windows",
+  "package_identifier": "7zip.7zip",
+  "unique_identifier": "7-Zip",
+  "fuzzy_match_name": "7-Zip % (arm64)",
+  "installer_arch": "arm64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/7-zip_arm64_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/7-zip_arm64_uninstall.ps1"
+}

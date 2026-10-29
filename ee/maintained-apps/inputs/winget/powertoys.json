@@ -3,7 +3,7 @@
   "slug": "powertoys/windows",
   "package_identifier": "Microsoft.PowerToys",
   "unique_identifier": "PowerToys",
-  "fuzzy_match_name": true,
+  "fuzzy_match_name": "PowerToys%x64",
   "program_publisher": "Microsoft Corporation",
   "installer_arch": "x64",
   "installer_type": "exe",

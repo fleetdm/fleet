@@ -3,8 +3,8 @@
     {
       "version": "8.9.8.1",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.8.1') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Notepad++ (64-bit x64)' AND publisher = 'Notepad++ Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notepad++ (64-bit x64)' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.8.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'notepad++.exe');"
       },
       "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.Installer.x64.exe",

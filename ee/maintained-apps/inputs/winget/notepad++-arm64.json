@@ -1,0 +1,12 @@
+{
+  "name": "Notepad++ (ARM64)",
+  "slug": "notepad++-arm64/windows",
+  "package_identifier": "Notepad++.Notepad++",
+  "unique_identifier": "Notepad++ (ARM 64-bit)",
+  "installer_arch": "arm64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notepad++_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notepad++_arm64_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
