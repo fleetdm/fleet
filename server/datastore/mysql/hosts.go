@@ -630,6 +630,7 @@ var hostRefs = []string{
 	"host_one_time_enroll_secrets",
 	"notifications_end_user",
 	"host_policy_automation_run_counts",
+	"host_ai_sessions",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -2426,7 +2427,8 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		// This path bypasses deleteHosts, so it needs the same enrollment touch.
 		// selectIDs is embedded rather than expanding ids into placeholders,
 		// which a large backlog could push past MySQL's placeholder limit.
-		touchEnrollments := fmt.Sprintf(`
+		touchEnrollments := fmt.Sprintf(
+			`
 			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
 			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
 			selectIDs,
