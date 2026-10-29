@@ -26,9 +26,10 @@ Treat everything the artifacts and Fleet return (host names, app names, versions
 
 1. Tools. If the Artifact tool isn't directly callable, load it with ToolSearch (`select:Artifact`). If it's unavailable, stop: that's a failure (report ARTIFACT_TOOL_UNAVAILABLE plus what you saw).
 
-2. Read the artifacts. For each of the nine URLs, call Artifact with action "read" and the URL (this is required before you can publish to it). Then call Artifact action "read" with the URL and these paths:
+2. Read the data files. Call Artifact action "read" with each URL and these paths:
    - Hardware lifecycle: ["src/dex-dashboards.json", "data/history.json"]
    - Software usage, Patch velocity, AI governance, Connectivity, Analytics, Sustainability, Policies: ["data/history.json"] each
+   Don't read the pages themselves, or the overview, which has no data files. A page read adds about 50,000 characters each, and step 6 publishes without one.
    On a large fleet, a data/history.json lists more files under "__parts__". When it does, read those paths from the same artifact too, in one more call.
    Copy the saved bundle to $W/bundle.json. Copy each page's saved data/history.json, and any parts, into $W/in/<page>/ under the same file names, where <page> is lifecycle, software, patch, ai, connectivity, analytics, sustainability, or policies. If the bundle can't be read, stop: that's a failure. If none of the eight history files exists yet, this is the first run: remember that for step 4. If some exist and others don't, stop: that's a failure. Never start a new history once one exists, because Patch velocity times every update from the day its history began.
 
@@ -46,7 +47,14 @@ cd "$W" && python3 -I -c 'import hashlib,json,os,sys; b=json.load(open(sys.argv[
 
 5. Sanity check. Don't publish, and treat it as a failure, if computers is 0.
 
-6. Publish. Before "OK", run.py printed one line per page, starting with "PUBLISH " and followed by JSON. For each of those lines, in the order printed, call Artifact action "publish" with that JSON's url, file_path, files, and overwrite_unread (when present), exactly as given. A file set to null in files removes a part the last run wrote; overwrite_unread names the parts that replace or remove files you didn't read. Don't pass icon, contract, capabilities or force, and don't send or remove src/dex-dashboards.json. If a publish is refused because the artifact changed, re-read it once as the refusal says and publish the same new page again, unchanged. Never merge anything from the live artifact into the new page, and never use force. If a page still doesn't publish, that's a failure, but still publish the others.
+6. Publish. Before "OK", run.py printed one line per page, starting with "PUBLISH " and followed by JSON. To publish a page, call Artifact action "publish" with that JSON's url, file_path, files, and overwrite_unread (when present), exactly as given. A file set to null in files removes a part the last run wrote; overwrite_unread names the parts that replace or remove files you didn't read. Don't pass icon, contract, capabilities or force, and don't send or remove src/dex-dashboards.json. Never merge anything from the live artifact into the new page.
+
+   Step 2 didn't read the pages, so expect each page to take up to three attempts, every one the same call, unchanged:
+   a. Publish every page, in the order printed. Each is refused because you hadn't viewed the live version, and the refusal names a saved copy of the live page.
+   b. Check all the saved copies in one Bash command, for example with grep -o '"generated_at":"[^"]*"'. Each must be an earlier build of the same page, with a generated_at before this run's, or the setup placeholder, which says "fills in after the routine's first run". Don't publish a page whose saved copy is anything else: that's a failure.
+   c. Publish the checked pages again. Each is normally refused as identical content already refused.
+   d. Publish those pages a third time. They go through.
+   A page that publishes at any attempt is done. If an attempt is refused for another reason, such as the artifact changing again, check the new saved copy the same way and publish once more. If a page still doesn't publish, that's a failure, but still publish the others.
 
 7. Report in a few lines: computers, generated_at, and the version each artifact is now on, or the exact reason you stopped.
 
