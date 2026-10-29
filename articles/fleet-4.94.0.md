@@ -37,7 +37,7 @@ Learn more in the [configuration profiles guide](https://fleetdm.com/guides/cust
 
 GitHub issue: [#46834](https://github.com/fleetdm/fleet/issues/46834)
 
-### ~~Multiple versions of the same App Store app~~
+### Multiple versions of the same App Store app
 
 This feature is [coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/47904).
 
