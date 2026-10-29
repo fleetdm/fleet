@@ -2233,6 +2233,9 @@ func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, to
 		res.upserted = append(res.upserted, payload...)
 		return nil
 	}
+	ds.ListMDMManagedCertificatesForHostProfilesFunc = func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+		return nil, nil
+	}
 
 	var mu sync.Mutex
 	mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
@@ -2483,6 +2486,92 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		require.Nil(t, reverted.Status)
 		require.Empty(t, reverted.CommandUUID)
 	})
+
+	// The device holds the old profile as rendered for its UUID: a pending install would request its certificate from the
+	// old proxy URL, and a certificate not recorded with dates yet carries a renewal ID that never matches the new profile.
+	t.Run("profile rendered with its own UUID", func(t *testing.T) {
+		const renewalID = "<string>CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>"
+		const proxyURL = "<string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>"
+		recorded := &fleet.MDMManagedCertificate{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID", CAName: "ca1",
+			NotValidAfter: new(time.Now().Add(30 * 24 * time.Hour))}
+		notRecorded := &fleet.MDMManagedCertificate{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID", CAName: "ca2"}
+
+		for _, tc := range []struct {
+			name      string
+			contents  string
+			status    fleet.MDMDeliveryStatus
+			certs     []*fleet.MDMManagedCertificate
+			reinstall bool
+		}{
+			{"renewal ID, verified with its certificate recorded: taken over", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{recorded}, false},
+			{"renewal ID, verified, certificate not recorded yet: reinstalled", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{notRecorded}, true},
+			{"renewal ID, verified, one of its certificates not recorded: reinstalled", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{recorded, notRecorded}, true},
+			{"renewal ID, verified without a certificate row: reinstalled", renewalID, fleet.MDMDeliveryVerified, nil, true},
+			{"renewal ID, pending: reinstalled", renewalID, fleet.MDMDeliveryPending, []*fleet.MDMManagedCertificate{recorded}, true},
+			// without a renewal ID its certificate rows never get dates, so they are not checked
+			{"proxy URL, verified: taken over", proxyURL, fleet.MDMDeliveryVerified, nil, false},
+			{"proxy URL, pending: reinstalled", proxyURL, fleet.MDMDeliveryPending, nil, true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				res := runReconcileBatchCapturing(t, nil,
+					[]*fleet.MDMAppleProfilePayload{newInstall("aaaa")},
+					[]*fleet.MDMAppleProfilePayload{oldRow(tc.status)},
+					func(ds *mock.Store) {
+						ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
+							out := make(map[string]mobileconfig.Mobileconfig, len(uuids))
+							for _, u := range uuids {
+								out[u] = []byte(tc.contents)
+							}
+							return out, nil
+						}
+					},
+					func(ds *mock.Store) {
+						ds.ListMDMManagedCertificatesForHostProfilesFunc = func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+							require.Equal(t, []fleet.HostProfileUUID{{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID"}}, hostProfiles)
+							return tc.certs, nil
+						}
+					})
+				require.NoError(t, res.err)
+				require.Len(t, res.cleanedUp, 1)
+				require.NotEmpty(t, res.upserted)
+				install := res.upserted[len(res.upserted)-1]
+				require.Equal(t, "aFleetBProfileUUID", install.ProfileUUID)
+				if tc.reinstall {
+					// the proxy URL row is not enqueued: no NDES CA is configured, so preprocessing fails it
+					if tc.contents == renewalID {
+						require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+					}
+					require.NotEqual(t, queuedCmd, install.CommandUUID)
+					require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
+					require.Empty(t, res.cleanedUp[0].AdoptedByProfileUUID, "a reinstall tracks its own certificate")
+				} else {
+					require.Empty(t, res.enqueued)
+					require.Equal(t, queuedCmd, install.CommandUUID)
+					require.Equal(t, "aFleetBProfileUUID", res.cleanedUp[0].AdoptedByProfileUUID)
+				}
+			})
+		}
+	})
+}
+
+func TestProfileUUIDBoundVariables(t *testing.T) {
+	for _, tc := range []struct {
+		fleetVars           []string
+		proxyURL, renewalID bool
+	}{
+		{nil, false, false},
+		{[]string{string(fleet.FleetVarHostEndUserIDPUsername)}, false, false},
+		{[]string{string(fleet.FleetVarDigiCertDataPrefix) + "CA"}, false, false},
+		{[]string{string(fleet.FleetVarCertificateRenewalID)}, false, true},
+		{[]string{string(fleet.FleetVarSCEPRenewalID)}, false, true},
+		{[]string{string(fleet.FleetVarNDESSCEPChallenge), string(fleet.FleetVarNDESSCEPProxyURL)}, true, false},
+		{[]string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "CA", string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "CA"}, true, false},
+		{[]string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "CA", string(fleet.FleetVarCertificateRenewalID)}, true, true},
+	} {
+		proxyURL, renewalID := profileUUIDBoundVariables(tc.fleetVars)
+		assert.Equal(t, tc.proxyURL, proxyURL, "proxy URL for %v", tc.fleetVars)
+		assert.Equal(t, tc.renewalID, renewalID, "renewal ID for %v", tc.fleetVars)
+	}
 }
 
 // Self-service (opt-in) profiles are desired on a host only while it has an opt-in row, or when it already carries an identical

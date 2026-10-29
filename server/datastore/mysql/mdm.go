@@ -3561,6 +3561,31 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
+func (ds *Datastore) ListMDMManagedCertificatesForHostProfiles(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+	var certs []*fleet.MDMManagedCertificate
+	const batchSize = 1000
+	err := common_mysql.BatchProcessSimple(hostProfiles, batchSize, func(batch []fleet.HostProfileUUID) error {
+		args := make([]any, 0, len(batch)*2)
+		for _, hp := range batch {
+			args = append(args, hp.HostUUID, hp.ProfileUUID)
+		}
+		stmt := `
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at
+	FROM host_mdm_managed_certificates
+	WHERE (host_uuid, profile_uuid) IN (` + strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",") + `)`
+		var batchCerts []*fleet.MDMManagedCertificate
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchCerts, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm managed certificates for host profiles")
+		}
+		certs = append(certs, batchCerts...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return certs, nil
+}
+
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	totalHostCertsToRenew := 0

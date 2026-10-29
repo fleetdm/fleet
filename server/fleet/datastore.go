@@ -3962,6 +3962,9 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
+	// ListMDMManagedCertificatesForHostProfiles returns the managed certificates of the given host and profile pairs.
+	ListMDMManagedCertificatesForHostProfiles(ctx context.Context, hostProfiles []HostProfileUUID) ([]*MDMManagedCertificate, error)
+
 	// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error

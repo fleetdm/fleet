@@ -11858,6 +11858,18 @@ func testMDMManagedCertificatesFollowAdoptedProfile(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Len(t, certs, 1)
 	require.Equal(t, profA, certs[0].ProfileUUID, "rows that were not adopted stay put")
+
+	certs, err = ds.ListMDMManagedCertificatesForHostProfiles(ctx, []fleet.HostProfileUUID{
+		{HostUUID: adoptedHost, ProfileUUID: profB},
+		{HostUUID: otherHost, ProfileUUID: profA},
+		{HostUUID: otherHost, ProfileUUID: profB},
+	})
+	require.NoError(t, err)
+	listed := make([]string, 0, len(certs))
+	for _, c := range certs {
+		listed = append(listed, c.HostUUID+"/"+c.ProfileUUID+"/"+c.CAName)
+	}
+	require.ElementsMatch(t, []string{adoptedHost + "/" + profB + "/digicert", adoptedHost + "/" + profB + "/NDES", otherHost + "/" + profA + "/digicert"}, listed)
 }
 
 func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
