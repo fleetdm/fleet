@@ -924,6 +924,7 @@ Object with the following structure:
   "name": "GOOGLE_WIFI",
   "type": "google_cas"
 },
+{
   "id": 8,
   "name": "EJBCA_WIFI",
   "type": "ejbca"
