@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.9.415",
+      "version": "0.9.450",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor' AND version_compare(bundle_short_version, '0.9.415') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rive.editor' AND version_compare(bundle_short_version, '0.9.450') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.rive.editor' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.rive.app/macos/0.9.415/Rive.dmg",
+      "installer_url": "https://releases.rive.app/macos/0.9.450/Rive.dmg",
       "install_script_ref": "97e48369",
       "uninstall_script_ref": "4ccc716d",
-      "sha256": "7d30628306871fadfb2590f9b45532bf6e566bb05284926d33b6f531e94d9096",
+      "sha256": "02e1366b3f1fad7adc076cd7b3f9de6c9f399a0c92f089173541df7b120ade0a",
       "default_categories": [
         "Productivity"
       ]
