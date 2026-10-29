@@ -506,6 +506,7 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  "google_device_id",
   // Android-only vitals. Absent for every other platform, so they're simply
   // dropped by the pick rather than needing a platform check here.
   "adb_enabled",

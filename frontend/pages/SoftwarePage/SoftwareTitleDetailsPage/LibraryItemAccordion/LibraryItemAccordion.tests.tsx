@@ -279,7 +279,7 @@ describe("LibraryItemAccordion", () => {
         screen.queryByRole("button", { name: "Latest" })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Edit package" })
+        screen.queryByRole("button", { name: "Edit version" })
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /auto-install polic/i })
@@ -295,9 +295,9 @@ describe("LibraryItemAccordion", () => {
         onSelfServiceClick,
       });
 
-      // Self-service icon opens the per-package Edit modal; aria-label
+      // Self-service icon opens the Edit version modal; aria-label
       // matches the modal title.
-      const button = screen.getByRole("button", { name: "Edit package" });
+      const button = screen.getByRole("button", { name: "Edit version" });
       await user.click(button);
       expect(onSelfServiceClick).toHaveBeenCalledTimes(1);
     });
@@ -762,11 +762,10 @@ describe("LibraryItemAccordion", () => {
         /configuration failed to apply/i
       );
 
-      // Info-outline tooltip collapses to a Play Store one-liner on Android.
       await expectInfoTooltip(
         user,
         container,
-        /latest status from the Google Play Store/i
+        /latest status from setup experience\. doesn't include apps installed via self service\./i
       );
     });
   });

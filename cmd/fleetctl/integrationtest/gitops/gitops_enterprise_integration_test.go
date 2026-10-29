@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 	"text/template"
+	"time"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
@@ -550,7 +552,7 @@ settings:
 	})
 }
 
-// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
+// TestCAIntegrations enables DigiCert, Custom SCEP, and EJBCA CAs via GitOps.
 // At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
@@ -589,6 +591,22 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t.Cleanup(digiCertServer.Close)
 
 	scepServer := scep_server.StartTestSCEPServer(t)
+
+	fakeEJBCA := ejbcatest.New(t, nil)
+	t.Setenv("EJBCA_WIFI_CLIENT_P12", fakeEJBCA.ClientP12(t, time.Now().Add(90*24*time.Hour), "p12-password"))
+	t.Setenv("EJBCA_WIFI_PASSWORD", "p12-password")
+	ejbcaYAML := fmt.Sprintf(`    ejbca:
+      - name: EJBCA_WIFI
+        url: %s
+        client_p12: $EJBCA_WIFI_CLIENT_P12
+        password: $EJBCA_WIFI_PASSWORD
+        trust_ca_bundle: %q
+        certificate_authority_name: %s
+        certificate_profile_name: %s
+        end_entity_profile_name: %s
+        certificate_common_name: ejbca_cn
+        certificate_user_principal_names: ["ejbca_upn"]
+`, fakeEJBCA.HTTP.URL, fakeEJBCA.ServerPEM, ejbcatest.CAName, ejbcatest.CertProfile, ejbcatest.EndEntityProfile)
 
 	// Get the path to the directory of this test file
 	_, currentFile, _, ok := runtime.Caller(0)
@@ -652,12 +670,13 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		scepServer.URL+"/scep",
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -692,6 +711,14 @@ reports:
 	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
 	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
 
+	// check EJBCA, which was added and whose client certificate and key were read out of the PKCS#12
+	require.Len(t, groupedCAs.EJBCA, 1)
+	ejbcaCA := groupedCAs.EJBCA[0]
+	require.Equal(t, "EJBCA_WIFI", ejbcaCA.Name)
+	require.Contains(t, ejbcaCA.MTLSCertPEM, "BEGIN CERTIFICATE")
+	ejbcaRequests := len(fakeEJBCA.Requests())
+	require.NotZero(t, ejbcaRequests)
+
 	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
@@ -723,13 +750,14 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -753,6 +781,42 @@ reports:
 	gotProfileMu.Lock()
 	require.True(t, gotProfile) // external digicert service was called because stored config was modified
 	gotProfileMu.Unlock()
+	require.Len(t, fakeEJBCA.Requests(), ejbcaRequests) // EJBCA was NOT called because its stored config was not modified
+
+	// A CA that changes type and keeps its name is replaced, even though GitOps applies the deletes later, because an EJBCA CA can't
+	// share its name with a CA of another type.
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
+agent_options:
+controls:
+  apple_settings:
+    configuration_profiles:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    custom_scep_proxy:
+      - name: EJBCA_WIFI
+        url: %s
+        challenge: challenge
+policies:
+reports:
+`,
+		scepServer.URL+"/scep",
+	))
+	require.NoError(t, err)
+
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	assert.Empty(t, groupedCAs.EJBCA)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	assert.Equal(t, "EJBCA_WIFI", groupedCAs.CustomScepProxy[0].Name)
 
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
@@ -778,6 +842,7 @@ reports:
 	require.NoError(t, err)
 	assert.Empty(t, groupedCAs.DigiCert)
 	assert.Empty(t, groupedCAs.CustomScepProxy)
+	assert.Empty(t, groupedCAs.EJBCA)
 }
 
 // TestDeleteCAWithCertificateTemplates tests the GitOps ordering when deleting a certificate

@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -288,9 +289,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, true, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, varNames, teamName, err := svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	cp, varNames, teamName, err := svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	cp.Description = description
 	cp.SelfService, cp.Hidden = selfService, hidden
@@ -337,7 +342,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 // and the original unexpanded Mobileconfig set), the Fleet variable names it
 // uses, and the team's name (empty string for no team). An empty name means
 // the profile is named after its PayloadDisplayName.
-func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, validation *profilevalidation.Mode) (*fleet.MDMAppleConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Apple MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just Windows
 	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -422,6 +427,9 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 	if err := fleet.ValidateMDMProfileName(cp.Name); err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err)
 	}
+	if err := svc.validateProfileSchema(ctx, profileSchemaAppleProfile, []byte(expanded), validation, cp.Name, teamID); err != nil {
+		return nil, nil, "", err
+	}
 
 	// Save the original unexpanded profile
 	cp.Mobileconfig = data
@@ -478,6 +486,8 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		if !slices.Contains(fleetVarsSupportedInAppleConfigProfiles, fleet.FleetVarName(fleetVar)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
@@ -583,6 +593,17 @@ func validatePSSORegistrationTokenVariable(contents string) error {
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
 func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFound) error {
+	return validatePKCS12CAPayload(contents, digiCertVars.CAs(), fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix)
+}
+
+// additionalEJBCAValidation does the same for EJBCA Fleet variables.
+func additionalEJBCAValidation(contents string, ejbcaVars *EJBCAVarsFound) error {
+	return validatePKCS12CAPayload(contents, ejbcaVars.CAs(), fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix)
+}
+
+// validatePKCS12CAPayload checks that, for each CA, the data and password variables are the exact content of a
+// "com.apple.security.pkcs12" payload's PayloadContent and Password.
+func validatePKCS12CAPayload(contents string, cas []string, dataVar, passwordVar fleet.FleetVarName) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
 	contents = variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
 		return base64.StdEncoding.EncodeToString([]byte(match))
@@ -594,11 +615,11 @@ func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFou
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse PKCS12 payload with Fleet variables: %s", err.Error())}
 	}
 	var foundCAs []string
-	passwordPrefix := "FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix)
-	dataPrefix := "FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix)
+	passwordPrefix := "FLEET_VAR_" + string(passwordVar)
+	dataPrefix := "FLEET_VAR_" + string(dataVar)
 	for _, payload := range pkcs12Prof.PayloadContent {
 		if payload.PayloadType == "com.apple.security.pkcs12" {
-			for _, ca := range digiCertVars.CAs() {
+			for _, ca := range cas {
 				// Check for exact match on password and data
 				if payload.Password == "$"+passwordPrefix+ca || payload.Password == "${"+passwordPrefix+ca+"}" {
 					if string(payload.PayloadContent) == "$"+dataPrefix+ca || string(payload.PayloadContent) == "${"+dataPrefix+ca+"}" {
@@ -615,8 +636,8 @@ func additionalDigiCertValidation(contents string, digiCertVars *DigiCertVarsFou
 			}
 		}
 	}
-	if len(foundCAs) < len(digiCertVars.CAs()) {
-		for _, ca := range digiCertVars.CAs() {
+	if len(foundCAs) < len(cas) {
+		for _, ca := range cas {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively.",
 					passwordPrefix+ca, dataPrefix+ca)}
@@ -692,7 +713,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *CustomSCEPV
 		foundCAs = append(foundCAs, ca)
 	}
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
@@ -745,7 +766,7 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		foundCAs = append(foundCAs, ca)
 	}
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 	if len(foundCAs) < len(smallstepVars.CAs()) {
 		for _, ca := range smallstepVars.CAs() {
@@ -867,7 +888,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	}
 
 	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
 	}
 
 	// Check for the exact match on challenge and URL
@@ -1003,9 +1024,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	d.Description = description
 	d.Hidden = hidden
@@ -1049,7 +1074,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 // and update paths. It returns the constructed declaration (DeclarationUUID
 // not yet set), the Fleet variable names it references, and the team's name
 // (empty string for no team).
-func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, validation *profilevalidation.Mode) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
 	// Get license for team lookup and variable validation
 	lic, _ := license.FromContext(ctx)
 
@@ -1120,6 +1145,9 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 	}
 
 	if err := rawDecl.ValidateScope(); err != nil {
+		return nil, nil, "", err
+	}
+	if err := svc.validateProfileSchema(ctx, profileSchemaAppleDeclaration, []byte(dataWithSecrets), validation, name, teamID); err != nil {
 		return nil, nil, "", err
 	}
 
@@ -1220,9 +1248,15 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		varNames []fleet.FleetVarName
 	)
 	if len(profile) > 0 {
-		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.RawJSON) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		decl, varNames, _, err = svc.parseAndValidateAppleDeclaration(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 		if decl.Identifier != existing.Identifier {
 			return fleet.NewInvalidArgumentError("profile",
@@ -1996,9 +2030,15 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 	var cp *fleet.MDMAppleConfigProfile
 	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, varNames, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.Mobileconfig) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		cp, varNames, _, err = svc.parseAndValidateAppleConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 		if cp.Identifier != existing.Identifier {
 			return fleet.NewInvalidArgumentError("profile",
@@ -2978,10 +3018,11 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	}
 
 	defer func() {
-		if _, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
+		if authErr, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
 			// Every refusal looks the same to the device, so the server log is
 			// the only place to tell which device was refused and why.
 			logging.WithExtras(ctx, "serial", machineInfo.Serial, "udid", machineInfo.UDID, "product", machineInfo.Product)
+			err = &fleet.AutomaticEnrollmentRefusedError{Reason: authErr.Internal()}
 		}
 	}()
 
@@ -3874,6 +3915,20 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+	// only new or changed profiles are validated, matched by identifier
+	var schema *profilevalidation.ProfileValidationSchema
+	var stored *fleet.MDMProfileChecksums
+	if appCfg.MDM.EnableProfileValidation {
+		schema = currentProfileValidationSchema()
+		if stored, err = svc.ds.GetMDMProfileChecksums(ctx, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get stored profile checksums")
+		}
+	}
+
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
@@ -3926,6 +3981,18 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(
 					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch",
 				))
+		}
+
+		sum := md5.Sum(prof) //nolint:gosec // content comparison, not security
+		if stored != nil && !bytes.Equal(stored.AppleByIdentifier[strings.ToLower(mdmProf.Identifier)], sum[:]) {
+			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
+			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
+					profileValidationBatchMessage(mdmProf.Name, pvErr.findings[0], pvErr.windows)))
+			}
+			if err != nil {
+				return err
+			}
 		}
 
 		// Store original unexpanded profile
@@ -6151,8 +6218,19 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			act.FromSetupExperience = fromSetupExperience
 			act.FromAutoUpdate = fromAutoUpdate
 			act.FromConfigurationResend = fromConfigurationResend
+			// Set the install as failed here, verification only runs for acknowledged installs
+			err = svc.ds.SetVPPInstallAsFailed(r.Context, act.HostID, cmdResult.CommandUUID, "")
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "set vpp install as failed")
+			}
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+			}
+			if act.PolicyID != nil {
+				err = svc.ds.IncrementHostPolicyAutomationRunCount(r.Context, *act.PolicyID, act.HostID, fleet.ActivityInstalledAppStoreApp{}, false)
+				if err != nil {
+					svc.logger.ErrorContext(r.Context, "increment host policy automation run count for failed vpp install command", "host_id", act.HostID, "command_uuid", cmdResult.CommandUUID, "err", err)
+				}
 			}
 		}
 
@@ -6800,7 +6878,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		)
 
 		// Load VPP metadata for the software title.
-		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, softwareTitle.ID)
 		switch {
 		case err == nil:
 			// OK
@@ -6901,7 +6979,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// by InstalledApplicationList is still the old version until the user closes the app or the device goes to
 	// sleep and the app is closed and reopened automatically.
 	//
-	adamIDsRecentInstallForHost, err := svc.ds.MapAdamIDsRecentInstalls(ctx, host.ID, 3600)
+	adamIDsRecentInstallForHost, err := svc.ds.MapAdamIDsRecentInstalls(ctx, host.ID, fleet.VPPAutomaticInstallWaitSeconds)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs recent installs for host")
 	}
@@ -7297,13 +7375,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		// A Settings command can report per-item failures inside an
 		// acknowledged result; this command carries a single DeviceName item,
 		// so any item-level error means the rename failed.
-		if itemDetail, itemChain, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
-			status = fleet.MDMAppleStatusError
+		if itemStatus, itemDetail, itemChain := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemStatus != "" {
+			status = itemStatus
 			detail = itemDetail
 			errorChain = itemChain
 		}
 	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 		detail = apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+		if detail == "" {
+			detail = "Settings command returned status " + status + "."
+		}
 		errorChain = cmdResult.ErrorChain
 	default:
 		// Idle/NotNow — the command hasn't completed yet; nothing to record.
@@ -7322,7 +7403,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 		return nil
 	}
 
-	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail, !isDeviceNotSupervisedError(errorChain))
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail, isDeviceNameErrorRetryable(status, errorChain))
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -7336,9 +7417,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx c
 // deviceNameSettingsItemError inspects a Settings command acknowledgment for
 // per-item statuses: each item in the Settings array of the response can
 // individually report an Error even when the overall command is Acknowledged.
-// It returns a human-readable detail, the item's error chain, and true when any
-// item failed.
-func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, []mdm.ErrorChain, bool) {
+// It returns the failed item's status (empty when no item failed), a
+// human-readable detail, and the item's error chain.
+func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, string, []mdm.ErrorChain) {
 	var ack struct {
 		Settings []struct {
 			Status     string           `plist:"Status"`
@@ -7348,31 +7429,40 @@ func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw [
 	if err := plist.Unmarshal(raw, &ack); err != nil {
 		// A malformed per-item array shouldn't fail the acknowledged command.
 		logger.WarnContext(ctx, "unmarshal Settings command acknowledgment for per-item statuses", "err", err)
-		return "", nil, false
+		return "", "", nil
 	}
 	for _, item := range ack.Settings {
 		if item.Status != "" && item.Status != fleet.MDMAppleStatusAcknowledged {
 			detail := apple_mdm.FmtErrorChain(item.ErrorChain)
 			if detail == "" {
-				detail = "Settings item returned status " + item.Status + "."
+				if item.Status == fleet.MDMAppleStatusCommandFormatError {
+					// Unsupervised iPhones and iPads can reject the rename this
+					// way, with no error chain to explain why.
+					detail = "The device rejected the host name. Apple only renames supervised iPhones and iPads."
+				} else {
+					detail = "Settings item returned status " + item.Status + "."
+				}
 			}
-			return detail, item.ErrorChain, true
+			return item.Status, detail, item.ErrorChain
 		}
 	}
-	return "", nil, false
+	return "", "", nil
 }
 
 // Apple only renames supervised iPhones and iPads, so this rejection can't be
 // fixed by retrying.
 const mdmErrorDeviceNotSupervised = 12026
 
-func isDeviceNotSupervisedError(chain []mdm.ErrorChain) bool {
+func isDeviceNameErrorRetryable(status string, chain []mdm.ErrorChain) bool {
+	if status == fleet.MDMAppleStatusCommandFormatError {
+		return false
+	}
 	for _, e := range chain {
 		if e.ErrorDomain == "MCMDMErrorDomain" && e.ErrorCode == mdmErrorDeviceNotSupervised {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {

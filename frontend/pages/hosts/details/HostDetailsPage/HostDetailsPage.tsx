@@ -163,7 +163,7 @@ import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import VitalsModal from "../modals/VitalsModal";
 
-import HostDetailsBanners from "./components/HostDetailsBanners";
+import { useHostDetailsBanner } from "./components/HostDetailsBanners";
 import ReleaseFromABModal from "./components/ReleaseFromABModal";
 import {
   canShowMyDeviceButton,
@@ -198,6 +198,8 @@ const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 const NIXOS_PACKAGE_MANAGEMENT_LINK =
   "https://fleetdm.com/learn-more-about/nixos-package-management";
+const SOFTWARE_LIBRARY_UNSUPPORTED_HEADER =
+  "Software library is currently not supported on this host";
 
 /** Returns the empty state explaining why the software library is unsupported
  * on the host's platform, or undefined if it's supported. Android hosts don't
@@ -206,7 +208,7 @@ const NIXOS_PACKAGE_MANAGEMENT_LINK =
 const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
   if (isAndroid(platform)) {
     return {
-      header: "Software library is currently not supported on this host",
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
       info: (
         <>
           Software install is coming soon.{" "}
@@ -221,6 +223,7 @@ const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
   }
   if (platform === "nixos") {
     return {
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
       info: (
         <>
           Installing software on NixOS hosts happens outside of Fleet.{" "}
@@ -943,6 +946,7 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
+        queryClient.invalidateQueries(["hosts_count_for_license"]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
@@ -1478,6 +1482,24 @@ const HostDetailsPage = ({
     }
   };
 
+  // Computed before the loading return so MainContent knows whether this page
+  // has its own banner, which outranks the license host limit banner.
+  const hostDetailsBanner = useHostDetailsBanner({
+    mdmEnrollmentStatus: host?.mdm.enrollment_status ?? null,
+    hostPlatform: host?.platform,
+    macDiskEncryptionStatus: host?.mdm.apple_settings?.disk_encryption,
+    diskEncryptionActionRequired: host?.mdm.apple_settings?.action_required,
+    connectedToFleetMdm: host?.mdm.connected_to_fleet,
+    diskEncryptionOSSetting: host?.mdm.os_settings?.disk_encryption,
+    diskIsEncrypted: host?.disk_encryption_enabled,
+    diskEncryptionKeyAvailable: host?.mdm.encryption_key_available,
+    lastMdmEnrolledAt: host?.last_mdm_enrolled_at,
+    detailUpdatedAt: host?.detail_updated_at,
+    depAssignedToFleet: host?.dep_assigned_to_fleet || false,
+    onlyAllowAppleBusinessEnrollment:
+      config?.mdm.only_allow_apple_business_enrollment || false,
+  });
+
   if (
     !host ||
     isLoadingHost ||
@@ -1754,11 +1776,11 @@ const HostDetailsPage = ({
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                   router={router}
                   queryParams={{
-                    // Types filter the Inventory tab only.
-                    ...omit(
-                      parseHostSoftwareQueryParams(location.query),
-                      "types"
-                    ),
+                    // Types and AI tools filter the Inventory tab only.
+                    ...omit(parseHostSoftwareQueryParams(location.query), [
+                      "types",
+                      "ai_tool",
+                    ]),
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
@@ -1808,28 +1830,7 @@ const HostDetailsPage = ({
     return (
       <>
         <>
-          {!mainContentConfig.renderedBanner && (
-            <HostDetailsBanners
-              mdmEnrollmentStatus={host?.mdm.enrollment_status}
-              hostPlatform={host?.platform}
-              macDiskEncryptionStatus={
-                host?.mdm.apple_settings?.disk_encryption
-              }
-              diskEncryptionActionRequired={
-                host?.mdm.apple_settings?.action_required
-              }
-              connectedToFleetMdm={host?.mdm.connected_to_fleet}
-              diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
-              diskIsEncrypted={host?.disk_encryption_enabled}
-              diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
-              lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
-              detailUpdatedAt={host?.detail_updated_at}
-              depAssignedToFleet={host?.dep_assigned_to_fleet || false}
-              onlyAllowAppleBusinessEnrollment={
-                config?.mdm.only_allow_apple_business_enrollment || false
-              }
-            />
-          )}
+          {!mainContentConfig.renderedBanner && hostDetailsBanner}
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
@@ -2564,7 +2565,11 @@ const HostDetailsPage = ({
     );
   };
 
-  return <MainContent className={baseClass}>{renderContent}</MainContent>;
+  return (
+    <MainContent className={baseClass} pageHasBanner={!!hostDetailsBanner}>
+      {renderContent}
+    </MainContent>
+  );
 };
 
 export default HostDetailsPage;

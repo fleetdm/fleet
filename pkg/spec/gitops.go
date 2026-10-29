@@ -196,6 +196,7 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -216,7 +217,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil || c.EnableProfileValidation != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -1348,16 +1349,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
 
-	// apple_account_provisioning is a global-only MDM setting (it maps to global
-	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
-	// global configuration (or the no-team/unassigned file).
-	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
-		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
-		))
-	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
+
+	// apple_account_provisioning and enable_profile_validation are global-only MDM
+	// settings (they map to global AppConfig.MDM). Reject them in a specific team's
+	// file; they belong in the global configuration (or the no-team/unassigned file).
+	// Checked after path resolution, so a referenced controls file can't bypass it.
+	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		if result.Controls.AppleAccountProvisioning != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+		if result.Controls.EnableProfileValidation != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error
@@ -2050,10 +2060,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Labels, func(l *fleet.LabelSpec) string {
 			return l.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
@@ -2596,10 +2606,10 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Queries, func(q *fleet.QuerySpec) string {
 			return q.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
@@ -3099,22 +3109,38 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {
-	// We are using the allKeys map as a set here. True means the item is a duplicate.
-	allKeys := make(map[string]bool)
+	return getDuplicateNamesBy(slice, getComparableString, func(name string) string { return name })
+}
+
+// getDuplicateNamesBy groups items by key(getName(item)) and reports the first name as written for each group with duplicates.
+func getDuplicateNamesBy[T any](slice []T, getName func(T) string, key func(string) string) []string {
+	// idx is the position in duplicates, or -1 if the key hasn't been reported yet.
+	type entry struct {
+		name string
+		idx  int
+	}
+	seen := make(map[string]entry)
 	var duplicates []string
 	for _, item := range slice {
-		name := getComparableString(item)
-		if isDuplicate, exists := allKeys[name]; exists {
-			// If this name hasn't already been marked as a duplicate.
-			if !isDuplicate {
-				duplicates = append(duplicates, name)
-			}
-			allKeys[name] = true
-		} else {
-			allKeys[name] = false
+		name := getName(item)
+		k := key(name)
+		e, exists := seen[k]
+		if !exists {
+			seen[k] = entry{name: name, idx: -1}
+			continue
+		}
+		if e.idx == -1 {
+			duplicates = append(duplicates, e.name)
+			seen[k] = entry{name: e.name, idx: len(duplicates) - 1}
 		}
 	}
 	return duplicates
+}
+
+// nameCollationKey matches how MySQL compares label and report names (case-insensitive, trailing spaces ignored), so duplicates fail
+// before anything is applied.
+func nameCollationKey(name string) string {
+	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
 func isASCII(s string) bool {

@@ -964,6 +964,10 @@ const (
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
+// BitLockerKeyUndecryptableDetail is the Windows disk encryption detail shown while the host is asked to escrow a new
+// recovery key because Fleet cannot read the stored one.
+const BitLockerKeyUndecryptableDetail = "Fleet can't read this host's stored recovery key. The host will escrow a new one when it comes online."
+
 // BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 //
@@ -1362,6 +1366,10 @@ type HostDetail struct {
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
+
+	// GoogleDeviceID is set only for iOS, iPadOS and Android hosts, to "" when the host has no device ID
+	// in Google, so other platforms omit the field.
+	GoogleDeviceID *string `json:"google_device_id,omitempty"`
 
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
@@ -2146,6 +2154,9 @@ type HostDiskEncryptionKey struct {
 	ClientError         string    `json:"-" db:"client_error"`
 	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
 	RotationPending     bool      `json:"rotation_pending" db:"-"`
+	// WSTEPEncrypted marks a legacy Windows key, encrypted to the WSTEP identity certificate by an older release.
+	// Current rows use the server private key. The hourly job re-encrypts marked rows.
+	WSTEPEncrypted bool `json:"-" db:"wstep_encrypted"`
 }
 
 // DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
@@ -2155,11 +2166,13 @@ type HostDiskEncryptionKey struct {
 const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
+	ID                  uint      `json:"-" db:"id"`
 	HostID              uint      `json:"-" db:"host_id"`
 	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
 	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
 	KeySlot             *uint     `json:"-" db:"key_slot"`
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+	WSTEPEncrypted      bool      `json:"-" db:"wstep_encrypted"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed

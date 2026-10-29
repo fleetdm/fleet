@@ -11,6 +11,7 @@ import SidePanelContent from "components/SidePanelContent";
 import SidePanelPage from "components/SidePanelPage";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
@@ -75,7 +76,14 @@ const SoftwareAddPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { availableTeams } = useContext(AppContext);
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
+  // Resolve the fleet name directly from availableTeams instead of via
+  // useTeamIdParam. On Fleet Free, that hook strips any fleet_id from the URL,
+  // but the page guard below immediately re-adds fleet_id=0, which loops.
+  const currentTeamName = availableTeams?.find(
+    (t) => t.id === parseInt(location.query.fleet_id ?? "", 10)
+  )?.name;
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -142,6 +150,7 @@ const SoftwareAddPage = ({
             {React.cloneElement(children, {
               router,
               currentTeamId: parseInt(location.query.fleet_id, 10),
+              currentTeamName,
               isSidePanelOpen,
               setSidePanelOpen,
             })}

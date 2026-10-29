@@ -1758,3 +1758,49 @@ describe("Timezone vital", () => {
     expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
   });
 });
+
+describe("Google device ID vital", () => {
+  // Built the way HostDetailsPage builds it, so a field missing from
+  // HOST_VITALS_DATA or an empty value normalized to "---" is caught.
+  const renderWithHost = (mockHost: IHost) =>
+    render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+  it.each(["ios", "ipados", "android"])(
+    "renders the Google device ID for %s hosts once it is set",
+    (platform) => {
+      renderWithHost(
+        createMockHost({
+          platform: platform as HostPlatform,
+          google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        })
+      );
+
+      expect(screen.getByText("Google device ID")).toBeInTheDocument();
+      expect(
+        screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      ).toBeInTheDocument();
+    }
+  );
+
+  it("hides the Google device ID until it is set", () => {
+    renderWithHost(createMockHost({ platform: "ios", google_device_id: "" }));
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
+  });
+
+  it("hides the Google device ID on other platforms", () => {
+    renderWithHost(
+      createMockHost({
+        platform: "darwin",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      })
+    );
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
+  });
+});

@@ -1,0 +1,1 @@
+- Fixed a two-finger horizontal swipe over the script, SQL, and YAML editors navigating the browser back to the previous page.

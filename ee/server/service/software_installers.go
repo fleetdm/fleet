@@ -2030,6 +2030,12 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 		if err := svc.NewActivity(ctx, user, act); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "create activity for failed vpp install")
 		}
+		if opts.PolicyID != nil {
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *opts.PolicyID, host.ID, fleet.ActivityInstalledAppStoreApp{}, false)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for failed vpp install", "host_id", host.ID, "command_uuid", cmdUUID, "err", err)
+			}
+		}
 	}
 	if opts.ForSetupExperience {
 		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
@@ -5077,16 +5083,6 @@ func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint,
 		err := svc.deleteVPPApp(ctx, teamID, version)
 		if err != nil {
 			return err
-		}
-	}
-
-	// Re-send the app to iOS and iPadOS hosts whose version is deleted and that are in scope for a remaining version,
-	// the delete cleared the version of their installs. Queue nothing when every version is deleted, deleting an
-	// iOS or iPadOS app never removes it from hosts.
-	if (versions[0].Platform == fleet.IOSPlatform || versions[0].Platform == fleet.IPadOSPlatform) && len(versionsToDelete) < len(versions) {
-		err := worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, versions[0].VPPAppID, ptr.ValOrZero(teamID), nil, false, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
 		}
 	}
 

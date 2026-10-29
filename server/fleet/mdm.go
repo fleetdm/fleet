@@ -195,6 +195,8 @@ var (
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
 	}, IDPFleetVariables)
+	// FleetVarsSupportedInEJBCA lists the variables allowed in an EJBCA CA's common name, username template, and UPN.
+	FleetVarsSupportedInEJBCA = FleetVarsSupportedInDigiCert
 )
 
 type AppleMDM struct {
@@ -844,6 +846,15 @@ type BatchModifyMDMConfigProfilePayload struct {
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
+// MDMProfileChecksums holds the MD5 of a team's stored, unexpanded profile
+// contents: Apple profiles by identifier, declarations and Windows profiles by
+// name. Keys are lowercased, matching the columns' case-insensitive unique keys.
+type MDMProfileChecksums struct {
+	AppleByIdentifier  map[string][]byte
+	DeclarationsByName map[string][]byte
+	WindowsByName      map[string][]byte
+}
+
 type MDMProfileBatchPayload struct {
 	Name string `json:"name,omitempty"`
 	// DisplayName is the older spelling of Name on the public batch endpoint,
