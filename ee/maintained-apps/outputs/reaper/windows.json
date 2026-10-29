@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.83",
+      "version": "7.84",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.83') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.84') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reaper.exe');"
       },
-      "installer_url": "https://www.reaper.fm/files/7.x/reaper783_x64-install.exe",
+      "installer_url": "https://www.reaper.fm/files/7.x/reaper784_x64-install.exe",
       "install_script_ref": "8fd3787f",
       "uninstall_script_ref": "c67e0453",
-      "sha256": "a1f0ea602806145c2648f7f678974bda35304b178d29cf72d8255b7218a5e0c8",
+      "sha256": "a343286bd67d8515b561e5c6b7cc284a8d258d87a73f5518ec2e233d46ff9755",
       "default_categories": [
         "Productivity"
       ]
