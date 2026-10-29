@@ -1,3 +1,5 @@
+//go:build gitops_auto_complete_test
+
 package main
 
 import (

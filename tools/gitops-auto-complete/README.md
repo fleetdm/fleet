@@ -12,11 +12,24 @@ The tool is a separate Go module, so run it from its own directory:
 
 ```bash
 cd tools/gitops-auto-complete
+go mod tidy
 go run . generated-schema.json
 ```
 
 The argument is the output file, or omit it to print to stdout. Re-run it whenever
-the relevant Fleet structs change.
+the relevant Fleet structs change. The schema file is not committed.
+
+The tool is not built or tested in CI, so `go mod tidy` may be needed first, and
+`types.go` may need fixes if Fleet's GitOps types have changed.
+
+### Run the tests
+
+The tests are behind a build tag and read the generated schema, so build it first:
+
+```bash
+go run . generated-schema.json
+go test -tags gitops_auto_complete_test ./...
+```
 
 ### Set up with yaml-language-server
 
