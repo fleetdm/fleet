@@ -47,7 +47,7 @@ GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
 
 ### Custom end user agreement for Windows enrollment
 
-IT admins can now replace the default terms page that end users see during Microsoft Entra and Autopilot enrollment with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set [`windows_eula`](https://fleetdm.com/docs/configuration/yaml-files#windows-eula) in GitOps. Adding or deleting an agreement creates an activity. You can also manage it with the [EULA API endpoints](https://fleetdm.com/docs/rest-api/rest-api#create-eula).
+IT admins can now replace the default terms page that end users see during [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), with or without [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set [`windows_eula`](https://fleetdm.com/docs/configuration/yaml-files#windows-eula) in GitOps. Adding or deleting an agreement creates an activity. You can also manage it with the [EULA API endpoints](https://fleetdm.com/docs/rest-api/rest-api#create-eula).
 
 Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-agreement-eula).
 
