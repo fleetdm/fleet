@@ -2,4 +2,4 @@
 * When the x64 and ARM64 builds of a Windows app share an MSI upgrade code (for example, Google Chrome) and are added to different fleets, the software title uses the x64 app's name, whichever is added first, instead of switching names on each add.
 * Fixed the "app is open" check for ARM64 Windows Fleet-maintained apps so it looks for the same process as the x64 app.
 * Fixed the "app is open" check for the Python 3.13, Python 3.14, VLC media player, and TortoiseGit Windows Fleet-maintained apps, which looked for a process name the app never runs.
-* The TortoiseGit Windows Fleet-maintained app's install detection and patch policy now ignore other architectures' TortoiseGit installs.
+* The TortoiseGit, PuTTY, and PowerToys Windows Fleet-maintained apps' install detection and patch policies now ignore other architectures' installs of the same app, and the PowerToys uninstall script no longer removes the ARM64 build.

@@ -1,4 +1,4 @@
-$displayNameLike = "PowerToys*"
+$displayNameLike = "PowerToys*x64"
 $publisherLike = "Microsoft Corporation*"
 
 $paths = @(
