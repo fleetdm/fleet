@@ -50,8 +50,6 @@ A request is unpacked when the top of the GitHub issue description includes thes
 - _In the interim_: The workaround available today. If there's no workaround, write "No workaround."
 - _Eventually_: How Fleet would solve it and when we expect to ship it (e.g., a release, a quarter, or a customer promise date). If there's no plan, write "No plans."
 
-The Product Designer (PD) decides who writes each line. If the PD understands the why, they can unpack the request themselves.
-
 Example:
 
 ```
@@ -60,7 +58,7 @@ Example:
   - @username: _Eventually_ No plans.
 ```
 
-Every new request goes through unpacking. PDs don't have to wait for the weekly "Unpacking the why" call. They can unpack a request as soon as they [triage](https://fleetdm.com/handbook/product-design#triage-new-requests) it. During the call, the relevant product group's Product Designer (PD) and a former IT admin review requests that aren't unpacked yet to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.
+Every new request goes through unpacking. If the PD understands the why, they can unpack the request themselves. PDs don't have to wait for the weekly "Unpacking the why" call. They can unpack a request as soon as they [triage](https://fleetdm.com/handbook/product-design#triage-new-requests) it. During the call, the relevant product group's Product Designer (PD) and a former IT admin review requests that aren't unpacked yet to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.
 
 If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
