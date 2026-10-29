@@ -41,7 +41,7 @@ GitHub issue: [#46834](https://github.com/fleetdm/fleet/issues/46834)
 
 IT admins can now add more than one version of the same App Store app to a fleet, each with its own labels, configuration, and categories. Roll an update out to a pilot group before the rest of the fleet, or ship different app configurations to different groups of hosts.
 
-Learn how to add App Store apps in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#add-an-app).
+Learn how to add a version in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).
 
 GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
 
