@@ -162,7 +162,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 	}
 
 	// certificate templates
-	ds.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc = func(ctx context.Context, offset int, limit int) ([]string, error) {
+	ds.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc = func(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
 		return nil, nil
 	}
 
