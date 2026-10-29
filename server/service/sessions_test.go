@@ -751,6 +751,54 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 	}
 }
 
+// The relay URL is where the browser lands after the IdP callback, so only a
+// path on the Fleet origin is acceptable; anything carrying a host would turn
+// the login flow into a redirect off-site.
+func TestInitiateSSORelayURLMustBeRelativePath(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID: "fleet",
+					IDPName:  "TestIDP",
+					Metadata: testSSOMetadata(),
+				},
+			},
+		}, nil
+	}
+
+	accepted := []string{"", "/", "/dashboard", "/hosts/manage?order_key=hostname#top"}
+	for _, relayURL := range accepted {
+		t.Run("accepts "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.NoError(t, err)
+		})
+	}
+
+	rejected := []string{
+		"https://evil.example/login",
+		"http://fleet.example.com/dashboard", // absolute even when same host: the API documents a relative URL
+		"//evil.example/login",
+		`/\evil.example/login`,
+		"javascript:alert(1)",
+		"dashboard",
+		"\\\\evil.example",
+	}
+	for _, relayURL := range rejected {
+		t.Run("rejects "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.Error(t, err)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+		})
+	}
+}
+
 func TestInitiateSSOWithInvalidURL(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.NopRedis()
