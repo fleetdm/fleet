@@ -1200,6 +1200,7 @@ org_settings:
 - `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
+- `mcp_disabled` turns off Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp), so AI tools can't connect to it. (default: `false`) _Available in Fleet Premium._
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
 - `report_cap` sets the maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
@@ -1216,6 +1217,7 @@ org_settings:
     ai_features_disabled: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_disabled: false
     discard_reports_data: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
