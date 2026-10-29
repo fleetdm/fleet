@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.143.17183",
+      "version": "1.143.17232",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium' AND version_compare(version, '1.143.17183') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium' AND version_compare(version, '1.143.17232') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'vscodium.exe');"
       },
-      "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.143.17183/VSCodiumSetup-x64-1.143.17183.exe",
+      "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.143.17232/VSCodiumSetup-x64-1.143.17232.exe",
       "install_script_ref": "38852240",
       "uninstall_script_ref": "b7b4a3ad",
-      "sha256": "f00b04b86431411c0dbd9d9d8eff6999f4bc63b5bcff5a16bdff39b35c40f41f",
+      "sha256": "012125ae30f70d1c2f6366ec8c47aa0e293f0e799b704c0eb3721089f69bbdca",
       "default_categories": [
         "Developer tools"
       ]

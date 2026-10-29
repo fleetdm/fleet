@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.173.0906",
+      "version": "26.189.0928",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive' AND version_compare(bundle_short_version, '26.173.0906') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive' AND version_compare(bundle_short_version, '26.189.0928') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.microsoft.OneDrive' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://oneclient.sfx.ms/Mac/Installers/26.173.0906.0008/universal/OneDrive.pkg",
+      "installer_url": "https://oneclient.sfx.ms/Mac/Installers/26.189.0928.0009/universal/OneDrive.pkg",
       "install_script_ref": "7cc5073a",
       "uninstall_script_ref": "9e7b4c74",
-      "sha256": "cc0270130dc32cf92d27a52a145639a6cbbf0e88287a1b5603be4292af9da66a",
+      "sha256": "6359d86e263b727c8a1eda634391d1a854bb3f875cb70160936f9d1615c6b0f3",
       "default_categories": [
         "Productivity"
       ]

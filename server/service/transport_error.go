@@ -41,6 +41,9 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 				"reason": e.Reason,
 			},
 		}
+		for _, reason := range e.MoreReasons {
+			jsonErr.Errors = append(jsonErr.Errors, map[string]string{"name": e.Field, "reason": reason})
+		}
 		enc.Encode(jsonErr) //nolint:errcheck
 		return true
 

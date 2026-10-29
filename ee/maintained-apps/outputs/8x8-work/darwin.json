@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.37.2",
+      "version": "8.38.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office' AND version_compare(bundle_short_version, '8.37.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office' AND version_compare(bundle_short_version, '8.38.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.8x8---virtual-office' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.37.2-1.dmg",
+      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.38.4-1.dmg",
       "install_script_ref": "8db2f96e",
       "uninstall_script_ref": "57004e5d",
-      "sha256": "3915128bf0a3f8700781c55184254638f4b323d990668fe712f6742d1aecbe5c",
+      "sha256": "00bc452679a6705256e6ebb33f282dd798493fbfee84b5d11c21cb5e873f8016",
       "default_categories": [
         "Communication"
       ]

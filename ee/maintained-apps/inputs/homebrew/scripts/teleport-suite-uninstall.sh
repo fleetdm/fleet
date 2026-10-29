@@ -137,6 +137,23 @@ trash() {
   fi
 }
 
+# Root removes the client-tools cache from a pinned working directory after
+# checking its kernel path (/bin/pwd, not the shell's string walk): the home's
+# owner controls ~/.tsh, so root following a symlink they swapped in could
+# otherwise delete any "bin" directory on the system.
+remove_tsh_bin() { # remove_tsh_bin <home directory>
+  local tsh_dir="$1/.tsh" real_home
+  real_home=$(cd "$1" && /bin/pwd -P) || return 1
+  (
+    cd "$tsh_dir" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/.tsh" ]]; then
+      echo "refusing to remove $tsh_dir/bin: $tsh_dir resolves to $(/bin/pwd -P)"
+      exit 1
+    fi
+    rm -rf bin
+  )
+}
+
 # Remove teleport-suite packages (handles wildcard patterns with (.*))
 remove_pkg_files '(.*).com.gravitational.teleport.tctl'
 forget_pkg '(.*).com.gravitational.teleport.tctl'
@@ -156,7 +173,16 @@ sudo rm -rf '/usr/local/bin/tctl'
 sudo rm -rf '/usr/local/bin/teleport'
 sudo rm -rf '/usr/local/bin/tsh'
 
-# Remove auto-updater client-tools caches for all users, then the console user's data
-sudo rm -rf /Users/*/.tsh/bin
+# Remove auto-updater client-tools caches for all users, then the console user's data.
+cache_failed=false
+for home in /Users/*; do
+  [[ -d "$home/.tsh/bin" ]] || continue
+  echo "Removing Teleport client-tools cache '$home/.tsh/bin'."
+  if ! remove_tsh_bin "$home"; then
+    echo "Failed to remove '$home/.tsh/bin'."
+    cache_failed=true
+  fi
+done
 trash "$LOGGED_IN_USER" '~/.tsh'
+[[ "$cache_failed" = false ]] || exit 1
 

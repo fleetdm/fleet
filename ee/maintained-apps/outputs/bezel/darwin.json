@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.4.0",
+      "version": "5.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct' AND version_compare(bundle_short_version, '5.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nonstrict.Bezel-direct' AND version_compare(bundle_short_version, '5.4.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nonstrict.Bezel-direct' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.nonstrict.eu/bezel/Bezel-5.4.0.zip",
+      "installer_url": "https://download.nonstrict.eu/bezel/Bezel-5.4.1.zip",
       "install_script_ref": "44415d74",
       "uninstall_script_ref": "afd4c90a",
-      "sha256": "953f25d8a88cd8130648ee2cc15d80aa1aa09e69ba756f76027ceb1f98d2e07f",
+      "sha256": "e7a4d29c6dd8144d0a066180efc1e602b90e43b09f5bf8eaad19cf226c011594",
       "default_categories": [
         "Productivity"
       ]

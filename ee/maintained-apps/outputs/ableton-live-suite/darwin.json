@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.4.7",
+      "version": "12.4.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(bundle_short_version, '12.4.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(bundle_short_version, '12.4.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ableton.live' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn-downloads.ableton.com/channels/12.4.7/ableton_live_suite_12.4.7_universal.dmg",
+      "installer_url": "https://cdn-downloads.ableton.com/channels/12.4.15/ableton_live_suite_12.4.15_universal.dmg",
       "install_script_ref": "2728a696",
       "uninstall_script_ref": "6e4ded34",
-      "sha256": "0b5d308a9922d43702473d90bdd7042be67f606a27729fd22a10ff04cc39c5cf",
+      "sha256": "35903a9830b1df2935e8b933c858a1a6c6191b31bf38de584dad18ac7d1d5695",
       "default_categories": [
         "Productivity"
       ]

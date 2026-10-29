@@ -1892,6 +1892,13 @@ type HostRecoveryLockPending struct {
 	Retries                  int              `db:"retry"`
 }
 
+// HostRecoveryLockVerifyClaim is a host claimed to have its recovery lock verify sent.
+type HostRecoveryLockVerifyClaim struct {
+	HostUUID          string           `db:"host_uuid"`
+	OperationType     MDMOperationType `db:"operation_type"`
+	VerifyCommandUUID string           `db:"-"`
+}
+
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
 type HostRecoveryLockRotationStatus struct {
 	HostUUID           string  // Host UUID

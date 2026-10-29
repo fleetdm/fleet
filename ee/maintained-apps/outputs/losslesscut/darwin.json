@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.70.1",
+      "version": "3.70.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'no.mifi.losslesscut-mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.mifi.losslesscut-mac' AND version_compare(bundle_short_version, '3.70.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.mifi.losslesscut-mac' AND version_compare(bundle_short_version, '3.70.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'no.mifi.losslesscut-mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/mifi/lossless-cut/releases/download/v3.70.1/LosslessCut-mac-arm64.dmg",
+      "installer_url": "https://github.com/mifi/lossless-cut/releases/download/v3.70.2/LosslessCut-mac-arm64.dmg",
       "install_script_ref": "e05400e5",
       "uninstall_script_ref": "2ab6e6e7",
-      "sha256": "82964e13ca65beeee508fbdb27fe823121701748b8b4023800bdcf701183d2ea",
+      "sha256": "3c0e2b3ec25fec66cf0cef343450d9a333e4bba5d64456c34cd18e891a3f5947",
       "default_categories": [
         "Developer tools"
       ]
