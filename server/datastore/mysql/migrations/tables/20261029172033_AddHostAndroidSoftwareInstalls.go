@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261027142518, Down_20261027142518)
+	MigrationClient.AddMigration(Up_20261029172033, Down_20261029172033)
 }
 
-func Up_20261027142518(tx *sql.Tx) error {
+func Up_20261029172033(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_android_software_installs (
   host_id           INT UNSIGNED NOT NULL,
@@ -41,6 +41,6 @@ SELECT host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM a
 	return nil
 }
 
-func Down_20261027142518(tx *sql.Tx) error {
+func Down_20261029172033(tx *sql.Tx) error {
 	return nil
 }
