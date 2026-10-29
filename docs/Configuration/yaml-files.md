@@ -505,6 +505,8 @@ controls:
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
+    macos_enable_bootstrap_package_during_manual_enrollment: false
+    macos_enable_bootstrap_package_during_migration: false
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
@@ -606,7 +608,9 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
-- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
+- `macos_enable_bootstrap_package_during_manual_enrollment` specifies whether the bootstrap package is also installed on macOS hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_enable_bootstrap_package_during_migration` specifies whether the bootstrap package is installed on macOS hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew`. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. When `true`, fleetd also isn't installed on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
@@ -626,6 +630,8 @@ Please use the platform-specific `apple_settings.managed_local_account_settings`
 ```yaml
 setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
+  macos_enable_bootstrap_package_during_manual_enrollment: false
+  macos_enable_bootstrap_package_during_migration: false
   macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
