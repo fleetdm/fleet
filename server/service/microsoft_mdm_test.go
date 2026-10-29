@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4112,25 +4113,135 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	})
 }
 
-func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
-	ds := new(mock.Store)
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
-		// An Apple-only host secret, which Windows expansion refuses.
-		return []*fleet.MDMWindowsCommand{
-			{CommandUUID: "bad", RawCommand: []byte(
-				`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
-					fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
-			{CommandUUID: "good", RawCommand: []byte(
-				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
-		}, nil
+func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
+	pollCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  "poll",
+		RawCommand:   []byte(`<Replace><CmdID>poll</CmdID><Item><Target><LocURI>` + syncml.DMClientPollIntervalLocURI + `</LocURI></Target></Item></Replace>`),
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
-	svc, _ := newTestService(t, ds, nil, nil)
+	badCmd := func(data string) []byte {
+		return []byte(`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` + data + `</Data></Item></Replace>`)
+	}
+	errStore := errors.New("store unavailable")
 
-	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
-	require.NoError(t, err, "a failed expansion must not fail the whole management session")
-	require.Len(t, cmds, 1)
-	require.Equal(t, "good", cmds[0].CmdID.Value)
+	for _, c := range []struct {
+		name          string
+		raw           []byte
+		expandSecrets func(ctx context.Context, document string) (string, error)
+		lookupErr     error
+		failErr       error
+		// wantReason is empty when the command isn't failed.
+		wantReason string
+		delivered  bool
+	}{
+		{
+			name:       "host secret Windows doesn't support",
+			raw:        badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
+			wantReason: "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+		},
+		{
+			name: "host secret from a custom variable",
+			raw:  badCmd("$FLEET_SECRET_ALIAS"),
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)), nil
+			},
+			wantReason: "comes from a custom variable",
+		},
+		{
+			name: "missing secret variable",
+			raw:  badCmd("$FLEET_SECRET_GONE"),
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				if strings.Contains(document, "$FLEET_SECRET_GONE") {
+					return "", fleet.MissingSecretsError{MissingSecrets: []string{"GONE"}}
+				}
+				return document, nil
+			},
+			wantReason: "custom variable not found: $FLEET_SECRET_GONE",
+		},
+		{
+			name: "custom variable only on the primary so far",
+			raw:  badCmd("$FLEET_SECRET_NEW"),
+			expandSecrets: func(ctx context.Context, document string) (string, error) {
+				if strings.Contains(document, "$FLEET_SECRET_NEW") && !ctxdb.IsPrimaryRequired(ctx) {
+					return "", fleet.MissingSecretsError{MissingSecrets: []string{"NEW"}}
+				}
+				return strings.ReplaceAll(document, "$FLEET_SECRET_NEW", "value"), nil
+			},
+			delivered: true,
+		},
+		{
+			name:       "doesn't parse",
+			raw:        []byte(`<Replace><CmdID>bad</CmdID>`),
+			wantReason: "XML syntax error",
+		},
+		{
+			name: "doesn't parse once expanded",
+			raw:  badCmd("$FLEET_SECRET_BREAKS"),
+			// an unescaped value, which the parser would quote in its error
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_BREAKS", "s3cr3t&v4lue"), nil
+			},
+			wantReason: "the command isn't valid XML once its variables are expanded",
+		},
+		{
+			name:      "enroll secret lookup fails",
+			raw:       badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)),
+			lookupErr: errStore,
+		},
+		{
+			name:       "recording the failure fails",
+			raw:        badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
+			failErr:    errStore,
+			wantReason: "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+				return []*fleet.MDMWindowsCommand{{CommandUUID: "bad", RawCommand: c.raw}, pollCmd}, nil
+			}
+			ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+				if c.expandSecrets != nil {
+					return c.expandSecrets(ctx, document)
+				}
+				return document, nil
+			}
+			ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+				return "one-time-secret", c.lookupErr
+			}
+			var failedReason string
+			ds.MDMWindowsFailUndeliverableCommandFunc = func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID, reason string) error {
+				require.Equal(t, "bad", commandUUID)
+				failedReason = reason
+				return c.failErr
+			}
+			svc, _ := newTestService(t, ds, nil, nil)
+
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
+			require.NoError(t, err, "one bad command must not fail the whole management session")
+			wantSent := []string{"poll"}
+			if c.delivered {
+				wantSent = []string{"bad", "poll"}
+			}
+			sent := make([]string, 0, len(cmds))
+			for _, cmd := range cmds {
+				sent = append(sent, cmd.CmdID.Value)
+			}
+			require.Equal(t, wantSent, sent)
+			// Only a command recorded as failed stops counting as pending.
+			require.Equal(t, c.wantReason != "" && c.failErr == nil, onlyPollCmdsPending)
+			// Only the lookup case resolves the one-time enroll secret. A host secret aliased by a custom variable must be refused
+			// before it's resolved.
+			require.Equal(t, c.lookupErr != nil, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
+			if c.wantReason == "" {
+				require.False(t, ds.MDMWindowsFailUndeliverableCommandFuncInvoked)
+				return
+			}
+			require.Contains(t, failedReason, c.wantReason)
+			require.NotContains(t, failedReason, "v4lue", "a variable's value must not reach the recorded reason")
+		})
+	}
 }
 
 func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
@@ -4157,37 +4268,12 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			probeQueuedAt = time.Now().Add(-c.age)
-			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
 			require.NoError(t, err)
 			require.Len(t, cmds, c.wantSent)
 			// A held-back probe is still pending, so the session must not clear has_pending_commands.
 			require.False(t, onlyPollCmdsPending)
 		})
 	}
-}
-
-func TestGetPendingMDMCmdsSkipsHostSecretFromCustomVariable(t *testing.T) {
-	ds := new(mock.Store)
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
-		return []*fleet.MDMWindowsCommand{
-			{CommandUUID: "aliased", RawCommand: []byte(
-				`<Replace><CmdID>aliased</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>$FLEET_SECRET_ALIAS</Data></Item></Replace>`)},
-			{CommandUUID: "good", RawCommand: []byte(
-				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
-		}, nil
-	}
-	// a custom variable whose value is a host-secret placeholder
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
-		return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)), nil
-	}
-	ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
-		return "one-time-secret", nil
-	}
-	svc, _ := newTestService(t, ds, nil, nil)
-
-	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
-	require.NoError(t, err)
-	require.Len(t, cmds, 1)
-	require.Equal(t, "good", cmds[0].CmdID.Value)
-	require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
 }

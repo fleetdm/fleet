@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -822,4 +823,55 @@ func (s *integrationMDMTestSuite) TestAppleCommandWithHostSecretFromCustomVariab
 	require.Len(t, resp.Results, 1)
 	assert.Equal(t, "Error", resp.Results[0].Status)
 	assert.Contains(t, string(resp.Results[0].Result), "comes from a custom variable")
+}
+
+func (s *integrationMDMTestSuite) TestWindowsUndeliverableCommandsFail() {
+	t := s.T()
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// a custom variable whose value is a host-secret placeholder
+	s.Do("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
+		Name: "WINDOWS_RESERVED_ALIAS", Value: fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
+	}, http.StatusOK)
+
+	runCmd := func(data string) string {
+		cmdUUID := uuid.NewString()
+		rawCmd := `<Exec><CmdID>` + cmdUUID + `</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI></Target>` +
+			`<Data>` + data + `</Data></Item></Exec>`
+		s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+			Command: base64.StdEncoding.EncodeToString([]byte(rawCmd)), HostUUIDs: []string{host.UUID},
+		}, http.StatusOK)
+		return cmdUUID
+	}
+	aliasCmd := runCmd("$FLEET_SECRET_WINDOWS_RESERVED_ALIAS")
+	missingCmd := runCmd("$FLEET_SECRET_WINDOWS_MISSING")
+	goodCmd := runCmd("1")
+
+	// the session goes through: the good command is delivered, and the other two are reported as failed
+	cmds, err := mdmDevice.StartManagementSession()
+	require.NoError(t, err)
+	require.Contains(t, cmds, goodCmd)
+	require.NotContains(t, cmds, aliasCmd)
+	require.NotContains(t, cmds, missingCmd)
+	for cmdUUID, reason := range map[string]string{
+		aliasCmd:   "comes from a custom variable",
+		missingCmd: "custom variable not found: $FLEET_SECRET_WINDOWS_MISSING",
+	} {
+		var resp getMDMCommandResultsResponse
+		s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &resp, "command_uuid", cmdUUID)
+		require.Len(t, resp.Results, 1)
+		assert.Equal(t, syncml.CmdStatusBadRequest, resp.Results[0].Status)
+		assert.Contains(t, string(resp.Results[0].Result), reason)
+	}
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", host.UUID)
+	statuses := make(map[string]fleet.MDMCommandStatusFilter, len(listResp.Results))
+	for _, c := range listResp.Results {
+		statuses[c.CommandUUID] = c.CommandStatus
+	}
+	assert.Equal(t, map[string]fleet.MDMCommandStatusFilter{
+		aliasCmd:   fleet.MDMCommandStatusFilterFailed,
+		missingCmd: fleet.MDMCommandStatusFilterFailed,
+		goodCmd:    fleet.MDMCommandStatusFilterPending,
+	}, statuses)
 }
