@@ -101,7 +101,7 @@
       <div>
         <p><span class="term">History:</span> Fleet keeps current versions only, so this page records a daily snapshot and times new versions from <span id="since"></span>. Versions already installed the first day an app or OS appears in the history aren't timed.</p>
         <p><span class="term">Newest version:</span> for macOS, Apple's newest release from SOFA, the Mac admins' public feed of Apple's updates. For Windows, the newest security build Microsoft lists in its Security Update Guide, across every release of that Windows version. For an app with a patch policy, the version the policy asks for, the latest in Fleet's maintained-apps catalog. Anything else is measured against the highest version at least two computers run. Each run checks the sources again, so the share on the newest version drops the day a new release ships and climbs as computers update.</p>
-        <p><span class="term">Patched:</span> an OS on the latest update for the release it runs, such as macOS 26.7.2 or Windows 11 25H2's newest build, even when a newer release exists. macOS betas (builds ending in a letter) and Windows Insider builds count as current but aren't timed.</p>
+        <p><span class="term">Patched:</span> an OS on the latest update for the release it runs, such as macOS 26.7.2 or Windows 11 25H2's newest build, even when a newer release exists. <span class="term">Missing updates:</span> an update for the release it runs is out but not installed. <span class="term">No longer updated:</span> the release gets no more security updates, so only an upgrade fixes it. On macOS, that's a major version Apple hasn't updated since the newest one shipped. On Windows, it's a release missing from Microsoft's latest monthly security update. macOS betas (builds ending in a letter) and Windows Insider builds count as current but aren't timed.</p>
       </div>
       <div>
         <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build across Windows 11's releases (for example 25H2 and 26H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
@@ -149,9 +149,12 @@ function compute() {
     const inst = t.i.filter(([hid]) => ok(hid));
     const on = inst.filter(([, v]) => vcmp(v, t.newest) >= 0);
     const fresh = t.fresh.filter(([v]) => vcmp(v, t.newest) <= 0).slice(-1)[0];
-    // Behind the newest, but on the latest update for the release it runs.
-    const patched = t.lines ? inst.filter(([, v]) => vcmp(v, t.newest) < 0 && t.lines[lineOf(t, v)] && vcmp(v, t.lines[lineOf(t, v)]) >= 0).length : 0;
-    return { ...t, _id: t.key, inst, installs: inst.length, on: on.length, patched, pct: inst.length ? (100 * on.length) / inst.length : null,
+    // Behind the newest: patched (on the latest update for its release), on a release the
+    // vendor no longer updates, or missing an update it could install.
+    const behindNewest = t.lines ? inst.filter(([, v]) => vcmp(v, t.newest) < 0) : [];
+    const patched = behindNewest.filter(([, v]) => t.lines[lineOf(t, v)] && vcmp(v, t.lines[lineOf(t, v)]) >= 0).length;
+    const unsupported = behindNewest.filter(([, v]) => !t.lines[lineOf(t, v)]).length;
+    return { ...t, _id: t.key, inst, installs: inst.length, on: on.length, patched, unsupported, pct: inst.length ? (100 * on.length) / inst.length : null,
       versions: new Set(inst.map(([, v]) => v)).size, fresh };
   }).filter((t) => t.installs >= DATA.min_installs);
   // Timed updates arrive as totals per "fleet|platform": lag (days) counts, per-computer
@@ -300,10 +303,11 @@ function render() {
     const status = (v) => {
       if (!t.lines) return null;
       const latest = t.lines[lineOf(t, v)];
-      return latest && vcmp(v, latest) >= 0 ? "patched, older release" : latest ? `needs ${verLabel(t, latest)}` : "release no longer updated";
+      return latest && vcmp(v, latest) >= 0 ? "patched, older release" : latest ? `needs ${verLabel(t, latest)}` : "no longer updated";
     };
     return [h("div", { class: "cell-sub" }, Object.entries(counts).sort((a, b) => vcmp(b[0], a[0])).map(([v, n]) => `${verLabel(t, v)}: ${n}`).join(" · ")),
-      t.lines ? h("div", { class: "cell-sub" }, `${fmt.n(t.on)} on the newest release · ${fmt.n(t.patched)} patched on an older release · ${fmt.n(t.installs - t.on - t.patched)} missing updates`) : null,
+      t.lines ? h("div", { class: "cell-sub" }, [`${fmt.n(t.on)} on the newest release`, `${fmt.n(t.patched)} patched on an older release`,
+        `${fmt.n(t.installs - t.on - t.patched - t.unsupported)} missing updates`, t.unsupported ? `${fmt.n(t.unsupported)} on a release no longer updated` : null].filter(Boolean).join(" · ")) : null,
       lag.length ? h("div", { class: "split", style: "margin-top:10px" }, lag.map(([hid, v]) => h("div", { class: "app-line" }, hostLink(hid, DATA.hosts[hid].n),
         h("span", {}, h("span", { class: "ver" }, verLabel(t, v)), status(v) ? h("span", { class: "tag" }, status(v)) : null)))) : h("p", {}, "Every computer runs the newest version.")];
   };
@@ -369,7 +373,9 @@ function render() {
       levers.push({ t: `Bring ${t.name} up to ${t.newest}`, e: `${behind} point release. Fleet can't set OS update deadlines on Linux, but a policy that runs an update script on computers that fall behind does the same job.`, x: fmt.pct(t.pct), s: "on the newest release" });
       continue;
     }
-    const upgrades = t.patched ? ` ${fmt.n(t.patched)} of them are patched but on an older release, so they need an upgrade, not just an update.` : "";
+    const older = [t.patched ? `${fmt.n(t.patched)} ${t.patched === 1 ? "is" : "are"} patched but on an older release` : null,
+      t.unsupported ? `${fmt.n(t.unsupported)} ${t.unsupported === 1 ? "runs" : "run"} a release that no longer gets updates` : null].filter(Boolean);
+    const upgrades = older.length ? ` Of them, ${older.join(", and ")}, so they need an upgrade, not just an update.` : "";
     levers.push({ t: `Set a deadline for ${t.name} ${verLabel(t, t.newest)}`, e: `${behind} build.${upgrades} A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
   }
   mount("levers", levers.length ? levers.map((l) => h("div", { class: "lever" }, h("span", { class: "t" }, l.t), h("span", { class: "e" }, l.e), h("span", { class: "x" }, l.x, h("span", {}, l.s))))

@@ -762,7 +762,9 @@ def os_bar(snap, key):
     if key == "os:macOS" and (mac := vendor(snap, "macos")):
         majors = mac["majors"]
         top = max(majors.values(), key=lambda r: vkey(r["latest"]))
-        return top["latest"], {m: r["latest"] for m, r in majors.items()}, {m: r["name"] for m, r in majors.items()}, "Apple"
+        # A major Apple no longer updates has no latest to be patched to.
+        return (top["latest"], {m: r["latest"] for m, r in majors.items() if r.get("supported", True)},
+                {m: r["name"] for m, r in majors.items()}, "Apple")
     if key.startswith("os:Windows") and (win := vendor(snap, "windows")):
         product = key[3:] + " "
         builds = {t[len(product):]: b for t, b in win["releases"].items() if t.startswith(product)}

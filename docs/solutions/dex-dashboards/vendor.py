@@ -2,8 +2,9 @@
 """The latest releases from outside Fleet, so the pages measure computers against
 what vendors shipped rather than the newest version the fleet happens to run.
 
-  macOS    SOFA, sofafeed.macadmins.io: Apple's releases with their dates, and
-           the newest Apple silicon generation among Mac models
+  macOS    SOFA, sofafeed.macadmins.io: Apple's releases with their dates, which
+           major versions Apple still updates, and the newest Apple silicon
+           generation among Mac models
   Windows  Microsoft's Security Update Guide, api.msrc.microsoft.com: the newest
            security build of each Windows release
   fleetd   Fleet's update server, updates.fleetdm.com: the stable channel
@@ -41,18 +42,26 @@ def numeric(v):
 
 def macos():
     d = get_json(SOFA_URL)
-    majors, releases = {}, {}
+    majors, releases, first = {}, {}, {}
     for o in d.get("OSVersions") or []:
         latest = o.get("Latest") or {}
         if not (ver := latest.get("ProductVersion")):
             continue
-        majors[ver.split(".")[0]] = {"name": o.get("OSVersion") or "", "latest": ver, "build": latest.get("Build") or "",
-                                     "released": (latest.get("ReleaseDate") or "")[:10]}
+        major = ver.split(".")[0]
+        majors[major] = {"name": o.get("OSVersion") or "", "latest": ver, "build": latest.get("Build") or "",
+                         "released": (latest.get("ReleaseDate") or "")[:10]}
+        dates = [r["ReleaseDate"][:10] for r in o.get("SecurityReleases") or [] if r.get("ReleaseDate")]
+        first[major] = min(dates) if dates else majors[major]["released"]
         for r in o.get("SecurityReleases") or []:
             if r.get("ProductVersion") and r.get("ReleaseDate"):
                 releases.setdefault(r["ProductVersion"], r["ReleaseDate"][:10])
     if not majors:
         raise ValueError("no macOS releases in the feed")
+    # SOFA has no support flag. Apple stops updating its oldest major version when a
+    # new one ships, so a major is still updated if it's had a release since then.
+    newest_first = first[max(majors, key=int)]
+    for m in majors.values():
+        m["supported"] = m["released"] >= newest_first
     gens = [int(m.group(1)) for v in (d.get("Models") or {}).values()
             if (m := re.search(r"\bM(\d+)\b", v.get("MarketingName") or ""))]
     return {"majors": majors, "releases": releases, "chip_gen": max(gens) if gens else None}
