@@ -134,12 +134,41 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
-	// fleetd is queued ahead of the profiles, as in runPostDEPEnrollment, so the
-	// device doesn't run every profile before installing it.
+	// order is guaranteed for manual enrollments to be:
+	// 1. fleetd if manual agent install is not enabled
+	// 2. bootstrap package if configured for manual enrollments
+	// 3. apps/profiles
+
 	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		var manualAgentInstall, allowBootstrapDuringManualEnrollment bool
+		if args.TeamID == nil {
+			appCfg, err := a.getAppConfig(ctx, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+		} else {
+			team, err := a.getTeamConfig(ctx, nil, *args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving team config")
+			}
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
 		}
+
+		if !manualAgentInstall {
+			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+		}
+
+		if license.IsPremium(ctx) && allowBootstrapDuringManualEnrollment {
+			if _, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
+			}
+		}
+
 	}
 
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
@@ -149,48 +178,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	// TODO: Verify this main merge is correct - I don't think it is
-	if isMacOS(args.Platform) {
-		var installBootstrap, manualAgentInstall bool
-		if args.TeamID == nil {
-			appCfg, err := a.getAppConfig(ctx, nil)
-			if err != nil {
-				return err
-			}
-			installBootstrap = appCfg.MDM.MacOSSetup.BootstrapPackageManualEnrollment
-			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
-		} else {
-			team, err := a.getTeamConfig(ctx, nil, *args.TeamID)
-			if err != nil {
-				return err
-			}
-			installBootstrap = team.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment
-			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
-		}
-
-		// fleetd goes first so a bootstrap package failure can't block it.
-		if !manualAgentInstall {
-			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-			}
-		}
-
-		var bootstrapCmdUUID string
-		if installBootstrap {
-			var err error
-			if bootstrapCmdUUID, err = a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
-			}
-		}
-
-		// With manual agent install, the bootstrap package is expected to contain fleetd, so Fleet
-		// only skips fleetd if a package was actually sent.
-		if manualAgentInstall && bootstrapCmdUUID == "" {
-			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-			}
-		}
-	} else if license.IsPremium(ctx) {
+	if !isMacOS(args.Platform) && license.IsPremium(ctx) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		//
@@ -216,18 +204,26 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		err           error
 	)
 
+	// order is guaranteed for DEP enrollments to be:
+	// 1. fleetd if manual agent install is not enabled
+	// 2. bootstrap package if allowed and not skipped during MDM migration
+	// 3. apps/profiles
+	// 4. managed account/end user settings if configured
+
 	if isMacOS(args.Platform) {
-		var manualAgentInstall bool
+		var manualAgentInstall, allowBootstrapDuringMigrationConfig bool
 		if args.TeamID == nil {
 			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 				return err
 			}
 			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		}
 
 		if !manualAgentInstall {
@@ -242,6 +238,11 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
 		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
 			allowBootstrapDuringMigration = true
+		}
+
+		if !allowBootstrapDuringMigration {
+			// EV always overrides the mdm config value if set to true.
+			allowBootstrapDuringMigration = allowBootstrapDuringMigrationConfig
 		}
 
 		if args.FromMDMMigration && !allowBootstrapDuringMigration {

@@ -559,7 +559,8 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
 	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
-		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN,
+	)
 }
 
 // normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
@@ -1027,19 +1028,20 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage                 optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
-	EnableEndUserAuthentication      bool                               `json:"enable_end_user_authentication"`
-	LockEndUserInfo                  optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant              optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually      optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                           optjson.String                     `json:"script" renameto:"macos_script"`
-	Software                         optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall               optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware               bool                               `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows        bool                               `json:"require_all_software_windows"`
-	BootstrapPackageManualEnrollment bool                               `json:"macos_bootstrap_package_manual_enrollment"`
-	EnableManagedLocalAccount        optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
-	EndUserLocalAccountType          optjson.String                     `json:"end_user_local_account_type"`
+	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
+	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                bool                               `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows                         bool                               `json:"require_all_software_windows"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
 }
 
 // Validate checks the payload is in a valid state.

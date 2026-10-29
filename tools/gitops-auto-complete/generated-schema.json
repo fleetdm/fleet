@@ -501,6 +501,12 @@
                 "null"
               ]
             },
+            "config_tls_etag": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "config_tls_max_attempts": {
               "type": [
                 "integer",
@@ -1446,6 +1452,12 @@
             "tls_session_timeout": {
               "type": [
                 "integer",
+                "null"
+              ]
+            },
+            "tls_user_agent": {
+              "type": [
+                "string",
                 "null"
               ]
             },
@@ -2800,7 +2812,7 @@
       "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "description": "Deadline is the required installation date to enforce the required\noperating system version.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -4220,6 +4232,13 @@
             "null"
           ]
         },
+        "enable_profile_validation": {
+          "description": "EnableProfileValidation turns on schema validation of admin-uploaded\nconfiguration profiles. Defaults to true.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "enable_recovery_lock_password": {
           "description": "type: `boolean`",
           "type": [
@@ -4441,6 +4460,20 @@
             "null"
           ]
         },
+        "description": {
+          "description": "Description is free text shown next to the profile name.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hidden": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4493,6 +4526,13 @@
             "null"
           ]
         },
+        "name": {
+          "description": "Name overrides the name derived from the file (PayloadDisplayName or\nfile name). Only valid for a single file, so not with a multi-file glob.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "description": "type: `string`",
           "type": [
@@ -4504,6 +4544,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "SelfService is only valid for .mobileconfig profiles.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -4680,7 +4727,14 @@
             "null"
           ]
         },
-        "macos_bootstrap_package_manual_enrollment": {
+        "macos_enable_bootstrap_package_during_manual_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_migration": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -5379,6 +5433,13 @@
             "null"
           ]
         },
+        "mcp_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "query_report_cap": {
           "deprecated": true,
           "deprecationMessage": "'query_report_cap' is deprecated, use 'report_cap' instead",
@@ -5962,6 +6023,116 @@
         },
         "setup_experience": {
           "description": "InstallDuringSetup indicates whether a package should be incorporated into setup experience;\nif not supplied (Valid field is false) then the server-side value for setup experience membership\nis not changed, for compatibility with the old fleetctl apply format\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "versions": {
+          "description": "type: `array\u003cTeamSpecAppStoreAppVersion\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamSpecAppStoreAppVersion"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecAppStoreAppVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_update_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_update_window_end": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auto_update_window_start": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"

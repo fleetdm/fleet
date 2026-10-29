@@ -599,7 +599,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
 	// the setting is off by default, manual enrollments only get fleetd
 	var teamResp teamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment)
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
 
 	_, device := enrollManualHost()
 	gotFleetd, gotBootstrap := drainCommands(device)
@@ -609,10 +609,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
 
 	// turn the setting on for the team
 	s.Do("PATCH", "/api/latest/fleet/setup_experience",
-		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_bootstrap_package_manual_enrollment": true})), http.StatusNoContent)
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_enable_bootstrap_package_during_manual_enrollment": true})), http.StatusNoContent)
 	teamResp = teamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.BootstrapPackageManualEnrollment)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
 
 	host, device := enrollManualHost()
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: 1}, getSummary())
@@ -645,6 +645,15 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
 	require.False(t, gotFleetd)
 	require.True(t, gotBootstrap)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Installed: 2}, getSummary())
+
+	// the migration setting is independent, and patching it leaves the manual enrollment one untouched
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_enable_bootstrap_package_during_migration": true})), http.StatusNoContent)
+	teamResp = teamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
 }
 
 func (s *integrationMDMTestSuite) TestEULA() {

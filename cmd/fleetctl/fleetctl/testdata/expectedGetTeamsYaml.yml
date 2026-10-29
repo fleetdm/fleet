@@ -51,7 +51,8 @@ spec:
         end_user_local_account_type: admin
         lock_end_user_info: false
         macos_bootstrap_package: null
-        macos_bootstrap_package_manual_enrollment: false
+        macos_enable_bootstrap_package_during_manual_enrollment: false
+        macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
         macos_script: null
         require_all_software_macos: false
@@ -115,7 +116,8 @@ spec:
         enable_release_device_manually: false
         end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_bootstrap_package_manual_enrollment: false
+        macos_enable_bootstrap_package_during_manual_enrollment: false
+        macos_enable_bootstrap_package_during_migration: false
         macos_setup_assistant: null
         manual_agent_install: null
         require_all_software_macos: false
@@ -206,7 +208,8 @@ spec:
         end_user_local_account_type: admin
         lock_end_user_info: false
         macos_bootstrap_package: null
-        macos_bootstrap_package_manual_enrollment: false
+        macos_enable_bootstrap_package_during_manual_enrollment: false
+        macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
         macos_script: null
         require_all_software_macos: false
@@ -279,7 +282,8 @@ spec:
         enable_release_device_manually: false
         end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_bootstrap_package_manual_enrollment: false
+        macos_enable_bootstrap_package_during_manual_enrollment: false
+        macos_enable_bootstrap_package_during_migration: false
         macos_setup_assistant: null
         manual_agent_install: null
         require_all_software_macos: false

@@ -1805,17 +1805,33 @@ func TestMDMConfig(t *testing.T) {
 			name:        "bootstrap package for manual enrollment requires premium",
 			licenseTier: "free",
 			newMDM: fleet.MDM{
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackageManualEnrollment: true},
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
 			},
-			expectedError: "setup_experience.macos_bootstrap_package_manual_enrollment " + licenseErr,
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment " + licenseErr,
 		},
 		{
 			name:        "bootstrap package for manual enrollment requires MDM enabled",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackageManualEnrollment: true},
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
 			},
-			expectedError: "setup_experience.macos_bootstrap_package_manual_enrollment Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
+			name:        "bootstrap package for migration requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for migration requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
 		},
 		{
 			name:        "windows entra client IDs require premium",

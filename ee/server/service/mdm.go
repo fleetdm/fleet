@@ -295,8 +295,27 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		didUpdate = true
 	}
 
-	if payload.BootstrapPackageManualEnrollment != nil && ac.MDM.MacOSSetup.BootstrapPackageManualEnrollment != *payload.BootstrapPackageManualEnrollment {
-		ac.MDM.MacOSSetup.BootstrapPackageManualEnrollment = *payload.BootstrapPackageManualEnrollment
+	requireBootstrapPackage := svc.bootstrapPackageRequirement(ctx, 0)
+
+	if payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil &&
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = *payload.MacOSEnableBootstrapPackageDuringManualEnrollment
+		didUpdate = true
+	}
+
+	if payload.MacOSEnableBootstrapPackageDuringMigration != nil &&
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != *payload.MacOSEnableBootstrapPackageDuringMigration {
+		if *payload.MacOSEnableBootstrapPackageDuringMigration {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = *payload.MacOSEnableBootstrapPackageDuringMigration
 		didUpdate = true
 	}
 
@@ -309,15 +328,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.ManualAgentInstall != nil {
 		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			// Try to load the bootstrap package to verify it exists.
-			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, 0, false)
-			// If we got an error other than not found, return it.
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
-			}
-			// Otherwise if we got a not found error, we can't enable manual agent install.
-			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
+			if *payload.ManualAgentInstall {
+				if err := requireBootstrapPackage("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."); err != nil {
+					return err
+				}
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
 			if err != nil {
@@ -397,6 +411,25 @@ func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, en
 	return nil
 }
 
+// bootstrapPackageRequirement returns a func that fails with msg when the team
+// has no bootstrap package. The package is read at most once, on first use.
+func (svc *Service) bootstrapPackageRequirement(ctx context.Context, teamID uint) func(msg string) error {
+	var checked, exists bool
+	return func(msg string) error {
+		if !checked {
+			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, teamID, false)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+			}
+			checked, exists = true, err == nil
+		}
+		if !exists {
+			return fleet.NewUserMessageError(errors.New(msg), http.StatusUnprocessableEntity)
+		}
+		return nil
+	}
+}
+
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
@@ -408,7 +441,8 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
 	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
-		payload.BootstrapPackageManualEnrollment != nil || payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
+		payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil || payload.MacOSEnableBootstrapPackageDuringMigration != nil ||
+		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
