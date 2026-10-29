@@ -121,7 +121,6 @@ const VppTokenExpiredMessage = ({
   isGlobalAdmin,
 }: IVppTokenExpiredMessage) => (
   <EmptyState
-    variant="list"
     header="Token expired"
     info={
       isGlobalAdmin
@@ -344,10 +343,18 @@ const SoftwareAppStoreVpp = ({
     const renderApps = () => {
       if (isSelectedTokenExpired) {
         return (
-          <VppTokenExpiredMessage
-            onRenew={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-            isGlobalAdmin={isGlobalAdmin}
-          />
+          <>
+            <VppTokenExpiredMessage
+              onRenew={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+              isGlobalAdmin={isGlobalAdmin}
+            />
+            <div className={`${baseClass}__action-buttons`}>
+              <Button disabled>Add software</Button>
+              <Button onClick={goBackToSoftwareLibrary} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          </>
         );
       }
       if (isLoadingVppApps) {
