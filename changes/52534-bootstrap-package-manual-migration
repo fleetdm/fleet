@@ -1,0 +1,1 @@
+- Added `macos_enable_bootstrap_package_during_manual_enrollment` and `macos_enable_bootstrap_package_during_migration` setup experience settings to install a configured bootstrap package on a manual enrollment and MDM migration respectively.
