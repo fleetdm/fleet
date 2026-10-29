@@ -14,7 +14,9 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Sign in to [Apple Business](https://business.apple.com), select **Apps & Services > App Store**, and find the app. For a custom app you own, select **Custom Apps** instead.
 
-2. Select **Add**. Under **Organizational Units**, choose the units whose content token you uploaded to Fleet, select **Review**, and then select **Add to Library**. Free apps don't have a license limit. For paid apps, you also need to buy licenses. Learn how in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
+2. Add the app to your library:
+   - **Free apps**: Select **Add**. Under **Organizational Units**, choose the units whose content token you uploaded to Fleet, select **Review**, and then select **Add to Library**. Free apps don't have a license limit.
+   - **Paid apps**: Select the app's price. Under **Licence Type**, choose **Managed Licences**. Under **Organizational Units**, choose the unit whose content token you uploaded to Fleet, and enter the number of licenses to buy. Then select **Review** and complete the purchase. Learn more in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
 
 3. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
