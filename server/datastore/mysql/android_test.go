@@ -4234,26 +4234,14 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 	_, err = ds.NewAndroidHost(ctx, reenrolledHost, false)
 	require.NoError(t, err)
 
-	// list from the start, only the enrolled hosts on their host policy should be returned, in id order
-	hosts, err := ds.ListAndroidHostsOnHostPolicyAfterID(ctx, 0, 10)
+	// list the hosts, only the enrolled hosts on their host policy should be returned, in id order
+	hosts, err := ds.ListAndroidHostsOnHostPolicy(ctx)
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
 	require.Equal(t, unassignedHost.Host.ID, hosts[0].ID)
 	require.Equal(t, fleetHost.Host.ID, hosts[1].ID)
 	require.Equal(t, "on-policy-fleet", hosts[1].UUID)
 	require.Equal(t, "hardware_serial", hosts[1].HardwareSerial)
-
-	// list with a limit of 1, only the first host should be returned
-	hosts, err = ds.ListAndroidHostsOnHostPolicyAfterID(ctx, 0, 1)
-	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	require.Equal(t, unassignedHost.Host.ID, hosts[0].ID)
-
-	// list after the first host, only the second host should be returned
-	hosts, err = ds.ListAndroidHostsOnHostPolicyAfterID(ctx, unassignedHost.Host.ID, 10)
-	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	require.Equal(t, fleetHost.Host.ID, hosts[0].ID)
 
 	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one for
 	// the Unassigned host

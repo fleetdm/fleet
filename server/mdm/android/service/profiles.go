@@ -67,13 +67,6 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 			"err", cursorErr)
 		cursor = ""
 	}
-	// Start from the first host when the app cursor can't be read, checking hosts again only costs reads
-	appCursor, cursorErr := ds.GetAndroidAppReconcileCursor(ctx)
-	if cursorErr != nil {
-		logger.WarnContext(ctx, "failed to read android app reconcile cursor, starting from the first host", "err", cursorErr)
-		appCursor = 0
-	}
-
 	reconciler := &profileReconciler{
 		DS:                 ds,
 		Enterprise:         enterprise,
@@ -81,7 +74,6 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 		AndroidAgentConfig: androidAgentConfig,
 		Logger:             logger,
 		RetryCounter:       retryCounter,
-		appCursor:          appCursor,
 	}
 	hostCount, err := reconciler.ReconcileProfiles(ctx, cursor, batchSize)
 
@@ -97,14 +89,6 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 	if err == nil && cursor != nextCursor {
 		if cerr := ds.SetMDMAndroidReconcileCursor(ctx, nextCursor); cerr != nil {
 			logger.WarnContext(ctx, "failed to advance android MDM reconcile cursor", "err", cerr)
-		}
-	}
-
-	// Advance the app cursor on success too, except after a quota error, so the next run will check the same hosts
-	if err == nil && !reconciler.appSendsStoppedByQuota {
-		cursorErr = ds.SetAndroidAppReconcileCursor(ctx, reconciler.appNextCursor)
-		if cursorErr != nil {
-			logger.WarnContext(ctx, "failed to advance android app reconcile cursor", "err", cursorErr)
 		}
 	}
 
@@ -126,8 +110,6 @@ type profileReconciler struct {
 	// installs of every host during the run, upserted together at the end
 	appInstallsToUpsert    []fleet.HostAndroidSoftwareInstall
 	appInstallsToRemove    []fleet.HostAndroidSoftwareInstall
-	appCursor              uint
-	appNextCursor          uint
 	appSendsStoppedByQuota bool
 	appSentHostIDs         []uint
 }
@@ -249,9 +231,8 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upsert host android software installs")
 	}
-	// Flag the apps another job saved for a sent host after this run built the
-	// host's list, so the next run will send them, because the list this run
-	// sent doesn't have them
+	// Flag the apps another job saved for a sent host after this run built the host's list, so the next
+	// run will send them, because the list this run sent doesn't have them
 	err = r.DS.SetHostAndroidSoftwareInstallsNeedsResend(ctx, r.appSentHostIDs, &selectedAt, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "flag host android software installs written during the run")

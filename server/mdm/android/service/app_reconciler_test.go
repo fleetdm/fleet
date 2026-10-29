@@ -49,7 +49,6 @@ type androidAppReconcileSentList struct {
 }
 
 type androidAppReconcileState struct {
-	cursor                 uint
 	hosts                  []*fleet.Host
 	installs               []*fleet.HostAndroidSoftwareInstall
 	appsInScopeByHostID    map[uint][]fleet.VPPAppTeam
@@ -67,9 +66,6 @@ type androidAppReconcileState struct {
 	upserted                 []fleet.HostAndroidSoftwareInstall
 	removed                  []fleet.HostAndroidSoftwareInstall
 	recordedRetries          int
-	cursorSaved              bool
-	savedCursor              uint
-	listedHostsN             int
 	pendingApplyConfigAppIDs []string
 	flaggedSentHostIDs       []uint
 }
@@ -94,18 +90,11 @@ func TestReconcileAndroidApps(t *testing.T) {
 	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 		return &android.Enterprise{EnterpriseID: "test"}, nil
 	}
-	ds.GetAndroidAppReconcileCursorFunc = func(ctx context.Context) (uint, error) {
-		return state.cursor, nil
+	ds.ListAndroidHostsOnHostPolicyFunc = func(ctx context.Context) ([]*fleet.Host, error) {
+		return state.hosts, nil
 	}
-	ds.ListAndroidHostsOnHostPolicyAfterIDFunc = func(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
-		var hosts []*fleet.Host
-		for _, host := range state.hosts {
-			if host.ID > afterHostID && len(hosts) < limit {
-				hosts = append(hosts, host)
-			}
-		}
-		state.listedHostsN = len(hosts)
-		return hosts, nil
+	ds.ListAndroidAppsInScopeForHostsFunc = func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.VPPAppTeam, error) {
+		return state.appsInScopeByHostID, nil
 	}
 	ds.ListHostMDMAndroidVPPAppsFromSetupExperienceFunc = func(ctx context.Context, hostIDs []uint) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
 		setupAppsByHostID := make(map[uint][]*fleet.HostAndroidVPPSoftwareInstall)
@@ -130,9 +119,6 @@ func TestReconcileAndroidApps(t *testing.T) {
 			secondVersionID: {VPPAppsTeamsID: secondVersionID, Configuration: state.secondVersionConfig},
 		}, nil
 	}
-	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
-		return state.appsInScopeByHostID[hostID], nil
-	}
 	ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
 		return "", state.expandErr
 	}
@@ -141,12 +127,6 @@ func TestReconcileAndroidApps(t *testing.T) {
 		state.removed = append(state.removed, removedInstalls...)
 		return nil
 	}
-	ds.SetAndroidAppReconcileCursorFunc = func(ctx context.Context, cursor uint) error {
-		state.cursorSaved = true
-		state.savedCursor = cursor
-		return nil
-	}
-
 	ds.NewAndroidPolicyRequestFunc = func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 		return nil
 	}
@@ -402,12 +382,10 @@ func TestReconcileAndroidApps(t *testing.T) {
 			configurationUpdatedAt: new(builtAt.Add(-time.Minute)),
 		}
 
-		// run the cron, nothing should be sent and the cursor should go back to the first host
+		// run the cron, nothing should be sent
 		err := reconcile(0)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
-		require.True(t, state.cursorSaved)
-		require.Zero(t, state.savedCursor)
 	})
 
 	t.Run("a host flagged for resend gets the app again", func(t *testing.T) {
@@ -545,7 +523,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Zero(t, state.recordedRetries)
 	})
 
-	t.Run("a quota error on a host's profile patch with its app list doesn't move the app cursor", func(t *testing.T) {
+	t.Run("a quota error on a host's profile patch with its app list saves none of the host's apps", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts:                []*fleet.Host{hostA},
 			appsInScopeByHostID:  map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
@@ -553,12 +531,11 @@ func TestReconcileAndroidApps(t *testing.T) {
 			setAppsErrByHostUUID: map[string]error{"host-a": &googleapi.Error{Code: http.StatusTooManyRequests}},
 		}
 
-		// run the cron, host A's profiles and apps should go in one patch, and the app cursor should not be saved
+		// run the cron, host A's profiles and apps should go in one patch, and none of host A's apps should be saved
 		err := reconcile(0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 		require.Empty(t, state.upserted)
-		require.False(t, state.cursorSaved)
 	})
 
 	t.Run("a host whose request failed less than an hour ago gets no request", func(t *testing.T) {
@@ -621,11 +598,12 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Len(t, state.sent, 1)
 	})
 
-	t.Run("a host whose retry the batch size leaves for the next run uses no retry and the app cursor moves back before it", func(t *testing.T) {
+	t.Run("a host whose retry the batch size leaves for the next run uses no retry", func(t *testing.T) {
 		*state = androidAppReconcileState{
-			cursor: hostA.ID,
-			hosts:  []*fleet.Host{hostA, hostB},
+			hosts: []*fleet.Host{hostA, hostB},
 			installs: []*fleet.HostAndroidSoftwareInstall{
+				appOneInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false, time.Time{}),
+				agentInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false),
 				appOneInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusRequestFailed, false, time.Now().Add(-2*time.Hour)),
 				agentInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusRequestFailed, false),
 			},
@@ -633,14 +611,12 @@ func TestReconcileAndroidApps(t *testing.T) {
 			profilesToSend:      []*fleet.MDMAndroidProfilePayload{{HostUUID: "host-a", ProfileUUID: "profile-1", ProfileName: "Profile 1"}},
 		}
 
-		// run the cron with a batch size of 1 from host A, host A's profile patch should use the run's only patch, host
-		// B's retry should wait for the next run without being counted, and the app cursor should move back before host B
+		// run the cron with a batch size of 1, host A's profile patch should use the run's only patch and host B's retry
+		// should wait for the next run without being counted
 		err := reconcile(1)
 		require.NoError(t, err)
 		require.Empty(t, state.sent)
 		require.Zero(t, state.recordedRetries)
-		require.True(t, state.cursorSaved)
-		require.Equal(t, hostA.ID, state.savedCursor)
 	})
 
 	t.Run("a host whose request failed less than an hour ago gets a new app in scope right away without counting a retry", func(t *testing.T) {
@@ -663,7 +639,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Zero(t, state.recordedRetries)
 	})
 
-	t.Run("a quota error stops the run without saving the cursor", func(t *testing.T) {
+	t.Run("a quota error stops the run", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts:                []*fleet.Host{hostA, hostB},
 			appsInScopeByHostID:  map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}},
@@ -675,7 +651,6 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, state.sent, 1)
 		require.Empty(t, state.upserted)
-		require.False(t, state.cursorSaved)
 	})
 
 	t.Run("a fleet agent that can't be built sends nothing for the host", func(t *testing.T) {
@@ -720,30 +695,30 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Nil(t, installByAdamID["com.example.vital"].InPolicyVersion)
 	})
 
-	t.Run("a full batch saves its last host as the cursor and the next run continues after it", func(t *testing.T) {
+	t.Run("a full batch sends to the first host that needs a list, skipping a host with no changes, and the next run sends the rest", func(t *testing.T) {
+		hostC := &fleet.Host{ID: 3, UUID: "host-c", Platform: "android"}
 		*state = androidAppReconcileState{
-			hosts: []*fleet.Host{hostA, hostB},
+			hosts: []*fleet.Host{hostA, hostB, hostC},
+			installs: []*fleet.HostAndroidSoftwareInstall{
+				appOneInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false, time.Time{}),
+				agentInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false),
+			},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}, hostC.ID: {appOne}},
 		}
 
-		// run the cron with a batch size of 1, only host A should be checked and saved as the cursor
+		// run the cron with a batch size of 1, host A has no changes so host B should get the run's only list
 		err := reconcile(1)
 		require.NoError(t, err)
-		require.Equal(t, 1, state.listedHostsN)
-		require.True(t, state.cursorSaved)
-		require.Equal(t, hostA.ID, state.savedCursor)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-b", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 
-		// run the cron again from host A, host B should be checked and saved as the cursor
-		state.cursor = state.savedCursor
+		// save host B's apps as sent and run the cron again, host C should get its list
+		state.installs = append(state.installs,
+			appOneInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusPending, false, time.Time{}),
+			agentInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusPending, false),
+		)
+		state.sent = nil
 		err = reconcile(1)
 		require.NoError(t, err)
-		require.Equal(t, 1, state.listedHostsN)
-		require.Equal(t, hostB.ID, state.savedCursor)
-
-		// run the cron again from host B, no host should be checked and the cursor should go back to the first host
-		state.cursor = state.savedCursor
-		err = reconcile(1)
-		require.NoError(t, err)
-		require.Zero(t, state.listedHostsN)
-		require.Zero(t, state.savedCursor)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-c", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 	})
 }

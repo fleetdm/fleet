@@ -86,6 +86,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
@@ -1439,6 +1440,39 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 
 	// Verify the API was NOT called since we're skipping hosts without new certs
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+}
+
+func testBuildAndSendFleetAgentConfigSavesTheAgentInstall(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "agent-install-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "agent-install-secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 400, &team.ID)
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{Version: 7}, nil
+	}
+	svc := &Service{
+		logger:           slog.New(slog.DiscardHandler),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
+	}
+
+	// send the host's Fleet agent configuration, the agent's install should be saved as pending in policy version 7
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	agentInstall := installsByHostID[host.Host.ID]["com.fleetdm.agent"]
+	require.NotNil(t, agentInstall)
+	require.Equal(t, android.AppStatusForceInstalled, agentInstall.InstallType)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, agentInstall.Status)
+	require.Equal(t, new(int64(7)), agentInstall.InPolicyVersion)
 }
 
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing

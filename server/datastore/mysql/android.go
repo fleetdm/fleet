@@ -3083,7 +3083,7 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
+func (ds *Datastore) ListAndroidHostsOnHostPolicy(ctx context.Context) ([]*fleet.Host, error) {
 	const stmt = `
 		SELECT
 			h.id,
@@ -3095,27 +3095,17 @@ func (ds *Datastore) ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, af
 			JOIN hosts h ON h.id = ad.host_id
 			JOIN host_mdm hm ON hm.host_id = ad.host_id
 		WHERE
-			ad.host_id > ? AND
 			h.platform = 'android' AND
 			hm.enrolled = 1 AND
 			ad.applied_policy_id = h.uuid
 		ORDER BY ad.host_id
-		LIMIT ?
 	`
 	var hosts []*fleet.Host
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, afterHostID, limit)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list android hosts on host policy after id")
+		return nil, ctxerr.Wrap(ctx, err, "list android hosts on host policy")
 	}
 	return hosts, nil
-}
-
-func (ds *Datastore) GetAndroidAppReconcileCursor(_ context.Context) (uint, error) {
-	return 0, nil
-}
-
-func (ds *Datastore) SetAndroidAppReconcileCursor(_ context.Context, _ uint) error {
-	return nil
 }
 
 func (ds *Datastore) ListHostMDMAndroidVPPAppsFromSetupExperience(
@@ -3258,7 +3248,8 @@ func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, 
 			VALUES
 				%s
 			ON DUPLICATE KEY UPDATE
-				-- Don't clear a resend flag set after the policy was built, because the sent policy doesn't have that change
+				-- Don't clear a resend flag set after the policy was built, because the sent
+				-- policy doesn't have that change
 				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
 				vpp_app_team_id = VALUES(vpp_app_team_id),
 				install_type = VALUES(install_type),

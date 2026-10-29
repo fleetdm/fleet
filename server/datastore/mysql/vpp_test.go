@@ -73,6 +73,7 @@ func TestVPP(t *testing.T) {
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
+		{"ListAndroidAppsInScopeForHosts", testListAndroidAppsInScopeForHosts},
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
 		{"VPPInstallRecordsToken", testVPPInstallRecordsToken},
 		{"VPPTokenChoice", testVPPTokenChoice},
@@ -4755,6 +4756,73 @@ func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore
 	inScope, err = ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	require.NoError(t, err)
 	require.Empty(t, inScope)
+}
+
+func testListAndroidAppsInScopeForHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "apps-in-scope-for-hosts"})
+	require.NoError(t, err)
+
+	unassigned, err := ds.NewAndroidHost(ctx, createAndroidHost("scope-unassigned"), false)
+	require.NoError(t, err)
+	memberHost := createAndroidHost("scope-member")
+	memberHost.Host.TeamID = &team.ID
+	member, err := ds.NewAndroidHost(ctx, memberHost, false)
+	require.NoError(t, err)
+	nonMemberHost := createAndroidHost("scope-non-member")
+	nonMemberHost.Host.TeamID = &team.ID
+	nonMember, err := ds.NewAndroidHost(ctx, nonMemberHost, false)
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+
+	// add an Unassigned app, a fleet app without labels and a fleet app that includes a manual label only the member has
+	unassignedApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "unassigned-app", BundleIdentifier: "com.scope.unassigned", LatestVersion: "1.0",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.unassigned", Platform: fleet.AndroidPlatform}},
+	}, nil, nil)
+	require.NoError(t, err)
+	allApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "all-app", BundleIdentifier: "com.scope.all", LatestVersion: "1.0",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.all", Platform: fleet.AndroidPlatform}},
+	}, &team.ID, nil)
+	require.NoError(t, err)
+	labeledApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "labeled-app", BundleIdentifier: "com.scope.labeled", LatestVersion: "1.0",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.labeled", Platform: fleet.AndroidPlatform}},
+	}, &team.ID, nil)
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "scope-include", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, member.Host.ID, []uint{label.ID}))
+	includeAnyScope := fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
+	}
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), labeledApp.VPPAppTeam.AppTeamID, includeAnyScope, softwareTypeVPP))
+
+	// list the apps in scope for the three hosts, each host should get its fleet's apps its labels include
+	hostIDs := []uint{unassigned.Host.ID, member.Host.ID, nonMember.Host.ID}
+	appsByHostID, err := ds.ListAndroidAppsInScopeForHosts(ctx, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.VPPAppTeam{{AdamID: "com.scope.unassigned", AppTeamID: unassignedApp.VPPAppTeam.AppTeamID}}, appsByHostID[unassigned.Host.ID])
+	require.Equal(t, []fleet.VPPAppTeam{
+		{AdamID: "com.scope.all", AppTeamID: allApp.VPPAppTeam.AppTeamID},
+		{AdamID: "com.scope.labeled", AppTeamID: labeledApp.VPPAppTeam.AppTeamID},
+	}, appsByHostID[member.Host.ID])
+	require.Equal(t, []fleet.VPPAppTeam{{AdamID: "com.scope.all", AppTeamID: allApp.VPPAppTeam.AppTeamID}}, appsByHostID[nonMember.Host.ID])
+
+	// list each host's apps on its own, they should be the apps listed for all the hosts at once
+	for _, hostID := range hostIDs {
+		singleHostApps, err := ds.GetAndroidAppsInScopeForHost(ctx, hostID)
+		require.NoError(t, err)
+		require.Equal(t, singleHostApps, appsByHostID[hostID])
+	}
 }
 
 func testRetryVPPInstallMovesSetupExperienceStep(t *testing.T, ds *Datastore) {

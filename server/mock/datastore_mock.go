@@ -1972,11 +1972,9 @@ type GetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context) (u
 
 type SetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context, cursor uint) error
 
-type ListAndroidHostsOnHostPolicyAfterIDFunc func(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error)
+type ListAndroidHostsOnHostPolicyFunc func(ctx context.Context) ([]*fleet.Host, error)
 
-type GetAndroidAppReconcileCursorFunc func(ctx context.Context) (uint, error)
-
-type SetAndroidAppReconcileCursorFunc func(ctx context.Context, cursor uint) error
+type ListAndroidAppsInScopeForHostsFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.VPPAppTeam, error)
 
 type ListHostMDMAndroidVPPAppsFromSetupExperienceFunc func(ctx context.Context, hostIDs []uint) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error)
 
@@ -1991,7 +1989,6 @@ type ReplaceHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostID uin
 type SetHostAndroidSoftwareInstallsNeedsResendFunc func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error
 
 type SetHostAndroidSoftwareInstallsVerifiedFunc func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
-
 type GetHostIDsWithRecentFailedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
@@ -5581,14 +5578,11 @@ type DataStore struct {
 	SetAppStoreAppConfigurationReconcileCursorFunc        SetAppStoreAppConfigurationReconcileCursorFunc
 	SetAppStoreAppConfigurationReconcileCursorFuncInvoked bool
 
-	ListAndroidHostsOnHostPolicyAfterIDFunc        ListAndroidHostsOnHostPolicyAfterIDFunc
-	ListAndroidHostsOnHostPolicyAfterIDFuncInvoked bool
+	ListAndroidHostsOnHostPolicyFunc        ListAndroidHostsOnHostPolicyFunc
+	ListAndroidHostsOnHostPolicyFuncInvoked bool
 
-	GetAndroidAppReconcileCursorFunc        GetAndroidAppReconcileCursorFunc
-	GetAndroidAppReconcileCursorFuncInvoked bool
-
-	SetAndroidAppReconcileCursorFunc        SetAndroidAppReconcileCursorFunc
-	SetAndroidAppReconcileCursorFuncInvoked bool
+	ListAndroidAppsInScopeForHostsFunc        ListAndroidAppsInScopeForHostsFunc
+	ListAndroidAppsInScopeForHostsFuncInvoked bool
 
 	ListHostMDMAndroidVPPAppsFromSetupExperienceFunc        ListHostMDMAndroidVPPAppsFromSetupExperienceFunc
 	ListHostMDMAndroidVPPAppsFromSetupExperienceFuncInvoked bool
@@ -5610,7 +5604,6 @@ type DataStore struct {
 
 	SetHostAndroidSoftwareInstallsVerifiedFunc        SetHostAndroidSoftwareInstallsVerifiedFunc
 	SetHostAndroidSoftwareInstallsVerifiedFuncInvoked bool
-
 	GetHostIDsWithRecentFailedVPPAppInstallFunc        GetHostIDsWithRecentFailedVPPAppInstallFunc
 	GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked bool
 
@@ -13431,25 +13424,18 @@ func (s *DataStore) SetAppStoreAppConfigurationReconcileCursor(ctx context.Conte
 	return s.SetAppStoreAppConfigurationReconcileCursorFunc(ctx, cursor)
 }
 
-func (s *DataStore) ListAndroidHostsOnHostPolicyAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
+func (s *DataStore) ListAndroidHostsOnHostPolicy(ctx context.Context) ([]*fleet.Host, error) {
 	s.mu.Lock()
-	s.ListAndroidHostsOnHostPolicyAfterIDFuncInvoked = true
+	s.ListAndroidHostsOnHostPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListAndroidHostsOnHostPolicyAfterIDFunc(ctx, afterHostID, limit)
+	return s.ListAndroidHostsOnHostPolicyFunc(ctx)
 }
 
-func (s *DataStore) GetAndroidAppReconcileCursor(ctx context.Context) (uint, error) {
+func (s *DataStore) ListAndroidAppsInScopeForHosts(ctx context.Context, hostIDs []uint) (map[uint][]fleet.VPPAppTeam, error) {
 	s.mu.Lock()
-	s.GetAndroidAppReconcileCursorFuncInvoked = true
+	s.ListAndroidAppsInScopeForHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAndroidAppReconcileCursorFunc(ctx)
-}
-
-func (s *DataStore) SetAndroidAppReconcileCursor(ctx context.Context, cursor uint) error {
-	s.mu.Lock()
-	s.SetAndroidAppReconcileCursorFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetAndroidAppReconcileCursorFunc(ctx, cursor)
+	return s.ListAndroidAppsInScopeForHostsFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Context, hostIDs []uint) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
@@ -13500,7 +13486,6 @@ func (s *DataStore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, 
 	s.mu.Unlock()
 	return s.SetHostAndroidSoftwareInstallsVerifiedFunc(ctx, hostID, appliedPolicyVersion)
 }
-
 func (s *DataStore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
 	s.mu.Lock()
 	s.GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked = true
