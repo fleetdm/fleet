@@ -526,6 +526,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_microsoft_graph_credential: "Added Microsoft Graph credential",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
+  added_self_service_category: "Added self-service category",
   added_software: "Added software",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
@@ -571,6 +572,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_policy: "Deleted policy",
   deleted_saved_query: "Deleted report",
   deleted_script: "Deleted script",
+  deleted_self_service_category: "Deleted self-service category",
   deleted_software: "Deleted software",
   deleted_team: "Deleted fleet",
   deleted_user: "Deleted user",
@@ -610,6 +612,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_policy: "Edited policy",
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
+  edited_self_service_category: "Edited self-service category",
   edited_software: "Edited software",
   edited_windows_enrollment_default_fleet:
     "Edited enrollment default fleet: Windows",
