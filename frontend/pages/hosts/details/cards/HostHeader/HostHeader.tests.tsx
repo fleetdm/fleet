@@ -7,6 +7,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
+import { DEVICE_STATUS_TAGS } from "./helpers";
 import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
@@ -249,8 +250,9 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus="On (personal)"
       />
     );
-    expect(screen.queryByText(/pending/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/wip/i)).not.toBeInTheDocument();
+    Object.values(DEVICE_STATUS_TAGS).forEach(({ title }) => {
+      expect(screen.queryByText(title)).not.toBeInTheDocument();
+    });
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {

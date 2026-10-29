@@ -1,4 +1,4 @@
-import { getHostDeviceStatusUIState } from "./helpers";
+import { getHostDeviceStatusUIState, isDeviceStatusUpdating } from "./helpers";
 
 describe("getHostDeviceStatusUIState", () => {
   it.each([
@@ -19,4 +19,10 @@ describe("getHostDeviceStatusUIState", () => {
       );
     }
   );
+});
+
+describe("isDeviceStatusUpdating", () => {
+  it("treats a pending unenroll as updating", () => {
+    expect(isDeviceStatusUpdating("unenrolling")).toBe(true);
+  });
 });
