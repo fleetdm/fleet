@@ -41,10 +41,6 @@ GitHub issue: [#46834](https://github.com/fleetdm/fleet/issues/46834)
 
 This feature is [coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/47904).
 
-~~IT admins can now add more than one version of the same App Store app to a fleet, each with its own labels, configuration, and categories. Roll an update out to a pilot group before the rest of the fleet, or ship different app configurations to different groups of hosts.~~
-
-~~Learn how to add a version in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).~~
-
 ### Custom end user agreement for Windows enrollment
 
 IT admins can now replace the default terms page that end users see during [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), with or without [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set [`windows_eula`](https://fleetdm.com/docs/configuration/yaml-files#windows-eula) in GitOps. Adding or deleting an agreement creates an activity. You can also manage it with the [EULA API endpoints](https://fleetdm.com/docs/rest-api/rest-api#create-eula).
