@@ -529,6 +529,7 @@ const ActivityFeed = ({
             actorFullName: vppInstallDetails.actor_full_name,
             fleetInitiated: vppInstallDetails.fleet_initiated,
             selfService: vppInstallDetails.self_service,
+            vppTokenLocation: vppInstallDetails.vpp_token?.location,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

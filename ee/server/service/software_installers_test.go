@@ -1810,6 +1810,54 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
+
+	t.Run("ps1 with pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
+	})
+
+	t.Run("ps1 with env pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
+	})
 }
 
 func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
@@ -3416,8 +3464,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
 		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
 		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
-		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
-		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `setup_experience_platform is not supported for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `setup_experience_platform is not supported for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
 		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
 		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
@@ -3428,6 +3476,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
 		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
 		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
+		{name: "ps1 unsupported entirely", input: []string{"darwin"}, extension: "ps1", wantErr: `setup_experience_platform is not supported for a .ps1 package`},
+		{name: "exe unsupported entirely", input: []string{"windows"}, extension: "exe", wantErr: `setup_experience_platform is not supported for a .exe package`},
 	}
 
 	for _, c := range cases {

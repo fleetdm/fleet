@@ -5260,7 +5260,7 @@ Response format varies by operation according to the SCEP protocol specification
 
 ## Android fleetdm.com proxy
 
-The following endpoints are exposed on fleetdm.com to proxy Google Android Management API.
+The following endpoints are exposed on fleetdm.com to proxy Google Android Management API. For what customers need to allowlist, see [Android MDM](https://fleetdm.com/docs/deploy/reference-architectures#android-mdm).
 
 ### Create Android signup URL
 

@@ -517,9 +517,9 @@ type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamI
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
+type CheckCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) error
 
-type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
+type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InstallInHouseAppForSetupExperienceFunc func(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error)
 
@@ -537,7 +537,7 @@ type SelfServiceInstallAllSoftwareTitlesFunc func(ctx context.Context, host *fle
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
-type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error)
+type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint, vppTokenID *uint) ([]*fleet.VPPApp, error)
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error)
 
@@ -1802,8 +1802,8 @@ type Service struct {
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
 
-	GetVPPTokenIfCanInstallVPPAppsFunc        GetVPPTokenIfCanInstallVPPAppsFunc
-	GetVPPTokenIfCanInstallVPPAppsFuncInvoked bool
+	CheckCanInstallVPPAppsFunc        CheckCanInstallVPPAppsFunc
+	CheckCanInstallVPPAppsFuncInvoked bool
 
 	InstallVPPAppPostValidationFunc        InstallVPPAppPostValidationFunc
 	InstallVPPAppPostValidationFuncInvoked bool
@@ -4351,18 +4351,18 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (s *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	s.mu.Lock()
-	s.GetVPPTokenIfCanInstallVPPAppsFuncInvoked = true
+	s.CheckCanInstallVPPAppsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPTokenIfCanInstallVPPAppsFunc(ctx, appleDevice, host)
+	return s.CheckCanInstallVPPAppsFunc(ctx, appleDevice, host)
 }
 
-func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	s.mu.Lock()
 	s.InstallVPPAppPostValidationFuncInvoked = true
 	s.mu.Unlock()
-	return s.InstallVPPAppPostValidationFunc(ctx, host, vppApp, token, opts)
+	return s.InstallVPPAppPostValidationFunc(ctx, host, vppApp, opts)
 }
 
 func (s *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
@@ -4421,11 +4421,11 @@ func (s *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fl
 	return s.HasSelfServiceSoftwareInstallersFunc(ctx, host)
 }
 
-func (s *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
+func (s *Service) GetAppStoreApps(ctx context.Context, teamID *uint, vppTokenID *uint) ([]*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.GetAppStoreAppsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAppStoreAppsFunc(ctx, teamID)
+	return s.GetAppStoreAppsFunc(ctx, teamID, vppTokenID)
 }
 
 func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (*fleet.VPPApp, error) {
