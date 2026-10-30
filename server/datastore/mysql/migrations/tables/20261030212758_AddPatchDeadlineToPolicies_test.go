@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261029154707(t *testing.T) {
+func TestUp_20261030212758(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	policyID := execNoErrLastID(
