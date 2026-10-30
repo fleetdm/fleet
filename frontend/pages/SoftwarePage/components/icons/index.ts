@@ -596,7 +596,6 @@ import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
 import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
@@ -997,6 +996,7 @@ import Superhuman from "./png/Superhuman.png";
 import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -1011,6 +1011,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -1777,7 +1778,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
   "lm studio": LMStudio,
   local: Local,
@@ -2199,6 +2199,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   superhuman: Superhuman,
   "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
@@ -2213,6 +2214,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,

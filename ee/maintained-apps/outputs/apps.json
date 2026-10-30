@@ -5042,13 +5042,6 @@
       "description": "LinearMouse is a tool to customise mouse behavior."
     },
     {
-      "name": "Lingon X",
-      "slug": "lingon-x/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.peterborgapps.LingonX9",
-      "description": "Lingon X is an automator software to start apps, run scripts or commands and more."
-    },
-    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
@@ -8528,6 +8521,13 @@
       "description": "Superkey is a tool to search and click text anywhere on screen."
     },
     {
+      "name": "Superset",
+      "slug": "superset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superset.desktop",
+      "description": "Superset is a terminal for orchestrating AI coding agents."
+    },
+    {
       "name": "superwhisper",
       "slug": "superwhisper/darwin",
       "platform": "darwin",
@@ -8617,6 +8617,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sbarex.SourceCodeSyntaxHighlight",
       "description": "Syntax Highlight is a quicklook extension for source files."
+    },
+    {
+      "name": "T3 Code",
+      "slug": "t3-code/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.t3tools.t3code",
+      "description": "T3 Code is a minimal GUI for AI coding agents."
     },
     {
       "name": "Tabby",
