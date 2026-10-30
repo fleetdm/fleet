@@ -26,6 +26,47 @@ Do these on the latest Fleet 4. Some of them make the upgrade fail if you skip t
 7. Prepare your Fleet server configuration changes. Fleet 5 fails at startup if a removed Apple Business option is still set, so update your configuration file and environment variables in the same deploy that upgrades to Fleet 5.
 
 
+## Errors and warnings
+
+Fleet 5 tells you exactly what to change when you use something it no longer supports. Each message names what you used, what to use instead, and links to the matching section of this guide.
+
+### Errors in Fleet 5
+
+| You use | Fleet 5 returns | Example message |
+|:--|:--|:--|
+| A removed API endpoint | `410 Gone` | `GET /api/v1/fleet/teams was removed in Fleet 5. Use GET /api/v1/fleet/fleets instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
+| A removed API parameter or request body key | `400 Bad Request` | `team_id was removed in Fleet 5. Use fleet_id instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
+| An API request without a parameter that's now required | `400 Bad Request` | `host_identifier is required in Fleet 5. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#rest-api` |
+| An endpoint that's off by default in Fleet 5 | `400 Bad Request` | `GET /api/v1/fleet/enrollment_profiles/manual is off by default in Fleet 5. To turn it on, set mdm.apple_scep_static_challenge_enabled (FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED) to true. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#fleet-server-configuration` |
+| A removed YAML (GitOps) key | `fleetctl gitops` fails | `fleets/workstations.yml: controls.macos_setup was removed in Fleet 5. Use controls.setup_experience instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#yaml` |
+| A removed `fleetctl` command or flag | `fleetctl` fails | `--team was removed in Fleet 5. Use --fleet instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
+| A removed server configuration option or environment variable | Fleet doesn't start | `mdm.apple_bm_server_token was removed in Fleet 5. Use mdm.apple_business_server_token instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#fleet-server-configuration` |
+
+API errors use Fleet's standard error response, with the message in `reason`:
+
+```json
+{
+  "message": "Removed in Fleet 5",
+  "errors": [
+    {
+      "name": "fleet_id",
+      "reason": "team_id was removed in Fleet 5. Use fleet_id instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams"
+    }
+  ]
+}
+```
+
+`fleetctl gitops` lists every removed key in your repo in one run, so you can fix them all at once.
+
+### Warnings in the latest Fleet 4
+
+Use these warnings to find what to change before you upgrade:
+
+- API responses to a deprecated endpoint or parameter include a `Deprecation: true` header and a `Link` header that points to this guide.
+- `fleetctl` and `fleetctl gitops` print a warning for each deprecated command, flag, or YAML key, for example: `[!] '--team' is deprecated; use '--fleet' instead. This will stop working in Fleet 5. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`
+- Admins see a banner in the Fleet UI when Fleet sees deprecated API endpoints or parameters in use.
+
+
 ## Farewell, teams
 
 You'll be missed, and we'll keep saying "teams" out of muscle memory.
@@ -311,7 +352,7 @@ Packs are removed in Fleet 5. Use reports instead.
 
 | Fleet 4 | Fleet 5 | Notes | Issue |
 |:--|:--|:--|:--|
-| `/packs` endpoints, including the packs spec endpoints | Removed | They return 404. Before you upgrade, run `fleetctl upgrade-packs` on Fleet 4 to convert your 2017 packs into reports, then apply the output. 2017 packs stop running on hosts after the upgrade. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
+| `/packs` endpoints, including the packs spec endpoints | Removed | They return `410 Gone`. Before you upgrade, run `fleetctl upgrade-packs` on Fleet 4 to convert your 2017 packs into reports, then apply the output. 2017 packs stop running on hosts after the upgrade. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
 | `fleetctl get packs` | Removed |  | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
 | `fleetctl upgrade-packs` | Removed | Run it on Fleet 4 before you upgrade. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
 | `fleetctl apply` with `kind: pack` | Removed |  | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
