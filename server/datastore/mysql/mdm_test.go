@@ -5099,6 +5099,18 @@ func testAppleProfileResendResetsRetries(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, 3, retries(plainProf))
 	})
 
+	t.Run("custom host vital change", func(t *testing.T) {
+		vitalID := createCustomHostVital(t, ds, "DEPARTMENT")
+		vitalProf, err := ds.NewMDMAppleConfigProfile(ctx,
+			*generateAppleCP("vital_prof", fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID), 0), nil)
+		require.NoError(t, err)
+		failAfterRetries(vitalProf)
+		failAfterRetries(plainProf)
+		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+		require.Zero(t, retries(vitalProf))
+		require.EqualValues(t, 3, retries(plainProf))
+	})
+
 	t.Run("certificate authority edit", func(t *testing.T) {
 		failAfterRetries(caProf)
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
