@@ -63,6 +63,7 @@ type androidAppReconcileState struct {
 	retries                int
 
 	sent                     []androidAppReconcileSentList
+	sentConfigsByHostUUID    map[string]map[string]string
 	upserted                 []fleet.HostAndroidSoftwareInstall
 	removed                  []fleet.HostAndroidSoftwareInstall
 	recordedRetries          int
@@ -188,6 +189,15 @@ func TestReconcileAndroidApps(t *testing.T) {
 			packages := make([]string, 0, len(policy.Applications))
 			for _, appPolicy := range policy.Applications {
 				packages = append(packages, appPolicy.PackageName)
+				if len(appPolicy.ManagedConfiguration) > 0 {
+					if state.sentConfigsByHostUUID == nil {
+						state.sentConfigsByHostUUID = make(map[string]map[string]string)
+					}
+					if state.sentConfigsByHostUUID[hostUUID] == nil {
+						state.sentConfigsByHostUUID[hostUUID] = make(map[string]string)
+					}
+					state.sentConfigsByHostUUID[hostUUID][appPolicy.PackageName] = string(appPolicy.ManagedConfiguration)
+				}
 			}
 			state.sent = append(state.sent, androidAppReconcileSentList{hostUUID: hostUUID, packages: packages})
 		}
@@ -237,6 +247,21 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, android.AppStatusForceInstalled, state.upserted[1].InstallType)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[1].Status)
 		require.Equal(t, new(int64(5)), state.upserted[1].InPolicyVersion)
+	})
+
+	t.Run("two hosts with an app whose configuration uses the host UUID variable each get their own UUID in the app's configuration", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts:               []*fleet.Host{hostA, hostB},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}},
+			firstVersionConfig:  []byte(`{"managedConfiguration":{"deviceId":"$FLEET_VAR_HOST_UUID"}}`),
+		}
+
+		// run the cron, host A and host B should each get app one with their own UUID substituted in its configuration
+		err := reconcile(0)
+		require.NoError(t, err)
+		require.Len(t, state.sent, 2)
+		require.JSONEq(t, `{"deviceId":"host-a"}`, state.sentConfigsByHostUUID["host-a"]["com.example.one"])
+		require.JSONEq(t, `{"deviceId":"host-b"}`, state.sentConfigsByHostUUID["host-b"]["com.example.one"])
 	})
 
 	t.Run("a host with a new app in scope gets both apps and only the new app's install is upserted", func(t *testing.T) {

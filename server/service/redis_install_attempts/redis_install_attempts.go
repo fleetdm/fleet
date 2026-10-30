@@ -41,12 +41,10 @@ func NewTest(t TestNamer, pool fleet.RedisPool, prefix string) *redisInstallAtte
 	}
 }
 
-// Key prefixes for software installer, App Store app version and Android app
-// list attempts, so they don't collide with other key domains or each other
+// Key prefixes for software installer and App Store app version attempts, so they don't collide with other key domains or each other
 const (
 	SoftwareInstallerPrefix = "install:attempts:"
 	AppStoreAppPrefix       = "install:attempts:vpp:"
-	AndroidAppListPrefix    = "install:attempts:android:"
 )
 
 // KEYS[1]: $prefix$softwareInstallerID:$hostID (value integer)

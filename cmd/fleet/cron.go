@@ -2300,7 +2300,7 @@ func newAndroidMDMProfileManagerSchedule(
 	)
 
 	logger = logger.With("cron", name)
-	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AndroidAppListPrefix)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
