@@ -479,15 +479,29 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
 	})
 
-	t.Run("osquery config nudges send the poll interval, even while onboarding", func(t *testing.T) {
+	t.Run("osquery config nudges send the poll interval", func(t *testing.T) {
+		svc, ctx := setupCtx(true, false, true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Equal(t, new(600), cfg.WebSocketTransport.OsqueryConfigPollInterval)
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+	})
+
+	t.Run("onboarding hosts keep osquery's config plugin", func(t *testing.T) {
 		svc, ctx := setupCtx(true, false, true)
 		host, _ := hostctx.FromContext(ctx)
 		host.LastEnrolledAt = time.Now().Add(-time.Minute)
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, cfg.WebSocketTransport)
-		require.Equal(t, new(600), cfg.WebSocketTransport.OsqueryConfigPollInterval)
-		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
+
+		host.LastEnrolledAt = time.Now().Add(-2 * time.Hour)
+		host.OsqueryHostID = nil
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
 	})
 
 	t.Run("orbit config nudges send the poll interval", func(t *testing.T) {
