@@ -227,9 +227,9 @@ To verify the MDM command result with the Fleet API, use a command that conforms
 
 ## Troubleshooting
 
-You can view a list of the 1000 most recent MDM commands executed in Fleet by running:
+You can view a list of the 1000 most recent MDM commands executed for a host by running:
 
-`fleetctl get mdm-commands`
+`fleetctl get mdm-commands --host=<insert-hostname-uuid-or-serial>`
 
 The output will be sorted by the "most recent first" column and will include timestamp, targeted hostname, command type, execution status and command ID values.
 
@@ -242,7 +242,7 @@ You can also get this list of MDM commands from the Fleet API with something lik
 --request GET \
 --header 'Accept: application/json' \
 --header "Authorization: Bearer $fleet_key" \
-"$fleet_url/api/v1/fleet/commands/results"
+"$fleet_url/api/v1/fleet/commands?host_identifier=<insert-hostname-uuid-or-serial>"
 ```
 
 <meta name="category" value="guides">
