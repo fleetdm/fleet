@@ -1,0 +1,9 @@
+- name: "macOS - Restarted within the last 14 days"
+  query: SELECT 1 FROM uptime WHERE total_seconds < 1209600;
+  critical: false
+  description: This Mac has not been restarted in over 14 days. macOS and app updates that require a reboot may not be fully applied, which can leave the device exposed to security vulnerabilities.
+  resolution: Save your work, then restart your Mac from the Apple menu () > Restart. The policy will pass on the next check-in after the restart.
+  platform: darwin
+  calendar_events_enabled: true
+  labels_include_any:
+    - macOS restart reminder

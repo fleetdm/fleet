@@ -209,6 +209,7 @@ policies:
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
   - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
+  - path: ../lib/macos/policies/restarted-recently.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -615,7 +616,7 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
-    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
+    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for windows
       self_service: true
       labels_include_any:
         - x86 Windows hosts with Adobe Acrobat Reader installed

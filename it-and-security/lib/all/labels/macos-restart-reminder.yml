@@ -1,0 +1,8 @@
+- name: macOS restart reminder
+  description: |
+    Hosts in this label are in scope for the "macOS - Restarted within the last 14 days" policy,
+    which has calendar events enabled to block time on the end user's calendar for a restart.
+    Add Fleet host IDs below (hardware_serial or uuid also work).
+  label_membership_type: manual
+  hosts:
+    - DWKF9N99XF
