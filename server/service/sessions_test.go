@@ -764,11 +764,9 @@ func TestInitiateSSORelayURLMustBeRelativePath(t *testing.T) {
 			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
 			SSOSettings: &fleet.SSOSettings{
 				EnableSSO: true,
-				SSOProviderSettings: fleet.SSOProviderSettings{
-					EntityID: "fleet",
-					IDPName:  "TestIDP",
-					Metadata: testSSOMetadata(),
-				},
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
 			},
 		}, nil
 	}
@@ -811,11 +809,9 @@ func TestInitiateSSOStoresRelayURL(t *testing.T) {
 			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
 			SSOSettings: &fleet.SSOSettings{
 				EnableSSO: true,
-				SSOProviderSettings: fleet.SSOProviderSettings{
-					EntityID: "fleet",
-					IDPName:  "TestIDP",
-					Metadata: testSSOMetadata(),
-				},
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
 			},
 		}, nil
 	}
