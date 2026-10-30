@@ -687,6 +687,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  setHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        marked <b>{activity.details?.host_display_name}</b> as company-owned in
+        Google.
+      </>
+    );
+  },
+  deletedHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        unmarked <b>{activity.details?.host_display_name}</b> as company-owned
+        in Google.
+      </>
+    );
+  },
   rotatedHostRecoveryLockPassword: (activity: IActivity) => {
     return (
       <>
@@ -2537,7 +2555,7 @@ const TAGGED_TEMPLATES = {
   editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
     let { team_name } = activity.details || {};
     if (isPremiumTier && !team_name) {
-      team_name = "No Team";
+      team_name = "Unassigned";
     }
     const postFix = team_name ? (
       <>
@@ -2742,6 +2760,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.SetHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.SetHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.setHostGoogleDeviceId(activity);
+    }
+    case ActivityType.DeletedHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.deletedHostGoogleDeviceId(activity);
     }
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);

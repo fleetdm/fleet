@@ -3018,10 +3018,11 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	}
 
 	defer func() {
-		if _, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
+		if authErr, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
 			// Every refusal looks the same to the device, so the server log is
 			// the only place to tell which device was refused and why.
 			logging.WithExtras(ctx, "serial", machineInfo.Serial, "udid", machineInfo.UDID, "product", machineInfo.Product)
+			err = &fleet.AutomaticEnrollmentRefusedError{Reason: authErr.Internal()}
 		}
 	}()
 
@@ -3987,7 +3988,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
 			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
-					profileValidationBatchMessage(mdmProf.Name, pvErr.finding, pvErr.windows)))
+					profileValidationBatchMessage(mdmProf.Name, pvErr.findings[0], pvErr.windows)))
 			}
 			if err != nil {
 				return err
@@ -6739,7 +6740,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 
 	// Get VPP token, fail early if we cannot get it
 	// (e.g. not configured, or not configured for the host's team).
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	_, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
 	switch {
 	case err == nil:
 		// OK
@@ -7092,7 +7093,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			continue
 		}
 
-		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
+		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
 			// scheduled updates fan out to many hosts at once, like policy
 			// automations, so they respect the same release budget

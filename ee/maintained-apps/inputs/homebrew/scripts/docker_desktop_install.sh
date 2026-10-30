@@ -111,6 +111,27 @@ relaunch_application() {
 }
 
 
+# Root removes Docker's per-user update staging from a pinned working
+# directory after checking its kernel path (/bin/pwd, not the shell's string
+# walk): the home's owner controls this tree, so root following a symlink they
+# swapped in could otherwise delete files anywhere on the system. A failure
+# stops the install (set -e) before Docker is quit with a staged update still
+# on disk.
+remove_from_user_home() { # remove_from_user_home <home directory> <parent dir under home> <entry>
+  local home="$1" parent="$2" entry="$3" real_home
+  [[ -e "$home/$parent/$entry" ]] || return 0
+  real_home=$(cd "$home" && /bin/pwd -P) || return 1
+  (
+    cd "$home/$parent" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/$parent" ]]; then
+      echo "refusing to remove $home/$parent/$entry: $home/$parent resolves to $(/bin/pwd -P)" >&2
+      exit 1
+    fi
+    rm -rf "$entry"
+  )
+}
+
+
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
@@ -124,7 +145,9 @@ MOUNT_POINT=""
 # Quitting Docker Desktop with a staged self-update triggers its install-on-quit
 # updater, which renames Docker.app to Docker.app.back and races this script.
 # Remove the staging dir (staged bundle + updater state) first so it can't fire.
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support" "com.docker.install"
+done
 quit_and_track_application 'com.electron.dockerdesktop'
 # Wait out any updater already in flight before touching /Applications/Docker.app.
 SECONDS=0
@@ -163,4 +186,6 @@ done
 relaunch_application 'com.electron.dockerdesktop'
 # Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install/in_progress" "Docker.app"
+done

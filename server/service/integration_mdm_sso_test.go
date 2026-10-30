@@ -469,7 +469,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// the automatic enrollment token is refused while the host's fleet requires
 	// end user authentication, and the link is kept
-	res = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, nil,
+	res = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusForbidden, nil,
 		"token", staticProf.Token, "deviceinfo", di)
 	res.Body.Close()
 	linked, err := s.ds.GetMDMIdPAccountByHostUUID(t.Context(), mdmDevice.UUID)
@@ -1376,8 +1376,8 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, deviceInfo, usedToken string) {
 	requireRefused := func(token, di string) {
 		t.Helper()
-		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
-		require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusForbidden, "token", token, "deviceinfo", di)
+		require.Contains(t, extractServerErrorText(res.Body), "can't enroll right now")
 	}
 	newToken := func() string {
 		t.Helper()

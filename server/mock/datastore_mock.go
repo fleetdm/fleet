@@ -808,6 +808,12 @@ type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
 type ConditionalAccessBypassedAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
 
+type SetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+
+type GetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint) (string, error)
+
+type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -1198,6 +1204,8 @@ type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID 
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
+type GetAppleSerialEnrolledUnderAnotherUUIDFunc func(ctx context.Context, serial string, uuid string) (string, error)
+
 type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
 
 type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string, accessRights int) error
@@ -1283,6 +1291,10 @@ type RetryRecoveryLockVerifyFunc func(ctx context.Context, hostUUID string, veri
 type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []string) error
 
 type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context, clearCommandUUID string) ([]string, error)
+
+type ClaimHostsForRecoveryLockVerifyFunc func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error)
+
+type UnclaimHostForRecoveryLockVerifyFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
 type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
@@ -3803,6 +3815,15 @@ type DataStore struct {
 	ConditionalAccessBypassedAtFunc        ConditionalAccessBypassedAtFunc
 	ConditionalAccessBypassedAtFuncInvoked bool
 
+	SetHostGoogleDeviceIDFunc        SetHostGoogleDeviceIDFunc
+	SetHostGoogleDeviceIDFuncInvoked bool
+
+	GetHostGoogleDeviceIDFunc        GetHostGoogleDeviceIDFunc
+	GetHostGoogleDeviceIDFuncInvoked bool
+
+	DeleteHostGoogleDeviceIDFunc        DeleteHostGoogleDeviceIDFunc
+	DeleteHostGoogleDeviceIDFuncInvoked bool
+
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
 
@@ -4388,6 +4409,9 @@ type DataStore struct {
 	MDMAppleUpsertHostFunc        MDMAppleUpsertHostFunc
 	MDMAppleUpsertHostFuncInvoked bool
 
+	GetAppleSerialEnrolledUnderAnotherUUIDFunc        GetAppleSerialEnrolledUnderAnotherUUIDFunc
+	GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked bool
+
 	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
 	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
 
@@ -4516,6 +4540,12 @@ type DataStore struct {
 
 	ClaimHostsForRecoveryLockClearFunc        ClaimHostsForRecoveryLockClearFunc
 	ClaimHostsForRecoveryLockClearFuncInvoked bool
+
+	ClaimHostsForRecoveryLockVerifyFunc        ClaimHostsForRecoveryLockVerifyFunc
+	ClaimHostsForRecoveryLockVerifyFuncInvoked bool
+
+	UnclaimHostForRecoveryLockVerifyFunc        UnclaimHostForRecoveryLockVerifyFunc
+	UnclaimHostForRecoveryLockVerifyFuncInvoked bool
 
 	DeleteHostRecoveryLockPasswordFunc        DeleteHostRecoveryLockPasswordFunc
 	DeleteHostRecoveryLockPasswordFuncInvoked bool
@@ -9277,6 +9307,27 @@ func (s *DataStore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint
 	return s.ConditionalAccessBypassedAtFunc(ctx, hostID)
 }
 
+func (s *DataStore) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error) {
+	s.mu.Lock()
+	s.SetHostGoogleDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostGoogleDeviceIDFunc(ctx, hostID, googleDeviceID)
+}
+
+func (s *DataStore) GetHostGoogleDeviceID(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.GetHostGoogleDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostGoogleDeviceIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error) {
+	s.mu.Lock()
+	s.DeleteHostGoogleDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostID, googleDeviceID)
+}
+
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
 	s.mu.Lock()
 	s.AsyncBatchInsertPolicyMembershipFuncInvoked = true
@@ -10642,6 +10693,13 @@ func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host,
 	return s.MDMAppleUpsertHostFunc(ctx, mdmHost, personalType)
 }
 
+func (s *DataStore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial string, uuid string) (string, error) {
+	s.mu.Lock()
+	s.GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleSerialEnrolledUnderAnotherUUIDFunc(ctx, serial, uuid)
+}
+
 func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 	s.mu.Lock()
 	s.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
@@ -10941,6 +10999,20 @@ func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCom
 	s.ClaimHostsForRecoveryLockClearFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClaimHostsForRecoveryLockClearFunc(ctx, clearCommandUUID)
+}
+
+func (s *DataStore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+	s.mu.Lock()
+	s.ClaimHostsForRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClaimHostsForRecoveryLockVerifyFunc(ctx)
+}
+
+func (s *DataStore) UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.UnclaimHostForRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnclaimHostForRecoveryLockVerifyFunc(ctx, hostUUID, verifyCommandUUID)
 }
 
 func (s *DataStore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error {

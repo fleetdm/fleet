@@ -1210,6 +1210,16 @@ type Datastore interface {
 	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
 	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
+	// SetHostGoogleDeviceID binds the host to its device ID in Google and reports whether the stored value
+	// changed. Setting the stored value again is a no-op, a different value returns a
+	// *HostGoogleDeviceIDConflictError, and a value bound to another host returns a 409 error.
+	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+	// GetHostGoogleDeviceID returns the host's device ID in Google, or "" if it is not set.
+	GetHostGoogleDeviceID(ctx context.Context, hostID uint) (string, error)
+	// DeleteHostGoogleDeviceID removes the host's device ID in Google if it's still googleDeviceID, and
+	// reports whether it did.
+	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
@@ -1898,6 +1908,10 @@ type Datastore interface {
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, personalType PersonalEnrollmentType) error
 
+	// GetAppleSerialEnrolledUnderAnotherUUID returns the UUID of the host that's enrolled with the serial under a UUID
+	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
+	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
+
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
 	// need a default should treat NotFound as AccessRights=8191 (all rights).
@@ -2094,6 +2108,14 @@ type Datastore interface {
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
+
+	// ClaimHostsForRecoveryLockVerify returns hosts whose acknowledged SetRecoveryLock still needs
+	// its verify sent, each with a newly recorded verify command UUID to send it under.
+	ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]HostRecoveryLockVerifyClaim, error)
+
+	// UnclaimHostForRecoveryLockVerify releases a claim from ClaimHostsForRecoveryLockVerify whose
+	// verify couldn't be enqueued, so the next cron run claims the host again.
+	UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID string) error
 
 	// DeleteHostRecoveryLockPassword hard deletes the recovery lock password record for the given host.
 	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error

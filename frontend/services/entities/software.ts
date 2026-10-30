@@ -199,6 +199,8 @@ export interface IAddAppStoreAppFormData {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Apple App Store apps only. The API rejects it for Android. */
+  vpp_token_id?: number;
 }
 
 export interface IEditAppStoreAppFormData {
@@ -271,6 +273,7 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
     platform: formData.selectedApp?.platform, // Nested platform
     self_service: formData.selfService,
     automatic_install: formData.automaticInstall,
+    vpp_token_id: formData.vppTokenId,
   };
 
   if (formData.categories && formData.categories.length > 0) {
@@ -776,6 +779,7 @@ export default {
       auto_update_enabled?: boolean;
       auto_update_window_start?: string;
       auto_update_window_end?: string;
+      vpp_token_id?: number;
     }
   ) => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;

@@ -127,6 +127,120 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 > Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
 
+Also, allow the Fleet server to reach the following routes for the features you use.
+
+### Apple MDM
+
+Learn more about [Apple MDM](https://fleetdm.com/guides/apple-mdm-setup) and [App Store apps](https://fleetdm.com/guides/install-app-store-apps).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/deliver-apple-csr` | Get a signed certificate signing request (CSR) for your Apple Push Notification service (APNs) certificate. |
+| `api.push.apple.com` | Send MDM commands to hosts through APNs. |
+| `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). |
+| `gdmf.apple.com` | Get the latest macOS, iOS, and iPadOS versions for OS updates. |
+| `vpp.itunes.apple.com` | Install App Store apps with Apps and Books (VPP). |
+| `fleetdm.com/api/vpp/v1/*` | Get App Store app details, like names, icons, and versions. |
+| `api.ent.apple.com` | Get App Store app details directly from Apple. Only if `mdm.apple_vpp_app_metadata_api_bearer_token` is set. |
+
+### Windows MDM
+
+Learn more about [Windows MDM](https://fleetdm.com/guides/windows-mdm-setup).
+
+| Route | Reason |
+|---|---|
+| `download.fleetdm.com` | Install Fleet's agent (fleetd) on Windows hosts. |
+| `login.microsoftonline.com` | Verify Windows automatic enrollment with Microsoft Entra, and sign in to Microsoft Graph. |
+| `graph.microsoft.com` | Sync Windows Autopilot devices. |
+
+### Android MDM
+
+Learn more about [Android MDM](https://fleetdm.com/guides/android-mdm-setup).
+
+Fleet calls the [Android Management API](https://developers.google.com/android/management) through fleetdm.com, so the Fleet server doesn't need to reach Google. Allowlist the whole `fleetdm.com/api/android/*` prefix, because new routes are added over time.
+
+| Route | Reason |
+|---|---|
+| `POST /api/android/v1/signupUrls` | Start connecting Android Enterprise. |
+| `POST /api/android/v1/enterprises` | Create your Android Enterprise. |
+| `GET /api/android/v1/enterprises` | Check your Android Enterprise connection. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId` | Turn off Android MDM. |
+| `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens` | Create enrollment tokens so hosts can enroll. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId` | Apply configuration profiles and settings. |
+| `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action` | Add or remove apps. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices` | Sync enrolled hosts. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Get a host's details. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Update a host's settings. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Unenroll or wipe a host. |
+| `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand` | Send commands, like lock. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId` | Check a command's status. |
+| `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId` | Get Google Play app details. |
+| `POST /api/android/v1/enterprises/:enterpriseId/webApps` | Create web apps. |
+
+### Fleet-maintained apps
+
+Learn more about [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
+
+| Route | Reason |
+|---|---|
+| `maintained-apps.fleetdm.com` | Get the Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. |
+| `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the catalog, if `maintained-apps.fleetdm.com` is unreachable. |
+
+### Conditional access
+
+Learn more about [conditional access](https://fleetdm.com/guides/conditional-access).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
+
+### Vulnerability processing
+
+Learn more about [vulnerability processing](https://fleetdm.com/guides/vulnerability-processing).
+
+| Route | Reason |
+|---|---|
+| `api.github.com` and `github.com` (`fleetdm/nvd` and `fleetdm/vulnerabilities` releases) | Download the CPE dictionary, CVE feeds, Microsoft (MSRC and Office) bulletins, OSV, Go vulnerability data, and OVAL sources. GitHub redirects release downloads to its asset hosts, so allow those too. |
+| `epss.empiricalsecurity.com` | Download Exploit Prediction Scoring System (EPSS) scores. |
+| `www.cisa.gov` | Download CISA's Known Exploited Vulnerabilities (KEV) catalog. |
+| Upstream OVAL sources | Download OVAL definitions for Linux distributions that OSV doesn't cover, like Fedora. The sources are listed in [`oval_sources.json`](https://github.com/fleetdm/nvd/blob/master/oval_sources.json). |
+
+You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-database-url), [`cpe_translations_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-translations-url), [`cve_feed_prefix_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cve-feed-prefix-url), and [`cisa_known_exploits_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cisa-known-exploits-url). To stop all of these downloads, use [`disable_data_sync`](https://fleetdm.com/docs/configuration/fleet-server-configuration#disable-data-sync) and provide the files yourself.
+
+### Google Calendar
+
+Learn more about [calendar events](https://fleetdm.com/guides/using-maintenance-windows).
+
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `www.googleapis.com` | Create calendar events for hosts failing policies. |
+
+### Google Workspace
+
+Learn more about [syncing IdP host vitals from Google Workspace](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#google-workspace).
+
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `admin.googleapis.com` | Sync identity provider (IdP) host vitals from your directory. |
+
+### Usage statistics
+
+Learn more about [usage statistics](https://fleetdm.com/guides/fleet-usage-statistics).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | Send usage statistics. On by default. Fleet Free can turn it off with [`enable_analytics`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
+
+### Policy autofill
+
+Learn more about [policy autofill](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofill a policy's description and resolution. On by default. Turn off with [`ai_features_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
+
 ## Public IPs of devices
 
 Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by Fleet's agent (fleetd).

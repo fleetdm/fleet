@@ -10847,8 +10847,10 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 	}
 	requireAuthFailed := func(t *testing.T, err error) {
 		t.Helper()
-		var authErr *fleet.AuthFailedError
-		require.ErrorAs(t, err, &authErr)
+		var refusedErr *fleet.AutomaticEnrollmentRefusedError
+		require.ErrorAs(t, err, &refusedErr)
+		require.Equal(t, http.StatusForbidden, refusedErr.StatusCode())
+		require.NotEmpty(t, refusedErr.Internal())
 	}
 
 	t.Run("unknown token fails before any serial lookup", func(t *testing.T) {
@@ -11874,14 +11876,17 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 
 type scheduledUpdatesVPPInstaller struct {
 	installs []string
+	// tokenIDs records the token each installed app is bound to
+	tokenIDs []uint
 }
 
-func (i *scheduledUpdatesVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-	return "vpp-token", nil
+func (i *scheduledUpdatesVPPInstaller) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+	return nil
 }
 
-func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	i.installs = append(i.installs, vppApp.AdamID)
+	i.tokenIDs = append(i.tokenIDs, ptr.ValOrZero(vppApp.VPPTokenID))
 	return "command-uuid", nil
 }
 
@@ -11943,10 +11948,12 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 			return map[string]struct{}{}, nil
 		}
 		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
-			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
-				AppTeamID: 1,
-				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
-			}}, nil
+			return &fleet.VPPApp{
+				AppTeamID:  1,
+				AdamID:     adamID,
+				Platform:   fleet.IOSPlatform,
+				VPPTokenID: new(uint(77)),
+			}, nil
 		}
 		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
 			return map[uint]*fleet.HostAppStoreAppVersion{titleID: {VPPAppTeamID: 1, AdamID: adamID, TitleID: titleID, InScope: true}}, nil
@@ -11975,6 +11982,7 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 
 		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
 		require.Equal(t, []string{adamID}, installer.installs)
+		require.Equal(t, []uint{77}, installer.tokenIDs, "the install must carry the app's own token")
 	})
 }
 

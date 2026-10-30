@@ -546,6 +546,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", putHostDeviceMappingEndpoint, putHostDeviceMappingRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping/idp", deleteHostIDPEndpoint, deleteHostIDPRequest{})
+	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", putHostGoogleDeviceIDEndpoint, putHostGoogleDeviceIDRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", deleteHostGoogleDeviceIDEndpoint, deleteHostGoogleDeviceIDRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -1677,6 +1679,7 @@ func registerMDM(
 	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
 	// doc comment for why this can't live inside checkinAndCommandService itself.
 	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
+	mdmService = newEnrolledSerialCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "enrolled-serial"))
 	mdmService = newCertVerifierEnrollmentCheckinService(mdmService, ds, mdmStorage, fleetConfig.MDM, logger.With("component", "http-mdm-apple-mdm", "handler", "cert-verifier"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")

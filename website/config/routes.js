@@ -842,6 +842,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
+  'GET /linux': '/linux-management',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -1320,6 +1321,7 @@ module.exports.routes = {
 
   'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
+  'GET /partner': '/partners',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -1505,6 +1507,8 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-automatic-app-updates': 'https://support.google.com/googleplay/answer/113412?hl=en',
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
+  'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+
 
   // Sitemap
   // =============================================================================================================
