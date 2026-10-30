@@ -79,11 +79,11 @@ How to enforce account types on macOS hosts:
 
 2. Under the managed local account options, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
-To configure via GitOps, set the `end_user_local_account_type` field under `mdm.macos_setup` in your YAML configuration:
+To configure via GitOps, set the `end_user_local_account_type` field under `mdm.setup_experience` in your YAML configuration:
 
 ```yaml
 mdm:
-  macos_setup:
+  setup_experience:
     end_user_local_account_type: "standard"
 ```
 
