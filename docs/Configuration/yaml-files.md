@@ -1527,7 +1527,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 
 #### activities_webhook
 
-- `enable_activities_webhook` (default: `false`)
+- `enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
 
 Can only be configured for "All fleets" (`org_settings`). To send webhooks for a specific fleet's host activities, see [host_activities_webhook](#host-activities-webhook).
@@ -1538,7 +1538,7 @@ Can only be configured for "All fleets" (`org_settings`). To send webhooks for a
 org_settings:
   webhook_settings:
     activities_webhook:
-      enable_activities_webhook: true
+      enabled: true
       destination_url: https://example.org/webhook_handler
 ```
 
@@ -1546,7 +1546,7 @@ org_settings:
 
 _Available in Fleet Premium._
 
-- `enable_host_activities_webhook` (default: `false`)
+- `enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity linked to one of the fleet's hosts is generated (default: `""`)
 
 Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not returned via the activities API, and currently don't trigger this webhook. If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
@@ -1558,7 +1558,7 @@ name: Workstations
 settings:
   webhook_settings:
     host_activities_webhook:
-      enable_host_activities_webhook: true
+      enabled: true
       destination_url: https://example.org/webhook_handler
 ```
 
@@ -1566,7 +1566,7 @@ settings:
 
 > These settings can also be configured per-fleet when nested under `settings`.
 
-- `enable_failing_policies_webhook` (default: `false`)
+- `enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
@@ -1577,7 +1577,7 @@ settings:
 org_settings:
   webhook_settings:
     failing_policies_webhook:
-      enable_failing_policies_webhook: true
+      enabled: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
       policy_ids:
@@ -1588,7 +1588,7 @@ org_settings:
 
 #### host_status_webhook
 
-- `enable_host_status_webhook` (default: `false`)
+- `enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
@@ -1601,7 +1601,7 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 org_settings:
   webhook_settings:
     host_status_webhook:
-      enable_host_status_webhook: true
+      enabled: true
       destination_url: https://example.org/webhook_handler
       days_count: 7
       host_percentage: 25
@@ -1609,7 +1609,7 @@ org_settings:
 
 #### vulnerabilities_webhook
 
-- `enable_vulnerabilities_webhook` (default: `false`)
+- `enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
 
@@ -1621,7 +1621,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   webhook_settings:
     vulnerabilities_webhook:
-      enable_vulnerabilities_webhook: true
+      enabled: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
 ```
