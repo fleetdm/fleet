@@ -118,11 +118,14 @@ const HostSummary = ({
     // Deadline loading is independent of timezone collection, so hold the row
     // at "---" until both land. Otherwise the tooltip ("host's local time")
     // would be lying while the formatter silently falls back to UTC.
-    const canFormat = hasDeadline && hasHostTimezone;
+    const deadline =
+      hasDeadline && hasHostTimezone
+        ? formatHostLocalDeadline(patch_deadline_at, timezone)
+        : null;
 
-    const value = canFormat ? (
+    const value = deadline ? (
       <TooltipWrapper tipContent="The deadline is in the host's local time.">
-        {formatHostLocalDeadline(patch_deadline_at, timezone)}
+        {deadline}
       </TooltipWrapper>
     ) : (
       DEFAULT_EMPTY_CELL_VALUE
