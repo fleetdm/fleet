@@ -10,7 +10,7 @@
 # Example entry:
 # - jobTitle: Client Platform Engineer
 #   company: Acme Inc.
-#   role: IT Engineer / Client Platform Engineer   # "IT Engineer / Client Platform Engineer" or "Security Engineer"
+#   role: IT Engineer / Client Platform Engineer   # "IT Engineer / Client Platform Engineer", "Security Engineer", or "IT leadership"
 #   location: Remote (US)   # (Optional)
 #   description: |   # (Optional)
 #     Own the macOS and Windows fleet end to end.
