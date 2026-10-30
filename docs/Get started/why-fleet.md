@@ -2,6 +2,8 @@
 
 Fleet is open-source AI device management, patching, and governance for every OS: macOS, Windows, Linux, Chromebooks, iOS, and Android (BYOD or corporate-owned).
 
+Get work done natively with your team's AI tools, like Claude, Copilot, or any AI harness.
+
 ![Fleet dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-dashboard-612x344@2x.png)
 
 ## What's it for?
