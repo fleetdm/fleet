@@ -1600,6 +1600,7 @@ The available metrics are:
 - [Get Okta configuration profile](#get-okta-configuration-profile)
 - [Get Okta Windows configuration profiles](#get-okta-windows-configuration-profiles)
 - [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
+- [Delete Google conditional access](#delete-google-conditional-access)
 
 ### Get Okta certificate
 
@@ -1682,6 +1683,22 @@ None.
 Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
 `DELETE /api/v1/fleet/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+### Delete Google conditional access
+
+_Available in Fleet Premium._
+
+Disconnects Fleet from Google. Fleet stops marking iOS, iPadOS, and Android hosts as managed in Google. Hosts that are already marked as managed stay managed in Google.
+
+`DELETE /api/v1/fleet/conditional-access/google`
 
 #### Parameters
 
@@ -1948,6 +1965,8 @@ None.
   "conditional_access": {
     "microsoft_entra_tenant_id": "",
     "microsoft_entra_connection_configured": false,
+    "google_customer_id": "",
+    "google_connection_configured": false,
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
@@ -2206,6 +2225,12 @@ None.
          }
       }
     ],
+    "google_conditional_access": [
+      {
+        "customer_id": "C01234abc",
+        "admin_email": "fleet-admin@example.com"
+      }
+    ],
     "jira": [],
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
@@ -2350,6 +2375,8 @@ Modifies the Fleet's configuration with the supplied information.
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
     "microsoft_entra_connection_configured": true,
+    "google_customer_id": "C01234abc",
+    "google_connection_configured": true,
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
@@ -2570,6 +2597,12 @@ Modifies the Fleet's configuration with the supplied information.
         "domain": "",
         "impersonated_user_email": "",
         "api_key_json": null
+      }
+    ],
+    "google_conditional_access": [
+      {
+        "customer_id": "C01234abc",
+        "admin_email": "fleet-admin@example.com"
       }
     ],
     "jira": [
@@ -2944,6 +2977,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
+| google_conditional_access | array | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
 
 <br/>
 
@@ -3003,6 +3037,19 @@ _Available in Fleet Premium._
 | domain                  | string | Your Google Workspace primary domain whose directory is synced.                                                              |
 | impersonated_user_email | string | A Google Workspace admin the service account impersonates via domain-wide delegation.                                        |
 | api_key_json            | object | The service account JSON key (with domain-wide delegation enabled) used to authenticate to the Google Workspace directory.   |
+
+<br/>
+
+##### integrations.google_conditional_access
+
+_Available in Fleet Premium._
+
+`integrations.google_conditional_access` is an array of objects with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. To turn it off, set it to `[]`. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+| Name        | Type   | Description |
+| ----------- | ------ | ----------- |
+| customer_id | string | Your Google customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings**. |
+| admin_email | string | The email of the Google Workspace admin Fleet uses to mark hosts as managed. |
 
 <br/>
 

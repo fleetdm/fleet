@@ -2966,6 +2966,18 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_conditional_access_integration_google
+
+Generated when Fleet is connected to Google for conditional access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_integration_google
+
+Generated when Fleet is disconnected from Google for conditional access.
+
+This activity does not contain any detail fields.
+
 ## added_google_workspace_integration
 
 Generated when a Google Workspace integration is configured to sync IdP host vitals.
