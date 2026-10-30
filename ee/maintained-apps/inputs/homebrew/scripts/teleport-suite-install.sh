@@ -89,6 +89,24 @@ relaunch_application() {
 }
 
 
+# Root removes the client-tools cache from a pinned working directory after
+# checking its kernel path (/bin/pwd, not the shell's string walk): the home's
+# owner controls ~/.tsh, so root following a symlink they swapped in could
+# otherwise delete any "bin" directory on the system.
+remove_tsh_bin() { # remove_tsh_bin <home directory>
+  local tsh_dir="$1/.tsh" real_home
+  real_home=$(cd "$1" && /bin/pwd -P) || return 1
+  (
+    cd "$tsh_dir" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/.tsh" ]]; then
+      echo "refusing to remove $tsh_dir/bin: $tsh_dir resolves to $(/bin/pwd -P)"
+      exit 1
+    fi
+    rm -rf bin
+  )
+}
+
+
 # install pkg files
 quit_and_track_application 'com.gravitational.teleport.tsh' || exit 1
 sudo installer -pkg "$INSTALLER_PATH" -target / || exit $?
@@ -98,10 +116,15 @@ sudo installer -pkg "$INSTALLER_PATH" -target / || exit $?
 # those bundles, so they keep the patch policy failing after an update. Remove
 # the cache (config included, since tsh trusts it without checking the files);
 # tsh rebuilds it on demand.
-for tools_dir in /Users/*/.tsh/bin; do
-  [ -d "$tools_dir" ] || continue
-  echo "Removing Teleport client-tools cache '$tools_dir'."
-  sudo rm -rf "$tools_dir"
+cache_failed=false
+for home in /Users/*; do
+  [[ -d "$home/.tsh/bin" ]] || continue
+  echo "Removing Teleport client-tools cache '$home/.tsh/bin'."
+  if ! remove_tsh_bin "$home"; then
+    echo "Failed to remove '$home/.tsh/bin'."
+    cache_failed=true
+  fi
 done
 
 relaunch_application 'com.gravitational.teleport.tsh'
+[[ "$cache_failed" = false ]] || exit 1

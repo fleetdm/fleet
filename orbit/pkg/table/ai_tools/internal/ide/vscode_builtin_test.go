@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 func TestVSCodeEditorForApp(t *testing.T) {

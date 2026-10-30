@@ -5,6 +5,7 @@ import { IconNames } from "components/icons";
 
 import { ICommandResult } from "./command";
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 
@@ -199,6 +200,9 @@ export interface IAppStoreApp {
   /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
    * json.RawMessage which Axios auto-parses). */
   configuration?: string | Record<string, unknown>;
+  /** The token the app was added from on this fleet. Null for Google Play
+   * apps and when the title isn't fetched for a fleet. */
+  vpp_token?: IVppTokenSummary | null;
 }
 
 /** One App Store app version on a software title. iOS/iPadOS/Android titles
@@ -914,7 +918,7 @@ export const SCRIPT_PACKAGE_SOURCES = [
 
 /** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
  * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
- * conflict error — the UI uses this constant to disable "+ Add package" and
+ * conflict error — the UI uses this constant to disable "+ Add version" and
  * surface a matching tooltip before the user hits the API. Keep in sync if
  * the backend limit changes. */
 export const MAX_PACKAGES_PER_TITLE = 10;
@@ -1519,7 +1523,10 @@ export type FleetMaintainedAppPlatform = Extract<
 >;
 
 export interface ICombinedFMA {
+  /** Raw name, used to match the app's icon */
   name: string;
+  /** Name shown in the table, without a platform suffix like " for macOS" */
+  displayName: string;
   macos: Omit<IFleetMaintainedApp, "name"> | null;
   windows: Omit<IFleetMaintainedApp, "name"> | null;
 }

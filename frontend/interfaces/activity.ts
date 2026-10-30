@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
@@ -52,6 +53,8 @@ export enum ActivityType {
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  SetHostGoogleDeviceId = "set_host_google_device_id",
+  DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
   RotatedDiskEncryptionKey = "rotated_disk_encryption_key",
   FailedToRotateDiskEncryptionKey = "failed_to_rotate_disk_encryption_key",
@@ -69,6 +72,9 @@ export enum ActivityType {
   AddedDigicert = "added_digicert",
   DeletedDigicert = "deleted_digicert",
   EditedDigicert = "edited_digicert",
+  AddedEJBCA = "added_ejbca",
+  DeletedEJBCA = "deleted_ejbca",
+  EditedEJBCA = "edited_ejbca",
   AddedConditionalAccessMicrosoft = "added_conditional_access_microsoft",
   DeletedConditionalAccessMicrosoft = "deleted_conditional_access_microsoft",
   EditedConditionalAccessMicrosoft = "edited_conditional_access_microsoft",
@@ -257,6 +263,8 @@ export type IHostPastActivityType =
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.SetHostGoogleDeviceId
+  | ActivityType.DeletedHostGoogleDeviceId
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.RotatedDiskEncryptionKey
   | ActivityType.FailedToRotateDiskEncryptionKey
@@ -349,6 +357,8 @@ export interface INotifySoftwareTitle {
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
+  /** Snapshot of the VPP token on App Store app activities. Null for Google Play apps. */
+  vpp_token?: Omit<IVppTokenSummary, "org_name"> | null;
   app_store_id?: number;
   bootstrap_package_name?: string;
   batch_execution_id?: string;
@@ -470,6 +480,7 @@ export interface IActivityDetails {
   custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
+  google_device_id?: string;
   idp_full_name?: string;
   idp_email?: string;
   replaced_idp_email?: string;
@@ -505,6 +516,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
+  added_ejbca: "Added certificate authority (CA): EJBCA",
   added_end_user_agreement: "Added end user agreement (EULA)",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
   added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
@@ -542,6 +554,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
   deleted_declaration_profile: "Deleted declaration (DDM) profile",
   deleted_digicert: "Deleted certificate authority (CA): DigiCert",
+  deleted_ejbca: "Deleted certificate authority (CA): EJBCA",
   deleted_end_user_agreement: "Deleted end user agreement (EULA)",
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
@@ -583,6 +596,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
   edited_disk_encryption_settings: "Edited disk encryption settings",
+  edited_ejbca: "Edited certificate authority (CA): EJBCA",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
@@ -631,6 +645,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
+  set_host_google_device_id: "Marked as company-owned in Google",
+  deleted_host_google_device_id: "Unmarked as company-owned in Google",
   rotated_host_recovery_lock_password:
     "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",

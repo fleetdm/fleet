@@ -846,6 +846,15 @@ type BatchModifyMDMConfigProfilePayload struct {
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
+// MDMProfileChecksums holds the MD5 of a team's stored, unexpanded profile
+// contents: Apple profiles by identifier, declarations and Windows profiles by
+// name. Keys are lowercased, matching the columns' case-insensitive unique keys.
+type MDMProfileChecksums struct {
+	AppleByIdentifier  map[string][]byte
+	DeclarationsByName map[string][]byte
+	WindowsByName      map[string][]byte
+}
+
 type MDMProfileBatchPayload struct {
 	Name string `json:"name,omitempty"`
 	// DisplayName is the older spelling of Name on the public batch endpoint,
@@ -1517,8 +1526,16 @@ type VPPTokenDB struct {
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
 	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
-	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
+}
+
+// AvailableToTeam reports whether the token is assigned to teamID, directly or
+// through "All fleets". teamID 0 is "No fleet".
+func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
+	if t.Teams != nil && len(t.Teams) == 0 {
+		return true
+	}
+	return slices.ContainsFunc(t.Teams, func(tt TeamTuple) bool { return tt.ID == teamID })
 }
 
 type TeamTuple struct {
@@ -1577,6 +1594,14 @@ func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
 // IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
 func (p InstallableDevicePlatform) IsApplePlatform() bool {
 	return slices.Contains(ApplePlatforms, p)
+}
+
+// DisplayName returns the platform name shown to users, e.g. "iOS".
+func (p InstallableDevicePlatform) DisplayName() string {
+	if name, ok := hostNameTemplatePlatformDisplayNames[string(p)]; ok {
+		return name
+	}
+	return string(p)
 }
 
 type AppleDevicesToRefetch struct {

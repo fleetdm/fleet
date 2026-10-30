@@ -4683,6 +4683,45 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 	}
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+		HardwareSerial:  "serial_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "ios",
+		HardwareSerial:  "serial2_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "ipados",
+		HardwareSerial:  "serial3_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "windows",
+		HardwareSerial:  "serial4_no_uuid",
+	})
+	require.NoError(t, err)
 
 	h, err := ds.HostByUUID(context.Background(), "uuid_3")
 	require.NoError(t, err)
@@ -4696,6 +4735,12 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 		"osquery_host_id_3",
 		"node_key_4",
 		"does-not-exist",
+		"",
+		" ",
+		"\x01",
+		"\u00a0",
+		"\u200b",
+		"\u0301",
 	} {
 		h, err := ds.HostByUUID(context.Background(), ident)
 		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
@@ -8863,7 +8908,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test 1: Add first IDP mapping for h1
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
 	require.NoError(t, err)
 
 	// Verify the mapping was created
@@ -8874,7 +8919,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 2: Replace IDP mapping with new user (should replace, not add)
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
 	require.NoError(t, err)
 
 	// Should have only the new mapping (user1 should be replaced by user2)
@@ -8885,7 +8930,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 3: Test idempotent behavior - setting same mapping again should not change anything
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
 	require.NoError(t, err)
 
 	// Should still have only the same mapping
@@ -8896,7 +8941,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 4: Add IDP mapping for different host
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
 	require.NoError(t, err)
 
 	// Verify h2 has its own mapping
@@ -8933,7 +8978,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}
 
 	for i, email := range testEmails {
-		err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
+		_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
 		require.NoError(t, err, "Failed to set email: %s", email)
 
 		// Verify only the current email exists (replacement behavior)
@@ -8945,7 +8990,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}
 
 	// Test 7: Test empty email (edge case)
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
 	require.NoError(t, err) // Should handle empty email gracefully
 
 	// Verify empty email was added
@@ -8980,7 +9025,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
 
 	// Now set a new IDP mapping - this should replace the mdm_idp_accounts entry
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
 	require.NoError(t, err)
 
 	// Verify in db the source of the replaced entry
@@ -10964,6 +11009,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	_, err = ds.SetHostGoogleDeviceID(ctx, host.ID, "google-device-id")
 	require.NoError(t, err)
 
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
@@ -16216,7 +16264,7 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// a manual IdP username supersedes the device-reported one and blocks further reports
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
 	require.NoError(t, err)
 	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
 	_, err = ds.ScimUserByHostID(ctx, h1.ID)

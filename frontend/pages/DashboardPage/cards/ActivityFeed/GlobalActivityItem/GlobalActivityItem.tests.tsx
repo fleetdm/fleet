@@ -876,6 +876,41 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
   });
 
+  it("renders a 'set_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("marked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("unmarked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'set_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.SetHostRecoveryLockPassword,
@@ -2995,6 +3030,22 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
   });
 
   it("renders addedHydrant activity correctly", () => {

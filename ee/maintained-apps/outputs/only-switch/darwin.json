@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1.0",
+      "version": "3.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch' AND version_compare(bundle_short_version, '3.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jacklandrin.OnlySwitch' AND version_compare(bundle_short_version, '3.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'jacklandrin.OnlySwitch' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/jacklandrin/OnlySwitch/releases/download/release_3.1.0/OnlySwitch.dmg",
+      "installer_url": "https://github.com/jacklandrin/OnlySwitch/releases/download/release_3.2.0/OnlySwitch.dmg",
       "install_script_ref": "a1ecb9a8",
       "uninstall_script_ref": "5aec1944",
-      "sha256": "362f80f9cfb5fca573df767afa92213b29b7e943700c42ffb37fef50a2e53205",
+      "sha256": "821b45a66a1e6e5688a03a43bd0240763d1fc7e67b8414b1dbea179aaf75cf24",
       "default_categories": [
         "Utilities"
       ]
