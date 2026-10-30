@@ -690,7 +690,7 @@ This activity contains the following fields:
 
 ## host_enrollment_rejected
 
-Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration), or because the enrollment presented the hardware UUID of another host that has MDM turned on. Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
 
 This activity contains the following fields:
 - "host_id": ID of the host the attempt targeted, or null if the host is unknown.
@@ -703,6 +703,7 @@ This activity contains the following fields:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business.
+  - "uuid_of_another_mdm_host": an enrollment tried to add a host with the hardware UUID of another host that is enrolled in Fleet MDM. "host_id" is that other host.
 
 #### Example
 
