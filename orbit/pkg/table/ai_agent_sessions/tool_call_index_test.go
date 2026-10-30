@@ -230,3 +230,103 @@ func rowsByToolUseID(rows []map[string]string) map[string]map[string]string {
 	}
 	return out
 }
+
+// A call the agent recorded without a name or arguments takes an index and
+// counts in tool_calls like any other, so it has a row like any other: Fleet
+// resumes a session at the number of calls it has stored, and a call with no
+// row would make it reread the calls after it forever.
+func TestNamelessToolCallHasARow(t *testing.T) {
+	for _, tc := range []struct {
+		name, agent, id string
+		write           func(t *testing.T, home string)
+	}{
+		{"claude code", agentClaudeCode, "b", func(t *testing.T, home string) {
+			writeClaudeTranscript(t, home, "s",
+				claudeCall("a", "2026-08-01T10:00:00.000Z", 0),
+				`{"type":"assistant","timestamp":"2026-08-01T10:00:01.000Z","message":{"id":"m-b","model":"m","content":[{"type":"tool_use","id":"b"}]}}`,
+				claudeCall("c", "2026-08-01T10:00:02.000Z", 0),
+			)
+		}},
+		{"codex cli", agentCodexCLI, "b", func(t *testing.T, home string) {
+			writeCodexRollout(t, home, lines(
+				`{"timestamp":"2026-08-01T12:00:00.000Z","type":"session_meta","payload":{"id":"`+codexID+`","timestamp":"2026-08-01T12:00:00.000Z","cwd":"/p"}}`,
+				`{"timestamp":"2026-08-01T12:00:01.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\"}","call_id":"a"}}`,
+				`{"timestamp":"2026-08-01T12:00:02.000Z","type":"response_item","payload":{"type":"function_call","call_id":"b"}}`,
+				`{"timestamp":"2026-08-01T12:00:03.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\"}","call_id":"c"}}`,
+			))
+		}},
+		// A field of the wrong type doesn't lose the call either.
+		{"codex cli call with a malformed name", agentCodexCLI, "b", func(t *testing.T, home string) {
+			writeCodexRollout(t, home, lines(
+				`{"timestamp":"2026-08-01T12:00:00.000Z","type":"session_meta","payload":{"id":"`+codexID+`","timestamp":"2026-08-01T12:00:00.000Z","cwd":"/p"}}`,
+				`{"timestamp":"2026-08-01T12:00:01.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\"}","call_id":"a"}}`,
+				`{"timestamp":"2026-08-01T12:00:02.000Z","type":"response_item","payload":{"type":"function_call","name":5,"call_id":"b"}}`,
+				`{"timestamp":"2026-08-01T12:00:03.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\"}","call_id":"c"}}`,
+			))
+		}},
+		{"copilot cli", agentCopilotCLI, "b", func(t *testing.T, home string) {
+			writeFile(t, copilotPath(home, "s"), lines(
+				`{"type":"tool.execution_start","data":{"toolCallId":"a","toolName":"bash","arguments":{"command":"ls"}},"timestamp":"2026-07-06T02:36:33.100Z"}`,
+				`{"type":"tool.execution_start","data":{"toolCallId":"b"},"timestamp":"2026-07-06T02:36:33.200Z"}`,
+				`{"type":"tool.execution_start","data":{"toolCallId":"c","toolName":"bash","arguments":{"command":"ls"}},"timestamp":"2026-07-06T02:36:33.300Z"}`,
+			))
+		}},
+		{"cursor", agentCursor, "", func(t *testing.T, home string) {
+			writeFile(t, filepath.Join(home, ".cursor", "projects", "tmp-x", "agent-transcripts", "s", "s.jsonl"), lines(
+				`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"ls"}},{"type":"tool_use"},{"type":"tool_use","name":"Shell","input":{"command":"ls"}}]}}`,
+			))
+		}},
+		{"gemini cli", agentGeminiCLI, "b", func(t *testing.T, home string) {
+			writeFile(t, filepath.Join(home, ".gemini", "tmp", "p", "chats", "session-2026-08-01T10-00-aaaaaaaa.jsonl"), lines(
+				`{"sessionId":"`+geminiID+`","startTime":"2026-08-01T10:00:00.000Z","lastUpdated":"2026-08-01T10:00:00.000Z","kind":"main"}`,
+				`{"id":"m1","timestamp":"2026-08-01T10:00:05.000Z","type":"gemini","content":"","toolCalls":[{"id":"a","name":"glob","args":{"pattern":"*"},"status":"success"},{"id":"b"},{"id":"c","name":"glob","args":{"pattern":"*"},"status":"success"}]}`,
+			))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := setup(t)
+			tc.write(t, home)
+
+			s := onlySession(t, tc.agent)
+			require.Equal(t, "3", s["tool_calls"])
+			calls := toolRows(t, s["session_id"])
+			require.Equal(t, []string{"0", "1", "2"}, column(calls, "tool_call_index"))
+			requireRow(t, map[string]string{"tool_name": "", "tool_use_id": tc.id, "content": "", "content_length": "0"}, calls[1])
+			require.Equal(t, calls[1:], messageRows(t, eq("session_id", s["session_id"]), eq("block_type", blockToolUse),
+				cons{"tool_call_index", table.OperatorGreaterThanOrEquals, "1"}), "resuming at the call finds it")
+		})
+	}
+}
+
+// Fleet reads a session it is backfilling 100 calls at a time, with
+// tool_call_index >= M AND tool_call_index < N. Both bounds are pushed down:
+// the result is exactly [M, N), and the calls past N aren't read.
+func TestToolCallIndexRangeIsExact(t *testing.T) {
+	home := setup(t)
+	setReadBudget(t, 2<<20)
+	at := func(i int) string {
+		return time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Second).Format(time.RFC3339Nano)
+	}
+	var ls []string
+	for i := range 300 {
+		padding := 0
+		if i >= 200 {
+			padding = 60 << 10 // the calls past the range outweigh the read budget
+		}
+		id := strconv.Itoa(i)
+		ls = append(ls, claudeCall(id, at(i), padding), claudeResult(id, at(i)))
+	}
+	main := writeClaudeTranscript(t, home, "s", ls...)
+	logs := captureLog(t)
+
+	rows := messageRows(t, eq("transcript_path", main),
+		cons{"tool_call_index", table.OperatorGreaterThanOrEquals, "100"},
+		cons{"tool_call_index", table.OperatorLessThan, "200"})
+	require.Len(t, rows, 100)
+	for i, r := range rows {
+		require.Equal(t, blockToolUse, r["block_type"])
+		require.Equal(t, strconv.Itoa(100+i), r["tool_call_index"])
+		require.Equal(t, strconv.Itoa(100+i), r["tool_use_id"])
+	}
+	require.NotContains(t, logs.String(), "read budget", "reading stops past the upper bound")
+}

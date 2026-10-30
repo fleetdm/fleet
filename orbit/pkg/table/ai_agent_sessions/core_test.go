@@ -110,6 +110,34 @@ func TestDefaultAgeCutoff(t *testing.T) {
 	})
 }
 
+// Fleet asks for sessions started in the last 30 days with started_at >=,
+// a filter osquery applies to the rows the table returns: the table selects
+// sessions by when their transcript was last written. A session whose start
+// is unknown reports 0, so the filter leaves it out.
+func TestStartedAtFilter(t *testing.T) {
+	home := setup(t)
+	at := func(d int) time.Time { return time.Now().AddDate(0, 0, -d).UTC() }
+	rec := func(ts time.Time) string {
+		return fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"content":"hi"}}`, ts.Format(time.RFC3339Nano))
+	}
+	writeClaudeTranscript(t, home, "recent", rec(at(5)), rec(at(4)))
+	writeClaudeTranscript(t, home, "older", rec(at(40)), rec(at(10)))
+	writeClaudeTranscript(t, home, "undated", `{"type":"user","message":{"content":"hi"}}`)
+
+	since := at(30).Unix()
+	rows := sessionRows(t, cons{"started_at", table.OperatorGreaterThanOrEquals, strconv.FormatInt(since, 10)})
+	require.Len(t, rows, 3, "every session written in the window is returned, for osquery to filter")
+	require.Equal(t, "0", rowsByID(rows)["undated"]["started_at"])
+
+	var kept []string
+	for _, r := range rows {
+		if v, err := strconv.ParseInt(r["started_at"], 10, 64); err == nil && v >= since {
+			kept = append(kept, r["session_id"])
+		}
+	}
+	require.Equal(t, []string{"recent"}, kept)
+}
+
 func TestSessionIDOpensOneTranscript(t *testing.T) {
 	home := setup(t)
 	for _, id := range []string{"a", "b", "c"} {

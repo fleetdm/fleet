@@ -70,7 +70,7 @@ columns:
     type: text
     required: false
   - name: tool_name
-    description: The tool called, as the agent names it (e.g. `Bash`, `exec_command`, `mcp__github__create_issue`).
+    description: The tool called, as the agent names it (e.g. `Bash`, `exec_command`, `mcp__github__create_issue`). Empty when the agent recorded a call without one; the call still has a row and an index.
     type: text
     required: false
   - name: tool_use_id

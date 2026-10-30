@@ -323,26 +323,17 @@ func parseCodexCLI(src *source, r *recorder) {
 			}
 		case "response_item":
 			var it codexItem
-			if json.Unmarshal(rec.Payload, &it) == nil {
-				p.item(it)
-			} else {
-				p.count(rec, line) // counted as the skip path would
-			}
+			_ = json.Unmarshal(rec.Payload, &it)
+			p.item(it)
 		case "event_msg":
-			if !p.event(rec.Payload) {
-				p.count(rec, line)
-			}
+			p.event(rec.Payload)
 		case "token_usage_record", "session_meta", "compacted", "turn_aborted":
 			codexTokenRecord(&p.tokens, rec)
 		default:
-			var it codexItem
-			if !p.flat {
-				break
-			}
-			if json.Unmarshal(line, &it) == nil {
+			if p.flat {
+				var it codexItem
+				_ = json.Unmarshal(line, &it)
 				p.item(it)
-			} else {
-				p.count(rec, line)
 			}
 		}
 		return true
@@ -399,8 +390,6 @@ func codexTokenRecord(t *codexTokens, rec codexLine) {
 	}
 }
 
-// skip counts a record before the requested page, decoding only what says
-// whether it is a message, and keeps the model and directory current.
 // skip handles a record before the page by decoding only what numbers the
 // messages and calls, reporting false when the record may hold a wanted
 // row and so must be handled in full.
@@ -410,15 +399,6 @@ func (p *codexParser) skip(rec codexLine, line []byte) bool {
 		return true
 	}
 	return p.r.skip(codexItemCalls(h.Type))
-}
-
-// count takes a message record that doesn't decode in full as the skip path
-// would, so a message's index doesn't depend on the page asked for.
-func (p *codexParser) count(rec codexLine, line []byte) {
-	if h, isMessage := p.head(rec, line); isMessage {
-		p.r.next()
-		p.r.countCalls(codexItemCalls(h.Type))
-	}
 }
 
 type codexHead struct {
@@ -433,18 +413,26 @@ type codexHead struct {
 
 // head decodes what says whether a record is a message, keeping up with the
 // model and working directory on the way.
+//
+// Here and in the full decode a field of the wrong type is skipped rather
+// than failing the record (the payload is known to be valid JSON), so both
+// number a record the same way and every numbered call is handled.
 func (p *codexParser) head(rec codexLine, line []byte) (h codexHead, isMessage bool) {
 	switch rec.Type {
 	case "turn_context":
-		if json.Unmarshal(rec.Payload, &h) == nil {
-			p.model, p.cwd = cmp.Or(h.Model, p.model), cmp.Or(h.CWD, p.cwd)
-		}
+		_ = json.Unmarshal(rec.Payload, &h)
+		p.model, p.cwd = cmp.Or(h.Model, p.model), cmp.Or(h.CWD, p.cwd)
 	case "response_item":
-		isMessage = json.Unmarshal(rec.Payload, &h) == nil && codexItemIsMessage(h.Type, h.Role, p.flat)
+		_ = json.Unmarshal(rec.Payload, &h)
+		isMessage = codexItemIsMessage(h.Type, h.Role, p.flat)
 	case "event_msg":
-		isMessage = json.Unmarshal(rec.Payload, &h) == nil && codexEventIsMessage(h.Type, h.Item != nil && h.Item.Type == "UserMessage")
+		_ = json.Unmarshal(rec.Payload, &h)
+		isMessage = codexEventIsMessage(h.Type, h.Item != nil && h.Item.Type == "UserMessage")
 	default:
-		isMessage = p.flat && json.Unmarshal(line, &h) == nil && codexItemIsMessage(h.Type, h.Role, p.flat)
+		if p.flat {
+			_ = json.Unmarshal(line, &h)
+			isMessage = codexItemIsMessage(h.Type, h.Role, p.flat)
+		}
 	}
 	return h, isMessage
 }
@@ -475,8 +463,8 @@ func codexEventIsMessage(typ string, userItem bool) bool {
 	return typ == "user_message" || (typ == "item_completed" && userItem)
 }
 
-// event handles an event_msg, reporting false when it couldn't be decoded.
-func (p *codexParser) event(raw json.RawMessage) bool {
+// event handles an event_msg.
+func (p *codexParser) event(raw json.RawMessage) {
 	var e struct {
 		Type    string          `json:"type"`
 		Message json.RawMessage `json:"message"`
@@ -488,9 +476,7 @@ func (p *codexParser) event(raw json.RawMessage) bool {
 			Total codexUsage `json:"total_token_usage"`
 		} `json:"info"`
 	}
-	if json.Unmarshal(raw, &e) != nil {
-		return false
-	}
+	_ = json.Unmarshal(raw, &e)
 	userItem := e.Item != nil && e.Item.Type == "UserMessage"
 	switch {
 	case !codexEventIsMessage(e.Type, userItem):
@@ -505,7 +491,6 @@ func (p *codexParser) event(raw json.RawMessage) bool {
 		}
 	}
 	// agent_message duplicates the assistant's response_item.
-	return true
 }
 
 // prompt records what the user typed. Codex also writes user-role

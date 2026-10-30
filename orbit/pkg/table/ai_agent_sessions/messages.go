@@ -324,9 +324,11 @@ func (r *recorder) decide(id, decision string) {
 	r.out[i].Decision = decision
 }
 
-// add appends a row unless it is empty or the size limit is reached.
+// add appends a row unless it is empty or the size limit is reached. A
+// tool_use row is never empty: the call took an index and counts in
+// tool_calls, so a reader resuming at that count must find it.
 func (r *recorder) add(m Message, content string) bool {
-	if content == "" && m.ToolName == "" {
+	if content == "" && m.BlockType != blockToolUse {
 		return false
 	}
 	if m.BlockType != blockToolUse {
