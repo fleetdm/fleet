@@ -6,6 +6,8 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Fleet Free and Fleet Premium
 - Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
 - If there's a new SwiftDialog version, test the new Mac setup and MDM migration flow and verify that there's no regressions.
+- Does the feature show up on, or change, the Fleet Desktop menu and the My device page?
+- Platform SSO (PSSO): registration state, token expiry and refresh, and what the host reports while registration is incomplete
 
 ## User
 
@@ -48,6 +50,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Setup experience software / scripts
 - SSO enabled for DEP enrollment
 - EULA added for DEP enrollment
+- Re-enrollment of a host Fleet has already seen (wipe and re-enroll, migration vs. fresh ADE enrollment)
+- Failure part-way through setup experience (software install fails, script fails, times out)
+- Certificate renewal (SCEP, NDES, custom CA) while the feature is in use
+- Disk encryption key escrow: expired, rotated, or not yet escrowed
 
 ## Software
 
@@ -62,6 +68,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Edit script
 - Remove script
 - Vulnerability scans
+- Large uploads (installers, bootstrap packages): progress, timeouts, retry
 - Automatic software install
 - Label-scoped software install
 - Host software
@@ -112,6 +119,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Host with a failing policy
 - Online host
 - Offline host
+- Re-enrolled host (same hardware, new enrollment) — is host state kept or lost?
 
 ## Integrations
 
@@ -119,6 +127,15 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Jira
 - Zendesk
 - Webhooks
+
+## Identity provider (IdP)
+
+- End user deprovisioned or removed from the IdP
+- End user's group membership changes
+- Attribute casing and duplicates (emails, usernames, group names) — values that differ only by case should not create a second identity
+- IdP-sourced labels: membership populates, and keeps up when group membership changes
+- Host re-enrolled while an IdP identity is already attached
+- Certificate or token renewal while the feature is in use
 
 ## Config
 

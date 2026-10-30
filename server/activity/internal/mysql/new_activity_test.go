@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ func TestNewActivity(t *testing.T) {
 		{"AutomationActivity", testNewActivityAutomation},
 		{"HostAssociation", testNewActivityHostAssociation},
 		{"HostOnly", testNewActivityHostOnly},
+		{"Bulk", testNewActivitiesBulk},
 		{"DeletedUser", testNewActivityDeletedUser},
 	}
 	for _, c := range cases {
@@ -243,4 +245,60 @@ func mustJSON(t *testing.T, v any) []byte {
 	b, err := json.Marshal(v)
 	require.NoError(t, err)
 	return b
+}
+
+func testNewActivitiesBulk(t *testing.T, env *testEnv) {
+	userID := env.InsertUser(t, "bulkuser", "bulk@example.com")
+	user := &api.User{ID: userID, Name: "bulkuser", Email: "bulk@example.com"}
+
+	t.Run("webhook context key required", func(t *testing.T) {
+		require.Error(t, env.ds.NewActivities(t.Context(), user, nil, nil, time.Now()))
+	})
+
+	t.Run("mismatched details", func(t *testing.T) {
+		activities := []api.ActivityDetails{dummyActivity{name: "bulk_mismatch"}}
+		require.Error(t, env.ds.NewActivities(webhookCtx(t), user, activities, nil, time.Now()))
+	})
+
+	t.Run("links each activity to its host across chunks", func(t *testing.T) {
+		// more than one chunk, so the host links of every chunk are exercised
+		hostCount := newActivitiesChunkSize + 5
+		hostIDs := make([]uint, hostCount)
+		activities := make([]api.ActivityDetails, hostCount)
+		details := make([][]byte, hostCount)
+		for i := range hostCount {
+			hostIDs[i] = env.InsertHost(t, fmt.Sprintf("bulk-%d.local", i), nil)
+			activities[i] = hostActivity{
+				name:    "bulk_ran_command",
+				details: map[string]any{"host_id": float64(hostIDs[i])},
+				hostIDs: []uint{hostIDs[i]},
+			}
+			details[i] = mustJSON(t, map[string]any{"host_id": float64(hostIDs[i])})
+		}
+
+		require.NoError(t, env.ds.NewActivities(webhookCtx(t), user, activities, details, time.Now()))
+
+		for _, i := range []int{0, newActivitiesChunkSize - 1, newActivitiesChunkSize, hostCount - 1} {
+			acts, _, err := env.ds.ListHostPastActivities(t.Context(), hostIDs[i], listOpts())
+			require.NoError(t, err)
+			require.Len(t, acts, 1)
+			assert.Equal(t, "bulk_ran_command", acts[0].Type)
+			require.NotNil(t, acts[0].Details)
+			var got map[string]any
+			require.NoError(t, json.Unmarshal(*acts[0].Details, &got))
+			assert.InDelta(t, float64(hostIDs[i]), got["host_id"], 0, "activity linked to the wrong host")
+			require.NotNil(t, acts[0].ActorEmail)
+			assert.Equal(t, "bulk@example.com", *acts[0].ActorEmail)
+		}
+
+		var linked int
+		require.NoError(t, env.DB.GetContext(t.Context(), &linked, `SELECT COUNT(*) FROM activity_host_past h
+			JOIN activity_past a ON a.id = h.activity_id WHERE a.activity_type = ?`, "bulk_ran_command"))
+		assert.Equal(t, hostCount, linked, "every host activity must have exactly one host link")
+
+		var distinctUUIDs int
+		require.NoError(t, env.DB.GetContext(t.Context(), &distinctUUIDs,
+			`SELECT COUNT(DISTINCT batch_row_uuid) FROM activity_past WHERE activity_type = ?`, "bulk_ran_command"))
+		assert.Equal(t, hostCount, distinctUUIDs, "every bulk row carries its own batch_row_uuid")
+	})
 }

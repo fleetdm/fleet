@@ -5,7 +5,7 @@ import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Slider from "components/forms/fields/Slider";
-import validURL from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import Modal from "components/Modal";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IWebhookActivities } from "interfaces/webhook";
@@ -50,7 +50,7 @@ const ActivityFeedAutomationsModal = ({
     const { url: newUrl } = newFormData;
     if (
       formData.enabled &&
-      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
+      !isValidURL({ url: newUrl || "", protocols: ["http", "https"] })
     ) {
       const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
       errors.url = `${errorPrefix} a valid destination URL`;

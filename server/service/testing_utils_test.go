@@ -29,7 +29,9 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -159,7 +161,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		ejbcaService                                                  = ejbca.NewService(ejbca.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
+		googleCASService                fleet.GoogleCASService        = googlecas.NewService(googlecas.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -210,7 +214,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool, redis_install_attempts.SoftwareInstallerPrefix)
 			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
@@ -271,6 +275,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].DigiCertService != nil {
 		digiCertService = opts[0].DigiCertService
+	}
+	if len(opts) > 0 && opts[0].GoogleCASService != nil {
+		googleCASService = opts[0].GoogleCASService
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
@@ -372,8 +379,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
+			ejbcaService,
 			androidModule,
 			estCAService,
+			googleCASService,
 			pssoNonceStore,
 			msGraphClientFactory,
 		)
@@ -727,6 +736,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+	mcpConn := NewMCPConn()
+	extra = append(extra, WithMCPConn(mcpConn))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
@@ -760,6 +771,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
+	rootMux.Handle("/enroll/next-steps", ServeEndUserEnrollNextSteps("", logger, false))
+	rootMux.Handle("/enroll/next-steps/", ServeEndUserEnrollNextSteps("", logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -779,11 +792,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		server.Config.Handler = rootMux
 	}
 	server.Start()
+	mcpConn.Start(ctx, rootMux)
+	testMCPConns.Store(server, mcpConn)
 	t.Cleanup(func() {
+		testMCPConns.Delete(server)
 		server.Close()
+		_ = mcpConn.Shutdown(context.Background())
 	})
 	return users, server
 }
+
+// testMCPConns maps each test server to the internal connection its embedded
+// MCP calls the API through, for tests that send requests over it directly.
+var testMCPConns sync.Map
 
 func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	var rs fleet.QueryResultStore

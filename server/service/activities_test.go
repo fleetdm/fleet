@@ -5,14 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -480,4 +485,63 @@ func TestCancelActivitiesAndNotificationsForHost(t *testing.T) {
 	}
 	err = cancelActivitiesAndNotificationsForHost(ctx, ds, notificationsSvc, slog.New(slog.DiscardHandler), 1)
 	require.Error(t, err)
+}
+
+func TestReleaseVPPSeatUsesRecordedToken(t *testing.T) {
+	const adamID = "adam-1"
+	// The host moved to a fleet whose first token is not the one that reserved the seat.
+	host := &fleet.Host{ID: 1, HardwareSerial: "SERIAL-1", TeamID: new(uint(9))}
+
+	var auths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/assets/disassociate", r.URL.Path)
+		auths = append(auths, r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`{"eventId":"evt"}`))
+	}))
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", srv.URL, t)
+
+	newSvc := func() (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, common_mysql.NotFound("HostMDM")
+		}
+		return &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}, ds
+	}
+	info := func(tokenID *uint) *fleet.VPPInstallReleaseInfo {
+		return &fleet.VPPInstallReleaseInfo{AdamID: adamID, AssociatedEventID: "evt", VPPTokenID: tokenID}
+	}
+
+	t.Run("recorded token", func(t *testing.T) {
+		auths = nil
+		svc, ds := newSvc()
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			require.Equal(t, uint(5), id)
+			return &fleet.VPPTokenDB{ID: 5, Token: "tok-5"}, nil
+		}
+
+		require.NoError(t, svc.releaseVPPSeat(t.Context(), host, info(new(uint(5))), nil))
+		require.Equal(t, []string{"Bearer tok-5"}, auths)
+		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked, "the host fleet's token must not be used")
+	})
+
+	t.Run("no recorded token", func(t *testing.T) {
+		auths = nil
+		svc, ds := newSvc()
+
+		require.NoError(t, svc.releaseVPPSeat(t.Context(), host, info(nil), nil))
+		require.Empty(t, auths)
+		require.False(t, ds.GetVPPTokenFuncInvoked)
+	})
+
+	t.Run("recorded token deleted", func(t *testing.T) {
+		auths = nil
+		svc, ds := newSvc()
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return nil, common_mysql.NotFound("VPPToken")
+		}
+
+		require.NoError(t, svc.releaseVPPSeat(t.Context(), host, info(new(uint(5))), nil))
+		require.Empty(t, auths)
+	})
 }

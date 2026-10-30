@@ -613,6 +613,7 @@ var hostRefs = []string{
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
+	"host_google_device_ids",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -628,6 +629,7 @@ var hostRefs = []string{
 	"host_autopilot_devices",
 	"host_one_time_enroll_secrets",
 	"notifications_end_user",
+	"host_policy_automation_run_counts",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1436,6 +1438,30 @@ func (ds *Datastore) applyHostFilters(
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		whereParams = append(whereParams, *softwareIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
+		// Reject a version or package filter that isn't one of the title's in the fleet
+		if opt.AppStoreAppVersionIDFilter != nil {
+			_, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id is not a version of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+			}
+		}
+		if opt.SoftwareInstallerIDFilter != nil {
+			_, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.SoftwareInstallerIDFilter, false)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id is not a package of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get software installer for title")
+			}
+		}
+
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
@@ -1469,7 +1495,7 @@ func (ds *Datastore) applyHostFilters(
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
 				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
@@ -1894,7 +1920,7 @@ const hostMobileOnlineExpr = `GREATEST(` +
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
 	case fleet.StatusNew:
-		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
+		sql += "AND DATE_ADD(h.last_enrolled_at, INTERVAL 1 DAY) >= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 		params = append(params, now)
 	case fleet.StatusOnline:
 		sql += fmt.Sprintf(
@@ -2479,7 +2505,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) > ? THEN 1 ELSE 0 END
 					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END
 				END), 0) online,
-				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN DATE_ADD(h.last_enrolled_at, INTERVAL 1 DAY) >= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) new,
 				COALESCE(SUM(CASE WHEN hdep.deleted_at IS NULL AND hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
@@ -3613,12 +3639,18 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 	return nil
 }
 
-// SearchHosts returns hosts matching the query string. Called by the
-// live-query target picker (which filters mobile hosts at the service
-// layer) and the manual-label host picker (which needs all platforms).
+// SearchHosts returns hosts matching the query string. excludeMobile is set by
+// the live-report target picker (mobile hosts don't run osquery); the
+// manual-label host picker needs all platforms. The filter is applied in SQL
+// so mobile hosts can't crowd desktop hosts out of the LIMIT.
 // Deliberately does not populate LastMDMCheckedInAt: no caller reads it
 // here, and skipping the mobile MDM join keeps this query lean.
-func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
+func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
+	platformFilter := "TRUE"
+	if excludeMobile {
+		platformFilter = "h.platform NOT IN " + mobilePlatformsSQLList
+	}
+
 	query := `SELECT
     h.id,
     h.osquery_host_id,
@@ -3672,7 +3704,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   ` + hostMDMJoin + `
-  WHERE TRUE AND `
+  WHERE ` + platformFilter + ` AND `
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
@@ -3680,7 +3712,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id.
 		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
 		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
-		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
+		matchingHosts := "SELECT h.id FROM hosts h WHERE " + platformFilter + " AND " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -3731,6 +3763,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	// A blank identifier would match every host with an empty hostname, UUID or serial (whitespace-only
+	// ones too, since these columns use PAD SPACE collations).
+	hostIdentifiers = slices.DeleteFunc(slices.Clone(hostIdentifiers), func(ident string) bool {
+		return strings.TrimSpace(ident) == ""
+	})
 	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}
@@ -3947,7 +3984,9 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	return host, nil
 }
 
-// HostByUUID matches only against the uuid column.
+// HostByUUID matches only against the uuid column. Hosts with an empty uuid
+// (e.g. ABM-assigned devices that haven't enrolled) never match as they are
+// placeholders
 func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {
 	stmt := `
     SELECT
@@ -4005,7 +4044,7 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     ` + hostMDMJoin + `
-    WHERE h.uuid = ?
+    WHERE h.uuid = ? AND h.uuid != ''
     LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -4696,13 +4735,16 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
-func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
+func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]fleet.ActivityTypeResentCertificate, error) {
 	const (
 		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 	)
 
+	var resentCerts []fleet.ActivityTypeResentCertificate
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+
 		// Only a device-reported mapping takes its SCIM link with it, or the
 		// device-asserted link would outlive the manual value. The caller then
 		// links the user matching the new value.
@@ -4712,24 +4754,67 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			hostID, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "check for Entra join device mapping")
 		}
+		// A linked SCIM user supplies the IdP username, and adding or removing
+		// the link resends the profiles that use it.
+		var hadSCIMUser bool
+		if err := sqlx.GetContext(ctx, tx, &hadSCIMUser,
+			`SELECT EXISTS (SELECT 1 FROM host_scim_user WHERE host_id = ?)`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check for host SCIM user mapping")
+		}
+		// the IdP username variables resolve from the mappings replaced below
+		var prevUsernames []string
+		if err := sqlx.SelectContext(ctx, tx, &prevUsernames,
+			`SELECT email FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`,
+			hostID, fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
+			return ctxerr.Wrap(ctx, err, "get existing IDP usernames")
+		}
+		if len(prevUsernames) == 0 {
+			// no mapping resolves the same as an empty one
+			prevUsernames = []string{""}
+		}
+		// profiles get the value as stored, so a change in case alone resends too
+		usernameChanged := slices.ContainsFunc(prevUsernames, func(prev string) bool {
+			return prev != email
+		})
 		// the manual mapping replaces the authenticated and device-reported ones
 		if _, err := tx.ExecContext(ctx, delStmt, hostID,
 			fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
 		}
 		if hadEntraJoin {
-			if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			certs, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 			}
+			resentCerts = append(resentCerts, certs...)
 		}
 
 		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 
+		if !hadSCIMUser && usernameChanged {
+			// without a SCIM user, the IdP username variables resolve to this value
+			vars := []fleet.FleetVarName{
+				fleet.FleetVarHostEndUserIDPUsername,
+				fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			}
+			certs, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
+			if err != nil {
+				return err
+			}
+			if err := triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID}, vars); err != nil {
+				return err
+			}
+			resentCerts = append(resentCerts, certs...)
+		}
+
 		return nil
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {

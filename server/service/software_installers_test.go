@@ -203,7 +203,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
-			_, err = svc.GetAppStoreApps(ctx, tt.teamID)
+			_, err = svc.GetAppStoreApps(ctx, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else if tt.shouldFailRead {

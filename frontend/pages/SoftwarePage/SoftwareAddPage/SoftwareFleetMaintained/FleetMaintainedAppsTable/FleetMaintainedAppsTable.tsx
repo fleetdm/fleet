@@ -46,20 +46,33 @@ const EmptyFleetAppsTable = () => (
  * for different platforms into one row. Apps are keyed by their slug token (the
  * prefix before "/"), not by name, so two distinct apps that share a display
  * name stay as separate rows. */
+const PLATFORM_NAME_SUFFIX = / for (macOS|Mac|Windows)$/;
+
 export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
   const combinedApps: { [appToken: string]: ICombinedFMA } = {};
+  const platformNames: { [appToken: string]: Set<string> } = {};
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
     const appToken = app.slug.split("/")[0];
 
     if (!combinedApps[appToken]) {
-      combinedApps[appToken] = { name, macos: null, windows: null };
+      combinedApps[appToken] = {
+        name,
+        displayName: name,
+        macos: null,
+        windows: null,
+      };
+      platformNames[appToken] = new Set();
     }
+    platformNames[appToken].add(name);
 
     if (platform === "darwin") {
+      // The API orders entries by name in the requested direction, so take the
+      // name from the macOS entry to keep it stable across sort directions.
+      combinedApps[appToken].name = name;
       combinedApps[appToken].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
@@ -69,6 +82,20 @@ export const combineAppsByPlatform = (
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
+    }
+  });
+
+  // Only strip the suffix when the platforms' names differ by it (e.g. "R for
+  // macOS" and "R for Windows"); a single-platform app's suffix is part of its
+  // name (e.g. "Google Credential Provider for Windows").
+  Object.entries(combinedApps).forEach(([appToken, combinedApp]) => {
+    const names = platformNames[appToken];
+    if (names.size < 2) return;
+    const baseNames = new Set(
+      [...names].map((n) => n.replace(PLATFORM_NAME_SUFFIX, ""))
+    );
+    if (baseNames.size === 1) {
+      [combinedApp.displayName] = baseNames;
     }
   });
 

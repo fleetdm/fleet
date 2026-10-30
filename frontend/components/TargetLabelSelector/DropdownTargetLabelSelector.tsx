@@ -217,7 +217,9 @@ const DropdownTargetLabelSelector = ({
   labelInfoBanner,
   error,
 }: IDropdownTargetLabelSelectorProps) => {
-  const classNames = classnames(baseClass, className, "form");
+  const classNames = classnames(baseClass, className, "form", {
+    [`${baseClass}--disabled`]: disableOptions,
+  });
 
   return (
     <div className={classNames}>

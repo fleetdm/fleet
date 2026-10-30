@@ -424,9 +424,13 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           headerPills={headerPills}
-          isAppleVpp={isAppleVpp}
           fleetMaintainedAppSlug={fleetMaintainedAppSlug}
           appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? softwareTitle.app_store_app?.vpp_token ?? undefined
+              : undefined
+          }
           googlePlayId={googlePlayId}
         />
       </Card>

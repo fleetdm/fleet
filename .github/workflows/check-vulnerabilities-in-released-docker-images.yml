@@ -72,8 +72,10 @@ jobs:
       # VEX files yet and looks like we can't run the action on multiple images.
       - name: Run trivy vulnerability scanner on fleetdm/fleet images
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
         run: |
           mkdir trivy-download
           cd trivy-download
@@ -111,8 +113,10 @@ jobs:
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run trivy vulnerability scanner on latest released fleetdm/fleetctl image
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
         run: |
           ./trivy image \
             --exit-code=1 \

@@ -211,7 +211,7 @@ const SoftwareTitleDetailsPage = ({
 
   // Canonical "this title can hold multiple custom packages" flag.
   // Single source of truth for three coordinated behaviors:
-  //   1. Library section shows the "+ Add package" action
+  //   1. Library section shows the "+ Add version" action
   //   2. Accordion rows render the self-service / auto-install icons
   //   3. SoftwareSummaryCard hides the Self-service / Auto install chips
   //      AND collapses the Actions dropdown into a pencil-icon Edit button
@@ -242,7 +242,8 @@ const SoftwareTitleDetailsPage = ({
       });
 
       // Keep the admin on the title when deleting one of multiple App Store
-      // app versions, or when the title still has inventory versions to show.
+      // app versions or custom packages, or when the title still has
+      // inventory versions to show.
       // The `versions` count is Inventory (host-installed); a freshly-added
       // multi-version title with no installs has `versions.length === 0`, so
       // without the explicit sibling signal a version delete would redirect.
@@ -367,10 +368,14 @@ const SoftwareTitleDetailsPage = ({
       setShowDeleteModal(true);
     };
 
-    const statusPath = (software_status: "installed" | "pending" | "failed") =>
+    const statusPath = (
+      software_status: "installed" | "pending" | "failed",
+      appStoreAppVersionId?: number
+    ) =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
         software_title_id: softwareId,
         software_status,
+        app_store_app_version_id: appStoreAppVersionId,
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
@@ -438,9 +443,9 @@ const SoftwareTitleDetailsPage = ({
           installed={version.status?.installed ?? 0}
           pending={version.status?.pending ?? 0}
           failed={version.status?.failed ?? 0}
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
+          installedPath={statusPath("installed", version.id)}
+          pendingPath={statusPath("pending", version.id)}
+          failedPath={statusPath("failed", version.id)}
           canActivateMultipleVersions
           isSelfService={!!version.self_service}
           isAutoUpdateEnabled={!!version.auto_update_enabled}
@@ -592,7 +597,7 @@ const SoftwareTitleDetailsPage = ({
       ));
     };
 
-    // "Add package" lives on titles that can hold multiple custom packages —
+    // "Add version" lives on titles that can hold multiple custom packages —
     // gated by the page-level `canActivateMultiplePackages` flag. FMA, VPP,
     // Google Play, and iOS in-house .ipa are all single-package by design
     // and so don't surface the action at all. The Library section already
@@ -607,7 +612,7 @@ const SoftwareTitleDetailsPage = ({
         disabled={atPackageLimit}
         icon="plus"
       >
-        Add package
+        Add version
       </Button>
     );
 
@@ -637,7 +642,7 @@ const SoftwareTitleDetailsPage = ({
           <TooltipWrapper
             tipContent={
               <>
-                This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
+                This title already has {MAX_PACKAGES_PER_TITLE} versions. Delete
                 one you no longer use before adding.
               </>
             }
@@ -677,7 +682,7 @@ const SoftwareTitleDetailsPage = ({
     // users and single-slot types fall through to the legacy wording.
     const getDescriptionContent = (): string => {
       if (canActivateMultiplePackages && canEditSoftware) {
-        return "Add packages for a staged rollout or to support multiple architectures.";
+        return "Add versions for a staged rollout or to support multiple architectures.";
       }
       if (canActivateMultipleVersions && canEditSoftware) {
         return "Add versions to scope different configurations to hosts.";
@@ -689,7 +694,7 @@ const SoftwareTitleDetailsPage = ({
     // App-store and custom-package paths are mutually exclusive at the data
     // layer (the backend rejects custom uploads against an FMA/VPP title), so
     // only one branch ever renders rows. The wrapper stays the same shape.
-    // The "Add package" action sits on the description row (not the section
+    // The "Add version" action sits on the description row (not the section
     // header) so it visually aligns with the secondary copy rather than the
     // h2 title — matches the Library row layout in Figma page 2:130.
     return (
@@ -781,6 +786,8 @@ const SoftwareTitleDetailsPage = ({
     const versionCount = title.app_store_apps?.length ?? 0;
     const isVersionDelete = selectedVersionId !== null;
     const isLastVersion = isVersionDelete && versionCount <= 1;
+    const siblingPackagesRemain =
+      canActivateMultiplePackages && (title.packages?.length ?? 0) > 1;
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
@@ -792,11 +799,13 @@ const SoftwareTitleDetailsPage = ({
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
         canActivateMultiplePackages={canActivateMultiplePackages}
+        packageName={selected?.name}
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();
           onDeleteInstaller({
-            siblingVersionsRemain: isVersionDelete && !isLastVersion,
+            siblingVersionsRemain:
+              (isVersionDelete && !isLastVersion) || siblingPackagesRemain,
           });
         }}
       />
@@ -884,7 +893,7 @@ const SoftwareTitleDetailsPage = ({
     if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
     // First-added is the canonical source for the file-type restriction.
     // Multi-package titles always have `packages[0]`; back-compat titles fall
-    // back to `software_package`. The "+ Add package" button is gated on the
+    // back to `software_package`. The "+ Add version" button is gated on the
     // section being visible, so we always have a name here.
     const existingPackageName =
       title.packages?.[0]?.name ?? title.software_package?.name ?? "";

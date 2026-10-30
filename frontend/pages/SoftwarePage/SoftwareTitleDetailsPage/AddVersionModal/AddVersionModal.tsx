@@ -131,6 +131,7 @@ const AddVersionModal = ({
       await softwareAPI.addAppStoreAppVersion(teamId, {
         app_store_id: appStore.app_store_id,
         platform: appStore.platform,
+        vpp_token_id: appStore.vpp_token?.id,
         name: data.name,
         self_service: data.selfService,
         categories: data.categories.length ? data.categories : undefined,

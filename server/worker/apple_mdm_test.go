@@ -54,15 +54,12 @@ type mockVPPInstaller struct {
 	ds                  *mysql.Datastore
 	installedApps       []*fleet.VPPApp
 	appInstallResponses map[string]installAppResponse
-	getTokenErr         error
+	checkErr            error
 }
 
-func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (m *mockVPPInstaller) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	require.True(m.t, appleDevice)
-	if m.getTokenErr != nil {
-		return "", m.getTokenErr
-	}
-	return "valid-token", nil
+	return m.checkErr
 }
 
 type mockInHouseInstall struct {
@@ -85,7 +82,7 @@ func (m *mockInHouseAppInstaller) InstallInHouseAppForSetupExperience(ctx contex
 	return m.cmdUUID, nil
 }
 
-func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	require.True(m.t, opts.ForSetupExperience)
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
 	require.True(m.t, ok)
@@ -972,6 +969,46 @@ func TestAppleMDM(t *testing.T) {
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
+	t.Run("fleetd comes before profiles for manual enrollments", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		for i := 1; i <= 3; i++ {
+			_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+				Mobileconfig: fmt.Appendf(nil, "profile%d", i),
+				Identifier:   fmt.Sprintf("profile%d", i),
+				Name:         fmt.Sprintf("Profile %d", i),
+			}, nil)
+			require.NoError(t, err)
+		}
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		var requestTypes []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &requestTypes, "SELECT request_type FROM nano_enrollment_queue neq INNER JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid WHERE neq.id = ? ORDER BY neq.priority DESC, neq.created_at", h.UUID)
+		})
+		require.Greater(t, len(requestTypes), 1, "expected fleetd and profile commands to be enqueued")
+		require.Equal(t, "InstallEnterpriseApplication", requestTypes[0], "fleetd install must be the device's first command")
+		for _, rt := range requestTypes[1:] {
+			require.Contains(t, []string{"InstallProfile", "DeclarativeManagement"}, rt)
+		}
+	})
+
 	t.Run("use worker for automatic release", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)
@@ -1503,7 +1540,7 @@ INSERT INTO setup_experience_status_results (
 
 	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		test.CreateInsertGlobalVPPToken(t, ds)
+		vppToken := test.CreateInsertGlobalVPPToken(t, ds)
 		defer mysqltest.TruncateTables(t, ds)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -1564,6 +1601,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Equal(t, h.Platform, act.HostPlatform)
 		assert.True(t, act.FromSetupExperience)
 		assert.False(t, act.SelfService)
+		assert.Equal(t, &fleet.ActivityVPPToken{ID: vppToken.ID, Location: vppToken.Location, CountryCode: vppToken.CountryCode}, act.VPPToken)
 	})
 
 	t.Run("installs in-house apps during iOS setup experience", func(t *testing.T) {

@@ -367,6 +367,56 @@ describe("ControlDetailsModal", () => {
       ).toHaveTextContent(detail);
       expect(screen.queryByText(/hasn't set a BitLocker PIN/)).toBeNull();
     });
+
+    it("keeps the generic enforcing wording on windows disk encryption with no reason", () => {
+      renderModal({
+        control: generateWinDiskEncryptionSetting("enforcing", ""),
+      });
+
+      expect(
+        screen.getByText(/will receive the MDM command/, { selector: "span" })
+      ).toHaveTextContent(
+        "Anna's MacBook Pro will receive the MDM command to turn on disk encryption when the host comes online."
+      );
+      expect(screen.queryByText("Details:")).toBeNull();
+    });
+
+    // The server only sends a detail for this status when it cannot read the
+    // stored key and is asking the host for a new one, so the detail is the
+    // message, not a footnote to copy about an MDM command.
+    it("prefers the server reason over the MDM command wording on windows disk encryption enforcing", () => {
+      const detail =
+        "Fleet can't read this host's stored recovery key. The host will escrow a new one when it comes online.";
+
+      renderModal({
+        control: generateWinDiskEncryptionSetting("enforcing", detail),
+      });
+
+      expect(
+        screen.getByText(/stored recovery key/, { selector: "span" })
+      ).toHaveTextContent(detail);
+      expect(screen.queryByText(/will receive the MDM command/)).toBeNull();
+      expect(screen.queryByText("Details:")).toBeNull();
+    });
+
+    it("leaves a real windows profile that happens to be named Disk encryption alone", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "Disk encryption",
+          platform: "windows",
+          operation_type: "install",
+          status: "pending",
+          detail:
+            "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption: status 500",
+        }),
+      });
+
+      // The detail stays in the copyable block below the status message.
+      expect(screen.getByText("Details:")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/RequireDeviceEncryption/, { selector: "span" })
+      ).toBeNull();
+    });
   });
 
   describe("non-failed controls carrying a detail", () => {
@@ -470,10 +520,8 @@ describe("ControlDetailsModal", () => {
   // in-progress status while carrying the detail from the failed attempt, so the retry message
   // is the only place the failure is explained.
   describe("retrying android certificate", () => {
-    // What the Fleet Android app reports, and how the UI restates it.
-    const SCEP_ERROR =
-      "Network error during SCEP enrollment: Failed to communicate with SCEP server";
-    const SCEP_MESSAGE = "Fleet couldn't reach the certificate authority.";
+    const CERT_ERROR =
+      "Couldn't reach the certificate authority. Failed to communicate with SCEP server";
 
     const retryingCert = (
       overrides?: Partial<IHostMdmProfile>
@@ -484,7 +532,7 @@ describe("ControlDetailsModal", () => {
         platform: "android",
         operation_type: "install",
         status: "delivered",
-        detail: SCEP_ERROR,
+        detail: CERT_ERROR,
         certificate_template_id: 4,
         retrying: true,
         retry_count: 1,
@@ -497,23 +545,22 @@ describe("ControlDetailsModal", () => {
         screen.getByText(message, { selector: "span" })
       ).toBeInTheDocument();
 
-    it("restates the error and counts the attempt", () => {
+    it("states the error and counts the attempt", () => {
       renderModal({ control: retryingCert() });
 
       // The attempt numbers count the initial attempt, so one retry of a maximum three means
       // this is attempt two of four.
-      expectMessage(`${SCEP_MESSAGE} Retrying enrollment (attempt 2 of 4).`);
-      // The app's own wording stays available in the copyable block below.
-      expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
+      expectMessage(`${CERT_ERROR}. Retrying enrollment (attempt 2 of 4).`);
+      expect(screen.getByText(CERT_ERROR)).toBeInTheDocument();
     });
 
     it("counts the final attempt when the retries are used up", () => {
       renderModal({ control: retryingCert({ retry_count: 3 }) });
 
-      expectMessage(`${SCEP_MESSAGE} Retrying enrollment (attempt 4 of 4).`);
+      expectMessage(`${CERT_ERROR}. Retrying enrollment (attempt 4 of 4).`);
     });
 
-    it("does not repeat the period when an unrecognized detail already ends in one", () => {
+    it("does not repeat the period when the detail already ends in one", () => {
       renderModal({
         control: retryingCert({ detail: "Something went wrong." }),
       });
@@ -538,23 +585,14 @@ describe("ControlDetailsModal", () => {
       expectMessage("Retrying enrollment (attempt 2 of 4).");
     });
 
-    it("falls back to the reported text for an unrecognized failure", () => {
-      const detail = "Unexpected error during enrollment: null";
-      renderModal({ control: retryingCert({ detail }) });
-
-      expectMessage(`${detail}. Retrying enrollment (attempt 2 of 4).`);
-    });
-
     // Defensive only: this server always sends max_retries alongside retry_count.
     it("falls back to no attempt count if the retry allowance is missing", () => {
       renderModal({ control: retryingCert({ max_retries: undefined }) });
 
-      expectMessage(`${SCEP_MESSAGE} Retrying enrollment.`);
+      expectMessage(`${CERT_ERROR}. Retrying enrollment.`);
     });
 
-    // The same restatement as while retrying, so the failure is not reworded the moment Fleet
-    // gives up. It moves from the status message to the guidance line below it.
-    it("keeps the same restatement once the retries are exhausted", () => {
+    it("shows the reported error once the retries are exhausted", () => {
       renderModal({
         control: retryingCert({
           retrying: false,
@@ -563,11 +601,10 @@ describe("ControlDetailsModal", () => {
         }),
       });
 
-      expect(screen.getByText(SCEP_MESSAGE)).toBeInTheDocument();
       expect(
         screen.getByText(/failed to apply/, { selector: "span" })
       ).toHaveTextContent("Anna's MacBook Pro failed to apply BeyondCorp.");
-      expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
+      expect(screen.getByText(CERT_ERROR)).toBeInTheDocument();
     });
   });
 });

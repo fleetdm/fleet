@@ -1,14 +1,10 @@
 # Patching end user experience
 
-![Notify end user before update](../website/assets/images/articles/patching-end-user-experience-cover-img-774x419@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/AXlzPls6ecQ" frameborder="0" allowfullscreen></iframe>
+</div>
 
 When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. 
-
-<!-- TODO: embed explainer video. Replace VIDEO_ID with the YouTube video ID and uncomment the block below.
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>
-</div>
--->
 
 ## Choose a patch option
 
