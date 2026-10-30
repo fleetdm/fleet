@@ -413,6 +413,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
 	}
 
+	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
+		logger.WarnContext(cmd.Context(), "FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is deprecated and will be removed in a future release. "+
+			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)

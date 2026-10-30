@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -731,15 +732,17 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
+	TeamID                                            *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication                       *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually                       *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall                                *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows                         *bool   `json:"require_all_software_windows"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        *bool   `json:"macos_enable_bootstrap_package_during_migration"`
+	LockEndUserInfo                                   *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount                         *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType                           *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -2222,4 +2225,12 @@ type AppleSCEPChallengeInfo struct {
 	UUID           *string             `db:"host_uuid"`
 	Serial         *string             `db:"hardware_serial"`
 	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}
+
+// BootstrapPackageDuringMigrationEnvEnabled reports whether FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION
+// forces the bootstrap package to be installed during MDM migrations, regardless of the
+// macos_enable_bootstrap_package_during_migration setting.
+func BootstrapPackageDuringMigrationEnvEnabled() bool {
+	v := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+	return v == "1" || strings.EqualFold(v, "true")
 }

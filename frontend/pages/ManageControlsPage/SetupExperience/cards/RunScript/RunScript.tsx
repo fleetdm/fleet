@@ -23,7 +23,7 @@ import {
 } from "utilities/constants";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting from "../../helpers";
+import { getManualAgentInstallSetting } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";

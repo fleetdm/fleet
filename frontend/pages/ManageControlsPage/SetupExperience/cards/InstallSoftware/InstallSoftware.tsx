@@ -32,7 +32,7 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting from "../../helpers";
+import { getManualAgentInstallSetting } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
