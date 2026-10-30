@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261029172033(t *testing.T) {
+func TestUp_20261030151206(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// insert two Android hosts with a device and a macOS host without one
