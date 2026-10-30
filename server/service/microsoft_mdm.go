@@ -2261,6 +2261,11 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 			continue
 		}
 		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
+		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {
+			// Failing the command is permanent, so confirm on the primary: a custom variable created or changed moments ago
+			// may not be on the replica yet.
+			parsedCmds, err = svc.prepareWindowsPendingCommand(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID, pendingCmd)
+		}
 		if err != nil {
 			// Skipped rather than failing the session: one bad command must not hold back every other command pending for
 			// the device. A failed one is no longer pending.
@@ -2291,10 +2296,6 @@ func (e undeliverableWindowsCommandError) Unwrap() error { return e.err }
 func (svc *Service) prepareWindowsPendingCommand(ctx context.Context, enrollmentID uint, pendingCmd *fleet.MDMWindowsCommand) ([]mdm_types.SyncMLCmd, error) {
 	// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 	rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
-	if fleet.IsMissingSecretsError(err) {
-		// Failing the command is permanent, so check the primary: a variable created moments ago may not be on the replica yet.
-		rawCommandWithSecret, err = svc.ds.ExpandEmbeddedSecrets(ctxdb.RequirePrimary(ctx, true), string(pendingCmd.RawCommand))
-	}
 	if err != nil {
 		// Profiles are checked for missing secrets on upload, but custom commands aren't, and deleting a secret doesn't check
 		// queued commands.
@@ -2308,7 +2309,8 @@ func (svc *Service) prepareWindowsPendingCommand(ctx context.Context, enrollment
 		return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
 	}
 	if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
-		return nil, undeliverableWindowsCommandError{err}
+		// Its error quotes the placeholder as expanded, which can hold part of a variable's value.
+		return nil, undeliverableWindowsCommandError{errors.New("a $FLEET_HOST_SECRET_ variable comes from a custom variable and can't be used")}
 	}
 	// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
 	rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)

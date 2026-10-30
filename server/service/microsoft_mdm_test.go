@@ -4142,10 +4142,11 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 		{
 			name: "host secret from a custom variable",
 			raw:  badCmd("$FLEET_SECRET_ALIAS"),
+			// a value that runs into the placeholder name, which the validation error would quote
 			expandSecrets: func(_ context.Context, document string) (string, error) {
-				return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)), nil
+				return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)+"_v4lue"), nil
 			},
-			wantReason: "comes from a custom variable",
+			wantReason: "a $FLEET_HOST_SECRET_ variable comes from a custom variable",
 		},
 		{
 			name: "missing secret variable",
@@ -4166,6 +4167,18 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 					return "", fleet.MissingSecretsError{MissingSecrets: []string{"NEW"}}
 				}
 				return strings.ReplaceAll(document, "$FLEET_SECRET_NEW", "value"), nil
+			},
+			delivered: true,
+		},
+		{
+			name: "custom variable fixed only on the primary so far",
+			raw:  badCmd("$FLEET_SECRET_FIXED"),
+			expandSecrets: func(ctx context.Context, document string) (string, error) {
+				value := "value"
+				if !ctxdb.IsPrimaryRequired(ctx) {
+					value = fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+				}
+				return strings.ReplaceAll(document, "$FLEET_SECRET_FIXED", value), nil
 			},
 			delivered: true,
 		},
