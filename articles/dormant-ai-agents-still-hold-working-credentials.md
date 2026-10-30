@@ -67,4 +67,4 @@ The risk is not exotic. A forgotten agent with a live token and a reachable trig
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-10-27">
 <meta name="category" value="industry news">
-<meta name="description" value="Arrakis found 76% of AI agents haven't run in 60 days, but their credentials still work. Start the audit on the devices where agents were built.>
+<meta name="description" value="Arrakis found 76% of AI agents haven't run in 60 days, but their credentials still work. Start the audit on the devices where agents were built.">
