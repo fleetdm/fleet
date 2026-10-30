@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 
 import { createMockTeamSummary } from "__mocks__/teamMock";
@@ -54,7 +54,7 @@ describe("SoftwareLibrarySettingsPage", () => {
       },
     });
 
-    const { container } = render(
+    render(
       <SoftwareLibrarySettingsPage
         router={createMockRouter()}
         location={buildLocation()}
@@ -65,10 +65,11 @@ describe("SoftwareLibrarySettingsPage", () => {
     expect(
       screen.getByText("This feature is included in Fleet Premium.")
     ).toBeInTheDocument();
-    // Fleet Free has no concept of fleets. The dropdown must be hidden, and a
-    // static page title takes its place.
+    // Fleet Free has no concept of fleets. The dropdown trigger (the only
+    // button with aria-expanded) must be hidden, and a static page title
+    // takes its place.
     expect(
-      container.querySelector(".fleet-dropdown-wrapper")
+      screen.queryByRole("button", { expanded: false })
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -156,13 +157,16 @@ describe("SoftwareLibrarySettingsPage", () => {
       context: premiumAdminContext,
     });
 
-    const { container } = render(
+    render(
       <SoftwareLibrarySettingsPage
         router={createMockRouter()}
         location={buildLocation({ section: "categories" })}
         params={{ section: "categories" }}
       />
     );
+
+    // The fleet dropdown renders on Premium.
+    expect(screen.getByRole("button", { expanded: false })).toBeInTheDocument();
 
     // The nav item and the section header both read "Self-service categories",
     // so match the h2 specifically to confirm the section rendered.
@@ -172,13 +176,15 @@ describe("SoftwareLibrarySettingsPage", () => {
         name: "Self-service categories",
       })
     ).toBeInTheDocument();
-    expect(screen.getByText("Patch deadline")).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "settings" });
+    expect(within(nav).getByText("Patch deadline")).toBeInTheDocument();
 
-    // Fleet's SideNavItem applies `--active` to the <li> for the current
-    // section. react-router <Link> doesn't render href without a Router in
-    // Jest, so the active class is the stable signal here.
-    const activeItems = container.querySelectorAll(".side-nav-item--active");
-    expect(activeItems).toHaveLength(1);
-    expect(activeItems[0]).toHaveTextContent("Self-service categories");
+    // react-router <Link> renders no href without a Router in Jest, so the
+    // anchor has no link role. aria-current marks the current section.
+    const currentItems = within(nav)
+      .getAllByRole("listitem")
+      .filter((li) => li.querySelector("[aria-current='page']"));
+    expect(currentItems).toHaveLength(1);
+    expect(currentItems[0]).toHaveTextContent("Self-service categories");
   });
 });

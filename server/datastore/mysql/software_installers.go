@@ -2359,7 +2359,7 @@ SELECT
 	hsi.attempt_number,
 	hsi.patch_when_closed,
 	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND NOT COALESCE(p.patch_deadline, 0) AS notify_before_patching,
-	hsi.override_pre_install_query AND COALESCE(p.patch_deadline, 0) AS patch_deadline,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi

@@ -377,7 +377,8 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
 		}
-		if installsQueued {
+		// an app whose policy changed patch option is never installed, so it shows no progress
+		if installsQueued && !app.PolicyOptionChanged {
 			installStatus := installStatusesByTitle[app.SoftwareTitleID]
 			// Fail an app whose installer was deleted, because no install was ever queued for it.
 			if app.SoftwareInstallerID == nil {
@@ -627,7 +628,8 @@ func installedVersionsByTitle(versions []fleet.HostSoftwareTitleVersion) map[fle
 	return installedVersions
 }
 
-// splitUpdatedPatchNotificationApps leaves out the apps the host already updated or Fleet installed since they joined the notification, so nothing is queued for them
+// splitUpdatedPatchNotificationApps leaves out the apps the host already updated, Fleet installed since they joined the notification,
+// or whose policy no longer uses this notification's patch option, so nothing is queued for them
 func splitUpdatedPatchNotificationApps(
 	hostID uint,
 	apps []fleet.PatchNotificationAppDetail,
@@ -636,6 +638,10 @@ func splitUpdatedPatchNotificationApps(
 ) (remaining []fleet.PatchNotificationAppDetail, alreadyUpdatedTitleIDs, updatedInInventoryTitleIDs []uint) {
 	remaining = make([]fleet.PatchNotificationAppDetail, 0, len(apps))
 	for _, app := range apps {
+		if app.PolicyOptionChanged {
+			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
 		if app.SoftwareInstallerID == nil {
 			remaining = append(remaining, app)
 			continue
@@ -767,6 +773,12 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 		}
 		// this app was dealt with by an earlier attempt
 		if app.InstallQueued {
+			continue
+		}
+		if app.PolicyOptionChanged {
+			k.logger.InfoContext(ctx, "not installing a patch notification app whose policy changed its patch option",
+				"notification_uuid", notificationUUID, "software_title_id", app.SoftwareTitleID)
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 			continue
 		}
 

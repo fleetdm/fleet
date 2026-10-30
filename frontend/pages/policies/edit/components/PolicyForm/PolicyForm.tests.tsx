@@ -1077,6 +1077,45 @@ describe("PolicyForm - component", () => {
         expect(onUpdate).toHaveBeenCalledTimes(1);
       });
 
+      it("saves Force patch with Deadline through the loaded automation configuration", async () => {
+        jest.spyOn(teamsAPI, "load").mockResolvedValue({
+          team: createMockTeam({ id: 1 }),
+        } as never);
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            teamIdForApi={1}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        // The conditional access checkbox renders once the configuration loads.
+        await screen.findByRole("checkbox", { name: "conditional_access" });
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(
+            teamPatchPolicy.id,
+            expect.objectContaining({
+              patch_deadline: true,
+              continuous_automations_enabled: true,
+            })
+          )
+        );
+      });
+
       it("shows Patch when app is closed (not Force + Notify) for a legacy policy with both flags set", () => {
         // Invariant violation guard: if a policy somehow stored both
         // patch_when_closed:true AND notify_before_patching:true, the radio

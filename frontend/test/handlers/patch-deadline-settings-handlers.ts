@@ -60,25 +60,25 @@ export const updatePatchDeadlineSettingsServerErrorHandler = http.patch(
   () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
 
-// Simulates the endpoint not being deployed yet. Service's catch should
-// return the API defaults (Tuesday at 17:00) only on 404, letting the page
-// render while the backend ships.
+// The fleet in `fleet_id` doesn't exist.
 export const getPatchDeadlineSettingsNotFoundHandler = http.get(
   settingsUrl,
   () => HttpResponse.json({ message: "Not found" }, { status: 404 })
 );
 
-// Non-404 GET failure. Service's catch should rethrow and React Query should
-// surface the error so a stale default doesn't masquerade as real settings.
 export const getPatchDeadlineSettingsServerErrorHandler = http.get(
   settingsUrl,
   () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
 
-// Each entry becomes a patch-type policy with `patch_deadline: true` and the
-// given software under `patch_software`, matching the real BE response shape.
+// Each entry becomes a patch-type policy with the given software under
+// `patch_software`, matching the real BE response shape. `patch_deadline`
+// defaults to true; pass false to mimic another patch option, which
+// `automation_type=patch` also returns.
 export const getPatchDeadlineAppsHandler = (
-  apps: Partial<IPolicySoftwareToInstall>[] = []
+  apps: (Partial<IPolicySoftwareToInstall> & {
+    patch_deadline?: boolean;
+  })[] = []
 ) =>
   http.get(patchPoliciesUrl, () => {
     const policies = apps.map((a, i) => {
@@ -94,7 +94,7 @@ export const getPatchDeadlineAppsHandler = (
         id: i + 1,
         name: `${patch_software.name} patch policy`,
         type: "patch",
-        patch_deadline: true,
+        patch_deadline: a.patch_deadline ?? true,
         patch_software,
       };
       return policy;

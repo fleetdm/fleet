@@ -1,12 +1,10 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
-import {
-  getPatchDeadlineSettingsHandler,
-  getPatchDeadlineSettingsServerErrorHandler,
-} from "test/handlers/patch-deadline-settings-handlers";
+import { getPatchDeadlineSettingsHandler } from "test/handlers/patch-deadline-settings-handlers";
 import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import SoftwareDeploySelector, {
   EndUserExperience,
@@ -133,7 +131,16 @@ describe("SoftwareDeploySelector", () => {
   });
 
   it("renders Deadline banner placeholders when the settings endpoint errors", async () => {
-    mockServer.use(getPatchDeadlineSettingsServerErrorHandler);
+    const onSettingsRequest = jest.fn();
+    mockServer.use(
+      http.get(baseUrl("/software/patch_deadline_settings"), () => {
+        onSettingsRequest();
+        return HttpResponse.json(
+          { message: "Internal server error" },
+          { status: 500 }
+        );
+      })
+    );
     renderSelector({
       patch: true,
       patchOption: "force",
@@ -143,16 +150,38 @@ describe("SoftwareDeploySelector", () => {
       fleetId: 1,
     });
 
-    // Error state still shows the banner shell with the dashes placeholder so
-    // the "Edit deadline" button stays reachable while the settings page loads.
+    // The loading render shows the same placeholder, so wait for the failed
+    // request first. Error state keeps the banner shell and "Edit deadline".
+    await waitFor(() => expect(onSettingsRequest).toHaveBeenCalled());
+    expect(await screen.findByText("---")).toBeInTheDocument();
     expect(
-      await screen.findByText(
+      screen.getByText(
         /Patch is done silently when app is closed or forced on/i
       )
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Edit deadline/i })
     ).toBeInTheDocument();
+  });
+
+  it("renders Deadline banner placeholders without a fleetId", () => {
+    renderSelector({
+      patch: true,
+      patchOption: "force",
+      platform: "darwin",
+      endUserExperience: "deadline",
+      onSelectEndUserExperience: jest.fn(),
+    });
+
+    expect(screen.getByText("---")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Patch is done silently when app is closed or forced on/i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Patch is forced as soon as policy fails/i)
+    ).not.toBeInTheDocument();
   });
 
   it("shows the Notify before patching banner when selected on macOS", () => {

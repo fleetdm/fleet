@@ -435,7 +435,16 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 	}
 }
 
-func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+func (c MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+	apps, err := c.ListFleetMaintainedApps(0)
+	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
+		if app.ID == id {
+			return &app, nil
+		}
+	}
 	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
 }
 

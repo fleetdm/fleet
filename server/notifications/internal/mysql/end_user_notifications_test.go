@@ -276,7 +276,9 @@ func testRescheduleEndUserNotificationsAwaitingDispatch(t *testing.T, env *testE
 		return env.InsertNotification(t, hostID, kind, &future, new(future.Add(24*time.Hour)))
 	}
 
+	// two, so an UPDATE that moves only one row fails
 	movable := insert(hostID, "k")
+	alsoMovable := insert(hostID, "k")
 	otherKind := insert(hostID, "other")
 	otherHost := insert(otherHostID, "k")
 	attempted := insert(hostID, "k")
@@ -293,7 +295,7 @@ func testRescheduleEndUserNotificationsAwaitingDispatch(t *testing.T, env *testE
 	snapshot := func() map[string]*api.EndUserNotification {
 		t.Helper()
 		out := make(map[string]*api.EndUserNotification)
-		for _, notificationUUID := range []string{movable, otherKind, otherHost, attempted, due, noNextAttempt, expired, dispatched} {
+		for _, notificationUUID := range []string{movable, alsoMovable, otherKind, otherHost, attempted, due, noNextAttempt, expired, dispatched} {
 			n, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 			require.NoError(t, err)
 			out[notificationUUID] = n
@@ -307,12 +309,14 @@ func testRescheduleEndUserNotificationsAwaitingDispatch(t *testing.T, env *testE
 	require.NoError(t, env.ds.RescheduleEndUserNotificationsAwaitingDispatch(ctx, hostID, "k", nextAttemptAt, expiresAt))
 	after := snapshot()
 
-	moved := after[movable]
-	require.NotNil(t, moved)
-	require.NotNil(t, moved.NextAttemptAt)
-	require.NotNil(t, moved.ExpiresAt)
-	assert.WithinDuration(t, nextAttemptAt, *moved.NextAttemptAt, time.Second)
-	assert.WithinDuration(t, expiresAt, *moved.ExpiresAt, time.Second)
+	for _, notificationUUID := range []string{movable, alsoMovable} {
+		moved := after[notificationUUID]
+		require.NotNil(t, moved)
+		require.NotNil(t, moved.NextAttemptAt)
+		require.NotNil(t, moved.ExpiresAt)
+		assert.WithinDuration(t, nextAttemptAt, *moved.NextAttemptAt, time.Second)
+		assert.WithinDuration(t, expiresAt, *moved.ExpiresAt, time.Second)
+	}
 
 	for name, notificationUUID := range map[string]string{
 		"another kind":                         otherKind,

@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ func TestUp_20261029154707(t *testing.T) {
 	applyNext(t, db)
 
 	var patchDeadline bool
-	require.NoError(t, db.GetContext(context.Background(), &patchDeadline,
+	require.NoError(t, db.GetContext(t.Context(), &patchDeadline,
 		`SELECT patch_deadline FROM policies WHERE id = ?`, policyID))
 	assert.False(t, patchDeadline)
 }
