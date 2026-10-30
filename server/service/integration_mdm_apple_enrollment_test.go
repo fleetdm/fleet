@@ -437,10 +437,10 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
 	for _, token := range resp.Tokens {
 		if token.OrganizationName == orgA {
-			assert.EqualValues(t, teamA.ID, token.MacOSTeam.ID)
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
 		}
 		if token.OrganizationName == orgB {
-			assert.EqualValues(t, teamB.ID, token.MacOSTeam.ID)
+			assert.Equal(t, teamB.ID, token.MacOSTeam.ID)
 		}
 	}
 
@@ -459,7 +459,7 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
 	for _, token := range resp.Tokens {
 		if token.OrganizationName == orgA {
-			assert.EqualValues(t, teamA.ID, token.MacOSTeam.ID)
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
 		}
 		if token.OrganizationName == orgB {
 			assert.EqualValues(t, 0, token.MacOSTeam.ID)
