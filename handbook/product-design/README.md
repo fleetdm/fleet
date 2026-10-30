@@ -38,7 +38,7 @@ Every new request, from customers, prospects, and the community, is unpacked wit
 
 The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) daily, newest first, and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
 
-Once labeled, the product group's Product Designer (PD) unpacks the request. If the PD understands the why, they unpack it right away. If they don't, the request goes to the weekly "Unpacking the why" call, where the PD and a former IT admin synthesize why users are making the request (i.e. what problem they're trying to solve).
+Once labeled, the product group's Product Designer (PD) unpacks the request. If the PD understands the why, they unpack it right away. If they don't, the request goes to the weekly "Unpacking the why" call, where the PD and a former IT Admin or Security Engineer synthesize why users are making the request (i.e. what problem they're trying to solve).
 
 If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
