@@ -9,10 +9,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 // TODO(mna): those methods are unused except for an internal tool, remove or
@@ -48,6 +50,65 @@ func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProf
 		return nil, err
 	}
 	return responseBody.Profiles, nil
+}
+
+// windowsProfileDeletionWarning checks, before a profile batch runs, whether
+// the batch deletes any of the fleet's Windows profiles. It returns a function
+// that prints the warning, to call once the batch has succeeded.
+//
+// It only checks when Windows MDM is on before and after the run, the only
+// case where a deletion sends <Delete> commands to hosts. Unlike the batch
+// endpoint, the list endpoint requires MDM, and the warning is only
+// informational, so a failed lookup is reported rather than failing the run.
+func (c *Client) windowsProfileDeletionWarning(
+	appConfig *fleet.EnrichedAppConfig,
+	assumptions *fleet.TeamSpecsDryRunAssumptions,
+	teamID *uint,
+	fleetName string,
+	incoming []fleet.MDMProfileBatchPayload,
+	logFn func(format string, args ...any),
+) func() {
+	noWarning := func() {}
+	if appConfig == nil || !appConfig.MDM.WindowsEnabledAndConfigured {
+		return noWarning
+	}
+	if assumptions != nil && assumptions.WindowsEnabledAndConfigured.Valid && !assumptions.WindowsEnabledAndConfigured.Value {
+		return noWarning
+	}
+
+	current, err := c.ListConfigurationProfiles(teamID)
+	if err != nil {
+		logFn("[!] couldn't check for deleted Windows profiles: %v\n", err)
+		return noWarning
+	}
+	// The server keeps a Windows profile only if an incoming Windows profile
+	// has the same trimmed name. Fleet-reserved profiles aren't listed.
+	keep := make(map[string]struct{}, len(incoming))
+	for _, p := range incoming {
+		if mdm.GetRawProfilePlatform(p.Contents) == "windows" {
+			keep[strings.TrimSpace(p.Name)] = struct{}{}
+		}
+	}
+	deletes := slices.ContainsFunc(current, func(p *fleet.MDMConfigProfilePayload) bool {
+		_, kept := keep[strings.TrimSpace(p.Name)]
+		return p.Platform == "windows" && !kept
+	})
+
+	switch {
+	case !deletes:
+		return noWarning
+	case appConfig.License == nil || !appConfig.License.IsPremium():
+		// Fleet Free has no fleets to name.
+		return func() {
+			logFn("[!] Some Windows settings from deleted profiles may not be cleanly removed from hosts. Learn more: %s\n",
+				fleet.WindowsProfileRemovalBehaviorURL)
+		}
+	default:
+		return func() {
+			logFn("[!] Fleet %q: some Windows settings from deleted profiles may not be cleanly removed from hosts. Learn more: %s\n",
+				fleetName, fleet.WindowsProfileRemovalBehaviorURL)
+		}
+	}
 }
 
 // Get the contents of a saved profile.

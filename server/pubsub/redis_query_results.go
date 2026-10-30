@@ -148,6 +148,9 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	wg.Add(+1)
 	go func() {
 		defer wg.Done()
+		// A closed campaign gets no more results, so this is what wakes receiveMessages from
+		// its 1-hour ReceiveWithTimeout. Unlike Close, redigo allows it while Receive runs.
+		defer psc.Unsubscribe(pubSubName) //nolint:errcheck
 		defer close(outChannel)
 
 		for {

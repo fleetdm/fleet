@@ -1,0 +1,1 @@
+- Added the `amcache_application_files`, `amcache_applications`, `amcache_application_shortcuts`, `amcache_driver_binaries`, `amcache_driver_packages`, `amcache_device_pnp`, and `amcache_device_containers` tables to fleetd on Windows. They read the Windows Amcache hive for incident response investigations.

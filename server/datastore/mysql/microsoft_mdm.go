@@ -2348,7 +2348,11 @@ SELECT
 		WHEN (%s) THEN '%s'
 		ELSE ''
 	END AS status,
-	COALESCE(client_error, '') as detail,
+	CASE
+		WHEN COALESCE(client_error, '') != '' THEN client_error
+		WHEN hdek.decryptable = 0 AND hdek.base64_encrypted != '' THEN ?
+		ELSE ''
+	END AS detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
 	hd.bitlocker_boot_protector_set,
@@ -2381,7 +2385,7 @@ WHERE
 		ProtectionError   string                     `db:"bitlocker_protection_error"`
 		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.BitLockerKeyUndecryptableDetail, host.ID); err != nil {
 		if err != sql.ErrNoRows {
 			return &fleet.HostMDMDiskEncryption{}, err
 		}

@@ -50,7 +50,7 @@ One possibly, but very low accuracy strategy could be to regex the contents of
 A more sophisticated approach is taken by [this Python library](https://github.com/binref/refinery/blob/de99c87f6dedd6d42508a3d436b6df9181837e34/refinery/units/formats/msi.py#L131) that is able to reverse engineer some of the data based on both tables:
 
 ```
-$ emit fleet-osquery.msi | ./pyenv/bin/xtmsi MsiTables.json | jq '.Property[] | select(.Property == "ProductName" or .Property == "ProductVersion")'
+$ emit fleet-windows-amd64.msi | ./pyenv/bin/xtmsi MsiTables.json | jq '.Property[] | select(.Property == "ProductName" or .Property == "ProductVersion")'
 {
   "Property": "ProductName",
   "Value": "Fleet osquery"
