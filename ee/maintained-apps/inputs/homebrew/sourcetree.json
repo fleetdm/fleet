@@ -3,6 +3,7 @@
   "unique_identifier": "com.torusknot.SourceTreeNotMAS",
   "token": "sourcetree",
   "installer_format": "zip",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/sourcetree-install.sh",
   "slug": "sourcetree/darwin",
   "default_categories": ["Developer tools"]
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -191,8 +192,8 @@ func TestModifyTeamNameValidation(t *testing.T) {
 	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
-		return nil, &notFoundError{}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -506,8 +507,8 @@ func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
-		return nil, &notFoundError{}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -558,6 +559,104 @@ func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 	})
 }
 
+func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
+	stored := func() fleet.TeamWebhookSettings {
+		return fleet.TeamWebhookSettings{
+			HostStatusWebhook: &fleet.HostStatusWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/status", HostPercentage: 10, DaysCount: 2,
+			},
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/policies", PolicyIDs: []uint{1, 2}, HostBatchSize: 5,
+			},
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
+				Enable: true, DestinationURL: "https://example.com/activities",
+			},
+		}
+	}
+
+	ds := new(mock.Store)
+	var saved fleet.TeamWebhookSettings
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team", Config: fleet.TeamConfig{WebhookSettings: stored()}}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		saved = team.Config.WebhookSettings
+		return team, nil
+	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return &fleet.TeamConfig{WebhookSettings: stored()}, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		saved = config.WebhookSettings
+		return nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{Service: &svcmock.Service{}, ds: ds, authz: authorizer}
+	ctx := test.UserContext(t.Context(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	// Bodies match what the UI sends: each page only sends the webhook it manages.
+	cases := []struct {
+		name string
+		body string
+		want func(w *fleet.TeamWebhookSettings)
+	}{
+		{
+			name: "host status only (fleet settings page)",
+			body: `{"webhook_settings": {"host_status_webhook": {"enable_host_status_webhook": false, "destination_url": "https://example.com/status2", "host_percentage": 20, "days_count": 3}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.HostStatusWebhook = &fleet.HostStatusWebhookSettings{DestinationURL: "https://example.com/status2", HostPercentage: 20, DaysCount: 3}
+			},
+		},
+		{
+			name: "failing policies only (policies automations)",
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "policy_ids": [3], "host_batch_size": 0}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2", PolicyIDs: []uint{3}}
+			},
+		},
+		{
+			name: "host activities only (hosts page automations)",
+			body: `{"webhook_settings": {"host_activities_webhook": {"enable_host_activities_webhook": false, "destination_url": ""}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.HostActivitiesWebhook = &fleet.HostActivitiesWebhookSettings{}
+			},
+		},
+		{
+			name: "empty webhook settings change nothing",
+			body: `{"webhook_settings": {}}`,
+			want: func(w *fleet.TeamWebhookSettings) {},
+		},
+		{
+			name: "explicitly disabling failing policies",
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": false}}}`,
+			want: func(w *fleet.TeamWebhookSettings) {
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{}
+			},
+		},
+	}
+	for _, teamID := range []uint{5, 0} {
+		for _, c := range cases {
+			t.Run(fmt.Sprintf("team %d: %s", teamID, c.name), func(t *testing.T) {
+				var payload fleet.TeamPayload
+				require.NoError(t, json.Unmarshal([]byte(c.body), &payload))
+				saved = fleet.TeamWebhookSettings{}
+
+				_, err := svc.ModifyTeam(ctx, teamID, payload)
+				require.NoError(t, err)
+
+				want := stored()
+				c.want(&want)
+				require.Equal(t, want, saved)
+			})
+		}
+	}
+}
+
 // TestApplyTeamSpecsCollationEqualConflict covers the three GitOps scenarios
 // that were inconsistently handled:
 //   - Single-team case-only rename should succeed.
@@ -591,8 +690,8 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 		ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
 			return nil, nil
 		}
-		ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
-			return nil, &notFoundError{}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return nil, nil
 		}
 
 		mockSvc := &svcmock.Service{}
@@ -1619,8 +1718,8 @@ func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
 			ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
 				return nil, nil
 			}
-			ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
-				return nil, &notFoundError{}
+			ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+				return nil, nil
 			}
 			ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) {
 				return tc.defaultFleetID, "default-fleet", nil
@@ -2125,6 +2224,15 @@ func TestApplyTeamSpecsCreateAppliesAppleOSUpdates(t *testing.T) {
 	require.Equal(t, "2026-09-03", created.Config.MDM.IPadOSUpdates.Deadline.Value)
 }
 
+// vppTokenOn returns a VPP token assigned to the given fleets.
+func vppTokenOn(id uint, location string, teamIDs ...uint) *fleet.VPPTokenDB {
+	tok := &fleet.VPPTokenDB{ID: id, Location: location}
+	for _, tid := range teamIDs {
+		tok.Teams = append(tok.Teams, fleet.TeamTuple{ID: tid})
+	}
+	return tok
+}
+
 // staleTeamNamesFixture is the state a rename or a delete has to reconcile: the
 // fleet names copied into mdm.apple_business and mdm.volume_purchasing_program,
 // plus the abm_tokens and vpp_token_teams rows that are the source of truth for
@@ -2133,7 +2241,7 @@ type staleTeamNamesFixture struct {
 	abmStored []fleet.MDMAppleABMAssignmentInfo
 	abmOrgs   []string // ABM tokens defaulting to this fleet
 	vppStored []fleet.MDMAppleVolumePurchasingProgramInfo
-	vppToken  *fleet.VPPTokenDB // nil means the fleet has no VPP token
+	vppTokens []*fleet.VPPTokenDB // tokens as ListVPPTokens returns them, with their fleet assignments
 }
 
 // newStaleTeamNamesService wires a service over f, and returns a live count of
@@ -2153,13 +2261,8 @@ func newStaleTeamNamesService(t *testing.T, teamID uint, f staleTeamNamesFixture
 		require.Equal(t, teamID, *tid, "must look up ABM defaults for this fleet")
 		return f.abmOrgs, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, tid *uint) (*fleet.VPPTokenDB, error) {
-		require.NotNil(t, tid)
-		require.Equal(t, teamID, *tid, "must look up the VPP token for this fleet")
-		if f.vppToken == nil {
-			return nil, &notFoundError{}
-		}
-		return f.vppToken, nil
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return f.vppTokens, nil
 	}
 	ds.SaveAppConfigFunc = func(context.Context, *fleet.AppConfig) error {
 		saves++
@@ -2193,7 +2296,7 @@ func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 			},
 			abmOrgs:   []string{"Acme Inc"},
 			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Tablets"}}},
-			vppToken:  &fleet.VPPTokenDB{ID: 1, Location: "Acme HQ"},
+			vppTokens: []*fleet.VPPTokenDB{vppTokenOn(1, "Acme HQ", 7)},
 		})
 		ds.IsEnrollSecretAvailableFunc = func(context.Context, string, bool, *uint) (bool, error) { return true, nil }
 		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) { return nil, &notFoundError{} }
@@ -2229,7 +2332,7 @@ func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 		require.NoError(t, err)
 
 		require.False(t, ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked)
-		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+		require.False(t, ds.ListVPPTokensFuncInvoked)
 		require.Zero(t, *saves)
 		require.Equal(t, "Workstations", appCfg.MDM.AppleBusinessManager.Value[0].MacOSTeam)
 		require.Equal(t, []string{"Workstations", "Tablets"}, appCfg.MDM.VolumePurchasingProgram.Value[0].Teams)
@@ -2239,7 +2342,7 @@ func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 	const teamID = uint(5)
 
-	acmeToken := &fleet.VPPTokenDB{ID: 1, Location: "Acme HQ"}
+	acmeToken := vppTokenOn(1, "Acme HQ", teamID)
 
 	testCases := []struct {
 		name       string
@@ -2259,7 +2362,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 				},
 				abmOrgs:   []string{"Acme Inc"},
 				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Servers"}}},
-				vppToken:  acmeToken,
+				vppTokens: []*fleet.VPPTokenDB{acmeToken},
 			},
 			wantLookup: true,
 			wantSaves:  1,
@@ -2281,7 +2384,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 					{Location: "Acme HQ", Teams: []string{"Workstations"}},
 					{Location: "Beta HQ", Teams: []string{"Workstations"}},
 				},
-				vppToken: acmeToken,
+				vppTokens: []*fleet.VPPTokenDB{acmeToken},
 			},
 			wantLookup: true,
 			wantSaves:  1,
@@ -2295,13 +2398,36 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 			},
 		},
 		{
+			name:    "a fleet under two tokens is renamed in both entries",
+			newName: "Laptops",
+			fixture: staleTeamNamesFixture{
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
+					{Location: "Acme HQ", Teams: []string{"Workstations"}},
+					{Location: "Acme EU", Teams: []string{"Workstations", "Servers"}},
+					{Location: "Beta HQ", Teams: []string{"Workstations"}},
+				},
+				vppTokens: []*fleet.VPPTokenDB{
+					acmeToken,
+					vppTokenOn(2, "Acme EU", teamID, 9),
+					vppTokenOn(3, "Beta HQ", 9),
+					vppTokenOn(4, "All fleets"),
+				},
+			},
+			wantLookup: true,
+			wantSaves:  1,
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme HQ", Teams: []string{"Laptops"}},
+				{Location: "Acme EU", Teams: []string{"Laptops", "Servers"}},
+				{Location: "Beta HQ", Teams: []string{"Workstations"}},
+			},
+		},
+		{
 			name:    "one side matching still writes only once",
 			newName: "Laptops",
 			fixture: staleTeamNamesFixture{
 				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
 				abmOrgs:   []string{"Acme Inc"},
 				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-				vppToken:  nil, // fleet has no VPP token, so the VPP copy must not move
 			},
 			wantLookup: true,
 			wantSaves:  1,
@@ -2326,7 +2452,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
 				abmOrgs:   []string{"Acme Inc"},
 				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-				vppToken:  acmeToken,
+				vppTokens: []*fleet.VPPTokenDB{acmeToken},
 			},
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
 			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
@@ -2348,7 +2474,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 
 			require.Equal(t, tc.wantLookup, ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked,
 				"a no-op rename must not query ABM defaults")
-			require.Equal(t, tc.wantLookup, ds.GetVPPTokenByTeamIDFuncInvoked,
+			require.Equal(t, tc.wantLookup, ds.ListVPPTokensFuncInvoked,
 				"a no-op rename must not query the VPP token")
 
 			// Both corrections share one app config write, so a case that
@@ -2363,7 +2489,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 	const teamID = uint(42)
 
-	acmeToken := &fleet.VPPTokenDB{ID: 1, Location: "Acme HQ"}
+	acmeToken := vppTokenOn(1, "Acme HQ", teamID)
 
 	testCases := []struct {
 		name      string
@@ -2380,7 +2506,7 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 				},
 				abmOrgs:   []string{"Acme Inc"},
 				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Servers"}}},
-				vppToken:  acmeToken,
+				vppTokens: []*fleet.VPPTokenDB{acmeToken},
 			},
 			wantSaves: 1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
@@ -2400,7 +2526,7 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 					{Location: "Acme HQ", Teams: []string{"Workstations"}},
 					{Location: "Beta HQ", Teams: []string{"Workstations"}},
 				},
-				vppToken: acmeToken,
+				vppTokens: []*fleet.VPPTokenDB{acmeToken},
 			},
 			wantSaves: 1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
@@ -2413,12 +2539,32 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			},
 		},
 		{
+			name: "a fleet under two tokens is cleared from both entries",
+			fixture: staleTeamNamesFixture{
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
+					{Location: "Acme HQ", Teams: []string{"Workstations"}},
+					{Location: "Acme EU", Teams: []string{"Workstations", "Servers"}},
+					{Location: "Beta HQ", Teams: []string{"Workstations"}},
+				},
+				vppTokens: []*fleet.VPPTokenDB{
+					acmeToken,
+					vppTokenOn(2, "Acme EU", teamID, 9),
+					vppTokenOn(3, "Beta HQ", 9),
+				},
+			},
+			wantSaves: 1,
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme HQ", Teams: []string{}},
+				{Location: "Acme EU", Teams: []string{"Servers"}},
+				{Location: "Beta HQ", Teams: []string{"Workstations"}},
+			},
+		},
+		{
 			name: "one side matching still writes only once",
 			fixture: staleTeamNamesFixture{
 				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
 				abmOrgs:   []string{"Acme Inc"},
 				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-				vppToken:  nil, // fleet had no VPP token, so the VPP copy must not move
 			},
 			wantSaves: 1,
 			wantABM:   []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
@@ -2457,7 +2603,7 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			require.NoError(t, svc.DeleteTeam(ctx, teamID))
 
 			require.True(t, ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked)
-			require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+			require.True(t, ds.ListVPPTokensFuncInvoked)
 
 			// Both cleanups share one app config write, so a case that clears
 			// ABM and VPP together must still save exactly once.

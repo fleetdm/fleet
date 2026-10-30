@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -17,10 +19,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -36,8 +41,11 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	t.Run("Fails if missing VPP token when payloads to associate", func(t *testing.T) {
-		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-			return nil, sql.ErrNoRows
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return nil, nil
+		}
+		ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+			return nil, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -53,7 +61,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					Platform:         fleet.MacOSPlatform,
 				},
 			}, true)
-			require.ErrorContains(t, err, "could not retrieve vpp token")
+			require.ErrorContains(t, err, "No available VPP Token")
 		})
 		t.Run("not dry run", func(t *testing.T) {
 			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
@@ -66,7 +74,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					Platform:         fleet.MacOSPlatform,
 				},
 			}, false)
-			require.ErrorContains(t, err, "could not retrieve vpp token")
+			require.ErrorContains(t, err, "No available VPP Token")
 		})
 	})
 
@@ -257,8 +265,8 @@ func TestGetAnchoredVPPAppsMetadataSkipsReAnchorOnEmptyMetadata(t *testing.T) {
 	}
 
 	apps, reAnchors, err := svc.getAnchoredVPPAppsMetadata(t.Context(),
-		[]fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}}},
-		vppTokenInfo{Secret: "de-secret", Country: "de"},
+		[]fleet.VPPAppTeam{{AdamID: "100", Platform: fleet.MacOSPlatform, VPPTokenID: new(uint(7))}},
+		map[uint]vppTokenInfo{7: {Secret: "de-secret", Country: "de"}},
 	)
 	require.NoError(t, err)
 	require.Empty(t, apps, "row with empty Apple metadata must not be inserted")
@@ -324,14 +332,15 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 
 	teamID := uint(1)
 	ds := new(mock.Store)
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "de-org",
 			Token:       "de-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "de",
-		}, nil
+			Teams:       []fleet.TeamTuple{{ID: teamID}},
+		}}, nil
 	}
 	// Existing row anchored to "us" while the team's current token is "de".
 	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, _ *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
@@ -358,7 +367,7 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 	}
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	apps, err := svc.GetAppStoreApps(ctx, &teamID)
+	apps, err := svc.GetAppStoreApps(ctx, &teamID, nil)
 	require.NoError(t, err)
 	require.Empty(t, apps, "already-assigned apps must be filtered out of the picker list")
 	require.False(t, batchInsertCalled, "picker must not write metadata back")
@@ -380,14 +389,19 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "us-org",
+			Location:    "Acme US",
 			Token:       "us-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "us",
-		}, nil
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return nil, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
@@ -417,7 +431,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	}, false)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
+	require.ErrorContains(t, err, `Couldn't apply. App "`+adamID+`" isn't available in the "Acme US" VPP token.`)
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
 }
@@ -440,14 +454,19 @@ func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "us-org",
+			Location:    "Acme US",
 			Token:       "us-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "us",
-		}, nil
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return nil, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
@@ -482,7 +501,7 @@ func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
 	const missing = "1107542306"
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "", payload(missing), true)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+	require.ErrorContains(t, err, `Couldn't apply. App "`+missing+`" isn't available in the "Acme US" VPP token.`)
 	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
 	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
 }
@@ -863,6 +882,9 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
 			return &fleet.VPPTokenDB{ID: 1}, nil
 		}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{{ID: 1, Teams: []fleet.TeamTuple{}}}, nil
+		}
 		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) {
 			return nil, common_mysql.NotFound("Team")
@@ -875,9 +897,9 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 
 	t.Run("listing VPP apps", func(t *testing.T) {
 		svc, ds, _ := setup(t)
-		_, err := svc.GetAppStoreApps(ctx, nil)
+		_, err := svc.GetAppStoreApps(ctx, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
-		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked, "the VPP token must not be used")
+		require.False(t, ds.ListVPPTokensFuncInvoked, "the VPP token must not be used")
 	})
 
 	t.Run("adding an Apple app", func(t *testing.T) {
@@ -916,5 +938,2172 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		_, _, err := svc.BatchAssociateVPPApps(ctx, "New fleet", []fleet.VPPBatchPayload{{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform}}, true)
 		require.NoError(t, err)
 		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
+	})
+}
+
+func vppErrStatus(err error) int {
+	var withStatus interface{ Status() int }
+	if errors.As(err, &withStatus) {
+		return withStatus.Status()
+	}
+	if withCode, ok := errors.AsType[fleet.ErrWithStatusCode](err); ok {
+		return withCode.StatusCode()
+	}
+	if _, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+		return http.StatusUnprocessableEntity
+	}
+	return 0
+}
+
+func TestResolveAppStoreAppToken(t *testing.T) {
+	t.Parallel()
+
+	valid := time.Now().Add(24 * time.Hour)
+	us := &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 1}}}
+	jp := &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}}
+	jpExpired := &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: time.Now().Add(-time.Hour), CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}}
+	unassigned := &fleet.VPPTokenDB{ID: 3, Location: "Unassigned", Token: "x", RenewDate: valid, CountryCode: "us"}
+	otherFleet := &fleet.VPPTokenDB{ID: 4, Location: "Other fleet", Token: "x", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 2}}}
+	allFleets := &fleet.VPPTokenDB{ID: 5, Location: "All fleets", Token: "all-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{}}
+	noFleet := &fleet.VPPTokenDB{ID: 6, Location: "No fleet", Token: "no-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 0}}}
+
+	tokenID := func(id uint) *uint { return &id }
+	fleetID := func(id uint) *uint { return &id }
+
+	maintainerOf := func(ids ...uint) *fleet.User {
+		u := &fleet.User{}
+		for _, id := range ids {
+			u.Teams = append(u.Teams, fleet.UserTeam{ID: id, Role: fleet.RoleMaintainer})
+		}
+		return u
+	}
+
+	tests := []struct {
+		name       string
+		user       *fleet.User // global admin when nil
+		tokens     []*fleet.VPPTokenDB
+		teamID     *uint
+		vppTokenID *uint
+		wantID     uint
+		wantErr    string
+		wantStatus int
+	}{
+		{name: "single token without id", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), wantID: 1},
+		{name: "single token with its id", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(1), wantID: 1},
+		{name: "requested token of two", tokens: []*fleet.VPPTokenDB{us, jp}, teamID: fleetID(1), vppTokenID: tokenID(2), wantID: 2},
+		{name: "all fleets token by id", tokens: []*fleet.VPPTokenDB{allFleets}, teamID: fleetID(7), vppTokenID: tokenID(5), wantID: 5},
+		{name: "nil fleet is no fleet", tokens: []*fleet.VPPTokenDB{noFleet, us}, wantID: 6},
+		{
+			name: "missing token", tokens: []*fleet.VPPTokenDB{us}, teamID: fleetID(1), vppTokenID: tokenID(99),
+			wantErr: "Couldn't list apps. VPP token with ID 99 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "unassigned token", tokens: []*fleet.VPPTokenDB{us, unassigned}, teamID: fleetID(1), vppTokenID: tokenID(3),
+			wantErr: `Couldn't list apps. VPP token "Unassigned" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "token assigned to another fleet", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: `Couldn't list apps. VPP token "Other fleet" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "token of another fleet hidden from fleet maintainer", user: maintainerOf(1), tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: "Couldn't list apps. VPP token with ID 4 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "token of another fleet visible to maintainer of both", user: maintainerOf(1, 2), tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: `Couldn't list apps. VPP token "Other fleet" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "unassigned token hidden from fleet maintainer", user: maintainerOf(1), tokens: []*fleet.VPPTokenDB{us, unassigned}, teamID: fleetID(1), vppTokenID: tokenID(3),
+			wantErr: "Couldn't list apps. VPP token with ID 3 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "expired requested token", tokens: []*fleet.VPPTokenDB{us, jpExpired}, teamID: fleetID(1), vppTokenID: tokenID(2),
+			wantErr: `Couldn't list apps. VPP token "Acme Japan" is expired. Please renew it and try again.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "expired only token", tokens: []*fleet.VPPTokenDB{jpExpired}, teamID: fleetID(1),
+			wantErr: `Couldn't list apps. VPP token "Acme Japan" is expired. Please renew it and try again.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "two tokens without id", tokens: []*fleet.VPPTokenDB{us, jp}, teamID: fleetID(1),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "all fleets plus fleet token", tokens: []*fleet.VPPTokenDB{us, allFleets}, teamID: fleetID(1),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "all fleets plus no fleet token", tokens: []*fleet.VPPTokenDB{noFleet, allFleets}, teamID: fleetID(0),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "no token for the fleet", tokens: []*fleet.VPPTokenDB{otherFleet, unassigned}, teamID: fleetID(1),
+			wantErr: "No available VPP Token", wantStatus: http.StatusUnprocessableEntity,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tt.tokens, nil }
+			svc := newTestService(t, ds)
+
+			user := tt.user
+			if user == nil {
+				user = &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+			}
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: user})
+
+			tok, err := svc.resolveAppStoreAppToken(ctx, tt.teamID, tt.vppTokenID, "Couldn't list apps.")
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				require.Equal(t, tt.wantStatus, vppErrStatus(err))
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantID, tok.ID)
+		})
+	}
+
+	t.Run("add copy", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{us, jp}, nil }
+		svc := newTestService(t, ds)
+		ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		_, err := svc.resolveAppStoreAppToken(ctx, fleetID(1), nil, "Couldn't add software.")
+		require.ErrorContains(t, err, "Couldn't add software. This fleet has more than one VPP token. Please specify vpp_token_id.")
+		_, err = svc.resolveAppStoreAppToken(ctx, fleetID(1), tokenID(99), "Couldn't add software.")
+		require.ErrorContains(t, err, "Couldn't add software. VPP token with ID 99 doesn't exist.")
+	})
+}
+
+func TestGetAppStoreAppsUsesRequestedToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, incompatible with t.Parallel.
+	var seenAuth []string
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenAuth = append(seenAuth, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	valid := time.Now().Add(24 * time.Hour)
+	ds := new(mock.Store)
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 1}}},
+			{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}},
+		}, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	teamID := uint(1)
+	_, err := svc.GetAppStoreApps(ctx, &teamID, nil)
+	require.ErrorContains(t, err, "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.")
+	require.Empty(t, seenAuth, "Apple must not be called without a token choice")
+
+	_, err = svc.GetAppStoreApps(ctx, &teamID, new(uint(2)))
+	require.NoError(t, err)
+	require.Equal(t, []string{"Bearer jp-secret"}, seenAuth)
+}
+
+type addAppStoreAppFixture struct {
+	svc        *Service
+	ds         *mock.Store
+	ctx        context.Context
+	assets     string
+	seenAuth   []string
+	inserted   *fleet.VPPApp
+	activities []fleet.ActivityDetails
+}
+
+// newAddAppStoreAppFixture wires AddAppStoreApp for an iOS app (adam ID "100")
+// on the No fleet team, with fake Apple VPP and metadata servers.
+func newAddAppStoreAppFixture(t *testing.T, tokens ...*fleet.VPPTokenDB) *addAppStoreAppFixture {
+	t.Helper()
+	fx := &addAppStoreAppFixture{assets: `{"assets":[{"adamId":"100","pricingParam":"STDQ"}]}`}
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fx.seenAuth = append(fx.seenAuth, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fx.assets))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[{"id":"100","attributes":{"name":"Canva","deviceFamilies":["iphone"],` +
+			`"platformAttributes":{"ios":{"bundleId":"com.example.canva","artwork":{"url":"https://example.test/icon.png"},` +
+			`"latestVersionInfo":{"versionDisplay":"1.0"}}}}}]}`))
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	svc.config = config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}}
+	baseSvc.VerifyMDMAppleConfiguredFunc = func(context.Context) error { return nil }
+	baseSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+		fx.activities = append(fx.activities, a)
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+		for _, tok := range tokens {
+			if tok.ID == id {
+				return tok, nil
+			}
+		}
+		return nil, common_mysql.NotFound("VPPToken")
+	}
+	ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+		return 0, false, nil
+	}
+	ds.GetVPPAppByAdamIDPlatformFunc = func(context.Context, string, fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return nil, common_mysql.NotFound("VPPApp")
+	}
+	ds.CheckConflictingInHouseAppExistsFunc = func(context.Context, *uint, string, string) (bool, error) { return false, nil }
+	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+		fx.inserted = app
+		added := *app
+		added.TitleID = 5
+		added.VersionName = fleet.DefaultAppStoreAppVersionName
+		return &added, nil
+	}
+
+	fx.svc = svc
+	fx.ds = ds
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	fx.ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	return fx
+}
+
+func TestAddAppStoreAppToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, incompatible with t.Parallel.
+	valid := time.Now().Add(24 * time.Hour)
+	// Tokens on the No fleet team (nil teamID).
+	us := func() *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 0}}}
+	}
+	jp := func() *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 0}}}
+	}
+	iosApp := func(tokenID *uint) fleet.VPPAppTeam {
+		return fleet.VPPAppTeam{AdamID: "100", Platform: fleet.IOSPlatform, VPPTokenID: tokenID}
+	}
+
+	t.Run("binds the requested token and records it on the activity", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+		require.NoError(t, err)
+		require.Equal(t, []string{"Bearer jp-secret"}, fx.seenAuth)
+		require.NotNil(t, fx.inserted.VPPTokenID)
+		require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		require.Equal(t, "jp", fx.inserted.CountryCode)
+
+		require.Len(t, fx.activities, 1)
+		act, ok := fx.activities[0].(fleet.ActivityAddedAppStoreApp)
+		require.True(t, ok)
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 2, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("single token binds without a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+		require.NoError(t, err)
+		require.Equal(t, uint(1), *fx.inserted.VPPTokenID)
+		require.Equal(t, uint(1), fx.activities[0].(fleet.ActivityAddedAppStoreApp).VPPToken.ID)
+	})
+
+	t.Run("two tokens without a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+		require.ErrorContains(t, err, "Couldn't add software. This fleet has more than one VPP token. Please specify vpp_token_id.")
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("app missing from the token", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		fx.assets = `{"assets":[]}`
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+		require.ErrorContains(t, err, `Couldn't add software. "100" isn't available in the "Acme Japan" VPP token. Please purchase a license in Apple Business and try again.`)
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("Android rejects a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, fleet.VPPAppTeam{
+			AdamID:     "com.example.app",
+			Platform:   fleet.AndroidPlatform,
+			VPPTokenID: new(uint(1)),
+		})
+		require.ErrorContains(t, err, "Couldn't add software. vpp_token_id isn't supported for Android apps.")
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("second version", func(t *testing.T) {
+		withExisting := func(t *testing.T, existingTokenID *uint) *addAppStoreAppFixture {
+			fx := newAddAppStoreAppFixture(t, us(), jp())
+			fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+				return 1, false, nil
+			}
+			fx.ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(context.Context, string, fleet.InstallableDevicePlatform, *uint) (*fleet.VPPApp, error) {
+				return &fleet.VPPApp{Name: "Canva", VPPTokenID: existingTokenID}, nil
+			}
+			return fx
+		}
+
+		t.Run("inherits the first version's token", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+			require.NoError(t, err)
+			require.Equal(t, []string{"Bearer jp-secret"}, fx.seenAuth)
+			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		})
+
+		t.Run("same token is accepted", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+			require.NoError(t, err)
+			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		})
+
+		t.Run("another token conflicts", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
+			require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+			require.Equal(t, http.StatusConflict, vppErrStatus(err))
+			require.Empty(t, fx.seenAuth)
+			require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+		})
+
+		t.Run("a first version without a token falls through to resolution", func(t *testing.T) {
+			fx := withExisting(t, nil)
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
+			require.NoError(t, err)
+			require.Equal(t, uint(1), *fx.inserted.VPPTokenID)
+		})
+	})
+}
+
+func TestUpdateVPPTokenTeamsValidation(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	setup := func(t *testing.T) (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "a just-uploaded token may not be on the replica yet")
+			if id != 1 {
+				return nil, common_mysql.NotFound("VPPToken")
+			}
+			return &fleet.VPPTokenDB{ID: 1}, nil
+		}
+		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+			return []*fleet.TeamSummary{{ID: 1}, {ID: 2}}, nil
+		}
+		ds.UpdateVPPTokenTeamsFunc = func(_ context.Context, id uint, _ []uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id}, nil
+		}
+		return newTestService(t, ds), ds
+	}
+
+	t.Run("missing token with fleets", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 99, []uint{1})
+		require.ErrorContains(t, err, "Couldn't edit. VPP token with ID 99 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("missing token with null fleets", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 99, nil)
+		require.ErrorContains(t, err, "Couldn't edit. VPP token with ID 99 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("missing fleet", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{1, 7})
+		require.ErrorContains(t, err, "Couldn't edit. Fleet with ID 7 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("no fleet is always valid", func(t *testing.T) {
+		svc, ds := setup(t)
+		tok, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{0})
+		require.NoError(t, err)
+		require.Equal(t, uint(1), tok.ID)
+		require.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+		require.False(t, ds.TeamsSummaryFuncInvoked, "fleets are only loaded to check non-zero ids")
+	})
+
+	t.Run("existing fleets and all fleets", func(t *testing.T) {
+		svc, _ := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{1, 2})
+		require.NoError(t, err)
+		_, err = svc.UpdateVPPTokenTeams(ctx, 1, []uint{})
+		require.NoError(t, err)
+	})
+}
+
+func TestUpdateAppStoreAppActivityToken(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	run := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) (*mock.Store, *fleet.ActivityEditedAppStoreApp, error) {
+		ds := new(mock.Store)
+		svc := newTestService(t, ds)
+		ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
+			return []*fleet.VPPAppStoreApp{{
+				AdamID:         "100",
+				Platform:       fleet.IOSPlatform,
+				Name:           "Canva",
+				VPPAppsTeamsID: 1,
+				VPPTokenID:     tokenID,
+			}}, nil
+		}
+		ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+			return &fleet.VPPApp{AppTeamID: 1}, nil
+		}
+		ds.GetVPPTokenFunc = getToken
+
+		_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
+		return ds, act, err
+	}
+	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityEditedAppStoreApp {
+		_, act, err := run(t, tokenID, getToken)
+		require.NoError(t, err)
+		return act
+	}
+
+	t.Run("carries the app's token", func(t *testing.T) {
+		act := setup(t, new(uint(2)), func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Location: "Acme Japan", CountryCode: "jp"}, nil
+		})
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 2, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("app without a token", func(t *testing.T) {
+		act := setup(t, nil, func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			t.Fatal("no token to look up")
+			return nil, nil
+		})
+		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("deleted token", func(t *testing.T) {
+		act := setup(t, new(uint(2)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, common_mysql.NotFound("VPPToken")
+		})
+		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("token lookup failure doesn't write the edit", func(t *testing.T) {
+		ds, _, err := run(t, new(uint(2)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, errors.New("db down")
+		})
+		require.ErrorContains(t, err, "db down")
+		require.False(t, ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+}
+
+const batchVPPTeamName = "📱 Mobile"
+
+// batchVPPFixture wires BatchAssociateVPPApps for fleet 7 with fake Apple VPP
+// and metadata servers. Assets are per token secret.
+type batchVPPFixture struct {
+	svc *Service
+	ds  *mock.Store
+	ctx context.Context
+
+	// assets maps a token secret to the adam IDs it owns.
+	assets map[string][]string
+	// assetCalls holds the secret of every assets request, in order.
+	assetCalls []string
+	// assigned and existing are the fleet's current rows and their vpp_apps rows.
+	assigned map[fleet.VPPAppID]fleet.VPPAppTeam
+	existing map[fleet.VPPAppID]*fleet.VPPApp
+
+	setApps  []fleet.VPPAppTeam
+	titleIDs map[string]uint
+	inserted []*fleet.VPPApp
+}
+
+func newBatchVPPFixture(t *testing.T, tokens ...*fleet.VPPTokenDB) *batchVPPFixture {
+	t.Helper()
+	fx := &batchVPPFixture{
+		assets:   map[string][]string{"us-secret": {"1", "2"}, "jp-secret": {"3"}},
+		assigned: map[fleet.VPPAppID]fleet.VPPAppTeam{},
+		existing: map[fleet.VPPAppID]*fleet.VPPApp{},
+	}
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secret := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		fx.assetCalls = append(fx.assetCalls, secret)
+		var assets []string
+		for _, id := range fx.assets[secret] {
+			assets = append(assets, `{"adamId":"`+id+`","pricingParam":"STDQ"}`)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[` + strings.Join(assets, ",") + `]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		var data []string
+		for _, id := range []string{"1", "2", "3"} {
+			data = append(data, `{"id":"`+id+`","attributes":{"name":"App `+id+`","deviceFamilies":["iphone","ipad"],`+
+				`"platformAttributes":{"ios":{"bundleId":"com.example.`+id+`","artwork":{"url":"https://example.test/icon.png"},`+
+				`"latestVersionInfo":{"versionDisplay":"1.0"}}}}}`)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[` + strings.Join(data, ",") + `]}`))
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.config = config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}}
+
+	ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 7, Name: batchVPPTeamName}, nil
+	}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	ds.GetAssignedVPPAppsFunc = func(context.Context, *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return fx.assigned, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(context.Context, uint, []string) (map[string]uint, error) { return nil, nil }
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppByAdamIDPlatformFunc = func(_ context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		if app, ok := fx.existing[fleet.VPPAppID{AdamID: adamID, Platform: platform}]; ok {
+			return app, nil
+		}
+		return nil, common_mysql.NotFound("VPPApp")
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(_ context.Context, _ string, _ fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		for _, tok := range tokens {
+			if tok.CountryCode == country {
+				return tok, nil
+			}
+		}
+		return nil, common_mysql.NotFound("VPPToken")
+	}
+	ds.BatchInsertVPPAppsFunc = func(_ context.Context, apps []*fleet.VPPApp) error {
+		for i, app := range apps {
+			app.TitleID = uint(100 + i)
+		}
+		fx.inserted = apps
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(_ context.Context, _ *uint, apps []fleet.VPPAppTeam, titleIDs map[string]uint) (bool, error) {
+		fx.setApps = apps
+		fx.titleIDs = titleIDs
+		return false, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(context.Context, uint) error { return nil }
+	ds.GetVPPAppsFunc = func(context.Context, *uint) ([]fleet.VPPAppResponse, error) { return nil, nil }
+	ds.GetEnterpriseFunc = func(context.Context) (*android.Enterprise, error) { return nil, common_mysql.NotFound("Enterprise") }
+
+	fx.svc = svc
+	fx.ds = ds
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	fx.ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	return fx
+}
+
+func (fx *batchVPPFixture) apply(dryRun bool, payloads ...fleet.VPPBatchPayload) error {
+	_, _, err := fx.svc.BatchAssociateVPPApps(fx.ctx, batchVPPTeamName, payloads, dryRun)
+	return err
+}
+
+// boundTokens returns the token each app was passed to SetTeamVPPApps with.
+func (fx *batchVPPFixture) boundTokens() map[fleet.VPPAppID]uint {
+	bound := make(map[fleet.VPPAppID]uint, len(fx.setApps))
+	for _, app := range fx.setApps {
+		bound[app.VPPAppID] = *app.VPPTokenID
+	}
+	return bound
+}
+
+func batchUSToken() *fleet.VPPTokenDB {
+	return &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 7}}}
+}
+
+func batchJPToken() *fleet.VPPTokenDB {
+	return &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 7}}}
+}
+
+func batchIOS(adamID, location string) fleet.VPPBatchPayload {
+	return fleet.VPPBatchPayload{
+		AppStoreID:       adamID,
+		Platform:         fleet.IOSPlatform,
+		Location:         location,
+		LabelsExcludeAny: []string{},
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+		Categories:       []string{},
+	}
+}
+
+func batchAppID(adamID string) fleet.VPPAppID {
+	return fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+}
+
+func TestBatchAssociateVPPAppsTokenResolution(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	t.Run("binds the first-added token, or the located one", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "Acme Japan")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens())
+		require.ElementsMatch(t, []string{"us-secret", "jp-secret"}, fx.assetCalls, "one assets call per token")
+		require.Len(t, fx.inserted, 2)
+	})
+
+	t.Run("an existing app keeps its token without a location", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("an existing app accepts its own location", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("3", "Acme Japan")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+	})
+
+	t.Run("a new version lands on the token of the app", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		v1, v2 := batchIOS("3", ""), batchIOS("3", "")
+		v1.VersionName, v2.VersionName = "Stable", "Beta"
+		require.NoError(t, fx.apply(false, v1, v2))
+		require.Len(t, fx.setApps, 2)
+		for _, app := range fx.setApps {
+			require.Equal(t, uint(2), *app.VPPTokenID)
+		}
+	})
+
+	t.Run("a third token assigned to the fleet leaves apps on their tokens", func(t *testing.T) {
+		third := &fleet.VPPTokenDB{ID: 3, Location: "Acme EU", Token: "eu-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "de", Teams: []fleet.TeamTuple{{ID: 7}}}
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken(), third)
+		fx.assigned[batchAppID("1")] = fleet.VPPAppTeam{VPPTokenID: new(uint(1))}
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("1")] = &fleet.VPPApp{Name: "App 1", TitleID: 11, CountryCode: "us"}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens())
+	})
+
+	t.Run("first-added is the lowest id among the fleet's and All fleets tokens", func(t *testing.T) {
+		token := func(id uint, teams []fleet.TeamTuple) *fleet.VPPTokenDB {
+			secret := "token-" + strings.Repeat("x", int(id))
+			return &fleet.VPPTokenDB{ID: id, Location: secret, Token: secret, RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "us", Teams: teams}
+		}
+		for _, tt := range []struct {
+			name   string
+			tokens []*fleet.VPPTokenDB
+			want   uint
+		}{
+			{
+				name:   "All fleets token below the fleet token",
+				tokens: []*fleet.VPPTokenDB{token(1, []fleet.TeamTuple{{ID: 9}}), token(2, []fleet.TeamTuple{}), token(3, []fleet.TeamTuple{{ID: 7}})},
+				want:   2,
+			},
+			{
+				name:   "moving the lowest token to All fleets keeps it first",
+				tokens: []*fleet.VPPTokenDB{token(1, []fleet.TeamTuple{}), token(2, []fleet.TeamTuple{{ID: 9}}), token(3, []fleet.TeamTuple{{ID: 7}})},
+				want:   1,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				fx := newBatchVPPFixture(t, tt.tokens...)
+				fx.assets = map[string][]string{}
+				for _, tok := range tt.tokens {
+					fx.assets[tok.Token] = []string{"1"}
+				}
+				require.NoError(t, fx.apply(false, batchIOS("1", "")))
+				require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): tt.want}, fx.boundTokens())
+			})
+		}
+	})
+}
+
+func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	expired := time.Now().Add(-24 * time.Hour)
+	missingLine := func(adamID, location string) string {
+		return `Couldn't apply. App "` + adamID + `" isn't available in the "` + location + `" VPP token. Please purchase a license in Apple Business and try again.`
+	}
+	androidPayload := fleet.VPPBatchPayload{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform, Location: "Acme Japan"}
+
+	tests := []struct {
+		name     string
+		tokens   func() (us, jp *fleet.VPPTokenDB)
+		assigned map[fleet.VPPAppID]fleet.VPPAppTeam
+		payloads []fleet.VPPBatchPayload
+		want     string
+		status   int
+		// dryRunPasses is set for the one error a dry run skips.
+		dryRunPasses bool
+	}{
+		{
+			name:     "location doesn't match a token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Nowhere")},
+			want:     `Couldn't apply. VPP token "Nowhere" doesn't exist.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "location token isn't assigned to the fleet",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				jp := batchJPToken()
+				jp.Teams = []fleet.TeamTuple{{ID: 9}}
+				return batchUSToken(), jp
+			},
+			payloads:     []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
+			want:         `Couldn't apply. VPP token "Acme Japan" isn't assigned to fleet "📱 Mobile". Add it under "org_settings.mdm.volume_purchasing_program".`,
+			status:       http.StatusUnprocessableEntity,
+			dryRunPasses: true,
+		},
+		{
+			name:     "no location and the app isn't in the first-added token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "")},
+			want:     missingLine("3", "Acme US"),
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location and the app isn't in that token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Acme Japan")},
+			want:     missingLine("1", "Acme Japan"),
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "one line per missing app, sorted, once per app across platforms",
+			payloads: []fleet.VPPBatchPayload{
+				{AppStoreID: "9", Categories: []string{}},
+				batchIOS("3", ""),
+				batchIOS("10", ""),
+			},
+			want:   strings.Join([]string{missingLine("10", "Acme US"), missingLine("3", "Acme US"), missingLine("9", "Acme US")}, "\n"),
+			status: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "first-added token is expired for a new app",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				us := batchUSToken()
+				us.RenewDate = expired
+				return us, batchJPToken()
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
+			want:     `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "location token is expired for a new app",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				jp := batchJPToken()
+				jp.RenewDate = expired
+				return batchUSToken(), jp
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
+			want:     `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location differs from the token of an app that's already added",
+			assigned: map[fleet.VPPAppID]fleet.VPPAppTeam{batchAppID("1"): {VPPTokenID: new(uint(1))}},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Acme Japan")},
+			want:     `Couldn't apply. Canva is already added from the "Acme US" VPP token. To add it from "Acme Japan", remove it, run GitOps, and then add it back with the new location.`,
+			status:   http.StatusConflict,
+		},
+		{
+			name: "no token available to the fleet",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				us, jp := batchUSToken(), batchJPToken()
+				us.Teams, jp.Teams = []fleet.TeamTuple{{ID: 9}}, nil
+				return us, jp
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
+			want:     "No available VPP Token",
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "same app and platform with different locations",
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan"), batchIOS("3", "")},
+			want:     `Couldn't apply. App "3" is specified more than once with different location values.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location on an Android app",
+			payloads: []fleet.VPPBatchPayload{androidPayload},
+			want:     `Couldn't apply. location isn't supported for Android apps.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+	}
+	for _, tt := range tests {
+		for _, dryRun := range []bool{false, true} {
+			name := tt.name + " real run"
+			if dryRun {
+				name = tt.name + " dry run"
+			}
+			t.Run(name, func(t *testing.T) {
+				tokens := func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) { return batchUSToken(), batchJPToken() }
+				if tt.tokens != nil {
+					tokens = tt.tokens
+				}
+				us, jp := tokens()
+				fx := newBatchVPPFixture(t, us, jp)
+				maps.Copy(fx.assigned, tt.assigned)
+				for id := range tt.assigned {
+					fx.existing[id] = &fleet.VPPApp{Name: "Canva", TitleID: 11, CountryCode: "us"}
+				}
+
+				err := fx.apply(dryRun, tt.payloads...)
+				if dryRun && tt.dryRunPasses {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tt.want)
+					require.Equal(t, tt.status, vppErrStatus(err))
+				}
+				require.False(t, fx.ds.SetTeamVPPAppsFuncInvoked)
+			})
+		}
+	}
+
+	t.Run("each missing app is reported once", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		err := fx.apply(false, fleet.VPPBatchPayload{AppStoreID: "9", Categories: []string{}})
+		require.Error(t, err)
+		require.Equal(t, 1, strings.Count(err.Error(), `App "9"`))
+	})
+}
+
+func TestBatchAssociateVPPAppsExistingAppOnExpiredToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T) *batchVPPFixture {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, batchUSToken(), jp)
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		return fx
+	}
+
+	t.Run("survives a run next to a new app", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens(),
+			"SetTeamVPPApps removes any app that isn't passed to it")
+		require.Equal(t, []string{"us-secret"}, fx.assetCalls, "the expired token isn't read")
+		require.Len(t, fx.inserted, 1, "metadata of the expired app is kept")
+		require.Equal(t, uint(33), fx.titleIDs[batchAppID("3").String()])
+		require.Equal(t, uint(100), fx.titleIDs[batchAppID("1").String()])
+	})
+
+	t.Run("survives a run with no other app", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+		require.False(t, fx.ds.BatchInsertVPPAppsFuncInvoked)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("dry run doesn't fail or read the expired token", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(true, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, []string{"us-secret"}, fx.assetCalls)
+	})
+
+	t.Run("an app moved to the expired token's location still fails", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(false, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T) *batchVPPFixture {
+		us := batchUSToken()
+		us.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, us, batchJPToken())
+		// An iOS-only app has no macOS row.
+		for _, platform := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform} {
+			id := fleet.VPPAppID{AdamID: "1", Platform: platform}
+			fx.assigned[id] = fleet.VPPAppTeam{VPPTokenID: new(uint(1))}
+			fx.existing[id] = &fleet.VPPApp{Name: "App 1", TitleID: 11, CountryCode: "us"}
+		}
+		return fx
+	}
+	noPlatform := func(adamID string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Categories: []string{}}
+	}
+
+	t.Run("an app with no platform keeps its rows", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, noPlatform("1")))
+		require.Equal(t, map[fleet.VPPAppID]uint{
+			{AdamID: "1", Platform: fleet.IOSPlatform}:    1,
+			{AdamID: "1", Platform: fleet.IPadOSPlatform}: 1,
+		}, fx.boundTokens())
+	})
+
+	t.Run("an app with no platform and a location keeps its rows", func(t *testing.T) {
+		fx := setup(t)
+		located := noPlatform("1")
+		located.Location = "Acme US"
+		require.NoError(t, fx.apply(false, located))
+		require.Equal(t, map[fleet.VPPAppID]uint{
+			{AdamID: "1", Platform: fleet.IOSPlatform}:    1,
+			{AdamID: "1", Platform: fleet.IPadOSPlatform}: 1,
+		}, fx.boundTokens())
+	})
+
+	t.Run("a new app on the expired token still fails", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(false, noPlatform("2"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+
+	t.Run("an explicit platform still fails", func(t *testing.T) {
+		fx := setup(t)
+		macOS := noPlatform("1")
+		macOS.Platform = fleet.MacOSPlatform
+		err := fx.apply(false, macOS)
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsExpandedPlatformsInheritToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	// App 3 is iOS-only and sits on the Japan token, which isn't the first-added one.
+	setup := func(t *testing.T, jp *fleet.VPPTokenDB) *batchVPPFixture {
+		fx := newBatchVPPFixture(t, batchUSToken(), jp)
+		for i, platform := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform} {
+			id := fleet.VPPAppID{AdamID: "3", Platform: platform}
+			fx.assigned[id] = fleet.VPPAppTeam{AppTeamID: uint(5 + i), VPPTokenID: new(uint(2))}
+			fx.existing[id] = &fleet.VPPApp{Name: "App 3", TitleID: 13, CountryCode: "jp"}
+		}
+		return fx
+	}
+	noPlatform := func(adamID string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Categories: []string{}}
+	}
+	want := map[fleet.VPPAppID]uint{
+		{AdamID: "3", Platform: fleet.IOSPlatform}:    2,
+		{AdamID: "3", Platform: fleet.IPadOSPlatform}: 2,
+	}
+
+	t.Run("an app with no platform and no location stays on its token", func(t *testing.T) {
+		fx := setup(t, batchJPToken())
+		require.NoError(t, fx.apply(false, noPlatform("3")))
+		require.Equal(t, want, fx.boundTokens())
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("the token is expired", func(t *testing.T) {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := setup(t, jp)
+		require.NoError(t, fx.apply(false, noPlatform("3")))
+		require.Equal(t, want, fx.boundTokens())
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("a new app uses the first-added token", func(t *testing.T) {
+		fx := setup(t, batchJPToken())
+		require.NoError(t, fx.apply(false, noPlatform("2")))
+		require.Equal(t, uint(1), fx.boundTokens()[fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}])
+	})
+
+	t.Run("a new app fails when the first-added token is expired", func(t *testing.T) {
+		us := batchUSToken()
+		us.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, us, batchJPToken())
+		err := fx.apply(false, noPlatform("2"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T, tokens ...*fleet.VPPTokenDB) *batchVPPFixture {
+		fx := newBatchVPPFixture(t, tokens...)
+		fx.ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) { return nil, common_mysql.NotFound("Team") }
+		return fx
+	}
+
+	t.Run("a located app is checked against that token only", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		require.NoError(t, fx.apply(true, batchIOS("3", "Acme Japan")))
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("a located app missing from its token", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		// The US token has app 1, but the location names Japan.
+		err := fx.apply(true, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. App "1" isn't available in the "Acme Japan" VPP token. Please purchase a license in Apple Business and try again.`)
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("a location that doesn't exist", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("1", "Nowhere"))
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Nowhere" doesn't exist.`)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("a location with no tokens uploaded", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(true, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" doesn't exist.`)
+	})
+
+	t.Run("an expired location token", func(t *testing.T) {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := setup(t, batchUSToken(), jp)
+		err := fx.apply(true, batchIOS("3", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("apps without a location keep the union check", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		// Each app is on some token, so the union passes. App 3 is only on the Japan token.
+		require.NoError(t, fx.apply(true, batchIOS("2", ""), batchIOS("3", "")))
+
+		err := fx.apply(true, batchIOS("9", ""))
+		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+	})
+
+	t.Run("located and unlocated apps are both checked", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("9", ""))
+		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ElementsMatch(t, []string{"jp-secret", "us-secret"}, fx.assetCalls, "one assets call per token")
+	})
+
+	t.Run("a location on an Android app", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, fleet.VPPBatchPayload{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform, Location: "Acme Japan"})
+		require.ErrorContains(t, err, "Couldn't apply. location isn't supported for Android apps.")
+		require.False(t, fx.ds.ListVPPTokensFuncInvoked)
+	})
+
+	t.Run("one app with different locations", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("3", ""))
+		require.ErrorContains(t, err, `Couldn't apply. App "3" is specified more than once with different location values.`)
+		require.False(t, fx.ds.ListVPPTokensFuncInvoked)
+	})
+}
+
+func TestResolveBatchVPPTokenStepOrder(t *testing.T) {
+	t.Parallel()
+	us, jp := batchUSToken(), batchJPToken()
+	expiredUS := batchUSToken()
+	expiredUS.RenewDate = time.Now().Add(-24 * time.Hour)
+	all := []*fleet.VPPTokenDB{us, jp}
+
+	tests := []struct {
+		name       string
+		teamTokens []*fleet.VPPTokenDB
+		allTokens  []*fleet.VPPTokenDB
+		existing   *uint
+		location   string
+		dryRun     bool
+		wantID     uint
+		wantErr    string
+	}{
+		{name: "unknown location beats an existing app", teamTokens: all, allTokens: all, existing: new(uint(1)), location: "Nowhere", wantErr: "doesn't exist"},
+		{name: "unassigned beats the already-added error", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(1)), location: "Acme Japan", wantErr: "isn't assigned to fleet"},
+		{name: "a dry run skips the unassigned check", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, location: "Acme Japan", dryRun: true, wantID: 2},
+		{name: "a dry run still reaches the already-added error", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(1)), location: "Acme Japan", dryRun: true, wantErr: "already added"},
+		{name: "already added beats expiry", teamTokens: []*fleet.VPPTokenDB{expiredUS, jp}, allTokens: []*fleet.VPPTokenDB{expiredUS, jp}, existing: new(uint(1)), location: "Acme Japan", wantErr: "already added"},
+		{name: "an existing app on an expired token passes", teamTokens: []*fleet.VPPTokenDB{expiredUS}, allTokens: []*fleet.VPPTokenDB{expiredUS}, existing: new(uint(1)), wantID: 1},
+		{name: "an existing app outside the fleet's tokens keeps its token", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(2)), wantID: 2},
+		{name: "a new app on an expired token fails", teamTokens: []*fleet.VPPTokenDB{expiredUS}, allTokens: []*fleet.VPPTokenDB{expiredUS}, wantErr: "is expired"},
+		{name: "a new app takes the first token", teamTokens: all, allTokens: all, wantID: 1},
+		{name: "the location is compared after NFC normalization", teamTokens: all, allTokens: all, location: "Acme Japan", wantID: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tok, err := resolveBatchVPPToken(tt.teamTokens, tt.allTokens, tt.existing, tt.location, batchVPPTeamName, tt.dryRun)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantID, tok.ID)
+		})
+	}
+}
+
+// testAppStoreAppDatastore keeps, in memory, the state the App Store app configuration reconciler reads and the installs it
+// writes. Tests change the state the way Fleet does, run the cron and check which version each host was sent.
+type testAppStoreAppDatastore struct {
+	ds  *mock.Store
+	now time.Time
+
+	hosts             []*fleet.Host
+	mdmOffHostIDs     map[uint]struct{}
+	inventoryHostIDs  map[uint]struct{}
+	labelIDsByHostID  map[uint]map[uint]struct{}
+	versionsByFleetID map[uint][]*fleet.VPPAppStoreApp
+	tokenByFleetID    map[uint]*fleet.VPPTokenDB
+	cursor            uint
+
+	installs              []fleet.HostVPPSoftwareInstall
+	failedInstalls        []fleet.HostVPPSoftwareInstall
+	queuedVersionByHostID map[uint]uint
+	queueInstalls         bool
+	rejectedHostIDs       map[uint]struct{}
+	sentVersionByHostID   map[uint]uint
+
+	retriesByHostAndVersion map[[2]uint]int
+}
+
+func (f *testAppStoreAppDatastore) RecordAttempt(ctx context.Context, hostID uint, versionID uint, expireIn time.Duration) (int, error) {
+	f.retriesByHostAndVersion[[2]uint{hostID, versionID}]++
+	return f.retriesByHostAndVersion[[2]uint{hostID, versionID}], nil
+}
+
+func (f *testAppStoreAppDatastore) CountAttempts(ctx context.Context, hostID uint, versionID uint) (int, error) {
+	return f.retriesByHostAndVersion[[2]uint{hostID, versionID}], nil
+}
+
+func (f *testAppStoreAppDatastore) ResetAttempts(ctx context.Context, hostID uint, versionID uint) error {
+	delete(f.retriesByHostAndVersion, [2]uint{hostID, versionID})
+	return nil
+}
+
+func (f *testAppStoreAppDatastore) ResetInstallerAttempts(ctx context.Context, versionIDs []uint) error {
+	return nil
+}
+
+func (f *testAppStoreAppDatastore) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+	return nil
+}
+
+func (f *testAppStoreAppDatastore) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	if host == nil || vppApp == nil {
+		return "", errors.New("missing host or app")
+	}
+	if _, rejected := f.rejectedHostIDs[host.ID]; rejected {
+		return "", errors.New("Apple rejected the install")
+	}
+	f.sentVersionByHostID[host.ID] = vppApp.AppTeamID
+	if f.queueInstalls {
+		f.queuedVersionByHostID[host.ID] = vppApp.AppTeamID
+		return "command-uuid", nil
+	}
+	f.installs = append(f.installs, fleet.HostVPPSoftwareInstall{HostID: host.ID, VPPAppTeamID: new(vppApp.AppTeamID), CreatedAt: f.now})
+	return "command-uuid", nil
+}
+
+func TestReconcileAppStoreAppConfigurations(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	nothingSent := map[uint]uint{}
+
+	// tick moves the test datastore's clock forward a second, so each change and install gets its own whole second like in MySQL
+	tick := func(f *testAppStoreAppDatastore) {
+		f.now = f.now.Add(time.Second)
+	}
+	hostByID := func(f *testAppStoreAppDatastore, hostID uint) *fleet.Host {
+		for _, host := range f.hosts {
+			if host.ID == hostID {
+				return host
+			}
+		}
+		return &fleet.Host{}
+	}
+	versionByID := func(f *testAppStoreAppDatastore, versionID uint) *fleet.VPPAppStoreApp {
+		for _, versions := range f.versionsByFleetID {
+			for _, version := range versions {
+				if version.VPPAppsTeamsID == versionID {
+					return version
+				}
+			}
+		}
+		return nil
+	}
+	inScope := func(f *testAppStoreAppDatastore, hostID uint, version *fleet.VPPAppStoreApp) bool {
+		if version == nil {
+			return false
+		}
+		labelIDs := f.labelIDsByHostID[hostID]
+		for _, label := range version.LabelsExcludeAny {
+			if _, member := labelIDs[label.LabelID]; member {
+				return false
+			}
+		}
+		for _, label := range version.LabelsIncludeAll {
+			if _, member := labelIDs[label.LabelID]; !member {
+				return false
+			}
+		}
+		if len(version.LabelsIncludeAny) == 0 {
+			return true
+		}
+		for _, label := range version.LabelsIncludeAny {
+			if _, member := labelIDs[label.LabelID]; member {
+				return true
+			}
+		}
+		return false
+	}
+
+	newTestAppStoreAppDatastore := func() *testAppStoreAppDatastore {
+		f := &testAppStoreAppDatastore{
+			ds:                    new(mock.Store),
+			now:                   time.Now().Add(-24 * time.Hour).Truncate(time.Second),
+			mdmOffHostIDs:         map[uint]struct{}{},
+			inventoryHostIDs:      map[uint]struct{}{},
+			labelIDsByHostID:      map[uint]map[uint]struct{}{},
+			versionsByFleetID:     map[uint][]*fleet.VPPAppStoreApp{},
+			tokenByFleetID:        map[uint]*fleet.VPPTokenDB{},
+			queuedVersionByHostID: map[uint]uint{},
+			rejectedHostIDs:       map[uint]struct{}{},
+
+			retriesByHostAndVersion: map[[2]uint]int{},
+		}
+		f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		f.ds.GetAppStoreAppConfigurationReconcileCursorFunc = func(ctx context.Context) (uint, error) {
+			return f.cursor, nil
+		}
+		f.ds.SetAppStoreAppConfigurationReconcileCursorFunc = func(ctx context.Context, cursor uint) error {
+			f.cursor = cursor
+			return nil
+		}
+		f.ds.ListIOSAndIPadOSMDMHostsAfterIDFunc = func(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
+			var page []*fleet.Host
+			for _, host := range f.hosts {
+				if _, mdmOff := f.mdmOffHostIDs[host.ID]; mdmOff || host.ID <= afterHostID || len(page) == limit {
+					continue
+				}
+				page = append(page, host)
+			}
+			return page, nil
+		}
+		f.ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			var tokens []*fleet.VPPTokenDB
+			for _, token := range f.tokenByFleetID {
+				tokens = append(tokens, token)
+			}
+			return tokens, nil
+		}
+		f.ds.GetAppStoreAppVersionsByFleetAndTitleFunc = func(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
+			versionsByTitleIDByFleetID := make(fleet.AppStoreAppVersionsByFleetAndTitleID)
+			for fleetID, versions := range f.versionsByFleetID {
+				for _, version := range versions {
+					// A version is added from its fleet's token unless a test picked another one
+					if token, ok := f.tokenByFleetID[fleetID]; ok && version.VPPTokenID == nil {
+						version.VPPTokenID = new(token.ID)
+					}
+					version.HasLabels = len(version.LabelsIncludeAny) > 0 || len(version.LabelsExcludeAny) > 0 || len(version.LabelsIncludeAll) > 0
+					if versionsByTitleIDByFleetID[fleetID] == nil {
+						versionsByTitleIDByFleetID[fleetID] = make(map[uint][]*fleet.VPPAppStoreApp)
+					}
+					versionsByTitleIDByFleetID[fleetID][1] = append(versionsByTitleIDByFleetID[fleetID][1], version)
+				}
+			}
+			return versionsByTitleIDByFleetID, nil
+		}
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+			installByHostID := make(map[uint]fleet.HostVPPInstallWithUpcoming)
+			for _, hostID := range hostIDs {
+				if _, inInventory := f.inventoryHostIDs[hostID]; !inInventory || ptr.ValOrZero(hostByID(f, hostID).TeamID) != fleetID {
+					continue
+				}
+				for _, install := range f.installs {
+					if install.HostID == hostID {
+						installByHostID[hostID] = fleet.HostVPPInstallWithUpcoming{HostVPPSoftwareInstall: install}
+					}
+				}
+				install, installed := installByHostID[hostID]
+				queuedVersionID, queued := f.queuedVersionByHostID[hostID]
+				if installed && queued {
+					install.UpcomingVPPAppTeamID = &queuedVersionID
+					installByHostID[hostID] = install
+				}
+			}
+			return map[uint]map[uint]fleet.HostVPPInstallWithUpcoming{1: installByHostID}, nil
+		}
+		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+			version := versionByID(f, vppAppTeamID)
+			included := make(map[uint]struct{})
+			for _, hostID := range hostIDs {
+				if inScope(f, hostID, version) {
+					included[hostID] = struct{}{}
+				}
+			}
+			return included, nil
+		}
+		f.ds.RecordFailedVPPAppInstallFunc = func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			f.failedInstalls = append(f.failedInstalls, fleet.HostVPPSoftwareInstall{HostID: hostID, VPPAppTeamID: new(opts.VPPAppTeamID), CreatedAt: f.now})
+			return nil, nil, nil
+		}
+		f.ds.GetHostIDsWithRecentFailedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
+			failed := make(map[uint]struct{})
+			for _, install := range f.failedInstalls {
+				if ptr.ValOrZero(install.VPPAppTeamID) == vppAppTeamID && !install.CreatedAt.Before(since) && slices.Contains(hostIDs, install.HostID) {
+					failed[install.HostID] = struct{}{}
+				}
+			}
+			return failed, nil
+		}
+		f.ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+			version := versionByID(f, vppAppTeamID)
+			if version == nil {
+				return nil, &notFoundError{}
+			}
+			return &fleet.VPPApp{VPPAppID: version.VPPAppID, AppTeamID: vppAppTeamID}, nil
+		}
+		return f
+	}
+
+	addFleet := func(f *testAppStoreAppDatastore, fleetID uint) {
+		f.tokenByFleetID[fleetID] = &fleet.VPPTokenDB{ID: 100 + fleetID, Token: "token", RenewDate: time.Now().Add(24 * time.Hour)}
+	}
+	addHost := func(f *testAppStoreAppDatastore, hostID uint, fleetID uint, labelIDs ...uint) *fleet.Host {
+		host := &fleet.Host{ID: hostID, UUID: fmt.Sprintf("host-%d", hostID), Platform: "ios", TeamID: ptr.UintOrNilIfZero(fleetID)}
+		f.hosts = append(f.hosts, host)
+		f.inventoryHostIDs[hostID] = struct{}{}
+		f.labelIDsByHostID[hostID] = map[uint]struct{}{}
+		for _, labelID := range labelIDs {
+			f.labelIDsByHostID[hostID][labelID] = struct{}{}
+		}
+		return host
+	}
+	addVersion := func(f *testAppStoreAppDatastore, fleetID uint, versionID uint, configuration string, includeAnyLabelIDs ...uint) *fleet.VPPAppStoreApp {
+		tick(f)
+		version := &fleet.VPPAppStoreApp{
+			AdamID:         "1",
+			Platform:       fleet.IOSPlatform,
+			VPPAppsTeamsID: versionID,
+		}
+		if configuration != "" {
+			version.Configuration = json.RawMessage(configuration)
+			version.ConfigurationUpdatedAt = new(f.now)
+		}
+		for _, labelID := range includeAnyLabelIDs {
+			version.LabelsIncludeAny = append(version.LabelsIncludeAny, fleet.SoftwareScopeLabel{LabelID: labelID})
+		}
+		f.versionsByFleetID[fleetID] = append(f.versionsByFleetID[fleetID], version)
+		return version
+	}
+	// setConfiguration sets the version's configuration like the API and GitOps do, an empty configuration clears it
+	setConfiguration := func(f *testAppStoreAppDatastore, version *fleet.VPPAppStoreApp, configuration string) {
+		tick(f)
+		version.Configuration = nil
+		if configuration != "" {
+			version.Configuration = json.RawMessage(configuration)
+		}
+		version.ConfigurationUpdatedAt = new(f.now)
+	}
+	// deleteVersion removes the version, and clears it from the installs of it like the version_id foreign key does
+	deleteVersion := func(f *testAppStoreAppDatastore, fleetID uint, versionID uint) {
+		f.versionsByFleetID[fleetID] = slices.DeleteFunc(f.versionsByFleetID[fleetID], func(version *fleet.VPPAppStoreApp) bool {
+			return version.VPPAppsTeamsID == versionID
+		})
+		for i := range f.installs {
+			if ptr.ValOrZero(f.installs[i].VPPAppTeamID) == versionID {
+				f.installs[i].VPPAppTeamID = nil
+			}
+		}
+	}
+	// install records an install of the version that isn't from the cron, like a manual or setup experience install
+	install := func(f *testAppStoreAppDatastore, hostID uint, versionID uint) {
+		tick(f)
+		f.installs = append(f.installs, fleet.HostVPPSoftwareInstall{HostID: hostID, VPPAppTeamID: new(versionID), CreatedAt: f.now})
+	}
+	// failInstall records a failed install of the version, like an MDM error or a failed verification
+	failInstall := func(f *testAppStoreAppDatastore, hostID uint, versionID uint) {
+		tick(f)
+		f.failedInstalls = append(f.failedInstalls, fleet.HostVPPSoftwareInstall{HostID: hostID, VPPAppTeamID: new(versionID), CreatedAt: f.now})
+	}
+	// flagLatestInstall sets the re-send flag on the host's latest install like a change to a Fleet variable the configuration uses
+	flagLatestInstall := func(f *testAppStoreAppDatastore, hostID uint) {
+		for i := len(f.installs) - 1; i >= 0; i-- {
+			if f.installs[i].HostID == hostID {
+				f.installs[i].NeedsResend = true
+				return
+			}
+		}
+	}
+	setLabel := func(f *testAppStoreAppDatastore, hostID uint, labelID uint, member bool) {
+		if member {
+			if f.labelIDsByHostID[hostID] == nil {
+				f.labelIDsByHostID[hostID] = map[uint]struct{}{}
+			}
+			f.labelIDsByHostID[hostID][labelID] = struct{}{}
+			return
+		}
+		delete(f.labelIDsByHostID[hostID], labelID)
+	}
+	// reconcile runs the cron and returns the version sent to each host in that run
+	reconcile := func(f *testAppStoreAppDatastore, ctx context.Context) (map[uint]uint, error) {
+		tick(f)
+		f.sentVersionByHostID = map[uint]uint{}
+		err := ReconcileAppStoreAppConfigurations(ctx, f.ds, f, f, slog.New(slog.DiscardHandler))
+		return f.sentVersionByHostID, err
+	}
+
+	t.Run("a host whose version and configuration didn't change gets nothing", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// run the cron twice without changes, the host should get nothing
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("editing or clearing the configuration of a host's version sends that version to the host once", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// edit the configuration, the host should get version 10 once
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// clear the configuration, the host should get version 10 again
+		setConfiguration(f, version, "")
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install in the same second as a configuration change is sent again", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// change the configuration half a second after the install's second, the install should count as before the change and the host should get version 10
+		version.ConfigurationUpdatedAt = new(f.now.Add(500 * time.Millisecond))
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("changing a Fleet variable a host's configuration uses sends the host's version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>user</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// flag the host's latest install like a SCIM user, group or link change does, the host should get version 10 once
+		flagLatestInstall(f, 1)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("adding and removing a host's labels sends the version the host is in scope for", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>b</string></dict>`)
+		addHost(f, 1, 0)
+		install(f, 1, 11)
+
+		// add label 100 to the host, as adding it manually, a label spec or a host vitals label cron does, the host should get version 10
+		setLabel(f, 1, 100, true)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+
+		// remove label 100 from the host, as removing it, replacing or clearing the label's hosts, or re-enrolling does, the host should get version 11
+		setLabel(f, 1, 100, false)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+	})
+
+	t.Run("a host in scope for two versions gets the first-added one, and the label scope query isn't run for a version without labels", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>b</string></dict>`, 100)
+		addVersion(f, 0, 12, `<dict><key>v</key><string>c</string></dict>`)
+		addHost(f, 1, 0, 100)
+		addHost(f, 2, 0)
+		install(f, 1, 12)
+		install(f, 2, 11)
+		var scopedVersionIDs []uint
+		inScope := f.ds.GetIncludedHostIDMapForVPPAppHostsFunc
+		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+			scopedVersionIDs = append(scopedVersionIDs, vppAppTeamID)
+			return inScope(ctx, vppAppTeamID, hostIDs)
+		}
+
+		// run the cron, the host in label 100 should get version 10 and the other host version 12, without a scope query for version 12
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10, 2: 12}, sent)
+		require.Equal(t, []uint{10, 11}, scopedVersionIDs)
+	})
+
+	t.Run("excluding a host's label from its version sends the host's next version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>b</string></dict>`)
+		addHost(f, 1, 0, 200)
+		install(f, 1, 10)
+
+		// exclude label 200 from version 10, as a dynamic exclude any label does once the host refetches, the host should get version 11
+		version.LabelsExcludeAny = []fleet.SoftwareScopeLabel{{LabelID: 200}}
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+	})
+
+	t.Run("adding a version a host is in scope for sends it", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`, 100)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// add a version without labels after the host left version 10's label, the host should get version 11
+		addVersion(f, 0, 11, `<dict><key>v</key><string>new</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+	})
+
+	t.Run("deleting a host's version sends the host's next version, with or without a configuration", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`, 100)
+		addVersion(f, 0, 11, `<dict/>`, 100)
+		addVersion(f, 0, 12, "")
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// delete version 10, the host should get version 11
+		deleteVersion(f, 0, 10)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+
+		// delete version 11, the host should get version 12 without a configuration
+		deleteVersion(f, 0, 11)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 12}, sent)
+	})
+
+	t.Run("deleting every version of an app or removing it from GitOps sends nothing", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// delete the only version, the host should get nothing since iOS apps aren't removed from hosts
+		deleteVersion(f, 0, 10)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("moving a host between versions sends an install only when either version has a configuration", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`, 100)
+		addVersion(f, 0, 11, "", 200)
+		versionC := addVersion(f, 0, 12, `<dict/>`)
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// move the host from version 10 with a configuration to version 11 without one, the host should get version 11
+		setLabel(f, 1, 100, false)
+		setLabel(f, 1, 200, true)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+
+		// clear version 12's configuration after the host's install of version 11, then move the host to it, the host should get nothing
+		setConfiguration(f, versionC, "")
+		setLabel(f, 1, 200, false)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("moving a host between versions with the same configuration sends nothing, and moving it to a version with another configuration sends that version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>same</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>same</string></dict>`, 200)
+		addVersion(f, 0, 12, `<dict><key>v</key><string>other</string></dict>`)
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// move the host from version 10 to version 11 with the same configuration, the host should get nothing
+		setLabel(f, 1, 100, false)
+		setLabel(f, 1, 200, true)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// move the host to version 12 with another configuration, the host should get version 12
+		setLabel(f, 1, 200, false)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 12}, sent)
+	})
+
+	t.Run("moving a host between versions with the same configuration sends the new version when a Fleet variable the configuration uses changed", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>user</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>user</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`)
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// move the host from version 10 to version 11 with the same configuration and flag its latest install like a SCIM user change does, the host should get version 11 once
+		setLabel(f, 1, 100, false)
+		flagLatestInstall(f, 1)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("moving a host off a version whose configuration was cleared after the host's install sends the next version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		versionA := addVersion(f, 0, 10, `<dict/>`, 100)
+		addVersion(f, 0, 11, "")
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// clear version 10's configuration and move the host to version 11 before the cron runs, the host should get version 11 since it still has version 10's configuration
+		setConfiguration(f, versionA, "")
+		setLabel(f, 1, 100, false)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+	})
+
+	t.Run("moving a host between a fleet and Unassigned sends the new fleet's version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addFleet(f, 5)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>unassigned</string></dict>`)
+		addVersion(f, 5, 20, `<dict><key>v</key><string>fleet</string></dict>`)
+		host := addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// move the host to fleet 5, the host should get version 20
+		host.TeamID = new(uint(5))
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 20}, sent)
+
+		// move the host back to Unassigned, as deleting its fleet does, the host should get version 10
+		host.TeamID = nil
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("moving a host to another fleet where neither version has a configuration sends nothing, until the installed version's configuration changes", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addFleet(f, 5)
+		installedVersion := addVersion(f, 0, 10, "")
+		addVersion(f, 5, 20, "")
+		host := addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// move the host to fleet 5, the host should get nothing since neither version has a configuration
+		host.TeamID = new(uint(5))
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// set a configuration on fleet 0's version 10 that the host has installed, the host should get fleet 5's version 20 since the configurations differ now
+		setConfiguration(f, installedVersion, `<dict><key>v</key><string>a</string></dict>`)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 20}, sent)
+	})
+
+	t.Run("a host whose latest install is of a version it isn't in scope for gets the version it's in scope for", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>b</string></dict>`)
+		addHost(f, 1, 0)
+
+		// install version 10 on a host outside its label, as the setup experience or a queued install of a deleted version does, the host should get version 11
+		install(f, 1, 10)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+	})
+
+	t.Run("a host re-created after being deleted gets nothing until Fleet installs the app on it", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 2, 0)
+
+		// run the cron for a host without an install from Fleet, the host should get nothing
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("a host without the app in its inventory gets nothing, and gets the latest configuration if the app is back in its inventory", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// remove the app from the host's inventory and edit the configuration, the host should get nothing
+		delete(f.inventoryHostIDs, 1)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// reinstall the app outside Fleet, the host should get version 10
+		f.inventoryHostIDs[1] = struct{}{}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("a host with MDM off gets the configuration once MDM is back on", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// turn MDM off for the host and edit the configuration, the host should get nothing
+		f.mdmOffHostIDs[1] = struct{}{}
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// turn MDM back on, the host should get version 10
+		delete(f.mdmOffHostIDs, 1)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install Apple rejects while the app is out of Apple Business is sent once the app is back", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+
+		// remove the app from Apple Business and edit the configuration, the install should be rejected and nothing sent
+		f.rejectedHostIDs[1] = struct{}{}
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// add the app back to Apple Business, the host should get version 10
+		delete(f.rejectedHostIDs, 1)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install Apple rejects is retried an hour after the rejection", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		f.now = time.Now().Truncate(time.Second)
+
+		// remove the app from Apple Business and run the cron, the install should be rejected and recorded as a failed install of version 10
+		f.rejectedHostIDs[1] = struct{}{}
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Len(t, f.failedInstalls, 1)
+		require.Equal(t, new(uint(10)), f.failedInstalls[0].VPPAppTeamID)
+
+		// add the app back to Apple Business and run the cron, the host should get nothing since the rejection was less than an hour ago
+		delete(f.rejectedHostIDs, 1)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// move the rejection two hours back and run the cron, the host should get version 10
+		f.failedInstalls[0].CreatedAt = time.Now().Add(-2 * time.Hour)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("an install that keeps failing is retried twice, then waits until its retry count expires", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		f.now = time.Now().Truncate(time.Second)
+		f.rejectedHostIDs[1] = struct{}{}
+
+		// run the cron with the app out of Apple Business, the install should be rejected and not counted as a retry
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Zero(t, f.retriesByHostAndVersion[[2]uint{1, 10}])
+
+		// move the failed installs two hours back and run the cron twice, each install should be rejected and counted as a retry
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.Equal(t, 2, f.retriesByHostAndVersion[[2]uint{1, 10}])
+
+		// add the app back to Apple Business, move the failed installs two hours back and run the cron, the host should get nothing since it was retried twice
+		delete(f.rejectedHostIDs, 1)
+		for i := range f.failedInstalls {
+			f.failedInstalls[i].CreatedAt = time.Now().Add(-2 * time.Hour)
+		}
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// expire the retry count and run the cron, the host should get version 10
+		delete(f.retriesByHostAndVersion, [2]uint{1, 10})
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("a host with a queued install of its version gets nothing more until the install runs", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		f.queueInstalls = true
+
+		// edit the configuration, the host should get version 10 queued once
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("a host whose install failed within the last hour gets nothing, unless the configuration changes after the failure", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+
+		// fail the host's install of the new configuration, as a variable without a value does, the host should get nothing since the install failed less than an hour ago
+		failInstall(f, 1, 10)
+		f.now = time.Now().Truncate(time.Second)
+		f.failedInstalls[0].CreatedAt = f.now
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// edit the configuration again, the host should get version 10 right away since the new configuration might not fail
+		setConfiguration(f, version, `<dict><key>a</key><string>c</string></dict>`)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("a host whose install failed more than an hour ago gets its version again", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+
+		// fail the host's install two hours ago and run the cron, the host should get version 10 again since the install failed more than an hour ago
+		failInstall(f, 1, 10)
+		f.failedInstalls[0].CreatedAt = time.Now().Add(-2 * time.Hour)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("a rejected install on one host doesn't stop the next host's install", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		addHost(f, 2, 0)
+		install(f, 1, 10)
+		install(f, 2, 10)
+		f.rejectedHostIDs[1] = struct{}{}
+
+		// edit the configuration with the first host's install rejected, the second host should still get version 10
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{2: 10}, sent)
+	})
+
+	t.Run("removing or expiring a fleet's VPP token sends nothing to its hosts", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+
+		// expire the fleet's VPP token, the host should get nothing
+		f.tokenByFleetID[0].RenewDate = time.Now().Add(-time.Hour)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// remove the fleet's VPP token, the host should get nothing
+		delete(f.tokenByFleetID, 0)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("a version on an expired token waits while a version on the fleet's other token is sent", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		expired := &fleet.VPPTokenDB{ID: 200, Token: "expired", RenewDate: time.Now().Add(-time.Hour)}
+		f.tokenByFleetID[99] = expired // listed by ListVPPTokens, assigned to no host's fleet
+		onExpired := addVersion(f, 0, 10, `<dict/>`, 1)
+		onExpired.VPPTokenID = new(expired.ID)
+		onHealthy := addVersion(f, 0, 20, `<dict/>`)
+		addHost(f, 1, 0)
+		addHost(f, 2, 0, 1)
+		install(f, 1, 20)
+		install(f, 2, 10)
+		setConfiguration(f, onExpired, `<dict><key>a</key><string>b</string></dict>`)
+		setConfiguration(f, onHealthy, `<dict><key>a</key><string>b</string></dict>`)
+
+		// host 1 gets the healthy token's version; host 2 is first in scope for the expired token's version, so it gets
+		// nothing instead of falling through to the healthy version
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 20}, sent)
+	})
+
+	t.Run("a run that can't list VPP tokens returns the error without saving the cursor", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		f.ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return nil, errors.New("token can't be decrypted")
+		}
+
+		_, err := reconcile(f, ctx)
+		require.ErrorContains(t, err, "list vpp tokens")
+		require.False(t, f.ds.SetAppStoreAppConfigurationReconcileCursorFuncInvoked)
+	})
+
+	t.Run("an error on one App Store app is logged and the next app is still reconciled", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		versions := f.ds.GetAppStoreAppVersionsByFleetAndTitleFunc
+		f.ds.GetAppStoreAppVersionsByFleetAndTitleFunc = func(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
+			versionsByTitleIDByFleetID, err := versions(ctx, platforms)
+			versionsByTitleIDByFleetID[0][2] = []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: 20, HasLabels: true}}
+			return versionsByTitleIDByFleetID, err
+		}
+		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+			installByHostIDByTitleID, err := installs(ctx, fleetID, hostIDs, platforms)
+			installByHostIDByTitleID[2] = installByHostIDByTitleID[1]
+			return installByHostIDByTitleID, err
+		}
+		includedHostIDs := f.ds.GetIncludedHostIDMapForVPPAppHostsFunc
+		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+			if vppAppTeamID == 20 {
+				return nil, errors.New("read failed")
+			}
+			return includedHostIDs(ctx, vppAppTeamID, hostIDs)
+		}
+
+		// fail reading the label scope of another app's version, the host should still get version 10
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+	})
+
+	t.Run("hosts are checked in batches that continue from the cursor and start over after the last batch", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		lastHostID := uint(appStoreAppConfigurationReconcileBatchSize + 1)
+		for hostID := uint(1); hostID <= lastHostID; hostID++ {
+			addHost(f, hostID, 0)
+			install(f, hostID, 10)
+		}
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+
+		// run the cron, the first batch of hosts should get version 10 and the cursor should be set to its last host
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Len(t, sent, appStoreAppConfigurationReconcileBatchSize)
+		require.NotContains(t, sent, lastHostID)
+		require.Equal(t, lastHostID-1, f.cursor)
+
+		// run the cron again, only the last host should get version 10 and the cursor should be set back to the first host
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{lastHostID: 10}, sent)
+		require.Zero(t, f.cursor)
+	})
+
+	t.Run("a fleet whose App Store app installs can't be read doesn't stop other fleets or the cursor", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addFleet(f, 5)
+		addFleet(f, 6)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addVersion(f, 5, 20, `<dict/>`)
+		addVersion(f, 6, 30, `<dict/>`)
+		addHost(f, 1, 0)
+		addHost(f, 2, 5)
+		addHost(f, 3, 6)
+		install(f, 1, 10)
+		install(f, 2, 20)
+		install(f, 3, 30)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+			if fleetID == 6 {
+				return nil, errors.New("read failed")
+			}
+			return installs(ctx, fleetID, hostIDs, platforms)
+		}
+
+		// fail reading fleet 6's App Store app installs, the Unassigned host should still get version 10 and the cursor should be saved
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+		require.True(t, f.ds.SetAppStoreAppConfigurationReconcileCursorFuncInvoked)
+	})
+
+	t.Run("a run whose context ended returns the error without saving the cursor", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		endedCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		// run the cron with a context that already ended, as when the run times out, the run should fail and the cursor shouldn't be saved
+		_, err := reconcile(f, endedCtx)
+		require.ErrorIs(t, err, context.Canceled)
+		require.False(t, f.ds.SetAppStoreAppConfigurationReconcileCursorFuncInvoked)
+	})
+
+	t.Run("a Fleet Free instance reconciles nothing", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+
+		// run the cron on Fleet Free, the host should get nothing and no hosts should be read
+		sent, err := reconcile(f, license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree}))
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+		require.False(t, f.ds.ListIOSAndIPadOSMDMHostsAfterIDFuncInvoked)
 	})
 }

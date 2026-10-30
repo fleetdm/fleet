@@ -106,6 +106,10 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	// It's a Premium field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 
@@ -538,6 +542,9 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -626,6 +633,9 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -634,6 +644,8 @@ type SoftwareTitleListResult struct {
 // IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
 	"android_apps":        nil,
 	"apps":                nil,
 	"chocolatey_packages": nil,
@@ -643,6 +655,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"mcp_servers":         nil,
 	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,
@@ -737,6 +750,7 @@ type SoftwareTitleListOptions struct {
 	PackageName         string  `query:"package_name,optional"`
 	Source              string  `query:"source,optional"`
 	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -780,6 +794,7 @@ type HostSoftwareTitleListOptions struct {
 
 	Source       string `query:"source,optional"`
 	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -890,6 +905,7 @@ type SoftwareListOptions struct {
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 	Source                      string  `query:"source,optional"`
 	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -1063,6 +1079,7 @@ type VPPBatchPayload struct {
 	IconPath            string                    `json:"-"`
 	IconHash            string                    `json:"-"`
 	Platform            InstallableDevicePlatform `json:"platform"`
+	Location            string                    `json:"location,omitempty"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
@@ -1082,6 +1099,7 @@ type VPPBatchPayloadWithPlatform struct {
 	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
+	Location           string                    `json:"location,omitempty"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`

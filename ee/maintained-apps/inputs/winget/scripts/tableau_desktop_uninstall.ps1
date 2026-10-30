@@ -1,23 +1,31 @@
-# Tableau Desktop is a WiX Burn bundle. After install, the bundle EXE is cached
-# at C:\ProgramData\Package Cache\<bundle-guid>\tableau-setup-std-tableau-*.exe.
-# Running the cached bundle with /uninstall removes the product AND its ARP
-# registration in one shot. This avoids hunting the registry (per-machine vs
-# per-user hives, SYSTEM-context HKCU mismatch, etc.).
+# Tableau Desktop is a per-machine WiX Burn bundle. Running the cached bundle
+# recorded in its machine-wide (HKLM) ARP entry (BundleCachePath) with
+# /uninstall removes the product AND its ARP registration in one shot.
 #
 # Reference: https://silentinstallhq.com/tableau-desktop-2024-silent-uninstall-powershell/
 
-try {
-    $bundle = Get-ChildItem -Path "$env:ProgramData\Package Cache" `
-        -Recurse -Filter 'tableau-setup-std-tableau*.exe' -ErrorAction SilentlyContinue |
-        Select-Object -First 1
+$arpPaths = @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
 
-    if (-not $bundle) {
-        Write-Host "Tableau Desktop bundle not found in Package Cache."
+try {
+    $bundlePath = $null
+    foreach ($arpPath in $arpPaths) {
+        $entry = Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -like 'Tableau 20*' -and $_.BundleCachePath -and
+                (Test-Path -LiteralPath $_.BundleCachePath)
+        } | Select-Object -First 1
+        if ($entry) { $bundlePath = $entry.BundleCachePath; break }
+    }
+
+    if (-not $bundlePath) {
+        Write-Host "Tableau Desktop bundle not found in the uninstall registry."
         Exit 1
     }
 
-    Write-Host "Uninstalling: $($bundle.FullName)"
-    $p = Start-Process -FilePath $bundle.FullName `
+    Write-Host "Uninstalling: $bundlePath"
+    $p = Start-Process -FilePath $bundlePath `
         -ArgumentList '/uninstall', '/quiet', '/norestart' `
         -PassThru -Wait
     $exitCode = $p.ExitCode

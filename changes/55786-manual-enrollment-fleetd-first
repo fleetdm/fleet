@@ -1,0 +1,1 @@
+- Fixed fleetd installing only after all configuration profiles on manually enrolled Macs. Fleet now sends the fleetd install first, as it already does for automatic (ADE) enrollment.

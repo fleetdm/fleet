@@ -356,7 +356,7 @@ type Datastore interface {
 	ListHostUsers(ctx context.Context, hostID uint) ([]HostUser, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
-	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	SearchHosts(ctx context.Context, filter TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountAllHosts(ctx context.Context) (int, error)
@@ -371,6 +371,7 @@ type Datastore interface {
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
+	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
@@ -427,7 +428,9 @@ type Datastore interface {
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
-	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// When the host has no SCIM user, it resends the profiles that use the IdP username.
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
@@ -977,6 +980,10 @@ type Datastore interface {
 	// SetHostSoftwareInstallResult records the result of a software installation
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error)
 
+	// IncrementHostPolicyAutomationRunCount adds one finished run of a policy automation on a host to
+	// host_policy_automation_run_counts, under the type of the activity written for the run.
+	IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity ActivityDetails, succeeded bool) error
+
 	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
 	// installation attempt that will be retried, while keeping the original pending.
 	// It returns a deterministic execution ID for the failure record (unique per base
@@ -1203,6 +1210,16 @@ type Datastore interface {
 	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
 	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
+	// SetHostGoogleDeviceID binds the host to its device ID in Google and reports whether the stored value
+	// changed. Setting the stored value again is a no-op, a different value returns a
+	// *HostGoogleDeviceIDConflictError, and a value bound to another host returns a 409 error.
+	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+	// GetHostGoogleDeviceID returns the host's device ID in Google, or "" if it is not set.
+	GetHostGoogleDeviceID(ctx context.Context, hostID uint) (string, error)
+	// DeleteHostGoogleDeviceID removes the host's device ID in Google if it's still googleDeviceID, and
+	// reports whether it did.
+	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
@@ -1271,6 +1288,10 @@ type Datastore interface {
 	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
 	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
 	InitializePolicyViolationDays(ctx context.Context) error
+
+	// IncrementAIGeneratedProfileCount adds one to the cumulative count of configuration profiles generated
+	// for platform ("apple" or "windows") that is reported in usage statistics.
+	IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
@@ -1363,6 +1384,10 @@ type Datastore interface {
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// MarkSoftwareAsAITool flags the stored software rows matching the given software (by
+	// checksum) as AI tools. It never clears the flag.
+	MarkSoftwareAsAITool(ctx context.Context, software []Software) error
 
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
 	// 'reported', either inserts, updates or deletes the corresponding entries in the
@@ -1516,9 +1541,22 @@ type Datastore interface {
 	// or a not found error.
 	GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*Host, error)
 	// ReplaceHostDiskEncryptionKeyBlob swaps the stored ciphertext for another encryption of the same key, only if
-	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
-	// not archive the blob.
-	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
+	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged, clears the
+	// legacy WSTEP marker, does not archive the blob, and returns false when nothing matched.
+	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
+	// ListWSTEPEncryptedDiskEncryptionKeys returns up to limit Windows keys still encrypted to the WSTEP certificate by
+	// an older release and not yet marked undecryptable, ordered by host ID after afterHostID.
+	ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]HostDiskEncryptionKey, error)
+	// ListWSTEPEncryptedArchivedDiskEncryptionKeys is the archive counterpart, ordered by row ID after afterID.
+	ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]HostArchivedDiskEncryptionKey, error)
+	// ReplaceWSTEPEncryptedArchivedDiskEncryptionKey swaps an archived key for its server private key encryption and
+	// clears the marker, only if the stored ciphertext is still currentBase64Encrypted. Passing the same ciphertext
+	// clears the marker alone. It returns false when nothing matched.
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
+	// MarkWindowsDiskEncryptionKeysUndecryptable sets decryptable to false on the given keys, matched by host and
+	// stored ciphertext, which makes the server ask those hosts to escrow a new key. It also takes them out of the
+	// legacy queue. updated_at is unchanged.
+	MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []HostDiskEncryptionKey) error
 	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
 	// is still queued with no terminal result, or was requested less than staleAfter ago.
 	IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error)
@@ -2066,6 +2104,14 @@ type Datastore interface {
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
+
+	// ClaimHostsForRecoveryLockVerify returns hosts whose acknowledged SetRecoveryLock still needs
+	// its verify sent, each with a newly recorded verify command UUID to send it under.
+	ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]HostRecoveryLockVerifyClaim, error)
+
+	// UnclaimHostForRecoveryLockVerify releases a claim from ClaimHostsForRecoveryLockVerify whose
+	// verify couldn't be enqueued, so the next cron run claims the host again.
+	UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID string) error
 
 	// DeleteHostRecoveryLockPassword hard deletes the recovery lock password record for the given host.
 	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error
@@ -3141,6 +3187,11 @@ type Datastore interface {
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
+	// GetMDMProfileChecksums returns the MD5 of each Apple profile, declaration,
+	// and Windows profile stored for the team (0 for no team), keyed (lowercased)
+	// the way BatchSetMDMProfiles matches incoming profiles.
+	GetMDMProfileChecksums(ctx context.Context, teamID uint) (*MDMProfileChecksums, error)
+
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	// An OS-update (software update) declaration is tracked as the team's OS-update
 	// profile within the same transaction, failing if one already exists.
@@ -3564,21 +3615,38 @@ type Datastore interface {
 	// belongs to, on the same fleet and platform, first-added first.
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet whose inventory has the app, the version id
-	// of its latest install of the app that didn't fail, nil when that install has no version. A non-empty hostIDs limits it to those hosts.
-	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error)
+	// GetAppStoreAppVersionsByFleetAndTitle returns every App Store app version of the platforms on every fleet, first-added first and
+	// indexed by fleet id and then software title id, with only their app id, version id, whether they have labels, configuration and
+	// configuration change time.
+	GetAppStoreAppVersionsByFleetAndTitle(ctx context.Context, platforms []InstallableDevicePlatform) (AppStoreAppVersionsByFleetAndTitleID, error)
 
-	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the App Store app
-	// version waiting in the upcoming activities queue that hasn't activated yet.
-	GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
+	// ListHostAppStoreAppInstallVersions returns, for each App Store app a host has in inventory, the host's latest install that didn't
+	// fail and its upcoming install in upcoming_activities if there is one, indexed by software title id and then host id.
+	ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []InstallableDevicePlatform) (map[uint]map[uint]HostVPPInstallWithUpcoming, error)
+
+	// ListIOSAndIPadOSMDMHostsAfterID returns up to limit iOS and iPadOS hosts with MDM on whose id is after afterHostID,
+	// ordered by id, with only their id, uuid, serial number, platform and fleet.
+	ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*Host, error)
+
+	// GetAppStoreAppConfigurationReconcileCursor returns the id of the last host the App Store app configuration reconciler
+	// cron checked, or 0 to start from the first host.
+	GetAppStoreAppConfigurationReconcileCursor(ctx context.Context) (uint, error)
+
+	// SetAppStoreAppConfigurationReconcileCursor sets the id of the last host the App Store app configuration reconciler cron
+	// checked. 0 starts the next run from the first host.
+	SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error
+
+	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
+	// app version created at or after since.
+	GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
 
-	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
-	// given vpp_apps_teams row.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*VPPAppStatusSummary, error)
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary of the given versions of an app in a fleet,
+	// keyed by vpp_apps_teams id. Pass all versions of the app, a host counts once per status across them.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*VPPAppStoreApp) (map[uint]*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -4288,8 +4356,10 @@ type Datastore interface {
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
-	// certificate templates in 'pending' status ready for delivery.
-	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
+	// certificate templates in 'pending' status ready for delivery, limited to hosts
+	// whose device has applied its host-specific policy. Results are ordered by host UUID
+	// and start after afterHostUUID (empty for the first page).
+	ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx context.Context, afterHostUUID string, limit int) ([]string, error)
 
 	// GetAndTransitionCertificateTemplatesToDelivering retrieves all certificate templates
 	// with operation_type='install' for a host, transitions any pending ones to 'delivering' status.
@@ -4655,9 +4725,13 @@ type AndroidDatastore interface {
 	// version <= the provided policy version.
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
 
+	// ListHostMDMAndroidVPPAppsLatestFailedInstall lists the Android VPP apps
+	// whose most recent install on the host failed.
+	ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*HostAndroidVPPSoftwareInstall, error)
+
 	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
-	// as verified. This is for Android hosts, where the verification uuid is not important,
-	// so the implementation generates a random one.
+	// as verified, clearing any earlier failure. This is for Android hosts, where the
+	// verification uuid is not important, so the implementation generates a random one.
 	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
 
 	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs
@@ -4833,18 +4907,18 @@ type SecretUsedError struct {
 func (c *SecretUsedError) Error() string {
 	if c.Entity.Type == "script" {
 		return fmt.Sprintf(
-			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
+			"%s is used by the %q script in the %q fleet. Please edit or delete the script and try again.",
 			c.SecretName, c.Entity.Name, c.Entity.TeamName,
 		)
 	}
 	if c.Entity.Type == "host_name_template" {
 		return fmt.Sprintf(
-			"%s is used by the host name template in the %q team. Please edit or clear the host name template and try again.",
+			"%s is used by the host name template in the %q fleet. Please edit or clear the host name template and try again.",
 			c.SecretName, c.Entity.TeamName,
 		)
 	}
 	return fmt.Sprintf(
-		"%s is used by the %q configuration profile in the %q team. Please delete the configuration profile and try again.",
+		"%s is used by the %q configuration profile in the %q fleet. Please delete the configuration profile and try again.",
 		c.SecretName, c.Entity.Name, c.Entity.TeamName,
 	)
 }

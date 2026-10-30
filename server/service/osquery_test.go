@@ -6203,6 +6203,129 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ai_tools rows are merged after the other extra queries",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":    fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+					{"name": "crush", "source": "ai_clis", "ai_type": "agents", "installed_path": "/Users/a/go/bin/crush"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json", "ai_tool": "1"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host without ai_tools results is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host in software_chrome is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_chrome": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host is replaced by the ai_tools match",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+				},
+			},
+		},
+		{
+			name:      "ai_tools rows can flag software added by the override queries",
+			host:      &fleet.Host{ID: 1, Platform: "windows"},
+			overrides: osquery_utils.SoftwareOverrideQueries,
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":                    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_windows_program_files_scan": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":                   fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+				},
+				hostDetailQueryPrefix + "software_windows_program_files_scan": []map[string]string{
+					{"path": `C:\Program Files\ChatGPT\ChatGPT.exe`, "filename": "ChatGPT.exe", "product_version": "1.2025.209"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "ChatGPT", "source": "ai_tools", "ai_type": "apps", "installed_path": `C:\Program Files\ChatGPT`},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+					{
+						"name": "ChatGPT.exe", "version": "1.2025.209", "source": "programs", "vendor": "",
+						"installed_path": `C:\Program Files\ChatGPT`, "extension_id": "", "extension_for": "",
+						"upgrade_code": "", "release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+						"ai_tool": "1",
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
@@ -6562,10 +6685,10 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 
 	var installCalled bool
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installCalled = true
 			return "command-uuid", nil
 		},
@@ -6654,10 +6777,10 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 		installPolicyIDs []uint
 	)
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installs = append(installs, vppApp.AdamID)
 			if opts.PolicyID != nil {
 				installPolicyIDs = append(installPolicyIDs, *opts.PolicyID)
@@ -6736,6 +6859,82 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", outOfScope, noNewlyFailing))
 	require.Empty(t, installs, "an out-of-scope app must not be installed")
 	require.Nil(t, outOfScope[policyID], "an out-of-scope app must clear the policy result")
+}
+
+// TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp verifies that an install failing
+// on one app's bound token does not stop another app on the same host, bound to a valid token, from
+// queuing.
+func TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		hostID        = uint(42)
+		expiredTokID  = uint(2)
+		validTokID    = uint(3)
+		expiredAdamID = "adam-expired"
+		validAdamID   = "adam-valid"
+	)
+	titleIDs := map[string]uint{expiredAdamID: 10, validAdamID: 11}
+	tokenIDs := map[uint]uint{10: expiredTokID, 11: validTokID}
+
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		// The expired app sorts first, so the valid one is only reached if the loop continues.
+		return []fleet.PolicyVPPData{
+			{ID: 1, AdamID: expiredAdamID, Platform: fleet.MacOSPlatform},
+			{ID: 2, AdamID: validAdamID, Platform: fleet.MacOSPlatform},
+		}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+	}
+	empty := func(ctx context.Context, hostID uint) (map[string]struct{}, error) { return map[string]struct{}{}, nil }
+	ds.MapAdamIDsPendingInstallFunc = empty
+	ds.MapAdamIDsQueuedInstallsFunc = empty
+	ds.MapAdamIDsRecentlyVerifiedInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{TitleID: titleIDs[adamID], AdamID: adamID, Platform: platform}, nil
+	}
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{
+			10: {VPPAppTeamID: 1, AdamID: expiredAdamID, InScope: true},
+			11: {VPPAppTeamID: 2, AdamID: validAdamID, InScope: true},
+		}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		adamID := expiredAdamID
+		if titleID == 11 {
+			adamID = validAdamID
+		}
+		return &fleet.VPPApp{
+			TitleID:    titleID,
+			AppTeamID:  vppAppTeamID,
+			AdamID:     adamID,
+			Platform:   fleet.MacOSPlatform,
+			VPPTokenID: new(tokenIDs[titleID]),
+		}, nil
+	}
+
+	var installedTokenIDs []uint
+	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
+		},
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			if *vppApp.VPPTokenID == expiredTokID {
+				return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+			}
+			installedTokenIDs = append(installedTokenIDs, *vppApp.VPPTokenID)
+			return "command-uuid", nil
+		},
+	})
+
+	failing := map[uint]*bool{1: new(false), 2: new(false)}
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{1: {}, 2: {}}))
+	require.Equal(t, []uint{validTokID}, installedTokenIDs)
 }
 
 // TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience verifies that a failing install-software policy does

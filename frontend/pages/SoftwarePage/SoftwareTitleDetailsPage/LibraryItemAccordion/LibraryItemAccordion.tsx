@@ -339,8 +339,8 @@ const LibraryItemAccordion = ({
         !!isIosOrIpadosApp,
         !!isAndroidPlayStoreApp
       ),
-      // Both icons open the same modal (version for multi-version rows, package otherwise); the glyph is the context cue.
-      ariaLabel: canActivateMultipleVersions ? "Edit version" : "Edit package",
+      // Opens the row's Edit version modal; the glyph is the context cue.
+      ariaLabel: "Edit version",
       onClick: onSelfServiceClick,
       canClick: canEditSoftware,
     });
@@ -491,7 +491,12 @@ const LibraryItemAccordion = ({
 
   const getStatusCountTooltip = () => {
     if (isAndroidApp) {
-      return <>Latest status from the Google Play Store</>;
+      return (
+        <>
+          Latest status from setup experience. Doesn&apos;t include apps
+          installed via self service.
+        </>
+      );
     }
 
     if (isTarballPackage) {

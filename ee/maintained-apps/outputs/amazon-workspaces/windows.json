@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.35.0.3249",
+      "version": "5.36.0.3628",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc' AND version_compare(version, '5.35.0.3249') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc' AND version_compare(version, '5.36.0.3628') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon workspaces.exe');"
       },
       "installer_url": "https://d2td7dqidlhjx7.cloudfront.net/prod/global/windows/Amazon+WorkSpaces.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "24059738",
-      "sha256": "4f896a0bec4a0bdbb47a66808ebf0c98f11b89313fec9a277ea95f2bb3326d24",
+      "sha256": "87fdccd77bf5b5eafdc9206cc172b6b748c6338b66d61d57df51239750fae274",
       "default_categories": [
         "Productivity"
       ],

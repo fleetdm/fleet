@@ -2,7 +2,7 @@ package fleet
 
 import (
 	"context"
-	"time"
+	"slices"
 )
 
 // EJBCA is what Fleet needs to enroll certificates from an EJBCA instance over its REST API with mutual TLS. Callers expand the Fleet
@@ -26,15 +26,65 @@ type EJBCA struct {
 	CertificateCommonName         string   `json:"certificate_common_name"`
 	UsernameTemplate              string   `json:"username_template"`
 	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
+
+	// ClientP12 is the base64 PKCS#12 with the client certificate and key, and Password opens it.
+	ClientP12 string `json:"client_p12,omitempty"`
+	Password  string `json:"password,omitempty"`
 }
 
-type EJBCACertificate struct {
-	PfxData        []byte
-	Password       string
-	NotValidBefore time.Time
-	NotValidAfter  time.Time
-	SerialNumber   string
+// Equals checks if two EJBCA CAs have the same settings, client certificate, and key, which the caller reads out of ClientP12 first.
+func (e *EJBCA) Equals(other *EJBCA) bool {
+	return e.Name == other.Name &&
+		e.URL == other.URL &&
+		e.MTLSCertPEM == other.MTLSCertPEM &&
+		e.MTLSKeyPEM == other.MTLSKeyPEM &&
+		e.TrustCABundlePEM == other.TrustCABundlePEM &&
+		e.CertificateAuthorityName == other.CertificateAuthorityName &&
+		e.CertificateProfileName == other.CertificateProfileName &&
+		e.EndEntityProfileName == other.EndEntityProfileName &&
+		e.CertificateCommonName == other.CertificateCommonName &&
+		e.UsernameTemplate == other.UsernameTemplate &&
+		slices.Equal(e.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames)
 }
+
+func (e *EJBCA) Preprocess() {
+	e.Name = Preprocess(e.Name)
+	e.URL = Preprocess(e.URL)
+	e.CertificateAuthorityName = Preprocess(e.CertificateAuthorityName)
+	e.CertificateProfileName = Preprocess(e.CertificateProfileName)
+	e.EndEntityProfileName = Preprocess(e.EndEntityProfileName)
+}
+
+// EJBCAUpdatePayload changes the fields it sets and leaves the others as they are.
+type EJBCAUpdatePayload struct {
+	Name                          *string   `json:"name"`
+	URL                           *string   `json:"url"`
+	ClientP12                     *string   `json:"client_p12"`
+	Password                      *string   `json:"password"`
+	TrustCABundle                 *string   `json:"trust_ca_bundle"`
+	CertificateAuthorityName      *string   `json:"certificate_authority_name"`
+	CertificateProfileName        *string   `json:"certificate_profile_name"`
+	EndEntityProfileName          *string   `json:"end_entity_profile_name"`
+	CertificateCommonName         *string   `json:"certificate_common_name"`
+	UsernameTemplate              *string   `json:"username_template"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (p EJBCAUpdatePayload) IsEmpty() bool {
+	return p == EJBCAUpdatePayload{}
+}
+
+func (p *EJBCAUpdatePayload) Preprocess() {
+	for _, field := range []*string{p.Name, p.URL, p.CertificateAuthorityName, p.CertificateProfileName, p.EndEntityProfileName} {
+		if field != nil {
+			*field = Preprocess(*field)
+		}
+	}
+}
+
+// EJBCACertificate is the certificate EJBCA issued for a host.
+type EJBCACertificate = IssuedCertificate
 
 type EJBCAService interface {
 	// VerifyConnection checks that EJBCA accepts the client certificate, that the CA is one it may use, and, when EJBCA can look it up,

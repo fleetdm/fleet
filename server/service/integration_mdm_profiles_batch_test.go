@@ -143,7 +143,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	<array/>`),
 		},
 	}}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: XML syntax error")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent)
@@ -428,6 +428,10 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
 			expectErr: "More than one configuration profile have the same name 'N1'",
+		},
+		{
+			payload:   []fleet.MDMProfileBatchPayload{{Name: "Bêta", Contents: winBytes}, {Name: "beta", Contents: syncMLForTest("./Foo/Baz")}},
+			expectErr: "More than one configuration profile have the same name 'beta'",
 		},
 	} {
 		// team profiles

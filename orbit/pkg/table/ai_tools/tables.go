@@ -42,13 +42,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/apps"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/browserext"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/ide"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/instructions"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/mcp"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/netsock"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 // allTypes is the set of values the `type` column can take.

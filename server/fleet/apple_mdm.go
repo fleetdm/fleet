@@ -1808,12 +1808,13 @@ type MDMAppleEnrolledDeviceInfo struct {
 }
 
 type AppleMDMVPPInstaller interface {
-	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
-	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	// CheckCanInstallVPPApps returns an error if the host can't be a target for VPP apps
+	CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) error
 
-	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	// InstallVPPAppPostValidation installs a VPP app using the token the app is bound to, assuming that
+	// CheckCanInstallVPPApps has passed.
 	// Returns the command UUID of the installation.
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 }
 
 const (
@@ -1890,6 +1891,13 @@ type HostRecoveryLockPending struct {
 	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
 	OperationType            MDMOperationType `db:"operation_type"`
 	Retries                  int              `db:"retry"`
+}
+
+// HostRecoveryLockVerifyClaim is a host claimed to have its recovery lock verify sent.
+type HostRecoveryLockVerifyClaim struct {
+	HostUUID          string           `db:"host_uuid"`
+	OperationType     MDMOperationType `db:"operation_type"`
+	VerifyCommandUUID string           `db:"-"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
