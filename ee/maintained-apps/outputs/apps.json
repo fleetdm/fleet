@@ -8528,6 +8528,13 @@
       "description": "Superkey is a tool to search and click text anywhere on screen."
     },
     {
+      "name": "Superset",
+      "slug": "superset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superset.desktop",
+      "description": "Superset is a terminal for orchestrating AI coding agents."
+    },
+    {
       "name": "superwhisper",
       "slug": "superwhisper/darwin",
       "platform": "darwin",

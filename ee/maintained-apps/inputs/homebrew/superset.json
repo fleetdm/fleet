@@ -1,0 +1,8 @@
+{
+  "name": "Superset",
+  "unique_identifier": "com.superset.desktop",
+  "token": "superset",
+  "installer_format": "dmg",
+  "slug": "superset/darwin",
+  "default_categories": ["Developer tools"]
+}
