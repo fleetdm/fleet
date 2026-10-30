@@ -3009,7 +3009,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {
-		var profilesWithoutSecrets []fleet.MDMProfileBatchPayload
+		profilesWithoutSecrets := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
 		for _, p := range profiles {
 			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
 				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
