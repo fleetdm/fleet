@@ -85,36 +85,21 @@ Do not add the `:help-solutions-consulting` label to FMA-related issues. That la
 
 #### Handle a security report
 
-The security triage DRI (see [rituals](https://fleetdm.com/handbook/engineering#rituals)) watches every intake channel, confirms each report, talks to the reporter, and files the report in the private [fleetdm/security](https://github.com/fleetdm/security) repo. Engineers pick up from the filed issue. The DRI doesn't write the fix, but does need maintainer access to fleetdm/security and [fleetdm/confidential](https://github.com/fleetdm/confidential), staff access to Fleet's [vulnerability disclosure program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3), and access to the security inbox named in the [repository security policy](https://github.com/fleetdm/fleet/security/policy).
+Security reports arrive through Fleet's [vulnerability disclosure program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3), [GitHub security advisories](https://github.com/fleetdm/fleet/security/advisories) on fleetdm/fleet, and the security inbox named in the [repository security policy](https://github.com/fleetdm/fleet/security/policy). The security triage DRI (see [rituals](https://fleetdm.com/handbook/engineering#rituals)) checks all three every business day, confirms each report, talks to the reporter, and files valid findings in the private [fleetdm/security](https://github.com/fleetdm/security) repo. Engineers pick up from the filed issue. The DRI doesn't write the fix.
 
-To triage with Claude Code, open the fleetdm/fleet repo and run `/security-triage`. The skill follows this section step by step. Run it once a day for the intake pass, and again for each new report or reporter reply. If the skill and this section ever disagree, follow this section and fix the skill.
+**Triage with Claude Code.** Open the fleetdm/fleet repo in Claude Code and run `/security-triage`. The skill walks you through the daily intake pass and each report after that: acknowledging the reporter, checking for duplicates, verifying the claim against `main`, rating severity, filing the fleetdm/security issue with the right labels and assignee, and keeping the reporter updated until the fix ships. Run it once a day for the intake pass, and again whenever a new report or reporter reply comes in. To do this work, the DRI needs maintainer access to fleetdm/security and [fleetdm/confidential](https://github.com/fleetdm/confidential), staff access to the Bugbop program, and access to the security inbox.
 
-**Where reports come from.** Check all three at least once every business day:
+**When triage is done.** Every report ends in one of two places. Either it's closed and the reporter has been told why, or it's filed as a fleetdm/security issue with the `security` label, a priority label (`p0` through `p4`), the owning product group label, the group's Engineering Manager assigned, a card on the group's board, and the status "🥚 Ready" on the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113). From there, the EM owns the fix. The priority label and assignee are what compliance tracking and the daily SLA digest in #help-security read, so an issue without them is invisible to both.
 
-- Bugbop: new reports, and new comments on open reports, in Fleet's vulnerability disclosure program and private bug bounty program.
-- GitHub security advisories: advisories in the "triage" state on [fleetdm/fleet](https://github.com/fleetdm/fleet/security/advisories), opened by outside researchers.
-- The security inbox: coordinated disclosures sent directly, sometimes PGP-encrypted.
+**Decisions the CTO makes.** Publishing advisories, requesting CVEs, setting bounties, accepting risk, and rating anything `p1` are the CTO's calls. Bring them to the CTO with a short summary and a recommendation. Fleet's disclosure program doesn't pay cash bounties. Reporters get credit on the published advisory and swag through [fleetdm.com/swag](https://fleetdm.com/swag).
 
-Internal findings (pen tests, automated scans, code review) also become fleetdm/security issues, but they skip the reporter communication steps.
-
-**Triage each report:**
-
-1. Acknowledge the reporter within one business day, even if the only news is that the report is being reviewed. Reporters who hear nothing escalate or publish.
-2. Check for duplicates before filing. Search open and closed issues in fleetdm/security and fleetdm/confidential for the endpoint, parameter, and function names in the report, not only the title. The same bug often arrives from several reporters with different wording. If it's a duplicate, link the new report to the existing issue and tell the reporter, crediting whoever reported it first.
-3. Confirm the claim against current `main` where you can, and write down what you verified and what you didn't. Reports from scanners and AI tools often describe behavior that was already fixed or that needs a privilege the attacker wouldn't have.
-4. Rate severity using the [vulnerability management policy](https://fleetdm.com/handbook/it/security#vulnerability-management). Two rules of thumb: a finding that needs a privilege the attacker already holds (for example, global admin) is hardening rather than a vulnerability unless it lets them exceed that privilege, and a finding that needs an enrolled device or an enroll secret can still be High if it reaches other hosts or fleets.
-5. File one issue per distinct root cause with the [security report issue form](https://github.com/fleetdm/security/issues/new?template=security-report.yml). Put the severity in the title (`Report [High]: ...`). Apply the `security` label, a priority label (`p0` through `p4`, matching the severity), and the owning product group label (`#g-*`). Assign the group's Engineering Manager, then add the issue to that product group's board. The `security` label adds the issue to the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113) automatically, but not to the group's board. The priority label and assignee are what compliance tracking and the daily SLA digest in #help-security read, so an issue without them is invisible to both.
-6. Keep customer identity out of fleetdm/security. If a report names or otherwise identifies a Fleet customer, keep that context in fleetdm/confidential and link to it. Never copy customer-identifying details or `customer-*` labels into fleetdm/security.
-
-**Hand-off.** Triage ends in one of two places. Either the report is closed and the reporter has been told why, or it is filed as a fleetdm/security issue with the `security` label, a priority label, a product group label, the group's Engineering Manager assigned, a card on the group's board, and the status "🥚 Ready" on the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113). From there, the EM owns the fix. The DRI keeps talking to the reporter until the fix ships and closes the issue when the fix merges (see below). Publishing advisories, requesting CVEs, setting bounties, accepting risk, and rating anything `p1` are the CTO's decisions. Bring those to the CTO with a short summary and a recommendation.
-
-**Communicate with the reporter.** Fleet's disclosure program doesn't pay cash bounties. Offer credit on the published advisory (ask for their GitHub username) and swag through [fleetdm.com/swag](https://fleetdm.com/swag). Update the reporter when the fix merges and again when it ships, naming the release. Don't share one reporter's details with another, and never describe the vulnerability in a public pull request or commit.
+**Keep customers and vulnerability details private.** If a report names or otherwise identifies a Fleet customer, keep that context in fleetdm/confidential and link to it. Never copy customer-identifying details or `customer-*` labels into fleetdm/security. Never describe the vulnerability in a public pull request, commit, or changes file.
 
 **Severity timelines:**
 
-- **Critical** — Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
-- **High** — Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
-- **Medium** — Address in the next minor release.
+- **Critical:** Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
+- **High:** Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
+- **Medium:** Address in the next minor release.
 
 The remediation deadlines Fleet commits to are in the [vulnerability management policy](https://fleetdm.com/handbook/it/security#vulnerability-management). When a fix will miss one, the CTO documents an exception on the issue following that policy before the deadline passes, not after.
 
@@ -122,9 +107,9 @@ The remediation deadlines Fleet commits to are in the [vulnerability management 
 
 When a patch release branch has already been cut to ship previously fixed High issues, newly reported High issues should be scheduled for the patch release *after* the in-flight one. This keeps the in-flight patch focused and avoids destabilizing it with last-minute additions.
 
-**Exception — high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
+**Exception for high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
 
-**Close the issue when the fix merges.** Closing is what stops the compliance clock, so close the fleetdm/security issue as soon as the fix merges to `main` and comment with the pull request link. The project boards move closed items to Done automatically, so move the item back to its release QA column (Awaiting QA or Ready for release) so the fix still goes through release QA. Before closing, add any advisory follow-ups (publish, credit, CVE request) to the advisory running list in fleetdm/confidential so they don't disappear with the issue.
+**Close the issue when the fix merges.** Closing the fleetdm/security issue is what stops the compliance clock, so it happens at merge, not at release. The `/security-triage` skill closes the issue, keeps the fix in release QA, and records the advisory follow-ups when you tell it a fix has merged.
 
 
 #### Stage a fix for a security report

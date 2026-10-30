@@ -39,7 +39,7 @@
   task: "Security report triage"
   startedOn: "2026-10-30"
   frequency: "Daily"
-  description: "Check Bugbop, GitHub security advisories, and the security inbox for new reports; acknowledge reporters, dedupe, rate severity, and file each report in fleetdm/security with a priority label, product group label, and assignee."
+  description: "Run the `/security-triage` Claude Code skill to check Bugbop, GitHub security advisories, and the security inbox, then triage each new report and reply."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#handle-a-security-report"
   dri: "lukeheath"
 - 
