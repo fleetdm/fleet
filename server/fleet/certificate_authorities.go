@@ -21,17 +21,20 @@ const (
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 	CAConfigEJBCA           CAConfigAssetType = "ejbca"
+	// CAConfigConditionalAccess marks certificates issued by Fleet's own conditional access SCEP server. It is a
+	// managed certificate type only, never a certificate authority admins configure.
+	CAConfigConditionalAccess CAConfigAssetType = "conditional_access"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA, CAConfigConditionalAccess}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
 // is not included as renewal does not need special support within the profile
 func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigConditionalAccess}
 }
 
 // SupportsRenewalID returns whether the CA type supports renewal IDs.

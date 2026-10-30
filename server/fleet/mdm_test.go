@@ -684,6 +684,7 @@ func TestHasCAVariables(t *testing.T) {
 		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
 		{"Smallstep proxy URL", []string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "my_ca"}, true},
 		{"Windows SCEP cert ID", []string{string(fleet.FleetVarSCEPWindowsCertificateID)}, true},
+		{"Conditional access SCEP URL", []string{string(fleet.FleetVarConditionalAccessSCEPURL)}, true},
 		{"mixed with CA", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarNDESSCEPChallenge)}, true},
 		{"unknown var", []string{"UNKNOWN_VAR"}, false},
 	}
