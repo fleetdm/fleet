@@ -2879,6 +2879,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &resolved)
 		}
 	}
+	if duplicates := getDuplicateNames(
+		result.Software.FleetMaintainedApps, func(a *fleet.MaintainedAppSpec) string {
+			return a.Slug
+		},
+	); len(duplicates) > 0 {
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate fleet_maintained_apps slugs: %v", duplicates))
+	}
 	for _, teamLevelPackage := range software.Packages {
 		// A single item in Packages can result in multiple SoftwarePackageSpecs being generated
 		var softwarePackageSpecs []*fleet.SoftwarePackageSpec
