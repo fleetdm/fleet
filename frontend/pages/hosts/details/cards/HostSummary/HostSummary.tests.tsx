@@ -280,6 +280,25 @@ describe("Host Summary section", () => {
       expect(label.nextElementSibling).toHaveTextContent("---");
     });
 
+    it("renders '---' when the browser doesn't support the host's timezone", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: "Not/AZone",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
     it("renders '---' on a macOS Premium host with no scheduled deadline", () => {
       const summaryData = createMockHostSummary({
         platform: "darwin",

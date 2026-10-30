@@ -23,7 +23,7 @@ WHERE neu.host_id = ?
 	AND neu.status IN (?, ?)
 	AND pna.software_title_id = ?
 	-- skip a notification that no longer patches the app because its policy changed patch option
-	AND (neu.kind = ?) = COALESCE(p.patch_deadline, 0)
+	AND IF(neu.kind = ?, p.patch_deadline <=> 1, p.id IS NULL OR p.notify_before_patching = 1)
 LIMIT 1
 `
 
@@ -84,7 +84,7 @@ WHERE neu.host_id = ?
 	AND neu.displayed_at IS NOT NULL
 	AND pna.software_title_id = ?
 	-- skip a notification that no longer patches the app because its policy changed patch option
-	AND (neu.kind = ?) = COALESCE(p.patch_deadline, 0)
+	AND IF(neu.kind = ?, p.patch_deadline <=> 1, p.id IS NULL OR p.notify_before_patching = 1)
 LIMIT 1
 `
 
@@ -296,7 +296,7 @@ SELECT
 	NULLIF(stdn.display_name, '') AS display_name_override,
 	COALESCE(si.version, '') AS installer_version,
 	sti.software_title_id IS NOT NULL AS has_icon,
-	(neu.kind = ?) <> COALESCE(p.patch_deadline, 0) AS policy_option_changed
+	NOT IF(neu.kind = ?, p.patch_deadline <=> 1, p.id IS NULL OR p.notify_before_patching = 1) AS policy_option_changed
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	JOIN hosts h ON h.id = neu.host_id
@@ -374,7 +374,7 @@ SELECT
 	pna.updated_in_inventory,
 	pna.created_at,
 	COALESCE(si.version, '') AS installer_version,
-	(neu.kind = ?) <> COALESCE(p.patch_deadline, 0) AS policy_option_changed
+	NOT IF(neu.kind = ?, p.patch_deadline <=> 1, p.id IS NULL OR p.notify_before_patching = 1) AS policy_option_changed
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	LEFT JOIN software_installers si ON si.id = pna.software_installer_id

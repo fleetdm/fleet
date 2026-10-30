@@ -645,25 +645,31 @@ export const internationalNumberFormat = (number: number): string => {
 
 /** Renders a deadline like "Tue, Nov 10 at 5:00 PM" (en-US) or
  * "Tue, 10 Nov at 17:00" (en-GB) in the host's timezone, with 12/24-hour
- * following the viewer's browser locale. */
+ * following the viewer's browser locale. Returns null when the browser doesn't
+ * know the host's timezone, since Intl throws a RangeError for it. */
 export const formatHostLocalDeadline = (
   deadlineISO: string,
   hostTimezone: string
-): string => {
+): string | null => {
   const date = new Date(deadlineISO);
   const locale = navigator.language;
-  const datePart = new Intl.DateTimeFormat(locale, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: hostTimezone,
-  }).format(date);
-  const timePart = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: hostTimezone,
-  }).format(date);
-  return `${datePart} at ${timePart}`;
+  try {
+    const datePart = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: hostTimezone,
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: hostTimezone,
+    }).format(date);
+    return `${datePart} at ${timePart}`;
+  } catch (e) {
+    if (e instanceof RangeError) return null;
+    throw e;
+  }
 };
 
 export const hostTeamName = (teamName: string | null): string => {

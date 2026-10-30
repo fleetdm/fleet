@@ -2691,14 +2691,20 @@ const TAGGED_TEMPLATES = {
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
-    const fleetName = details.fleet_name || "Unassigned";
     const daysLabel = formatWeekdayList(details.days ?? []);
     const time = details.time || "";
     return (
       <>
         {" "}
-        edited patch deadline for <b>{fleetName}</b> fleet to <b>{daysLabel}</b>{" "}
-        at <b>{time}</b>.
+        edited patch deadline for{" "}
+        {details.fleet_name ? (
+          <>
+            <b>{details.fleet_name}</b> fleet
+          </>
+        ) : (
+          <b>Unassigned</b>
+        )}{" "}
+        to <b>{daysLabel}</b> at <b>{time}</b>.
       </>
     );
   },

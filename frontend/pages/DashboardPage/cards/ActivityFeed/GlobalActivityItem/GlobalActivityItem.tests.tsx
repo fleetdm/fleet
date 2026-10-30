@@ -3755,7 +3755,7 @@ describe("opt-in configuration profile activities", () => {
         <GlobalActivityItem activity={activity} isPremiumTier />
       );
       expect(container).toHaveTextContent(
-        "edited patch deadline for Unassigned fleet to Tuesday at 17:00."
+        "edited patch deadline for Unassigned to Tuesday at 17:00."
       );
     });
 
