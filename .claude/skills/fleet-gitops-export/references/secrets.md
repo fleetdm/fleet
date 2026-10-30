@@ -8,9 +8,9 @@ For the dry run, `validate` builds the values in memory and passes them only to 
 |---|---|
 | **API** | Read from Fleet with a GET (the value is identical to what Fleet has, so the dry run compares like with like) |
 | **Mask** | Fleet only returns `********` for this value. The dry run uses that mask, which Fleet treats as "keep the stored value". In CI the variable needs the real value. |
-| **User** | Fleet never returns it. Taken from the user's shell if set; otherwise a placeholder, and the report says those files weren't checked with the real value. |
+| **User** | Fleet never returns it. Taken from the repo's `.env` (or `--env-file`), then the environment; otherwise a placeholder, and the report says those files weren't checked with the real value. |
 
-A value the user already exported in their shell wins over the mask for masked values.
+For masked values, a value in `.env` or the environment wins over the mask. Empty entries in `.env` count as unset.
 
 | Value | Variable | Where | Dry-run source |
 |---|---|---|---|

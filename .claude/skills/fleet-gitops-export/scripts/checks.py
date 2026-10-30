@@ -110,6 +110,34 @@ def unescape_env(text: str) -> str:
     return re.sub(r"(\\+)\$", lambda m: m.group(0) if len(m.group(1)) % 2 == 0 else "\\" * ((len(m.group(1)) - 1) // 2) + "$", text)
 
 
+def read_env_file(path: Path) -> dict:
+    """NAME=value lines from a .env file (optional `export`, quotes, multi-line quoted values).
+
+    Empty values are dropped, so an untouched copy of .env.example sets nothing.
+    """
+    values, name, quote, buf = {}, None, None, []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if quote:
+            if line.endswith(quote):
+                values[name] = "\n".join(buf + [line[:-1]])
+                quote = None
+            else:
+                buf.append(line)
+            continue
+        m = re.match(r"\s*(?:export\s+)?([A-Za-z_]\w*)=(.*)$", line)
+        if not m:
+            continue
+        name, val = m.group(1), m.group(2).strip()
+        if val[:1] in ("'", '"'):
+            if len(val) > 1 and val.endswith(val[0]):
+                values[name] = val[1:-1]
+            else:
+                quote, buf = val[0], [val[1:]]
+            continue
+        values[name] = re.sub(r"\s+#.*$", "", val)
+    return {k: v for k, v in values.items() if v}
+
+
 class Checker:
     def __init__(self, root: Path, plan: dict, log=print):
         self.root = Path(root)
@@ -336,10 +364,16 @@ class Checker:
 
     # ------------------------------------------------------------ dry run
 
-    def dry_run_env(self, api: API) -> tuple[dict, list]:
+    def dry_run_env(self, api: API, env_file: Path | None = None) -> tuple[dict, list]:
         env = dict(os.environ)
         notes = []
         cache: dict = {}
+        # Agents often run commands in a shell the user can't export into, so values only the
+        # user has come from the repo's gitignored .env first.
+        local = read_env_file(env_file) if env_file else {}
+
+        def given(name):
+            return local.get(name) or os.environ.get(name)
 
         def get(path, params=None):
             key = (path, json.dumps(params or {}, sort_keys=True))
@@ -376,14 +410,15 @@ class Checker:
                     item = item[src["index"]] if isinstance(item, list) else item
                     val = item[src["field"]]
                 elif t == "mask":
-                    val = os.environ.get(name) or MASK
-                    if not os.environ.get(name):
+                    val = given(name)
+                    if not val:
+                        val = MASK
                         notes.append(f"{name}: Fleet only returns this value masked; the dry run used Fleet's mask, which Fleet treats as unchanged")
                 else:
-                    val = os.environ.get(name)
+                    val = given(name)
                     if not val:
                         val = PLACEHOLDER
-                        notes.append(f"{name}: not set in this shell; the dry run used a placeholder, so files using it weren't checked with the real value")
+                        notes.append(f"{name}: not set in .env or the environment; the dry run used a placeholder, so files using it weren't checked with the real value")
             except (KeyError, IndexError, TypeError, FleetctlError) as ex:
                 val = PLACEHOLDER
                 notes.append(f"{name}: couldn't read it from Fleet ({ex}); the dry run used a placeholder")
@@ -394,8 +429,8 @@ class Checker:
             env[name] = "" if val is None else str(val)
         return env, notes
 
-    def dry_run(self, api: API, fleetctl):
-        env, notes = self.dry_run_env(api)
+    def dry_run(self, api: API, fleetctl, env_file: Path | None = None):
+        env, notes = self.dry_run_env(api, env_file)
         files = ["default.yml"] + sorted("fleets/" + p.name for p in (self.root / "fleets").glob("*.yml"))
         r = fleetctl.gitops_dry_run(files, cwd=str(self.root), env=env)
         out = (r.stdout.decode(errors="replace") + r.stderr.decode(errors="replace"))

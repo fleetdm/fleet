@@ -6,9 +6,9 @@ Usage:
   gitops_export.py scaffold  --dir DIR --org-name NAME [--force]
   gitops_export.py export    --dir DIR
   gitops_export.py place     --dir DIR
-  gitops_export.py validate  --dir DIR [--offline] [--no-dry-run]
+  gitops_export.py validate  --dir DIR [--env-file FILE] [--offline] [--no-dry-run]
   gitops_export.py report    --dir DIR
-  gitops_export.py all       --dir DIR --org-name NAME [--force]
+  gitops_export.py all       --dir DIR --org-name NAME [--force] [--env-file FILE]
   gitops_export.py clean     --dir DIR
 
 Connection flags (any command): --fleetctl PATH, --config FILE, --context NAME.
@@ -17,8 +17,12 @@ They're remembered for the directory after the first command.
 Read-only against Fleet: every call is a GET through `fleetctl api`, and the
 only `fleetctl gitops` run is a --dry-run. Work files (the plan, downloaded
 artifacts, validation results) go in an owner-only temp folder outside the
-repo, printed by each command. None of them hold secret values, but they do
-hold copies of profiles and scripts; `clean` deletes the folder.
+repo, printed by each command (--work picks another one; pass it to every
+command). None of them hold secret values, but they do hold copies of
+profiles and scripts; `clean` deletes the folder.
+
+Values Fleet can't return (FLEET_SECRET_* variables, masked tokens) come from
+the repo's .env, or --env-file, and then the environment. Nothing prints them.
 
 Needs Python 3.9+ and fleetctl 4.84.0+. PyYAML or Ruby enables the YAML checks.
 """
@@ -74,6 +78,23 @@ def session(args) -> tuple[Fleetctl, Path, Path]:
     conn = {k: getattr(args, k) or saved.get(k) for k in ("fleetctl", "config", "context")}
     saved_path.write_text(json.dumps(conn, indent=2))
     return Fleetctl(conn["fleetctl"] or "fleetctl", conn["config"], conn["context"]), target, work
+
+
+def need(work: Path, name: str, step: str) -> Path:
+    p = work / name
+    if not p.exists():
+        raise SystemExit(f"FAIL {p} doesn't exist; run `{step}` first, or pass --work with the folder an earlier command printed")
+    return p
+
+
+def dry_run_env_file(args, target: Path) -> Path | None:
+    if args.env_file:
+        p = Path(args.env_file).expanduser()
+        if not p.is_file():
+            raise SystemExit(f"FAIL --env-file {p} doesn't exist")
+        return p
+    p = target / ".env"
+    return p if p.is_file() else None
 
 
 def parse_version(v: str):
@@ -162,7 +183,7 @@ def cmd_scaffold(args) -> int:
 
 def cmd_export(args) -> int:
     fc, target, work = session(args)
-    layout = Layout.load(work / "layout.json")
+    layout = Layout.load(need(work, "layout.json", "scaffold"))
     snap = Collector(API(fc), log=lambda m: say(f"  {m}")).collect()
     blobs = work / "blobs"
     if blobs.exists():
@@ -182,8 +203,8 @@ def cmd_export(args) -> int:
 
 def cmd_place(args) -> int:
     fc, target, work = session(args)
-    layout = Layout.load(work / "layout.json")
-    plan = json.loads((work / "plan.json").read_text(encoding="utf-8"))
+    layout = Layout.load(need(work, "layout.json", "scaffold"))
+    plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
     try:
         Placer(plan, layout, work).place()
     except ValueError as e:
@@ -198,14 +219,16 @@ def cmd_place(args) -> int:
 
 def cmd_validate(args) -> int:
     fc, target, work = session(args)
-    plan = json.loads((work / "plan.json").read_text(encoding="utf-8"))
+    plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
+    env_file = None if args.no_dry_run else dry_run_env_file(args, target)
     ch = Checker(target, plan)
     ch.run_validator(offline=args.offline)
     if ch.load_repo():
         ch.references()
         ch.reconcile()
     if not args.no_dry_run:
-        ch.dry_run(API(fc), fc)
+        say(f"dry-run variables from {env_file} and the environment" if env_file else "dry-run variables from the environment (no .env in the repo)")
+        ch.dry_run(API(fc), fc, env_file)
     res = ch.summary()
     (work / "validation.json").write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")
     for section in ("static", "references", "reconcile"):
@@ -222,7 +245,7 @@ def cmd_validate(args) -> int:
 
 def cmd_report(args) -> int:
     fc, target, work = session(args)
-    plan = json.loads((work / "plan.json").read_text(encoding="utf-8"))
+    plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
     val_path = work / "validation.json"
     val = json.loads(val_path.read_text(encoding="utf-8")) if val_path.exists() else None
     text = render_report(target, plan, val)
@@ -328,10 +351,11 @@ def main():
             p.add_argument("--org-name")
             p.add_argument("--force", action="store_true", help="write into a non-empty directory (only with the user's OK)")
         if name in ("validate", "all"):
+            p.add_argument("--env-file", help="values Fleet can't return, for the dry run (default: the repo's .env)")
             p.add_argument("--offline", action="store_true", help="skip downloads in the fleet-gitops validator")
             p.add_argument("--no-dry-run", action="store_true")
     args = ap.parse_args()
-    for k in ("org_name", "force", "offline", "no_dry_run"):
+    for k in ("org_name", "force", "env_file", "offline", "no_dry_run"):
         if not hasattr(args, k):
             setattr(args, k, None)
     rc = {"preflight": cmd_preflight, "scaffold": cmd_scaffold, "export": cmd_export, "place": cmd_place,

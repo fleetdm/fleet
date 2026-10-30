@@ -282,8 +282,9 @@ class Placer:
     def _env_docs(self):
         env = self.plan["env"]
         lines = ["# Environment variables this GitOps repo uses. Set each one as a",
-                 "# repository secret (GitHub) or CI/CD variable (GitLab), and export",
-                 "# them locally before a dry run. Never commit real values.",
+                 "# repository secret (GitHub) or CI/CD variable (GitLab). For a local",
+                 "# dry run, copy this file to .env (git ignores it) and fill in values.",
+                 "# Never commit real values.",
                  "# FLEET_API_TOKEN isn't referenced in YAML but CI needs it to reach Fleet.", ""]
         for e in env:
             lines.append(f"# {e['description']}")

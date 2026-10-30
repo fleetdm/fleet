@@ -7,7 +7,8 @@ Ask your agent something like "migrate our Fleet config to GitOps" or "export Fl
 ## Requirements
 
 - `fleetctl` 4.84.0 or later, logged in to the Fleet instance as a global admin (`fleetctl login`, or `fleetctl config set --address … --token …`). Ideally the same version as the server.
-- Python 3.9 or later. PyYAML or Ruby enables the YAML parsing and repo-vs-Fleet checks.
+- Python 3.9 or later (on Windows, run it as `py -3` or `python`). PyYAML or Ruby enables the YAML parsing and repo-vs-Fleet checks.
+- Network access to the Fleet server from wherever your agent runs commands. If it runs them in a sandbox, allow network access there.
 
 ## Use it with your agent
 
@@ -23,6 +24,8 @@ python3 scripts/gitops_export.py all --dir ~/fleet-gitops --org-name "Acme, Inc.
 ```
 
 `all` runs `preflight`, `scaffold`, `export`, `place`, `validate`, and `report` in a row, and exits non-zero when validation fails. Run them one at a time to review the placement plan before anything is written. `clean` deletes the work folder afterward. See [SKILL.md](SKILL.md) for each step.
+
+To check custom variables (`FLEET_SECRET_*`) and masked tokens with their real values in the dry run, copy the exported repo's `.env.example` to `.env` (git ignores it), fill in the values, and re-run `validate`. It reads `.env`, or the file you pass with `--env-file`, then the environment.
 
 ## Tests
 

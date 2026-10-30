@@ -1,5 +1,6 @@
 """Offline tests for the export scripts. Run: python3 -m unittest discover -s scripts/tests"""
 
+import argparse
 import re
 import shutil
 import stat
@@ -12,7 +13,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import gitops_export  # noqa: E402
-from checks import Checker, yaml_backend  # noqa: E402
+from checks import PLACEHOLDER, Checker, read_env_file, yaml_backend  # noqa: E402
 from fleet_api import Fleetctl, FleetctlError  # noqa: E402
 from layout import Layout  # noqa: E402
 from placer import Placer, glob_match  # noqa: E402
@@ -22,6 +23,7 @@ from yamlio import Doc, EnvRef, _shell_name, dump, env_escape  # noqa: E402
 REPO = HERE.parents[4]
 TEMPLATES = REPO / "cmd/fleetctl/fleetctl/templates/new"
 DEPRECATIONS = REPO / "pkg/spec/gitops_deprecations.go"
+POINTER = REPO / ".agents/skills/fleet-gitops-export/SKILL.md"
 
 
 def fleetctl_expand(s: str, env: dict) -> str:
@@ -136,6 +138,44 @@ class CommandTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
+    def test_missing_work_files_fail_clearly(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl=None, config=None, context=None)
+            for cmd, step in ((gitops_export.cmd_export, "scaffold"), (gitops_export.cmd_place, "scaffold"),
+                              (gitops_export.cmd_validate, "export"), (gitops_export.cmd_report, "export")):
+                with self.subTest(cmd=cmd.__name__), self.assertRaises(SystemExit) as cm:
+                    cmd(args)
+                self.assertIn(f"run `{step}` first", str(cm.exception.code))
+        finally:
+            shutil.rmtree(tmp)
+
+
+class DryRunEnvTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_read_env_file(self):
+        f = self.tmp / ".env"
+        f.write_text("# comment\nFLEET_A=plain  # note\nexport FLEET_B='single $x'\nFLEET_C=\"multi\nline\"\nFLEET_EMPTY=\n\nnot an entry\n")
+        self.assertEqual(read_env_file(f), {"FLEET_A": "plain", "FLEET_B": "single $x", "FLEET_C": "multi\nline"})
+
+    def test_env_file_fills_values_fleet_cant_return(self):
+        f = self.tmp / ".env"
+        f.write_text("FLEET_SECRET_EXPORT_TEST_A=s3cr3t-from-file\nFLEET_EXPORT_TEST_TOKEN=s3cr3t-token\nFLEET_SECRET_EXPORT_TEST_B=\n")
+        plan = {"env": [{"name": "FLEET_SECRET_EXPORT_TEST_A", "source": {"type": "fleet_secret"}},
+                        {"name": "FLEET_EXPORT_TEST_TOKEN", "source": {"type": "mask"}},
+                        {"name": "FLEET_SECRET_EXPORT_TEST_B", "source": {"type": "fleet_secret"}}]}
+        env, notes = Checker(self.tmp, plan).dry_run_env(None, f)
+        self.assertEqual(env["FLEET_SECRET_EXPORT_TEST_A"], "s3cr3t-from-file")
+        self.assertEqual(env["FLEET_EXPORT_TEST_TOKEN"], "s3cr3t-token")
+        self.assertEqual(env["FLEET_SECRET_EXPORT_TEST_B"], PLACEHOLDER)
+        self.assertEqual(len(notes), 1)
+        self.assertNotIn("s3cr3t", " ".join(notes))
+
 
 class HelpersTest(unittest.TestCase):
     def test_slugify(self):
@@ -159,6 +199,14 @@ class HelpersTest(unittest.TestCase):
         for parent in ("server_settings", "org_info"):
             for old, new in re.findall(r'\{"org_settings\.' + parent + r'\.(\w+)", "org_settings\.' + parent + r'\.(\w+)"\}', text):
                 self.assertEqual(ALIASES[parent].get(old), new, f"{parent}.{old}")
+
+    @unittest.skipUnless(POINTER.exists(), "not inside the Fleet repository")
+    def test_agents_pointer_matches_skill(self):
+        def frontmatter(path):
+            return dict(re.findall(r"(?m)^([\w-]+): (.*)$", path.read_text(encoding="utf-8").split("---")[1]))
+        skill, pointer = frontmatter(HERE.parents[1] / "SKILL.md"), frontmatter(POINTER)
+        for key in ("name", "description", "compatibility"):
+            self.assertEqual(pointer.get(key), skill.get(key), key)
 
 
 def render_templates(dest: Path):
