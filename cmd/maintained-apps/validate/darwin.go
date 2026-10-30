@@ -191,6 +191,9 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	}
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
+	// Apps under /System ship with macOS, so they're never an FMA. Without this,
+	// short names match them (Dia matches Apple Diagnostics, whose bundle
+	// version "1" prefix-matches "1.55.1"), failing the post-uninstall check.
 	query := `
 		SELECT
 		  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
@@ -198,13 +201,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		  bundle_short_version,
 		  bundle_version
 		FROM apps
-		WHERE 
+		WHERE path NOT LIKE '/System/%' AND (
 		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
 		LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + appName + `%')
 	`
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
+	query += ")"
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
