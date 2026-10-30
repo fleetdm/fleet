@@ -3551,10 +3551,12 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	return nil
 }
 
+const mdmManagedCertificateCols = `profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at`
+
 func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
 	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at
+	SELECT `+mdmManagedCertificateCols+`
 	FROM host_mdm_managed_certificates
 	WHERE host_uuid = ?
 	`, hostUUID)
@@ -3570,7 +3572,7 @@ func (ds *Datastore) ListMDMManagedCertificatesForHostProfiles(ctx context.Conte
 			args = append(args, hp.HostUUID, hp.ProfileUUID)
 		}
 		stmt := `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at
+	SELECT ` + mdmManagedCertificateCols + `
 	FROM host_mdm_managed_certificates
 	WHERE (host_uuid, profile_uuid) IN (` + strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",") + `)`
 		var batchCerts []*fleet.MDMManagedCertificate
