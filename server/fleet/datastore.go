@@ -428,7 +428,9 @@ type Datastore interface {
 	// associated with the host with the provided one.
 	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// SetOrUpdateIDPHostDeviceMapping creates or updates an IDP device mapping for a host.
-	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
+	// When the host has no SCIM user, it resends the profiles that use the IdP username.
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
@@ -1207,6 +1209,16 @@ type Datastore interface {
 	ConditionalAccessClearBypasses(ctx context.Context) error
 	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
 	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
+
+	// SetHostGoogleDeviceID binds the host to its device ID in Google and reports whether the stored value
+	// changed. Setting the stored value again is a no-op, a different value returns a
+	// *HostGoogleDeviceIDConflictError, and a value bound to another host returns a 409 error.
+	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+	// GetHostGoogleDeviceID returns the host's device ID in Google, or "" if it is not set.
+	GetHostGoogleDeviceID(ctx context.Context, hostID uint) (string, error)
+	// DeleteHostGoogleDeviceID removes the host's device ID in Google if it's still googleDeviceID, and
+	// reports whether it did.
+	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -2092,6 +2104,14 @@ type Datastore interface {
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
+
+	// ClaimHostsForRecoveryLockVerify returns hosts whose acknowledged SetRecoveryLock still needs
+	// its verify sent, each with a newly recorded verify command UUID to send it under.
+	ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]HostRecoveryLockVerifyClaim, error)
+
+	// UnclaimHostForRecoveryLockVerify releases a claim from ClaimHostsForRecoveryLockVerify whose
+	// verify couldn't be enqueued, so the next cron run claims the host again.
+	UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID string) error
 
 	// DeleteHostRecoveryLockPassword hard deletes the recovery lock password record for the given host.
 	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error

@@ -24,29 +24,6 @@
   platform: darwin,linux
   calendar_events_enabled: false
 
-- name: macOS command-line TLS trust store excludes compromised eMudhra roots
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM file f
-      JOIN certificates c ON c.path = f.path
-      WHERE f.path = '/etc/ssl/cert.pem'
-        AND lower(c.sha1) IN (
-          '3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1',
-          'd1eb23a46d17d68fd92564c2f1f1601764d8e349'
-        )
-    );
-  critical: false
-  description: >-
-    macOS blocks the compromised eMudhra intermediates for Safari and apps that use Apple's TLS stack. The built-in
-    curl, git, python3, perl, ruby, and openssl use /etc/ssl/cert.pem instead and don't check revocation, so they
-    still trust certificates issued by the compromised intermediates.
-  resolution: >-
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the remove-emudhra-roots-macos-system.sh
-    script (it-and-security/lib/macos/scripts/remove-emudhra-roots-macos-system.sh) on this host. A macOS update can
-    restore /etc/ssl/cert.pem, so keep this policy in place until Apple ships an updated file.
-  platform: darwin
-  calendar_events_enabled: false
-
 - name: Linux system CA bundle excludes compromised eMudhra roots
   query: |
     SELECT 1 WHERE NOT EXISTS (

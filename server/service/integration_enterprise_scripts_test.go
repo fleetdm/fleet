@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -490,6 +491,21 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host_results", batchRes.BatchExecutionID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Param status is required")
+	s.Do("GET", "/api/latest/fleet/scripts/batch/00000000-0000-0000-0000-000000000000/host_results?status=ran", nil, http.StatusNotFound)
+
+	t.Run("fleet user gets 403 for an unknown batch", func(t *testing.T) {
+		u := &fleet.User{
+			Name:  "team1 observer",
+			Email: "team1-observer-batch@example.com",
+			Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+		s.Do("GET", "/api/latest/fleet/scripts/batch/00000000-0000-0000-0000-000000000000/host_results?status=ran", nil, http.StatusForbidden)
+	})
 
 	// List pending hosts
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host_results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
@@ -1632,6 +1648,11 @@ VALUES
 	})
 
 	t.Run("transfer team", func(t *testing.T) {
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  new(uint(999999)),
+			HostIDs: []uint{host1.ID},
+		}, http.StatusNotFound)
+
 		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 			TeamID:  &tm2.ID,
 			HostIDs: []uint{host1.ID},

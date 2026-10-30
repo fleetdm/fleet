@@ -2,6 +2,7 @@ package homebrew
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -111,6 +112,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
 	quitFallsBackToSignal := appQuit && appSignaled
 
+	var rmDirs []string
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
@@ -153,6 +155,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 			}
 			for _, u := range artifact.Uninstall {
 				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, quitFallsBackToSignal)
+				rmDirs = append(rmDirs, stanzaNames(u.RmDir)...)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -161,11 +164,31 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
 				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, quitFallsBackToSignal)
+				rmDirs = append(rmDirs, stanzaNames(z.RmDir)...)
 			}
 		}
 	}
+	removeEmptyDirs(sb, rmDirs)
 
 	return sb.String()
+}
+
+// removeEmptyDirs writes the cask rmdir directives. brew defers rmdir until
+// everything else, including every stanza's trash, has run, so a folder emptied
+// along the way can be removed. Deeper paths go first so that a listed parent is
+// tried after its listed children.
+func removeEmptyDirs(sb *scriptBuilder, dirs []string) {
+	if len(dirs) == 0 {
+		return
+	}
+	sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
+	sb.AddFunction("remove_empty_dir", removeEmptyDirFunc)
+	slices.SortStableFunc(dirs, func(a, b string) int {
+		return strings.Count(path.Clean(b), "/") - strings.Count(path.Clean(a), "/")
+	})
+	for _, dir := range dirs {
+		sb.Writef(`remove_empty_dir "$LOGGED_IN_USER" %s`, shellSingleQuote(dir))
+	}
 }
 
 // priority of uninstall directives is defined by homebrew here:
@@ -387,6 +410,8 @@ fi`, cdConsoleUserHome, quoted, quoted)
 	}
 }
 
+const loggedInUserVar = `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`
+
 // cdConsoleUserHome starts script directives in the console user's home, falling
 // back to / when there's none (e.g. at the login window, where the console user
 // is "loginwindow") so the directive still runs.
@@ -406,7 +431,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	}
 
 	addUserVar := func() {
-		sb.AddVariable("LOGGED_IN_USER", `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+		sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
 	}
 
 	process(u.LaunchCtl, func(lc string) {
@@ -477,11 +502,16 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	})
 
 	process(u.Delete, func(path string) {
+		if strings.HasPrefix(path, "~") {
+			if !isHomeSubpath(path) {
+				return
+			}
+			addUserVar()
+			sb.AddFunction("delete_user_path", deleteUserPathFunc)
+			sb.Writef(`delete_user_path "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
+			return
+		}
 		sb.RemoveFile(shellSingleQuote(path))
-	})
-
-	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
@@ -489,6 +519,17 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		sb.AddFunction("trash", trashFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
+}
+
+// isHomeSubpath reports whether p is a path under "~/" that's safe to delete
+// once "~" is resolved. Like brew, it rejects the home folder itself and paths
+// with "." or ".." segments, which could resolve outside the home folder.
+func isHomeSubpath(p string) bool {
+	segments := strings.Split(p, "/")
+	if segments[0] != "~" || slices.Contains(segments, ".") || slices.Contains(segments, "..") {
+		return false
+	}
+	return slices.ContainsFunc(segments[1:], func(s string) bool { return s != "" })
 }
 
 // caskQuitID returns the ID to quit for a cask uninstall quit entry. Some casks
@@ -1099,6 +1140,37 @@ const trashFunc = `trash() {
   else
     echo "$target_file doesn't exist."
   fi
+}`
+
+// removeEmptyDirFunc keeps rmdir's empty-only semantics: casks use rmdir for
+// folders that may hold user data, so a non-empty or missing directory is left
+// alone without failing the script. A quoted "~" never expands, so it's
+// resolved to the console user's home the same way trash does.
+const removeEmptyDirFunc = `remove_empty_dir() {
+  local logged_in_user="$1"
+  local dir="$2"
+
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+    dir="/Users/$logged_in_user${dir:1}"
+  fi
+
+  sudo rmdir "$dir" 2>/dev/null || true
+}`
+
+// deleteUserPathFunc deletes a cask "delete" path under the console user's
+// home. A quoted "~" never expands, so it's resolved the same way trash does
+// it, and the path is skipped when there's no GUI user. rm runs as the user:
+// they control every folder in the path, so as root it could follow a symlink
+// they planted to a file outside their home.
+const deleteUserPathFunc = `delete_user_path() {
+  local logged_in_user="$1"
+  local target="$2"
+
+  [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+  [[ "$target" == "~/"?* ]] || return 0
+  target="/Users/$logged_in_user${target:1}"
+  sudo -u "$logged_in_user" rm -rf "$target" || echo "Failed to remove $target."
 }`
 
 const sendSignalFunc = `send_signal() {

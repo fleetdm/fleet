@@ -707,7 +707,7 @@ type AppleOSUpdateSettings struct {
 	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
-	// Deadline the required installation date for Nudge to enforce the required
+	// Deadline is the required installation date to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
 	// DeadlineDays is the number of days after an OS version's release date
@@ -1863,6 +1863,7 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 

@@ -5,14 +5,13 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 ## `stable`
 
-| Component\OS |    macOS     | Linux  | Windows | Linux (arm64) | Windows (arm64) |
-|--------------|--------------|--------|---------|---------------|-----------------|
-| orbit        | 1.62.1       | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
-| desktop      | 1.62.1       | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
-| osqueryd     | 5.24.0       | 5.24.0 | 5.24.0  | 5.24.0        | 5.24.0          |
-| nudge        | 1.1.10.81462 | -      | -       | -             | -               |
-| swiftDialog  | 2.5.6        | -      | -       | -             | -               |
-| escrowBuddy  | 1.0.0        | -      | -       | -             | -               |
+| Component\OS | macOS  | Linux  | Windows | Linux (arm64) | Windows (arm64) |
+|--------------|--------|--------|---------|---------------|-----------------|
+| orbit        | 1.62.1 | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
+| desktop      | 1.62.1 | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
+| osqueryd     | 5.24.0 | 5.24.0 | 5.24.0  | 5.24.0        | 5.24.0          |
+| swiftDialog  | 2.5.6  | -      | -       | -             | -               |
+| escrowBuddy  | 1.0.0  | -      | -       | -             | -               |
 
 ## `edge`
 
@@ -20,7 +19,6 @@ Following are the currently deployed versions of fleetd components on the `stabl
 |--------------|--------|--------|---------|---------------|-----------------|
 | orbit        | 1.62.1 | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
 | desktop      | 1.62.1 | 1.62.1 | 1.62.1  | 1.62.1        | 1.62.1          |
-| osqueryd     | 5.24.0 | 5.24.0 | 5.24.0  | 5.24.0        | 5.24.0          |
-| nudge        | -      | -      | -       | -             | -               |
+| osqueryd     | 5.24.1 | 5.24.1 | 5.24.1  | 5.24.1        | 5.24.1          |
 | swiftDialog  | -      | -      | -       | -             | -               |
 | escrowBuddy  | -      | -      | -       | -             | -               |

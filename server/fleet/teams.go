@@ -442,6 +442,7 @@ type TeamSpecAppStoreApp struct {
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
+	Location           string                `json:"location,omitempty"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 	// Auto-update fields for VPP apps
