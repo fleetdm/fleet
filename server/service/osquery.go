@@ -83,8 +83,8 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		// Fall back to the orbit node key: with the WebSocket transport active,
-		// orbit calls the distributed endpoints on behalf of osquery and only
-		// has its own node key. Both keys resolve to the same host row, so
+		// orbit calls the distributed (and, with osquery/config nudges, config)
+		// endpoints on behalf of osquery and only has its own node key. Both keys resolve to the same host row, so
 		// authorization is unchanged. The fallback runs only on an osquery-key
 		// miss and only with the transport enabled, keeping legacy auth
 		// semantics (and the single-query hot path) intact otherwise.
@@ -447,6 +447,9 @@ type getClientConfigRequest struct {
 	// decoded from the body even in header-auth mode, where only node_key is
 	// ignored.
 	ETag *string `json:"etag"`
+
+	// fallbackChange is set from fleet.OsqueryConfigFallbackChangeHeader.
+	fallbackChange bool
 }
 
 func (r *getClientConfigRequest) hostNodeKey() string {
@@ -461,6 +464,7 @@ func (getClientConfigRequest) DecodeRequest(
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return nil, err
 	}
+	req.fallbackChange = r.Header.Get(fleet.OsqueryConfigFallbackChangeHeader) != ""
 	return req, nil
 }
 
@@ -559,6 +563,9 @@ func clientConfigETagMatches(clientETag *string, etag string) bool {
 
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getClientConfigRequest)
+	if req.fallbackChange {
+		recordOsqueryConfigFallbackChange(ctx)
+	}
 
 	// GetClientConfigWithETag may answer without building the config at all;
 	// see its interface docs in server/fleet/service.go for the contract.

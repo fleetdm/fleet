@@ -45,6 +45,7 @@ func TestQueries(t *testing.T) {
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
 		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
+		{"ScheduledQueriesDigest", testScheduledQueriesDigest},
 		{"LabelScopedScheduledQueryScopes", testLabelScopedScheduledQueryScopes},
 		{"QueryLabelsAtomic", testQueryLabelsAtomic},
 		{"ClearResultsThenCleanup", testQueriesClearResultsThenCleanup},
@@ -1718,6 +1719,74 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
+}
+
+func testScheduledQueriesDigest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-digest"})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test-digest", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	digest := func(teamID *uint) string {
+		d, err := ds.ScheduledQueriesDigest(ctx, teamID)
+		require.NoError(t, err)
+		return d
+	}
+	emptyGlobal, emptyTeam := digest(nil), digest(&team.ID)
+
+	q, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "global-scheduled",
+		Query:              "SELECT 1",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	global := digest(nil)
+	assert.NotEqual(t, emptyGlobal, global)
+	assert.Equal(t, emptyTeam, digest(&team.ID), "global reports don't change the team digest")
+	assert.Equal(t, global, digest(nil), "stable")
+
+	// Fields agents don't see don't change the digest.
+	q.Description = "new description"
+	q.ObserverCanRun = true
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.Equal(t, global, digest(nil))
+
+	// Unscheduled reports aren't in the config.
+	_, err = ds.NewQuery(ctx, &fleet.Query{Name: "unscheduled", Query: "SELECT 2", Saved: true, Logging: fleet.LoggingSnapshot})
+	require.NoError(t, err)
+	assert.Equal(t, global, digest(nil))
+
+	// Fields agents see do.
+	q.Interval = 120
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	changed := digest(nil)
+	assert.NotEqual(t, global, changed)
+
+	q.LabelsIncludeAny = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	scoped := digest(nil)
+	assert.NotEqual(t, changed, scoped)
+
+	q.LabelsIncludeAny = nil
+	q.LabelsIncludeAll = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, scoped, digest(nil))
+
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:     "team-scheduled",
+		Query:    "SELECT 1",
+		Saved:    true,
+		Interval: 60,
+		TeamID:   &team.ID,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	assert.NotEqual(t, emptyTeam, digest(&team.ID))
 }
 
 func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {

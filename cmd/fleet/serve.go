@@ -64,6 +64,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
+	"github.com/fleetdm/fleet/v4/server/datastore/osqueryconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -347,13 +348,20 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		// read nothing cached; their delay only batches them (see
 		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
-			LiveQuery:        liveQueryMemCacheDuration,
-			OrbitConfigHosts: orbitConfigHostsBatchWindow,
-			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			LiveQuery:          liveQueryMemCacheDuration,
+			OrbitConfigHosts:   orbitConfigHostsBatchWindow,
+			OrbitConfigScope:   cached_mysql.MaxOrbitConfigInputTTL(),
+			OsqueryConfigHosts: orbitConfigHostsBatchWindow,
+			// The pack config cache can be rebuilt from a stale cached app
+			// config read, so the two TTLs add up.
+			OsqueryConfigScope: cached_mysql.MaxConfigInputTTL() + service.PackConfigCacheTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {
 			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
 			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
+		if config.WebSocket.OsqueryConfigEnabled {
+			ds = osqueryconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "osqueryconfig-notify"))
 		}
 	}
 
@@ -732,16 +740,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub.InstanceID = instanceID
 		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
 
-		if config.WebSocket.OrbitConfigEnabled {
+		if config.WebSocket.ScopedNotificationsEnabled() {
 			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
 		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			switch {
 			case n.Scope != "":
 				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
-			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig, n.Type == fleet.AgentWSMessageTypeOsqueryConfig:
 				// Paced: a write can target thousands of hosts at once (e.g. a
-				// fleet-wide Windows MDM command).
+				// fleet-wide Windows MDM command, or hosts moved between fleets).
 				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
 			default:
 				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)

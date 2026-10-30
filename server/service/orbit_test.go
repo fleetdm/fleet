@@ -420,12 +420,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 }
 
 func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
-	setupCtx := func(wsEnabled, orbitConfigEnabled bool) (fleet.Service, context.Context) {
+	setupCtx := func(wsEnabled, orbitConfigEnabled bool, osqueryConfigEnabled ...bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.WebSocket.TransportEnabled = wsEnabled
 		cfg.WebSocket.OrbitConfigEnabled = orbitConfigEnabled
 		cfg.WebSocket.OrbitConfigPollInterval = 5 * time.Minute
+		cfg.WebSocket.OsqueryConfigEnabled = len(osqueryConfigEnabled) > 0 && osqueryConfigEnabled[0]
+		cfg.WebSocket.OsqueryConfigPollInterval = 10 * time.Minute
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
@@ -473,6 +475,18 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.NotNil(t, cfg.WebSocketTransport)
 		require.True(t, cfg.WebSocketTransport.Enabled)
 		// No orbit config nudges, so orbit keeps its default poll interval.
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
+	})
+
+	t.Run("osquery config nudges send the poll interval, even while onboarding", func(t *testing.T) {
+		svc, ctx := setupCtx(true, false, true)
+		host, _ := hostctx.FromContext(ctx)
+		host.LastEnrolledAt = time.Now().Add(-time.Minute)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Equal(t, new(600), cfg.WebSocketTransport.OsqueryConfigPollInterval)
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
 	})
 

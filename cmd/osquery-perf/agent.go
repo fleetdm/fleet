@@ -543,6 +543,12 @@ type agent struct {
 	orbitConfigNudge        chan time.Time
 	orbitConfigConnected    chan struct{}
 	orbitConfigDisconnected chan struct{}
+	// osqueryConfigNudge reports a pending osquery/config nudge.
+	osqueryConfigNudge chan struct{}
+	// osqueryConfigPollInterval is the server-directed fallback osquery config
+	// poll interval while orbit serves osquery its config (0 when it doesn't,
+	// see syncWSTransport).
+	osqueryConfigPollInterval atomic.Int64
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -912,6 +918,7 @@ func newAgent(
 		orbitConfigNudge:        make(chan time.Time, 1),
 		orbitConfigConnected:    make(chan struct{}, 1),
 		orbitConfigDisconnected: make(chan struct{}, 1),
+		osqueryConfigNudge:      make(chan struct{}, 1),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -1094,7 +1101,18 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
 
-		for range configTicker.C {
+		var lastFetch time.Time
+		for {
+			select {
+			case <-configTicker.C:
+				// With orbit serving the config over a connected WebSocket,
+				// ticks are only the fallback poll.
+				if poll := a.osqueryConfigFallbackInterval(); poll > 0 && time.Since(lastFetch) < poll {
+					continue
+				}
+			case <-a.osqueryConfigNudge:
+			}
+			lastFetch = time.Now()
 			_ = a.config()
 		}
 	}()
@@ -2559,12 +2577,21 @@ func (a *agent) config() error {
 	// The presence of the "etag" field — even empty — is the opt-in to
 	// conditional responses; its value is the etag from the last config
 	// response received (see the configETag field docs).
-	sentConditional := a.configTLSETag && a.configETag != ""
-	requestBody := []byte(`{"node_key": "` + a.nodeKey + `"}`)
-	if a.configTLSETag {
+	//
+	// Orbit serving osquery its config always opts in, and authenticates with
+	// the orbit node key (see wstransport.ConfigFetcher).
+	viaOrbit := a.osqueryConfigViaOrbit()
+	conditional := a.configTLSETag || viaOrbit
+	sentConditional := conditional && a.configETag != ""
+	nodeKey := a.nodeKey
+	if viaOrbit {
+		nodeKey = *a.orbitNodeKey
+	}
+	requestBody := []byte(`{"node_key": "` + nodeKey + `"}`)
+	if conditional {
 		var err error
 		requestBody, err = json.Marshal(map[string]string{
-			"node_key": a.nodeKey,
+			"node_key": nodeKey,
 			"etag":     a.configETag,
 		})
 		if err != nil {
@@ -2617,7 +2644,7 @@ func (a *agent) config() error {
 		return nil
 	}
 
-	if a.configTLSETag {
+	if conditional {
 		if envelope.ETag != nil {
 			serverETag := *envelope.ETag
 			// Drift diagnostic only: the validator should be the SHA-256 of
