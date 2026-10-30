@@ -18,7 +18,7 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 
 ## REST API
 
-### Teams are now fleets
+### Farewell, teams
 
 You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
