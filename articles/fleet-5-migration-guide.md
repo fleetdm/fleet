@@ -197,16 +197,6 @@ What to do: Search for `macos_setup` and rename it to `setup_experience`.
 
 Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
-### Setup experience script endpoints removed
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `POST`, `GET`, and `DELETE /api/v1/fleet/setup_experience/script` | Removed. Add the script as a script-only package and include it in [setup experience software](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience-software). |
-
-What to do: Move your setup script to a script-only package, then remove calls to `/setup_experience/script`.
-
-Issue: [#53274](https://github.com/fleetdm/fleet/issues/53274)
-
 ### Setup experience and Recovery Lock keys renamed
 
 | Fleet 4 | Fleet 5 |
@@ -409,16 +399,6 @@ Issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795](https:
 What to do: Rename `macos_setup` to `setup_experience`.
 
 Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
-
-### Setup experience script moved to software
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `controls.setup_experience.macos_script` | A script-only package under [`software.packages`](https://fleetdm.com/docs/configuration/yaml-files#packages) with `setup_experience` or `setup_experience_platform` |
-
-What to do: Add your setup script as a script-only package that runs during setup experience, then remove `macos_script`.
-
-Issue: [#53274](https://github.com/fleetdm/fleet/issues/53274)
 
 ### Setup experience and Recovery Lock keys renamed in YAML
 
