@@ -4543,12 +4543,14 @@ func testGetAndroidAppStoreAppVersionsByID(t *testing.T, ds *Datastore) {
 	versionByID, err := ds.GetAndroidAppStoreAppVersionsByID(ctx)
 	require.NoError(t, err)
 	require.Len(t, versionByID, 2)
-	require.Contains(t, versionByID, unassignedVersionID)
-	require.Nil(t, versionByID[unassignedVersionID].Configuration)
-	require.Nil(t, versionByID[unassignedVersionID].ConfigurationUpdatedAt)
-	require.Contains(t, versionByID, fleetVersionID)
-	require.JSONEq(t, `{"managedConfiguration":{"key":"1"}}`, string(versionByID[fleetVersionID].Configuration))
-	require.NotNil(t, versionByID[fleetVersionID].ConfigurationUpdatedAt)
+	unassignedVersion := versionByID[unassignedVersionID]
+	require.NotNil(t, unassignedVersion)
+	require.Nil(t, unassignedVersion.Configuration)
+	require.Nil(t, unassignedVersion.ConfigurationUpdatedAt)
+	fleetVersion := versionByID[fleetVersionID]
+	require.NotNil(t, fleetVersion)
+	require.JSONEq(t, `{"managedConfiguration":{"key":"1"}}`, string(fleetVersion.Configuration))
+	require.NotNil(t, fleetVersion.ConfigurationUpdatedAt)
 }
 
 func setupTestApp(t *testing.T, ds *Datastore, appID string) {

@@ -4784,17 +4784,17 @@ func testListAndroidAppsInScopeForHosts(t *testing.T, ds *Datastore) {
 	// add an Unassigned app, a fleet app without labels and a fleet app that includes a manual label only the member has
 	unassignedApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "unassigned-app", BundleIdentifier: "com.scope.unassigned", LatestVersion: "1.0",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.unassigned", Platform: fleet.AndroidPlatform}},
+		AdamID: "com.scope.unassigned", Platform: fleet.AndroidPlatform,
 	}, nil, nil)
 	require.NoError(t, err)
 	allApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "all-app", BundleIdentifier: "com.scope.all", LatestVersion: "1.0",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.all", Platform: fleet.AndroidPlatform}},
+		AdamID: "com.scope.all", Platform: fleet.AndroidPlatform,
 	}, &team.ID, nil)
 	require.NoError(t, err)
 	labeledApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "labeled-app", BundleIdentifier: "com.scope.labeled", LatestVersion: "1.0",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.scope.labeled", Platform: fleet.AndroidPlatform}},
+		AdamID: "com.scope.labeled", Platform: fleet.AndroidPlatform,
 	}, &team.ID, nil)
 	require.NoError(t, err)
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "scope-include", LabelMembershipType: fleet.LabelMembershipTypeManual})

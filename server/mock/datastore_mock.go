@@ -1989,6 +1989,7 @@ type ReplaceHostAndroidSoftwareInstallsFunc func(ctx context.Context, hostID uin
 type SetHostAndroidSoftwareInstallsNeedsResendFunc func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error
 
 type SetHostAndroidSoftwareInstallsVerifiedFunc func(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
+
 type GetHostIDsWithRecentFailedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
@@ -13487,6 +13488,7 @@ func (s *DataStore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, 
 	s.mu.Unlock()
 	return s.SetHostAndroidSoftwareInstallsVerifiedFunc(ctx, hostID, appliedPolicyVersion)
 }
+
 func (s *DataStore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
 	s.mu.Lock()
 	s.GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked = true

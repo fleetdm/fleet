@@ -79,8 +79,8 @@ func TestReconcileAndroidApps(t *testing.T) {
 	hostA := &fleet.Host{ID: 1, UUID: "host-a", Platform: "android"}
 	hostB := &fleet.Host{ID: 2, UUID: "host-b", Platform: "android"}
 	builtAt := time.Now().Add(-time.Hour)
-	appOne := fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.example.one"}, AppTeamID: firstVersionID}
-	appOneSecondVersion := fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.example.one"}, AppTeamID: secondVersionID}
+	appOne := fleet.VPPAppTeam{AdamID: "com.example.one", AppTeamID: firstVersionID}
+	appOneSecondVersion := fleet.VPPAppTeam{AdamID: "com.example.one", AppTeamID: secondVersionID}
 
 	state := &androidAppReconcileState{}
 
@@ -272,7 +272,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			},
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {
 				appOne,
-				{VPPAppID: fleet.VPPAppID{AdamID: "com.example.two"}, AppTeamID: secondVersionID},
+				{AdamID: "com.example.two", AppTeamID: secondVersionID},
 			}},
 		}
 
@@ -666,7 +666,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			},
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {
 				appOne,
-				{VPPAppID: fleet.VPPAppID{AdamID: "com.example.two"}, AppTeamID: secondVersionID},
+				{AdamID: "com.example.two", AppTeamID: secondVersionID},
 			}},
 			retries: 2,
 		}
@@ -711,7 +711,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			hosts: []*fleet.Host{hostA},
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {
 				appOne,
-				{VPPAppID: fleet.VPPAppID{AdamID: "com.example.vital"}, AppTeamID: secondVersionID},
+				{AdamID: "com.example.vital", AppTeamID: secondVersionID},
 			}},
 			secondVersionConfig: []byte(`{"managedConfiguration":{"tag":"$FLEET_HOST_VITAL_7"}}`),
 			expandErr:           &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Host vital 1"}},
