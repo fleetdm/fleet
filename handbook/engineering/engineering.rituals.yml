@@ -36,6 +36,13 @@
   moreInfoUrl: 
   dri: "oncall"
 - 
+  task: "Security report triage"
+  startedOn: "2026-10-30"
+  frequency: "Daily"
+  description: "Check Bugbop, GitHub security advisories, and the security inbox for new reports; acknowledge reporters, dedupe, rate severity, and file each report in fleetdm/security with a priority label, product group label, and assignee."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#handle-a-security-report"
+  dri: "lukeheath"
+- 
   task: "Vulnerability alerts (fleetdm.com)"
   startedOn: "2023-08-09" 
   frequency: "Weekly"
