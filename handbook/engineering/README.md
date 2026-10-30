@@ -91,7 +91,6 @@ Security reports arrive through Fleet's [vulnerability disclosure program on Bug
 
 **When triage is done.** A report is either accepted or rejected. If rejected, the reporter is told why. If accepted, it's filed as an issue in our security repo and assigned to an Engineering Manager, who is responsible for following up with a fix.
 
-**Decisions the CTO makes.** Publishing advisories, requesting CVEs, setting bounties, accepting risk, and rating anything `p1` are the CTO's calls. Bring them to the CTO with a short summary and a recommendation. Fleet's disclosure program doesn't pay cash bounties. Reporters get credit on the published advisory and swag through [fleetdm.com/swag](https://fleetdm.com/swag).
 
 **Keep customers and vulnerability details private.** If a report names or otherwise identifies a Fleet customer, keep that context in fleetdm/confidential and link to it. Never copy customer-identifying details or `customer-*` labels into fleetdm/security. Never describe the vulnerability in a public pull request, commit, or changes file.
 
