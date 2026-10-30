@@ -435,7 +435,10 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles()
 		map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
 	resp := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	require.Contains(t, extractServerErrorText(resp.Body), `"Challenge" field must contain a global enroll secret`)
-	scepProfile := strings.Replace(profiles.SCEPProfile, conditionalAccessWindowsChallengePlaceholder, "conditional-access-secret", 1)
+	// The challenge can be a secret variable; it is expanded for validation and stored as the variable.
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "OKTA_SCEP_CHALLENGE", Value: "conditional-access-secret"}})
+	require.NoError(t, err)
+	scepProfile := strings.Replace(profiles.SCEPProfile, conditionalAccessWindowsChallengePlaceholder, "$FLEET_SECRET_OKTA_SCEP_CHALLENGE", 1)
 	for fileName, contents := range map[string]string{
 		"OktaSCEP.xml":     scepProfile,
 		"OktaBrowsers.xml": profiles.BrowserProfile,

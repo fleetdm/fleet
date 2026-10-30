@@ -161,7 +161,17 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic, groupedCAs)
+	// Validated expanded, like the batch path, so a secret's value is checked (a SCEP challenge's characters, a
+	// schema's types); the expanded copy stays local and cp.SyncML is stored unexpanded.
+	expanded := string(cp.SyncML)
+	if len(fleet.ContainsPrefixVars(expanded, fleet.ServerSecretPrefix)) > 0 {
+		expanded, err = svc.ds.ExpandEmbeddedSecrets(ctx, expanded)
+		if err != nil {
+			return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		}
+	}
+
+	foundVars, err := validateWindowsProfileFleetVariables(expanded, lic, groupedCAs)
 	if err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err)
 	}
@@ -173,12 +183,6 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 	}
 
 	if validation != nil {
-		// Validated expanded, like the batch path, so a secret's value is type-checked;
-		// the expanded copy stays local and cp.SyncML is stored unexpanded.
-		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(cp.SyncML))
-		if err != nil {
-			return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
-		}
 		if err := svc.validateProfileSchema(ctx, profileSchemaWindowsProfile, []byte(expanded), validation, cp.Name, teamID); err != nil {
 			return nil, nil, "", err
 		}
