@@ -40,7 +40,7 @@ The Head of Product Design is responsible for going through the inbox on the [�
 
 Once labeled, the product group's Product Designer (PD) unpacks the request. If the PD understands the why, they unpack it right away. If they don't, the request goes to the weekly "Unpacking the why" call, where the PD and a former IT Admin or Security Engineer synthesize why users are making the request (i.e. what problem they're trying to solve).
 
-If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
+If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM) or Account Executive (AE), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) or [💡 :help-solutions-consulting](https://github.com/orgs/fleetdm/projects/69) board respectively.
 
 A request is unpacked when the top of the GitHub issue description includes these three lines, each starting with the GitHub username of the person who wrote it:
 
