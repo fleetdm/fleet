@@ -1610,6 +1610,91 @@ sudo() { "$@"; }
 	})
 }
 
+// TestUninstallScriptDeleteResolvesHome guards against emitting a single-quoted
+// "~" path to rm, where it never expands and the file is always left behind.
+func TestUninstallScriptDeleteResolvesHome(t *testing.T) {
+	newCask := func(paths ...string) *brewCask {
+		return &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Uninstall: []*brewUninstall{
+						{Delete: optjson.StringOr[[]string]{IsOther: true, Other: paths}},
+					},
+				},
+			},
+		}
+	}
+
+	script := uninstallScriptForApp(inputApp{}, newCask(
+		"~/Library/LaunchAgents/com.example.Foo.plist",
+		"~/Library/Application Support/Cycling '74/Foo",
+		"/Library/LaunchDaemons/com.example.Foo.plist",
+	))
+	require.Contains(t, script, `LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/LaunchAgents/com.example.Foo.plist'`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/Application Support/Cycling '\''74/Foo'`)
+	require.Contains(t, script, `sudo rm -rf '/Library/LaunchDaemons/com.example.Foo.plist'`)
+	require.NotContains(t, script, "sudo rm -rf '~")
+
+	// The home folder itself and paths that could leave it are never deleted.
+	script = uninstallScriptForApp(inputApp{}, newCask("~", "~/", "~//", "~/../Shared", "~/Library/./..", "~other/Library/Foo"))
+	require.NotContains(t, script, "delete_user_path")
+	require.NotContains(t, script, "rm -rf")
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, stubs string, paths ...string) string {
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, newCask(paths...))).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("deletes home paths as the console user", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "~/Library/Application Support/Foo Bar", "/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/LaunchAgents/com.example.Foo.plist\n-u alice rm -rf /Users/alice/Library/Application Support/Foo Bar\nrm -rf /Library/Foo\n", out)
+	})
+
+	t.Run("reports a failed delete without retrying as root", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; [[ "$1" != "-u" ]]; }
+`
+		out := run(t, stubs, "~/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/Foo\nFailed to remove /Users/alice/Library/Foo.\n", out)
+	})
+
+	t.Run("skips home paths without a GUI user", func(t *testing.T) {
+		for _, scutil := range []string{`:`, `echo "  Name : root"`, `echo "  Name : loginwindow"`} {
+			stubs := "scutil() { " + scutil + "; }\n" + `sudo() { echo "$*"; }
+`
+			out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "/Library/Foo")
+			require.Equal(t, "rm -rf /Library/Foo\n", out, scutil)
+		}
+	})
+
+	t.Run("helper only deletes below the home folder", func(t *testing.T) {
+		stubs := `sudo() { echo "$*"; }
+`
+		cmd := stubs + deleteUserPathFunc + `
+delete_user_path alice '~'
+delete_user_path alice '~/'
+delete_user_path alice '/Library/Foo'
+delete_user_path alice '~/Foo'
+`
+		out, err := exec.Command(bash, "-c", cmd).CombinedOutput()
+		require.NoError(t, err, string(out))
+		require.Equal(t, "-u alice rm -rf /Users/alice/Foo\n", string(out))
+	})
+}
+
 // varNameDerivation is the line both generated functions share.
 const varNameDerivation = `  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"`
 
