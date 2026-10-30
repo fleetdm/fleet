@@ -542,6 +542,8 @@ func TestUninstallScriptPrePostScriptsWithoutUninstallStanza(t *testing.T) {
 	post := strings.Index(script, "\necho post\n")
 	require.True(t, pre >= 0 && removeApp >= 0 && trash >= 0 && post >= 0, script)
 	require.Less(t, pre, removeApp, script)
+	require.Less(t, pre, trash, script)
+	require.Less(t, removeApp, post, script)
 	require.Less(t, trash, post, script)
 
 	// With an uninstall stanza they run there, once.

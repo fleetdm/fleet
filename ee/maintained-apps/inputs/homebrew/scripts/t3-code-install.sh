@@ -115,5 +115,7 @@ if ! sudo cp -R "$TMPDIR/T3 Code (Beta).app" "$APPDIR"; then
 fi
 # Versions before 0.1.0 installed as "T3 Code (Alpha).app" with the same bundle
 # ID. Remove it so the host doesn't keep reporting the old version.
-sudo rm -rf "$APPDIR/T3 Code (Alpha).app" || exit 1
+sudo rm -rf "$APPDIR/T3 Code (Alpha).app"
+alpha_status=$?
 relaunch_application 'com.t3tools.t3code'
+exit "$alpha_status"
