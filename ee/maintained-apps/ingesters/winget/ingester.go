@@ -135,8 +135,8 @@ type wingetIngester struct {
 }
 
 // prereleaseVersionRegex matches a semver pre-release tag (27.0.0-alpha.0.0.0) but not a
-// numeric packaging revision (15.19-5).
-var prereleaseVersionRegex = regexp.MustCompile(`-[A-Za-z]`)
+// numeric packaging revision (15.19-5) or a hyphen in build metadata (26.12.1+build-foo).
+var prereleaseVersionRegex = regexp.MustCompile(`^[^+]*-[A-Za-z]`)
 
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
 // package version folders (semver-style). The upstream repo may add other top-level

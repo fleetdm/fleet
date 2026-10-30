@@ -804,6 +804,8 @@ func TestPrereleaseVersionRegex(t *testing.T) {
 		"15.19-5":               false,
 		"1.23b":                 false,
 		"1.3.6.1921.g7086c071a": false,
+		"26.12.1+build-foo":     false,
+		"2.0.0-rc.1+build-5":    true,
 	} {
 		assert.Equal(t, want, prereleaseVersionRegex.MatchString(name), name)
 	}
