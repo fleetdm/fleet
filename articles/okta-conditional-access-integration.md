@@ -1,8 +1,14 @@
 # Conditional access: Okta
 
-With Fleet, you can integrate with Okta to enforce conditional access on macOS hosts.
+With Fleet, you can integrate with Okta to enforce conditional access on macOS and Windows hosts.
 
 When a host fails a policy in Fleet, IT and Security teams can block access to third-party apps until the issue is resolved.
+
+## Host requirements
+
+- macOS hosts must be enrolled in Fleet's Apple MDM.
+- Windows hosts must be enrolled in Fleet's Windows MDM and run Windows 11 Pro, Enterprise, or Education. Windows Home isn't supported, because it can't install the browser profile (Home doesn't support ADMX ingestion).
+- Safari and Chrome on macOS, and Chrome and Edge on Windows, present the host's certificate to Okta automatically. Firefox asks the end user to pick the certificate.
 
 ## Prerequisites
 
@@ -102,20 +108,7 @@ The connection must fail during the TLS handshake. If you get an HTTP response, 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
 
-## Step 2: Deploy user scope profile
-
-1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
-2. In the modal, find the read-only **User scope profile**.
-3. Copy the profile to a new `.mobileconfig` file and save.
-4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
-
-Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days and Fleet will automatically renew them. [Learn more](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal).
-
-> **Upgrading from Fleet 4.85 or earlier?** Your existing Conditional Access deployment continues to work, but auto-renewal activates only on profiles redeployed in 4.86 or later. To opt in, re-download the User scope profile above and re-deploy via custom OS settings.
-
-> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
-
-## Step 3: Create IdP in Okta
+## Step 2: Create IdP in Okta
 
 1. In the Okta Admin Console, go to **Security** > **Identity Providers**.
 2. Click **Add Identity Provider**.
@@ -129,7 +122,7 @@ Deploying this profile will deploy a SCEP certificate to your hosts. These certi
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
 8. Click **Finish**.
 
-## Step 4: Configure Okta settings in Fleet
+## Step 3: Configure Okta settings in Fleet
 
 Once you've created the identity provider in Okta, click on the Fleet identity provider to view its settings. You'll need to copy these values into Fleet.
 
@@ -139,6 +132,62 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 4. Copy the **Audience URI** from Okta to the **Audience URI** field.
 5. In the Okta Admin Console, go to **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
 6. In Fleet, for **Okta certificate**, upload the certificate downloaded from Okta.
+7. Click **Save**.
+
+## Step 4: Deploy the profiles
+
+The profiles deploy a SCEP certificate that identifies the host to Okta. Fleet shows them once Okta is connected: go to **Settings** > **Integrations** > **Conditional access** and, on the **Okta** card, click **Edit**.
+
+The certificates are valid for 1 year and 33 days, and Fleet automatically renews them. [Learn more](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal).
+
+### macOS
+
+1. Select the **macOS** tab.
+2. Copy the **Profile** to a new `.mobileconfig` file and save.
+3. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+
+> **Upgrading from Fleet 4.85 or earlier?** Your existing Conditional Access deployment continues to work, but auto-renewal activates only on profiles redeployed in 4.86 or later. To opt in, copy the macOS profile again and re-deploy via custom OS settings.
+
+> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
+
+### Windows
+
+Windows uses two profiles. The certificate profile enrolls the certificate into the signed-in user's certificate store. The browser profile configures Chrome and Edge to present it to Okta.
+
+1. Select the **Windows** tab.
+2. Copy the **Certificate profile** to a new `.xml` file.
+3. Create a [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (e.g. `FLEET_SECRET_OKTA_CONDITIONAL_ACCESS_CHALLENGE`) whose value is a global enroll secret. To find your global enroll secrets, go to **Hosts**, select **All fleets**, and select **Enroll secrets**.
+4. In the file, replace `<!-- Replace with a global enroll secret -->` with the variable (e.g. `$FLEET_SECRET_OKTA_CONDITIONAL_ACCESS_CHALLENGE`).
+5. Copy the **Browser profile** to a second `.xml` file.
+6. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy both profiles to the hosts where you want conditional access to apply.
+
+We recommend a custom variable over pasting the enroll secret into the profile. The secret stays out of the profile and your GitOps repository, and when you rotate the secret, you only update the variable. Fleet uses the new value for new certificates and renewals without re-uploading the profile.
+
+Fleet rejects the certificate profile if the challenge isn't a global enroll secret made of letters, numbers, spaces, and `' ( ) + , - . / : = ?`. Windows can't send other characters. Fleet-generated enroll secrets always qualify. Enroll secrets that belong to a fleet don't work.
+
+Some things to know about the Windows profiles:
+
+- The certificate is installed in the signed-in user's store, so Fleet delivers the certificate profile once a user has signed in to the host.
+- The certificate profile shows **Verifying** until the host reports the enrollment result, usually within a few minutes, and then **Verified**. If enrollment fails, the profile shows **Failed** with the error code reported by the host, and Fleet retries it.
+- To renew the certificate automatically, Windows hosts need osquery 5.23.1 or later, as for every other certificate authority on Windows.
+- If you rotate or delete the enroll secret, new certificates and renewals fail until you update the custom variable (or the profile, if you pasted the secret in).
+- The browser profile is optional. Without it, Chrome and Edge ask the end user to pick the certificate. If you already manage Chrome or Edge policies, you can add the same `AutoSelectCertificateForUrls` rule to your own configuration instead.
+- A Group Policy that manages `AutoSelectCertificateForUrls` overrides the browser profile.
+- The browser profile requires Windows 11 Pro, Enterprise, or Education. On Windows Home, it fails.
+
+#### Verify on Windows
+
+To check that the certificate was installed, run this PowerShell command as the signed-in user on the host:
+
+```powershell
+Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*Fleet conditional access for Okta*" }
+```
+
+If the certificate is missing, check the device management event log for errors:
+
+```powershell
+Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin -MaxEvents 50
+```
 
 ## Step 5: Add Fleet IdP authenticator in Okta
 
@@ -151,13 +200,13 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 
 ## Step 6: Add Fleet to an authentication policy
 
-Create an authentication policy rule that requires Fleet verification for macOS hosts:
+Create an authentication policy rule that requires Fleet verification for macOS and Windows hosts:
 
 1. In the Okta Admin Console, go to **Security** > **Authentication policies**.
 2. Select the policy you want to modify (or create a new one).
 3. Click **Add rule**.
-4. Set a **Rule name** (e.g., "Require Fleet for macOS").
-5. Under **AND Device platform is**, select **One of the following platforms** and **macOS** to ensure this rule only applies to macOS hosts.
+4. Set a **Rule name** (e.g., "Require Fleet for macOS and Windows").
+5. Under **AND Device platform is**, select **One of the following platforms**, then select **macOS** and **Windows**, so this rule only applies to the platforms where you deployed the profiles.
 6. Under **AND User must authenticate with**, select **Authentication method chain** (recommended) and add the Fleet IdP authenticator created in Step 5 as one of the authentication methods.
 7. Click **Save**.
 
