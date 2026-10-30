@@ -885,6 +885,16 @@ func testPatchNotificationPolicyOptionChanged(t *testing.T, ds *Datastore) {
 			exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
 			require.NoError(t, err)
 			require.Equal(t, !c.wantChanged, exists)
+
+			// once displayed, it holds back the policy automation install only while it still patches the app
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE notifications_end_user SET status = ?, displayed_at = NOW(6) WHERE uuid = ?`,
+					notifications_api.EndUserNotificationDispatched, notificationUUID)
+				return err
+			})
+			exists, err = ds.DisplayedPatchNotificationExistsForApp(ctx, host.ID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, !c.wantChanged, exists)
 		})
 	}
 }

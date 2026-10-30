@@ -78,16 +78,19 @@ func (ds *Datastore) DisplayedPatchNotificationExistsForApp(ctx context.Context,
 SELECT 1
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	LEFT JOIN policies p ON p.id = pna.policy_id
 WHERE neu.host_id = ?
 	AND neu.status = ?
 	AND neu.displayed_at IS NOT NULL
 	AND pna.software_title_id = ?
+	-- skip a notification that no longer patches the app because its policy changed patch option
+	AND (neu.kind = ?) = COALESCE(p.patch_deadline, 0)
 LIMIT 1
 `
 
 	var exists bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, selectStmt,
-		hostID, notifications_api.EndUserNotificationDispatched, softwareTitleID,
+		hostID, notifications_api.EndUserNotificationDispatched, softwareTitleID, fleet.PatchDeadlineNotificationKind,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil

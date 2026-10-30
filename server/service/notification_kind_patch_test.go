@@ -540,6 +540,8 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 		installStatus *fleet.SoftwareInstallerStatus
 		// software_installers row is gone, so the app can never be queued
 		noInstaller bool
+		// the app's policy changed patch option, so Update now skipped it
+		policyOptionChanged bool
 
 		wantStatus        string
 		wantInstallStatus string
@@ -598,6 +600,13 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			wantStatus:         "Failed",
 			wantInstallStatus:  "failed_install",
 		},
+		{
+			name:                "an app skipped because its policy changed patch option shows no status",
+			notificationStatus:  notifications_api.EndUserNotificationActed,
+			policyOptionChanged: true,
+			wantStatus:          "",
+			wantInstallStatus:   "",
+		},
 	}
 
 	for _, c := range cases {
@@ -612,6 +621,7 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 					SoftwareInstallerID: new(uint(20)),
 					Name:                "1Password",
 					CreatedAt:           appJoinedAt,
+					PolicyOptionChanged: c.policyOptionChanged,
 				}
 				if c.noInstaller {
 					app.SoftwareInstallerID = nil

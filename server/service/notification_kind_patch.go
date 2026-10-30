@@ -377,7 +377,8 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
 		}
-		if installsQueued {
+		// an app whose policy changed patch option is never installed, so it shows no progress
+		if installsQueued && !app.PolicyOptionChanged {
 			installStatus := installStatusesByTitle[app.SoftwareTitleID]
 			// Fail an app whose installer was deleted, because no install was ever queued for it.
 			if app.SoftwareInstallerID == nil {
