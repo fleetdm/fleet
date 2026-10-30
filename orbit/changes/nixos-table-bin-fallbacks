@@ -1,1 +1,0 @@
-* Fixed the `cryptsetup_status`, `nftables`, `lsblk`, and `dconf_read` tables on NixOS, where the binaries they run are not in `/usr/bin` or `/usr/sbin`.

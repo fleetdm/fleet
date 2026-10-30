@@ -1,3 +1,35 @@
+## 1.63.0 (Oct 30, 2026)
+
+* Added the following fixes and improvements for NixOS support:
+  * Added `--osqueryd-path`, `--desktop-path` and `--osquery-log-path` flags to fleetd so systems that manage their own osquery (e.g. NixOS) can run fleetd with `--disable-updates` and no components downloaded from the update server.
+  * Added the `fleetd_nix_packages` table to report packages installed in the NixOS system profile and users' Nix and Home Manager profiles, including their runtime dependencies.
+  * Fixed script execution on NixOS, which has no `/bin/bash`, by resolving a missing shebang interpreter from the system profile (`/run/current-system/sw/bin`).
+  * Fixed the setup experience browser launch on Linux hosts without `/usr/bin/xdg-open` by resolving `xdg-open`/`firefox` through the user's login shell.
+  * Fixed Fleet Desktop never starting on NixOS by resolving `sudo` at `/run/wrappers/bin/sudo`, which is not on the PATH systemd gives services there, and made a failed Fleet Desktop launch visible at the default log level.
+  * Fixed the `cryptsetup_status`, `nftables`, `lsblk`, and `dconf_read` tables on NixOS, where the binaries they run are not in `/usr/bin` or `/usr/sbin`.
+
+* When connected to Fleet over the WebSocket transport, fleetd now fetches its orbit config as soon as Fleet notifies it of a change (for example, a script or software install was queued), and polls it at the interval Fleet sets (5 minutes by default) instead of every 30 seconds while it has nothing pending.
+
+* Added support on Windows for an enroll secret delivered by Fleet MDM through the registry. When fleetd has to re-enroll and its stored secret is rejected, it picks up a secret a Fleet admin resent through the profile that carries it, without a restart.
+
+* Added `label`, `title`, `version`, `size_kib`, `recommended`, and `action` columns to the `software_update` table on macOS, so each available Apple software update is reported as its own row. The existing `software_update_required` column is unchanged. Queries that arrive while a scan is running now share it, and successful results are reused for up to 5 minutes.
+
+* Fleet Desktop's tray icon and "My device" issue count now ignore policies that admins hid from end users.
+
+* Updated fleetd's host identity certificate enrollment to share the Fleet server's SCEP client. It now accepts a CA certificate chain served as PKCS7 and reports a malformed SCEP reply as an error instead of crashing.
+
+* Fleet Desktop for macOS is now built on macOS 15, matching the minimum macOS version supported by Fleet. Fleet Desktop no longer runs on macOS 14.
+
+* Fixed hosts not answering refetches and live reports for up to 10 minutes after waking from sleep or changing networks (e.g. Wi-Fi or VPN) when the WebSocket transport is enabled. Orbit now pings the server to detect a dead connection within about 45 seconds and falls back to polling.
+
+* Fixed refetches, live reports, and config checks stalling for up to ~15 minutes after a network change (e.g. a VPN reconnect) silently dropped fleetd's connection to Fleet.
+
+* Removed the exponential backoff from orbit's config polling. It was entered on any error, including errors that didn't come from the Fleet server (such as a failed software install, or a "missing or invalid license" error on Fleet Free right after enrollment), delaying later software installs and scripts by up to 5 minutes. On errors, orbit now retries at its normal polling interval.
+
+* Fixed the `homebrew_outdated` table timing out or failing on Macs where Homebrew's auto-update is slow: the table no longer runs Homebrew's auto-update, and only refreshes Homebrew's package data, at most once a day. Errors now include Homebrew's own error message instead of only "exit status 1". Results are cached for 5 minutes so policies that each query the table share one Homebrew run.
+
+* Fixed the `nvram_info` table reporting AMFI as enabled when `boot-args` disables it with a hex or other non-1 value (e.g. `amfi_get_out_of_my_way=0x1`), which caused the macOS CIS 5.1.3 policy to pass incorrectly.
+
 ## 1.62.1 (Oct 22, 2026)
 
 * Security fix: this release stops fleetd from trusting the certificates affected by the eMudhra intermediate CA key compromise. We recommend updating all hosts.
