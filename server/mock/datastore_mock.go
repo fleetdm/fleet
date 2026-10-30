@@ -2152,6 +2152,8 @@ type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
 
+type ListMDMManagedCertificatesForHostProfilesFunc func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error)
+
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
 type ResendWindowsHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
@@ -5832,6 +5834,9 @@ type DataStore struct {
 
 	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
+
+	ListMDMManagedCertificatesForHostProfilesFunc        ListMDMManagedCertificatesForHostProfilesFunc
+	ListMDMManagedCertificatesForHostProfilesFuncInvoked bool
 
 	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
 	ResendHostCertificateProfileFuncInvoked bool
@@ -14014,6 +14019,13 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 	s.ListHostMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListMDMManagedCertificatesForHostProfiles(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+	s.mu.Lock()
+	s.ListMDMManagedCertificatesForHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMManagedCertificatesForHostProfilesFunc(ctx, hostProfiles)
 }
 
 func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
