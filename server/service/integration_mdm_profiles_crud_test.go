@@ -1845,11 +1845,12 @@ func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
 	t := s.T()
 	ctx := t.Context()
 
-	const value, crlfValue = "name-secret-value", "name-secret-line1\r\nname-secret-line2"
+	const value, crlfValue, xmlValue = "name-secret-value", "name-secret-line1\r\nname-secret-line2", "name-secret-a&b<c"
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{Name: "FLEET_SECRET_PROFILE_NAME", Value: value},
 			{Name: "FLEET_SECRET_PROFILE_NAME_CRLF", Value: crlfValue},
+			{Name: "FLEET_SECRET_PROFILE_NAME_XML", Value: xmlValue},
 		},
 	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
 
@@ -1881,6 +1882,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
 		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_NAME</string>`},
 		{"cdata", `<string><![CDATA[Name $FLEET_SECRET_PROFILE_NAME]]></string>`},
 		{"line breaks", `<!-- x --><string>${FLEET_SECRET_PROFILE_NAME_CRLF}</string>`},
+		// expansion XML-escapes the value, and CDATA keeps the escaped form as is
+		{"cdata with XML characters", `<string><![CDATA[$FLEET_SECRET_PROFILE_NAME_XML]]></string>`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			const wantErr = "PayloadDisplayName cannot contain FLEET_SECRET variables"

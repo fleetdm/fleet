@@ -1,10 +1,12 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -317,9 +319,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
-// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
-var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
-
 // PayloadDisplayNameFromMobileconfig returns the top-level PayloadDisplayName
 // of a raw .mobileconfig, or "" when it can't be parsed (for example a stored
 // profile whose <data> still holds an unexpanded secret). A regex won't do:
@@ -332,21 +331,41 @@ func PayloadDisplayNameFromMobileconfig(raw []byte) string {
 	return strings.TrimSpace(parsed.PayloadDisplayName)
 }
 
-const ProfileNameSecretErrMsg = "PayloadDisplayName cannot contain FLEET_SECRET variables"
-
-// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
-// in the raw XML content of a profile.
+// ValidateNoSecretsInProfileName checks if any PayloadDisplayName in the raw XML content of a profile,
+// at any depth, contains FLEET_SECRET_ variables. Keys and values are read the way the plist parser
+// reads them, which drops comments and decodes CDATA and character references, because the stored
+// name is parsed from the profile after its secrets are expanded.
 func ValidateNoSecretsInProfileName(xmlContent []byte) error {
-	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
-			displayName := string(match[1])
-			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
-				return errors.New(ProfileNameSecretErrMsg)
+	dec := xml.NewDecoder(bytes.NewReader(xmlContent))
+	var displayNameNext bool
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			// Not valid XML: left to the parse of the expanded profile to reject.
+			return nil
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		switch {
+		case start.Name.Local == "key":
+			var key string
+			if err := dec.DecodeElement(&key, &start); err != nil {
+				return nil
+			}
+			displayNameNext = key == "PayloadDisplayName"
+		case displayNameNext:
+			displayNameNext = false
+			var name string
+			if err := dec.DecodeElement(&name, &start); err != nil {
+				return nil
+			}
+			if len(ContainsPrefixVars(name, ServerSecretPrefix)) > 0 {
+				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
 			}
 		}
 	}
-	return nil
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomFileVault bool) error {
