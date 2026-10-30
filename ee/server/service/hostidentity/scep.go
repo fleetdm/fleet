@@ -20,6 +20,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -128,7 +129,8 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		}
 
 		commonName := m.CSR.Subject.CommonName
-		_, err = ds.GetHostIdentityCertByName(ctx, commonName)
+		// A replica that has not yet seen a freshly issued certificate would let a second request through.
+		_, err = ds.GetHostIdentityCertByName(ctxdb.RequirePrimary(ctx, true), commonName)
 		switch {
 		case err == nil:
 			return nil, fmt.Errorf("a valid host identity certificate already exists for %q, renew it with its existing key", commonName)
