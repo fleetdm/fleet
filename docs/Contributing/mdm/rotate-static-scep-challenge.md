@@ -1,6 +1,6 @@
 # Rotating the static Apple MDM SCEP challenge
 
-Apple hosts get their MDM identity certificate from Fleet's SCEP server, and every request has to carry a challenge. Since Fleet 4.94, most enrollments use a dynamic challenge: it's tied to one device, it expires, and it can only be used once. Fleet also keeps one static challenge, the `scep_challenge` row in `mdm_config_assets`. Fleet's SCEP server accepts it from any device for as long as `mdm.apple_scep_static_challenge_enabled` is `true`, which is the default.
+Apple hosts get their MDM identity certificate from Fleet's SCEP server, and every request has to carry a challenge. Since Fleet 4.94, most enrollments use a dynamic challenge: it's tied to one device, it expires, and it can only be used once. Fleet also keeps one static challenge, the `scep_challenge` row in `mdm_config_assets`. Fleet's SCEP server accepts it from any device for as long as `mdm.apple_scep_static_challenge_enabled` is `true`. Since Fleet 5.0, it's `false` by default.
 
 Anyone who has the static challenge can get a Fleet-signed identity certificate. If it leaks, for example because a manual enrollment profile ends up somewhere it shouldn't, rotate it. Fleet has no API for this, so you do it with the `tools/mdm/assets` MDM Asset Manager.
 

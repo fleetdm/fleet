@@ -195,7 +195,7 @@ You can trigger policy automations right when MDM is turned on, because Fleet re
 
 2. Clicking **Turn on MDM** opens a new tab.
    - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download an enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 

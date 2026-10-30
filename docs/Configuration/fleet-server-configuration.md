@@ -3786,6 +3786,8 @@ Whether Fleet accepts its static SCEP challenge when Apple hosts request an MDM 
 
 Set this to `true` to accept the static challenge and make the manual enrollment profile available. When it's `false` (the default), the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that already have MDM turned on aren't affected.
 
+When it's `true`, Fleet logs a warning at startup because anyone with the static challenge can turn on MDM for any host.
+
 - Default value: `false`
 - Environment variable: `FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`
 - Config file format:

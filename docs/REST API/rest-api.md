@@ -9493,9 +9493,9 @@ Deletes the custom MDM setup enrollment profile assigned to a fleet or "Unassign
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific fleet in Fleet and turn on MDM features.
 
-If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) enabled, the profile from this endpoint won't work. Share the fleet's enrollment link (`https://<your_fleet_url>/enroll?enroll_secret=<enroll_secret>`) instead. End users sign in with your IdP before they download the profile.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead. The manual enrollment profile requires [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) to be set to `true` (it's `false` by default).
+To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) to a macOS host that enrolled with this profile, use [Update human-device mapping](#update-human-device-mapping) after the host enrolls or use the [manual enrollment profile](#get-manual-enrollment-profile) instead if this is not possible.
 
 If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `403` error with the message: "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
 
@@ -9573,6 +9573,8 @@ If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint 
 > **Warning:** Do not change or modify this profile. Apple requires values in this profile to remain unchanged. Any values changed block Fleet's ability to renew this profile and result in Fleet losing its ability to manage a device.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
+
+> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) instead.
 
 ##### Example
 
