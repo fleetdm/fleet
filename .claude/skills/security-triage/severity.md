@@ -34,7 +34,8 @@ Set the CVSS vector on the advisory to match the row. Don't inherit the reporter
 
 | Severity | Label | Handbook target |
 |---|---|---|
-| Critical | `p0` | Patch release as soon as the fix is ready |
+| Emergency | `p0` | Active exploit patch immediately |
+| Critical | `p1` | Patch release as soon as the fix is ready |
 | High | `p2` | Fix merged within 2 to 3 weeks, next patch release |
 | Medium | `p3` | Next minor release |
 | Low | `p4` | Next minor release, or accepted risk with a written reason |
