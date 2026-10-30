@@ -261,6 +261,12 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				return true, nil
 			}
 
+			// The name "Dia" also matches Apple Diagnostics, whose bundle version "1"
+			// prefix-matches Dia's version, so only count Dia's own bundle.
+			if uniqueAppIdentifier == "company.thebrowser.dia" && result.Path != "/Applications/Dia.app" {
+				continue
+			}
+
 			// Adobe DNG Converter's version format includes build number in parentheses
 			// (e.g., "18.0 (2389)") which doesn't match the installer version (e.g., "18.0")
 			// Check if the version starts with the expected version to handle this case
