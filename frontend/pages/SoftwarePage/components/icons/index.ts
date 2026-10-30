@@ -996,6 +996,7 @@ import Superhuman from "./png/Superhuman.png";
 import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -2197,6 +2198,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   superhuman: Superhuman,
   "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
