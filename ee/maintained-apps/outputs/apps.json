@@ -2543,6 +2543,13 @@
       "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
     },
     {
+      "name": "Dia",
+      "slug": "dia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.dia",
+      "description": "Dia is an AI-focused web browser from The Browser Company."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
