@@ -12,9 +12,10 @@ import PageDescription from "components/PageDescription";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import usePatchDeadlineSettings from "hooks/usePatchDeadlineSettings";
 import { getErrorReason } from "interfaces/errors";
 import {
-  IPatchDeadlineSettings,
   WEEKDAYS,
   WEEKDAY_ORDER,
   Weekday,
@@ -34,7 +35,19 @@ const baseClass = "patch-deadline-section";
 // Matches 24-hour HH:MM. Hours 00-23, minutes 00-59.
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-type IFieldErrors = Partial<Record<"days" | "time", string>>;
+interface IPatchDeadlineFormData {
+  days: Weekday[];
+  time: string;
+}
+
+const validate = (formData: IPatchDeadlineFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+  if (formData.days.length === 0) errors.days = "Choose at least one day";
+  if (!TIME_PATTERN.test(formData.time.trim())) {
+    errors.time = "Enter time as HH:MM";
+  }
+  return errors;
+};
 
 const PatchDeadlineSection = ({
   router,
@@ -45,11 +58,9 @@ const PatchDeadlineSection = ({
 }: ILibrarySettingsCardProps) => {
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery<IPatchDeadlineSettings, Error>(
-    ["patchDeadlineSettings", fleetId],
-    () => patchDeadlineSettingsAPI.getSettings(fleetId),
-    { enabled: isRouteOk, refetchOnWindowFocus: false }
-  );
+  const { data, isLoading, isError } = usePatchDeadlineSettings(fleetId, {
+    enabled: isRouteOk,
+  });
 
   // Share the `teamPolicies` cache key family so other consumers of the same
   // (fleet, automation_type=patch) list dedupe through React Query instead of
@@ -83,37 +94,7 @@ const PatchDeadlineSection = ({
     .map((p) => p.patch_software!);
   const hasApps = apps.length > 0;
 
-  const [days, setDays] = useState<Weekday[]>([]);
-  const [time, setTime] = useState("");
-  const [errors, setErrors] = useState<IFieldErrors>({});
-
-  // Reseed from the server whenever a new settings doc lands (first load, or
-  // the fleet switcher pulled a different fleet's row).
-  useEffect(() => {
-    if (!data) return;
-    setDays(data.days);
-    setTime(data.time);
-    setErrors({});
-  }, [data]);
-
-  const validate = (nextDays: Weekday[], nextTime: string): IFieldErrors => {
-    const next: IFieldErrors = {};
-    if (nextDays.length === 0) next.days = "Choose at least one day";
-    if (!TIME_PATTERN.test(nextTime)) next.time = "Enter time as HH:MM";
-    return next;
-  };
-
-  const toggleDay = (key: Weekday) => {
-    const nextDays = days.includes(key)
-      ? days.filter((d) => d !== key)
-      : [...days, key];
-    setDays(nextDays);
-    // Checkboxes commit on change (patterns.md 360): re-validate the group on
-    // every toggle so unchecking the last selected day surfaces the error
-    // immediately, and re-checking any day clears it.
-    const next = validate(nextDays, time);
-    setErrors((prev) => ({ ...prev, days: next.days }));
-  };
+  const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
 
   const updateMutation = useMutation(patchDeadlineSettingsAPI.updateSettings, {
     onSuccess: () => {
@@ -121,27 +102,52 @@ const PatchDeadlineSection = ({
       notify.success("Successfully updated patch deadline.");
     },
     onError: (err: unknown) => {
-      // Backend validates days and time and reports field-scoped errors as
-      // `{errors: [{name, reason}]}`. Surface them inline next to the field,
-      // and keep the toast so systemic errors (500s with no `errors`) still
-      // surface for the user.
+      // Backend reports field-scoped errors as `{errors: [{name, reason}]}`.
+      // The form shows those inline and toasts them; anything else gets a
+      // generic toast.
+      const fieldErrors: IFormErrors = {};
       const daysReason = getErrorReason(err, { nameEquals: "days" });
       const timeReason = getErrorReason(err, { nameEquals: "time" });
-      if (daysReason || timeReason) {
-        setErrors({
-          days: daysReason || undefined,
-          time: timeReason || undefined,
-        });
+      if (daysReason) fieldErrors.days = daysReason;
+      if (timeReason) fieldErrors.time = timeReason;
+      if (Object.keys(fieldErrors).length > 0) {
+        setServerErrors(fieldErrors);
+      } else {
+        notify.error("Couldn't update patch deadline.", { response: err });
       }
-      notify.error("Couldn't update patch deadline.", { response: err });
     },
   });
 
-  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    const nextErrors = validate(days, time);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+  const {
+    formData,
+    commitFields,
+    getError,
+    getTextFieldProps,
+    handleSubmit,
+    reset,
+    isSubmitting,
+  } = useFormValidation<IPatchDeadlineFormData>({
+    initialFormData: { days: [], time: "" },
+    validate,
+    serverErrors,
+    isSubmitting: updateMutation.isLoading,
+  });
+
+  // Reseed from the server whenever a new settings doc lands (first load, or
+  // the fleet switcher pulled a different fleet's row).
+  useEffect(() => {
+    if (data) reset({ days: data.days, time: data.time });
+  }, [data, reset]);
+
+  const toggleDay = (key: Weekday) => {
+    commitFields({
+      days: formData.days.includes(key)
+        ? formData.days.filter((d) => d !== key)
+        : [...formData.days, key],
+    });
+  };
+
+  const onValidSubmit = ({ days, time }: IPatchDeadlineFormData) => {
     // Canonical Mon-first order on the wire so the server (and the activity
     // feed renderer) never has to re-sort. Matches `WEEKDAY_ORDER` used by
     // the activity copy.
@@ -167,7 +173,6 @@ const PatchDeadlineSection = ({
     );
   }
 
-  const isSubmitting = updateMutation.isLoading;
   // Role-based disable sticks (the user never gets to interact). Submit-time
   // disable uses readOnly so the field doesn't visually flicker to the greyed
   // "disabled" state for the few hundred ms of the PATCH round-trip.
@@ -204,11 +209,14 @@ const PatchDeadlineSection = ({
         Apps subsection stays OUTSIDE the form so a stray Enter from a row
         can't trigger a settings save.
       */}
-      <form onSubmit={handleSubmit} className={`${baseClass}__form`}>
+      <form
+        onSubmit={handleSubmit(onValidSubmit)}
+        className={`${baseClass}__form`}
+      >
         <FormField
           name="patch-deadline-days"
           label="Days"
-          error={errors.days}
+          error={getError("days")}
           disabled={roleDisabled}
         >
           <div className={`${baseClass}__days`}>
@@ -217,7 +225,7 @@ const PatchDeadlineSection = ({
                 key={w.key}
                 name={w.key}
                 ariaLabel={w.label}
-                value={days.includes(w.key)}
+                value={formData.days.includes(w.key)}
                 onChange={() => toggleDay(w.key)}
                 disabled={roleDisabled}
                 readOnly={fieldReadOnly}
@@ -229,16 +237,8 @@ const PatchDeadlineSection = ({
         </FormField>
 
         <InputField
+          {...getTextFieldProps("time")}
           label="Time"
-          name="patch-deadline-time"
-          value={time}
-          onChange={(v: string) => setTime(v)}
-          onBlur={() => {
-            const next = validate(days, time);
-            setErrors((prev) => ({ ...prev, time: next.time }));
-          }}
-          onFocus={() => setErrors((prev) => ({ ...prev, time: undefined }))}
-          error={errors.time}
           helpText={`Time is formatted as HH:MM in 24-hour format (e.g. "17:00"). All hosts' local time.`}
           disabled={roleDisabled}
           readOnly={fieldReadOnly}

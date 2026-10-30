@@ -19,7 +19,7 @@ const SideNavItem = ({ title, path, isActive }: ISideNavItemProps) => {
 
   return (
     <li className={wrapperClasses}>
-      <Link to={path}>
+      <Link to={path} aria-current={isActive ? "page" : undefined}>
         <TooltipTruncatedText value={title} tooltipPosition="right" />
       </Link>
     </li>

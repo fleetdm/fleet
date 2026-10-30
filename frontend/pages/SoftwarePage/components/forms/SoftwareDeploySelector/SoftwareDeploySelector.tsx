@@ -113,8 +113,9 @@ const WindowsBanner = () => (
  * so navigation stays in-SPA — a hard navigation would spin up a fresh
  * QueryClient on the settings page, and the settings page's
  * invalidateQueries(["patchDeadlineSettings", fleetId]) wouldn't reach this
- * banner on Back (the banner would show stale days/time). */
-const DeadlineBanner = ({ fleetId }: { fleetId: number }) => {
+ * banner on Back (the banner would show stale days/time). Without a fleetId
+ * it skips the fetch and shows placeholders. */
+const DeadlineBanner = ({ fleetId }: { fleetId?: number }) => {
   const { data } = usePatchDeadlineSettings(fleetId);
   const daysLabel = formatWeekdayList(data?.days ?? []);
   const timeLabel = data?.time ? internationalTimeOnlyFormat(data.time) : "";
@@ -200,7 +201,7 @@ export const PatchOptionSelector = ({
     // Windows" one. The widened isMacOS/isWindows both return true for such
     // strings, so precedence matters here.
     if (isMacOS(platform)) {
-      if (endUserExperience === "deadline" && fleetId !== undefined) {
+      if (endUserExperience === "deadline") {
         return <DeadlineBanner fleetId={fleetId} />;
       }
       if (endUserExperience === "notify") {
