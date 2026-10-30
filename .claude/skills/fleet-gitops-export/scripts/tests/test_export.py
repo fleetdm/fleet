@@ -1,6 +1,5 @@
 """Offline tests for the export scripts. Run: python3 -m unittest discover -s scripts/tests"""
 
-import os
 import re
 import shutil
 import sys

@@ -11,6 +11,7 @@ on disk and compares the result with what Fleet has, item by item.
 from __future__ import annotations
 
 import glob as globlib
+import importlib.util
 import json
 import os
 import plistlib
@@ -20,7 +21,6 @@ import sys
 from pathlib import Path
 
 from fleet_api import API, FleetctlError
-from placer import glob_match
 
 F = "/api/latest/fleet"
 PLACEHOLDER = "fleet-gitops-export-dry-run-placeholder"
@@ -35,11 +35,8 @@ IGNORED_FILES = {"README.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".gitignore
 # ------------------------------------------------------------ YAML loading
 
 def yaml_backend():
-    try:
-        import yaml  # noqa: F401
+    if importlib.util.find_spec("yaml"):
         return "pyyaml"
-    except ImportError:
-        pass
     try:
         subprocess.run(["ruby", "-ryaml", "-e", "1"], check=True, capture_output=True, timeout=20)
         return "ruby"

@@ -95,7 +95,7 @@ class Placer:
 
     def place(self):
         self._restore()
-        for fid, f in self.files.items():
+        for f in self.files.values():
             self._write_file(f)
         for fleet in self.plan["fleets"]:
             self._write_fleet(fleet)
@@ -135,9 +135,12 @@ class Placer:
             content = (self.work / "blobs" / f["blob"]).read_bytes()
             if f.get("escape"):
                 try:
-                    content = env_escape(content.decode("utf-8")).encode("utf-8")
+                    text = content.decode("utf-8")
                 except UnicodeDecodeError:
-                    pass
+                    # Not text (the plan already warned about it), so it's written byte for byte.
+                    text = None
+                if text is not None:
+                    content = env_escape(text).encode("utf-8")
         else:
             content = dump(self.resolve(f["data"], os.path.dirname(f["path"]))).encode("utf-8")
         path.write_bytes(content)
@@ -280,10 +283,10 @@ class Placer:
 
         readme = self.root / "README.md"
         if readme.exists() and env:
-            rows = ["", "## Environment variables", "",
-                    "These YAML files reference the variables below instead of storing secrets. Add each one as a "
-                    "repository secret (GitHub) or CI/CD variable (GitLab). `.env.example` lists the same variables "
-                    "for local dry runs.", "",
+            intro = ("These YAML files reference the variables below instead of storing secrets. Add each one as a "
+                     "repository secret (GitHub) or CI/CD variable (GitLab). `.env.example` lists the same variables "
+                     "for local dry runs.")
+            rows = ["", "## Environment variables", "", intro, "",
                     "| Variable | Used in | What it is |", "|---|---|---|"]
             for e in env:
                 rows.append(f"| `{e['name']}` | {', '.join(f'`{u}`' for u in e['used_in'])} | {e['description']} |")

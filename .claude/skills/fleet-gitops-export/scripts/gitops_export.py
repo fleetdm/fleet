@@ -264,10 +264,10 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
     for e in plan["env"]:
         lines.append(f"| `{e['name']}` | {', '.join(f'`{u}`' for u in e['used_in'])} | {e['description']} |")
     if val:
-        lines += ["", "## Validation", "",
-                  "`fleetctl gitops --dry-run` lists most sections as \"would've applied\" without comparing them, and only reports "
+        caveat = ("`fleetctl gitops --dry-run` lists most sections as \"would've applied\" without comparing them, and only reports "
                   "deletions for policies, reports, labels, software packages, custom host vitals, Android certificates, and fleets. "
-                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item.", ""]
+                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item.")
+        lines += ["", "## Validation", "", caveat, ""]
         for section, title in (("references", "YAML and references"), ("reconcile", "Repo vs. Fleet")):
             fails = [r for r in val[section] if r["level"] == "FAIL"]
             lines.append(f"- {title}: {'pass' if not fails else f'{len(fails)} failure(s)'}")

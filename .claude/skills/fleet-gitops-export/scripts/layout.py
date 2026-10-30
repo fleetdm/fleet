@@ -117,7 +117,7 @@ class Layout:
 
         examples = sorted(
             f for f in files
-            if (f.startswith(platform_root + "/") or f.startswith(labels_dir + "/")) and not f.endswith(".gitkeep")
+            if f.startswith((platform_root + "/", labels_dir + "/")) and not f.endswith(".gitkeep")
         )
         return cls({
             "root": str(root_p),

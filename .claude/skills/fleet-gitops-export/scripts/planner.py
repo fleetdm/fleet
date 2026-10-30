@@ -82,7 +82,7 @@ def drop_aliases(section: str, d):
 
 
 def names(labels) -> list[str]:
-    return [l.get("name") or l.get("label_name") for l in (labels or [])]
+    return [lbl.get("name") or lbl.get("label_name") for lbl in (labels or [])]
 
 
 def scope_labels(obj: dict, allowed=("labels_include_all", "labels_include_any", "labels_exclude_any", "labels_exclude_all")) -> dict:
@@ -610,7 +610,7 @@ class Planner:
         apple = drop_aliases("settings", mdm.get("apple_settings") or mdm.get("macos_settings") or {})
         windows = drop_aliases("settings", mdm.get("windows_settings") or {})
         linux = mdm.get("linux_settings") or {}
-        a, w, l = {}, {}, {}
+        a, w, lx = {}, {}, {}
         if premium:
             if apple.get("enable_disk_encryption") or mdm.get("enable_disk_encryption"):
                 a["enable_disk_encryption"] = True
@@ -623,13 +623,13 @@ class Planner:
             if windows.get("enable_managed_local_account"):
                 w["enable_managed_local_account"] = True
             if linux.get("enable_escrow_disk_encryption_key"):
-                l["enable_escrow_disk_encryption_key"] = True
+                lx["enable_escrow_disk_encryption_key"] = True
         if a:
             c["apple_settings"] = a
         if w:
             c["windows_settings"] = w
-        if l:
-            c["linux_settings"] = l
+        if lx:
+            c["linux_settings"] = lx
 
         self._scripts(sc, fleet, scope)
         self._profiles(sc, fleet, scope)
@@ -785,27 +785,27 @@ class Planner:
         is_global = fleet["key"] == "global"
         directory = self.layout.labels_dir if is_global else f"{self.layout.labels_dir}/{slugify(fleet['sections'].get('name') or fleet['key'], 'fleet')}"
         self._existing_labels = getattr(self, "_existing_labels", set())
-        for l in labels:
-            spec = {"name": l["name"]}
-            if l.get("description"):
-                spec["description"] = l["description"]
-            mtype = l.get("label_membership_type") or "dynamic"
+        for lbl in labels:
+            spec = {"name": lbl["name"]}
+            if lbl.get("description"):
+                spec["description"] = lbl["description"]
+            mtype = lbl.get("label_membership_type") or "dynamic"
             if mtype == "dynamic":
-                spec["query"] = l.get("query", "")
+                spec["query"] = lbl.get("query", "")
             spec["label_membership_type"] = mtype
-            if mtype == "dynamic" and l.get("platform"):
-                spec["platform"] = l["platform"]
+            if mtype == "dynamic" and lbl.get("platform"):
+                spec["platform"] = lbl["platform"]
             if mtype == "manual":
-                spec["hosts"] = [str(h) for h in (l.get("hosts") or [])]
+                spec["hosts"] = [str(h) for h in (lbl.get("hosts") or [])]
             if mtype == "host_vitals":
-                spec["criteria"] = l.get("criteria")
-            target = self._template_label_file(l["name"]) if is_global else None
+                spec["criteria"] = lbl.get("criteria")
+            target = self._template_label_file(lbl["name"]) if is_global else None
             if target:
                 fid = self.add_file("label", None, os.path.basename(target), data=[spec], exact=True, directory=os.path.dirname(target),
-                                    fleet=self._scope_name(fleet), escape=True, label=l["name"])
+                                    fleet=self._scope_name(fleet), escape=True, label=lbl["name"])
             else:
-                fid = self.add_file("label", None, l["name"], data=[spec], ext=".yml", directory=directory,
-                                    fleet=self._scope_name(fleet), escape=True, label=l["name"])
+                fid = self.add_file("label", None, lbl["name"], data=[spec], ext=".yml", directory=directory,
+                                    fleet=self._scope_name(fleet), escape=True, label=lbl["name"])
             self._existing_labels.add(self.files[fid]["path"])
             self.count(self._scope_name(fleet), "labels")
             if not is_global:
@@ -1194,7 +1194,7 @@ class Planner:
             d.setdefault("policies", []).extend(p["name"] for p in sc.get("policies") or [])
             d.setdefault("reports", []).extend(r["name"] for r in sc.get("reports") or [])
             if key != "unassigned" and not self.exceptions.get("labels"):
-                d.setdefault("labels", []).extend(l["name"] for l in sc.get("labels") or [])
+                d.setdefault("labels", []).extend(lbl["name"] for lbl in sc.get("labels") or [])
             ctl = "default.yml" if key == "unassigned" else target
             c = inv.setdefault(ctl, {})
             c.setdefault("scripts", []).extend(s["name"] for s in sc.get("scripts") or [])
