@@ -1,0 +1,1 @@
+- Fixed refetches, live reports and config checks stalling for up to ~15 minutes after a network change (e.g. a VPN reconnect) silently dropped fleetd's connection to Fleet.
