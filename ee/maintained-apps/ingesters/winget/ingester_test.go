@@ -678,9 +678,9 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 	}))
 }
 
-// newTwoVersionServer serves a package with version dirs 2.0 and 1.0; the 2.0 installer
-// manifest responds with the given status.
-func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
+// newTwoVersionServer serves a package with version dirs latestDir and 1.0; the latestDir
+// installer manifest responds with the given status.
+func newTwoVersionServer(t *testing.T, latestDir string, latestInstallerStatus int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeYAMLContent := func(v any) {
 			bytes, err := yaml.Marshal(v)
@@ -707,14 +707,14 @@ func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Serv
 		switch r.URL.Path {
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
 			content := []github.RepositoryContent{
-				{Name: new("2.0"), Type: new("dir")},
+				{Name: new(latestDir), Type: new("dir")},
 				{Name: new("1.0"), Type: new("dir")},
 			}
 			if err := json.NewEncoder(w).Encode(content); err != nil {
 				t.Errorf("encoding fixture: %v", err)
 			}
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/2.0/Foo.installer.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/" + latestDir + "/Foo.installer.yaml":
 			w.WriteHeader(latestInstallerStatus)
 			_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
 
@@ -752,7 +752,7 @@ func TestIngestOneVersionWalk(t *testing.T) {
 	}
 
 	t.Run("404 on the latest version dir falls through to the next", func(t *testing.T) {
-		srv := newTwoVersionServer(t, http.StatusNotFound)
+		srv := newTwoVersionServer(t, "2.0", http.StatusNotFound)
 		t.Cleanup(srv.Close)
 
 		out, err := newIngester(srv).ingestOne(ctx, input)
@@ -761,7 +761,7 @@ func TestIngestOneVersionWalk(t *testing.T) {
 	})
 
 	t.Run("429 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
-		srv := newTwoVersionServer(t, http.StatusTooManyRequests)
+		srv := newTwoVersionServer(t, "2.0", http.StatusTooManyRequests)
 		t.Cleanup(srv.Close)
 
 		_, err := newIngester(srv).ingestOne(ctx, input)
@@ -771,7 +771,7 @@ func TestIngestOneVersionWalk(t *testing.T) {
 	})
 
 	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
-		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
+		srv := newTwoVersionServer(t, "2.0", http.StatusGatewayTimeout)
 		t.Cleanup(srv.Close)
 
 		_, err := newIngester(srv).ingestOne(ctx, input)
@@ -779,6 +779,34 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
+
+	t.Run("pre-release version dir is skipped when ignore_prerelease_versions is set", func(t *testing.T) {
+		// A 500 on the pre-release dir would fail the app, so success means it was never fetched.
+		srv := newTwoVersionServer(t, "2.0.0-alpha.0", http.StatusInternalServerError)
+		t.Cleanup(srv.Close)
+
+		in := input
+		in.IgnorePrereleaseVersions = true
+		out, err := newIngester(srv).ingestOne(ctx, in)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+
+		_, err = newIngester(srv).ingestOne(ctx, input)
+		require.ErrorContains(t, err, "500")
+	})
+}
+
+func TestPrereleaseVersionRegex(t *testing.T) {
+	for name, want := range map[string]bool{
+		"27.0.0-alpha.0.0.0":    true,
+		"2.0-preview.9":         true,
+		"26.12.1":               false,
+		"15.19-5":               false,
+		"1.23b":                 false,
+		"1.3.6.1921.g7086c071a": false,
+	} {
+		assert.Equal(t, want, prereleaseVersionRegex.MatchString(name), name)
+	}
 }
 
 func TestNormalizeSourceForgeURL(t *testing.T) {

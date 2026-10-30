@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -133,6 +134,10 @@ type wingetIngester struct {
 	logger       *slog.Logger
 }
 
+// prereleaseVersionRegex matches a semver pre-release tag (27.0.0-alpha.0.0.0) but not a
+// numeric packaging revision (15.19-5).
+var prereleaseVersionRegex = regexp.MustCompile(`-[A-Za-z]`)
+
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
 // package version folders (semver-style). The upstream repo may add other top-level
 // folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
@@ -180,6 +185,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
+	if input.IgnorePrereleaseVersions {
+		versionDirs = slices.DeleteFunc(versionDirs, func(c *github.RepositoryContent) bool {
+			return prereleaseVersionRegex.MatchString(c.GetName())
+		})
+	}
 	if len(versionDirs) == 0 {
 		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
@@ -680,6 +690,10 @@ type inputApp struct {
 	// CI (.github/scripts/partition-fma-apps.sh) reads it to route validation to
 	// the windows-11-arm runner, the only GitHub-hosted client-OS Windows runner.
 	RequiresClientOS bool `json:"requires_client_os"`
+	// IgnorePrereleaseVersions skips winget version folders with a pre-release tag, for
+	// packages that publish alphas alongside stable releases (e.g. OpenJS.NodeJS). It's
+	// opt-in because some FMAs deliberately ship a pre-release (e.g. DevToys 2.0-preview).
+	IgnorePrereleaseVersions bool `json:"ignore_prerelease_versions"`
 }
 
 type installerManifest struct {
