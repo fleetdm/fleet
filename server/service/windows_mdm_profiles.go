@@ -526,7 +526,8 @@ const conditionalAccessChallengeInvalidMsg = `The SCEP certificate's "Challenge"
 
 // additionalConditionalAccessValidationForWindowsProfiles checks that the conditional access SCEP URL variable is in,
 // and only in, the SCEP node's ServerURL, that the SubjectName carries the renewal ID, and that the challenge, which the
-// admin writes in (secret variables are expanded before validation), is one Windows can send.
+// admin writes in (secret variables are expanded before validation), is one Windows can send. The variable scan that
+// gets us here reads raw XML, comments included, so the ServerURL item must be seen in the parsed items too.
 func additionalConditionalAccessValidationForWindowsProfiles(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
 	if conditionalAccessVars == nil {
 		return nil
@@ -536,7 +537,10 @@ func additionalConditionalAccessValidationForWindowsProfiles(contents string, co
 	var cmdMsg *fleet.SyncMLCmd
 	// An admin's upload, already parsed as SyncML by the profile validators; encoding/xml resolves no external entities.
 	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents)))) //nolint:gosec // G709: see above
-	challengeFound := false
+	urlMissingErr := &fleet.BadRequestError{
+		Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+	}
+	challengeFound, serverURLFound := false, false
 	for {
 		if err := dec.Decode(&cmdMsg); err != nil {
 			if errors.Is(err, io.EOF) {
@@ -567,10 +571,11 @@ func additionalConditionalAccessValidationForWindowsProfiles(contents string, co
 					Message: fmt.Sprintf("Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
 				}
 			}
-			if isServerURL && !isFleetVar(dataContent, urlVar) {
-				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+			if isServerURL {
+				if !isFleetVar(dataContent, urlVar) {
+					return urlMissingErr
 				}
+				serverURLFound = true
 			}
 			if strings.HasSuffix(target, "/Install/Challenge") {
 				challengeFound = true
@@ -584,6 +589,9 @@ func additionalConditionalAccessValidationForWindowsProfiles(contents string, co
 				}
 			}
 		}
+	}
+	if !serverURLFound {
+		return urlMissingErr
 	}
 	if !challengeFound {
 		return &fleet.BadRequestError{Message: conditionalAccessChallengeInvalidMsg}

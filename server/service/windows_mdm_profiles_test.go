@@ -238,6 +238,11 @@ func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
 			contents:    urlItem + challengeItem + syncMLAddItem(scepPrefix+"SubjectName", "CN=x,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID") + syncMLAddItem(scepPrefix+"SubjectName", "CN=y"),
 			errContains: "SubjectName item must contain the",
 		},
+		{
+			name:        "url variable only in an XML comment",
+			contents:    "<!-- $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL -->" + challengeItem + subjectItem + sanItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must be in the SCEP certificate's "ServerURL" field.`,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
