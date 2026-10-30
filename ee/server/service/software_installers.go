@@ -4118,18 +4118,38 @@ func (svc *Service) softwareBatchUpload(
 	// delete): the installers on the team whose title matches no incoming
 	// payload, mirroring the title-based deletion in ds.BatchSetSoftwareInstallers.
 	incoming := make([]fleet.SoftwareTitleIdentifier, 0, len(installers))
+	var uploads []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		for _, p := range append([]*fleet.UploadSoftwareInstallerPayload{payloadWithExtras.UploadSoftwareInstallerPayload}, payloadWithExtras.ExtraInstallers...) {
 			incoming = append(incoming, fleet.SoftwareTitleIdentifier{
 				UniqueIdentifier: p.UniqueIdentifier(),
 				Source:           p.Source,
 			})
+			uploads = append(uploads, p)
 		}
 	}
 	deletedPackages, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, incoming)
 	if err != nil {
 		batchErr = fmt.Errorf("computing software packages pending deletion: %w", err)
 		return
+	}
+	if len(deletedPackages) > 0 {
+		// The apply resolves a payload by bundle id or upgrade code, else by name, so it can keep a
+		// title whose unique identifier differs from the payload's, which the match above does not see.
+		var keptTitleIDs []uint
+		for _, p := range uploads {
+			titleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctxdb.RequirePrimary(ctx, true), p)
+			switch {
+			case err == nil:
+				keptTitleIDs = append(keptTitleIDs, titleID)
+			case !fleet.IsNotFound(err):
+				batchErr = fmt.Errorf("resolving software title for %q: %w", p.Filename, err)
+				return
+			}
+		}
+		deletedPackages = slices.DeleteFunc(deletedPackages, func(d fleet.DeletedSoftwarePackage) bool {
+			return slices.Contains(keptTitleIDs, d.TitleID)
+		})
 	}
 	if len(deletedPackages) > 0 {
 		deletedJSON, err := json.Marshal(deletedPackages)

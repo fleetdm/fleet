@@ -3269,6 +3269,31 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedSelfServiceCategory, "added", "to"],
+    [ActivityType.EditedSelfServiceCategory, "edited", "in"],
+    [ActivityType.DeletedSelfServiceCategory, "deleted", "from"],
+  ] as const)(
+    "renders a %s activity with the category and fleet names",
+    (type, action, preposition) => {
+      const activity = createMockActivity({
+        type,
+        actor_full_name: "E2E",
+        details: {
+          self_service_category_name: "🛠️ Utilities",
+          fleet_name: "qa-fma-gitops-1028",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container).toHaveTextContent(
+        `E2E ${action} 🛠️ Utilities self-service category ${preposition} the qa-fma-gitops-1028 fleet.`
+      );
+    }
+  );
+
   it("renders an un-scoped installed_all_self_service_software activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledAllSelfServiceSoftware,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.1",
+      "version": "3.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop' AND version_compare(bundle_short_version, '3.4.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tradingview.tradingviewapp.desktop' AND version_compare(bundle_short_version, '3.5.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.tradingview.tradingviewapp.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://tvd-packages.tradingview.com/stable/3.4.1/darwin/TradingView.dmg",
+      "installer_url": "https://tvd-packages.tradingview.com/stable/3.5.0/darwin/TradingView.dmg",
       "install_script_ref": "af43b732",
       "uninstall_script_ref": "8b0e4e0e",
-      "sha256": "cf8cd66b5bc7f3755e1d77c31e068ed7b40fce17a76df9b4086ebff04fe85e32",
+      "sha256": "38b2740945ff872f6b0e725ea89facfe604ccebaa96d1da4c4ec1a8791d3b22d",
       "default_categories": [
         "Productivity"
       ]

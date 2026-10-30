@@ -154,6 +154,10 @@ func TestReconcileWindowsProfilesForEnrollingHost(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1, "the install command must be queued for the host's enrollment")
 
+	summary, err := ds.GetMDMWindowsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Pending, "the profile status summary must include the host right after the per-host reconcile")
+
 	// Idempotent: a second run queues nothing new, neither rows nor commands.
 	require.NoError(t, ReconcileWindowsProfilesForEnrollingHost(ctx, ds, logger, host.UUID))
 	rowsAgain, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
