@@ -63,13 +63,13 @@ digraph route {
 
 - Reporter updates when the fix merges (name the target release) and when it ships (name the release). Bugbop status to `fixed` only after it ships.
 - When a fix merges: close the `fleetdm/security` issue with the PR link, move its board cards back to the release QA column (the close automation sends them to Done), and add the advisory follow-up row to the running list in `fleetdm/confidential` (search issues for "advisory running list").
-- Advisory publishing, CVE requests, bounty amounts, severity disputes you can't settle, Critical or p1 ratings, and anything naming a customer: bring to the CTO with a one-paragraph summary and your recommendation.
+- Advisory publishing, CVE requests, bounty amounts, severity disputes you can't settle, Emergency or Critical ratings, and anything naming a customer: bring to the CTO with a one-paragraph summary and your recommendation.
 
 ## Quick reference
 
 | Question | Answer |
 |---|---|
-| Critical / High / Medium / Low | `p0` / `p2` / `p3` / `p4`. `p1` only when the CTO sets it. |
+| Emergency / Critical / High / Medium / Low | `p0` / `p1` / `p2` / `p3` / `p4`. Emergency means an active exploit; confirm with the CTO before setting it. |
 | Bugbop statuses | `new`, `open`, `needs_info`, `fixed`, `wont_fix`, `duplicate`, `not_applicable`. `duplicate` needs a `duplicate_of_id` in the same program. |
 | Duplicate across Bugbop programs | Can't be linked. Leave the later one `open` with an internal note, tell the reporter, close as `fixed` with the tracker when it ships. |
 | Accept an advisory submission | `PATCH .../security-advisories/{ghsa} state=draft`. Severity and CVSS vector can't be set in one call; send the vector alone. |

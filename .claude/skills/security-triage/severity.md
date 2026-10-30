@@ -25,6 +25,7 @@ Fleet uses CVSS 3.1 as the vocabulary and the table below as the decision. When 
 
 | Severity | Typical shape | Examples from Fleet's history |
 |---|---|---|
+| Emergency | A Critical that is being exploited in the wild, or a public exploit exists | Active exploitation reported by a customer or researcher |
 | Critical | Unauthenticated, or any user, to global admin or to code execution on hosts | SAML session store takeover; SQL injection in an unauthenticated endpoint |
 | High | Cross-fleet or cross-host takeover of identity, commands, or secrets with a credential the attacker can plausibly hold | Enrollment takeover via a device-reported identifier; team admin escalating to global admin; observer reading enroll secrets |
 | Medium | Information disclosure beyond role, authenticated denial of service, secrets in places lower roles can read | Command results exposing enroll secrets; crafted installer crashing the server |
