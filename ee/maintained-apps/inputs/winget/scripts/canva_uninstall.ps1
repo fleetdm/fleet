@@ -15,8 +15,11 @@ function Get-AppEntries {
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
     foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-        if ($hive.Name -match '_Classes$') { continue }
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
     }
@@ -31,8 +34,8 @@ function Get-AppEntries {
             if ($name -notmatch $displayNamePattern) { continue }
             if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
-            # Only a real user's entry needs the uninstaller run for them; HKLM and the
-            # service SIDs are already in the right context.
+            # Only a real user's entry needs the uninstaller run for them; HKLM and
+            # SYSTEM's hive are already in the right context.
             $sid = $null
             if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
