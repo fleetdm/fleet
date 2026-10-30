@@ -5042,13 +5042,6 @@
       "description": "LinearMouse is a tool to customise mouse behavior."
     },
     {
-      "name": "Lingon X",
-      "slug": "lingon-x/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.peterborgapps.LingonX9",
-      "description": "Lingon X is an automator software to start apps, run scripts or commands and more."
-    },
-    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",

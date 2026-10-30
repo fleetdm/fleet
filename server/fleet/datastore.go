@@ -1908,6 +1908,10 @@ type Datastore interface {
 	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, personalType PersonalEnrollmentType) error
 
+	// GetAppleSerialEnrolledUnderAnotherUUID returns the UUID of the host that's enrolled with the serial under a UUID
+	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
+	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
+
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
 	// need a default should treat NotFound as AccessRights=8191 (all rights).

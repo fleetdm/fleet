@@ -12,9 +12,9 @@ describe("AddCertAuthorityCard", () => {
     const render = createCustomRenderer();
     render(<AddCertAuthorityCard router={router} />);
 
-    expect(screen.getByText("Add certificate authority")).toBeInTheDocument();
+    expect(screen.getByText("No certificate authority")).toBeInTheDocument();
     expect(
-      screen.getByText(/custom SCEP certificate authority must be configured/i)
+      screen.getByText(/custom SCEP certificate authority/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add CA" })).toBeInTheDocument();
   });

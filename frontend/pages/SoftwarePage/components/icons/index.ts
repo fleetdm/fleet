@@ -596,7 +596,6 @@ import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
 import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
@@ -1778,7 +1777,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
   "lm studio": LMStudio,
   local: Local,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,9 +73,12 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		})
 	}
 
+	// the same device keeps its UDID each time it enrolls
+	deviceUUID := strings.ToUpper(uuid.NewString())
 	enrollAppleDevice := func(t *testing.T, device godep.Device) *mdmtest.TestAppleMDMClient {
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.UUID = deviceUUID
 		mdmDevice.SerialNumber = device.SerialNumber
 		err := mdmDevice.Enroll()
 		require.NoError(t, err)
