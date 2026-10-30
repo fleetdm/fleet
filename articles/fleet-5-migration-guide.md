@@ -124,11 +124,13 @@ Issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 | `GET /api/v1/fleet/mdm/hosts/:id/profiles` | [`GET /api/v1/fleet/hosts/:id/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-os-settings-configuration-profile) |
 | `GET /api/v1/fleet/mdm/hosts/:id/encryption_key` | [`GET /api/v1/fleet/hosts/:id/encryption_key`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) |
 | `GET /api/v1/fleet/mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | [`GET /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#get-disk-encryption-status) |
+| `PATCH /api/v1/fleet/mdm/apple/settings` | [`POST /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption) |
 | `GET /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`GET /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles) |
 | `POST /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`POST /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) |
 | `GET /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`GET /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile) |
 | `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`DELETE /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile) |
 | `GET /api/v1/fleet/mdm/profiles/summary` (and `/mdm/apple/profiles/summary`) | [`GET /api/v1/fleet/configuration_profiles/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-configuration-profiles-status) |
+| `POST /api/v1/fleet/mdm/apple/profiles/batch` | [`POST /api/v1/fleet/configuration_profiles/batch`](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles) |
 | `PATCH /api/v1/fleet/mdm/apple/setup` | [`PATCH /api/v1/fleet/setup_experience`](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) |
 | `GET /api/v1/fleet/mdm/apple` | [`GET /api/v1/fleet/apns`](https://fleetdm.com/docs/rest-api/rest-api#get-apple-push-notification-service-apns) |
 | `POST /api/v1/fleet/mdm/apple/enrollment_profile` | [`POST /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile) |
@@ -139,8 +141,10 @@ Issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 | `GET /api/v1/fleet/mdm/bootstrap/:fleet_id/metadata` (and `/mdm/apple/bootstrap/:fleet_id/metadata`) | [`GET /api/v1/fleet/bootstrap/:fleet_id/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-metadata) |
 | `DELETE /api/v1/fleet/mdm/bootstrap/:fleet_id` (and `/mdm/apple/bootstrap/:fleet_id`) | [`DELETE /api/v1/fleet/bootstrap/:fleet_id`](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package) |
 | `GET /api/v1/fleet/mdm/bootstrap/summary` (and `/mdm/apple/bootstrap/summary`) | [`GET /api/v1/fleet/bootstrap/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-status) |
+| `GET /api/v1/fleet/mdm/bootstrap?token=` (and `/mdm/apple/bootstrap?token=`) | [`GET /api/v1/fleet/bootstrap?token=`](https://fleetdm.com/docs/rest-api/rest-api#download-bootstrap-package) |
 | `POST /api/v1/fleet/mdm/setup/eula` (and `/mdm/apple/setup/eula`) | [`POST /api/v1/fleet/setup_experience/eula`](https://fleetdm.com/docs/rest-api/rest-api#create-eula) |
 | `GET /api/v1/fleet/mdm/setup/eula/metadata` (and `/mdm/apple/setup/eula/metadata`) | [`GET /api/v1/fleet/setup_experience/eula/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-eula-metadata) |
+| `GET /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`GET /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#download-eula) |
 | `DELETE /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`DELETE /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#delete-eula) |
 
 What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
