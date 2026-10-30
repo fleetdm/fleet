@@ -106,13 +106,17 @@ def scalar(v) -> str:
         return json.dumps(v)
     s = str(v)
     if _plain_ok(s):
-        return env_escape(s)
-    escaped = env_escape(s)
-    if escaped != s and not any(ord(c) < 32 or c == "\x7f" for c in s):
-        # "\$" isn't a valid escape inside double quotes for standard YAML parsers;
-        # single quotes keep the file parseable by them as well as by fleetctl.
-        return "'" + escaped.replace("'", "''") + "'"
-    return env_escape(json.dumps(s, ensure_ascii=False))
+        return s
+    if env_escape(s) == s:
+        return json.dumps(s, ensure_ascii=False)
+    # "\$" isn't a valid escape inside double quotes for standard YAML parsers, so a string
+    # with a dollar sign fleetctl would expand goes in single quotes when it can, and
+    # otherwise in double quotes with that dollar written as \x24, which YAML reads as "$"
+    # and fleetctl's expansion never sees.
+    if not any((ord(c) < 32 and c != "\t") or c == "\x7f" for c in s):
+        return "'" + env_escape(s).replace("'", "''") + "'"
+    quoted = json.dumps(s, ensure_ascii=False)
+    return "".join("\\x24" if c == "$" and _expandable(quoted, i) else c for i, c in enumerate(quoted))
 
 
 def _key(k) -> str:

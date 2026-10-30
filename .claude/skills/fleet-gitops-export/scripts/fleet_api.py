@@ -55,6 +55,12 @@ _ALLOWED = [re.compile(p + r"$") for p in ALLOWED_PATHS]
 
 _STATUS = re.compile(r"non 2XX return of (\d+)")
 
+# Seconds to wait for fleetctl.
+INFO_TIMEOUT = 60  # --version, new --help, config get
+NEW_TIMEOUT = 120
+API_TIMEOUT = 300  # one GET, which can be a large download
+DRY_RUN_TIMEOUT = 1800
+
 
 class FleetctlError(Exception):
     def __init__(self, message: str, status: int | None = None):
@@ -76,22 +82,22 @@ class Fleetctl:
             flags += ["--context", self.context]
         return flags
 
-    def _run(self, args: list[str], env: dict | None = None, cwd: str | None = None, timeout: int = 300):
+    def _run(self, args: list[str], env: dict | None = None, cwd: str | None = None, timeout: int = API_TIMEOUT):
         return subprocess.run([self.binary] + args, capture_output=True, env=env, cwd=cwd, timeout=timeout)
 
     def version(self) -> str:
-        r = self._run(["--version"], timeout=60)
+        r = self._run(["--version"], timeout=INFO_TIMEOUT)
         if r.returncode:
             raise FleetctlError(r.stderr.decode(errors="replace").strip() or "fleetctl --version failed")
         m = re.search(r"version\s+(\S+)", r.stdout.decode(errors="replace"))
         return m.group(1) if m else "unknown"
 
     def has_new(self) -> bool:
-        r = self._run(["new", "--help"], timeout=60)
+        r = self._run(["new", "--help"], timeout=INFO_TIMEOUT)
         return r.returncode == 0 and b"--org-name" in r.stdout
 
     def address(self) -> str:
-        r = self._run(["config", "get"] + self._conn_flags() + ["address"], timeout=60)
+        r = self._run(["config", "get"] + self._conn_flags() + ["address"], timeout=INFO_TIMEOUT)
         out = r.stdout.decode(errors="replace")
         m = re.search(r"=>\s*(\S+)", out)
         if r.returncode or not m:
@@ -102,7 +108,7 @@ class Fleetctl:
         args = ["new", "--dir", directory, "--org-name", org_name]
         if force:
             args.append("--force")
-        r = self._run(args, timeout=120)
+        r = self._run(args, timeout=NEW_TIMEOUT)
         if r.returncode:
             raise FleetctlError(r.stderr.decode(errors="replace").strip() or r.stdout.decode(errors="replace").strip())
         return r.stdout.decode(errors="replace")
@@ -114,7 +120,7 @@ class Fleetctl:
         if delete_other_fleets:
             args.append("--delete-other-fleets")
         args.append("--dry-run")
-        return self._run(args, env=env, cwd=cwd, timeout=1800)
+        return self._run(args, env=env, cwd=cwd, timeout=DRY_RUN_TIMEOUT)
 
     def get(self, path: str, params: dict | None = None) -> bytes:
         if not any(p.match(path) for p in _ALLOWED):

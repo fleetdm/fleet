@@ -635,6 +635,9 @@ class Planner:
         self._profiles(sc, fleet, scope)
         assets = []
         for asset in sc.get("assets") or []:
+            if not exact_name_ok(asset["name"] + ".json"):
+                self.note("gap", scope, asset["name"], "Fleet names a DDM asset after its file, and this name can't be a file name; rename the asset in Fleet, then export again")
+                continue
             fid = self.add_file("asset", "macos", asset["name"] + ".json", content=asset["content"], exact=True, fleet=scope, escape=True)
             assets.append({"path": {"$file": fid}})
             self.count(scope, "DDM assets")
@@ -1184,24 +1187,98 @@ class Planner:
                 self.remove.append(f)
 
     def _inventory(self, scopes) -> dict:
-        """What Fleet has, by fleet file, for the reconcile check after placement."""
-        inv = {}
+        """What Fleet has, by file, read straight from the API data (not from the YAML this
+        planner writes), so the reconcile check after placement compares two independent sources.
+
+        Shape: {file: {kind: [[key, {field: value}], ...]}}. Lists, not dicts, so duplicates show.
+        """
+        inv: dict = {}
+
+        def add(target, kind, key, fields):
+            inv.setdefault(target, {}).setdefault(kind, []).append([key, fields])
+
+        premium = self.flags["premium"]
         for key, sc in scopes.items():
-            target = self._fleet_files.get(key, {}).get("file") if key != "global" else "default.yml"
+            target = "default.yml" if key == "global" else self._fleet_files.get(key, {}).get("file")
             if not target:
                 continue
-            d = inv.setdefault(target, {})
-            d.setdefault("policies", []).extend(p["name"] for p in sc.get("policies") or [])
-            d.setdefault("reports", []).extend(r["name"] for r in sc.get("reports") or [])
+            controls = "default.yml" if key == "unassigned" else target
+            sw = self._software_index(key)
+            failing = set(((sc.get("team") or self.snap["config"]).get("webhook_settings") or {})
+                          .get("failing_policies_webhook", {}).get("policy_ids") or [])
+            for p in sc.get("policies") or []:
+                f = {k: p.get(k) for k in ("platform", "description", "resolution", "calendar_events_enabled",
+                                           "conditional_access_enabled", "continuous_automations_enabled")}
+                f["type"] = p.get("type") or "dynamic"
+                if f["type"] == "patch":
+                    f["fleet_maintained_app_slug"] = (sw.get((p.get("patch_software") or {}).get("software_title_id")) or {}).get("slug")
+                else:
+                    f["query"] = p.get("query")
+                if premium:
+                    f.update({"critical": p.get("critical"), "hidden": p.get("hidden")})
+                    f.update(scope_labels(p))
+                f["webhooks_and_tickets_enabled"] = p["id"] in failing
+                f["run_script"] = (p.get("run_script") or {}).get("name")
+                add(target, "policies", p["name"], f)
+            for r in sc.get("reports") or []:
+                f = {k: r.get(k) for k in ("query", "platform", "description", "interval", "observer_can_run", "automations_enabled",
+                                           "logging", "discard_data", "min_osquery_version")}
+                f.update(scope_labels(r, ("labels_include_any",) + (("labels_include_all",) if premium else ())))
+                add(target, "reports", r["name"], f)
             if key != "unassigned" and not self.exceptions.get("labels"):
-                d.setdefault("labels", []).extend(lbl["name"] for lbl in sc.get("labels") or [])
-            ctl = "default.yml" if key == "unassigned" else target
-            c = inv.setdefault(ctl, {})
-            c.setdefault("scripts", []).extend(s["name"] for s in sc.get("scripts") or [])
-            c.setdefault("profiles", []).extend(p.get("name") for p in sc.get("profiles") or [] if p.get("platform") in ("darwin", "windows", "android"))
-            if not self.exceptions.get("software"):
-                d.setdefault("software", []).extend(t.get("name") for t in (sc.get("software") or {}).get("titles", []))
+                for lbl in sc.get("labels") or []:
+                    mtype = lbl.get("label_membership_type") or "dynamic"
+                    f = {"description": lbl.get("description"), "label_membership_type": mtype}
+                    if mtype == "dynamic":
+                        f.update({"query": lbl.get("query"), "platform": lbl.get("platform")})
+                    elif mtype == "manual":
+                        f["hosts"] = [str(h) for h in lbl.get("hosts") or []]
+                    else:
+                        f["criteria"] = lbl.get("criteria")
+                    add(target, "labels", lbl["name"], f)
+            for sc_script in sc.get("scripts") or []:
+                add(controls, "scripts", sc_script["name"], {"sha256": hashlib.sha256(sc_script["content"]).hexdigest()})
+            for prof in sc.get("profiles") or []:
+                if prof.get("platform") not in ("darwin", "windows", "android"):
+                    continue
+                f = {"sha256": hashlib.sha256(prof["content"]).hexdigest(), "self_service": prof.get("self_service"),
+                     "hidden": prof.get("hidden"), "description": prof.get("description")}
+                f.update(scope_labels(prof, ("labels_include_all", "labels_include_any", "labels_exclude_any")))
+                if prof.get("activation"):
+                    f["activation_sha256"] = hashlib.sha256(prof["activation"]).hexdigest()
+                add(controls, "profiles", prof.get("name"), f)
+            for asset in sc.get("assets") or []:
+                add(controls, "assets", asset["name"], {"sha256": hashlib.sha256(asset["content"]).hexdigest()})
+            if not self.exceptions.get("software") and key != "global":
+                seen = set()
+                for t in (sc.get("software") or {}).get("titles", []):
+                    for ident, f in _software_identities(t):
+                        if ident not in seen:
+                            seen.add(ident)
+                            add(target, "software", ident, f)
         return inv
+
+
+def _software_identities(t: dict):
+    """(identity, settings) for each installable item of a software title, as the reconcile check keys them."""
+    pkg, app = t.get("software_package"), t.get("app_store_app")
+    if pkg and pkg.get("fleet_maintained_app_id"):
+        f = {"self_service": pkg.get("self_service"), "categories": pkg.get("categories")}
+        f.update(software_labels(pkg))
+        yield f"fma:{(t.get('fma') or {}).get('slug')}", f
+    elif pkg:
+        for p in (t.get("packages") or [pkg]) if len(t.get("packages") or []) > 1 else [pkg]:
+            f = {"self_service": p.get("self_service"), "categories": p.get("categories")}
+            f.update(software_labels(p))
+            yield f"package:{p.get('hash_sha256') or pkg.get('hash_sha256')}", f
+    elif app:
+        versions = t.get("app_store_apps") or []
+        multi = len(versions) > 1 or (len(versions) == 1 and versions[0].get("name") not in (None, "", "Default version"))
+        f = {}
+        if not multi:
+            f = {"self_service": app.get("self_service"), "categories": app.get("categories")}
+            f.update(software_labels(app))
+        yield f"app:{app.get('app_store_id')}:{app.get('platform', '')}", f
 
 
 def _envslug(name: str) -> str:

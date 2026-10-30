@@ -82,7 +82,7 @@ Before running it, ask the user to export any `FLEET_SECRET_*` variables the pla
 
 1. runs the scaffold's own `fleet-gitops` validator (static checks; its FAILs are reported but don't fail the export, because some come from content as it exists in Fleet),
 2. parses every YAML file and checks that every reference exists and no file is orphaned,
-3. reconciles the repo with Fleet item by item (policies, reports, labels, scripts, profiles per file),
+3. reconciles the repo with Fleet item by item and field by field: policy, report, and label definitions against the values Fleet returned, scripts, profiles, activations, and DDM assets by content hash, and software by package hash, Fleet-maintained app slug, or App Store ID with its self-service, category, and label settings,
 4. runs `fleetctl gitops -f default.yml -f fleets/*.yml --delete-other-fleets --dry-run` with secrets in the process environment.
 
 The export passes when references and reconcile are clean, the dry run exits 0, and it prints no deletion, creation, or move. Treat any of those as an export bug or a gap: find which, fix the plan or explain the gap, and re-run. Don't edit generated YAML by hand to make a check pass without understanding why it failed. Known cases:
@@ -96,6 +96,8 @@ The export passes when references and reconcile are clean, the dry run exits 0, 
 ```bash
 python3 <skill folder>/scripts/gitops_export.py report --dir <target>
 ```
+
+When the user is done, run `clean --dir <target>` to delete the work folder: it holds copies of profiles and scripts as Fleet stores them.
 
 Relay the report in your own words, without pasting it whole: what was exported for each fleet; anything that couldn't be represented and why; every environment variable to set (from the table); the placement choices you made in step 4; the validation results, including that the dry run alone can't see profile or script changes; and the exact command to rerun the dry run. Suggest `git init` and a first commit, and point to the README's CI setup (`FLEET_URL`, `FLEET_API_TOKEN`, then the variables). Before they turn on the workflow's apply step, recommend one more dry run from CI.
 

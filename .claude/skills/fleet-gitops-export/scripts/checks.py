@@ -5,12 +5,14 @@ the repo defines exactly what Fleet has, and a fleetctl dry run is clean.
 without diffing them, and only reports deletions for policies, reports,
 labels, software packages, custom host vitals, Android certificates, and
 fleets. The reconcile check fills that gap: it resolves every path and glob
-on disk and compares the result with what Fleet has, item by item.
+on disk and compares the result with what Fleet has, item by item and field
+by field (content hashes for scripts, profiles, and DDM assets).
 """
 
 from __future__ import annotations
 
 import glob as globlib
+import hashlib
 import importlib.util
 import json
 import os
@@ -55,9 +57,57 @@ def load_yaml(text: str, backend: str):
     return json.loads(r.stdout)
 
 
+KIND_NAMES = {"policies": "policy", "reports": "report", "labels": "label", "scripts": "script",
+              "profiles": "profile", "assets": "DDM asset", "software": "software"}
+
+
+def _sha(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+def _norm(v):
+    """Comparable form: empty values (None, "", false, 0, [], {}) are equal, lists are unordered."""
+    if isinstance(v, list):
+        items = [x for x in (_norm(i) for i in v) if x is not None]
+        return sorted(items, key=lambda x: json.dumps(x, sort_keys=True)) or None
+    if isinstance(v, dict):
+        d = {k: x for k, x in ((k, _norm(i)) for k, i in v.items()) if x is not None}
+        return d or None
+    if v is None or v is False or v == "" or (isinstance(v, (int, float)) and not isinstance(v, bool) and v == 0):
+        return None
+    return v if isinstance(v, bool) else str(v)
+
+
+def _short(v) -> str:
+    text = json.dumps(v, ensure_ascii=False, default=str)
+    return text if len(text) <= 80 else text[:77] + "..."
+
+
+def _package_settings(item: dict, entry: dict) -> dict:
+    """A package's effective settings: its own, else the fleet-level entry's (as fleetctl merges them)."""
+    f = {"self_service": item.get("self_service") or entry.get("self_service"),
+         "categories": item.get("categories") or entry.get("categories")}
+    labels = {k: item[k] for k in ("labels_include_any", "labels_exclude_any", "labels_include_all") if item.get(k)} or \
+        {k: entry[k] for k in ("labels_include_any", "labels_exclude_any", "labels_include_all") if entry.get(k)}
+    f.update(labels)
+    return f
+
+
+def _payload_display_name(body: bytes):
+    try:
+        return plistlib.loads(body).get("PayloadDisplayName")
+    except Exception:  # noqa: BLE001 - not parseable as a plist ($FLEET_VAR_ in a <data> element, say)
+        m = re.findall(rb"<key>PayloadDisplayName</key>\s*<string>(.*?)</string>", body, re.S)
+        return m[-1].decode(errors="replace") if m else None
+
+
 def unescape_env(text: str) -> str:
-    """What fleetctl sees after env expansion, for files that only use escapes (no real $VARs)."""
-    return re.sub(r"\\(\\*)\$", lambda m: m.group(1)[: len(m.group(1)) // 2] + "$", text)
+    """What fleetctl sees after env expansion, for files that only use escapes (no real $VARs).
+
+    Mirrors fleetctl's escapeString: an odd run of k backslashes before "$" becomes (k-1)/2
+    backslashes and a literal "$"; an even run is left alone.
+    """
+    return re.sub(r"(\\+)\$", lambda m: m.group(0) if len(m.group(1)) % 2 == 0 else "\\" * ((len(m.group(1)) - 1) // 2) + "$", text)
 
 
 class Checker:
@@ -180,61 +230,109 @@ class Checker:
                 out.append((None, entry))
         return out
 
-    def _named(self, top, section):
-        names = []
+    def _yaml_items(self, top: str, section: list):
+        """Item dicts under a section: entries of referenced item files, or the entries themselves when inline."""
+        out = []
         for path, entry in self._items(top, section):
             if path and path.endswith((".yml", ".yaml")):
-                for item in self.docs.get(path) or []:
-                    names.append(item.get("name"))
+                out.extend(item for item in self.docs.get(path) or [] if isinstance(item, dict))
             elif path is None:
-                names.append(entry.get("name"))
-        return names
+                out.append(entry)
+        return out
 
-    def _profile_names(self, top):
-        names = []
+    def _bytes(self, path: str, expanded: bool) -> bytes:
+        """A file's bytes as fleetctl sends them: env-unescaped for the file kinds it expands."""
+        b = (self.root / path).read_bytes()
+        if expanded:
+            try:
+                return unescape_env(b.decode("utf-8")).encode("utf-8")
+            except UnicodeDecodeError:
+                return b
+        return b
+
+    def _found(self, top: str) -> dict:
+        """What the repo defines for a top-level file, keyed the same way as the plan's inventory."""
+        base = os.path.dirname(top)
+        found = {k: [] for k in KIND_NAMES}
+        for item in self._yaml_items(top, ["policies"]):
+            f = dict(item)
+            f["type"] = item.get("type") or "dynamic"
+            rs = item.get("run_script")
+            f["run_script"] = os.path.basename(rs["path"]) if isinstance(rs, dict) and rs.get("path") else None
+            found["policies"].append([item.get("name"), f])
+        for kind in ("reports", "labels"):
+            found[kind] = [[item.get("name"), item] for item in self._yaml_items(top, [kind])]
+        for path, _ in self._items(top, ["controls", "scripts"]):
+            if path:
+                found["scripts"].append([os.path.basename(path), {"sha256": _sha(self._bytes(path, False))}])
         for section in (["controls", "apple_settings", "configuration_profiles"], ["controls", "windows_settings", "configuration_profiles"],
                         ["controls", "android_settings", "configuration_profiles"]):
             for path, entry in self._items(top, section):
-                if entry.get("name"):
-                    names.append(entry["name"])
-                elif path and path.endswith(".mobileconfig"):
-                    try:
-                        names.append(plistlib.loads((self.root / path).read_bytes()).get("PayloadDisplayName"))
-                    except Exception:  # noqa: BLE001
-                        names.append(None)
-                elif path:
-                    names.append(os.path.splitext(os.path.basename(path))[0])
-        return names
+                if not path:
+                    continue
+                body = self._bytes(path, True)
+                name = entry.get("name")
+                if not name and path.endswith(".mobileconfig"):
+                    name = _payload_display_name(body)
+                name = name or os.path.splitext(os.path.basename(path))[0]
+                f = {k: entry.get(k) for k in ("self_service", "hidden", "description", "labels_include_all", "labels_include_any", "labels_exclude_any")}
+                f["sha256"] = _sha(body)
+                if entry.get("activation"):
+                    f["activation_sha256"] = _sha(self._bytes(os.path.normpath(os.path.join(base, entry["activation"])), False))
+                found["profiles"].append([name, f])
+        for path, _ in self._items(top, ["controls", "apple_settings", "assets"]):
+            if path:
+                found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": _sha(self._bytes(path, True))}])
+        sw = (self.docs.get(top) or {}).get("software") or {}
+        for entry in sw.get("packages") or []:
+            if not isinstance(entry, dict):
+                continue
+            path = os.path.normpath(os.path.join(base, entry["path"])).replace(os.sep, "/") if entry.get("path") else None
+            if path and path.endswith((".yml", ".yaml")):
+                for item in self.docs.get(path) or []:
+                    found["software"].append([f"package:{item.get('hash_sha256')}", _package_settings(item, entry)])
+            elif path:
+                found["software"].append([f"package:{_sha(self._bytes(path, False))}", _package_settings({}, entry)])
+            else:
+                found["software"].append([f"package:{entry.get('hash_sha256')}", _package_settings({}, entry)])
+        for item in sw.get("fleet_maintained_apps") or []:
+            if isinstance(item, dict):
+                found["software"].append([f"fma:{item.get('slug')}", item])
+        for item in sw.get("app_store_apps") or []:
+            if isinstance(item, dict):
+                f = {} if item.get("versions") else item
+                found["software"].append([f"app:{item.get('app_store_id')}:{item.get('platform', '')}", f])
+        return found
 
     def reconcile(self):
+        """Compare the repo with Fleet item by item: presence, then each field Fleet reported."""
         inventory = self.plan.get("inventory") or {}
         for top, kinds in inventory.items():
             if top not in self.docs:
                 if any(kinds.values()):
                     self.fail("reconcile", f"{top} is missing, but Fleet has items for it")
                 continue
-            have = {
-                "policies": self._named(top, ["policies"]),
-                "reports": self._named(top, ["reports"]),
-                "labels": self._named(top, ["labels"]),
-                "scripts": [os.path.basename(p) for p, _ in self._items(top, ["controls", "scripts"]) if p],
-                "profiles": self._profile_names(top),
-            }
-            for kind, want in kinds.items():
-                if kind not in have:
+            found = self._found(top)
+            for kind, want_list in kinds.items():
+                if kind not in found:
+                    self.fail("reconcile", f"{top}: the check doesn't know how to compare {kind!r}; treat it as unverified")
                     continue
-                if kind == "labels" and self.plan["exceptions"].get("labels"):
-                    continue
-                got = have[kind]
-                missing = sorted(set(want) - set(got), key=str)
-                extra = sorted(set(got) - set(want), key=str)
-                dupes = sorted({n for n in got if got.count(n) > 1}, key=str)
-                for n in missing:
-                    self.fail("reconcile", f"{top}: {kind[:-1] if kind.endswith('s') else kind} {n!r} is in Fleet but not in the repo (applying would delete it)")
-                for n in extra:
-                    self.fail("reconcile", f"{top}: {kind[:-1] if kind.endswith('s') else kind} {n!r} is in the repo but not in Fleet (applying would create it)")
-                for n in dupes:
-                    self.fail("reconcile", f"{top}: {n!r} is defined more than once under {kind}")
+                what = KIND_NAMES[kind]
+                want = dict(map(tuple, want_list))
+                got_list = found[kind]
+                got = dict(map(tuple, got_list))
+                keys = [k for k, _ in got_list]
+                for n in sorted(set(want) - set(got), key=str):
+                    self.fail("reconcile", f"{top}: {what} {n!r} is in Fleet but not in the repo (applying would delete it)")
+                for n in sorted(set(got) - set(want), key=str):
+                    self.fail("reconcile", f"{top}: {what} {n!r} is in the repo but not in Fleet (applying would create it)")
+                for n in sorted({k for k in keys if keys.count(k) > 1}, key=str):
+                    self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
+                for n in sorted(set(want) & set(got), key=str):
+                    for field, fleet_value in want[n].items():
+                        if _norm(fleet_value) != _norm(got[n].get(field)):
+                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
+                                                   f"but {_short(fleet_value)} in Fleet (applying would change it)")
 
     # ------------------------------------------------------------ dry run
 

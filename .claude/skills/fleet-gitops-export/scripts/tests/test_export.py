@@ -2,6 +2,7 @@
 
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
+import gitops_export  # noqa: E402
 from checks import Checker, yaml_backend  # noqa: E402
 from fleet_api import Fleetctl, FleetctlError  # noqa: E402
 from layout import Layout  # noqa: E402
@@ -72,7 +74,7 @@ class EnvEscapeTest(unittest.TestCase):
         if not backend:
             self.skipTest("no YAML parser")
         from checks import load_yaml
-        for text in self.CASES + ["multi\nline $X\n", "quote ' and \" $Y", "  leading space $Z"]:
+        for text in self.CASES + ["multi\nline $X\n", "quote ' and \" $Y", "  leading space $Z", "tab\there $X", "bell\x07 ${Y} \\$Z"]:
             with self.subTest(text=text):
                 doc = dump({"v": text})
                 self.assertEqual(load_yaml(fleetctl_expand(doc, {}), backend)["v"], text)
@@ -107,6 +109,32 @@ class ReadOnlyTest(unittest.TestCase):
         fc._run = lambda args, **kw: calls.append(args) or R()
         fc.get("/api/latest/fleet/config", {"x": "1"})
         self.assertNotIn("-X", calls[0])
+
+
+class CommandTest(unittest.TestCase):
+    def test_all_returns_validation_failure(self):
+        calls = []
+        saved = {n: getattr(gitops_export, n) for n in ("cmd_preflight", "cmd_scaffold", "cmd_export", "cmd_place", "cmd_validate", "cmd_report")}
+        try:
+            for n in saved:
+                setattr(gitops_export, n, (lambda name: lambda args: calls.append(name) or (1 if name == "cmd_validate" else 0))(n))
+            self.assertEqual(gitops_export.cmd_all(None), 1)
+            self.assertEqual(calls[-1], "cmd_report")
+        finally:
+            for n, f in saved.items():
+                setattr(gitops_export, n, f)
+
+    def test_work_dir_is_private(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            w = gitops_export.work_dir(tmp / "repo", str(tmp / "work"))
+            self.assertEqual(stat.S_IMODE(w.stat().st_mode), 0o700)
+            (tmp / "elsewhere").mkdir()
+            (tmp / "link").symlink_to(tmp / "elsewhere")
+            with self.assertRaises(SystemExit):
+                gitops_export.work_dir(tmp / "repo", str(tmp / "link"))
+        finally:
+            shutil.rmtree(tmp)
 
 
 class HelpersTest(unittest.TestCase):
@@ -186,7 +214,12 @@ def snapshot():
              "profiles": [{"profile_uuid": "a", "name": "Firewall on", "platform": "darwin", "content": mobileconfig,
                            "labels_include_any": [{"name": "Arm Macs"}]},
                           {"profile_uuid": "b", "name": "Min password", "platform": "windows", "content": b"<Replace><Data>$8</Data></Replace>\n"}],
-             "assets": [], "android_certificates": [], "software": {"titles": [], "setup": [], "setup_macos": []}, "setup": {}},
+             "assets": [], "android_certificates": [], "setup": {},
+             "software": {"titles": [{"id": 10, "name": "Maccy", "fma": {"slug": "maccy/darwin", "install_script": "i", "uninstall_script": "u"},
+                                      "software_package": {"name": "Maccy.zip", "platform": "darwin", "fleet_maintained_app_id": 5,
+                                                           "self_service": True, "categories": ["Productivity"],
+                                                           "install_script": "i", "uninstall_script": "u"}}],
+                          "setup": [], "setup_macos": []}},
             {"key": "2", "id": 2, "name": "Servers", "team": team("Servers"), "enroll_secret_count": 1, "labels": [],
              "policies": [{"id": 4, "name": "curl installed", "query": "SELECT 1;", "platform": "linux"}], "reports": [],
              "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"}], "profiles": [], "assets": [],
@@ -259,6 +292,34 @@ class EndToEndTest(unittest.TestCase):
         ch.references()
         ch.reconcile()
         self.assertEqual([r for k in ("references", "reconcile") for r in ch.results[k]], [])
+
+    def test_plan_paths_stay_in_repo(self):
+        placer = Placer(self.plan, self.layout, self.work)
+        for bad in ("../outside.yml", "/etc/passwd", "platforms/../../x"):
+            with self.assertRaises(ValueError):
+                placer.target(bad)
+        outside = self.tmp / "outside"
+        outside.mkdir()
+        (self.root / "escape").symlink_to(outside)
+        with self.assertRaises(ValueError):
+            placer.target("escape/file.yml")
+
+    def test_reconcile_catches_content_changes(self):
+        ch = Checker(self.root, self.plan)
+        if not ch.load_repo():
+            self.skipTest("no YAML parser")
+        policy = self.root / "platforms/macos/policies/collect-logs.yml"
+        policy.write_text(policy.read_text().replace("SELECT 1;", "SELECT 2;"))
+        profile = self.root / "platforms/windows/configuration-profiles/Min password.xml"
+        profile.write_text(profile.read_text().replace("8", "9"))
+        ws = self.root / "fleets/workstations.yml"
+        ws.write_text(ws.read_text().replace("slug: maccy/darwin", "slug: other/darwin"))
+        ch.load_repo()
+        ch.reconcile()
+        messages = "\n".join(r["message"] for r in ch.results["reconcile"])
+        self.assertIn("policy 'Collect logs': query", messages)
+        self.assertIn("profile 'Min password': sha256", messages)
+        self.assertIn("software 'fma:maccy/darwin' is in Fleet but not in the repo", messages)
 
     def test_place_is_repeatable(self):
         before = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}

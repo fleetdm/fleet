@@ -22,7 +22,7 @@ The skill follows the [Agent Skills](https://agentskills.io) format: `SKILL.md` 
 python3 scripts/gitops_export.py all --dir ~/fleet-gitops --org-name "Acme, Inc."
 ```
 
-`all` runs `preflight`, `scaffold`, `export`, `place`, `validate`, and `report` in a row. Run them one at a time to review the placement plan before anything is written. See [SKILL.md](SKILL.md) for each step.
+`all` runs `preflight`, `scaffold`, `export`, `place`, `validate`, and `report` in a row, and exits non-zero when validation fails. Run them one at a time to review the placement plan before anything is written. `clean` deletes the work folder afterward. See [SKILL.md](SKILL.md) for each step.
 
 ## Tests
 

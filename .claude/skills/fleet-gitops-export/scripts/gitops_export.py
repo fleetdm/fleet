@@ -9,14 +9,16 @@ Usage:
   gitops_export.py validate  --dir DIR [--offline] [--no-dry-run]
   gitops_export.py report    --dir DIR
   gitops_export.py all       --dir DIR --org-name NAME [--force]
+  gitops_export.py clean     --dir DIR
 
 Connection flags (any command): --fleetctl PATH, --config FILE, --context NAME.
 They're remembered for the directory after the first command.
 
 Read-only against Fleet: every call is a GET through `fleetctl api`, and the
 only `fleetctl gitops` run is a --dry-run. Work files (the plan, downloaded
-artifacts, validation results) go in a temp folder outside the repo, printed
-by each command; none of them hold secret values.
+artifacts, validation results) go in an owner-only temp folder outside the
+repo, printed by each command. None of them hold secret values, but they do
+hold copies of profiles and scripts; `clean` deletes the folder.
 
 Needs Python 3.9+ and fleetctl 4.84.0+. PyYAML or Ruby enables the YAML checks.
 """
@@ -43,6 +45,7 @@ from placer import Placer  # noqa: E402
 from planner import Planner  # noqa: E402
 
 MIN_FLEETCTL = (4, 84, 0)
+REPORT_STATIC_LIMIT = 25  # validator findings listed in the report; the rest stay in validation.json
 SINGLE = {"org settings", "agent options", "ADE profile", "setup script"}
 
 
@@ -52,7 +55,14 @@ def work_dir(target: Path, override: str | None) -> Path:
     else:
         digest = hashlib.sha1(str(target.resolve()).encode()).hexdigest()[:10]
         w = Path(tempfile.gettempdir()) / f"fleet-gitops-export-{target.resolve().name}-{digest}"
-    w.mkdir(parents=True, exist_ok=True)
+    # It holds copies of profiles and scripts as Fleet stores them, and its default name is
+    # predictable in a shared temp folder: keep it owner-only and refuse one someone else made.
+    if w.is_symlink():
+        raise SystemExit(f"FAIL {w} is a symlink; pass --work with a folder you own")
+    w.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if hasattr(os, "getuid") and w.stat().st_uid != os.getuid():
+        raise SystemExit(f"FAIL {w} belongs to another user; pass --work with a folder you own")
+    os.chmod(w, 0o700)
     return w
 
 
@@ -174,7 +184,11 @@ def cmd_place(args) -> int:
     fc, target, work = session(args)
     layout = Layout.load(work / "layout.json")
     plan = json.loads((work / "plan.json").read_text(encoding="utf-8"))
-    Placer(plan, layout, work).place()
+    try:
+        Placer(plan, layout, work).place()
+    except ValueError as e:
+        say(f"FAIL {e}")
+        return 1
     new_dirs = sorted({os.path.dirname(f["path"]) for f in plan["files"].values() if f.get("origin") == "new"})
     say(f"placed {len(plan['files'])} files into {target}")
     for d in new_dirs:
@@ -217,12 +231,21 @@ def cmd_report(args) -> int:
     return 0
 
 
+def cmd_clean(args) -> int:
+    fc, target, work = session(args)
+    shutil.rmtree(work)
+    say(f"removed {work}")
+    return 0
+
+
 def cmd_all(args) -> int:
-    for step in (cmd_preflight, cmd_scaffold, cmd_export, cmd_place, cmd_validate):
+    for step in (cmd_preflight, cmd_scaffold, cmd_export, cmd_place):
         rc = step(args)
-        if rc and step is not cmd_validate:
+        if rc:
             return rc
-    return cmd_report(args)
+    rc = cmd_validate(args)
+    cmd_report(args)
+    return rc
 
 
 # ------------------------------------------------------------ report
@@ -266,7 +289,7 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
     if val:
         caveat = ("`fleetctl gitops --dry-run` lists most sections as \"would've applied\" without comparing them, and only reports "
                   "deletions for policies, reports, labels, software packages, custom host vitals, Android certificates, and fleets. "
-                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item.")
+                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item and field by field.")
         lines += ["", "## Validation", "", caveat, ""]
         for section, title in (("references", "YAML and references"), ("reconcile", "Repo vs. Fleet")):
             fails = [r for r in val[section] if r["level"] == "FAIL"]
@@ -274,9 +297,9 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
             lines += [f"  - {r['message']}" for r in val[section]]
         static = val.get("static") or []
         lines.append(f"- fleet-gitops validator: {len([r for r in static if r['level'] == 'FAIL'])} FAIL, {len([r for r in static if r['level'] == 'WARN'])} WARN")
-        lines += [f"  - {r['level']}: {r['message']}" for r in static[:25]]
-        if len(static) > 25:
-            lines.append(f"  - …and {len(static) - 25} more in validation.json")
+        lines += [f"  - {r['level']}: {r['message']}" for r in static[:REPORT_STATIC_LIMIT]]
+        if len(static) > REPORT_STATIC_LIMIT:
+            lines.append(f"  - …and {len(static) - REPORT_STATIC_LIMIT} more in validation.json")
         dr = val.get("dry_run") or {}
         if dr:
             lines.append(f"- Dry run: exit code {dr['exit_code']}, {len(dr['changes'])} change line(s)")
@@ -294,7 +317,7 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("preflight", "scaffold", "export", "place", "validate", "report", "all"):
+    for name in ("preflight", "scaffold", "export", "place", "validate", "report", "all", "clean"):
         p = sub.add_parser(name)
         p.add_argument("--dir", required=True, help="target GitOps repo directory")
         p.add_argument("--work", help="work folder (default: a temp folder derived from --dir)")
@@ -312,7 +335,7 @@ def main():
         if not hasattr(args, k):
             setattr(args, k, None)
     rc = {"preflight": cmd_preflight, "scaffold": cmd_scaffold, "export": cmd_export, "place": cmd_place,
-          "validate": cmd_validate, "report": cmd_report, "all": cmd_all}[args.cmd](args)
+          "validate": cmd_validate, "report": cmd_report, "all": cmd_all, "clean": cmd_clean}[args.cmd](args)
     sys.exit(rc)
 
 

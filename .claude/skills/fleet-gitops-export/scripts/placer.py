@@ -80,6 +80,19 @@ class Placer:
         self.files = plan["files"]
         self.written: list[str] = []
 
+    def target(self, rel: str) -> Path:
+        """The repo path for a plan path, refusing any that would land outside the repo.
+
+        Plan paths come from Fleet data and from a plan.json a person or agent may edit.
+        """
+        p = Path(rel)
+        if not rel or p.is_absolute() or ".." in p.parts:
+            raise ValueError(f"refusing {rel!r}: plan paths must be relative and stay inside {self.root}")
+        out = self.root / p
+        if not out.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError(f"refusing {rel!r}: it resolves outside {self.root} through a symlink")
+        return out
+
     def resolve(self, data, base_dir: str):
         if isinstance(data, dict):
             if set(data) == {"$file"}:
@@ -94,6 +107,8 @@ class Placer:
     # ------------------------------------------------------------ main
 
     def place(self):
+        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self.plan["remove"]:
+            self.target(rel)
         self._restore()
         for f in self.files.values():
             self._write_file(f)
@@ -112,7 +127,7 @@ class Placer:
         placed = self.work / "placed.json"
         if placed.exists():
             for rel in json.loads(placed.read_text()):
-                p = self.root / rel
+                p = self.target(rel)
                 if p.is_file():
                     p.unlink()
         pristine = self.work / "pristine"
@@ -129,7 +144,7 @@ class Placer:
                 os.rmdir(dirpath)
 
     def _write_file(self, f: dict):
-        path = self.root / f["path"]
+        path = self.target(f["path"])
         path.parent.mkdir(parents=True, exist_ok=True)
         if "blob" in f:
             content = (self.work / "blobs" / f["blob"]).read_bytes()
@@ -152,7 +167,7 @@ class Placer:
         rel = fleet["file"]
         base = os.path.dirname(rel)
         if fleet["action"] == "fill":
-            text = (self.root / rel).read_text(encoding="utf-8")
+            text = self.target(rel).read_text(encoding="utf-8")
         elif fleet["action"] == "clone":
             text = self._clone_text(fleet["template"], rel)
         else:
@@ -186,8 +201,9 @@ class Placer:
             self._apply_entries(doc, fleet, section.split("."), entries, base)
         if self.plan["exceptions"].get("software") and doc.find(["software"]) is not None:
             doc.comment_out(["software"])
-        (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (self.root / rel).write_text(doc.text(), encoding="utf-8")
+        out = self.target(rel)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(doc.text(), encoding="utf-8")
         self.written.append(rel)
 
     def _insert(self, doc: Doc, key: str, value):
@@ -250,7 +266,7 @@ class Placer:
         for rel in self.plan["remove"]:
             if rel in written:
                 continue
-            p = self.root / rel
+            p = self.target(rel)
             if p.is_file():
                 p.unlink()
         if self.plan["exceptions"].get("labels"):
