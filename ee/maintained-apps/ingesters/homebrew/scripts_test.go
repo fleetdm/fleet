@@ -154,7 +154,7 @@ sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 open() { :; }
 osascript() {
-  case "$2" in
+  case "$4" in
     *" to quit")
       [[ "$mode" == quits ]] && running=false
       [[ "$mode" == cancels ]] && return 1
@@ -920,9 +920,8 @@ osascript() {
       'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
+  local id=$8
+  case "$4" in
     *" to quit") quit+="$id " ;;
     *" is running") if [[ "$quit" == *" $id "* ]]; then echo false; else echo true; fi ;;
   esac
@@ -989,6 +988,70 @@ func TestQuitTargetsApp(t *testing.T) {
 	require.Contains(t, script, "quit_application 'com.docker.docker' || exit 1\nquit_application 'com.electron.dockerdesktop'\nquit_application 'com.docker.helper'\n")
 }
 
+// TestValidateQuitIDs checks that the ingest rejects cask quit values that
+// aren't bundle IDs, such as ones built to break out of an AppleScript string.
+func TestValidateQuitIDs(t *testing.T) {
+	stanza := func(quit optjson.StringOr[[]string]) []*brewUninstall {
+		return []*brewUninstall{{Quit: quit}}
+	}
+	list := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: []string{"com.example.Foo", id}}
+	}
+	single := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{String: id}
+	}
+
+	// Values from real casks, including IDs with a space and dotless app names.
+	for _, id := range []string{"com.example.Foo", "com.microsoft.*", "Cisco-Systems.Spark", "com.x-rite.i1Profiler", "org.mozilla.pale moon", "com.native-instruments.Native Access", "Fathom Helper"} {
+		require.NoError(t, validateQuitIDs(&brewCask{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}, {Zap: stanza(single(id))}}}), id)
+	}
+
+	for _, id := range []string{
+		"com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x",
+		`com.x" & (do shell script "id") & ".y`,
+		`com.x\" & "y`,
+		"com.x\ny",
+	} {
+		for _, cask := range []*brewCask{
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}}},
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(single(id))}}},
+			{Artifacts: []*brewArtifact{{Zap: stanza(list(id))}}},
+		} {
+			require.ErrorContains(t, validateQuitIDs(cask), "isn't a bundle ID", "%q", id)
+		}
+	}
+}
+
+// TestQuitHelpersPassBundleIDAsData checks the generated quit helpers and the
+// custom scripts. A bundle ID spliced into an AppleScript string runs any
+// AppleScript it carries as root, and one passed without '--' can be parsed
+// as an osascript option such as -e.
+func TestQuitHelpersPassBundleIDAsData(t *testing.T) {
+	spliced := regexp.MustCompile(`osascript.*\\"\$`)
+	scripts := map[string]string{
+		"quit_application":           quitApplicationFunc,
+		"quit_matching_applications": quitMatchingApplicationsFunc,
+		"quit_and_track_application": quitAndTrackApplicationFunc,
+		"relaunch_application":       relaunchApplicationFunc,
+	}
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		scripts[filepath.Base(path)] = string(b)
+	}
+	for name, script := range scripts {
+		for line := range strings.SplitSeq(script, "\n") {
+			require.False(t, spliced.MatchString(line), "%s: %q splices a variable into AppleScript", name, strings.TrimSpace(line))
+			if strings.Contains(line, "on run argv") {
+				require.Contains(t, line, `-e 'end run' -- "$`, "%s: %q doesn't end osascript's options before the ID", name, strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
 // runStubbedUninstallScript runs a generated uninstall script in bash with
 // osascript and friends stubbed out. running lists the running apps; stuck ones
 // accept the quit event but keep running, and canceled ones fail it, as when
@@ -1015,9 +1078,8 @@ osascript() {
     printf '%s\n' $running
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
+  local id=$8
+  case "$4" in
     *" to quit")
       [[ "$canceled" == *" $id "* ]] && return 1
       [[ "$stuck" == *" $id "* ]] || running=${running/ $id / }
