@@ -326,13 +326,13 @@ What to do: Use an admin's API token for your SCIM integration.
 
 Issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
-### GitOps users can't run custom MDM commands
+### GitOps users can't run MDM commands
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can call `POST /api/v1/fleet/commands/run` | GitOps users get a 403 from [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) |
+| GitOps users can run custom MDM commands (including lock, unlock, and wipe hosts) | GitOps users get a 403 from [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host), [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host), and [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
 
-What to do: Run custom MDM commands with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+What to do: Run MDM commands, or lock, unlock, and wipe hosts, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
 Issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
