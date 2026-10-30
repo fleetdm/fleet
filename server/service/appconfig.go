@@ -1697,9 +1697,6 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
-				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-			}
 			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 		}
 	}
@@ -2939,7 +2936,7 @@ func (svc *Service) validateVPPAssignments(
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil
 				}
 				tokenTeams = []uint{}

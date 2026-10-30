@@ -12,62 +12,72 @@ Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/f
 
 - [Configuration profile editor with names and descriptions](#configuration-profile-editor-with-names-and-descriptions)
 - [Self-service configuration profiles for macOS](#self-service-configuration-profiles-for-macos)
-- [Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)
+- ~~[Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)~~ ([coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/47904))
 - [Custom end user agreement for Windows enrollment](#custom-end-user-agreement-for-windows-enrollment)
 - [Filter software by type](#filter-software-by-type)
 - [Android: full app configuration and BYOD work profile wipe](#android-full-app-configuration-and-byod-work-profile-wipe)
-- [Dynamic SCEP challenges for Apple MDM enrollment](#dynamic-scep-challenges-for-apple-mdm-enrollment)
+- [Android zero-touch enrollment to any fleet](#android-zero-touch-enrollment-to-any-fleet)
 - [Rotate a Mac's FileVault recovery key on demand](#rotate-a-macs-filevault-recovery-key-on-demand)
 
 ### Configuration profile editor with names and descriptions
 
-IT admins can now add and edit configuration profiles on a dedicated page instead of a modal. Upload a file, paste the profile, or edit it inline. Give each profile a name and a description, so the team knows what it does without opening it. Names and descriptions can also be set through the API and GitOps YAML.
+IT admins can now add and edit configuration profiles on a dedicated page instead of a modal. Upload a file, paste the profile, or edit it inline. Give each profile a name and a description, so the team knows what it does without opening it. Names and descriptions can also be set through the [API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings).
 
-Uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. On the batch endpoint, `display_name` is deprecated in favor of `name`.
+Uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. On the [batch endpoint](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles), `display_name` is deprecated in favor of `name`.
+
+Learn more in the [configuration profiles guide](https://fleetdm.com/guides/custom-os-settings).
 
 GitHub issue: [#51814](https://github.com/fleetdm/fleet/issues/51814)
 
 ### Self-service configuration profiles for macOS
 
-IT admins can now offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Profiles can also be marked hidden, so they only appear after the end user turns on **Show hidden profiles**.
+IT admins can now offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Self-service profiles for iOS and iPadOS are [coming soon](https://github.com/fleetdm/fleet/issues/52841). Profiles can also be marked hidden, so they only appear after the end user turns on **Show hidden profiles**.
+
+Learn more in the [configuration profiles guide](https://fleetdm.com/guides/custom-os-settings#self-service), or set `self_service` and `hidden` in [GitOps](https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings).
 
 GitHub issue: [#46834](https://github.com/fleetdm/fleet/issues/46834)
 
 ### Multiple versions of the same App Store app
 
-IT admins can now add more than one version of the same App Store app to a fleet, each with its own labels, configuration, and categories. Roll an update out to a pilot group before the rest of the fleet, or ship different app configurations to different groups of hosts.
-
-GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
+This feature is [coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/47904).
 
 ### Custom end user agreement for Windows enrollment
 
-IT admins can now replace the default terms page that end users see during Microsoft Entra and Autopilot enrollment with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set `windows_eula` in GitOps. Adding or deleting an agreement creates an activity.
+IT admins can now replace the default terms page that end users see during [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), with or without [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set [`windows_eula`](https://fleetdm.com/docs/configuration/yaml-files#windows-eula) in GitOps. Adding or deleting an agreement creates an activity. You can also manage it with the [EULA API endpoints](https://fleetdm.com/docs/rest-api/rest-api#create-eula).
+
+Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-agreement-eula).
 
 GitHub issue: [#50146](https://github.com/fleetdm/fleet/issues/50146)
 
 ### Filter software by type
 
-The **Software** page, **Host details**, and **My device** software tables now have a **Types** filter. Use it to narrow inventory to applications, browser extensions, packages, or other kinds of software. On macOS, a **Show helpers** toggle replaces the Applications / Full inventory dropdown. The same filters are available as `source` and `extension_for` parameters on the software API endpoints.
+The **Software** page, **Host details**, and **My device** software tables now have a **Types** filter. Use it to narrow inventory to applications, browser extensions, packages, or other kinds of software. On macOS, a **Show helpers** toggle replaces the Applications / Full inventory dropdown. The same filters are available as `source` and `extension_for` parameters on the software API endpoints, like [list software](https://fleetdm.com/docs/rest-api/rest-api#list-software).
+
+See every software type Fleet collects in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference).
 
 GitHub issue: [#51823](https://github.com/fleetdm/fleet/issues/51823)
 
 ### Android: full app configuration and BYOD work profile wipe
 
-Android app configuration now accepts every Android Management API `ApplicationPolicy` field, such as `autoUpdateMode`, `permissionGrants`, and `minimumVersionCode`. It also accepts `credentialProviderPolicy`, so end users on Android 14 and later can pick an approved password manager as their autofill and passkey provider in the work profile. Zero-touch enrollment can now land company-owned devices in a fleet of your choosing.
+[Android app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) now accepts every Android Management API [`ApplicationPolicy`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) field, such as `autoUpdateMode`, `permissionGrants`, and `minimumVersionCode`. It also accepts `credentialProviderPolicy`, so end users on Android 14 and later can pick an approved password manager as their autofill and passkey provider in the work profile.
 
-Personally-owned (BYOD) Android hosts can now be wiped from the API and fleetctl. Only the work profile is removed, so the end user's personal data stays untouched.
+Personally-owned (BYOD) Android hosts can now be wiped from the [API](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) and fleetctl. Only the work profile is removed, so the end user's personal data stays untouched.
 
-GitHub issues: [#51454](https://github.com/fleetdm/fleet/issues/51454), [#51479](https://github.com/fleetdm/fleet/issues/51479), [#53471](https://github.com/fleetdm/fleet/issues/53471)
+GitHub issues: [#51454](https://github.com/fleetdm/fleet/issues/51454), [#53471](https://github.com/fleetdm/fleet/issues/53471)
 
-### Dynamic SCEP challenges for Apple MDM enrollment
+### Android zero-touch enrollment to any fleet
 
-Fleet now issues a dynamic SCEP challenge for each Apple MDM enrollment instead of relying on a single static challenge. The static challenge can be blocked entirely. Fleets that require IdP authentication now refuse automatic enrollment (ADE) from devices that got their enrollment configuration before the requirement was set. Global admins can rotate the token Fleet puts in ADE profiles through the API.
+IT admins can now choose which fleet company-owned Android hosts land in when they enroll with zero-touch enrollment. Create a zero-touch configuration for each fleet, then apply the right configuration to each device in the zero-touch portal.
 
-GitHub issue: [#51785](https://github.com/fleetdm/fleet/issues/51785)
+Learn how in the [Android zero-touch enrollment guide](https://fleetdm.com/guides/android-zero-touch-enrollment#enroll-hosts-to-multiple-fleets).
+
+GitHub issue: [#51479](https://github.com/fleetdm/fleet/issues/51479)
 
 ### Rotate a Mac's FileVault recovery key on demand
 
-Security engineers can now rotate a macOS host's FileVault recovery key whenever they need to, for example after the key has been viewed to unlock a device. Rotate it from the **Disk encryption key** modal on **Host details**, or with `POST /api/v1/fleet/hosts/:id/encryption_key/rotate`.
+IT admins can now rotate a macOS host's FileVault recovery key whenever they need to, for example after the key has been viewed to unlock a device. Rotate it from the **Disk encryption key** modal on **Host details**, or with the [rotate host's disk encryption key API](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-disk-encryption-key).
+
+Learn more in the [disk encryption guide](https://fleetdm.com/guides/enforce-disk-encryption#rotate-disk-encryption-key).
 
 GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 
@@ -79,7 +89,6 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 - Added `name` and `description` fields to configuration profiles, set in the UI, the API, or GitOps YAML.
 - Changed profile renames so that uploading a replacement file no longer renames the profile, and renaming a profile no longer re-sends it to hosts. The exception is renaming a Windows, Android, or declaration (DDM) profile through GitOps, which re-creates the profile.
 - Deprecated `display_name` in favor of `name` on the batch configuration profiles endpoint.
-- Added support for multiple versions of the same App Store app per fleet, with separate labels, configuration, categories, etc.
 - Added self-service configuration profiles for macOS hosts, which end users install from the My device page.
 - Added a `hidden` option for configuration profiles. Hidden profiles appear on My device > Controls only after the end user turns on the "Show hidden profiles" toggle, which is shown only when the host has hidden profiles.
 - Added an "Actions" column header on My device > Controls.

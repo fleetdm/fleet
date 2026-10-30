@@ -5995,6 +5995,13 @@
             "null"
           ]
         },
+        "location": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",

@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261029070851, Down_20261029070851)
+	MigrationClient.AddMigration(Up_20261030033434, Down_20261030033434)
 }
 
 // Up_20261029070851 carries over the deprecated FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION env var
 // into the macos_enable_bootstrap_package_during_migration setting of no team and the teams that have a
 // bootstrap package, since the setting can't be enabled without one.
-func Up_20261029070851(tx *sql.Tx) error {
+func Up_20261030033434(tx *sql.Tx) error {
 	if !fleet.BootstrapPackageDuringMigrationEnvEnabled() {
 		return nil
 	}
@@ -42,6 +42,6 @@ WHERE config IS NOT NULL AND id IN (SELECT team_id FROM mdm_apple_bootstrap_pack
 	return nil
 }
 
-func Down_20261029070851(tx *sql.Tx) error {
+func Down_20261030033434(tx *sql.Tx) error {
 	return nil
 }

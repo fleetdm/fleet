@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261029070851(t *testing.T) {
+func TestUp_20261030033434(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		env  string
@@ -65,7 +65,7 @@ func TestUp_20261029070851(t *testing.T) {
 	}
 }
 
-func TestUp_20261029070851_NoTeamWithoutPackage(t *testing.T) {
+func TestUp_20261030033434_NoTeamWithoutPackage(t *testing.T) {
 	// t.Setenv can't be used, applyUpToPrev marks the test as parallel
 	require.NoError(t, os.Setenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION", "1"))
 	t.Cleanup(func() { require.NoError(t, os.Unsetenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")) })

@@ -53,15 +53,12 @@ type mockVPPInstaller struct {
 	ds                  *mysql.Datastore
 	installedApps       []*fleet.VPPApp
 	appInstallResponses map[string]installAppResponse
-	getTokenErr         error
+	checkErr            error
 }
 
-func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (m *mockVPPInstaller) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	require.True(m.t, appleDevice)
-	if m.getTokenErr != nil {
-		return "", m.getTokenErr
-	}
-	return "valid-token", nil
+	return m.checkErr
 }
 
 type mockInHouseInstall struct {
@@ -84,7 +81,7 @@ func (m *mockInHouseAppInstaller) InstallInHouseAppForSetupExperience(ctx contex
 	return m.cmdUUID, nil
 }
 
-func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	require.True(m.t, opts.ForSetupExperience)
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
 	require.True(m.t, ok)
@@ -1295,7 +1292,7 @@ INSERT INTO setup_experience_status_results (
 
 	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		test.CreateInsertGlobalVPPToken(t, ds)
+		vppToken := test.CreateInsertGlobalVPPToken(t, ds)
 		defer mysqltest.TruncateTables(t, ds)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -1356,6 +1353,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Equal(t, h.Platform, act.HostPlatform)
 		assert.True(t, act.FromSetupExperience)
 		assert.False(t, act.SelfService)
+		assert.Equal(t, &fleet.ActivityVPPToken{ID: vppToken.ID, Location: vppToken.Location, CountryCode: vppToken.CountryCode}, act.VPPToken)
 	})
 
 	t.Run("installs in-house apps during iOS setup experience", func(t *testing.T) {
