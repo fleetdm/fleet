@@ -3681,6 +3681,7 @@ None.
 - [Batch-delete hosts](#batch-delete-hosts)
 - [Update human-device mapping](#update-human-device-mapping)
 - [Update host's Google device ID](#update-hosts-google-device-id)
+- [Delete host's Google device ID](#delete-hosts-google-device-id)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -6450,14 +6451,14 @@ _Available in Fleet Premium_
 
 Sets the host's device ID in Google. Use this to tie an iOS, iPadOS, or Android host to its device in Google before you mark that device as managed in Google. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
 
-Once set, the ID can't be changed to a different value. If the host already has a different `google_device_id`, Fleet returns `409`. This way, if someone copies a company-owned device's link to a personal device, the personal device can't take over the host. To remove the ID, set it to `""`.
+Once set, the ID can't be changed to a different value. If the host already has a different `google_device_id`, Fleet returns `409`. This way, if someone copies a company-owned device's link to a personal device, the personal device can't take over the host. To remove the ID, use [Delete host's Google device ID](#delete-hosts-google-device-id).
 
 #### Parameters
 
 | Name             | Type    | In   | Description                                                   |
 | ---------------- | ------- | ---- | ------------------------------------------------------------- |
 | id               | integer | path | **Required**. The host's `id`.                                 |
-| google_device_id | string  | body | **Required**. The host's device ID in Google. Set to `""` to remove it. |
+| google_device_id | string  | body | **Required**. The host's device ID in Google. Can't be empty. |
 
 #### Example
 
@@ -6482,13 +6483,13 @@ Once set, the ID can't be changed to a different value. If the host already has 
 }
 ```
 
-##### Conflict response
+##### Host already has a different Google device ID
 
 `Status: 409`
 
 ```json
 {
-  "message": "Conflict",
+  "message": "Validation Failed",
   "errors": [
     {
       "name": "google_device_id",
@@ -6497,6 +6498,60 @@ Once set, the ID can't be changed to a different value. If the host already has 
   ]
 }
 ```
+
+##### Google device ID is bound to another host
+
+`Status: 409`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This Google device ID is already used by another host."
+    }
+  ]
+}
+```
+
+##### Host isn't an iOS, iPadOS, or Android host
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google device ID is only supported on iOS, iPadOS, and Android hosts."
+    }
+  ]
+}
+```
+
+### Delete host's Google device ID
+
+_Available in Fleet Premium_
+
+`DELETE /api/v1/fleet/hosts/:id/google_device_id`
+
+Removes the host's device ID in Google and marks the device as unmanaged in Google. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+
+#### Parameters
+
+| Name | Type    | In   | Description                    |
+| ---- | ------- | ---- | ------------------------------ |
+| id   | integer | path | **Required**. The host's `id`. |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/1/google_device_id`
+
+##### Default response
+
+`Status: 204`
 
 ### Get host's device health report
 
