@@ -217,6 +217,13 @@ policies:
   conditional_access_enabled: true
   hidden: false
   resend_configuration_profile: "Passcode requirements"
+- name: Windows - Antivirus is healthy
+  description: This policy checks that Windows Security Center reports antivirus protection as healthy.
+  resolution: Turn on Microsoft Defender Antivirus or another antivirus app, and keep it up to date.
+  query: "SELECT 1 FROM windows_security_center WHERE antivirus = 'Good';"
+  platform: windows
+  critical: false
+  conditional_access_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
