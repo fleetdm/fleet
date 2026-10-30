@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -512,4 +515,204 @@ SELECT id FROM (
 			return deleted, nil
 		}
 	}
+}
+
+// hostAISessionOrderColumns are the columns the order keys sort by. The nullable ones hold timestamps an agent may not
+// record, which sort last whichever the direction so a cursor still reaches them.
+var hostAISessionOrderColumns = map[string]struct {
+	column   string
+	nullable bool
+}{
+	"started_at":         {"started_at", true},
+	"ended_at":           {"ended_at", true},
+	"agent":              {"agent", false},
+	"username":           {"username", false},
+	"model":              {"model", false},
+	"output_token_count": {"output_token_count", false},
+}
+
+const hostAISessionColumns = `
+	id, host_id, agent, agent_version, agent_session_id, username, account_identifier, model, project_path,
+	git_repository, git_branch, started_at, ended_at, user_message_count, assistant_message_count, tool_call_count,
+	actions, backfill, input_token_count, output_token_count, cache_read_token_count, cache_write_token_count,
+	transcript_path, transcript_size`
+
+// aiSessionCategories maps actions to their API categories, in the order of the categories, always returning a
+// non-nil slice so it's listed as [].
+func aiSessionCategories(actions ...fleet.AISessionAction) []fleet.AISessionCategory {
+	categories := []fleet.AISessionCategory{}
+	for _, c := range []fleet.AISessionCategory{fleet.AISessionCategoryCommand, fleet.AISessionCategoryFileAccess} {
+		if slices.ContainsFunc(actions, func(a fleet.AISessionAction) bool { return a.Category() == c }) {
+			categories = append(categories, c)
+		}
+	}
+	return categories
+}
+
+// aiSessionCategoryActions are the actions of each API category, for filtering on them.
+var aiSessionCategoryActions = map[fleet.AISessionCategory][]fleet.AISessionAction{
+	fleet.AISessionCategoryCommand:    {fleet.AISessionActionExecute},
+	fleet.AISessionCategoryFileAccess: {fleet.AISessionActionRead, fleet.AISessionActionWrite, fleet.AISessionActionSearch},
+}
+
+type hostAISessionRow struct {
+	fleet.HostAISession
+	ActionsSet string `db:"actions"`
+}
+
+func (r *hostAISessionRow) toSession() *fleet.HostAISession {
+	s := r.HostAISession
+	s.Actions = []fleet.AISessionAction{}
+	if r.ActionsSet != "" {
+		for a := range strings.SplitSeq(r.ActionsSet, ",") {
+			s.Actions = append(s.Actions, fleet.AISessionAction(a))
+		}
+	}
+	s.Categories = aiSessionCategories(s.Actions...)
+	return &s
+}
+
+func (ds *Datastore) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
+	where := ` FROM host_ai_sessions WHERE host_id = ?`
+	args := []any{hostID}
+	if opts.Agent != "" {
+		where += ` AND agent = ?`
+		args = append(args, opts.Agent)
+	}
+	if opts.Category != "" {
+		actions, ok := aiSessionCategoryActions[opts.Category]
+		if !ok {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("category", "unsupported category: "+string(opts.Category)))
+		}
+		var inSet []string
+		for _, a := range actions {
+			inSet = append(inSet, `FIND_IN_SET(?, actions) > 0`)
+			args = append(args, a)
+		}
+		where += ` AND (` + strings.Join(inSet, ` OR `) + `)`
+	}
+	where, args = searchLike(where, args, opts.MatchQuery, "username", "project_path", "git_repository", "model")
+
+	orderKey := opts.OrderKey
+	if orderKey == "" {
+		orderKey = "ended_at"
+	}
+	order, ok := hostAISessionOrderColumns[orderKey]
+	if !ok {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("order_key", "unsupported order key: "+orderKey))
+	}
+	direction, comparison := "ASC", ">"
+	if opts.OrderDirection == fleet.OrderDescending {
+		direction, comparison = "DESC", "<"
+	}
+	listWhere, listArgs := where, slices.Clone(args)
+	// The order and cursor are built here rather than by the list options helper, so unknown timestamps sort last and
+	// the cursor includes them. The order keys aren't unique, so ties are broken by id to keep pages stable; the cursor
+	// compares the order column alone, like the helper's, so it skips the rows tied with it.
+	listOpts := opts.ListOptions
+	listOpts.OrderKey = ""
+	if opts.After != "" {
+		if order.nullable {
+			listWhere += fmt.Sprintf(" AND (%s %s ? OR %s IS NULL)", order.column, comparison, order.column)
+		} else {
+			listWhere += fmt.Sprintf(" AND %s %s ?", order.column, comparison)
+		}
+		listArgs = append(listArgs, opts.After)
+		listOpts.After = ""
+		listOpts.Page = 0 // the cursor supersedes the page
+	}
+	orderBy := " ORDER BY "
+	if order.nullable {
+		orderBy += order.column + " IS NULL, "
+	}
+	orderBy += fmt.Sprintf("%s %s, id %s", order.column, direction, direction)
+	stmt, stmtArgs, err := appendListOptionsWithCursorToSQLSecure(
+		`SELECT `+hostAISessionColumns+listWhere+orderBy, listArgs, &listOpts, common_mysql.OrderKeyAllowlist{})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+	var rows []*hostAISessionRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, stmtArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host ai sessions")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &meta.TotalResults, `SELECT COUNT(*)`+where, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "count host ai sessions")
+		}
+		if len(rows) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			rows = rows[:len(rows)-1]
+		}
+	}
+
+	sessions := make([]*fleet.HostAISession, 0, len(rows))
+	for _, r := range rows {
+		sessions = append(sessions, r.toSession())
+	}
+	return sessions, meta, nil
+}
+
+func (ds *Datastore) GetHostAISession(ctx context.Context, hostID, id uint) (*fleet.HostAISession, error) {
+	var row hostAISessionRow
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row,
+		`SELECT `+hostAISessionColumns+` FROM host_ai_sessions WHERE id = ? AND host_id = ?`, id, hostID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostAISession").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host ai session")
+	}
+	return row.toSession(), nil
+}
+
+func (ds *Datastore) ListHostAISessionEvents(ctx context.Context, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error) {
+	where := ` FROM host_ai_session_events WHERE ai_session_id = ?`
+	args := []any{aiSessionID}
+	if opts.Category != "" {
+		actions, ok := aiSessionCategoryActions[opts.Category]
+		if !ok {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("category", "unsupported category: "+string(opts.Category)))
+		}
+		where += ` AND action IN (?` + strings.Repeat(`, ?`, len(actions)-1) + `)`
+		for _, a := range actions {
+			args = append(args, a)
+		}
+	}
+
+	// Events are always listed in the order the calls ran, so the order isn't a list option.
+	listOpts := opts.ListOptions
+	listOpts.OrderKey = ""
+	listOpts.After = ""
+	stmt, stmtArgs, err := appendListOptionsWithCursorToSQLSecure(`
+SELECT id, tool_call_index, action, target, decision, executed_at, payload, truncated`+where+`
+ORDER BY tool_call_index`, slices.Clone(args), &listOpts, common_mysql.OrderKeyAllowlist{})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+	var events []*fleet.HostAISessionEvent
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &events, stmt, stmtArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host ai session events")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if listOpts.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &meta.TotalResults, `SELECT COUNT(*)`+where, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "count host ai session events")
+		}
+		if len(events) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			events = events[:len(events)-1]
+		}
+	}
+
+	if events == nil {
+		events = []*fleet.HostAISessionEvent{}
+	}
+	for _, e := range events {
+		e.Categories = aiSessionCategories(e.Action)
+	}
+	return events, meta, nil
 }

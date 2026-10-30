@@ -4400,8 +4400,10 @@ func GetDetailQueries(
 	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
-		generatedMap["ai_agent_sessions"] = aiAgentSessions
-		generatedMap["ai_agent_session_events"] = aiAgentSessionEvents
+		if !fleetConfig.Osquery.DisableAISessionIngestion {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			generatedMap["ai_agent_session_events"] = aiAgentSessionEvents
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

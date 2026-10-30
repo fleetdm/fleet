@@ -2640,3 +2640,17 @@ func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
 	require.Equal(t, 0, macadmins.Macadmins.MDMStatus.EnrolledPersonalHostsCount)
 	require.Equal(t, 1, macadmins.Macadmins.MDMStatus.EnrolledManualPersonalHostsCount)
 }
+
+func (s *integrationTestSuite) TestHostAISessionsRequirePremium() {
+	t := s.T()
+	host := s.createHosts(t, "darwin")[0]
+
+	for _, path := range []string{
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1/events", host.ID),
+	} {
+		res := s.Do("GET", path, nil, http.StatusPaymentRequired)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.ErrMissingLicense.Error())
+	}
+}

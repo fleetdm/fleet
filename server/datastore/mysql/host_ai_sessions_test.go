@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,9 @@ func TestHostAISessions(t *testing.T) {
 		{"NeedingEventsSkipsExpiring", testListHostAISessionsNeedingEventsSkipsExpiring},
 		{"Cleanup", testCleanupHostAISessions},
 		{"CleanupBounded", testCleanupHostAISessionsBounded},
+		{"List", testListHostAISessions},
+		{"Get", testGetHostAISession},
+		{"ListEvents", testListHostAISessionEvents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -117,6 +121,11 @@ func newTestAISessionEvent(s *fleet.HostAISession, toolCallIndex uint, decision 
 		Payload:        json.RawMessage(`{"name":"Bash","id":"toolu_1","input":{"command":"ls"}}`),
 		ContentLength:  17,
 	}
+}
+
+func withAISessionAction(e *fleet.HostAISessionEvent, action fleet.AISessionAction) *fleet.HostAISessionEvent {
+	e.Action = action
+	return e
 }
 
 func storeTestAISessions(t *testing.T, ds *Datastore, hostID uint, sessions ...*fleet.HostAISession) {
@@ -894,4 +903,260 @@ func testCleanupHostAISessionsBounded(t *testing.T, ds *Datastore) {
 	require.Equal(t, "e2", stored[0].AgentSessionID)
 	require.Equal(t, "kept", stored[1].AgentSessionID)
 	require.Len(t, listStoredAISessionEvents(t, ds, host.ID, "kept"), 3)
+}
+
+func aiSessionIDs(sessions []*fleet.HostAISession) []string {
+	ids := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		ids = append(ids, s.AgentSessionID)
+	}
+	return ids
+}
+
+func testListHostAISessions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	host2 := newTestHostWithPlatform(t, ds, "host2", "darwin", nil)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	s1 := newTestAISession("s1", now.Add(-3*time.Hour), 2)
+	s1.OutputTokenCount = 30
+	s2 := newTestAISession("s2", now.Add(-1*time.Hour), 1)
+	s2.Agent = "cursor"
+	s2.Username = "bob"
+	s2.Model = ""
+	s2.StartedAt = nil
+	s2.OutputTokenCount = 10
+	s3 := newTestAISession("s3", now.Add(-2*time.Hour), 0)
+	s3.Model = "gpt-5"
+	s3.GitRepository = "fleetdm/fleet"
+	s3.ProjectPath = "/Users/alice/src/fleet"
+	s3.OutputTokenCount = 20
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host1.ID, []*fleet.HostAISession{s1, s2, s3}))
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host2.ID, []*fleet.HostAISession{newTestAISession("other", now, 0)}))
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host1.ID, nil, []*fleet.HostAISessionEvent{
+		withAISessionAction(newTestAISessionEvent(s1, 0, ""), fleet.AISessionActionExecute),
+		withAISessionAction(newTestAISessionEvent(s1, 1, ""), fleet.AISessionActionWrite),
+		withAISessionAction(newTestAISessionEvent(s2, 0, ""), fleet.AISessionActionSearch),
+		// Actions without a category.
+		withAISessionAction(newTestAISessionEvent(s3, 0, ""), fleet.AISessionActionNetwork),
+		withAISessionAction(newTestAISessionEvent(s3, 1, ""), fleet.AISessionActionMCP),
+		withAISessionAction(newTestAISessionEvent(s3, 2, ""), fleet.AISessionActionOther),
+	}))
+
+	list := func(opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata) {
+		opts.IncludeMetadata = true
+		sessions, meta, err := ds.ListHostAISessions(ctx, host1.ID, opts)
+		require.NoError(t, err)
+		return sessions, meta
+	}
+	byEndedAt := fleet.ListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending}
+
+	sessions, meta := list(fleet.HostAISessionListOptions{ListOptions: byEndedAt})
+	require.Equal(t, []string{"s2", "s3", "s1"}, aiSessionIDs(sessions))
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 3}, meta)
+
+	got := sessions[2]
+	require.NotZero(t, got.ID)
+	require.Equal(t, host1.ID, got.HostID)
+	require.Equal(t, "claude_code", got.Agent)
+	require.Equal(t, "2.1.0", got.AgentVersion)
+	require.Equal(t, "alice", got.Username)
+	require.Equal(t, "claude-opus-5-5", got.Model)
+	require.NotNil(t, got.StartedAt)
+	require.NotNil(t, got.EndedAt)
+	require.Equal(t, s1.StartedAt.Unix(), got.StartedAt.Unix())
+	require.Equal(t, s1.EndedAt.Unix(), got.EndedAt.Unix())
+	require.Equal(t, uint(2), got.ToolCallCount)
+	require.Equal(t, uint64(30), got.OutputTokenCount)
+	require.Equal(t, []fleet.AISessionCategory{fleet.AISessionCategoryCommand, fleet.AISessionCategoryFileAccess}, got.Categories)
+	require.Equal(t, s1.TranscriptPath, got.TranscriptPath)
+	require.Nil(t, sessions[0].StartedAt)
+	require.Equal(t, []fleet.AISessionCategory{}, sessions[1].Categories)
+
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "output_token_count"})
+	require.Equal(t, []string{"s2", "s3", "s1"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending})
+	require.Equal(t, "s2", sessions[0].AgentSessionID)
+
+	sessions, meta = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt, Agent: "cursor"})
+	require.Equal(t, []string{"s2"}, aiSessionIDs(sessions))
+	require.NotNil(t, meta)
+	require.Equal(t, uint(1), meta.TotalResults)
+	sessions, _ = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt, Category: fleet.AISessionCategoryFileAccess})
+	require.Equal(t, []string{"s2", "s1"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt, Category: fleet.AISessionCategoryCommand})
+	require.Equal(t, []string{"s1"}, aiSessionIDs(sessions))
+
+	for match, want := range map[string][]string{
+		"bob":           {"s2"},
+		"gpt":           {"s3"},
+		"fleetdm/fleet": {"s3"},
+		"src/app":       {"s2", "s1"},
+		"nope":          {},
+	} {
+		byEndedAt.MatchQuery = match
+		sessions, meta = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt})
+		require.Equal(t, want, aiSessionIDs(sessions), match)
+		require.Equal(t, uint(len(want)), meta.TotalResults, match)
+	}
+	byEndedAt.MatchQuery = ""
+
+	byEndedAt.PerPage = 2
+	sessions, meta = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt})
+	require.Equal(t, []string{"s2", "s3"}, aiSessionIDs(sessions))
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: true, TotalResults: 3}, meta)
+	byEndedAt.Page = 1
+	sessions, meta = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt})
+	require.Equal(t, []string{"s1"}, aiSessionIDs(sessions))
+	require.Equal(t, &fleet.PaginationMetadata{HasPreviousResults: true, TotalResults: 3}, meta)
+
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s2.EndedAt.Format(time.DateTime)})
+	require.Equal(t, []string{"s3", "s1"}, aiSessionIDs(sessions))
+	// The cursor supersedes the page.
+	sessions, meta = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s2.EndedAt.Format(time.DateTime), Page: 1, PerPage: 1})
+	require.Equal(t, []string{"s3"}, aiSessionIDs(sessions))
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: true, TotalResults: 3}, meta)
+
+	sessions, meta = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", Agent: "gemini_cli"})
+	require.Empty(t, sessions)
+	require.Equal(t, uint(0), meta.TotalResults)
+
+	_, _, err := ds.ListHostAISessions(ctx, host1.ID, fleet.HostAISessionListOptions{OrderKey: "tool_call_count"})
+	require.Error(t, err)
+	_, _, err = ds.ListHostAISessions(ctx, host1.ID, fleet.HostAISessionListOptions{Category: "network"})
+	require.Error(t, err)
+
+	// Sessions with an unknown start or end sort last whichever the direction, and cursors reach them.
+	s4 := newTestAISession("s4", now, 0)
+	s4.EndedAt = nil
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host1.ID, []*fleet.HostAISession{s4}))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending})
+	require.Equal(t, []string{"s2", "s3", "s1", "s4"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderAscending})
+	require.Equal(t, []string{"s1", "s3", "s2", "s4"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "started_at", OrderDirection: fleet.OrderAscending})
+	require.Equal(t, []string{"s1", "s3", "s4", "s2"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "started_at", OrderDirection: fleet.OrderDescending})
+	require.Equal(t, []string{"s4", "s3", "s1", "s2"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s3.EndedAt.Format(time.DateTime)})
+	require.Equal(t, []string{"s1", "s4"}, aiSessionIDs(sessions))
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderAscending, After: s3.EndedAt.Format(time.DateTime)})
+	require.Equal(t, []string{"s2", "s4"}, aiSessionIDs(sessions))
+}
+
+func testGetHostAISession(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	host2 := newTestHostWithPlatform(t, ds, "host2", "darwin", nil)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	s1 := newTestAISession("s1", now, 1)
+	s1.AccountIdentifier = "alice@example.com"
+	// Had been running for hours when first stored, and none of its calls are collected yet.
+	old := newTestAISession("old", now, 2)
+	old.StartedAt = new(now.Add(-3 * time.Hour))
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host1.ID, []*fleet.HostAISession{s1, old}))
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host1.ID, nil, []*fleet.HostAISessionEvent{
+		withAISessionAction(newTestAISessionEvent(s1, 0, ""), fleet.AISessionActionExecute),
+	}))
+	stored := listStoredAISessions(t, ds, host1.ID)
+	require.Len(t, stored, 2)
+	require.Equal(t, "s1", stored[1].AgentSessionID)
+	stored[0], stored[1] = stored[1], stored[0]
+
+	got, err := ds.GetHostAISession(ctx, host1.ID, stored[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, stored[0].ID, got.ID)
+	require.Equal(t, host1.ID, got.HostID)
+	require.Equal(t, "s1", got.AgentSessionID)
+	require.Equal(t, "alice@example.com", got.AccountIdentifier)
+	require.Equal(t, []fleet.AISessionCategory{fleet.AISessionCategoryCommand}, got.Categories)
+	require.False(t, got.Backfill)
+
+	got, err = ds.GetHostAISession(ctx, host1.ID, stored[1].ID)
+	require.NoError(t, err)
+	require.Equal(t, "old", got.AgentSessionID)
+	require.True(t, got.Backfill)
+
+	_, err = ds.GetHostAISession(ctx, host2.ID, stored[0].ID)
+	require.True(t, fleet.IsNotFound(err), err)
+	_, err = ds.GetHostAISession(ctx, host1.ID, max(stored[0].ID, stored[1].ID)+1)
+	require.True(t, fleet.IsNotFound(err), err)
+}
+
+func testListHostAISessionEvents(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	s1 := newTestAISession("s1", now, 4)
+	s2 := newTestAISession("s2", now, 1)
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s1, s2}))
+	e0 := withAISessionAction(newTestAISessionEvent(s1, 0, ""), fleet.AISessionActionExecute)
+	e0.ExecutedAt = nil
+	e3 := withAISessionAction(newTestAISessionEvent(s1, 3, ""), fleet.AISessionActionNetwork)
+	e3.ExecutedAt = &now
+	e3.Truncated = true
+	// Stored out of order: events are listed in the order the calls ran.
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
+		withAISessionAction(newTestAISessionEvent(s1, 2, "denied"), fleet.AISessionActionRead),
+		withAISessionAction(newTestAISessionEvent(s1, 1, "approved"), fleet.AISessionActionExecute),
+		e3,
+		e0,
+		withAISessionAction(newTestAISessionEvent(s2, 0, ""), fleet.AISessionActionExecute),
+	}))
+	stored := listStoredAISessions(t, ds, host.ID)
+	require.Len(t, stored, 2)
+	sessionID := stored[0].ID
+
+	list := func(opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata) {
+		opts.IncludeMetadata = true
+		events, meta, err := ds.ListHostAISessionEvents(ctx, sessionID, opts)
+		require.NoError(t, err)
+		return events, meta
+	}
+	decisions := func(events []*fleet.HostAISessionEvent) []string {
+		out := make([]string, 0, len(events))
+		for _, e := range events {
+			out = append(out, fmt.Sprintf("%d:%s", e.ToolCallIndex, e.Decision))
+		}
+		return out
+	}
+
+	events, meta := list(fleet.HostAISessionEventListOptions{})
+	require.Equal(t, []string{"0:", "1:approved", "2:denied", "3:"}, decisions(events))
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 4}, meta)
+	require.NotZero(t, events[0].ID)
+	require.Equal(t, []fleet.AISessionCategory{fleet.AISessionCategoryCommand}, events[0].Categories)
+	require.Equal(t, "ls", events[0].Target)
+	require.Nil(t, events[0].ExecutedAt)
+	require.JSONEq(t, `{"name":"Bash","id":"toolu_1","input":{"command":"ls"}}`, string(events[0].Payload))
+	require.Equal(t, []fleet.AISessionCategory{}, events[3].Categories)
+	require.False(t, events[0].Truncated)
+	require.True(t, events[3].Truncated)
+	require.NotNil(t, events[3].ExecutedAt)
+	require.Equal(t, now.Unix(), events[3].ExecutedAt.Unix())
+
+	events, meta = list(fleet.HostAISessionEventListOptions{Category: fleet.AISessionCategoryCommand})
+	require.Equal(t, []string{"0:", "1:approved"}, decisions(events))
+	require.NotNil(t, meta)
+	require.Equal(t, uint(2), meta.TotalResults)
+	events, meta = list(fleet.HostAISessionEventListOptions{Category: fleet.AISessionCategoryFileAccess})
+	require.Equal(t, []string{"2:denied"}, decisions(events))
+	require.Equal(t, uint(1), meta.TotalResults)
+	_, _, err := ds.ListHostAISessionEvents(ctx, sessionID, fleet.HostAISessionEventListOptions{Category: "network"})
+	require.Error(t, err)
+
+	empty, _, err := ds.ListHostAISessionEvents(ctx, stored[1].ID+100, fleet.HostAISessionEventListOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, empty)
+	require.Empty(t, empty)
+
+	events, meta = list(fleet.HostAISessionEventListOptions{PerPage: 3, Page: 0})
+	require.Equal(t, []string{"0:", "1:approved", "2:denied"}, decisions(events))
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: true, TotalResults: 4}, meta)
+	events, meta = list(fleet.HostAISessionEventListOptions{PerPage: 3, Page: 1})
+	require.Equal(t, []string{"3:"}, decisions(events))
+	require.Equal(t, &fleet.PaginationMetadata{HasPreviousResults: true, TotalResults: 4}, meta)
 }

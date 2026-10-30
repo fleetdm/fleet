@@ -290,6 +290,25 @@ allow {
 # (Technicians, observer_plus, and observers are not granted read for enroll secrets)
 
 ##
+# Host AI sessions
+##
+
+# Global admins and maintainers can read hosts' AI sessions, which can include secrets in commands and arguments.
+allow {
+  object.type == "host_ai_session"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins and maintainers can read AI sessions of their teams' hosts.
+allow {
+  not is_null(object.team_id)
+  object.type == "host_ai_session"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == read
+}
+
+##
 # Hosts
 ##
 

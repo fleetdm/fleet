@@ -589,6 +589,13 @@ type Service interface {
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
 
+	// ListHostAISessions lists the AI agent sessions on the specified host.
+	ListHostAISessions(ctx context.Context, hostID uint, opts HostAISessionListOptions) ([]*HostAISession, *PaginationMetadata, error)
+	// GetHostAISession returns an AI agent session on the specified host.
+	GetHostAISession(ctx context.Context, hostID, aiSessionID uint) (*HostAISession, error)
+	// ListHostAISessionEvents lists the events of an AI agent session on the specified host.
+	ListHostAISessionEvents(ctx context.Context, hostID, aiSessionID uint, opts HostAISessionEventListOptions) ([]*HostAISessionEvent, *PaginationMetadata, error)
+
 	// GetHostRecoveryLockPassword retrieves the recovery lock password for the specified host.
 	// Requires admin or maintainer role and MDM to be enabled.
 	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)

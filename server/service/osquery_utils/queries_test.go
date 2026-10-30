@@ -734,6 +734,12 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesPremium, len(premiumQueries))
 	sortedKeysCompare(t, queriesPremium, premiumQueries)
 
+	// AI session ingestion can be turned off in the server configuration
+	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, config.FleetConfig{Osquery: config.OsqueryConfig{DisableAISessionIngestion: true}}, nil, nil, Integrations{}, nil)
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_session_events")
+	require.Contains(t, queriesPremiumNoAISessions, "entra_join_user_windows")
+
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
