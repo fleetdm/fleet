@@ -85,6 +85,7 @@ jobs:
             has_r             = (Test-Slug "r")
             has_git           = (Test-Slug "git")
             has_python313     = (Test-Slug "python-3.13")
+            has_python314     = (Test-Slug "python-3.14")
           }
           foreach ($key in $flags.Keys) {
             "$key=$($flags[$key].ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -674,6 +675,21 @@ jobs:
           # python.org installer fails over the same or a newer patch release (1603 /
           # 1638), so remove both architectures with the FMA's own uninstall scripts.
           foreach ($script in "python_3_13_uninstall.ps1", "python_3_13_arm64_uninstall.ps1") {
+            $path = "fleet\ee\maintained-apps\inputs\winget\scripts\$script"
+            if (-not (Test-Path $path)) { continue }
+            & $path
+            Write-Host "$script exited $LASTEXITCODE"
+          }
+          exit 0
+        shell: powershell
+
+      - name: Remove pre-installed Python 3.14
+        if: steps.check-windows-apps.outputs.has_python314 == 'true'
+        run: |
+          # The toolcache ships a Python 3.14 that can be newer than the FMA's patch
+          # release, and the python.org installer won't downgrade it (1603). Remove it
+          # the same way as Python 3.13 above.
+          foreach ($script in "python_3_14_uninstall.ps1", "python_3_14_arm64_uninstall.ps1") {
             $path = "fleet\ee\maintained-apps\inputs\winget\scripts\$script"
             if (-not (Test-Path $path)) { continue }
             & $path
