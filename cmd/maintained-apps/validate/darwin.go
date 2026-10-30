@@ -191,9 +191,6 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	}
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
-	// Apps under /System ship with macOS, so they're never an FMA. Without this,
-	// short names match them (Dia matches Apple Diagnostics, whose bundle
-	// version "1" prefix-matches "1.55.1"), failing the post-uninstall check.
 	query := `
 		SELECT
 		  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
@@ -201,14 +198,13 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		  bundle_short_version,
 		  bundle_version
 		FROM apps
-		WHERE path NOT LIKE '/System/%' AND (
+		WHERE 
 		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
 		LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + appName + `%')
 	`
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
-	query += ")"
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
@@ -263,6 +259,12 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
 				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
 				return true, nil
+			}
+
+			// The name "Dia" also matches Apple Diagnostics, whose bundle version "1"
+			// prefix-matches Dia's version, so only count Dia's own bundle.
+			if uniqueAppIdentifier == "company.thebrowser.dia" && result.Path != "/Applications/Dia.app" {
+				continue
 			}
 
 			// Adobe DNG Converter's version format includes build number in parentheses
