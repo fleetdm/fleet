@@ -78,38 +78,91 @@ remove_launchctl_service() {
 
   echo "Removing launchctl service ${service}"
 
-  for should_sudo in "${booleans[@]}"; do
-    plist_status=$(launchctl list "${service}" 2>/dev/null)
+  # Homebrew's user pass runs as the user, but Fleet runs this as root, where
+  # launchctl list and remove only see the system domain. As root, the user pass
+  # targets the console user's GUI domain and home folder instead.
+  local console_user
+  local console_uid=""
+  if [[ $EUID -eq 0 ]]; then
+    console_user=$(stat -f "%Su" /dev/console)
+    if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
+      console_uid=$(id -u "$console_user")
+    fi
+  fi
 
-    if [[ $plist_status == \{* ]]; then
-      if [[ $should_sudo == "true" ]]; then
-        sudo launchctl remove "${service}"
-      else
-        launchctl remove "${service}"
+  # A wildcard label can't be used with launchctl or as a plist name, so expand
+  # it to the labels of currently loaded services that match the pattern.
+  local services=("$service")
+  if [[ "$service" == *"*"* ]]; then
+    local regex
+    # Escape regex metacharacters, turn '*' into '.*', and anchor the pattern so
+    # it matches a full label rather than a substring.
+    regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+    regex="^${regex}$"
+    services=()
+    local id
+    # Match every loaded job by label regardless of PID; launchctl list reports
+    # loaded-but-not-running jobs with a "-" in the PID column.
+    while read -r _ _ id; do
+      [[ "$id" =~ $regex ]] && services+=("$id")
+    done < <(
+      launchctl list 2>/dev/null | tail -n +2
+      if [[ -n "$console_uid" ]]; then
+        launchctl print "gui/${console_uid}" 2>/dev/null | awk '/^\tservices = [{]$/ { f = 1; next } f && /^\t[}]$/ { f = 0 } f'
       fi
-      sleep 1
-    fi
-
-    paths=(
-      "/Library/LaunchAgents/${service}.plist"
-      "/Library/LaunchDaemons/${service}.plist"
     )
-
-    # if not using sudo, prepend the home directory to the paths
-    if [[ $should_sudo == "false" ]]; then
-      for i in "${!paths[@]}"; do
-        paths[i]="${HOME}${paths[i]}"
-      done
+    if [[ ${#services[@]} -eq 0 ]]; then
+      echo "No loaded launchctl service matches ${service}"
+      return
     fi
+  fi
 
-    for path in "${paths[@]}"; do
-      if [[ -e "$path" ]]; then
-        if [[ $should_sudo == "true" ]]; then
-          sudo rm -f -- "$path"
-        else
-          rm -f -- "$path"
+  local service_label
+  for service_label in "${services[@]}"; do
+    for should_sudo in "${booleans[@]}"; do
+      if [[ $should_sudo == "false" && -n "$console_uid" ]]; then
+        if launchctl print "gui/${console_uid}/${service_label}" &>/dev/null; then
+          launchctl bootout "gui/${console_uid}/${service_label}"
+          sleep 1
+        fi
+      else
+        plist_status=$(launchctl list "${service_label}" 2>/dev/null)
+
+        if [[ $plist_status == \{* ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo launchctl remove "${service_label}"
+          else
+            launchctl remove "${service_label}"
+          fi
+          sleep 1
         fi
       fi
+
+      paths=(
+        "/Library/LaunchAgents/${service_label}.plist"
+        "/Library/LaunchDaemons/${service_label}.plist"
+      )
+
+      # if not using sudo, prepend the home directory to the paths
+      if [[ $should_sudo == "false" ]]; then
+        local user_home="${HOME}"
+        if [[ -n "$console_uid" ]]; then
+          user_home="/Users/${console_user}"
+        fi
+        for i in "${!paths[@]}"; do
+          paths[i]="${user_home}${paths[i]}"
+        done
+      fi
+
+      for path in "${paths[@]}"; do
+        if [[ -e "$path" ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo rm -f -- "$path"
+          else
+            rm -f -- "$path"
+          fi
+        fi
+      done
     done
   done
 }
