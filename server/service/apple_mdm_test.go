@@ -4103,6 +4103,9 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
 			ds := new(mock.Store)
+			ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+				return true, nil
+			}
 			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
 				require.Equal(t, commandUUID, targetCmd)
@@ -4134,7 +4137,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			}
 
 			_, err := svc.CommandAndReportResults(
-				&mdm.Request{Context: ctx},
+				&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 				&mdm.CommandResults{
 					Enrollment:  mdm.Enrollment{UDID: hostUUID},
 					CommandUUID: commandUUID,
@@ -4195,6 +4198,9 @@ func TestMDMCommandAndReportResultsDeclarativeManagementDetail(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.status, func(t *testing.T) {
 			ds := new(mock.Store)
+			ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+				return true, nil
+			}
 			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
 				return "DeclarativeManagement", nil
@@ -4607,6 +4613,25 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 	}
 }
 
+func TestMDMCommandAndReportResultsCommandNotQueued(t *testing.T) {
+	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		require.Equal(t, "host-uuid", enrollmentID)
+		require.Equal(t, "cmd-uuid", commandUUID)
+		return false, nil
+	}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	cmd, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: t.Context(), EnrollID: &mdm.EnrollID{ID: "host-uuid"}},
+		&mdm.CommandResults{CommandUUID: "cmd-uuid", Status: "Acknowledged"},
+	)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	require.True(t, ds.IsMDMAppleCommandQueuedForEnrollmentFuncInvoked)
+	require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+}
+
 // TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList verifies the
 // RemoveProfile ack path queues a CertificateList for an ACME profile, and that
 // it does so BEFORE UpdateOrDeleteHostMDMAppleProfile deletes the host profile
@@ -4620,6 +4645,9 @@ func TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList(t *testing
 	)
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, cmdUUID string) (string, error) {
 		return "RemoveProfile", nil
 	}
@@ -4668,7 +4696,7 @@ func TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList(t *testing
 
 	svc := &MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), commander: cmdr, notificationsSvc: &mock.MockNotificationsService{}}
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -4714,6 +4742,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 
 	t.Run("managed host: already installed bypasses retry and routes to verification", func(t *testing.T) {
 		ds := new(mock.Store)
+		ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+			return true, nil
+		}
 		svc := newSvc(ds)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
@@ -4750,6 +4781,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 
 	t.Run("managed host: already installed via message fallback when code is unknown", func(t *testing.T) {
 		ds := new(mock.Store)
+		ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+			return true, nil
+		}
 		svc := newSvc(ds)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
@@ -4779,6 +4813,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 
 	t.Run("BYOD host: already installed surfaces custom error and skips retry+verification", func(t *testing.T) {
 		ds := new(mock.Store)
+		ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+			return true, nil
+		}
 		svc := newSvc(ds)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
@@ -4834,6 +4871,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 
 	t.Run("unrelated install error still goes through retry path", func(t *testing.T) {
 		ds := new(mock.Store)
+		ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+			return true, nil
+		}
 		svc := newSvc(ds)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
@@ -4849,7 +4889,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		}
 
 		_, err := svc.CommandAndReportResults(
-			&mdm.Request{Context: ctx},
+			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 			&mdm.CommandResults{
 				Enrollment:  mdm.Enrollment{UDID: hostUUID},
 				CommandUUID: commandUUID,
@@ -4884,6 +4924,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	ctx := t.Context()
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	var emitted *fleet.ActivityInstalledAppStoreApp
 	svc := MDMAppleCheckinAndCommandService{
 		ds:     ds,
@@ -7493,6 +7536,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -7577,7 +7623,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -7625,7 +7671,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked)
 
 	_, err = svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -7668,6 +7714,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "SUPP-UUID"
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -7709,7 +7758,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -7945,6 +7994,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			ds := new(mock.Store)
+			ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+				return true, nil
+			}
 			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8007,7 +8059,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 
 			require.NotPanics(t, func() {
 				_, err := svc.CommandAndReportResults(
-					&mdm.Request{Context: ctx},
+					&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 					&mdm.CommandResults{
 						Enrollment:  mdm.Enrollment{UDID: hostUUID},
 						CommandUUID: commandUUID,
@@ -8038,6 +8090,9 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "IPHONE-UUID"
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8109,7 +8164,7 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 
 	require.NotPanics(t, func() {
 		_, err := svc.CommandAndReportResults(
-			&mdm.Request{Context: ctx},
+			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 			&mdm.CommandResults{
 				Enrollment:  mdm.Enrollment{UDID: hostUUID},
 				CommandUUID: commandUUID,
@@ -8298,6 +8353,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "SUPP-UUID"
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8332,7 +8390,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -8385,6 +8443,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	truncated := strings.Repeat("a", 150)
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8415,7 +8476,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -8466,6 +8527,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "VITALS-UUID"
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8617,7 +8681,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{Enrollment: mdm.Enrollment{UDID: hostUUID}, CommandUUID: commandUUID, Raw: allFieldsRaw},
 	)
 	require.NoError(t, err)
@@ -8712,7 +8776,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	gotVitals = fleet.MDMAppleDeviceVitals{}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFuncInvoked = false
 	_, err = svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{Enrollment: mdm.Enrollment{UDID: hostUUID}, CommandUUID: commandUUID, Raw: sparseRaw},
 	)
 	require.NoError(t, err)
@@ -8736,6 +8800,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
+	ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+		return true, nil
+	}
 	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -8771,7 +8838,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 	}
 
 	_, err := svc.CommandAndReportResults(
-		&mdm.Request{Context: ctx},
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{}},
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
@@ -12138,6 +12205,9 @@ func TestRotateFileVaultKeyResultIgnoredCases(t *testing.T) {
 
 	setup := func(lookup func(ctx context.Context, cmdUUID string) (*fleet.Host, error)) (*mock.Store, *MDMAppleCheckinAndCommandService) {
 		ds := new(mock.Store)
+		ds.IsMDMAppleCommandQueuedForEnrollmentFunc = func(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+			return true, nil
+		}
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
 			return fleet.RotateFileVaultKeyCmdName, nil
 		}

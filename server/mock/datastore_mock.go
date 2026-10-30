@@ -1250,6 +1250,8 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
+type IsMDMAppleCommandQueuedForEnrollmentFunc func(ctx context.Context, enrollmentID string, commandUUID string) (bool, error)
+
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
@@ -4475,6 +4477,9 @@ type DataStore struct {
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
+
+	IsMDMAppleCommandQueuedForEnrollmentFunc        IsMDMAppleCommandQueuedForEnrollmentFunc
+	IsMDMAppleCommandQueuedForEnrollmentFuncInvoked bool
 
 	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
 	GetMDMAppleProfilesSummaryFuncInvoked bool
@@ -10847,6 +10852,13 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) IsMDMAppleCommandQueuedForEnrollment(ctx context.Context, enrollmentID string, commandUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsMDMAppleCommandQueuedForEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsMDMAppleCommandQueuedForEnrollmentFunc(ctx, enrollmentID, commandUUID)
 }
 
 func (s *DataStore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
