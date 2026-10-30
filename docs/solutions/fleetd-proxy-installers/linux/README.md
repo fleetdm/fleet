@@ -18,7 +18,7 @@ Files:
 Linux packages can't take install-time properties the way msiexec does. Instead, the package reads the values from environment variables on the install command:
 
 - `FLEET_URL`: the Fleet server, for example `https://fleet.example.com`.
-- `FLEET_SECRET`: the enroll secret. A team's secret puts the host in that team.
+- `FLEET_SECRET`: the enroll secret. A fleet's secret puts the host in that fleet.
 - `ORBIT_PROXY_URL`: the proxy as a URL with its port, for example `http://proxy.example.internal:3128`. Use `http://` even though Fleet is HTTPS: the scheme describes the connection to the proxy, and the HTTPS traffic is tunneled through it with CONNECT.
 - `OSQUERY_PROXY`: optional. osquery's proxy is taken from `ORBIT_PROXY_URL`, so set this only if osquery should use a different proxy. Give it as host:port with no scheme.
 - `NO_PROXY`: optional. It lists destinations Orbit should reach directly instead of through the proxy, and defaults to `localhost,127.0.0.1`. Most deployments don't need it. osquery has no bypass list, so this doesn't affect osquery.
@@ -70,7 +70,7 @@ The added install step:
 - writes the Fleet URL, enroll secret and `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` to `/etc/default/orbit-proxy` (root-only).
 - adds a systemd drop-in, `/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf`. It loads that file after `/etc/default/orbit`, so its values win, and it adds `-- --proxy_hostname=...` to Orbit's command line, which Orbit passes through to osqueryd.
 
-The osquery proxy goes on the command line rather than in `osquery.flags`, because Orbit rewrites `osquery.flags` whenever a team's agent options set `command_line_flags`.
+The osquery proxy goes on the command line rather than in `osquery.flags`, because Orbit rewrites `osquery.flags` whenever a fleet's agent options set `command_line_flags`.
 
 None of the package's own files are edited, so package upgrades keep the settings. With no values supplied (for example, an upgrade), the existing settings are left alone. Uninstalling removes both files but leaves `/etc/default/fleetd-proxy` in place.
 
@@ -148,5 +148,5 @@ In the proxy's access log, expect CONNECTs to the Fleet server and to `updates.f
 
 - Unauthenticated proxies only. fleetd has no supported authenticated-proxy path (#35957).
 - SSL-inspecting proxies haven't been tested and need extra certificate setup.
-- `FLEET_SECRET` can show up in deployment-tool logs, so use a team-scoped enroll secret.
+- `FLEET_SECRET` can show up in deployment-tool logs, so use a fleet-scoped enroll secret.
 - Like Fleet's standard packages, these aren't signed. If dnf enforces signature checks on local packages, add `--nogpgcheck`.

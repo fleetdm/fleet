@@ -42,4 +42,4 @@ Software in Fleet refers to the following:
 - **Software inventory** an inventory of each host’s installed software, including information about detected vulnerabilities (CVEs). 
 
 <meta name="pageOrderInSection" value="200">
-<meta name="keywordsForDocsearch" value="fleet anatomy, teams, fleet concepts, terminology, glossary">
+<meta name="keywordsForDocsearch" value="fleet anatomy, fleets, fleet concepts, terminology, glossary">
