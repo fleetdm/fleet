@@ -1806,29 +1806,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  selfServiceCategory:
-    (
-      action: "added" | "edited" | "deleted",
-      preposition: "to" | "in" | "from"
-    ) =>
-    (activity: IActivity) => {
-      const categoryName = activity.details?.self_service_category_name;
-      const fleetName = activity.details?.fleet_name;
-      return (
-        <>
-          {" "}
-          {action}{" "}
-          {categoryName ? <b>{categoryName}</b> : "a"} self-service category
-          {fleetName ? (
-            <>
-              {" "}
-              {preposition} the <b>{fleetName}</b> fleet
-            </>
-          ) : null}
-          .
-        </>
-      );
-    },
+  selfServiceCategory: (
+    action: "added" | "edited" | "deleted",
+    preposition: "to" | "in" | "from"
+  ) => (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    const fleetName = activity.details?.fleet_name;
+    return (
+      <>
+        {" "}
+        {action} {categoryName ? <b>{categoryName}</b> : "a"} self-service
+        category
+        {fleetName ? (
+          <>
+            {" "}
+            {preposition} the <b>{fleetName}</b> fleet
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
