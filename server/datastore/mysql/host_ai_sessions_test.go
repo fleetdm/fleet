@@ -20,6 +20,7 @@ func TestHostAISessions(t *testing.T) {
 	}{
 		{"UpsertSessions", testUpsertHostAISessions},
 		{"IncrementalEvents", testHostAISessionEventsIncremental},
+		{"CountsOnlyNewCalls", testHostAISessionEventsCountsOnlyNewCalls},
 		{"Decisions", testHostAISessionEventsDecisions},
 		{"DecisionsUnknownEnd", testHostAISessionEventsDecisionsUnknownEnd},
 		{"UndecidedBeforeCatchUp", testHostAISessionEventsUndecidedBeforeCatchUp},
@@ -28,6 +29,7 @@ func TestHostAISessions(t *testing.T) {
 		{"EmptyReadsNewCalls", testHostAISessionEventsEmptyReadsNewCalls},
 		{"ResumeAfterBudgetSpent", testHostAISessionEventsResumeAfterBudgetSpent},
 		{"NeedingEventsOrderAndScope", testListHostAISessionsNeedingEventsOrderAndScope},
+		{"NeedingEventsSkipsExpiring", testListHostAISessionsNeedingEventsSkipsExpiring},
 		{"Cleanup", testCleanupHostAISessions},
 		{"CleanupBounded", testCleanupHostAISessionsBounded},
 	}
@@ -168,6 +170,62 @@ func testUpsertHostAISessions(t *testing.T, ds *Datastore) {
 	require.Len(t, listStoredAISessions(t, ds, host.ID), 4)
 
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, nil))
+
+	// A session listed twice in one report is stored once, as last listed.
+	s4 := newTestAISession("s4", later, 1)
+	s4Again := newTestAISession("s4", later.Add(time.Minute), 2)
+	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s4, s4Again}))
+	stored = listStoredAISessions(t, ds, host.ID)
+	require.Len(t, stored, 5)
+	require.Equal(t, "s4", stored[4].AgentSessionID)
+	require.EqualValues(t, 2, stored[4].ToolCallCount)
+	require.True(t, later.Add(time.Minute).Equal(*stored[4].EndedAt))
+}
+
+func testHostAISessionEventsCountsOnlyNewCalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	s := newTestAISession("s1", now, 6)
+	storeTestAISessions(t, ds, host.ID, s)
+	event := func(toolCallIndex uint, action fleet.AISessionAction) *fleet.HostAISessionEvent {
+		e := newTestAISessionEvent(s, toolCallIndex, "allowed")
+		e.Action = action
+		return e
+	}
+
+	// A call listed twice in one result counts once.
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
+		event(0, fleet.AISessionActionExecute),
+		event(1, fleet.AISessionActionRead),
+		event(1, fleet.AISessionActionRead),
+	}))
+	stored := listStoredAISessions(t, ds, host.ID)
+	require.Len(t, stored, 1)
+	require.EqualValues(t, 2, stored[0].EventCount)
+	require.Equal(t, "read,execute", stored[0].Actions)
+
+	// Calls already stored neither count again nor change the session's actions: their stored event is kept.
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
+		event(0, fleet.AISessionActionExecute),
+		event(1, fleet.AISessionActionWrite),
+		event(2, fleet.AISessionActionExecute),
+		event(3, fleet.AISessionActionExecute),
+	}))
+	stored = listStoredAISessions(t, ds, host.ID)
+	require.Len(t, stored, 1)
+	require.EqualValues(t, 4, stored[0].EventCount)
+	require.Equal(t, "read,execute", stored[0].Actions)
+	require.Len(t, listStoredAISessionEvents(t, ds, host.ID, "s1"), 4)
+
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
+		event(4, fleet.AISessionActionWrite),
+	}))
+	stored = listStoredAISessions(t, ds, host.ID)
+	require.Len(t, stored, 1)
+	require.EqualValues(t, 5, stored[0].EventCount)
+	require.Equal(t, "read,write,execute", stored[0].Actions)
 }
 
 func testHostAISessionEventsIncremental(t *testing.T, ds *Datastore) {
@@ -690,6 +748,40 @@ func testListHostAISessionsNeedingEventsOrderAndScope(t *testing.T, ds *Datastor
 		newTestAISessionEvent(newTestAISession("other", now, 1), 0, "allowed"),
 	}))
 	require.Empty(t, listStoredAISessionEvents(t, ds, host2.ID, "other"))
+}
+
+func testListHostAISessionsNeedingEventsSkipsExpiring(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	now := time.Now().UTC().Truncate(time.Second)
+	cutoff := now.Add(-fleet.HostAISessionsMaxAge)
+
+	// Sessions the cleanup is about to delete are no longer read, so storing their events doesn't race the cleanup.
+	expiring := newTestAISession("expiring", now, 1)
+	expiring.StartedAt = new(cutoff.Add(-time.Minute))
+	expiringBackfill := newTestAISession("expiring-backfill", now, 1)
+	expiringBackfill.StartedAt = new(cutoff.Add(-time.Minute))
+	sessions := []*fleet.HostAISession{newTestAISession("recent", now, 1), expiring, expiringBackfill}
+	for _, id := range []string{"no-start", "no-start-stale"} {
+		s := newTestAISession(id, now.Add(-time.Hour), 1)
+		s.StartedAt = nil
+		sessions = append(sessions, s)
+	}
+	storeTestAISessions(t, ds, host.ID, sessions...)
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_ai_sessions SET backfill = agent_session_id = 'expiring-backfill' WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_ai_sessions SET updated_at = ? WHERE agent_session_id = 'no-start-stale'`,
+		cutoff.Add(hostAISessionsCleanupGrace-time.Minute))
+	require.NoError(t, err)
+
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 10)
+	require.NoError(t, err)
+	var ids []string
+	for _, c := range cursors {
+		ids = append(ids, c.AgentSessionID)
+	}
+	require.Equal(t, []string{"recent", "no-start"}, ids)
 }
 
 func testCleanupHostAISessions(t *testing.T, ds *Datastore) {
