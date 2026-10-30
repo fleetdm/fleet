@@ -174,9 +174,7 @@ func (f *ConfigFetcher) firstFetch() (string, error) {
 		// Nudged during the fetch, which may have read the config before the
 		// change.
 		f.pending = false
-		if f.config != "" {
-			f.startFetchLocked(false)
-		}
+		f.nudgeLocked()
 	}
 	cfg := f.config
 	f.mu.Unlock()
@@ -192,8 +190,15 @@ func (f *ConfigFetcher) firstFetch() (string, error) {
 func (f *ConfigFetcher) Nudge() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.nudgeLocked()
+}
+
+// nudgeLocked fetches the config now. Until a config is cached, fetches are
+// made by osquery's calls; the next one then fetches, even after a failed
+// first fetch. f.mu must be held.
+func (f *ConfigFetcher) nudgeLocked() {
 	if f.config == "" && !f.fetching {
-		// The first fetch, on osquery's first call, gets the current config.
+		f.nextFetch = f.now()
 		return
 	}
 	f.startFetchLocked(false)

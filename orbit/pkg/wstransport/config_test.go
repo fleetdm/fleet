@@ -396,6 +396,57 @@ func TestConfigFetcherNudgeDuringFirstFetch(t *testing.T) {
 	assert.Equal(t, map[string]any{"pack_delimiter": "_"}, ft.genConfig(t)["options"])
 }
 
+func TestConfigFetcherNudgeRetriesFailedFirstFetch(t *testing.T) {
+	t.Run("nudged during the fetch", func(t *testing.T) {
+		client := &fakeConfigClient{
+			responses: []string{`{"options":{}}`},
+			errs:      []error{errors.New("boom")},
+			block:     make(chan struct{}),
+		}
+		ft := newFetcherTest(t, client)
+		ft.connected.Store(true)
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := ft.f.GenConfig()
+			done <- err
+		}()
+		require.Eventually(t, func() bool {
+			ft.f.mu.Lock()
+			defer ft.f.mu.Unlock()
+			return ft.f.fetching
+		}, 5*time.Second, time.Millisecond)
+		ft.f.Nudge()
+		client.block <- struct{}{}
+		ft.waitFetch(t)
+		require.Error(t, <-done)
+
+		// osquery's next call fetches without waiting for the retry.
+		client.block = nil
+		ft.genConfig(t)
+		ft.waitFetch(t)
+		assert.Len(t, client.getCalls(), 2)
+	})
+
+	t.Run("nudged after the fetch", func(t *testing.T) {
+		client := &fakeConfigClient{
+			responses: []string{`{"options":{}}`},
+			errs:      []error{errors.New("boom")},
+		}
+		ft := newFetcherTest(t, client)
+		ft.connected.Store(true)
+
+		_, err := ft.f.GenConfig()
+		require.Error(t, err)
+		ft.waitFetch(t)
+
+		ft.f.Nudge()
+		ft.genConfig(t)
+		ft.waitFetch(t)
+		assert.Len(t, client.getCalls(), 2)
+	})
+}
+
 func TestConfigFetcherDueFetchDoesNotQueue(t *testing.T) {
 	client := &fakeConfigClient{responses: []string{`{"options":{}}`}}
 	ft := newFetcherTest(t, client)
