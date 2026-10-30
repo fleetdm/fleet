@@ -18,9 +18,11 @@
 package osqueryconfig_notify
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
+	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -69,12 +71,24 @@ func freshCtx(ctx context.Context) context.Context {
 	return ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
 }
 
-// rawChanged reports whether two JSON values differ, ignoring formatting
-// (json.Marshal compacts a json.RawMessage).
+// rawChanged reports whether two JSON values differ, ignoring formatting and
+// object key order.
 func rawChanged(before, after *json.RawMessage) bool {
-	b, errB := json.Marshal(before)
-	a, errA := json.Marshal(after)
-	return errB != nil || errA != nil || string(a) != string(b)
+	b, errB := decodeRaw(before)
+	a, errA := decodeRaw(after)
+	return errB != nil || errA != nil || !reflect.DeepEqual(a, b)
+}
+
+func decodeRaw(raw *json.RawMessage) (any, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(*raw))
+	// Keeps large numbers exact.
+	dec.UseNumber()
+	var v any
+	err := dec.Decode(&v)
+	return v, err
 }
 
 // reportsScope returns the scope of the hosts running the reports of the
@@ -113,11 +127,12 @@ func (d *Datastore) reportsDigests(ctx context.Context, teamIDs []*uint) map[uin
 // withReportsDiff runs write and notifies the hosts of each given fleet whose
 // scheduled reports it changed. GitOps applies every report on every run,
 // mostly unchanged: comparing avoids notifying every host on every run.
+//
+// It compares even when write fails: ApplyQueries commits in batches, so a
+// failure may follow committed changes.
 func (d *Datastore) withReportsDiff(ctx context.Context, teamIDs []*uint, source string, write func() error) error {
 	before := d.reportsDigests(freshCtx(ctx), teamIDs)
-	if err := write(); err != nil {
-		return err
-	}
+	err := write()
 	after := d.reportsDigests(freshCtx(ctx), teamIDs)
 	for _, teamID := range teamIDs {
 		b, okB := before[teamKey(teamID)]
@@ -126,7 +141,7 @@ func (d *Datastore) withReportsDiff(ctx context.Context, teamIDs []*uint, source
 			d.publishScope(ctx, reportsScope(teamID), fleet.AgentWSReasonReports, source)
 		}
 	}
-	return nil
+	return err
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -200,7 +215,16 @@ func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*
 	})
 }
 
+// scheduled reports whether q is in its fleet's scheduled reports digest; a
+// write leaving a report unscheduled skips the digests.
+func scheduled(q *fleet.Query) bool {
+	return q.Saved && q.Interval > 0
+}
+
 func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	if !scheduled(query) {
+		return d.Datastore.NewQuery(ctx, query, opts...)
+	}
 	var created *fleet.Query
 	err := d.withReportsDiff(ctx, []*uint{query.TeamID}, "NewQuery", func() error {
 		var err error
@@ -214,6 +238,11 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 }
 
 func (d *Datastore) SaveQuery(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+	if !scheduled(query) {
+		if stored, err := d.Datastore.Query(freshCtx(ctx), query.ID); err == nil && !scheduled(stored) {
+			return d.Datastore.SaveQuery(ctx, query, shouldDiscardResults, shouldDeleteStats)
+		}
+	}
 	return d.withReportsDiff(ctx, []*uint{query.TeamID}, "SaveQuery", func() error {
 		return d.Datastore.SaveQuery(ctx, query, shouldDiscardResults, shouldDeleteStats)
 	})

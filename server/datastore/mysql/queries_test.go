@@ -1767,6 +1767,11 @@ func testScheduledQueriesDigest(t *testing.T, ds *Datastore) {
 	changed := digest(nil)
 	assert.NotEqual(t, global, changed)
 
+	q.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, changed, digest(nil))
+	changed = digest(nil)
+
 	q.LabelsIncludeAny = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
 	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
 	scoped := digest(nil)

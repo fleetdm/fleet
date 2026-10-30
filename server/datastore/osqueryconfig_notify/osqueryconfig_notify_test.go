@@ -131,8 +131,9 @@ var hookCases = []hookCase{
 		},
 	},
 	{
-		name: "ApplyQueries",
-		want: "scope team:3 reports",
+		name:            "ApplyQueries",
+		want:            "scope team:3 reports",
+		notifiesOnError: true,
 		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			write := mockReportsDigest(ds, unchanged)
 			ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -148,10 +149,12 @@ var hookCases = []hookCase{
 		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			write := mockReportsDigest(ds, unchanged)
 			ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-				write()
+				if writeErr == nil {
+					write()
+				}
 				return query, writeErr
 			}
-			_, err := d.NewQuery(ctx, &fleet.Query{Name: "a"})
+			_, err := d.NewQuery(ctx, &fleet.Query{Name: "a", Saved: true, Interval: 60})
 			return err
 		},
 	},
@@ -161,10 +164,12 @@ var hookCases = []hookCase{
 		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			write := mockReportsDigest(ds, unchanged)
 			ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
-				write()
+				if writeErr == nil {
+					write()
+				}
 				return writeErr
 			}
-			return d.SaveQuery(ctx, &fleet.Query{Name: "a", TeamID: new(uint(3))}, false, false)
+			return d.SaveQuery(ctx, &fleet.Query{Name: "a", TeamID: new(uint(3)), Saved: true, Interval: 60}, false, false)
 		},
 	},
 	{
@@ -173,7 +178,9 @@ var hookCases = []hookCase{
 		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			write := mockReportsDigest(ds, unchanged)
 			ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
-				write()
+				if writeErr == nil {
+					write()
+				}
 				return writeErr
 			}
 			return d.DeleteQuery(ctx, new(uint(3)), "a")
@@ -335,9 +342,47 @@ func TestUnreadableBeforeNotifies(t *testing.T) {
 		ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 			return nil
 		}
-		require.NoError(t, d.SaveQuery(t.Context(), &fleet.Query{}, false, false))
+		require.NoError(t, d.SaveQuery(t.Context(), &fleet.Query{Saved: true, Interval: 60}, false, false))
 		require.Equal(t, []string{"scope global reports"}, notifier.calls)
 	})
+}
+
+func TestUnscheduledReportsSkipDigest(t *testing.T) {
+	ds, notifier, d := newTestDatastore()
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return query, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		return nil
+	}
+	var stored fleet.Query
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) { return &stored, nil }
+	write := mockReportsDigest(ds, false)
+
+	_, err := d.NewQuery(t.Context(), &fleet.Query{Saved: true})
+	require.NoError(t, err)
+	require.NoError(t, d.SaveQuery(t.Context(), &fleet.Query{Saved: true}, false, false))
+	require.False(t, ds.ScheduledQueriesDigestFuncInvoked)
+	require.Empty(t, notifier.calls)
+
+	// Unscheduling a scheduled report changes the schedule.
+	stored = fleet.Query{Saved: true, Interval: 60}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		write()
+		return nil
+	}
+	require.NoError(t, d.SaveQuery(t.Context(), &fleet.Query{Saved: true}, false, false))
+	require.Equal(t, []string{"scope global reports"}, notifier.calls)
+}
+
+func TestRawChanged(t *testing.T) {
+	raw := func(s string) *json.RawMessage { return new(json.RawMessage(s)) }
+	require.False(t, rawChanged(nil, nil))
+	require.False(t, rawChanged(raw(`{"a":1,"b":{"c":2,"d":3}}`), raw(`{ "b": {"d":3,"c":2}, "a":1 }`)))
+	require.True(t, rawChanged(raw(`{"a":1}`), raw(`{"a":2}`)))
+	require.True(t, rawChanged(raw(`{"a":12345678901234567890}`), raw(`{"a":12345678901234567891}`)))
+	require.True(t, rawChanged(nil, raw(`{}`)))
+	require.True(t, rawChanged(raw(`{`), raw(`{`)))
 }
 
 func TestApplyQueriesNotifiesChangedScopes(t *testing.T) {

@@ -86,4 +86,5 @@ func TestServerConfigRefresh(t *testing.T) {
 	assert.Equal(t, 120*time.Second, ServerConfigRefresh(map[string]string{"--config_tls_refresh": `"120"`}))
 	assert.Equal(t, DefaultServerConfigRefresh, ServerConfigRefresh(map[string]string{"--config_refresh": "0"}))
 	assert.Equal(t, DefaultServerConfigRefresh, ServerConfigRefresh(map[string]string{"--config_refresh": "soon"}))
+	assert.Equal(t, DefaultServerConfigRefresh, ServerConfigRefresh(map[string]string{"--config_refresh": "9223372036854775807"}))
 }

@@ -147,10 +147,59 @@ func TestConfigFetcherFirstFetchError(t *testing.T) {
 	require.Error(t, err)
 	ft.waitFetch(t)
 
-	// No config yet: the next call fetches again.
+	// Retried at the disconnected cadence, however often osquery asks.
+	_, err = ft.f.GenConfig()
+	require.Error(t, err)
+	ft.noFetch(t)
+
+	ft.advance(DefaultServerConfigRefresh)
 	ft.genConfig(t)
 	ft.waitFetch(t)
 	assert.Len(t, client.getCalls(), 2)
+}
+
+func TestConfigFetcherConcurrentFirstFetches(t *testing.T) {
+	client := &fakeConfigClient{
+		responses: []string{`{"etag":"v1","options":{}}`},
+		block:     make(chan struct{}),
+	}
+	ft := newFetcherTest(t, client)
+
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Go(func() {
+			_, _ = ft.f.GenConfig()
+		})
+	}
+	client.block <- struct{}{}
+	wg.Wait()
+	ft.waitFetch(t)
+	ft.noFetch(t)
+	assert.Len(t, client.getCalls(), 1)
+}
+
+func TestConfigFetcherShorterPollInterval(t *testing.T) {
+	client := &fakeConfigClient{responses: []string{`{"etag":"v1","options":{}}`, `{"etag":"ok"}`}}
+	ft := newFetcherTest(t, client)
+	ft.connected.Store(true)
+
+	ft.genConfig(t)
+	ft.waitFetch(t)
+
+	// The server's interval arrives after the first fetch scheduled the
+	// default one.
+	ft.f.SetPollInterval(2 * time.Minute)
+	ft.advance(2 * time.Minute)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	assert.Len(t, client.getCalls(), 2)
+
+	// A longer one doesn't postpone the scheduled poll.
+	ft.f.SetPollInterval(5 * time.Minute)
+	ft.advance(2 * time.Minute)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	assert.Len(t, client.getCalls(), 3)
 }
 
 func TestConfigFetcherConnectedPollsSlowly(t *testing.T) {

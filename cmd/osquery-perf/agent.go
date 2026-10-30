@@ -549,6 +549,9 @@ type agent struct {
 	// poll interval while orbit serves osquery its config (0 when it doesn't,
 	// see syncWSTransport).
 	osqueryConfigPollInterval atomic.Int64
+	// osqueryConfigFallbackChange is set when a fallback poll found the
+	// config changed, reported on the next fetch as orbit does.
+	osqueryConfigFallbackChange bool
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -1035,7 +1038,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		return
 	}
 
-	_ = a.config()
+	initialConfigErr := a.config()
 
 	// This startup read runs before runOrbitLoop, so it cannot race with the
 	// WebSocket transport (started only from that loop's config checks).
@@ -1101,19 +1104,31 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
 
+		// lastFetch is the last successful fetch: a failed one is retried
+		// on the next tick, as orbit does.
 		var lastFetch time.Time
+		if initialConfigErr == nil {
+			lastFetch = time.Now()
+		}
 		for {
+			fallback := false
 			select {
 			case <-configTicker.C:
 				// With orbit serving the config over a connected WebSocket,
 				// ticks are only the fallback poll.
-				if poll := a.osqueryConfigFallbackInterval(); poll > 0 && time.Since(lastFetch) < poll {
-					continue
+				if poll := a.osqueryConfigFallbackInterval(); poll > 0 {
+					if time.Since(lastFetch) < poll {
+						continue
+					}
+					fallback = true
 				}
 			case <-a.osqueryConfigNudge:
 			}
-			lastFetch = time.Now()
-			_ = a.config()
+			if err := a.fetchConfig(fallback); err != nil {
+				lastFetch = time.Time{}
+			} else {
+				lastFetch = time.Now()
+			}
 		}
 	}()
 
@@ -2574,6 +2589,12 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
+	return a.fetchConfig(false)
+}
+
+// fetchConfig fetches the osquery config; fallback reports whether it is
+// orbit's fallback poll.
+func (a *agent) fetchConfig(fallback bool) error {
 	// The presence of the "etag" field — even empty — is the opt-in to
 	// conditional responses; its value is the etag from the last config
 	// response received (see the configETag field docs).
@@ -2603,6 +2624,9 @@ func (a *agent) config() error {
 		return err
 	}
 	request.Header.Add("Content-type", "application/json")
+	if viaOrbit && a.osqueryConfigFallbackChange {
+		request.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+	}
 
 	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
@@ -2631,6 +2655,11 @@ func (a *agent) config() error {
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
+	}
+
+	if viaOrbit {
+		a.osqueryConfigFallbackChange = fallback && envelope.ETag != nil && *envelope.ETag != "ok" &&
+			a.configETag != "" && *envelope.ETag != a.configETag
 	}
 
 	// The reserved value "ok" means the config is unchanged. The server may

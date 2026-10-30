@@ -58,8 +58,13 @@ type ConfigFetcher struct {
 	client    configClient
 	connected func() bool
 	now       func() time.Time
-	// fetched is notified after each fetch attempt, for tests.
+	// fetched is notified after each fetch attempt, once the fetcher's state
+	// reflects it, for tests.
 	fetched func()
+
+	// firstFetchMu serializes the synchronous fetches made until a config is
+	// cached.
+	firstFetchMu sync.Mutex
 
 	mu sync.Mutex
 	// config is the osquery-ready config, empty until the first fetch.
@@ -78,6 +83,9 @@ type ConfigFetcher struct {
 	// reportFallbackChange is set when a fallback poll found the config
 	// changed, to report on the next fetch.
 	reportFallbackChange bool
+	// firstFetchErr is the error of the last failed fetch before a config was
+	// cached, returned to osquery until the retry is due.
+	firstFetchErr error
 }
 
 // NewConfigFetcher returns a ConfigFetcher polling the server every
@@ -109,7 +117,13 @@ func NewConfigPlugin(f *ConfigFetcher) *config.Plugin {
 func (f *ConfigFetcher) SetPollInterval(d time.Duration) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	before := f.fallbackIntervalLocked()
 	f.pollInterval = d
+	// Bring a scheduled fallback poll forward to the shorter interval (the
+	// fetcher starts with the default one, before the server's arrives).
+	if delta := f.fallbackIntervalLocked() - before; f.nextIsFallback && delta < 0 {
+		f.nextFetch = f.nextFetch.Add(delta)
+	}
 }
 
 // GenConfig returns the config for osquery. The first call fetches it;
@@ -121,30 +135,56 @@ func (f *ConfigFetcher) SetPollInterval(d time.Duration) {
 func (f *ConfigFetcher) GenConfig() (string, error) {
 	f.mu.Lock()
 	if f.config == "" {
-		f.fetching = true
 		f.mu.Unlock()
-		err := f.fetch(false)
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		f.fetching = false
-		if f.pending {
-			// Nudged during the fetch, which may have read the config before
-			// the change.
-			f.pending = false
-			if f.config != "" {
-				f.startFetchLocked(false)
-			}
-		}
-		if err != nil {
-			return "", err
-		}
-		return f.config, nil
+		return f.firstFetch()
 	}
 	defer f.mu.Unlock()
 	if !f.fetching && !f.now().Before(f.nextFetch) {
 		f.startFetchLocked(f.nextIsFallback)
 	}
 	return f.config, nil
+}
+
+// firstFetch fetches the config synchronously, for GenConfig until a config
+// is cached. After a failure, it returns the failure until the retry is due:
+// osquery's config_accelerated_refresh may be shorter.
+func (f *ConfigFetcher) firstFetch() (string, error) {
+	f.firstFetchMu.Lock()
+	defer f.firstFetchMu.Unlock()
+
+	f.mu.Lock()
+	if f.config != "" {
+		// Fetched by a concurrent call.
+		defer f.mu.Unlock()
+		return f.config, nil
+	}
+	if f.firstFetchErr != nil && f.now().Before(f.nextFetch) {
+		defer f.mu.Unlock()
+		return "", f.firstFetchErr
+	}
+	f.fetching = true
+	f.mu.Unlock()
+
+	err := f.fetch(false)
+
+	f.mu.Lock()
+	f.fetching = false
+	f.firstFetchErr = err
+	if f.pending {
+		// Nudged during the fetch, which may have read the config before the
+		// change.
+		f.pending = false
+		if f.config != "" {
+			f.startFetchLocked(false)
+		}
+	}
+	cfg := f.config
+	f.mu.Unlock()
+	f.notifyFetched()
+	if err != nil {
+		return "", err
+	}
+	return cfg, nil
 }
 
 // Nudge fetches the config now: the server notified that it may have changed.
@@ -186,24 +226,31 @@ func (f *ConfigFetcher) startFetchLocked(fallback bool) {
 				log.Info().Err(err).Msg("fetch osquery config")
 			}
 			f.mu.Lock()
-			if !f.pending {
+			done := !f.pending
+			if done {
 				f.fetching = false
-				f.mu.Unlock()
+			} else {
+				f.pending = false
+				fallback = false
+			}
+			f.mu.Unlock()
+			f.notifyFetched()
+			if done {
 				return
 			}
-			f.pending = false
-			fallback = false
-			f.mu.Unlock()
 		}
 	}()
+}
+
+func (f *ConfigFetcher) notifyFetched() {
+	if f.fetched != nil {
+		f.fetched()
+	}
 }
 
 // fetch fetches the config from the server and caches it. fallback reports
 // whether the fetch is a fallback poll.
 func (f *ConfigFetcher) fetch(fallback bool) error {
-	if f.fetched != nil {
-		defer f.fetched()
-	}
 	f.mu.Lock()
 	etag, reportFallbackChange := f.etag, f.reportFallbackChange
 	f.mu.Unlock()
@@ -242,9 +289,16 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 	interval := f.serverRefresh
 	f.nextIsFallback = ok && f.connected()
 	if f.nextIsFallback {
-		interval = max(interval, f.pollInterval)
+		interval = f.fallbackIntervalLocked()
 	}
 	f.nextFetch = f.now().Add(interval)
+}
+
+// fallbackIntervalLocked returns the fallback poll interval of a connected
+// agent: never shorter than the disconnected one, so the WebSocket never adds
+// server load. f.mu must be held.
+func (f *ConfigFetcher) fallbackIntervalLocked() time.Duration {
+	return max(f.serverRefresh, f.pollInterval)
 }
 
 // prepareConfig turns the server's config response into the config handed to

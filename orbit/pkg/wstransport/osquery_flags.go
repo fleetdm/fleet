@@ -1,6 +1,7 @@
 package wstransport
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +57,8 @@ func OsqueryFlags(requiredExtension string, userFlags map[string]string, osquery
 // (the parsed flagfile), or DefaultServerConfigRefresh.
 func ServerConfigRefresh(userFlags map[string]string) time.Duration {
 	for _, name := range []string{"--config_refresh", "--config_tls_refresh"} {
-		if v, err := strconv.Atoi(flagValue(userFlags, name)); err == nil && v > 0 {
+		// The upper bound keeps the conversion from overflowing.
+		if v, err := strconv.Atoi(flagValue(userFlags, name)); err == nil && v > 0 && v <= math.MaxInt64/int(time.Second) {
 			return time.Duration(v) * time.Second
 		}
 	}

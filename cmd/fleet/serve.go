@@ -342,16 +342,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query and scoped orbit config wake-ups are delayed by the TTL of
-		// the in-memory caches the notified agent's request reads, so it can't
-		// be served a snapshot predating the change. Host orbit config wake-ups
-		// read nothing cached; their delay only batches them (see
-		// pubsub.DelayedAgentNotifier).
+		// Live query, scoped orbit config and osquery config wake-ups are
+		// delayed by the TTL of the in-memory caches the notified agent's
+		// request reads, so it can't be served a snapshot predating the change
+		// (a host moved to another fleet reads its packs from a per-host
+		// cache). Host orbit config wake-ups read nothing cached; their delay
+		// only batches them (see pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
 			LiveQuery:          liveQueryMemCacheDuration,
 			OrbitConfigHosts:   orbitConfigHostsBatchWindow,
 			OrbitConfigScope:   cached_mysql.MaxOrbitConfigInputTTL(),
-			OsqueryConfigHosts: orbitConfigHostsBatchWindow,
+			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
 			// The pack config cache can be rebuilt from a stale cached app
 			// config read, so the two TTLs add up.
 			OsqueryConfigScope: cached_mysql.MaxConfigInputTTL() + service.PackConfigCacheTTL,
