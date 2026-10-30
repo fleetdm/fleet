@@ -557,10 +557,10 @@
 
     function remove_fleet {
         set -x
-        rm -rf /Library/LaunchDaemons/com.fleetdm.orbit.plist /var/lib/orbit /usr/local/bin/orbit /var/log/orbit /opt/orbit/
+        rm -rf /Library/LaunchDaemons/com.fleetdm.fleet.plist /var/lib/orbit /usr/local/bin/orbit /var/log/orbit /opt/orbit/
         pkgutil --forget com.fleetdm.orbit.base.pkg || true
-        launchctl stop com.fleetdm.orbit
-        launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
+        launchctl stop com.fleetdm.fleet
+        launchctl unload /Library/LaunchDaemons/com.fleetdm.fleet.plist
         pkill fleet-desktop || true
 
         # Check MDM status on a macOS device
@@ -724,11 +724,11 @@
     #Stops Orbit service and related processes
     function Stop-Orbit {
       # Stop Service
-      Stop-Service -Name "Fleet osquery" -ErrorAction "Continue"
+      Stop-Service -Name "Fleet" -ErrorAction "Continue"
       Start-Sleep -Milliseconds 1000
 
       # Ensure that no process left running
-      Get-Process -Name "orbit" -ErrorAction "SilentlyContinue" | Stop-Process -Force
+      Get-Process -Name "Fleet" -ErrorAction "SilentlyContinue" | Stop-Process -Force
       Get-Process -Name "osqueryd" -ErrorAction "SilentlyContinue" | Stop-Process -Force
       Get-Process -Name "fleet-desktop" -ErrorAction "SilentlyContinue" | Stop-Process -Force
       Start-Sleep -Milliseconds 1000
@@ -741,7 +741,7 @@
         Stop-Orbit
 
         #Remove Service
-        $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet osquery'"
+        $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet'"
         if ($service) {
           $service.delete() | Out-Null
         }
@@ -753,7 +753,7 @@
         #Remove HKLM registry entries
         Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
           # Filter for osquery entries
-          $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
+          $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet")}
           if ($properties) {
             #Remove Registry Entries
             $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
@@ -1164,15 +1164,15 @@
 
     function remove_fleet {
         set -x
-        systemctl stop orbit.service || true
-        systemctl disable orbit.service || true
-        rm -rf /var/lib/orbit /opt/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service
+        systemctl stop Fleet.service || true
+        systemctl disable Fleet.service || true
+        rm -rf /var/lib/orbit /opt/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/Fleet.service
 
         # Remove any package references
         if command -v dpkg > /dev/null; then
-            dpkg --purge fleet-osquery || true
+            dpkg --purge fleet || true
         elif command -v rpm > /dev/null; then
-            rpm -e fleet-osquery || true
+            rpm -e fleet || true
         fi
 
         # Kill any running Fleet processes

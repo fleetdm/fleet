@@ -16,7 +16,7 @@
 #   OSQUERY_PROXY    host:port for osquery; optional, derived from ORBIT_PROXY_URL when unset
 #   NO_PROXY         optional; defaults to localhost,127.0.0.1 when a proxy is set
 # and writes them to /etc/default/orbit-proxy plus a systemd drop-in
-# (/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf). Package-owned files are never
+# (/etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf). Package-owned files are never
 # edited, so package upgrades keep the settings. The osquery proxy is passed as
 # `-- --proxy_hostname=...` on Orbit's command line, which overrides osquery.flags (that file
 # can be rewritten by Fleet's agent options).
@@ -74,7 +74,7 @@ cat > "$WORK/postinst-block.sh" <<'BLOCK'
 # (for example on upgrades), the existing settings are left as they are.
 fp_conf=/etc/default/fleetd-proxy
 fp_env=/etc/default/orbit-proxy
-fp_dropin=/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf
+fp_dropin=/etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf
 fp_get() {
   fp_v=$(printenv "$1" 2>/dev/null || true)
   if [ -z "$fp_v" ] && [ -r "$fp_conf" ]; then
@@ -109,7 +109,7 @@ if [ -n "$fp_url$fp_secret$fp_proxy$fp_osq" ]; then
   if [ -z "$fp_osq" ] && [ -r "$fp_dropin" ]; then
     fp_osq=$(sed -n 's/.*--proxy_hostname=\([^ ]*\).*/\1/p' "$fp_dropin" | tail -n 1)
   fi
-  fp_exec=$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/system/orbit.service 2>/dev/null | tail -n 1)
+  fp_exec=$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/system/Fleet.service 2>/dev/null | tail -n 1)
   if [ -z "$fp_exec" ]; then fp_exec=/opt/orbit/bin/orbit/orbit; fi
   fp_old_umask=$(umask); umask 077
   {
@@ -141,8 +141,8 @@ BLOCK
 cat > "$WORK/postrm-block.sh" <<'BLOCK'
 # >>> fleetd-proxy install-time configuration: cleanup on uninstall >>>
 if [ "${1:-}" = 0 ] || [ "${1:-}" = remove ] || [ "${1:-}" = purge ]; then
-  rm -f /etc/default/orbit-proxy /etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf
-  rmdir /etc/systemd/system/orbit.service.d 2>/dev/null || true
+  rm -f /etc/default/orbit-proxy /etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf
+  rmdir /etc/systemd/system/Fleet.service.d 2>/dev/null || true
   if command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
 fi
 # <<< fleetd-proxy cleanup <<<

@@ -6,7 +6,7 @@
 # fleetd_healthcheck_ubuntu.sh / fleetd_healthcheck_windows.ps1.
 #
 # Components checked:
-#   - com.fleetdm.orbit   (LaunchDaemon, runs orbit as root)
+#   - com.fleetdm.fleet   (LaunchDaemon, runs orbit as root)
 #   - orbit               (process: /opt/orbit/bin/orbit/orbit)
 #   - osqueryd            (process: spawned and managed by orbit, runs from an
 #                          app bundle under /opt/orbit/bin/osqueryd/macos-app/)
@@ -14,8 +14,8 @@
 #                          --fleet-desktop; started by orbit, not its own LaunchAgent)
 #
 # Sources:
-#   - LaunchDaemon:        /Library/LaunchDaemons/com.fleetdm.orbit.plist
-#                          (Label com.fleetdm.orbit, ProgramArguments
+#   - LaunchDaemon:        /Library/LaunchDaemons/com.fleetdm.fleet.plist
+#                          (Label com.fleetdm.fleet, ProgramArguments
 #                          /opt/orbit/bin/orbit/orbit)
 #   - Install root:        /opt/orbit (orbit/CHANGELOG.md — installer paths)
 #   - Orbit symlink:       /usr/local/bin/orbit
@@ -65,7 +65,7 @@ OVERALL_EXIT=0
 log() { echo "$*" | tee -a "${SUMMARY}"; }
 
 ORBIT_ROOT="/opt/orbit"
-LAUNCH_DAEMON_LABEL="com.fleetdm.orbit"
+LAUNCH_DAEMON_LABEL="com.fleetdm.fleet"
 LAUNCH_DAEMON_PLIST="/Library/LaunchDaemons/${LAUNCH_DAEMON_LABEL}.plist"
 
 # ── Header ─────────────────────────────────────────────────────────────────────
