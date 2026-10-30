@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.6",
+      "version": "4.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND version_compare(bundle_short_version, '4.0.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND version_compare(bundle_short_version, '4.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%204.0.6%20-%20Build%20260519by9gmr661-arm64.dmg",
+      "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%204.1.0%20-%20Build%20261028bqj5kkau3-arm64.dmg",
       "install_script_ref": "d09a4b9b",
       "uninstall_script_ref": "193504fa",
-      "sha256": "a707db932ca1e9b3b7e2cfa2de91cbdeb0c3f99fb80e00df03758d3387424b2d",
+      "sha256": "85df469f8119c307855eadf066ce065c66cd48f719a7f1e8ca710aa330d9f008",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.1.0",
+      "version": "12.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop' AND version_compare(bundle_short_version, '12.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop' AND version_compare(bundle_short_version, '12.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.crashplan.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.crashplan.com/installs/agent/cloud/12.1.0/720/install/CrashPlan_12.1.0_720_Mac.dmg",
+      "installer_url": "https://download.crashplan.com/installs/agent/cloud/12.1.1/2/install/CrashPlan_12.1.1_2_Mac.dmg",
       "install_script_ref": "98ca2665",
       "uninstall_script_ref": "71c04d24",
-      "sha256": "eba87c4501a697e358b9c1a8ae97b777e6d1df8ca6c5d48a549738ce92066b90",
+      "sha256": "c83cbff8585b8961469be86a068baee73a3aa21a3ca6a22393a28faa64f29c31",
       "default_categories": [
         "Productivity"
       ]

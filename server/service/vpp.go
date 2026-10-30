@@ -19,7 +19,8 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getAppStoreAppsRequest struct {
-	TeamID uint `query:"team_id" renameto:"fleet_id"`
+	TeamID     uint  `query:"team_id" renameto:"fleet_id"`
+	VPPTokenID *uint `query:"vpp_token_id,optional"`
 }
 
 type getAppStoreAppsResponse struct {
@@ -31,7 +32,7 @@ func (r getAppStoreAppsResponse) Error() error { return r.Err }
 
 func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAppStoreAppsRequest)
-	apps, err := svc.GetAppStoreApps(ctx, &req.TeamID)
+	apps, err := svc.GetAppStoreApps(ctx, &req.TeamID, req.VPPTokenID)
 	if err != nil {
 		return &getAppStoreAppsResponse{Err: err}, nil
 	}
@@ -39,7 +40,7 @@ func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet
 	return &getAppStoreAppsResponse{AppStoreApps: apps}, nil
 }
 
-func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
+func (svc *Service) GetAppStoreApps(ctx context.Context, _ *uint, _ *uint) ([]*fleet.VPPApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -66,6 +67,7 @@ type addAppStoreAppRequest struct {
 	AutoUpdateEnabled   *bool                           `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                         `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                         `json:"auto_update_window_end,omitempty"`
+	VPPTokenID          *uint                           `json:"vpp_token_id"`
 }
 
 type addAppStoreAppResponse struct {
@@ -93,6 +95,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		AutoUpdateEnabled:    req.AutoUpdateEnabled,
 		AutoUpdateStartTime:  req.AutoUpdateStartTime,
 		AutoUpdateEndTime:    req.AutoUpdateEndTime,
+		VPPTokenID:           req.VPPTokenID,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil

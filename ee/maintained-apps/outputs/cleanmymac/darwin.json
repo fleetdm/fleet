@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.7.2",
+      "version": "5.7.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.7.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.7.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macpaw.CleanMyMac5' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.cleanmymac.com/com.macpaw.cleanmymac5/releases/CleanMyMac5_50702.0.2610141002.zip",
+      "installer_url": "https://updates.cleanmymac.com/com.macpaw.cleanmymac5/releases/CleanMyMac5_50703.0.2610281229.zip",
       "install_script_ref": "76d04eff",
       "uninstall_script_ref": "b905254b",
-      "sha256": "f35ce6e1f122d3d4ff029d5bfd3910e1531b71423c883954eeada807f96c2962",
+      "sha256": "34809a5113e07e539abcfd77b1fdc5a1eb0c6b721bda9b0c51600fb4d99dedb7",
       "default_categories": [
         "Productivity"
       ]

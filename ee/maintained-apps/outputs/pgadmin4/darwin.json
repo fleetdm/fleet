@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.18",
+      "version": "9.19",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4' AND version_compare(bundle_short_version, '9.18') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4' AND version_compare(bundle_short_version, '9.19') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.pgadmin.pgadmin4' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.18/macos/pgadmin4-9.18-arm64.dmg",
+      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.19/macos/pgadmin4-9.19-arm64.dmg",
       "install_script_ref": "cd09d51b",
       "uninstall_script_ref": "7f123858",
-      "sha256": "f374c5a971194be3bc837b43b6652fcd088189078e54a76e0aa03a418f0e4e02",
+      "sha256": "8827d9444752497602f15cb01bd4014378510a2fdd118902686da3f36713b8ed",
       "default_categories": [
         "Developer tools"
       ]
