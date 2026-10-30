@@ -1011,6 +1011,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -2213,6 +2214,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,

@@ -112,6 +112,13 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
 	quitFallsBackToSignal := appQuit && appSignaled
 
+	// The input's pre/post-uninstall scripts wrap the cask's uninstall stanza.
+	// A cask without one still gets them, around the whole removal.
+	hasUninstallStanza := slices.ContainsFunc(cask.Artifacts, func(a *brewArtifact) bool { return len(a.Uninstall) > 0 })
+	if !hasUninstallStanza && len(cask.PreUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+	}
+
 	var rmDirs []string
 	for _, artifact := range cask.Artifacts {
 		switch {
@@ -167,6 +174,9 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				rmDirs = append(rmDirs, stanzaNames(z.RmDir)...)
 			}
 		}
+	}
+	if !hasUninstallStanza && len(cask.PostUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
 	}
 	removeEmptyDirs(sb, rmDirs)
 
