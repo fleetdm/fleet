@@ -2,9 +2,7 @@
 
 Fleet 5 removes deprecated features such as API endpoints, API parameters, and YAML (GitOps) keys. This guide lists every breaking change, what changed, and what you need to do.
 
-Update to the latest Fleet 4 first, then work through the list. Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
-
-If you miss a change, Fleet 5 tells you what to use instead and links back to this guide. For example, `GET /api/v1/fleet/teams` returns `410 Gone` with: `GET /api/v1/fleet/teams was removed in Fleet 5. Use GET /api/v1/fleet/fleets instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`. On the latest Fleet 4, `fleetctl` and `fleetctl gitops --dry-run` print a `[!] ... is deprecated` warning for each deprecated name you use.
+Update to Fleet 4.95 first, then work through the list. Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
 
 ## Breaking changes
