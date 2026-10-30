@@ -24,9 +24,9 @@ quit_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -65,7 +65,7 @@ installed_app_version() {
 CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 
 APP_WAS_RUNNING=false
-if [[ "$(osascript -e "application id \"$BUNDLE_ID\" is running" 2>/dev/null)" == "true" ]]; then
+if [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$BUNDLE_ID" 2>/dev/null)" == "true" ]]; then
   APP_WAS_RUNNING=true
   quit_application "$BUNDLE_ID" "$CONSOLE_USER" || exit 1
 fi

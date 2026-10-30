@@ -1698,9 +1698,16 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
 	}
 
+	// An account-driven user enrollment's serial is its enrollment ID, chosen by the device, so it's never matched
+	// against other hosts' serials.
+	matchSerial := mdmHost.HardwareSerial
+	if personalType == fleet.PersonalEnrollmentTypeAccountDriven {
+		matchSerial = ""
+	}
+
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "", "")
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, matchSerial, "", "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
@@ -1709,8 +1716,64 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
+		// A host matched by the self-reported serial gets its UUID rewritten by updateMDMAppleHostDB, so the serial
+		// mustn't be enrolled under another UUID. Hosts can share a serial, and the match picks the lowest ID, so
+		// every host with the serial is checked, not just the matched one.
+		var matchedUUID string
+		if err := sqlx.GetContext(ctx, tx, &matchedUUID, `SELECT uuid FROM hosts WHERE id = ?`, enrolledHostInfo.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get matched host uuid")
+		}
+		if matchedUUID != mdmHost.UUID {
+			enrolledUUID, err := enrolledUUIDForSerial(ctx, tx, mdmHost.HardwareSerial, mdmHost.UUID)
+			if err != nil {
+				return err
+			}
+			if enrolledUUID != "" {
+				logger.InfoContext(ctx, "refusing MDM check-in: serial is enrolled under another UUID",
+					"serial", mdmHost.HardwareSerial, "claimed_uuid", mdmHost.UUID, "enrolled_uuid", enrolledUUID)
+				return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
+			}
+		}
 		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
 	}
+}
+
+func errSerialEnrolledUnderAnotherUUID() error {
+	return &fleet.ConflictError{
+		Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+	}
+}
+
+func (ds *Datastore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error) {
+	// A device with a host of its own is matched by its UUID, like ingestMDMAppleDeviceFromCheckinDB does, never by
+	// its serial.
+	var ownHost bool
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &ownHost,
+		`SELECT EXISTS(SELECT 1 FROM hosts WHERE osquery_host_id = ?)`, uuid); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for the device's own host")
+	}
+	if ownHost {
+		return "", nil
+	}
+	return enrolledUUIDForSerial(ctx, ds.writer(ctx), serial, uuid)
+}
+
+// enrolledUUIDForSerial returns the UUID of a host with the serial that's enrolled under a UUID other than uuid, or ""
+// if there's none.
+func enrolledUUIDForSerial(ctx context.Context, q sqlx.QueryerContext, serial, uuid string) (string, error) {
+	var enrolledUUID string
+	err := sqlx.GetContext(ctx, q, &enrolledUUID, `
+		SELECT h.uuid FROM hosts h
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+		WHERE h.hardware_serial = ? AND h.uuid != ?
+		LIMIT 1`, serial, uuid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+	}
+	return enrolledUUID, nil
 }
 
 func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
@@ -2091,20 +2154,14 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 
 		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
 		// a host that's still enrolled under another UUID.
-		var enrolledUUID string
-		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
-			SELECT h.uuid FROM hosts h
-			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
-			WHERE h.hardware_serial = ? AND h.uuid != ?
-			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
-		case err == nil:
+		enrolledUUID, err := enrolledUUIDForSerial(ctx, tx, deviceInfo.Serial, deviceInfo.UDID)
+		if err != nil {
+			return err
+		}
+		if enrolledUUID != "" {
 			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
 				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
-			return ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
-			})
-		case !errors.Is(err, sql.ErrNoRows):
-			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+			return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
 		}
 
 		toInsert := []hostToCreateFromMDM{
@@ -9560,6 +9617,19 @@ WHERE host_uuid = ? AND profile_uuid = ?`,
 }
 
 func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	// The serial and UUID come from the device's MachineInfo, whose signature doesn't vouch for them, and the
+	// enrollment certificate is bound to them. Don't issue one for the serial of a host enrolled under another UUID.
+	if serial, uuid := ptr.ValOrZero(info.Serial), ptr.ValOrZero(info.UUID); serial != "" && uuid != "" {
+		enrolledUUID, err := enrolledUUIDForSerial(ctx, ds.writer(ctx), serial, uuid)
+		if err != nil {
+			return "", err
+		}
+		if enrolledUUID != "" {
+			ds.logger.InfoContext(ctx, "refusing Apple SCEP challenge: serial is enrolled under another UUID",
+				"purpose", info.Purpose, "serial", serial, "claimed_uuid", uuid, "enrolled_uuid", enrolledUUID)
+			return "", ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
+		}
+	}
 	return newAppleSCEPChallengeDB(ctx, ds.writer(ctx), info, ttl)
 }
 

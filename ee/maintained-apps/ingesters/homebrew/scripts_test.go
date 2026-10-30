@@ -154,7 +154,7 @@ sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 open() { :; }
 osascript() {
-  case "$2" in
+  case "$4" in
     *" to quit")
       [[ "$mode" == quits ]] && running=false
       [[ "$mode" == cancels ]] && return 1
@@ -836,9 +836,8 @@ osascript() {
       'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
+  local id=$8
+  case "$4" in
     *" to quit") quit+="$id " ;;
     *" is running") if [[ "$quit" == *" $id "* ]]; then echo false; else echo true; fi ;;
   esac
@@ -905,6 +904,70 @@ func TestQuitTargetsApp(t *testing.T) {
 	require.Contains(t, script, "quit_application 'com.docker.docker' || exit 1\nquit_application 'com.electron.dockerdesktop'\nquit_application 'com.docker.helper'\n")
 }
 
+// TestValidateQuitIDs checks that the ingest rejects cask quit values that
+// aren't bundle IDs, such as ones built to break out of an AppleScript string.
+func TestValidateQuitIDs(t *testing.T) {
+	stanza := func(quit optjson.StringOr[[]string]) []*brewUninstall {
+		return []*brewUninstall{{Quit: quit}}
+	}
+	list := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: []string{"com.example.Foo", id}}
+	}
+	single := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{String: id}
+	}
+
+	// Values from real casks, including IDs with a space and dotless app names.
+	for _, id := range []string{"com.example.Foo", "com.microsoft.*", "Cisco-Systems.Spark", "com.x-rite.i1Profiler", "org.mozilla.pale moon", "com.native-instruments.Native Access", "Fathom Helper"} {
+		require.NoError(t, validateQuitIDs(&brewCask{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}, {Zap: stanza(single(id))}}}), id)
+	}
+
+	for _, id := range []string{
+		"com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x",
+		`com.x" & (do shell script "id") & ".y`,
+		`com.x\" & "y`,
+		"com.x\ny",
+	} {
+		for _, cask := range []*brewCask{
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}}},
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(single(id))}}},
+			{Artifacts: []*brewArtifact{{Zap: stanza(list(id))}}},
+		} {
+			require.ErrorContains(t, validateQuitIDs(cask), "isn't a bundle ID", "%q", id)
+		}
+	}
+}
+
+// TestQuitHelpersPassBundleIDAsData checks the generated quit helpers and the
+// custom scripts. A bundle ID spliced into an AppleScript string runs any
+// AppleScript it carries as root, and one passed without '--' can be parsed
+// as an osascript option such as -e.
+func TestQuitHelpersPassBundleIDAsData(t *testing.T) {
+	spliced := regexp.MustCompile(`osascript.*\\"\$`)
+	scripts := map[string]string{
+		"quit_application":           quitApplicationFunc,
+		"quit_matching_applications": quitMatchingApplicationsFunc,
+		"quit_and_track_application": quitAndTrackApplicationFunc,
+		"relaunch_application":       relaunchApplicationFunc,
+	}
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		scripts[filepath.Base(path)] = string(b)
+	}
+	for name, script := range scripts {
+		for line := range strings.SplitSeq(script, "\n") {
+			require.False(t, spliced.MatchString(line), "%s: %q splices a variable into AppleScript", name, strings.TrimSpace(line))
+			if strings.Contains(line, "on run argv") {
+				require.Contains(t, line, `-e 'end run' -- "$`, "%s: %q doesn't end osascript's options before the ID", name, strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
 // runStubbedUninstallScript runs a generated uninstall script in bash with
 // osascript and friends stubbed out. running lists the running apps; stuck ones
 // accept the quit event but keep running, and canceled ones fail it, as when
@@ -931,9 +994,8 @@ osascript() {
     printf '%s\n' $running
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
+  local id=$8
+  case "$4" in
     *" to quit")
       [[ "$canceled" == *" $id "* ]] && return 1
       [[ "$stuck" == *" $id "* ]] || running=${running/ $id / }
@@ -1563,6 +1625,91 @@ sudo() { "$@"; }
 		require.NoDirExists(t, empty)
 		require.NoDirExists(t, nested)
 		require.FileExists(t, filepath.Join(full, "data"))
+	})
+}
+
+// TestUninstallScriptDeleteResolvesHome guards against emitting a single-quoted
+// "~" path to rm, where it never expands and the file is always left behind.
+func TestUninstallScriptDeleteResolvesHome(t *testing.T) {
+	newCask := func(paths ...string) *brewCask {
+		return &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Uninstall: []*brewUninstall{
+						{Delete: optjson.StringOr[[]string]{IsOther: true, Other: paths}},
+					},
+				},
+			},
+		}
+	}
+
+	script := uninstallScriptForApp(inputApp{}, newCask(
+		"~/Library/LaunchAgents/com.example.Foo.plist",
+		"~/Library/Application Support/Cycling '74/Foo",
+		"/Library/LaunchDaemons/com.example.Foo.plist",
+	))
+	require.Contains(t, script, `LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/LaunchAgents/com.example.Foo.plist'`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/Application Support/Cycling '\''74/Foo'`)
+	require.Contains(t, script, `sudo rm -rf '/Library/LaunchDaemons/com.example.Foo.plist'`)
+	require.NotContains(t, script, "sudo rm -rf '~")
+
+	// The home folder itself and paths that could leave it are never deleted.
+	script = uninstallScriptForApp(inputApp{}, newCask("~", "~/", "~//", "~/../Shared", "~/Library/./..", "~other/Library/Foo"))
+	require.NotContains(t, script, "delete_user_path")
+	require.NotContains(t, script, "rm -rf")
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, stubs string, paths ...string) string {
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, newCask(paths...))).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("deletes home paths as the console user", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "~/Library/Application Support/Foo Bar", "/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/LaunchAgents/com.example.Foo.plist\n-u alice rm -rf /Users/alice/Library/Application Support/Foo Bar\nrm -rf /Library/Foo\n", out)
+	})
+
+	t.Run("reports a failed delete without retrying as root", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; [[ "$1" != "-u" ]]; }
+`
+		out := run(t, stubs, "~/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/Foo\nFailed to remove /Users/alice/Library/Foo.\n", out)
+	})
+
+	t.Run("skips home paths without a GUI user", func(t *testing.T) {
+		for _, scutil := range []string{`:`, `echo "  Name : root"`, `echo "  Name : loginwindow"`} {
+			stubs := "scutil() { " + scutil + "; }\n" + `sudo() { echo "$*"; }
+`
+			out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "/Library/Foo")
+			require.Equal(t, "rm -rf /Library/Foo\n", out, scutil)
+		}
+	})
+
+	t.Run("helper only deletes below the home folder", func(t *testing.T) {
+		stubs := `sudo() { echo "$*"; }
+`
+		cmd := stubs + deleteUserPathFunc + `
+delete_user_path alice '~'
+delete_user_path alice '~/'
+delete_user_path alice '/Library/Foo'
+delete_user_path alice '~/Foo'
+`
+		out, err := exec.Command(bash, "-c", cmd).CombinedOutput()
+		require.NoError(t, err, string(out))
+		require.Equal(t, "-u alice rm -rf /Users/alice/Foo\n", string(out))
 	})
 }
 

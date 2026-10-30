@@ -313,6 +313,16 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	return cli
 }
 
+// HTTP/2 health check timeouts: a pooled connection that receives nothing for
+// http2SendPingTimeout is pinged, and closed if no reply arrives within
+// http2PingTimeout. Without them, a connection silently dropped by the network
+// (e.g. after sleep or a VPN reconnect) stays pooled and every request on it
+// times out until the OS gives up on the socket, which takes ~15 min on Linux.
+const (
+	http2SendPingTimeout = 30 * time.Second
+	http2PingTimeout     = 15 * time.Second
+)
+
 type transportOpts struct {
 	tlsConf *tls.Config
 }
@@ -352,6 +362,11 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
+	if tr.HTTP2 == nil {
+		tr.HTTP2 = &http.HTTP2Config{}
+	}
+	tr.HTTP2.SendPingTimeout = http2SendPingTimeout
+	tr.HTTP2.PingTimeout = http2PingTimeout
 	return tr
 }
 

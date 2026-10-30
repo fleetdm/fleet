@@ -1923,7 +1923,7 @@ const hostMobileOnlineExpr = `GREATEST(` +
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
 	case fleet.StatusNew:
-		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
+		sql += "AND DATE_ADD(h.last_enrolled_at, INTERVAL 1 DAY) >= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 		params = append(params, now)
 	case fleet.StatusOnline:
 		sql += fmt.Sprintf(
@@ -2514,7 +2514,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) > ? THEN 1 ELSE 0 END
 					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END
 				END), 0) online,
-				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN DATE_ADD(h.last_enrolled_at, INTERVAL 1 DAY) >= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) new,
 				COALESCE(SUM(CASE WHEN hdep.deleted_at IS NULL AND hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h

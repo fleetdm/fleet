@@ -1397,6 +1397,56 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		require.NotEqual(t, "Pending", h.MDM.EnrollmentStatus)
 	}
+
+	// the pending ABM host was just created but never enrolled, so it is not "new"
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 10)
+	for _, h := range hosts {
+		require.NotEqual(t, "pending-serial", h.HardwareSerial)
+	}
+
+	// "new" is based on last_enrolled_at, not created_at
+	ids := make([]uint, 0, 3)
+	for _, h := range hosts[:3] {
+		ids = append(ids, h.ID)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// enrolled recently, but the host record is old (e.g. ADE host synced from ABM long before enrolling)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET created_at = NOW() - INTERVAL 10 DAY WHERE id = ?`, ids[0]); err != nil {
+			return err
+		}
+		// record is recent, but the host enrolled more than a day ago
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 2 DAY WHERE id = ?`, ids[1]); err != nil {
+			return err
+		}
+		// recently enrolled but still flagged as pending
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, installed_from_dep) VALUES (?, 0, 1)`, ids[2])
+		return err
+	})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 8)
+	got := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		got = append(got, h.ID)
+	}
+	require.Contains(t, got, ids[0])
+	require.NotContains(t, got, ids[1])
+	require.NotContains(t, got, ids[2])
+
+	// the dashboard count matches the filter
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, time.Now(), nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(len(hosts)), summary.NewCount)
+
+	// 24h boundary
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 1435 MINUTE WHERE id = ?`, ids[1])
+		return err
+	})
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 9)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 1445 MINUTE WHERE id = ?`, ids[1])
+		return err
+	})
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 8)
 }
 
 func testHostsListQuery(t *testing.T, ds *Datastore) {

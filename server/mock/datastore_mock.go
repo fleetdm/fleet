@@ -1204,6 +1204,8 @@ type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID 
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
+type GetAppleSerialEnrolledUnderAnotherUUIDFunc func(ctx context.Context, serial string, uuid string) (string, error)
+
 type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
 
 type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string, accessRights int) error
@@ -4406,6 +4408,9 @@ type DataStore struct {
 
 	MDMAppleUpsertHostFunc        MDMAppleUpsertHostFunc
 	MDMAppleUpsertHostFuncInvoked bool
+
+	GetAppleSerialEnrolledUnderAnotherUUIDFunc        GetAppleSerialEnrolledUnderAnotherUUIDFunc
+	GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked bool
 
 	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
 	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
@@ -10686,6 +10691,13 @@ func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host,
 	s.MDMAppleUpsertHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleUpsertHostFunc(ctx, mdmHost, personalType)
+}
+
+func (s *DataStore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial string, uuid string) (string, error) {
+	s.mu.Lock()
+	s.GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleSerialEnrolledUnderAnotherUUIDFunc(ctx, serial, uuid)
 }
 
 func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
