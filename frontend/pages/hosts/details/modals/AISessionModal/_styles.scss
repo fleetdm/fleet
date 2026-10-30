@@ -1,0 +1,170 @@
+.ai-session-modal {
+  &__content {
+    @include vertical-modal-layout;
+  }
+
+  // The two-line title has no divider below it, and the close button centers
+  // on both lines.
+  .modal__header {
+    align-items: center;
+    border-bottom: none;
+  }
+
+  &__title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+    color: $core-fleet-black;
+  }
+
+  &__session-id {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  // The rows carry their own spacing, so the global dl gap is dropped.
+  &__summary {
+    gap: 0;
+    margin: 0;
+    padding: $pad-smedium 0;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+  }
+
+  &__summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-large;
+    padding: $pad-small $pad-large;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__summary-label {
+    flex-shrink: 0;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__summary-value {
+    min-width: 0;
+    margin: 0;
+    text-align: right;
+    color: $ui-fleet-black-75;
+  }
+
+  &__events-section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__events-title {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-small;
+    margin: 0;
+    font-size: $small;
+  }
+
+  &__events-count {
+    font-size: $xx-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+  }
+
+  &__events {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__event {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    overflow: hidden;
+  }
+
+  &__event-toggle {
+    display: flex;
+    align-items: center;
+    gap: $pad-smedium;
+    width: 100%;
+    padding: $pad-medium $pad-smedium;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $ui-off-white;
+    }
+  }
+
+  &__event-time {
+    flex-shrink: 0;
+    width: 120px;
+    white-space: nowrap;
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__event-target {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__event-details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    padding: $pad-smedium;
+    border-top: 1px solid $ui-fleet-black-10;
+    background-color: $ui-off-white;
+  }
+
+  &__event-truncated {
+    margin: 0;
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+  }
+
+  // A light code block, unlike the global dark pre, colored like the
+  // read-only JSON editor (ace_theme.css).
+  &__event-payload {
+    margin: 0;
+    padding: $pad-medium;
+    max-height: 400px;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    font-family: "SourceCodePro", monospace;
+    font-size: $x-small;
+    line-height: 1.25;
+    color: $ui-fleet-black-75;
+    background-color: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+
+    .key {
+      color: $code-blue;
+    }
+
+    .string,
+    .number,
+    .boolean,
+    .null {
+      color: $code-green;
+    }
+  }
+}
