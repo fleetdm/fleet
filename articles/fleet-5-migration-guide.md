@@ -35,7 +35,7 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | `PATCH /api/v1/fleet/teams/:id/users` | [`PATCH /api/v1/fleet/fleets/:id/users`](https://fleetdm.com/docs/rest-api/rest-api#add-users-to-fleet) |
 | `GET` and `DELETE /api/v1/fleet/teams/:id/users` | `GET` and `DELETE /api/v1/fleet/fleets/:id/users` |
 | `POST /api/v1/fleet/spec/teams` | `POST /api/v1/fleet/spec/fleets` |
-| `PATCH /api/v1/fleet/vpp_tokens/:id/teams` | [`PATCH /api/v1/fleet/vpp_tokens/:id/fleets`](https://fleetdm.com/docs/rest-api/rest-api#update-volume-purchasing-program-vpp-tokens-fleets) |
+| `PATCH /api/v1/fleet/vpp_tokens/:id/teams` | `PATCH /api/v1/fleet/vpp_tokens/:id/fleets` |
 | `PATCH /api/v1/fleet/ab_tokens/:id/teams` (and `/abm_tokens/:id/teams` and `/abm_tokens/:id/fleets`) | `PATCH /api/v1/fleet/ab_tokens/:id/fleets` |
 | `team_id`, `team_name`, `team`, `teams`, `team_ids`, `team_ids_by_name`, and `available_teams` in requests, responses, and query parameters | `fleet_id`, `fleet_name`, `fleet`, `fleets`, `fleet_ids`, `fleet_ids_by_name`, and `available_fleets` |
 | `team_id` and `team_name` as `order_key` values | `fleet_id` and `fleet_name` |
@@ -233,9 +233,9 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `os_name` and `os_version` combined in `GET /api/v1/fleet/hosts` and `GET /api/v1/fleet/hosts/report` | Separate `os_name` and `os_version` keys in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
+| `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in `GET /api/v1/fleet/hosts` and `GET /api/v1/fleet/hosts/report` | Separate `os_name` and `os_version` keys in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
 
-What to do: Update code that parses `os_name` to read the version from `os_version`.
+What to do: Update code that splits the OS name out of `os_version`. Read the name from `os_name` and the version from `os_version`.
 
 Issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
@@ -378,6 +378,17 @@ Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 
 ## YAML (GitOps)
+
+### Team keys renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `team_settings` in a fleet's YAML file | `settings` |
+| `teams` under `org_settings.mdm.volume_purchasing_program` | `fleets` |
+
+What to do: Rename these keys. Fleet 4.95 already accepts the new names.
+
+Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### Apple Business keys renamed
 
@@ -586,9 +597,9 @@ Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl package` file names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name. Global enroll secrets use `unassigned`. ([docs](https://fleetdm.com/guides/enroll-hosts)) |
+| `fleetctl package` file names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name. ([docs](https://fleetdm.com/guides/enroll-hosts)) |
 
-What to do: Update scripts and CI that use the file names. `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl`.
+What to do: Update scripts and CI that use the file names. `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
 
 Issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
@@ -672,13 +683,15 @@ Issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https:
 
 ## fleetd
 
-### Process name is Fleet
+### Service and process names are Fleet
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleet-osquery` (Linux), `Fleet osquery` (Windows), and `orbit` (macOS) | `Fleet` on all platforms |
+| macOS process name `orbit` and launchd label `com.fleetdm.orbit` | Process name `Fleet` and launchd label `com.fleetdm.fleet` |
+| Windows service name `Fleet osquery` | `Fleet`. The process name in Task Manager and the app name in Installed apps are also `Fleet`. |
+| Linux package name `fleet-osquery`, process name `orbit`, and systemd service `orbit.service` | Package name `fleet`, process name `Fleet`, and systemd service `Fleet.service` |
 
-What to do: Add `Fleet` to EDR, monitoring, and firewall rules that match the old names. Keep the old names until every host runs the new fleetd.
+What to do: Add the new names to EDR, monitoring, and firewall rules, and update scripts that call `launchctl` or `systemctl` with the old names. Keep the old names until every host runs the new fleetd.
 
 Issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
