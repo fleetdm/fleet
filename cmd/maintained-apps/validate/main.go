@@ -149,6 +149,8 @@ func run(cfg *Config) error {
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
+		ac.ExistsQuery = maintainedApp.AutomaticInstallQuery
+		ac.PatchVersion = patchedQueryVersion(maintainedApp.PatchQuery)
 		// default version to maintained app version
 		ac.Version = maintainedApp.Version
 		ac.InstallScript = maintainedApp.InstallScript
@@ -240,7 +242,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -397,6 +399,7 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp
 		InstallScript:         manifest.Refs[v.InstallScriptRef],
 		UninstallScript:       manifest.Refs[v.UninstallScriptRef],
 		AutomaticInstallQuery: v.Queries.Exists,
+		PatchQuery:            v.Queries.Patched,
 		Categories:            v.DefaultCategories,
 	}
 	return app, nil
@@ -492,4 +495,28 @@ func validateSqlInput(input string) error {
 	}
 
 	return nil
+}
+
+var programsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+programs\s+WHERE\s+(.+?);?\s*$`)
+
+// programsExistsWhereClause returns the WHERE clause of an exists query shaped
+// "SELECT 1 FROM programs WHERE ...", or "" for any other shape.
+func programsExistsWhereClause(existsQuery string) string {
+	m := programsExistsQueryRegex.FindStringSubmatch(existsQuery)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+var patchedQueryVersionRegex = regexp.MustCompile(`(?i)\bversion_compare\(\s*version\s*,\s*'([^']+)'\s*\)\s*<\s*0\s*\)\s*;?\s*$`)
+
+// patchedQueryVersion returns the version a Windows patch policy compares
+// programs.version against, or "" if the query has another shape.
+func patchedQueryVersion(patchedQuery string) string {
+	m := patchedQueryVersionRegex.FindStringSubmatch(patchedQuery)
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }

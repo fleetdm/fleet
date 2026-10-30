@@ -167,35 +167,42 @@ describe("PackageForm", () => {
       jest.restoreAllMocks();
     });
 
-    // Regression: the raw Error was passed as the toast response, so the
-    // main line rendered "Error: unsupported file extension: dmg" and the
-    // expandable panel opened on `{}` (Error's own props are non-enumerable).
-    it("shows a friendly toast with the reason in the response payload when the install-script derivation throws", async () => {
+    // The picker's `accept` filter can leak unsupported types through
+    // (e.g. Chrome's `application/gzip` table includes bare `.gz`), so the
+    // install/uninstall script catch surfaces an inline error on the uploader
+    // instead of a toast, matching how drop rejections render.
+    it("surfaces an inline error when the install-script derivation throws", async () => {
       const errorSpy = jest.spyOn(notify, "error");
       const { container } = renderForm();
 
       await selectFileNamed(container, "test.dmg");
 
-      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
-        response: {
-          data: { message: "unsupported file extension: dmg" },
-        },
-      });
+      expect(screen.getByText("File type isn't supported")).toBeInTheDocument();
+      expect(errorSpy).not.toHaveBeenCalled();
     });
 
     // .zip passes the install switch (returns "") but trips the uninstall
     // switch's default, so this covers the second catch block.
-    it("shows a friendly toast with the reason in the response payload when the uninstall-script derivation throws", async () => {
+    it("surfaces an inline error when the uninstall-script derivation throws", async () => {
       const errorSpy = jest.spyOn(notify, "error");
       const { container } = renderForm();
 
       await selectFileNamed(container, "test.zip");
 
-      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
-        response: {
-          data: { message: "unsupported file extension: zip" },
-        },
-      });
+      expect(screen.getByText("File type isn't supported")).toBeInTheDocument();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("clears the inline error once a supported file is picked", async () => {
+      const { container } = renderForm();
+
+      await selectFileNamed(container, "test.dmg");
+      expect(screen.getByText("File type isn't supported")).toBeInTheDocument();
+
+      await selectFileNamed(container, "test.pkg");
+      expect(
+        screen.queryByText("File type isn't supported")
+      ).not.toBeInTheDocument();
     });
   });
 
