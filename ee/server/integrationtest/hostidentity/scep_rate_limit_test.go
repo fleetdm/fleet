@@ -10,8 +10,6 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
-	"net/http"
 	"testing"
 	"time"
 
@@ -20,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/stretchr/testify/require"
 )
@@ -54,14 +51,9 @@ func TestSCEPRateLimit(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, hostID, initialCert.Subject.CommonName)
 
-		// Second certificate request immediately after - should fail due to rate limit with HTTP 429
+		// A valid certificate for the name already exists, so the shared secret cannot be used to request another one
 		_, err = requestSCEPCertificate(t, s, hostID)
-		requireRateLimited(t, err)
-
-		// Wait for a small duration (less than cooldown) and try again - should still fail with HTTP 429
-		time.Sleep(500 * time.Millisecond)
-		_, err = requestSCEPCertificate(t, s, hostID)
-		requireRateLimited(t, err)
+		require.Error(t, err)
 
 		// Different host should be able to get certificate
 		differentHostID := "test-host-different"
@@ -71,8 +63,7 @@ func TestSCEPRateLimit(t *testing.T) {
 	})
 }
 
-// requestSCEPCertificate enrolls hostIdentifier with Fleet's host identity SCEP server. A rate
-// limited request fails with a scepserver.ResponseStatusError of 429.
+// requestSCEPCertificate enrolls hostIdentifier with Fleet's host identity SCEP server.
 func requestSCEPCertificate(t *testing.T, s *Suite, hostIdentifier string) (*x509.Certificate, error) {
 	t.Helper()
 	ctx := t.Context()
@@ -106,11 +97,4 @@ func requestSCEPCertificate(t *testing.T, s *Suite, hostIdentifier string) (*x50
 		SignerCert: signerCert,
 		Logger:     s.Logger,
 	})
-}
-
-func requireRateLimited(t *testing.T, err error) {
-	t.Helper()
-	statusErr, ok := errors.AsType[scepserver.ResponseStatusError](err)
-	require.True(t, ok, "Should return HTTP 429 for rate limit, got %v", err)
-	require.Equal(t, http.StatusTooManyRequests, statusErr.Code, "Should return HTTP 429 for rate limit")
 }

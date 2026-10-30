@@ -105,7 +105,8 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+// challengeMiddleware checks that ChallengePassword matches an enrollment secret, and refuses to issue a certificate for a name that
+// already holds a valid one. Replacing a valid certificate requires a renewal request, which proves possession of the existing key.
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request by looking for the custom Fleet extension
@@ -124,6 +125,15 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 			return nil, errors.New("invalid challenge")
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+
+		commonName := m.CSR.Subject.CommonName
+		_, err = ds.GetHostIdentityCertByName(ctx, commonName)
+		switch {
+		case err == nil:
+			return nil, fmt.Errorf("a valid host identity certificate already exists for %q, renew it with its existing key", commonName)
+		case !fleet.IsNotFound(err):
+			return nil, fmt.Errorf("checking existing host identity certificate: %w", err)
 		}
 		return next.SignCSRContext(ctx, m)
 	}
