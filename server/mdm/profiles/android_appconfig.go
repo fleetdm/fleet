@@ -165,7 +165,7 @@ func jsonEscapeString(s string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(string(b), `"`), `"`)
 }
 
-func BuildAndroidApplicationPolicies(ctx context.Context, appIDs []string,
+func BuildApplicationPoliciesWithConfig(ctx context.Context, appIDs []string,
 	configsByAppID map[string][]byte, installType string,
 ) ([]*androidmanagement.ApplicationPolicy, error) {
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))

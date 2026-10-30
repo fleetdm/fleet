@@ -9,17 +9,18 @@ import (
 func TestUp_20261030151206(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// insert two Android hosts with a device and a macOS host without one
+	// insert two Android hosts with a device, a macOS host without one, and a device of a deleted host
 	firstHostID := execNoErrLastID(t, db, `INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid, platform) VALUES ('host1', 'host1', 'host1', 'host1', 'android')`)
 	execNoErr(t, db, `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id) VALUES (?, 'device1', 'host1')`, firstHostID)
 	secondHostID := execNoErrLastID(t, db, `INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid, platform) VALUES ('host2', 'host2', 'host2', 'host2', 'android')`)
 	execNoErr(t, db, `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id) VALUES (?, 'device2', 'host2')`, secondHostID)
 	execNoErr(t, db, `INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid, platform) VALUES ('host3', 'host3', 'host3', 'host3', 'darwin')`)
+	execNoErr(t, db, `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id) VALUES (99999, 'device-deleted', 'host-deleted')`)
 
 	applyNext(t, db)
 
 	// read the rows of host_android_software_installs, each Android host should have one pending row for an app that's
-	// never in scope, and the macOS host none
+	// never in scope, and the macOS host and the deleted host's device none
 	var installs []struct {
 		HostID      int64  `db:"host_id"`
 		AdamID      string `db:"adam_id"`

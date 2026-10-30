@@ -63,6 +63,7 @@ type androidAppReconcileState struct {
 	retries                int
 
 	sent                     []androidAppReconcileSentList
+	sentOpts                 []androidmgmt.PoliciesPatchOpts
 	sentConfigsByHostUUID    map[string]map[string]string
 	upserted                 []fleet.HostAndroidSoftwareInstall
 	removed                  []fleet.HostAndroidSoftwareInstall
@@ -200,6 +201,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 				}
 			}
 			state.sent = append(state.sent, androidAppReconcileSentList{hostUUID: hostUUID, packages: packages})
+			state.sentOpts = append(state.sentOpts, opts)
 		}
 		err := state.setAppsErrByHostUUID[hostUUID]
 		if err != nil {
@@ -234,6 +236,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		err := reconcile(0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
+		require.Equal(t, []androidmgmt.PoliciesPatchOpts{{OnlyUpdateApps: true}}, state.sentOpts)
 		require.Len(t, state.upserted, 2)
 		require.Equal(t, hostA.ID, state.upserted[0].HostID)
 		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
@@ -262,6 +265,34 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Len(t, state.sent, 2)
 		require.JSONEq(t, `{"deviceId":"host-a"}`, state.sentConfigsByHostUUID["host-a"]["com.example.one"])
 		require.JSONEq(t, `{"deviceId":"host-b"}`, state.sentConfigsByHostUUID["host-b"]["com.example.one"])
+	})
+
+	t.Run("a host with a failed app gets it as pending with a new app and a host with only the failed app gets no request", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts: []*fleet.Host{hostA, hostB},
+			installs: []*fleet.HostAndroidSoftwareInstall{
+				appOneInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusFailed, false, time.Time{}),
+				agentInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false),
+				appOneInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusFailed, false, time.Time{}),
+				agentInstall(hostB.ID, fleet.AndroidSoftwareInstallStatusVerified, false),
+			},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{
+				hostA.ID: {appOne, {AdamID: "com.example.two", AppTeamID: secondVersionID}},
+				hostB.ID: {appOne},
+			},
+		}
+
+		// run the cron, only host A should get a request, with app one upserted as pending because its configuration
+		// now resolves
+		err := reconcile(0)
+		require.NoError(t, err)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.example.two", "com.fleetdm.agent"}}}, state.sent)
+		require.Len(t, state.upserted, 3)
+		require.Equal(t, hostA.ID, state.upserted[0].HostID)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
+		require.Equal(t, "com.example.two", state.upserted[1].AdamID)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[2].AdamID)
 	})
 
 	t.Run("a host with a new app in scope gets both apps and only the new app's install is upserted", func(t *testing.T) {
@@ -500,6 +531,26 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[2].Status)
 	})
 
+	t.Run("a host whose list gets a not modified response has its app and Fleet agent recorded as request failed", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts:                []*fleet.Host{hostA},
+			appsInScopeByHostID:  map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
+			setAppsErrByHostUUID: map[string]error{"host-a": &googleapi.Error{Code: http.StatusNotModified}},
+		}
+
+		// run the cron, host A's app and Fleet agent should be recorded as request failed with no policy version, so a
+		// later run will retry them
+		err := reconcile(0)
+		require.NoError(t, err)
+		require.Len(t, state.sent, 1)
+		require.Len(t, state.upserted, 2)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[0].Status)
+		require.Nil(t, state.upserted[0].InPolicyVersion)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[1].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
+	})
+
 	t.Run("a host whose list was sent has the rows written during the run flagged and a rejected host doesn't", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts:                []*fleet.Host{hostA, hostB},
@@ -656,6 +707,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		err := reconcile(1)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-b", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
+		require.Equal(t, []androidmgmt.PoliciesPatchOpts{{}}, state.sentOpts)
 	})
 
 	t.Run("a host whose request failed less than an hour ago gets a new app in scope right away without counting a retry", func(t *testing.T) {

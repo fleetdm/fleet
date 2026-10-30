@@ -248,7 +248,7 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		installs = append(installs, install)
 	}
 
-	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
+	appPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
@@ -361,7 +361,7 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
 		}
 
-		appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, appIDs, configsByAppID, android.AppStatusPreinstalled)
+		appPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, appIDs, configsByAppID, android.AppStatusPreinstalled)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building application policies with config")
 		}
@@ -377,6 +377,30 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		for _, req := range hostToPolicyRequest {
 			policyRequest = req
 		}
+
+		var inPolicyVersion *int64
+		if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+			inPolicyVersion = &policyRequest.PolicyVersion.V
+		}
+		installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(setupApps))
+		for _, app := range setupApps {
+			installs = append(installs, fleet.HostAndroidSoftwareInstall{
+				HostID:          host.Host.ID,
+				AdamID:          app.AdamID,
+				VPPAppTeamID:    &app.AppTeamID,
+				InstallType:     android.AppStatusPreinstalled,
+				Status:          fleet.AndroidSoftwareInstallStatusPending,
+				InPolicyVersion: inPolicyVersion,
+				PolicyBuiltAt:   policyBuiltAt,
+			})
+		}
+		// Save the installs before inserting the setup experience install rows, so a failure here won't make a retry
+		// insert those rows twice
+		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host android software installs for setup experience")
+		}
+
 		for _, app := range setupApps {
 			// NOTE: there is a unique index on the command uuid, so we cannot use the
 			// Android request's UUID for this, as we currently add many apps in the same request
@@ -397,27 +421,6 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting android setup experience install request")
 			}
-		}
-
-		var inPolicyVersion *int64
-		if policyRequest != nil && policyRequest.PolicyVersion.Valid {
-			inPolicyVersion = &policyRequest.PolicyVersion.V
-		}
-		installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(setupApps))
-		for _, app := range setupApps {
-			installs = append(installs, fleet.HostAndroidSoftwareInstall{
-				HostID:          host.Host.ID,
-				AdamID:          app.AdamID,
-				VPPAppTeamID:    &app.AppTeamID,
-				InstallType:     android.AppStatusPreinstalled,
-				Status:          fleet.AndroidSoftwareInstallStatusPending,
-				InPolicyVersion: inPolicyVersion,
-				PolicyBuiltAt:   policyBuiltAt,
-			})
-		}
-		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert host android software installs for setup experience")
 		}
 	}
 

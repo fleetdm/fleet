@@ -4243,9 +4243,9 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 	require.Equal(t, "on-policy-fleet", hosts[1].UUID)
 	require.Equal(t, "hardware_serial", hosts[1].HardwareSerial)
 
-	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one for
-	// the Unassigned host
-	for _, commandUUID := range []string{"setup-unassigned", "setup-fleet", "setup-unassigned-failed"} {
+	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one and
+	// one of a deleted app version for the Unassigned host
+	for _, commandUUID := range []string{"setup-unassigned", "setup-fleet", "setup-unassigned-failed", "setup-unassigned-deleted-version"} {
 		host := unassignedHost
 		if commandUUID == "setup-fleet" {
 			host = fleetHost
@@ -4261,11 +4261,15 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE command_uuid = 'setup-unassigned-failed'`)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE command_uuid = 'setup-unassigned-deleted-version'`)
 		return err
 	})
 
 	// read the setup experience apps, only the Unassigned host's pending install should be returned, the fleet host's
-	// app version is in another fleet
+	// app version is in another fleet and the deleted app version's install has no version
 	setupAppsByHostID, err := ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID, fleetHost.Host.ID, unenrolledHost.Host.ID})
 	require.NoError(t, err)
 	require.Len(t, setupAppsByHostID, 1)

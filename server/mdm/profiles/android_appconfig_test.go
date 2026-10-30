@@ -309,14 +309,14 @@ func TestIsUnresolvableAndroidAppConfigForHost(t *testing.T) {
 	}
 }
 
-func TestBuildAndroidApplicationPolicies(t *testing.T) {
+func TestBuildApplicationPoliciesWithConfig(t *testing.T) {
 	ctx := t.Context()
 
 	t.Run("app with full configuration", func(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.app": []byte(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
 		}
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		require.Equal(t, "com.example.app", policies[0].PackageName)
@@ -327,7 +327,7 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 	})
 
 	t.Run("app without configuration clears previously applied settings", func(t *testing.T) {
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		require.Empty(t, policies[0].ManagedConfiguration)
@@ -339,7 +339,7 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.app": []byte(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
 		}
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
@@ -347,11 +347,21 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
 	})
 
+	t.Run("empty configuration object leaves every field unset", func(t *testing.T) {
+		configs := map[string][]byte{"com.example.app": []byte(`{}`)}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Nil(t, policies[0].ManagedConfiguration)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Empty(t, policies[0].CredentialProviderPolicy)
+	})
+
 	t.Run("other ApplicationPolicy fields are passed through", func(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.app": []byte(`{"autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
 		}
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		assert.Equal(t, "AUTO_UPDATE_HIGH_PRIORITY", policies[0].AutoUpdateMode)
@@ -365,7 +375,7 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.app": []byte(`{"packageName": "com.example.other", "installType": "KIOSK"}`),
 		}
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, "PREINSTALLED")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "PREINSTALLED")
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 		assert.Equal(t, "com.example.app", policies[0].PackageName)
@@ -386,7 +396,7 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 		}
 		for _, c := range cases {
 			t.Run(c.installType, func(t *testing.T) {
-				policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.app"}, configs, c.installType)
+				policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, c.installType)
 				require.NoError(t, err)
 				require.Len(t, policies, 1)
 				assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
@@ -404,7 +414,7 @@ func TestBuildAndroidApplicationPolicies(t *testing.T) {
 		configs := map[string][]byte{
 			"com.example.configured": []byte(`{"autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
 		}
-		policies, err := BuildAndroidApplicationPolicies(ctx, []string{"com.example.configured", "com.example.unconfigured"}, configs, "AVAILABLE")
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.configured", "com.example.unconfigured"}, configs, "AVAILABLE")
 		require.NoError(t, err)
 		require.Len(t, policies, 2)
 		assert.Equal(t, "com.example.configured", policies[0].PackageName)

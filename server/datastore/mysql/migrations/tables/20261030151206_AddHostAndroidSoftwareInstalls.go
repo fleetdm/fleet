@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS host_android_software_installs (
 	// at the point of this migration.
 	_, err = tx.Exec(`
 INSERT IGNORE INTO host_android_software_installs (host_id, adam_id, install_type, status, policy_built_at)
-SELECT host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM android_devices`)
+SELECT ad.host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM android_devices ad JOIN hosts h ON h.id = ad.host_id`)
 	if err != nil {
 		return fmt.Errorf("insert host_android_software_installs rows for existing android hosts: %w", err)
 	}

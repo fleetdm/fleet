@@ -175,7 +175,9 @@ func (r *profileReconciler) prepareHostAppList(
 		case install.InstallType != installTypeByAppID[app.AdamID]:
 			needsSend = true
 		case install.Status == fleet.AndroidSoftwareInstallStatusRequestFailed:
-			// Send it with the retry below
+			// Add the app with a failed request to the changed apps, so the retry below will set it back to pending
+		case install.Status == fleet.AndroidSoftwareInstallStatusFailed:
+			// Add the failed app to the changed apps, so it will be set back to pending
 		default:
 			continue
 		}
@@ -202,7 +204,7 @@ func (r *profileReconciler) prepareHostAppList(
 		if r.RetryCounter != nil {
 			retries, err = r.RetryCounter.CountAttempts(ctx, host.ID, 0)
 			if err != nil {
-				r.Logger.WarnContext(ctx, "failed to count android app list retries", "host_id", host.ID, "err", err)
+				r.Logger.ErrorContext(ctx, "failed to count android app list retries", "host_id", host.ID, "err", err)
 			}
 		}
 		// Retry at most twice until the count expires
@@ -234,8 +236,7 @@ func (r *profileReconciler) prepareHostAppList(
 			return nil, nil
 		}
 		_, changed := changedAppIDs[app.AdamID]
-		install := fleet.HostAndroidSoftwareInstall{HostID: host.ID, AdamID: app.AdamID, VPPAppTeamID: new(app.AppTeamID), InstallType: installTypeByAppID[app.AdamID],
-			Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: policyBuiltAt}
+		install := fleet.HostAndroidSoftwareInstall{HostID: host.ID, AdamID: app.AdamID, VPPAppTeamID: new(app.AppTeamID), InstallType: installTypeByAppID[app.AdamID], Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: policyBuiltAt}
 		if len(version.Configuration) > 0 {
 			substituted, err = profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, r.DS, version.Configuration, substitutionHost)
 			if err != nil {
@@ -264,11 +265,11 @@ func (r *profileReconciler) prepareHostAppList(
 		}
 		availableAppIDs = append(availableAppIDs, app.AdamID)
 	}
-	appPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
+	appPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
-	preinstalledAppPolicies, err := profiles.BuildAndroidApplicationPolicies(ctx, preinstalledAppIDs, configsByAppID, android.AppStatusPreinstalled)
+	preinstalledAppPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, preinstalledAppIDs, configsByAppID, android.AppStatusPreinstalled)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building preinstalled application policies with config")
 	}
@@ -365,12 +366,13 @@ func (r *profileReconciler) recordAppListRequest(
 	if appList.retriesFailedRequest && r.RetryCounter != nil {
 		_, err := r.RetryCounter.RecordAttempt(ctx, host.ID, 0, fleet.VPPAutomaticInstallRetryTimeout)
 		if err != nil {
-			r.Logger.WarnContext(ctx, "failed to record android app list retry", "host_id", host.ID, "err", err)
+			r.Logger.ErrorContext(ctx, "failed to record android app list retry", "host_id", host.ID, "err", err)
 		}
 	}
 
-	if !skip && policyRequest.StatusCode != http.StatusOK {
-		// Set the changed apps and the agent to request failed, so the next run will wait before sending again
+	if skip || policyRequest.StatusCode != http.StatusOK {
+		// Set the changed apps and the agent to request failed, so the next run will wait before sending again. Count a
+		// not modified response as request failed, because it has no policy version to verify the apps against.
 		for _, install := range appList.installsToUpsert {
 			if install.Status == fleet.AndroidSoftwareInstallStatusPending {
 				install.Status = fleet.AndroidSoftwareInstallStatusRequestFailed

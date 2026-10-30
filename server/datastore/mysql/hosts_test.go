@@ -11107,6 +11107,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		uuid.NewString(), host.ID)
 	require.NoError(t, err)
 
+	// Insert into host_android_software_installs table (no host FK, cleaned up via hostRefs).
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+		HostID: host.ID, AdamID: "com.example.delete", InstallType: android.AppStatusAvailable,
+		Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: time.Now(),
+	}}, nil)
+	require.NoError(t, err)
+
 	// Insert into host_policy_automation_run_counts table (no host FK, cleaned up via hostRefs).
 	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
 	require.NoError(t, err)
