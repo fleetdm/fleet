@@ -544,6 +544,27 @@ func caskQuitID(quitID, bundleID string) string {
 	return quitID
 }
 
+// quitIDPattern matches the bundle IDs, and '*' patterns, that cask quit
+// directives name. Some real IDs contain a space.
+var quitIDPattern = regexp.MustCompile(`^[A-Za-z0-9 ._*-]+$`)
+
+// validateQuitIDs rejects a cask whose uninstall or zap quit entries aren't
+// bundle IDs. The quit helpers pass the ID to osascript as data, but a value
+// like `x" & (do shell script ...)` means the cask metadata was tampered with,
+// so the ingest stops instead of shipping it in a root script.
+func validateQuitIDs(cask *brewCask) error {
+	for _, artifact := range cask.Artifacts {
+		for _, u := range slices.Concat(artifact.Uninstall, artifact.Zap) {
+			for _, id := range stanzaNames(u.Quit) {
+				if !quitIDPattern.MatchString(id) {
+					return fmt.Errorf("quit ID %q isn't a bundle ID", id)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // quitTargetsApp reports whether a cask quit ID, which may contain '*'
 // wildcards, names the app being uninstalled. Like LaunchServices and
 // Homebrew's wildcard expansion, the match is case-insensitive.
@@ -864,14 +885,17 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
 // Returns 1 if the application is still running after the timeout. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
-// 'pgrep -f <bundle_id>' never matches.
+// 'pgrep -f <bundle_id>' never matches. Both helpers pass the bundle ID to
+// osascript as a run handler argument, never in the AppleScript source, so it
+// can't inject AppleScript. The '--' stops osascript from parsing an ID that
+// starts with '-' as an option such as -e.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     return
   fi
@@ -889,9 +913,9 @@ const quitApplicationFunc = `quit_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -950,8 +974,7 @@ ids.join("\n")'
   regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
   regex="^${regex}$"
 
-  # Running apps report their own bundle IDs, and quit_application puts the ID
-  # inside an AppleScript string, so only bundle ID characters are allowed.
+  # Running apps report their own bundle IDs; only pass well-formed ones on.
   local valid_id='^[A-Za-z0-9._-]+$'
   local matches=()
   local id
@@ -988,7 +1011,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
@@ -1012,9 +1035,9 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break

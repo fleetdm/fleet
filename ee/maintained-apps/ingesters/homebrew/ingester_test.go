@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -95,6 +96,26 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
+		case "quit-injection", "zap-quit-injection", "pale-moon":
+			// The injection value breaks out of an AppleScript string to run
+			// do shell script.
+			quit := "com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x"
+			if appToken == "pale-moon" {
+				quit = "org.mozilla.pale moon"
+			}
+			stanza := []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: quit}}}
+			artifact := &brewArtifact{Uninstall: stanza}
+			if appToken == "zap-quit-injection" { //nolint:gosec // G101: cask token, not a credential
+				artifact = &brewArtifact{Zap: stanza}
+			}
+			cask = brewCask{
+				Token:     appToken,
+				Name:      []string{appToken},
+				URL:       "https://example.com",
+				Version:   "1.0",
+				Artifacts: []*brewArtifact{artifact},
+			}
+
 		case "lm-studio":
 			cask = brewCask{
 				Token:   appToken,
@@ -149,6 +170,9 @@ func TestIngestValidations(t *testing.T) {
 		{"missing version for cask noversion", inputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask quit-injection", inputApp{Token: "quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask zap-quit-injection", inputApp{Token: "zap-quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "pale-moon", UniqueIdentifier: "org.mozilla.pale moon", InstallerFormat: "dmg", Name: "Pale Moon", Slug: "pale-moon/darwin"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
 		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
