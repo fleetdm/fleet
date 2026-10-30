@@ -440,10 +440,12 @@ var qgisPathFilters = map[string]string{
 // OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex
 // while hosts that haven't updated still report com.openai.chat. The discontinued
 // Codex.app also reports com.openai.codex, so that identifier only counts when the
-// bundle is named ChatGPT. Callers must parenthesize it before adding conditions.
+// bundle is named ChatGPT. The new installer renames the old com.openai.chat app to
+// "ChatGPT Classic" and leaves it behind, so com.openai.chat only counts at the path
+// the cask installs to. Callers must parenthesize it before adding conditions.
 func chatGPTBundleMatch(alias string) string {
 	return fmt.Sprintf(
-		"%[1]sbundle_identifier = 'com.openai.chat' OR (%[1]sbundle_identifier = 'com.openai.codex' AND %[1]sbundle_name = 'ChatGPT')",
+		"(%[1]sbundle_identifier = 'com.openai.chat' AND %[1]spath = '/Applications/ChatGPT.app') OR (%[1]sbundle_identifier = 'com.openai.codex' AND %[1]sbundle_name = 'ChatGPT')",
 		alias,
 	)
 }

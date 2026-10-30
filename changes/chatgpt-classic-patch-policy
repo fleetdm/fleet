@@ -1,0 +1,1 @@
+* Fixed the ChatGPT Desktop macOS Fleet-maintained app's patch policy failing forever (and its automatic install re-running) on hosts where the new ChatGPT installer left the old app behind as "ChatGPT Classic". The `com.openai.chat` identifier now only counts at `/Applications/ChatGPT.app`.

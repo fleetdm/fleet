@@ -342,9 +342,9 @@ func TestIngestValidations(t *testing.T) {
 				// ChatGPT reports com.openai.codex since OpenAI rebuilt it on the Codex app;
 				// older installs still report com.openai.chat, so both are matched. The
 				// patched query is generated from the exists query.
-				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
+				require.Equal(t, "SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' AND path = '/Applications/ChatGPT.app') OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE ((bundle_identifier = 'com.openai.chat' AND path = '/Applications/ChatGPT.app') OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
@@ -386,7 +386,7 @@ func TestIngestValidations(t *testing.T) {
 				)
 			case "chatgpt":
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (a.bundle_identifier = 'com.openai.chat' OR (a.bundle_identifier = 'com.openai.codex' AND a.bundle_name = 'ChatGPT')) AND a.bundle_executable != '');",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE ((a.bundle_identifier = 'com.openai.chat' AND a.path = '/Applications/ChatGPT.app') OR (a.bundle_identifier = 'com.openai.codex' AND a.bundle_name = 'ChatGPT')) AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			default:
