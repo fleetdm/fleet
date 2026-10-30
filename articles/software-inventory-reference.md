@@ -9,7 +9,7 @@ Each software type below lists its `source`, and browser and IDE extensions also
 | Type | Name | Version | Vendor | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS app (`source`: `apps`) | ✅ | ✅ | ✅ Apple Developer Team ID | ✅ Bundle ID | ✅ | ✅ cdhash and executable SHA-256 | ✅ | ✅ | — |
-| Windows app (`source`: `programs`) | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. |
+| Windows app (`source`: `programs`) | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. Older Microsoft Office versions (like Office 2013) appear in inventory, but Fleet doesn't detect their vulnerabilities. Learn more in [vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#limitations). |
 | Linux apps (`source`: `deb_packages`, `rpm_packages`) | ✅ | ✅ | ✅ rpm only | ❌ | ❌ | ❌ | ✅ deb and rpm | ✅ | Apps install as [packages](#packages) on Linux. |
 | Android app (`source`: `android_apps`) | ✅ | ✅ | ❌ | ✅ Application ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report work profile apps only. Fully-managed hosts report all apps. |
 | iOS app (`source`: `ios_apps`) and iPadOS app (`source`: `ipados_apps`) | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report only the apps Fleet installed. |
