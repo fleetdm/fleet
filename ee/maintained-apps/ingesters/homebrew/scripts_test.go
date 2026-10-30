@@ -579,25 +579,32 @@ func TestUninstallScriptTrash(t *testing.T) {
 
 	type paths struct {
 		pref, cache, trash, dir, helper1, helper2 string
+		// vendor is a symlink a user planted in a shared folder, pointing at
+		// the folder that holds protected1 and protected2.
+		vendor, protected1, protected2 string
 	}
 	// fail is "rm" to make rm fail, or "sudo" to make the user's move fail.
 	run := func(t *testing.T, consoleUser string, fail string) (string, paths) {
 		tmp := t.TempDir()
 		home := filepath.Join(tmp, "Users", "alice")
 		p := paths{
-			pref:    filepath.Join(home, "Library", "Preferences", "com.example.foo.plist"),
-			cache:   filepath.Join(home, "Library", "Caches", "com.example.foo.cache"),
-			trash:   filepath.Join(home, ".Trash"),
-			dir:     filepath.Join(tmp, "Shared", "Foo"),
-			helper1: filepath.Join(tmp, "Library", "Foo Helper 1"),
-			helper2: filepath.Join(tmp, "Library", "Foo Helper 2"),
+			pref:       filepath.Join(home, "Library", "Preferences", "com.example.foo.plist"),
+			cache:      filepath.Join(home, "Library", "Caches", "com.example.foo.cache"),
+			trash:      filepath.Join(home, ".Trash"),
+			dir:        filepath.Join(tmp, "Shared", "Foo"),
+			helper1:    filepath.Join(tmp, "Library", "Foo Helper 1"),
+			helper2:    filepath.Join(tmp, "Library", "Foo Helper 2"),
+			vendor:     filepath.Join(tmp, "Shared", "Vendor"),
+			protected1: filepath.Join(tmp, "Protected", "Bar"),
+			protected2: filepath.Join(tmp, "Protected", "Baz 1"),
 		}
-		for _, dir := range []string{filepath.Join(p.dir, "data"), filepath.Dir(p.pref), filepath.Dir(p.cache), p.trash, filepath.Dir(p.helper1)} {
+		for _, dir := range []string{filepath.Join(p.dir, "data"), filepath.Dir(p.pref), filepath.Dir(p.cache), p.trash, filepath.Dir(p.helper1), filepath.Dir(p.protected1)} {
 			require.NoError(t, os.MkdirAll(dir, 0o755))
 		}
-		for _, file := range []string{p.pref, p.cache, p.helper1, p.helper2} {
+		for _, file := range []string{p.pref, p.cache, p.helper1, p.helper2, p.protected1, p.protected2} {
 			require.NoError(t, os.WriteFile(file, nil, 0o644))
 		}
+		require.NoError(t, os.Symlink(filepath.Dir(p.protected1), p.vendor))
 
 		cask := &brewCask{
 			Artifacts: []*brewArtifact{
@@ -610,6 +617,8 @@ func TestUninstallScriptTrash(t *testing.T) {
 									"~/Library/Preferences/com.example.foo.plist",
 									"~/Library/Caches/com.example.foo*",
 									filepath.Join(tmp, "Library", "Foo Helper*"),
+									filepath.Join(p.vendor, "Bar"),
+									filepath.Join(p.vendor, "Baz*"),
 									p.dir,
 								},
 							},
@@ -658,6 +667,14 @@ rm() {
 		return string(out), p
 	}
 
+	// A symlinked parent folder can't redirect a delete as root.
+	requireNotRedirected := func(t *testing.T, out string, p paths) {
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Bar")+": a folder in its path is a symlink.\n")
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Baz 1")+": a folder in its path is a symlink.\n")
+		require.FileExists(t, p.protected1)
+		require.FileExists(t, p.protected2)
+	}
+
 	for name, user := range map[string]string{"loginwindow": "loginwindow", "empty": "", "root": "root"} {
 		t.Run(name, func(t *testing.T) {
 			out, p := run(t, user, "")
@@ -668,6 +685,7 @@ rm() {
 			require.NoFileExists(t, p.helper1)
 			require.NoFileExists(t, p.helper2)
 			require.NotContains(t, out, "mv ")
+			requireNotRedirected(t, out, p)
 		})
 	}
 
@@ -686,6 +704,7 @@ rm() {
 		require.NoFileExists(t, p.helper1)
 		require.NoFileExists(t, p.helper2)
 		require.NotContains(t, out, "Not logged into")
+		requireNotRedirected(t, out, p)
 	})
 
 	// Cleanup is best-effort: a path that can't be removed is reported but
@@ -695,6 +714,7 @@ rm() {
 		require.Contains(t, out, "Failed to remove "+p.helper1+".\n")
 		require.True(t, strings.HasSuffix(out, "Failed to remove "+p.dir+".\n"), out)
 		require.DirExists(t, p.dir)
+		requireNotRedirected(t, out, p)
 	})
 
 	// Root doesn't take over a move the user can't make.
@@ -721,6 +741,7 @@ func TestCustomUninstallScriptsUseCurrentTrash(t *testing.T) {
 			continue
 		}
 		require.Contains(t, script, trashFunc, "%s has a stale copy of trash()", filepath.Base(path))
+		require.Contains(t, script, removeSystemPathFunc, "%s is missing remove_system_path(), which trash() calls", filepath.Base(path))
 		require.NotContains(t, script, "trash $LOGGED_IN_USER", "%s passes $LOGGED_IN_USER to trash unquoted", filepath.Base(path))
 	}
 }
