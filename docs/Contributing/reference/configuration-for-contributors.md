@@ -244,26 +244,5 @@ license:
   enforce_host_limit: false
 ```
 
-## YAML files
-
-### features.detail_query_overrides
-
-This feature can be used to override "detail queries" hardcoded in Fleet.
-
-> IMPORTANT: This feature should only be used when debugging issues with Fleet's hardcoded queries.
-Use with caution as this may break Fleet ingestion of hosts data.
-
-- Optional setting (dictionary of key-value strings)
-- Default value: none (empty)
-- Config file format:
-  ```yaml
-  features:
-    detail_query_overrides:
-      # null allows to disable the "users" query from running on hosts.
-      users: null
-      # this replaces the hardcoded "mdm" detail query.
-      mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
-  ```
-
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about the configuration files and settings that are helpful when developing or contributing to Fleet.">
