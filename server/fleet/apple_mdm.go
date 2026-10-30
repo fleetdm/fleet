@@ -332,6 +332,8 @@ func PayloadDisplayNameFromMobileconfig(raw []byte) string {
 	return strings.TrimSpace(parsed.PayloadDisplayName)
 }
 
+const ProfileNameSecretErrMsg = "PayloadDisplayName cannot contain FLEET_SECRET variables"
+
 // ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
 // in the raw XML content of a profile.
 func ValidateNoSecretsInProfileName(xmlContent []byte) error {
@@ -340,7 +342,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 		if len(match) > 1 {
 			displayName := string(match[1])
 			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
-				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+				return errors.New(ProfileNameSecretErrMsg)
 			}
 		}
 	}

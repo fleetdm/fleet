@@ -412,6 +412,13 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
+	hasSecret, err := profileNameHasSecretValue(ctx, svc.ds, data, cp.Name)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if hasSecret {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", fleet.ProfileNameSecretErrMsg))
+	}
 
 	// Screens the PayloadDisplayName too, so a reserved payload can't be
 	// smuggled in under a custom name.
@@ -470,6 +477,26 @@ func CheckProfileIsNotSigned(data []byte) error {
 		}
 	}
 	return nil
+}
+
+// profileNameHasSecretValue reports whether a profile name contains the value of a secret the
+// profile references. The name is read after secrets are expanded, and an XML-level check before
+// expansion can't see every way the value reaches it (a comment between the key and its string, CDATA).
+func profileNameHasSecretValue(ctx context.Context, ds fleet.Datastore, rawProfile []byte, name string) (bool, error) {
+	secretNames := fleet.ContainsPrefixVars(string(rawProfile), fleet.ServerSecretPrefix)
+	if len(secretNames) == 0 {
+		return false, nil
+	}
+	secrets, err := ds.GetSecretVariables(ctx, secretNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get secret variables referenced by profile")
+	}
+	for _, secret := range secrets {
+		if value := strings.TrimSpace(secret.Value); value != "" && strings.Contains(name, value) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -3968,6 +3995,13 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
+		}
+		hasSecret, err := profileNameHasSecretValue(ctx, svc.ds, prof, mdmProf.Name)
+		if err != nil {
+			return err
+		}
+		if hasSecret {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fleet.ProfileNameSecretErrMsg))
 		}
 
 		if err := mdmProf.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {

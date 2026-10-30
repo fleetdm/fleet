@@ -3052,7 +3052,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, svc.ds, tmID, appCfg, profiles, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
@@ -3418,8 +3418,10 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 
 func getAppleProfiles(
 	ctx context.Context,
+	ds fleet.Datastore,
 	tmID *uint,
 	appCfg *fleet.AppConfig,
+	rawProfiles []fleet.MDMProfileBatchPayload,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
 	mdmConfig config.MDMConfig,
@@ -3520,6 +3522,14 @@ func getAppleProfiles(
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
+		}
+		// Before anything below quotes the name in an error.
+		hasSecret, err := profileNameHasSecretValue(ctx, ds, rawProfiles[i].Contents, mdmProf.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if hasSecret {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(prof.Name, fleet.ProfileNameSecretErrMsg))
 		}
 		mdmProf.Description = prof.Description
 		mdmProf.SelfService, mdmProf.Hidden = prof.SelfService, prof.Hidden
