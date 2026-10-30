@@ -1,10 +1,12 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 
 const MOVED_CLASS = "query-report__column-moved";
+const FOCUSABLE =
+  "button:not(:disabled), [href], input:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
 interface IProps {
   columns: string[];
@@ -21,6 +23,39 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
   const pendingFocus = useRef<{ id: string; offset: number } | null>(null);
   const previousTops = useRef(new Map<string, number>());
   const [announcement, setAnnouncement] = useState("");
+
+  // The shared Modal doesn't manage focus, so keep keyboard users inside the
+  // dialog and return them to the trigger on close.
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    const dialog = listRef.current?.closest<HTMLElement>(
+      ".modal__modal_container"
+    );
+    listRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const trapTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(FOCUSABLE)
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const outside = !dialog.contains(active);
+      if (event.shiftKey && (active === first || outside)) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (active === last || outside)) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", trapTab);
+    return () => {
+      document.removeEventListener("keydown", trapTab);
+      trigger?.focus();
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
     if (!pending) return;

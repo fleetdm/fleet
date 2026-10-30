@@ -404,6 +404,31 @@ describe("Report column preferences", () => {
     load.mockResolvedValue([]);
   });
 
+  it("keeps keyboard focus in the dialog and restores it on close", () => {
+    setup();
+    const trigger = screen.getByRole("button", { name: "Column preferences" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(
+      screen.getByRole("button", { name: "Move down: Host" })
+    ).toHaveFocus();
+
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: "Tab" });
+    const dialog = cancel.closest(".modal__modal_container") as HTMLElement;
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(document.activeElement).not.toBe(cancel);
+    fireEvent.keyDown(document.activeElement as HTMLElement, {
+      key: "Tab",
+      shiftKey: true,
+    });
+    expect(cancel).toHaveFocus();
+
+    fireEvent.click(cancel);
+    expect(trigger).toHaveFocus();
+  });
+
   it("cancels without saving", () => {
     const update = jest.spyOn(usersAPI, "update");
     setup();
