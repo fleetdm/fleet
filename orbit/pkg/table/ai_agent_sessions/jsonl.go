@@ -97,9 +97,12 @@ func (r *budgetReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// readers pools the scan buffers: one is in use per file being read, and a
-// large one lets most records be handed out without copying.
-var readers = sync.Pool{New: func() any { return bufio.NewReaderSize(nil, 512<<10) }}
+// readerBufferBytes is the scan buffer size; a record that fits is handed
+// out without copying.
+const readerBufferBytes = 512 << 10
+
+// readers pools the scan buffers: one is in use per file being read.
+var readers = sync.Pool{New: func() any { return bufio.NewReaderSize(nil, readerBufferBytes) }}
 
 // scanJSONL hands each non-empty line of a JSON Lines file to fn until fn
 // returns false. The line is only valid during the call.
@@ -223,7 +226,7 @@ func (m *fileMerge) open(st *recordStream) bool {
 	}
 	st.f = f
 	st.base = st.next
-	st.src = &countingReader{r: m.sc.reader(f, maxTranscriptBytes-st.next)}
+	st.src = &countingReader{r: &rampReader{r: m.sc.reader(f, maxTranscriptBytes-st.next), n: rampStartBytes}}
 	st.r = readers.Get().(*bufio.Reader)
 	st.r.Reset(st.src)
 	st.err = nil
@@ -293,6 +296,28 @@ func (st *recordStream) advance(stamp func(line []byte) time.Time) bool {
 		return true
 	}
 	return false
+}
+
+// rampStartBytes is a merged stream's first read; each read after it is
+// twice the last, up to the scan buffer.
+const rampStartBytes = 1 << 10
+
+// rampReader grows its reads from rampStartBytes to the scan buffer. A merge
+// of more files than are kept open reopens one for nearly every record, and
+// filling the whole buffer each time, to use one record of it, charged the
+// read budget many times the session's size.
+type rampReader struct {
+	r io.Reader
+	n int
+}
+
+func (r *rampReader) Read(p []byte) (int, error) {
+	if len(p) > r.n {
+		p = p[:r.n]
+	}
+	n, err := r.r.Read(p)
+	r.n = min(2*r.n, readerBufferBytes)
+	return n, err
 }
 
 // countingReader counts the bytes read through it.

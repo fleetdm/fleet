@@ -330,3 +330,37 @@ func TestToolCallIndexRangeIsExact(t *testing.T) {
 	}
 	require.NotContains(t, logs.String(), "read budget", "reading stops past the upper bound")
 }
+
+// Merging more files than are kept open reopens one for nearly every
+// record. A reopen reads about that record, not a whole scan buffer of
+// records the stream is closed before using: what it reads is charged to
+// the read budget, which a session could otherwise spend many times over.
+func TestMergeReopenReadsAboutOneRecord(t *testing.T) {
+	home := setup(t)
+	const files, rounds = maxOpenMergedFiles + 8, 200
+	at := func(ms int) string {
+		return time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Add(time.Duration(ms) * time.Millisecond).Format(time.RFC3339Nano)
+	}
+	var paths []string
+	var total int64
+	for k := range files {
+		var records []string
+		for round := range rounds {
+			records = append(records, claudeCall(fmt.Sprintf("%02d-%d", k, round), at(round*1000+k), 900))
+		}
+		p := filepath.Join(claudeProject(home), "s", "subagents", fmt.Sprintf("agent-%02d.jsonl", k))
+		writeFile(t, p, lines(records...))
+		paths = append(paths, p)
+		fi, ok := regularFile(p)
+		require.True(t, ok)
+		total += fi.Size()
+	}
+
+	sc := &scope{home: ownedHome(t, home), reads: newReadBudget()}
+	n := 0
+	scanFiles(sc, paths, recordStamp, func(int, []byte) bool { n++; return true })
+	require.Equal(t, files*rounds, n)
+	require.False(t, sc.reads.exhausted)
+	read := maxReadBytesPerCall - sc.reads.left
+	require.LessOrEqual(t, read, 4*total, "read %d bytes to merge %d", read, total)
+}
