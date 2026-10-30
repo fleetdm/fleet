@@ -7931,6 +7931,18 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		require.Equal(t, option == "notify", skipped.NotifyBeforePatching, option)
 		require.Equal(t, option == "deadline", skipped.PatchDeadline, option)
 
+		if option == "closed" {
+			// Switching the policy to Deadline afterwards doesn't relabel a patch-when-closed install.
+			optPol.PatchWhenClosed = false
+			optPol.PatchDeadline = true
+			require.NoError(t, ds.SavePolicy(ctx, optPol, false, false))
+			switched, err := ds.GetSoftwareInstallResults(ctx, optExec)
+			require.NoError(t, err)
+			require.True(t, switched.PatchWhenClosed)
+			require.False(t, switched.NotifyBeforePatching)
+			require.False(t, switched.PatchDeadline)
+		}
+
 		// Deleting the policy nulls host_software_installs.policy_id, and the recorded result still
 		// should report which patch option queued the install, to differentiate between them in details,
 		// rather than just use override pre install query. A deadline install falls back to notify,

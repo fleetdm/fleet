@@ -1,5 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React, { useContext } from "react";
+import { InjectedRouter } from "react-router";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
@@ -19,7 +21,11 @@ import {
   updatePatchDeadlineSettingsServerErrorHandler,
 } from "test/handlers/patch-deadline-settings-handlers";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import PatchDeadlineSection from "./PatchDeadlineSection";
 
@@ -34,6 +40,7 @@ jest.mock("components/ToastNotification", () => ({
 
 interface IWrapperProps {
   fleetId?: number;
+  router?: InjectedRouter;
 }
 
 // Mirror what SoftwareLibrarySettingsPage passes to the section: canManage
@@ -41,7 +48,10 @@ interface IWrapperProps {
 // receives location/router from the common ILibrarySettingsCardProps shape
 // even though it doesn't read them, which keeps parity with the sibling
 // categories section tests.
-const SectionWrapper = ({ fleetId = 1 }: IWrapperProps) => {
+const SectionWrapper = ({
+  fleetId = 1,
+  router = createMockRouter(),
+}: IWrapperProps) => {
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -56,7 +66,7 @@ const SectionWrapper = ({ fleetId = 1 }: IWrapperProps) => {
     !!isTeamMaintainer;
   return (
     <PatchDeadlineSection
-      router={createMockRouter()}
+      router={router}
       location={{
         pathname: "/software/library/settings/patch-deadline",
         search: "?fleet_id=1",
@@ -150,7 +160,7 @@ describe("PatchDeadlineSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the Days error immediately on toggle (no Save required) and clears it when a day is re-checked", async () => {
+  it("waits for Save to show the Days error and clears it when a day is re-checked", async () => {
     mockServer.use(getPatchDeadlineSettingsHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -163,6 +173,12 @@ describe("PatchDeadlineSection", () => {
     await waitFor(() => expect(tuesday).toBeChecked());
     await user.click(tuesday); // uncheck the only day, days = []
 
+    // Checkbox changes never add errors; Save reveals them.
+    expect(
+      screen.queryByText("Choose at least one day")
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /save/i }));
     expect(
       await screen.findByText("Choose at least one day")
     ).toBeInTheDocument();
@@ -193,9 +209,7 @@ describe("PatchDeadlineSection", () => {
     expect(await screen.findByText("Enter time as HH:MM")).toBeInTheDocument();
   });
 
-  it("falls back to the API defaults when the GET endpoint 404s", async () => {
-    // Not-yet-deployed endpoint should let the page render against the
-    // documented defaults (Tuesday 17:00), not surface a DataError.
+  it("surfaces a 404 for a missing fleet instead of seeding defaults", async () => {
     mockServer.use(getPatchDeadlineSettingsNotFoundHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -204,9 +218,12 @@ describe("PatchDeadlineSection", () => {
 
     render(<SectionWrapper />);
 
-    const tuesday = await screen.findByRole("checkbox", { name: "Tuesday" });
-    await waitFor(() => expect(tuesday).toBeChecked());
-    expect(screen.getByLabelText("Time")).toHaveValue("17:00");
+    expect(
+      await screen.findByText(/something's gone wrong/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Tuesday" })
+    ).not.toBeInTheDocument();
   });
 
   it("surfaces non-404 GET failures instead of silently seeding defaults", async () => {
@@ -253,9 +270,16 @@ describe("PatchDeadlineSection", () => {
   });
 
   it("saves on valid submit and toasts success", async () => {
+    let patchBody: unknown;
     mockServer.use(
       getPatchDeadlineSettingsHandler(),
-      updatePatchDeadlineSettingsHandler
+      http.patch(
+        baseUrl("/software/patch_deadline_settings"),
+        async ({ request }) => {
+          patchBody = await request.json();
+          return HttpResponse.json({ patch_deadline_settings: patchBody });
+        }
+      )
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -273,6 +297,11 @@ describe("PatchDeadlineSection", () => {
       expect(notify.success).toHaveBeenCalledWith(
         "Successfully updated patch deadline."
       );
+    });
+    expect(patchBody).toEqual({
+      fleet_id: 1,
+      days: ["tuesday", "thursday"],
+      time: "17:00",
     });
   });
 
@@ -358,6 +387,7 @@ describe("PatchDeadlineSection", () => {
     expect(
       await screen.findByText("Time must be before midnight.")
     ).toBeInTheDocument();
+    expect(notify.error).toHaveBeenCalledWith("Time must be before midnight.");
   });
 
   it("renders a loading spinner on Save while the PATCH is in flight", async () => {
@@ -383,8 +413,14 @@ describe("PatchDeadlineSection", () => {
 
   describe("Apps table", () => {
     it("hides the Apps section and the 'listed below' pointer when the fleet has no deadline apps", async () => {
-      mockServer.use(getPatchDeadlineSettingsHandler());
-      // beforeEach already registers emptyPatchDeadlineAppsHandler.
+      const onPoliciesRequest = jest.fn();
+      mockServer.use(
+        getPatchDeadlineSettingsHandler(),
+        http.get(baseUrl("/fleets/:teamId/policies"), () => {
+          onPoliciesRequest();
+          return HttpResponse.json({ policies: [] });
+        })
+      );
       const render = createCustomRenderer({
         withBackendMock: true,
         context: premiumAdminContext,
@@ -392,18 +428,53 @@ describe("PatchDeadlineSection", () => {
 
       render(<SectionWrapper />);
 
-      // Wait for the form to settle so the apps query has had a chance to
-      // resolve, then assert the Apps subsection and its description pointer
-      // are both absent.
       await screen.findByRole("checkbox", { name: "Tuesday" });
-      await waitFor(() => {
-        expect(
-          screen.queryByRole("heading", { level: 2, name: "Apps" })
-        ).not.toBeInTheDocument();
-      });
+      await waitFor(() => expect(onPoliciesRequest).toHaveBeenCalled());
+      expect(
+        screen.queryByRole("heading", { level: 2, name: "Apps" })
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByText(/Apps with this option are listed below/i)
       ).not.toBeInTheDocument();
+    });
+
+    it("lists only apps whose patch policy uses the deadline", async () => {
+      mockServer.use(
+        getPatchDeadlineSettingsHandler(),
+        getPatchDeadlineAppsHandler([
+          { software_title_id: 1, name: "Deadline app" },
+          { software_title_id: 2, name: "Notify app", patch_deadline: false },
+        ])
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: premiumAdminContext,
+      });
+
+      render(<SectionWrapper />);
+
+      expect(await screen.findByText("Deadline app")).toBeInTheDocument();
+      expect(screen.queryByText("Notify app")).not.toBeInTheDocument();
+    });
+
+    it("opens the software title in the current fleet when a row is clicked", async () => {
+      mockServer.use(
+        getPatchDeadlineSettingsHandler(),
+        getPatchDeadlineAppsHandler([{ software_title_id: 42, name: "Figma" }])
+      );
+      const router = createMockRouter();
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: premiumAdminContext,
+      });
+
+      const { user } = render(<SectionWrapper fleetId={3} router={router} />);
+
+      await user.click(await screen.findByText("Figma"));
+
+      expect(router.push).toHaveBeenCalledWith(
+        "/software/titles/42?fleet_id=3"
+      );
     });
 
     it("sorts apps alphabetically and paginates at 10 per page", async () => {

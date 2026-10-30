@@ -29,6 +29,7 @@ func TestPatchNotifications(t *testing.T) {
 		{"InstallAt", testPatchNotificationInstallAt},
 		{"ListDue", testPatchNotificationListDue},
 		{"HostPatchDeadlineAt", testPatchNotificationHostPatchDeadlineAt},
+		{"PolicyOptionChanged", testPatchNotificationPolicyOptionChanged},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -53,6 +54,23 @@ func newPatchNotification(t *testing.T, ds *Datastore, hostID uint, status strin
 		return err
 	})
 	return notificationUUID
+}
+
+// newPatchDeadlinePolicy returns a policy with patch_deadline set as given, for a notification app to point at.
+func newPatchDeadlinePolicy(t *testing.T, ds *Datastore, name string, deadline bool) uint {
+	t.Helper()
+	policy, err := ds.NewGlobalPolicy(t.Context(), nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+	require.NoError(t, err)
+	setPolicyPatchDeadline(t, ds, policy.ID, deadline)
+	return policy.ID
+}
+
+func setPolicyPatchDeadline(t *testing.T, ds *Datastore, policyID uint, deadline bool) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE policies SET patch_deadline = ? WHERE id = ?`, deadline, policyID)
+		return err
+	})
 }
 
 func newTestSoftwareTitle(t *testing.T, ds *Datastore, name string) uint {
@@ -725,6 +743,7 @@ func testPatchNotificationHostPatchDeadlineAt(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "deadline-host", "", "deadline-key", "deadline-uuid", time.Now())
 	otherHost := test.NewHost(t, ds, "deadline-other-host", "", "deadline-other-key", "deadline-other-uuid", time.Now())
+	policyID := newPatchDeadlinePolicy(t, ds, "deadline-at-policy", true)
 
 	newRow := func(hostID uint, kind, status string, nextAttemptAt time.Time) string {
 		notificationUUID := uuid.NewString()
@@ -738,6 +757,9 @@ func testPatchNotificationHostPatchDeadlineAt(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID)
 			return err
 		})
+		require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			PolicyID: &policyID, SoftwareTitleID: newTestSoftwareTitle(t, ds, notificationUUID),
+		}))
 		return notificationUUID
 	}
 
@@ -790,4 +812,79 @@ func testPatchNotificationHostPatchDeadlineAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, at)
 	require.WithinDuration(t, installAt, *at, time.Second)
+
+	// a row with no app left to patch has no deadline
+	earlierApps, err := ds.ListPatchNotificationApps(ctx, earlierUUID)
+	require.NoError(t, err)
+	require.Len(t, earlierApps, 1)
+	require.NoError(t, ds.DeletePatchNotificationApps(ctx, earlierUUID, []uint{earlierApps[0].SoftwareTitleID}))
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, installAt.Add(time.Hour), *at, time.Second)
+
+	// nor does one whose app's policy turned Deadline off
+	setPolicyPatchDeadline(t, ds, policyID, false)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+}
+
+func testPatchNotificationPolicyOptionChanged(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "option-host", "", "option-key", "option-uuid", time.Now())
+
+	// A notification only patches an app while the app's policy still uses its patch option. A deleted
+	// policy leaves policy_id null, which a notify notification keeps patching and a deadline one doesn't.
+	cases := []struct {
+		name        string
+		kind        string
+		deadline    bool
+		change      func(policyID uint)
+		wantChanged bool
+	}{
+		{"deadline unchanged", fleet.PatchDeadlineNotificationKind, true, nil, false},
+		{"deadline turned off", fleet.PatchDeadlineNotificationKind, true, func(id uint) { setPolicyPatchDeadline(t, ds, id, false) }, true},
+		{"deadline policy deleted", fleet.PatchDeadlineNotificationKind, true, func(id uint) {
+			_, err := ds.DeleteGlobalPolicies(ctx, []uint{id})
+			require.NoError(t, err)
+		}, true},
+		{"notify unchanged", fleet.PatchNotificationKind, false, nil, false},
+		{"notify turned to deadline", fleet.PatchNotificationKind, false, func(id uint) { setPolicyPatchDeadline(t, ds, id, true) }, true},
+		{"notify policy deleted", fleet.PatchNotificationKind, false, func(id uint) {
+			_, err := ds.DeleteGlobalPolicies(ctx, []uint{id})
+			require.NoError(t, err)
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			titleID := newTestSoftwareTitle(t, ds, c.name)
+			policyID := newPatchDeadlinePolicy(t, ds, c.name, c.deadline)
+			notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 0)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE notifications_end_user SET kind = ? WHERE uuid = ?`, c.kind, notificationUUID)
+				return err
+			})
+			require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID,
+				fleet.PatchNotificationApp{PolicyID: &policyID, SoftwareTitleID: titleID}))
+			if c.change != nil {
+				c.change(policyID)
+			}
+
+			apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
+			require.NoError(t, err)
+			require.Len(t, apps, 1)
+			require.Equal(t, c.wantChanged, apps[0].PolicyOptionChanged)
+
+			byNotification, err := ds.ListPatchNotificationAppsForNotifications(ctx, []string{notificationUUID})
+			require.NoError(t, err)
+			require.Len(t, byNotification[notificationUUID], 1)
+			require.Equal(t, c.wantChanged, byNotification[notificationUUID][0].PolicyOptionChanged)
+
+			// a skip for the app starts a notification of its policy's new kind rather than stopping at this one
+			exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, !c.wantChanged, exists)
+		})
+	}
 }

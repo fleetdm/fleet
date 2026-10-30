@@ -1758,11 +1758,15 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// the next 09:30 whose notice, an hour earlier, is still ahead
 		loc, err := time.LoadLocation(timezone)
 		require.NoError(t, err)
-		local := time.Now().In(loc)
-		deadline := time.Date(local.Year(), local.Month(), local.Day(), 9, 30, 0, 0, loc)
-		if !deadline.Add(-time.Hour).After(local) {
-			deadline = time.Date(local.Year(), local.Month(), local.Day()+1, 9, 30, 0, 0, loc)
+		nextDeadline := func() time.Time {
+			local := time.Now().In(loc)
+			deadline := time.Date(local.Year(), local.Month(), local.Day(), 9, 30, 0, 0, loc)
+			if !deadline.Add(-time.Hour).After(local) {
+				deadline = time.Date(local.Year(), local.Month(), local.Day()+1, 9, 30, 0, 0, loc)
+			}
+			return deadline
 		}
+		deadline := nextDeadline()
 		firstNotice := deadline.Add(-time.Hour)
 
 		var distributedResp submitDistributedQueryResultsResponse
@@ -1771,6 +1775,9 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
 		require.Equal(t, installerID, activatedInstallerID)
 		postSkippedInstall(t, host, executionID)
+		if !deadline.Equal(nextDeadline()) {
+			t.Skip("the run crossed the notice time")
+		}
 
 		// the skip shows the deadline copy and doesn't count as an attempt
 		result, err := s.ds.GetSoftwareInstallResults(ctx, executionID)

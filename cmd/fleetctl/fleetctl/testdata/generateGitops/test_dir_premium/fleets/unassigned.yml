@@ -65,7 +65,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
-  fleet_maintained_app_slug: foo/darwin
+  fleet_maintained_app_slug: fma1/darwin
   hidden: false
   name: Team patch policy
   notify_before_patching: false
@@ -80,7 +80,7 @@ policies:
   continuous_automations_enabled: true
   critical: false
   description: This is a team patch policy that notifies before patching
-  fleet_maintained_app_slug: foo/darwin
+  fleet_maintained_app_slug: fma4/darwin
   hidden: false
   name: My Notify FMA up to date
   notify_before_patching: true
@@ -95,7 +95,7 @@ policies:
   continuous_automations_enabled: true
   critical: false
   description: This is a team patch policy with a patch deadline
-  fleet_maintained_app_slug: foo/darwin
+  fleet_maintained_app_slug: fma5/darwin
   hidden: false
   name: My Deadline FMA up to date
   notify_before_patching: false
