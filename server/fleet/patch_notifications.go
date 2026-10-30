@@ -53,6 +53,9 @@ type PatchNotificationAppDetail struct {
 	HasIcon             bool    `db:"has_icon"`
 	InstallQueued       bool    `db:"install_queued"`
 	UpdatedInInventory  bool    `db:"updated_in_inventory"`
+	// PolicyOptionChanged is true when the app's policy turned Deadline off, was deleted, or turned
+	// Deadline on, so this notification no longer patches the app.
+	PolicyOptionChanged bool `db:"policy_option_changed"`
 	// CreatedAt is when the app was added to the notification
 	CreatedAt time.Time `db:"created_at"`
 }
