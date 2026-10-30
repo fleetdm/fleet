@@ -223,7 +223,6 @@ Packs are removed in Fleet 5. Use reports instead.
 | Fleet 4 | Fleet 5 | Notes | Issue |
 |:--|:--|:--|:--|
 | `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |  | [#53481](https://github.com/fleetdm/fleet/issues/53481) |
-| `created_setup_experience_script` and `deleted_setup_experience_script` | Removed |  | [#53274](https://github.com/fleetdm/fleet/issues/53274) |
 | `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Removed | Fleet 5 keeps existing activities with these types but doesn't create new ones. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
 
 
