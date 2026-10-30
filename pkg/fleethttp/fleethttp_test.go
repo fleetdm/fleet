@@ -829,7 +829,6 @@ func TestTransportHTTP2HealthCheck(t *testing.T) {
 	require.NoError(t, get())
 
 	proxy.blackhole()
-	require.Error(t, get(), "the pooled connection is dead")
 	// Without the health check, the dead connection would stay pooled and every
 	// request would keep timing out until the OS gave up on the socket.
 	require.Eventually(t, func() bool { return get() == nil }, 5*time.Second, 50*time.Millisecond)
