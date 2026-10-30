@@ -27,7 +27,7 @@ fleetctl package --type=rpm --enable-scripts
 Add `--arch=arm64` for arm64 hosts. Upload the package to your artifact host, then record its SHA-256:
 
 ```sh
-shasum -a 256 fleet-osquery_1.61.0_amd64.deb
+shasum -a 256 fleet-linux-amd64.deb
 ```
 
 fleetd updates itself after install, but new hosts start on the version you built. Rebuild the package on a regular schedule so new hosts don't download a large update on first boot.
@@ -53,7 +53,7 @@ runcmd:
   - |
     set -eu
     pkg=/var/tmp/fleetd.deb
-    curl -fsSL --retry 5 --retry-connrefused -o "$pkg" https://packages.example.com/fleet/fleet-osquery_1.61.0_amd64.deb
+    curl -fsSL --retry 5 --retry-connrefused -o "$pkg" https://packages.example.com/fleet/fleet-linux-amd64.deb
     echo "YOUR_PACKAGE_SHA256  $pkg" | sha256sum -c -
     dpkg -i "$pkg"
     rm -f "$pkg"
