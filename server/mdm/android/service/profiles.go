@@ -191,9 +191,9 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		}
 	}
 
-	appListsByHostUUID, err := r.prepareAppLists(ctx, batchSize, selectedAt)
+	appListsByHostUUID, err := r.buildAppListsToSend(ctx, allHostUUIDs, batchSize, selectedAt)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "prepare android app lists")
+		return 0, ctxerr.Wrap(ctx, err, "build android app lists to send")
 	}
 
 	var bulkHostProfs []*fleet.MDMAndroidProfilePayload
@@ -218,7 +218,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 
 	// Send the app lists that are left. The profile sends above removed the
 	// hosts whose app list they sent in the same patch as the profiles.
-	err = r.sendHostApps(ctx, appListsByHostUUID, batchSize, hostCount)
+	err = r.sendHostApps(ctx, appListsByHostUUID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "send android app lists")
 	}

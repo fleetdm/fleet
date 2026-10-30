@@ -488,7 +488,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, []uint{hostB.ID}, state.flaggedSentHostIDs)
 	})
 
-	t.Run("a host whose app was left out for a missing value and then flagged for resend gets the app right away", func(t *testing.T) {
+	t.Run("a host whose app failed for a missing value and then flagged for resend gets the app right away", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
 			installs: []*fleet.HostAndroidSoftwareInstall{
@@ -619,6 +619,20 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Zero(t, state.recordedRetries)
 	})
 
+	t.Run("a host with profile changes gets its app list in its profile patch when the batch has no room for another host", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts:               []*fleet.Host{hostA, hostB},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}},
+			profilesToSend:      []*fleet.MDMAndroidProfilePayload{{HostUUID: "host-b", ProfileUUID: "profile-1", ProfileName: "Profile 1"}},
+		}
+
+		// run the cron with a batch size of 1, host B's profile patch should include its app list and host A, which has no
+		// profile changes, should wait for the next run
+		err := reconcile(1)
+		require.NoError(t, err)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-b", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
+	})
+
 	t.Run("a host whose request failed less than an hour ago gets a new app in scope right away without counting a retry", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
@@ -667,7 +681,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Empty(t, state.upserted)
 	})
 
-	t.Run("an app whose configuration uses a value the host doesn't have is left out and upserted as failed with no policy version", func(t *testing.T) {
+	t.Run("a host with an app whose configuration uses a value the host doesn't have gets no request and the app is upserted as failed", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {
@@ -675,24 +689,18 @@ func TestReconcileAndroidApps(t *testing.T) {
 				{VPPAppID: fleet.VPPAppID{AdamID: "com.example.vital"}, AppTeamID: secondVersionID},
 			}},
 			secondVersionConfig: []byte(`{"managedConfiguration":{"tag":"$FLEET_HOST_VITAL_7"}}`),
-			expandErr:           &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Asset tag"}},
+			expandErr:           &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Host vital 1"}},
 		}
 
-		// run the cron, host A should get the other app upserted as pending in the policy version, and the vital app should
-		// be upserted as failed with no policy version
+		// run the cron, host A should get no request, and only the vital app should be upserted, as failed with no policy
+		// version
 		err := reconcile(0)
 		require.NoError(t, err)
-		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
-		installByAdamID := make(map[string]fleet.HostAndroidSoftwareInstall, len(state.upserted))
-		for _, install := range state.upserted {
-			installByAdamID[install.AdamID] = install
-		}
-		require.Len(t, installByAdamID, 3)
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, installByAdamID["com.fleetdm.agent"].Status)
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, installByAdamID["com.example.one"].Status)
-		require.Equal(t, new(int64(5)), installByAdamID["com.example.one"].InPolicyVersion)
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusFailed, installByAdamID["com.example.vital"].Status)
-		require.Nil(t, installByAdamID["com.example.vital"].InPolicyVersion)
+		require.Empty(t, state.sent)
+		require.Len(t, state.upserted, 1)
+		require.Equal(t, "com.example.vital", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusFailed, state.upserted[0].Status)
+		require.Nil(t, state.upserted[0].InPolicyVersion)
 	})
 
 	t.Run("a full batch sends to the first host that needs a list, skipping a host with no changes, and the next run sends the rest", func(t *testing.T) {

@@ -611,7 +611,7 @@ CREATE TABLE `host_android_software_installs` (
   `host_id` int unsigned NOT NULL,
   `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `vpp_app_team_id` int unsigned DEFAULT NULL,
-  `install_type` enum('AVAILABLE','PREINSTALLED','FORCE_INSTALLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `install_type` enum('INSTALL_TYPE_UNSPECIFIED','PREINSTALLED','FORCE_INSTALLED','BLOCKED','AVAILABLE','REQUIRED_FOR_SETUP','KIOSK','CUSTOM') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','verified','failed','request_failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `needs_resend` tinyint(1) NOT NULL DEFAULT '0',
   `in_policy_version` int DEFAULT NULL,

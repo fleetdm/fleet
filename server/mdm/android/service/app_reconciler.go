@@ -31,8 +31,9 @@ type androidAppList struct {
 	retriesFailedRequest         bool
 }
 
-func (r *profileReconciler) prepareAppLists(
+func (r *profileReconciler) buildAppListsToSend(
 	ctx context.Context,
+	profileHostUUIDs map[string]struct{},
 	batchSize int,
 	policyBuiltAt time.Time,
 ) (map[string]*androidAppList, error) {
@@ -69,11 +70,13 @@ func (r *profileReconciler) prepareAppLists(
 
 	appListsByHostUUID := make(map[string]*androidAppList)
 	var appList *androidAppList
+	var otherHostListCount int
 	for _, host := range hosts {
-		// Prepare at most batchSize lists per run, so a large backlog will be
-		// spread over runs instead of using the shared AMAPI quota at once
-		if batchSize > 0 && len(appListsByHostUUID) >= batchSize {
-			break
+		_, hasProfileChanges := profileHostUUIDs[host.UUID]
+		// Build the lists of hosts with profile changes, which go in their profile patch, and at most batchSize minus
+		// that many other lists, so a large backlog will be spread over runs instead of using the AMAPI quota at once
+		if !hasProfileChanges && batchSize > 0 && len(profileHostUUIDs)+otherHostListCount >= batchSize {
+			continue
 		}
 		appList, err = r.prepareHostAppList(ctx, host, appsInScopeByHostID[host.ID], installsByHostID[host.ID], setupAppsByHostID[host.ID],
 			versionByID, policyBuiltAt)
@@ -81,8 +84,12 @@ func (r *profileReconciler) prepareAppLists(
 			r.Logger.ErrorContext(ctx, "failed to prepare android app list for host", "host_id", host.ID, "err", err)
 			continue
 		}
-		if appList != nil {
-			appListsByHostUUID[host.UUID] = appList
+		if appList == nil {
+			continue
+		}
+		appListsByHostUUID[host.UUID] = appList
+		if !hasProfileChanges {
+			otherHostListCount++
 		}
 	}
 	return appListsByHostUUID, nil
@@ -222,7 +229,6 @@ func (r *profileReconciler) prepareHostAppList(
 	var availableAppIDs []string
 	var preinstalledAppIDs []string
 	var installsToUpsert []fleet.HostAndroidSoftwareInstall
-	var failedInstalls []fleet.HostAndroidSoftwareInstall
 	var substituted []byte
 	for _, app := range appsInList {
 		version := versionByID[app.AppTeamID]
@@ -239,15 +245,15 @@ func (r *profileReconciler) prepareHostAppList(
 				if !profiles.IsUnresolvableAndroidAppConfigForHost(err) {
 					return nil, ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", app.AdamID)
 				}
-				// Filter out an app whose configuration uses a value the host
-				// doesn't have. A change to that value will flag it for resend.
-				r.Logger.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
+				r.Logger.WarnContext(ctx, "not sending android policy to host that can't supply a value referenced by an app config",
 					"host_id", host.ID, "application_id", app.AdamID, "err", err)
+				// Save the changed app as failed, so the next run will only try again once a change to that value flags it
 				if changed {
 					install.Status = fleet.AndroidSoftwareInstallStatusFailed
-					failedInstalls = append(failedInstalls, install)
+					r.appInstallsToUpsert = append(r.appInstallsToUpsert, install)
 				}
-				continue
+				// Don't send the host's policy until it has every value its app configurations use, like for profiles
+				return nil, nil
 			}
 			configsByAppID[app.AdamID] = substituted
 		}
@@ -270,7 +276,6 @@ func (r *profileReconciler) prepareHostAppList(
 		return nil, ctxerr.Wrap(ctx, err, "building preinstalled application policies with config")
 	}
 
-	installsToUpsert = append(installsToUpsert, failedInstalls...)
 	if agentPackage != "" {
 		installsToUpsert = append(installsToUpsert, fleet.HostAndroidSoftwareInstall{HostID: host.ID, AdamID: agentPackage, InstallType: android.AppStatusForceInstalled,
 			Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: policyBuiltAt})
@@ -292,21 +297,12 @@ func (r *profileReconciler) prepareHostAppList(
 	}, nil
 }
 
-func (r *profileReconciler) sendHostApps(
-	ctx context.Context,
-	appListsByHostUUID map[string]*androidAppList,
-	batchSize int,
-	profileHostCount int,
-) error {
+func (r *profileReconciler) sendHostApps(ctx context.Context, appListsByHostUUID map[string]*androidAppList) error {
 	appLists := slices.SortedFunc(maps.Values(appListsByHostUUID), func(a *androidAppList, b *androidAppList) int {
 		return cmp.Compare(a.host.ID, b.host.ID)
 	})
-	for i, appList := range appLists {
+	for _, appList := range appLists {
 		if r.appSendsStoppedByQuota {
-			return nil
-		}
-		// Stop once the run's policy patches reach batchSize, the next run will send the rest
-		if batchSize > 0 && profileHostCount+i >= batchSize {
 			return nil
 		}
 

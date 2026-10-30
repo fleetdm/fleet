@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS host_android_software_installs (
   host_id           INT UNSIGNED NOT NULL,
   adam_id           VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   vpp_app_team_id   INT UNSIGNED DEFAULT NULL,
-  install_type      ENUM('AVAILABLE','PREINSTALLED','FORCE_INSTALLED') COLLATE utf8mb4_unicode_ci NOT NULL,
+  install_type      ENUM('INSTALL_TYPE_UNSPECIFIED','PREINSTALLED','FORCE_INSTALLED','BLOCKED','AVAILABLE','REQUIRED_FOR_SETUP','KIOSK','CUSTOM') COLLATE utf8mb4_unicode_ci NOT NULL,
   status            ENUM('pending','verified','failed','request_failed') COLLATE utf8mb4_unicode_ci NOT NULL,
   needs_resend      TINYINT(1) NOT NULL DEFAULT '0',
   in_policy_version INT DEFAULT NULL,
