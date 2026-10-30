@@ -75,6 +75,7 @@
     gap: @section-gap;
     p {
       max-width: 680px;
+      text-wrap: balance;
     }
     [purpose='button-row'] {
       padding-top: @inner-padding-xs;
@@ -83,439 +84,1978 @@
   [purpose='hero-image'] {
     width: 100%;
     container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+  [purpose='ai-tool-switcher'] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  [purpose='ai-tool-button'] {
+    .btn-reset();
+    display: inline-flex;
+    align-items: center;
+    gap: @inner-padding-xs;
+    padding: 8px 16px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 100px;
+    background-color: @accent-white;
+    font-size: 14px;
+    line-height: 150%;
+    font-weight: 500;
+    color: @core-fleet-black-75;
+    img {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover {
+      color: @core-fleet-black;
+    }
+    &.selected {
+      border-color: @core-fleet-black;
+      color: @core-fleet-black;
+    }
   }
 
-  // Message text is larger than Figma's 14px so it stays legible when the
-  // graphic scales down.
-  @slack-message-text: 16;
-
-  // Slack chat animation, laid out at the Figma frame's size for each layout
-  // (desktop 1072×640, tablet 864×640, mobile 430×590). 1em is one Figma
-  // pixel, so the whole graphic scales through font-size.
-  [purpose='slack-animation'] {
+  // AI tool animations, laid out at the Figma windows' size (940×576) with
+  // 1em as one Figma pixel, so the whole graphic scales through font-size.
+  // Tablet and mobile drop side panes to keep the conversation legible.
+  // Text elements set their own font-size in em, so their children can't use
+  // em lengths for Figma pixels.
+  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'] {
     position: relative;
-    width: 1072em;
-    height: 640em;
+    width: 940em;
+    height: 576em;
     margin: 0 auto;
     // Fallbacks for browsers without container query units (e.g. Safari 14–15):
     // the hero's width from the viewport and .page-container() padding.
-    font-size: ~'calc(min(1072px, 100vw - 128px) / 1072)';
+    font-size: ~'calc(min(940px, 100vw - 128px) / 940)';
     @supports (width: 1cqw) {
-      font-size: ~'calc(min(1072px, 100cqw) / 1072)';
+      font-size: ~'calc(min(940px, 100cqw) / 940)';
     }
     @media (max-width: 991px) {
-      width: 864em;
-      font-size: ~'calc(min(864px, 100vw - 64px) / 864)';
+      width: 752em;
+      font-size: ~'calc(min(752px, 100vw - 64px) / 752)';
       @supports (width: 1cqw) {
-        font-size: ~'calc(min(864px, 100cqw) / 864)';
+        font-size: ~'calc(min(752px, 100cqw) / 752)';
       }
     }
     @media (max-width: 767px) {
-      width: 430em;
-      height: 590em;
-      font-size: ~'calc(min(430px, 100vw - 64px) / 430)';
+      width: 362em;
+      font-size: ~'calc(min(362px, 100vw - 64px) / 362)';
       @supports (width: 1cqw) {
-        font-size: ~'calc(min(430px, 100cqw) / 430)';
+        font-size: ~'calc(min(362px, 100cqw) / 362)';
       }
     }
     @media (max-width: 575px) {
-      font-size: ~'calc(min(430px, 100vw - 48px) / 430)';
+      font-size: ~'calc(min(362px, 100vw - 48px) / 362)';
       @supports (width: 1cqw) {
-        font-size: ~'calc(min(430px, 100cqw) / 430)';
+        font-size: ~'calc(min(362px, 100cqw) / 362)';
       }
     }
     text-align: left;
     -webkit-text-size-adjust: 100%;
-    font-family: 'Lato', sans-serif;
-    color: #1d1c1d;
-    p {
-      font-family: inherit;
-      font-size: unit(@slack-message-text, em);
-      line-height: 1.3;
-      color: #1d1c1d;
-      margin: 0;
-    }
-  }
-  [purpose='slack-window'] {
-    position: absolute;
-    left: 14em;
-    top: 19em;
-    width: 1044em;
-    height: 602em;
-    border-radius: 16em;
-    overflow: hidden;
-    box-shadow: 0 4em 18em rgba(0, 0, 0, 0.15);
-    @media (max-width: 991px) {
-      left: 10em;
-      width: 844em;
-    }
-    @media (max-width: 767px) {
-      left: 14em;
-      width: 402em;
-      height: 552em;
-      border-radius: 40em;
-    }
-  }
-  [purpose='slack-chrome'] {
-    display: block;
-    width: 100%;
-    height: 100%;
+    font-family: 'Inter', sans-serif;
     img {
       display: block;
-      width: 100%;
-      height: 100%;
+      flex-shrink: 0;
+    }
+    p {
+      font-family: inherit;
+      line-height: 1.4;
+      margin: 0;
+    }
+    strong {
+      font-weight: 600;
+      color: inherit;
     }
   }
-  // Chrome labels are HTML so they render in Lato, which an <img> SVG can't load.
-  [purpose='slack-section-label'], [purpose='slack-channel-label'], [purpose='slack-channel-title'], [purpose='slack-thread-title'] {
+  // macOS draws the window controls, so every tool places them the same way:
+  // 14px in from the window's outer edge, inside its 1px border.
+  [purpose='ai-demo-window-controls'] {
     position: absolute;
-    white-space: nowrap;
+    z-index: 1;
+    left: 13em;
+    top: 13em;
+    width: 47em;
+    height: 11em;
+  }
+  [purpose='claude-code-animation'] {
+    color: #191919;
+    p {
+      font-size: 14em;
+      color: #191919;
+    }
+    code {
+      padding: 0;
+      background: none;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 12em;
+      line-height: 1.5;
+      color: #6b6b6b;
+      white-space: nowrap;
+    }
+  }
+  [purpose='claude-code-window'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #fff;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+    @media (max-width: 991px) {
+      width: 752em;
+    }
     @media (max-width: 767px) {
-      display: none;
+      width: 362em;
     }
   }
-  [purpose='slack-section-label'] {
-    left: 102.075em / 12;
-    top: 193.8em / 12;
-    font-size: 12em;
-    line-height: 11 / 12;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  [purpose='slack-channel-label'] {
-    left: 104.3em / 14;
-    top: 211.3em / 14;
-    font-size: 14em;
-    line-height: 32 / 14;
-    color: #4d1e4e;
-  }
-  // The channel pane is only in the desktop layout.
-  [purpose='slack-channel-title'] {
-    left: 307.15em / 16;
-    top: 52.9em / 16;
-    font-size: 16em;
-    font-weight: 900;
-    line-height: 18.85 / 16;
-    @media (max-width: 991px) {
-      display: none;
-    }
-  }
-  [purpose='slack-thread-title'] {
-    left: 563.8em / 18;
-    @media (max-width: 991px) {
-      left: 288.8em / 18;
-    }
-    top: 52.9em / 18;
-    font-size: 18em;
-    font-weight: 900;
-    line-height: 18.85 / 18;
-  }
-  [purpose='slack-messages'] {
-    position: absolute;
-    left: 546em;
-    top: 90.05em;
-    width: 490em;
-    height: 503.95em;
+
+  [purpose='claude-code-sidebar'] {
+    flex-shrink: 0;
+    width: 216em;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 7.25em;
-    overflow: hidden;
+    padding: 6em 9em 9em;
+    border-right: 1em solid #e2e1e1;
+    background-color: #edecec;
     @media (max-width: 991px) {
-      left: 271em;
-      width: 565em;
+      display: none;
+    }
+  }
+  // Starts after the window controls, which every tool pins at 14, 14.
+  [purpose='claude-code-title-bar'] {
+    display: flex;
+    align-items: center;
+    gap: 6em;
+    height: 25em;
+    padding-left: 68em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    > img:first-child {
+      width: 16em;
+      height: 16em;
+    }
+  }
+  [purpose='claude-code-mode-toggle'] {
+    display: flex;
+    margin-left: auto;
+    padding: 2em;
+    border-radius: 7em;
+    background-color: #dcdbdb;
+    span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 23em;
+      height: 21em;
+      border-radius: 5em;
+    }
+    [purpose='claude-code-mode-selected'] {
+      background-color: #fff;
+      box-shadow: 0 1em 2em rgba(0, 0, 0, 0.08);
+    }
+  }
+  [purpose='claude-code-nav'] {
+    display: flex;
+    flex-direction: column;
+    padding-top: 13em;
+  }
+  [purpose='claude-code-nav-item'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    height: 26em;
+    padding: 0 11em;
+    border-radius: 7em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    [purpose='claude-code-placeholder-bar'] {
+      width: 84em;
+    }
+  }
+  [purpose='claude-code-project-header'] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20em 11em 7em;
+    > img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='claude-code-project-name'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    span {
+      font-size: 13em;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    img {
+      width: 9em;
+      height: 9em;
+    }
+  }
+  [purpose='claude-code-sessions'] {
+    display: flex;
+    flex-direction: column;
+  }
+  [purpose='claude-code-session'] {
+    display: flex;
+    align-items: center;
+    gap: 8em;
+    height: 32em;
+    padding: 0 11em;
+    border-radius: 7em;
+    &.selected {
+      background-color: #d5d4d4;
+    }
+    [purpose='claude-code-placeholder-bar'] {
+      flex: 1;
+    }
+  }
+  [purpose='claude-code-session-name'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13em;
+    line-height: 1.4;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  [purpose='claude-code-placeholder-bar'] {
+    height: 9em;
+    border-radius: 3em;
+    background-color: #dcdbdb;
+  }
+  [purpose='claude-code-session-icon'] {
+    width: 13em;
+    height: 13em;
+  }
+  [purpose='claude-code-account'] {
+    display: flex;
+    align-items: center;
+    gap: 8em;
+    margin-top: auto;
+    padding: 11em 7em 2em;
+    border-top: 1em solid #e2e1e1;
+    [purpose='claude-code-placeholder-bar'] {
+      width: 72em;
+      margin-right: auto;
+    }
+    > img {
+      width: 15em;
+      height: 15em;
+    }
+  }
+  [purpose='claude-code-avatar'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22em;
+    height: 22em;
+    overflow: hidden;
+    border-radius: 5em;
+    background-color: #d6d6d6;
+    img {
+      width: 22em;
+      height: 26em;
+      object-fit: cover;
+    }
+  }
+
+  [purpose='claude-code-main'] {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  [purpose='claude-code-header'] {
+    flex-shrink: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 10em;
+    height: 38em;
+    padding: 0 14em 0 22em;
+    > img {
+      width: 16em;
+      height: 16em;
+    }
+    // Without the sidebar, leave room for the window controls.
+    @media (max-width: 991px) {
+      padding-left: 74em;
     }
     @media (max-width: 767px) {
-      left: 0;
-      top: 62em;
-      width: 402em;
-      height: 490em;
+      padding-right: 14em;
+      > img {
+        display: none;
+      }
     }
   }
-  [purpose='slack-question'], [purpose='slack-first-reply'], [purpose='slack-yes'], [purpose='slack-second-reply'] {
-    position: relative;
+  [purpose='claude-code-session-title'] {
     display: flex;
-    align-items: flex-start;
-    gap: 8em;
-    padding: 7.25em 14.5em 12em;
-  }
-  // Beside the avatar, where the message body will appear, centered on the
-  // avatar like Figma's typing row.
-  [purpose='slack-typing'] {
-    position: absolute;
-    left: 58.5em / @slack-message-text;
-    top: (28.25em - @slack-message-text * 0.65em) / @slack-message-text;
-    white-space: nowrap;
-    strong {
-      font-weight: 700;
+    align-items: center;
+    gap: 6em;
+    min-width: 0;
+    margin-right: auto;
+    span {
+      overflow: hidden;
+      font-size: 14em;
+      line-height: 1.4;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    img {
+      width: 14em;
+      height: 14em;
     }
   }
-  [purpose='slack-avatar'] {
-    display: block;
+  [purpose='claude-code-panel-toggle'] {
     flex-shrink: 0;
-    width: 36em;
-    height: 36em;
-    margin-top: 3em;
-    border-radius: 6em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24em;
+    height: 24em;
+    img {
+      width: 15em;
+      height: 15em;
+    }
   }
-  [purpose='slack-message-body'] {
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='claude-code-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+    padding-top: 11em;
+    @media (max-width: 767px) {
+      padding: 11em 14em 0;
+    }
+  }
+  [purpose='claude-code-thread'] {
+    width: 540em;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14em;
+    @media (max-width: 767px) {
+      width: auto;
+    }
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='claude-code-user-message'] {
+    align-self: flex-end;
+    max-width: 388em;
+    padding: 9em 14em;
+    border-radius: 13em;
+    background-color: #f3f3f3;
+    @media (max-width: 767px) {
+      max-width: 270em;
+    }
+  }
+  [purpose='claude-code-tool-calls'] {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5em;
+  }
+  [purpose='claude-code-tool-row'] {
+    display: flex;
+    align-items: center;
+    gap: 9em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    @media (max-width: 767px) {
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+  }
+  [purpose='claude-code-tool-label'], [purpose='claude-code-tool-meta'], [purpose='claude-code-tool-added'] {
+    font-size: 13em;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  [purpose='claude-code-tool-label'] {
+    color: #3a3a3a;
+  }
+  [purpose='claude-code-tool-meta'] {
+    color: #6b6b6b;
+  }
+  [purpose='claude-code-tool-added'] {
+    color: #2e7d46;
+  }
+  [purpose='claude-code-table-header'], [purpose='claude-code-table-row'] {
+    display: flex;
+    padding: 6em 0;
+    span {
+      flex: 1 1 0;
+      min-width: 0;
+      font-size: 12em;
+      line-height: 1.5;
+    }
+  }
+  [purpose='claude-code-table-header'] {
+    font-weight: 600;
+  }
+  [purpose='claude-code-table-row'] {
+    border-bottom: 1em solid #efefef;
+    font-family: 'Roboto Mono', monospace;
+  }
+  [purpose='claude-code-pull-request'] {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 9em;
+    padding: 9em 13em;
+    border: 1em solid #e7e7e7;
+    border-radius: 9em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    div {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+  [purpose='claude-code-pull-request-title'], [purpose='claude-code-pull-request-branch'] {
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  [purpose='claude-code-pull-request-title'] {
+    font-size: 13em;
+    font-weight: 600;
+  }
+  [purpose='claude-code-pull-request-branch'] {
+    font-size: 12em;
+    color: #6b6b6b;
+  }
+  [purpose='claude-code-link'] {
+    color: #2c6bc9;
+    text-decoration: underline;
+  }
+  [purpose='claude-code-composer'] {
+    flex-shrink: 0;
+    width: 540em;
+    display: flex;
+    flex-direction: column;
+    gap: 7em;
+    padding: 11em 0 13em;
+    @media (max-width: 767px) {
+      align-self: stretch;
+      width: auto;
+      padding: 11em 11em 13em;
+    }
+  }
+  [purpose='claude-code-input'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    padding: 11em 14em;
+    border: 1em solid #e7e7e7;
+    border-radius: 14em;
+    img {
+      width: 16em;
+      height: 16em;
+    }
+  }
+  [purpose='claude-code-input-text'], [purpose='claude-code-placeholder'] {
+    flex: 1;
+    min-width: 0;
+    font-size: 14em;
+    line-height: 1.4;
+  }
+  [purpose='claude-code-placeholder'] {
+    color: #8b8b8b;
+  }
+  [purpose='claude-code-session-settings'] {
+    display: flex;
+    align-items: center;
+    gap: 16em;
+    padding: 0 5em;
+    > span {
+      font-size: 13em;
+      line-height: 1.4;
+      color: #2f2f2f;
+    }
+    img {
+      width: 13em;
+      height: 13em;
+    }
+  }
+  [purpose='claude-code-animation'] [purpose='claude-code-permission-mode'] {
+    margin-right: auto;
+    color: #1e1e1e;
+  }
+  [purpose='claude-code-effort'] {
+    color: #6b6b6b;
+  }
+
+  [purpose='cursor-animation'] {
+    color: #1b1b1b;
+    p {
+      font-size: 13em;
+      line-height: 1.5;
+      color: #1b1b1b;
+    }
+  }
+  [purpose='cursor-window'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #f5f5f5;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+    @media (max-width: 991px) {
+      width: 752em;
+    }
+    @media (max-width: 767px) {
+      width: 362em;
+    }
+  }
+  [purpose='cursor-placeholder-bar'] {
+    display: block;
+    width: 83em;
+    height: 7em;
+    border-radius: 3em;
+    background-color: #dcdcdb;
+  }
+
+  [purpose='cursor-sidebar'] {
+    flex-shrink: 0;
+    width: 216em;
+    display: flex;
+    flex-direction: column;
+    gap: 2em;
+    padding: 12em 7em 11em;
+    border-right: 1em solid #dbdbdb;
+    background-color: #ececeb;
+    img {
+      width: 13em;
+      height: 13em;
+    }
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+  // Starts after the window controls, which every tool pins at 14, 14.
+  [purpose='cursor-window-controls'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    height: 14em;
+    margin-bottom: 13em;
+    padding: 0 5em 0 63em;
+  }
+  // Overrides the sidebar's 13em icon size.
+  [purpose='cursor-sidebar'] [purpose='cursor-window-controls'] img {
+    width: 14em;
+    height: 14em;
+  }
+  [purpose='cursor-back'] {
+    margin-left: auto;
+  }
+  [purpose='cursor-sidebar-item'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    height: 27em;
+    padding: 0 7em;
+    border-radius: 5em;
+    &.selected {
+      background-color: #dbdbdb;
+    }
+  }
+  [purpose='cursor-sidebar-label'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    padding: 14em 7em 4em;
+    span {
+      margin-right: auto;
+      font-size: 11em;
+      line-height: 1.5;
+      color: #6e6e6e;
+    }
+  }
+  [purpose='cursor-repo-name'], [purpose='cursor-session-name'] {
+    font-size: 12em;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  [purpose='cursor-repo-name'] {
+    color: #535353;
+  }
+  [purpose='cursor-session-name'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  [purpose='cursor-account'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    margin-top: auto;
+    padding: 0 7em;
+    [purpose='cursor-placeholder-bar'] {
+      width: 76em;
+    }
+  }
+  [purpose='cursor-avatar'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22em;
+    height: 22em;
+    overflow: hidden;
+    border-radius: 11em;
+    background-color: #d9d6cf;
+  }
+  // Overrides the sidebar's 13em icon size.
+  [purpose='cursor-sidebar'] [purpose='cursor-avatar'] img {
+    flex-shrink: 0;
+    width: 22em;
+    height: 26em;
+  }
+  // Overrides the sidebar's 13em icon size.
+  [purpose='cursor-sidebar'] [purpose='cursor-settings'] {
+    width: 14em;
+    height: 14em;
+    margin-left: auto;
+  }
+
+  [purpose='cursor-content'] {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2em;
-    padding-right: 14.5em;
   }
-  [purpose='slack-sender'] {
+  [purpose='cursor-header'] {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 4em / @slack-message-text;
-    font-size: unit(@slack-message-text, em);
-    font-weight: 900;
-    line-height: 15.95 / @slack-message-text;
-  }
-  [purpose='slack-app-badge'] {
-    padding: 2em / 12;
-    border-radius: 3em / 12;
-    background-color: #f2f2f2;
-    font-size: 12em / @slack-message-text;
-    font-weight: 700;
-    line-height: 11.6 / 12;
-    color: #454447;
-  }
-  // Overlaps the two spaces after it, like Figma's mention overlay.
-  [purpose='slack-mention'] {
-    margin-left: -2.9em / @slack-message-text;
-    margin-right: -2.9em / @slack-message-text;
-    padding: (1.45em / @slack-message-text) (2.9em / @slack-message-text);
-    border-radius: 1.45em / @slack-message-text;
-    background-color: #e7eff6;
-    color: #1264a3;
-  }
-  [purpose='slack-link'] {
-    color: #1264a3;
-    text-decoration: underline;
-  }
-  [purpose='slack-reactions'] {
-    display: flex;
-    align-items: center;
-    gap: 3.812em;
-    margin-top: 2em;
-  }
-  [purpose='slack-status-reaction'] {
-    position: relative;
-    width: 35.87em;
-    height: 22.87em;
-  }
-  [purpose='slack-pending'], [purpose='slack-done'], [purpose='slack-add-reaction'] {
-    display: flex;
-    align-items: center;
-    border-radius: 95.29em;
-    background-color: #f8f8f8;
-  }
-  [purpose='slack-pending'], [purpose='slack-done'] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    gap: 5.717em / 11.435;
-    padding: 0 5.717em / 11.435;
-    font-size: 11.435em;
-    line-height: 15.246 / 11.435;
-    white-space: nowrap;
-  }
-  [purpose='slack-add-reaction'] {
-    height: 22.87em;
-    padding: 0 9.529em;
+    gap: 11em;
+    height: 36em;
+    padding: 0 13em 0 9em;
+    // Without the sidebar, leave room for the window controls.
+    @media (max-width: 991px) {
+      padding-left: 74em;
+    }
     img {
-      display: block;
-      width: 14.77em;
-      height: 15.246em;
+      width: 14em;
+      height: 14em;
+    }
+    [purpose='cursor-ellipsis'] {
+      width: 14em;
+      height: 14em;
+      margin-left: auto;
     }
   }
-  [purpose='slack-reply-text'] {
-    position: relative;
-    width: 100%;
-  }
-  [purpose='slack-thinking'] {
-    position: absolute;
-    top: 0;
-    left: 0;
+  [purpose='cursor-tab'] {
+    min-width: 0;
+    overflow: hidden;
     white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: (3em / 12) (7em / 12);
+    border-radius: (5em / 12);
+    background-color: #e9e9e9;
+    font-size: 12em;
+    line-height: 1.5;
   }
-  [purpose='slack-answer'] {
+  [purpose='cursor-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  [purpose='cursor-main'] {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4em;
+    align-items: center;
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='cursor-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+    padding-top: 5em;
+    @media (max-width: 767px) {
+      padding: 5em 14em 0;
+    }
+  }
+  [purpose='cursor-thread'] {
+    width: 540em;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 13em;
+    @media (max-width: 767px) {
+      width: auto;
+    }
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='cursor-card'], [purpose='cursor-file-card'] {
+    display: flex;
+    align-items: center;
+    border: 1em solid #e4e4e4;
+    border-radius: 9em;
+    background-color: #fcfcfc;
+  }
+  [purpose='cursor-card'] {
+    gap: 9em;
+    padding: 8em 9em 8em 11em;
+    box-shadow: 0 1em 3em rgba(0, 0, 0, 0.05);
+    p {
+      flex: 1;
+      min-width: 0;
+    }
+    img {
+      flex-shrink: 0;
+      width: 13em;
+      height: 13em;
+    }
+  }
+  [purpose='cursor-steps'] {
+    display: flex;
+    flex-direction: column;
+    gap: 5em;
+  }
+  [purpose='cursor-animation'] [purpose='cursor-step'] {
+    font-size: 12em;
+    white-space: nowrap;
+    color: #9f9f9f;
+    span {
+      color: #6e6e6e;
+    }
+  }
+  [purpose='cursor-table-header'], [purpose='cursor-table-row'] {
+    display: flex;
+    align-items: center;
+    padding: 6em 9em;
+    > span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+    > span:nth-child(1) {
+      flex-shrink: 0;
+      width: (162em / 12);
+      @media (max-width: 767px) {
+        width: (112em / 12);
+      }
+    }
+    > span:nth-child(2) {
+      flex-shrink: 0;
+      width: (99em / 12);
+      @media (max-width: 767px) {
+        width: (50em / 12);
+      }
+    }
+    > span:nth-child(3) {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  [purpose='cursor-table-header'] {
+    border-bottom: 1em solid #dadada;
+    color: #535353;
+  }
+  [purpose='cursor-table-row'] {
+    border-bottom: 1em solid #e8e8e8;
+    &:last-child {
+      border-bottom: none;
+    }
+    code {
+      padding: (1em / 11) (5em / 11);
+      border-radius: (4em / 11);
+      background-color: #e4e4e4;
+      font-family: 'Roboto Mono', monospace;
+      font-size: (11em / 12);
+      line-height: 1.5;
+      color: #1b1b1b;
+    }
+  }
+  [purpose='cursor-file-card'] {
+    gap: 7em;
+    padding: 8em 11em;
+    border-color: #e0e0e0;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+  }
+  [purpose='cursor-file-path'] {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  [purpose='cursor-added'] {
+    color: #2f8163;
+  }
+  [purpose='cursor-removed'] {
+    color: #9c475d;
+  }
+  [purpose='cursor-link'] {
+    color: #4c85c1;
+  }
+  [purpose='cursor-feedback'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    img {
+      width: 12em;
+      height: 12em;
+    }
+    span {
+      font-size: 11em;
+      line-height: 1.5;
+      color: #9f9f9f;
+    }
+  }
+  [purpose='cursor-composer'] {
+    flex-shrink: 0;
+    width: 540em;
+    display: flex;
+    flex-direction: column;
+    gap: 5em;
+    padding: 7em 0 9em;
+    @media (max-width: 767px) {
+      align-self: stretch;
+      width: auto;
+      padding: 7em 11em 9em;
+    }
+  }
+  [purpose='cursor-input'] {
+    display: flex;
+    align-items: center;
+    gap: 9em;
+    padding: 5em 5em 5em 7em;
+    border: 1em solid #e1e1e1;
+    border-radius: 18em;
+    background-color: #fcfcfc;
+    > img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='cursor-add'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22em;
+    height: 22em;
+    border: 1em solid #e1e1e1;
+    border-radius: 11em;
+    img {
+      width: 13em;
+      height: 13em;
+    }
+  }
+  [purpose='cursor-input-text'], [purpose='cursor-placeholder'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 13em;
+    line-height: 1.5;
+  }
+  [purpose='cursor-placeholder'] {
+    color: #757575;
+  }
+  [purpose='cursor-model'] {
+    flex-shrink: 0;
+    font-size: 11em;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: #555;
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='cursor-send'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25em;
+    height: 25em;
+    border-radius: 13em;
+    background-color: #1b1b1b;
+    img {
+      width: 13em;
+      height: 13em;
+    }
+  }
+  [purpose='cursor-environment'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    padding: 0 11em 0 9em;
+    img {
+      width: 11em;
+      height: 11em;
+    }
+    img:first-child {
+      width: 12em;
+      height: 12em;
+    }
+    span {
+      font-size: 11em;
+      line-height: 1.5;
+      color: #535353;
+    }
+    [purpose='cursor-context'] {
+      margin-left: auto;
+    }
   }
 
-  // Without animation (prefers-reduced-motion) this is the fourth frame: the
-  // question, marked done, and Fleet's first answer.
-  [purpose='slack-typing'], [purpose='slack-pending'], [purpose='slack-thinking'], [purpose='slack-yes'], [purpose='slack-second-reply'] {
-    opacity: 0;
+  [purpose='copilot-animation'] {
+    color: #1f2328;
+    p {
+      font-size: 13em;
+      line-height: 1.5;
+      color: #1f2328;
+    }
+    code {
+      padding: 0;
+      background: none;
+      font-family: 'Roboto Mono', monospace;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+  }
+  [purpose='copilot-window'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #fff;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+    @media (max-width: 991px) {
+      width: 752em;
+    }
+    @media (max-width: 767px) {
+      width: 362em;
+    }
+  }
+
+  [purpose='copilot-sidebar'] {
+    flex-shrink: 0;
+    width: 216em;
+    display: flex;
+    flex-direction: column;
+    gap: 2em;
+    padding: 12em 7em 11em;
+    border-right: 1em solid #d1d9e0;
+    background-color: #f6f8fa;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+  // Starts after the window controls, which every tool pins at 14, 14.
+  [purpose='copilot-title-bar'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    height: 14em;
+    margin-bottom: 13em;
+    padding: 0 7em 0 65em;
+  }
+  [purpose='copilot-back'] {
+    margin-left: auto;
+  }
+  [purpose='copilot-nav-item'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    height: 29em;
+    padding: 0 7em;
+    border-radius: 5em;
+    &.nested {
+      padding-left: 29em;
+    }
+    &.selected {
+      background-color: #e6eaef;
+    }
+  }
+  [purpose='copilot-placeholder-bar'] {
+    width: 108em;
+    height: 7em;
+    border-radius: 3em;
+    background-color: #e1e6eb;
+    &.short {
+      width: 86em;
+    }
+    &.medium {
+      width: 97em;
+    }
+    &.long {
+      width: 119em;
+    }
+  }
+  [purpose='copilot-repo-name'], [purpose='copilot-session-name'] {
+    font-size: 11em;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  [purpose='copilot-session-name'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  [purpose='copilot-sessions-header'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    padding: 14em 7em 4em;
+    span {
+      margin-right: auto;
+      font-size: 11em;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #59636e;
+    }
+  }
+  [purpose='copilot-account'] {
+    display: flex;
+    margin-top: auto;
+    padding: 11em 7em 0;
+    border-top: 1em solid #d1d9e0;
+  }
+  [purpose='copilot-avatar'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22em;
+    height: 22em;
+    overflow: hidden;
+    border-radius: 11em;
+    background-color: #d9d6cf;
+  }
+  // Overrides the sidebar's 14em icon size.
+  [purpose='copilot-sidebar'] [purpose='copilot-avatar'] img {
+    width: 22em;
+    height: 26em;
+    object-fit: cover;
+  }
+
+  [purpose='copilot-main'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  [purpose='copilot-header'] {
+    flex-shrink: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    height: 38em;
+    padding: 0 18em;
+    // Without the sidebar, leave room for the window controls.
+    @media (max-width: 991px) {
+      padding-left: 74em;
+    }
+    @media (max-width: 767px) {
+      padding-right: 14em;
+    }
+  }
+  [purpose='copilot-session-title'] {
+    font-size: 13em;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    margin-right: (4em / 13);
+  }
+  [purpose='copilot-run-button'] {
+    display: flex;
+    margin-left: auto;
+    overflow: hidden;
+    border: 1em solid #d1d9e0;
+    border-radius: 5em;
+    background-color: #f6f8fa;
+    span {
+      display: flex;
+      padding: 5em 6em;
+    }
+    span:first-child {
+      border-right: 1em solid #d1d9e0;
+    }
+    img {
+      width: 13em;
+      height: 13em;
+    }
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='copilot-panel-icon'] {
+    width: 16em;
+    height: 16em;
+    @media (max-width: 767px) {
+      margin-left: auto;
+    }
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='copilot-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+    padding: 18em 0 0;
+    @media (max-width: 767px) {
+      padding: 18em 14em 0;
+    }
+  }
+  [purpose='copilot-thread'] {
+    width: 540em;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 13em;
+    @media (max-width: 767px) {
+      width: auto;
+    }
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='copilot-bubble'] {
+    align-self: flex-end;
+    max-width: 423em;
+    padding: 7em 11em;
+    border: 1em solid #e1e6eb;
+    border-radius: 11em;
+    background-color: #f6f8fa;
+    @media (max-width: 767px) {
+      max-width: 270em;
+    }
+  }
+  [purpose='copilot-activity-group'] {
+    display: flex;
+    flex-direction: column;
+    gap: 7em;
+  }
+  [purpose='copilot-activity'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+    code {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: (1em / 11) (5em / 11);
+      border-radius: (5em / 11);
+      background-color: #eff2f5;
+      font-size: 11em;
+      color: #1f2328;
+    }
+  }
+  [purpose='copilot-activity-meta'] {
+    color: #59636e;
+  }
+  [purpose='copilot-added'] {
+    color: #1a7f37;
+  }
+  [purpose='copilot-removed'] {
+    color: #d1242f;
+  }
+  [purpose='copilot-table'] {
+    align-self: flex-start;
+    border: 1em solid #d1d9e0;
+  }
+  [purpose='copilot-table-header'], [purpose='copilot-table-row'] {
+    display: flex;
+    span {
+      padding: (6em / 11) (11em / 11);
+      font-size: 11em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+    span:nth-child(1) {
+      width: (119em / 11);
+    }
+    span:nth-child(2) {
+      width: (68em / 11);
+    }
+    span:nth-child(3) {
+      width: (140em / 11);
+    }
+    span:not(:last-child) {
+      border-right: (1em / 11) solid #d1d9e0;
+    }
+  }
+  [purpose='copilot-table-header'] {
+    background-color: #f6f8fa;
+    font-weight: 600;
+    span {
+      padding: (6em / 12) (11em / 12);
+      font-size: 12em;
+    }
+    span:nth-child(1) {
+      width: (119em / 12);
+    }
+    span:nth-child(2) {
+      width: (68em / 12);
+    }
+    span:nth-child(3) {
+      width: (140em / 12);
+    }
+    span:not(:last-child) {
+      border-right: (1em / 12) solid #d1d9e0;
+    }
+  }
+  [purpose='copilot-table-row'] {
+    border-top: 1em solid #d1d9e0;
+  }
+  [purpose='copilot-pull-request'] {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 2em;
+    padding: 7em 11em;
+    border: 1em solid #d1d9e0;
+    border-radius: 7em;
+  }
+  [purpose='copilot-pull-request-title'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    span {
+      font-size: 12em;
+      line-height: 1.5;
+    }
+    span:first-of-type {
+      font-weight: 600;
+    }
+  }
+  [purpose='copilot-pull-request-branches'] {
+    padding-left: (20em / 11);
+    font-size: 11em;
+    line-height: 1.5;
+    color: #59636e;
+  }
+  [purpose='copilot-link'] {
+    color: #0969da;
+  }
+  [purpose='copilot-composer'] {
+    flex-shrink: 0;
+    width: 540em;
+    padding: 11em 0 13em;
+    @media (max-width: 767px) {
+      align-self: stretch;
+      width: auto;
+      padding: 11em 11em 13em;
+    }
+  }
+  [purpose='copilot-input'] {
+    display: flex;
+    flex-direction: column;
+    gap: 9em;
+    padding: 11em 11em 7em;
+    border: 1em solid #d1d9e0;
+    border-radius: 11em;
+    background-color: #fff;
+    box-shadow: 0 1em 3em rgba(31, 36, 41, 0.06);
+  }
+  [purpose='copilot-input-text'], [purpose='copilot-placeholder'] {
+    font-size: 13em;
+    line-height: 1.5;
+  }
+  [purpose='copilot-placeholder'] {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #59636e;
+  }
+  [purpose='copilot-controls'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    > img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='copilot-picker'] {
+    font-size: 11em;
+    line-height: 1.5;
+    color: #59636e;
+    white-space: nowrap;
+  }
+  [purpose='copilot-send'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25em;
+    height: 25em;
+    margin-left: auto;
+    border-radius: 13em;
+    background-color: #eff2f5;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+
+  [purpose='codex-animation'] {
+    color: #0d0d0d;
+    p {
+      font-size: 13em;
+      line-height: 1.5;
+      color: #0d0d0d;
+    }
+    code {
+      padding: 0;
+      background: none;
+      font-family: 'Roboto Mono', monospace;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+  }
+  [purpose='codex-window'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #f2f2f1;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+    @media (max-width: 991px) {
+      width: 752em;
+    }
+    @media (max-width: 767px) {
+      width: 362em;
+    }
+  }
+  [purpose='codex-title-bar'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 36em;
+  }
+  [purpose='codex-window-controls'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 14em;
+    width: 216em;
+    // Starts after the window controls, which every tool pins at 14, 14.
+    padding-left: 74em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    @media (max-width: 991px) {
+      width: auto;
+      padding-right: 5em;
+    }
+  }
+  [purpose='codex-window-title'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding-left: (9em / 12);
+    font-size: 12em;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #242527;
+  }
+  [purpose='codex-window-actions'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 13em;
+    padding: 0 13em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    [purpose='codex-ellipsis'] {
+      width: 14em;
+      height: 14em;
+    }
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='codex-divider'] {
+    width: 1em;
+    height: 13em;
+    background-color: #dcdcdb;
+  }
+  [purpose='codex-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+
+  [purpose='codex-rail'] {
+    flex-shrink: 0;
+    width: 40em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5em;
+    padding: 2em 0 11em;
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+  [purpose='codex-rail-item'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25em;
+    height: 25em;
+    border-radius: 6em;
+    &.selected {
+      background-color: #e7e7e6;
+    }
+    img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='codex-rail-divider'] {
+    width: 14em;
+    height: 1em;
+    margin: 5em 0;
+    background-color: #dcdcdb;
+  }
+  [purpose='codex-avatar'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: (20em / 7);
+    height: (20em / 7);
+    margin-top: auto;
+    border-radius: (10em / 7);
+    background-color: #9a6eb7;
+    font-size: 7em;
+    font-weight: 600;
+    color: #fff;
+  }
+  // The sidebar and chat sit on an inset panel, like the real app.
+  [purpose='codex-panel'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    overflow: hidden;
+    border-top: 1em solid #e6e6e5;
+    border-left: 1em solid #e6e6e5;
+    border-top-left-radius: 9em;
+    background-color: #fff;
+    @media (max-width: 991px) {
+      border-left: none;
+      border-top-left-radius: 0;
+    }
+  }
+  [purpose='codex-sidebar'] {
+    flex-shrink: 0;
+    width: 176em;
+    display: flex;
+    flex-direction: column;
+    gap: 2em;
+    padding: 9em 7em 11em;
+    border-right: 1em solid #efefee;
+    background-color: #fbfbfa;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+  [purpose='codex-sidebar-header'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    padding: 0 7em 9em;
+  }
+  [purpose='codex-sidebar-title'] {
+    display: flex;
+    align-items: center;
+    gap: 4em;
+    margin-right: auto;
+    span {
+      font-size: 14em;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #404244;
+    }
+  }
+  // Overrides the sidebar's 14em icon size.
+  [purpose='codex-sidebar'] [purpose='codex-sidebar-title'] img {
+    width: 13em;
+    height: 13em;
+  }
+  [purpose='codex-sidebar-item'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    height: 29em;
+    padding: 0 7em;
+    border-radius: 7em;
+    &.selected {
+      background-color: #efefee;
+    }
+    > span:not([purpose]) {
+      font-size: 12em;
+      line-height: 1.5;
+      color: #4c4c4f;
+    }
+  }
+  [purpose='codex-session-name'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12em;
+    line-height: 1.5;
+    color: #242527;
+  }
+  [purpose='codex-sidebar-label'] {
+    display: block;
+    padding: (13em / 11) (7em / 11) (4em / 11);
+    font-size: 11em;
+    line-height: 1.5;
+    color: #959797;
+  }
+  [purpose='codex-placeholder-bar'] {
+    height: 7em;
+    border-radius: 3em;
+    background-color: #ebebea;
+  }
+
+  [purpose='codex-main'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='codex-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+    padding: 22em 0 0;
+    @media (max-width: 767px) {
+      padding: 22em 14em 0;
+    }
+  }
+  [purpose='codex-thread'] {
+    width: 540em;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14em;
+    @media (max-width: 767px) {
+      width: auto;
+    }
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='codex-bubble'] {
+    align-self: flex-end;
+    max-width: 425em;
+    padding: 9em 14em;
+    border-radius: 16em;
+    background-color: #e9f2fd;
+    @media (max-width: 767px) {
+      max-width: 270em;
+    }
+    p {
+      color: #203450;
+    }
+  }
+  [purpose='codex-work'] {
+    display: flex;
+    flex-direction: column;
+    gap: 5em;
+  }
+  [purpose='codex-worked-for'] {
+    display: flex;
+    align-items: center;
+    gap: 4em;
+    span {
+      font-size: 13em;
+      line-height: 1.5;
+      color: #8f8f8f;
+    }
+    img {
+      width: 13em;
+      height: 13em;
+    }
+  }
+  [purpose='codex-animation'] [purpose='codex-call'] {
+    font-size: 12em;
+    color: #8f8f8f;
+    code {
+      font-size: (11em / 12);
+      color: #5d5d5d;
+    }
+  }
+  [purpose='codex-table-header'], [purpose='codex-table-row'] {
+    display: flex;
+    align-items: center;
+    gap: 11em;
+    border-bottom: 1em solid #f3f3f3;
+    > span {
+      flex: 1 1 0;
+      min-width: 0;
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+    @media (max-width: 767px) {
+      gap: 9em;
+      > span:nth-child(1) {
+        flex: 0 0 (95em / 12);
+      }
+      > span:nth-child(2) {
+        flex: 0 0 (40em / 12);
+      }
+    }
+  }
+  [purpose='codex-table-header'] {
+    padding: 5em 0;
+    border-bottom-color: #ececec;
+    font-weight: 600;
+    color: #292b2d;
+  }
+  [purpose='codex-table-row'] {
+    padding: 9em 0;
+    color: #292b2c;
+    &:last-child {
+      border-bottom: none;
+    }
+    code {
+      padding: (1em / 11) (5em / 11);
+      border-radius: (4em / 11);
+      background-color: #eaeaea;
+      font-size: (11em / 12);
+      color: #414344;
+    }
+  }
+  [purpose='codex-edited-files'] {
+    display: flex;
+    flex-direction: column;
+    gap: 9em;
+    padding: 13em 14em;
+    border: 1em solid #e5e5e5;
+    border-radius: 14em;
+    background-color: #fff;
+    box-shadow: 0 2em 7em rgba(0, 0, 0, 0.05);
+  }
+  [purpose='codex-edited-summary'] {
+    display: flex;
+    align-items: center;
+    gap: 9em;
+    > div {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+  [purpose='codex-edited-icon'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 27em;
+    height: 27em;
+    border-radius: 7em;
+    background-color: #f4f4f4;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='codex-edited-title'] {
+    font-size: 13em;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  [purpose='codex-edited-stats'] {
+    font-size: 12em;
+    line-height: 1.5;
+  }
+  [purpose='codex-review-button'] {
+    margin-left: auto;
+    padding: (5em / 12) (13em / 12);
+    border: (1em / 12) solid #e5e5e5;
+    border-radius: 999px;
+    font-size: 12em;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  [purpose='codex-edited-file'] {
+    display: flex;
+    justify-content: space-between;
+    gap: 7em;
+    > span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+  }
+  [purpose='codex-path'] {
+    color: #8f8f8f;
+  }
+  [purpose='codex-added'] {
+    color: #1a9a4b;
+  }
+  [purpose='codex-removed'] {
+    color: #d93838;
+  }
+  [purpose='codex-pull-request'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    img {
+      width: 13em;
+      height: 13em;
+    }
+    span {
+      font-size: 12em;
+      line-height: 1.5;
+      color: #5d5d5d;
+    }
+    code {
+      padding: (1em / 11) (5em / 11);
+      border-radius: (5em / 11);
+      background-color: #f4f4f4;
+      font-size: 11em;
+      color: #5d5d5d;
+    }
+  }
+  [purpose='codex-link'] {
+    color: #0169cc;
+  }
+  [purpose='codex-composer'] {
+    flex-shrink: 0;
+    width: 540em;
+    margin: 7em 0 14em;
+    @media (max-width: 767px) {
+      align-self: stretch;
+      width: auto;
+      margin: 7em 11em 13em;
+    }
+  }
+  [purpose='codex-input'] {
+    display: flex;
+    flex-direction: column;
+    gap: 13em;
+    padding: 11em 13em 9em;
+    border: 1em solid #ececec;
+    border-radius: 18em;
+    background-color: #fff;
+    box-shadow: 0 4em 18em rgba(0, 0, 0, 0.06);
+  }
+  [purpose='codex-input-text'], [purpose='codex-placeholder'] {
+    font-size: 13em;
+    line-height: 1.5;
+  }
+  [purpose='codex-placeholder'] {
+    color: #b4b5b6;
+  }
+  [purpose='codex-controls'] {
+    display: flex;
+    align-items: center;
+    gap: 13em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    [purpose='codex-plus'] {
+      width: 15em;
+      height: 15em;
+    }
+  }
+  [purpose='codex-approval'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    margin-right: auto;
+    span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+      color: #9b9c9d;
+    }
+  }
+  // Overrides the controls' 14em icon size.
+  [purpose='codex-controls'] [purpose='codex-approval'] img {
+    width: 13em;
+    height: 13em;
+  }
+  [purpose='codex-model'] {
+    display: flex;
+    align-items: center;
+    gap: 4em;
+    > span {
+      font-size: 12em;
+      line-height: 1.5;
+      white-space: nowrap;
+      color: #37383b;
+      span {
+        color: #949595;
+      }
+    }
+  }
+  // Overrides the controls' 14em icon size.
+  [purpose='codex-controls'] [purpose='codex-model'] img {
+    width: 11em;
+    height: 11em;
+  }
+  [purpose='codex-send'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25em;
+    height: 25em;
+    border-radius: 13em;
+    background-color: #a1c1f7;
+  }
+
+  // The page script reveals one message at a time and moves the thread up to
+  // keep the newest one in view. With reduced motion it shows the whole
+  // conversation instead, and the pane scrolls normally.
+  [purpose='claude-code-animation'].reduced-motion [purpose='claude-code-conversation'], [purpose='cursor-animation'].reduced-motion [purpose='cursor-conversation'], [purpose='copilot-animation'].reduced-motion [purpose='copilot-conversation'], [purpose='codex-animation'].reduced-motion [purpose='codex-conversation'] {
+    overflow-y: auto;
+    padding-bottom: 14em;
+  }
+  [purpose='ai-demo-caret'] {
+    display: inline-block;
+    width: 1px;
+    height: 1.2em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background-color: #1f1e1d;
   }
   @media (prefers-reduced-motion: no-preference) {
-    [purpose='slack-question'] {
-      animation: slack-question 17.5s ease-out infinite;
-      [purpose='slack-typing'] {
-        animation: slack-question-typing 17.5s linear infinite;
-      }
-      [purpose='slack-message-body'] {
-        animation: slack-question-body 17.5s linear infinite;
-      }
-      [purpose='slack-pending'] {
-        animation: slack-question-pending 17.5s linear infinite;
-      }
-      [purpose='slack-done'] {
-        animation: slack-question-done 17.5s linear infinite;
-      }
-      [purpose='slack-add-reaction'] {
-        animation: slack-question-add-reaction 17.5s linear infinite;
+    [purpose='claude-code-thread'], [purpose='cursor-thread'], [purpose='copilot-thread'], [purpose='codex-thread'] {
+      transition: transform 0.5s ease-out, opacity 0.35s ease-out;
+      > p, > div {
+        animation: ai-demo-appear 0.35s ease-out;
       }
     }
-    [purpose='slack-first-reply'] {
-      animation: slack-first-reply 17.5s ease-out infinite;
-      [purpose='slack-thinking'] {
-        animation: slack-first-thinking 17.5s linear infinite;
-      }
-      [purpose='slack-answer'] {
-        animation: slack-first-answer 17.5s linear infinite;
-      }
+    [purpose='claude-code-tool-row'], [purpose='cursor-step'], [purpose='copilot-activity'], [purpose='codex-call'] {
+      animation: ai-demo-appear 0.35s ease-out;
     }
-    [purpose='slack-yes'] {
-      animation: slack-yes 17.5s ease-out infinite;
-      [purpose='slack-typing'] {
-        animation: slack-yes-typing 17.5s linear infinite;
-      }
-      [purpose='slack-message-body'] {
-        animation: slack-yes-body 17.5s linear infinite;
-      }
-      [purpose='slack-pending'] {
-        animation: slack-yes-pending 17.5s linear infinite;
-      }
-      [purpose='slack-done'] {
-        animation: slack-yes-done 17.5s linear infinite;
-      }
-      [purpose='slack-add-reaction'] {
-        animation: slack-yes-add-reaction 17.5s linear infinite;
-      }
-    }
-    [purpose='slack-second-reply'] {
-      animation: slack-second-reply 17.5s ease-out infinite;
-      [purpose='slack-thinking'] {
-        animation: slack-second-thinking 17.5s linear infinite;
-      }
-      [purpose='slack-answer'] {
-        animation: slack-second-answer 17.5s linear infinite;
-      }
+    [purpose='ai-demo-caret'] {
+      animation: ai-demo-caret-blink 1s steps(1) infinite;
     }
   }
-
-  // 17.5s loop, following the Figma frames:
-  // 0s "Mike is typing...", 1.6s the question, 2.4s Fleet starts thinking and
-  // the question gets ⏳, 4.4s Fleet answers, 5.2s the question gets ✅,
-  // 6.4s "Mike is typing...", 7.9s "Yes", 8.7s Fleet thinks again, 10.7s Fleet
-  // answers and "Yes" gets ✅, 16.5s everything fades out.
-  // 9.143% = 1.6s, 13.714% = 2.4s, 14.571% = 2.55s, 15.429% = 2.7s,
-  // 25.143% = 4.4s, 29.714% = 5.2s, 30.857% = 5.4s, 36.571% = 6.4s,
-  // 38.286% = 6.7s, 45.143% = 7.9s, 49.714% = 8.7s, 50.571% = 8.85s,
-  // 51.429% = 9s, 61.143% = 10.7s, 62.286% = 10.9s, 94.286% = 16.5s,
-  // 97.143% = 17s. Typing and thinking swap to their message instantly, over
-  // 0.006% (1ms). Inner states reset at 97.429%, while their message is hidden.
-  @keyframes slack-question {
-    0%, 94.286% { opacity: 1; }
-    97.143% { opacity: 0; }
-    100% { opacity: 1; }
+  @keyframes ai-demo-appear {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  // The avatar stays put while "Mike is typing..." gives way to the message.
-  @keyframes slack-question-typing {
-    0%, 9.143% { opacity: 1; }
-    9.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-question-body {
-    0%, 9.143% { opacity: 0; }
-    9.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-question-pending {
-    0%, 13.714% { opacity: 0; }
-    14.571%, 29.714% { opacity: 1; }
-    30.857%, 100% { opacity: 0; }
-  }
-  @keyframes slack-question-done {
-    0%, 29.714% { opacity: 0; }
-    30.857%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  // The add-reaction button sits where the status reaction will be until it appears.
-  @keyframes slack-question-add-reaction {
-    0%, 13.714% { transform: translateX(-39.682em); }
-    14.571%, 97.143% { transform: translateX(0); }
-    97.429%, 100% { transform: translateX(-39.682em); }
-  }
-  @keyframes slack-first-reply {
-    0%, 13.714% { opacity: 0; transform: translateY(12em); }
-    15.429%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-first-thinking {
-    0%, 25.143% { opacity: 1; }
-    25.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-first-answer {
-    0%, 25.143% { opacity: 0; }
-    25.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes {
-    0%, 36.571% { opacity: 0; transform: translateY(12em); }
-    38.286%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-yes-typing {
-    0%, 45.143% { opacity: 1; }
-    45.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-yes-body {
-    0%, 45.143% { opacity: 0; }
-    45.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-pending {
-    0%, 49.714% { opacity: 0; }
-    50.571%, 61.143% { opacity: 1; }
-    62.286%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-done {
-    0%, 61.143% { opacity: 0; }
-    62.286%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-add-reaction {
-    0%, 49.714% { transform: translateX(-39.682em); }
-    50.571%, 97.143% { transform: translateX(0); }
-    97.429%, 100% { transform: translateX(-39.682em); }
-  }
-  @keyframes slack-second-reply {
-    0%, 49.714% { opacity: 0; transform: translateY(12em); }
-    51.429%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-second-thinking {
-    0%, 61.143% { opacity: 1; }
-    61.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-second-answer {
-    0%, 61.143% { opacity: 0; }
-    61.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
+  @keyframes ai-demo-caret-blink {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
   }
 
   // Section headings
@@ -825,12 +2365,18 @@
   }
 
   @media (max-width: 1199px) {
+    [purpose='page-hero'] {
+      gap: @section-64-lg;
+    }
     [purpose='page-content'] {
       gap: @section-160-lg;
     }
   }
 
   @media (max-width: 991px) {
+    [purpose='page-hero'] {
+      gap: @section-64-md;
+    }
     [purpose='page-content'] {
       gap: @section-160-md;
     }
@@ -861,6 +2407,9 @@
   }
 
   @media (max-width: 767px) {
+    [purpose='page-hero'] {
+      gap: @section-64-sm;
+    }
     [purpose='page-content'] {
       gap: @section-160-sm;
     }
@@ -890,6 +2439,7 @@
       gap: @section-160-xs;
     }
     [purpose='page-hero'] {
+      gap: @section-64-xs;
       padding-top: 0;
     }
     [purpose='logo-grid'] {

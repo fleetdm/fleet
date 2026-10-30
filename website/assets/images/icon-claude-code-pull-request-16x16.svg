@@ -1,0 +1,8 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="icon/pull-request">
+<path id="Vector" d="M6 3.5C6 4.32843 5.32843 5 4.5 5C3.67157 5 3 4.32843 3 3.5C3 2.67157 3.67157 2 4.5 2C5.32843 2 6 2.67157 6 3.5Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#2E7D46"/>
+<path id="Vector_2" d="M6 12.5C6 13.3284 5.32843 14 4.5 14C3.67157 14 3 13.3284 3 12.5C3 11.6716 3.67157 11 4.5 11C5.32843 11 6 11.6716 6 12.5Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#2E7D46"/>
+<path id="Vector_3" d="M13 12.5C13 13.3284 12.3284 14 11.5 14C10.6716 14 10 13.3284 10 12.5C10 11.6716 10.6716 11 11.5 11C12.3284 11 13 11.6716 13 12.5Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#2E7D46"/>
+<path id="Vector_4" d="M4.5 5V11M11.5 11V6.5C11.5 5.96957 11.2893 5.46086 10.9142 5.08579C10.5391 4.71071 10.0304 4.5 9.5 4.5H7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="#2E7D46"/>
+</g>
+</svg>
