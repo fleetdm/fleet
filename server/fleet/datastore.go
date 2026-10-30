@@ -3644,37 +3644,37 @@ type Datastore interface {
 	// ordered by id, with only their id, uuid, serial number and platform.
 	ListAndroidHostsOnHostPolicy(ctx context.Context) ([]*Host, error)
 
-	// ListAndroidAppsInScopeForHosts returns the Android apps each of hostIDs is
-	// in label scope for, by host id, like GetAndroidAppsInScopeForHost.
+	// ListAndroidAppsInScopeForHosts returns each host's Android apps by host id, with the first-added
+	// version of each app in the host's fleet that the host is in label scope for.
 	ListAndroidAppsInScopeForHosts(ctx context.Context, hostIDs []uint) (map[uint][]VPPAppTeam, error)
 
-	// ListHostMDMAndroidVPPAppsFromSetupExperience returns the pending and verified setup experience installs of
-	// hostIDs since their last enrollment, of app versions in each host's current fleet, by host id.
+	// ListHostMDMAndroidVPPAppsFromSetupExperience returns each host's pending and verified setup experience
+	// installs since its last enrollment by host id, only of app versions in the host's current fleet.
 	ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Context, hostIDs []uint) (map[uint][]*HostAndroidVPPSoftwareInstall, error)
 
-	// ListHostAndroidSoftwareInstalls returns the host_android_software_installs
-	// rows of hostIDs, by host id and then app id.
+	// ListHostAndroidSoftwareInstalls returns the hosts' host_android_software_installs rows by host and app id.
 	ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) (map[uint]map[string]*HostAndroidSoftwareInstall, error)
 
 	// GetAndroidAppStoreAppVersionsByID returns every Android App Store app version by its id, with only its
 	// id, configuration and configuration change time.
 	GetAndroidAppStoreAppVersionsByID(ctx context.Context) (map[uint]*VPPAppStoreApp, error)
 
-	// BulkUpsertHostAndroidSoftwareInstalls upserts installs and deletes
-	// removedInstalls by host and app, at most 100 per statement.
+	// BulkUpsertHostAndroidSoftwareInstalls deletes removedInstalls and upserts installs by host and app. An
+	// upsert keeps a resend flag that was set after the install's policy was built.
 	BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []HostAndroidSoftwareInstall, removedInstalls []HostAndroidSoftwareInstall) error
 
-	// ReplaceHostAndroidSoftwareInstalls sets the host's host_android_software_installs to installs,
-	// deleting the ones of other apps.
+	// ReplaceHostAndroidSoftwareInstalls deletes the host's host_android_software_installs rows of apps that
+	// aren't in installs, and upserts installs.
 	ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []HostAndroidSoftwareInstall) error
 
-	// SetHostAndroidSoftwareInstallsNeedsResend flags the host_android_software_installs rows of hostIDs for resend,
-	// only the ones whose policy was built after builtAfter when it's set, and only the row of adamID when it's set.
+	// SetHostAndroidSoftwareInstallsNeedsResend flags the hosts' host_android_software_installs rows for resend.
+	// Set builtAfter to flag only rows whose policy was built after it, and adamID to flag only that app's rows.
 	SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error
 
-	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows that
-	// were sent in appliedPolicyVersion or before to verified.
+	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows to
+	// verified when they were sent in appliedPolicyVersion or an earlier version.
 	SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
+
 	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
 	// app version created at or after since.
 	GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)

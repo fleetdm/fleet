@@ -755,7 +755,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// - added the Fleet agent to the host's policy (from the host enrollment, via prepareHostSpecificPolicy)
 	// - replaced the host's app list with all apps available (for self-service) and the Fleet agent, from the host enrollment
 	// - installed the apps, from the host enrollment
-	// The PATCH config changes send nothing, the Android app reconciler cron sends configuration changes.
+	// The PATCH config changes send nothing, the Android app reconciler sends configuration changes.
 	require.Len(t, patchAppsPolicies, 4)
 
 	type appCall struct {

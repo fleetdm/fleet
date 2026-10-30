@@ -99,9 +99,8 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		)
 
 	case makeAndroidAppAvailableTask, makeAndroidAppAvailableBatchTask, makeAndroidAppUnavailableTask, bulkSetAndroidAppsAvailableForHostTask:
-		// these tasks are deprecated, the Android app reconciler cron sends the
-		// app list, but they must be kept here in case some pending jobs are
-		// still in the queue.
+		// these tasks are deprecated, the Android app reconciler sends the app list, but they must be kept here
+		// in case some pending jobs are still in the queue.
 		return nil
 
 	case runAndroidSetupExperienceTask:

@@ -58,11 +58,11 @@ func (r *profileReconciler) buildAppListsToSend(
 		return nil, ctxerr.Wrap(ctx, err, "list host android software installs")
 	}
 
-	// Read the versions from the primary, after policyBuiltAt, so an edit a
-	// replica doesn't have yet isn't saved as sent
+	// Read the App Store app versions from the primary, after policyBuiltAt, so an edit the replica doesn't
+	// have yet won't be saved as sent
 	primaryCtx := ctxdb.RequirePrimary(ctx, true)
-	// Read every fleet's versions with their configurations, so a host moved
-	// from another fleet will get a send only when the configuration differs
+	// Read every fleet's versions with their configurations, so a host moved from another fleet will only get
+	// a new app list when the configuration differs
 	versionByID, err := r.DS.GetAndroidAppStoreAppVersionsByID(primaryCtx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get android app store app versions")
@@ -73,8 +73,7 @@ func (r *profileReconciler) buildAppListsToSend(
 	var otherHostListCount int
 	for _, host := range hosts {
 		_, hasProfileChanges := profileHostUUIDs[host.UUID]
-		// Build the lists of hosts with profile changes, which go in their profile patch, and at most batchSize minus
-		// that many other lists, so a large backlog will be spread over runs instead of using the AMAPI quota at once
+		// Build app lists for the hosts with profile changes, and for other hosts until the run sends to batchSize hosts
 		if !hasProfileChanges && batchSize > 0 && len(profileHostUUIDs)+otherHostListCount >= batchSize {
 			continue
 		}
@@ -108,17 +107,15 @@ func (r *profileReconciler) prepareHostAppList(
 	for _, app := range appsInList {
 		installTypeByAppID[app.AdamID] = android.AppStatusAvailable
 	}
-	// Add the apps the setup experience installs as PREINSTALLED, also while the
-	// device installs them and when their labels filter the host out, so
-	// replacing the list doesn't stop their install or uninstall them. The setup
-	// experience doesn't check labels yet.
+	// Add pending and installed setup experience apps as PREINSTALLED, so replacing the list won't stop or
+	// uninstall them. Add them even when labels leave the host out, because setup experience doesn't check labels yet.
 	for _, setupApp := range setupApps {
 		if _, inList := installTypeByAppID[setupApp.AdamID]; !inList {
 			appsInList = append(appsInList, fleet.VPPAppTeam{AdamID: setupApp.AdamID, AppTeamID: setupApp.VPPAppTeamID})
 		}
 		installTypeByAppID[setupApp.AdamID] = android.AppStatusPreinstalled
 	}
-	// Count the Fleet agent as in scope, because every list includes it
+	// Add the Fleet agent as FORCE_INSTALLED, because every list includes it
 	agentPackage := r.AndroidAgentConfig.Package
 	if agentPackage != "" {
 		installTypeByAppID[agentPackage] = android.AppStatusForceInstalled
@@ -130,7 +127,7 @@ func (r *profileReconciler) prepareHostAppList(
 	var lastFailedAt time.Time
 	var installsToRemove []fleet.HostAndroidSoftwareInstall
 	for appID, install := range installByAppID {
-		// Wait before retrying a failed request
+		// Track the last failed request, so the retry below can wait an hour after it
 		if install.Status == fleet.AndroidSoftwareInstallStatusRequestFailed {
 			needsRetry = true
 			if install.UpdatedAt.After(lastFailedAt) {
@@ -141,7 +138,7 @@ func (r *profileReconciler) prepareHostAppList(
 			continue
 		}
 		installsToRemove = append(installsToRemove, *install)
-		// Send the removal right away, unless its last request failed and the retry below will send it
+		// Send the removal in this run, unless its last request failed and the retry below will send it
 		if install.Status != fleet.AndroidSoftwareInstallStatusRequestFailed {
 			needsSend = true
 		}
@@ -149,7 +146,7 @@ func (r *profileReconciler) prepareHostAppList(
 	var installsWithNewVersion []fleet.HostAndroidSoftwareInstall
 	changedAppIDs := make(map[string]struct{})
 	var configChangedAppIDs []string
-	// Compare each app with its last sent install, to find the changed apps and whether the list needs a send
+	// Compare each app with its last sent install, to find the changed apps and whether the host needs a new list
 	for _, app := range appsInList {
 		install, sent := installByAppID[app.AdamID]
 		version := versionByID[app.AppTeamID]
@@ -186,12 +183,12 @@ func (r *profileReconciler) prepareHostAppList(
 	}
 	if agentPackage != "" {
 		agentInstall, agentSent := installByAppID[agentPackage]
-		// Send a list to a host whose installs don't include the agent. It never got a list from Fleet,
+		// Send a list to a host whose installs don't include the Fleet agent. It never got a list from Fleet,
 		// so its policy can still have apps that older jobs didn't remove.
 		if !agentSent {
 			needsSend = true
 		}
-		// Send a list when the agent's configuration changed
+		// Send a list when the Fleet agent's configuration changed
 		if agentSent && agentInstall.NeedsResend {
 			needsSend = true
 		}

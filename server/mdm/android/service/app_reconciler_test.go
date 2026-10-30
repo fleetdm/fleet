@@ -209,7 +209,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		return &fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: "com.example.one", InstallType: android.AppStatusAvailable, VPPAppTeamID: new(firstVersionID), Status: status, NeedsResend: needsResend, PolicyBuiltAt: builtAt, UpdatedAt: updatedAt}
 	}
 
-	t.Run("a host with a new app in scope gets the app and the fleet agent and another host with no changes gets no request", func(t *testing.T) {
+	t.Run("a host with a new app in scope gets the app and the Fleet agent and another host with no changes gets no request", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA, hostB},
 			installs: []*fleet.HostAndroidSoftwareInstall{
@@ -219,7 +219,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}, hostB.ID: {appOne}},
 		}
 
-		// run the cron, only host A should get a request, its app and the fleet agent recorded as pending in the returned
+		// run the cron, only host A should get a request, its app and the Fleet agent recorded as pending in the returned
 		// policy version
 		err := reconcile(0)
 		require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			},
 		}
 
-		// run the cron, host A should get a list with only the fleet agent and its install of the app should be removed
+		// run the cron, host A should get a list with only the Fleet agent and its install of the app should be removed
 		err := reconcile(0)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.fleetdm.agent"}}}, state.sent)
@@ -415,7 +415,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			setupApps:           []*fleet.HostAndroidVPPSoftwareInstall{{HostID: hostA.ID, AdamID: "com.example.setup", VPPAppTeamID: secondVersionID}},
 		}
 
-		// run the cron, host A should get the new app, the setup experience app and the fleet agent, and the setup
+		// run the cron, host A should get the new app, the setup experience app and the Fleet agent, and the setup
 		// experience app's row should be neither upserted nor removed
 		err := reconcile(0)
 		require.NoError(t, err)
@@ -427,12 +427,12 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Empty(t, state.removed)
 	})
 
-	t.Run("a host with no apps in scope and no rows gets one list with only the fleet agent", func(t *testing.T) {
+	t.Run("a host with no apps in scope and no rows gets one list with only the Fleet agent", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
 		}
 
-		// run the cron, host A should get a list with only the fleet agent, which replaces any apps older jobs left in its
+		// run the cron, host A should get a list with only the Fleet agent, which replaces any apps older jobs left in its
 		// policy, and the agent's row should be upserted as pending in the returned policy version
 		err := reconcile(0)
 		require.NoError(t, err)
@@ -459,7 +459,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 			setAppsErrByHostUUID: map[string]error{"host-a": &googleapi.Error{Code: http.StatusBadRequest}},
 		}
 
-		// run the cron, host A's app and fleet agent should be recorded as request failed and host B's as sent
+		// run the cron, host A's app and Fleet agent should be recorded as request failed and host B's as sent
 		err := reconcile(0)
 		require.NoError(t, err)
 		require.Len(t, state.sent, 2)
@@ -667,7 +667,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Empty(t, state.upserted)
 	})
 
-	t.Run("a fleet agent that can't be built sends nothing for the host", func(t *testing.T) {
+	t.Run("a Fleet agent that can't be built sends nothing for the host", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts:               []*fleet.Host{hostA},
 			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},

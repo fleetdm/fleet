@@ -107,7 +107,7 @@ type profileReconciler struct {
 	lastHostUUID       string
 
 	// appInstallsToUpsert and appInstallsToRemove collect the changed app
-	// installs of every host during the run, upserted together at the end
+	// installs of every host during the run, saved together at the end
 	appInstallsToUpsert    []fleet.HostAndroidSoftwareInstall
 	appInstallsToRemove    []fleet.HostAndroidSoftwareInstall
 	appSendsStoppedByQuota bool
@@ -231,8 +231,8 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upsert host android software installs")
 	}
-	// Flag the apps another job saved for a sent host after this run built the host's list, so the next
-	// run will send them, because the list this run sent doesn't have them
+	// Flag the apps another job saved for a sent host after this run built its list, so the next run will
+	// send them
 	err = r.DS.SetHostAndroidSoftwareInstallsNeedsResend(ctx, r.appSentHostIDs, &selectedAt, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "flag host android software installs written during the run")

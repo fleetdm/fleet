@@ -30,9 +30,9 @@ CREATE TABLE IF NOT EXISTS host_android_software_installs (
 		return fmt.Errorf("create host_android_software_installs table: %w", err)
 	}
 
-	// Insert a row for an app that's never in scope for every existing Android
-	// host, so the Android profile reconciler will send each host its whole app
-	// list once and delete the row
+	// Insert a temporary row for every existing Android host, for the edge case of a host with no apps in scope
+	// and no Fleet agent package set, so it will still get its app list once. Fleet doesn't know what it last sent
+	// at the point of this migration.
 	_, err = tx.Exec(`
 INSERT IGNORE INTO host_android_software_installs (host_id, adam_id, install_type, status, policy_built_at)
 SELECT host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM android_devices`)

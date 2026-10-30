@@ -5604,6 +5604,7 @@ type DataStore struct {
 
 	SetHostAndroidSoftwareInstallsVerifiedFunc        SetHostAndroidSoftwareInstallsVerifiedFunc
 	SetHostAndroidSoftwareInstallsVerifiedFuncInvoked bool
+
 	GetHostIDsWithRecentFailedVPPAppInstallFunc        GetHostIDsWithRecentFailedVPPAppInstallFunc
 	GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked bool
 

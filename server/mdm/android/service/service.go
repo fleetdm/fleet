@@ -1537,7 +1537,7 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 		if policy != nil && policy.Version > 0 {
 			inPolicyVersion = &policy.Version
 		}
-		// Save the sent agent like the Android app reconciler does, so the next status report will verify it
+		// Save the sent Fleet agent like the Android app reconciler does, so the next status report will verify it
 		err = svc.fleetDS.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
 			HostID:          androidHost.Host.ID,
 			AdamID:          packageName,

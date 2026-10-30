@@ -288,7 +288,8 @@ const (
 	AndroidSoftwareInstallStatusPending = "pending"
 	// AndroidSoftwareInstallStatusVerified means the device applied a policy version that includes the app.
 	AndroidSoftwareInstallStatusVerified = "verified"
-	// AndroidSoftwareInstallStatusFailed means the app's configuration uses a value the host doesn't have.
+	// AndroidSoftwareInstallStatusFailed means Fleet couldn't send the app to the host, e.g. because its
+	// configuration uses a Fleet variable that has no value for the host.
 	AndroidSoftwareInstallStatusFailed = "failed"
 	// AndroidSoftwareInstallStatusRequestFailed means the request that sent the host's app list failed.
 	AndroidSoftwareInstallStatusRequestFailed = "request_failed"

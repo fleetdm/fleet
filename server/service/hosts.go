@@ -1454,8 +1454,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
-		// Flag the Fleet agent for resend, so the Android profile reconciler
-		// will send the agent configuration with the new fleet's enroll secret
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
 		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
@@ -1637,8 +1636,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
-		// Flag the Fleet agent for resend, so the Android profile reconciler
-		// will send the agent configuration with the new fleet's enroll secret
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
 		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")

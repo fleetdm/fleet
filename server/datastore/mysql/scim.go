@@ -2354,9 +2354,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds app store app configs that reference any of
-// the affected fleet variables and flags the affected hosts' installs so the
-// reconciler crons will send the configuration with the updated values.
+// queueManagedConfigResendJobs finds App Store app configurations that reference any of the affected Fleet
+// variables and flags the affected hosts' installs, so the App Store app configuration cron and the Android app
+// reconciler will send them with the updated values.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil

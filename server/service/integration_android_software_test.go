@@ -333,8 +333,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		s.Assert().Contains(policyName, host1.UUID)
 	}
 
-	// the device reports applying its own policy, then transfer it to the team and run the worker and the Android profile
-	// schedule, it should get the team's apps
+	// the device reports applying its own policy, then transfer it to the fleet and run the worker and the Android profile
+	// schedule, it should get the fleet's apps
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = ? WHERE host_id = ?`, host1.UUID, host1.ID)
 		return err
@@ -1053,7 +1053,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[2].AppStoreApp.AppStoreID)
 	}
 
-	// delete app [1] and run the Android profile schedule, both hosts should get an app list without it and the team
+	// delete app [1] and run the Android profile schedule, both hosts should get an app list without it and the fleet
 	// host nothing
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "team_id", "0")
 	s.awaitTriggerAndroidProfileSchedule(t)
