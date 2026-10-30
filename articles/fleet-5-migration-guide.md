@@ -312,7 +312,7 @@ Issue: [#53797](https://github.com/fleetdm/fleet/issues/53797)
 |:--|:--|
 | `POST /api/v1/fleet/hosts/:id/lock` locks the screen of an Android host | [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host) resets the PIN to a random six-digit PIN and locks the host |
 
-What to do: To get the PIN, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host). It now works for Android hosts. Update any end user instructions.
+What to do: To get the PIN, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host).
 
 Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
