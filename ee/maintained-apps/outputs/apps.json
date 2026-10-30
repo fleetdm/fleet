@@ -8619,6 +8619,13 @@
       "description": "Syntax Highlight is a quicklook extension for source files."
     },
     {
+      "name": "T3 Code",
+      "slug": "t3-code/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.t3tools.t3code",
+      "description": "T3 Code is a minimal GUI for AI coding agents."
+    },
+    {
       "name": "Tabby",
       "slug": "tabby/darwin",
       "platform": "darwin",
