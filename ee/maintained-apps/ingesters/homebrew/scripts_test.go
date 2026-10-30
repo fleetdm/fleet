@@ -524,6 +524,33 @@ func TestUninstallScriptScriptDirectiveEscapesApostrophe(t *testing.T) {
 	require.NotContains(t, script, `/opt/x'; touch /tmp/pwned; '`)
 }
 
+func TestUninstallScriptPrePostScriptsWithoutUninstallStanza(t *testing.T) {
+	app := inputApp{UniqueIdentifier: "com.example.app"}
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Example.app"}}},
+			{Zap: []*brewUninstall{{Trash: optjson.StringOr[[]string]{String: "~/Library/Caches/com.example.app"}}}},
+		},
+		PreUninstallScripts:  []string{"echo pre"},
+		PostUninstallScripts: []string{"echo post"},
+	}
+
+	script := uninstallScriptForApp(app, cask)
+	pre := strings.Index(script, "\necho pre\n")
+	removeApp := strings.Index(script, `sudo rm -rf "$APPDIR/Example.app"`)
+	trash := strings.Index(script, `trash "$LOGGED_IN_USER" '~/Library/Caches/com.example.app'`)
+	post := strings.Index(script, "\necho post\n")
+	require.True(t, pre >= 0 && removeApp >= 0 && trash >= 0 && post >= 0, script)
+	require.Less(t, pre, removeApp, script)
+	require.Less(t, trash, post, script)
+
+	// With an uninstall stanza they run there, once.
+	cask.Artifacts = append([]*brewArtifact{{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: "com.example.app"}}}}}, cask.Artifacts...)
+	script = uninstallScriptForApp(app, cask)
+	require.Equal(t, 1, strings.Count(script, "\necho pre\n"), script)
+	require.Equal(t, 1, strings.Count(script, "\necho post\n"), script)
+}
+
 func TestShellSingleQuote(t *testing.T) {
 	for in, want := range map[string]string{
 		"":                      `''`,
