@@ -121,6 +121,12 @@ variable "enable_otel" {
   default     = false
 }
 
+variable "enable_websocket_transport" {
+  description = "Enable the agent WebSocket transport, with live query and orbit config notifications over it. Agents poll as before when false"
+  type        = bool
+  default     = true
+}
+
 variable "apple_apns_mock_cpu" {
   description = "Fargate CPU units for each mock APNs task."
   type        = number

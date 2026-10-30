@@ -231,6 +231,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
+	conditionalAccessSCEPStorage, err := s.ds.NewConditionalAccessSCEPDepot(slog.New(slog.DiscardHandler), &fleetCfg)
+	s.Require().NoError(err)
 
 	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -361,6 +363,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		MDMStorage:             mdmStorage,
 		DEPStorage:             depStorage,
 		SCEPStorage:            scepStorage,
+		ConditionalAccess:      &ConditionalAccess{SCEPStorage: conditionalAccessSCEPStorage},
 		MDMPusher:              mdmPushService,
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
