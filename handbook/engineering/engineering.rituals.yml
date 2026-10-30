@@ -41,7 +41,7 @@
   frequency: "Daily"
   description: "Run the `/security-triage` Claude Code skill to check Bugbop, GitHub security advisories, and the security inbox, then triage each new report and reply."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#handle-a-security-report"
-  dri: "lukeheath"
+  dri: "karmine05"
 - 
   task: "Vulnerability alerts (fleetdm.com)"
   startedOn: "2023-08-09" 
