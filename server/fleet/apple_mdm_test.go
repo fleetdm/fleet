@@ -990,6 +990,83 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name: "comment between key and value",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key><!-- x -->
+    <string>$FLEET_SECRET_PASSWORD</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "secret in CDATA",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string><![CDATA[Name ${FLEET_SECRET_PASSWORD}]]></string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "comment inside the value",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Name <!-- x -->$FLEET_SECRET_PASSWORD</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "comment and CDATA inside the key",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Payload<!-- x --><![CDATA[DisplayName]]></key>
+    <string>$FLEET_SECRET_PASSWORD</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "character reference in the key",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Payload&#68;isplayName</key>
+    <string>$FLEET_SECRET_PASSWORD</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "secret only in a comment",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile<!-- $FLEET_SECRET_PASSWORD --></string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+		{
 			name: "whitespace in PayloadDisplayName value",
 			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

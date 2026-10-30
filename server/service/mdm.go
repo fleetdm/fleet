@@ -3006,10 +3006,20 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// Declarations are named by the Name field, not their content, so only .mobileconfig names are checked.
+	for _, p := range profiles {
+		if !isMobileconfigContents(p.Contents) {
+			continue
+		}
+		if err := fleet.ValidateNoSecretsInProfileName(p.Contents); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+		}
+	}
+
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {
-		profilesWithoutSecrets := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
+		var profilesWithoutSecrets []fleet.MDMProfileBatchPayload
 		for _, p := range profiles {
 			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
 				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
@@ -3052,7 +3062,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, svc.ds, tmID, appCfg, profiles, profilesWithSecrets, labelMap, svc.config.MDM)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
@@ -3418,10 +3428,8 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 
 func getAppleProfiles(
 	ctx context.Context,
-	ds fleet.Datastore,
 	tmID *uint,
 	appCfg *fleet.AppConfig,
-	rawProfiles []fleet.MDMProfileBatchPayload,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
 	mdmConfig config.MDMConfig,
@@ -3522,14 +3530,6 @@ func getAppleProfiles(
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
-		}
-		// Before anything below quotes the name in an error.
-		hasSecret, err := profileNameHasSecretValue(ctx, ds, rawProfiles[i].Contents, mdmProf.Name)
-		if err != nil {
-			return nil, nil, err
-		}
-		if hasSecret {
-			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(prof.Name, fleet.ProfileNameSecretErrMsg))
 		}
 		mdmProf.Description = prof.Description
 		mdmProf.SelfService, mdmProf.Hidden = prof.SelfService, prof.Hidden
