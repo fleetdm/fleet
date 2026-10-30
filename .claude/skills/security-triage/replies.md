@@ -22,13 +22,19 @@ If Fleet's severity is lower than the reporter's, add one sentence: "We rated th
 
 ## Not applicable
 
-> Thanks for the report. We looked into it and this isn't a vulnerability in Fleet as described: <one or two sentences with the specific reason, e.g. "the endpoint requires a valid API token, and an unauthenticated request receives the same response whether or not the identifier exists">. We're closing this one. If you can show the behavior against a current release, reply with the request and response and we'll take another look.
+> Thanks for the report. We looked into it and this isn't a vulnerability in Fleet as described: <one or two sentences with the specific reason, e.g. "the endpoint requires a valid API token, and an unauthenticated request receives the same response whether or not the identifier exists"; if it both doesn't reproduce and needs a privilege the attacker already holds, say both>. We're closing this one. If you can show the behavior against a current release, reply with the request and response and we'll take another look.
 
 ## Duplicate
 
 > Thanks for the report. This was first reported to us on <date> and is already tracked for a fix. We credit the first reporter on the advisory, so we're closing this as a duplicate. We appreciate the independent confirmation.
 
 Across Bugbop programs the duplicate can't be linked. Use the same text, leave the report `open`, and record the canonical report in the internal note.
+
+## Fixed before the report
+
+> Thanks for the report. This was first reported to us on <date> and fixed in Fleet <version>; the advisory is public at <GHSA URL>. The version you tested, <version>, predates that fix. We credit the first reporter on the advisory, so we're closing this one. If your reproduction works against Fleet <current release> or later, reply with the request and response (secrets redacted) and we'll take another look.
+
+If the advisory isn't published yet, replace the link with "the advisory will be published after the fix has been out for two minor releases."
 
 ## Fix merged (not yet shipped)
 

@@ -10,18 +10,21 @@ Everything here is `gh` or the Bugbop plugin script. Writes that notify a report
 # Private trackers (needs maintainer access to both repos)
 gh issue list --repo fleetdm/security --state all --limit 500 \
   --json number,title,state,createdAt,closedAt,labels,milestone,body,comments > /tmp/sec.json
-gh issue list --repo fleetdm/confidential --state all --limit 1000 --label ":security" \
-  --json number,title,state,createdAt,closedAt,labels,body > /tmp/conf.json 2>/dev/null || \
+# confidential has more than 1000 issues: dump the recent 1000 (any label) plus every `~security`-labeled issue
 gh issue list --repo fleetdm/confidential --state all --limit 1000 \
   --json number,title,state,createdAt,closedAt,labels,body > /tmp/conf.json
+gh issue list --repo fleetdm/confidential --state all --limit 1000 --label "~security" \
+  --json number,title,state,createdAt,closedAt,labels,body > /tmp/conf_sec.json
 
 # Grep bodies and comments for exact names from the report: endpoint path, query parameter, Go function
 python3 - "<term1>" "<term2>" <<'EOF'
 import json,re,sys
 terms=[re.escape(t) for t in sys.argv[1:]]
-for f in ("/tmp/sec.json","/tmp/conf.json"):
-    repo="security" if "sec" in f else "confidential"
+seen=set()
+for f,repo in (("/tmp/sec.json","security"),("/tmp/conf.json","confidential"),("/tmp/conf_sec.json","confidential")):
     for i in json.load(open(f)):
+        if (repo,i["number"]) in seen: continue
+        seen.add((repo,i["number"]))
         hay=i["title"]+"\n"+(i.get("body") or "")+"\n"+"\n".join(c["body"] for c in i.get("comments",[]))
         if any(re.search(t,hay,re.I) for t in terms):
             ms=(i.get("milestone") or {}).get("title") or ""
@@ -35,22 +38,28 @@ for s in triage draft published closed; do
 done | grep -iE "<term1>|<term2>"
 
 # Bugbop, both programs, all statuses
-python3 scripts/bugbop.py GET /reports --all --summary | grep -iE "<term1>|<term2>"
+python3 "$BUGBOP" GET /reports --all --summary | grep -iE "<term1>|<term2>"
 
-# Advisory running list (shipped fixes waiting on an advisory)
-gh search issues --repo fleetdm/confidential "advisory running list" --state open --json number,title
+# Advisory running list (shipped fixes waiting on an advisory). `gh search` doesn't find it; use the number.
+gh issue view 17937 --repo fleetdm/confidential --json title,state,body,comments | grep -iE "<term1>|<term2>"
 ```
 
 The dedup rule: same root cause and same sink means duplicate, even with a different identifier or endpoint. Same symptom through a different code path is a new issue that cross-references the old one.
 
 ## Verify against main
 
+For a server report, read the handler, the authz policy, and the datastore query. For a UI report (XSS, injection into rendered content), `git grep` the JSON key under `frontend/` and check each render site: JSX text or attribute is escaped by React; `dangerouslySetInnerHTML` and server-side `text/template` are not (`html/template` is). Note that the session token is a non-HttpOnly cookie and CSP is opt-in, so a real unescaped sink is a session-theft primitive.
+
 ```bash
 git fetch -q origin main
 git grep -n "<function or route>" origin/main -- server/ ee/
 git log --format='%h %ad %s' --date=short -S "<guard or check text>" origin/main -- <file>   # when was it added or removed
-git tag -l 'fleet-v4.*.0' | sort -V | while read t; do git merge-base --is-ancestor <sha> $t && { echo "first in $t"; break; }; done
+# First tag whose file contains the fix. Backports are cherry-picks with new SHAs, so check file contents, not ancestry, and include patch tags.
+git fetch -q --tags origin
+for t in $(git tag -l 'fleet-v4.*' | sort -V); do git show "${t}:<file>" 2>/dev/null | grep -q '<marker from the fix>' && echo "in $t"; done | head -5
 ```
+
+Write `${t}:path`, not `$t:path`; zsh reads `$t:s` as a history modifier.
 
 Verified-on-main means you read the current code at a named commit. Running a local server is better when you can.
 
@@ -82,7 +91,7 @@ gh project item-edit --project-id PVT_kwDOBDAnic4BgFfY --id <item-id> \
 
 If `gh project` fails with a scope error: `gh auth refresh -s project -h github.com`.
 
-Product group board numbers and EMs are on the [product groups page](https://fleetdm.com/handbook/company/product-groups); look them up rather than trusting a copy.
+Product group board numbers and EMs are on the [product groups page](https://fleetdm.com/handbook/company/product-groups); look them up rather than trusting a copy. If the page doesn't say which group owns the affected surface, use the `CODEOWNERS` entry for the files involved. If that is also silent, ask the CTO rather than guessing.
 
 ## GitHub security advisory submissions
 
@@ -104,6 +113,7 @@ gh api -X PATCH /repos/fleetdm/fleet/security-advisories/<ghsa> --input /tmp/adv
 
 # Reject a submission that isn't a vulnerability or duplicates an accepted one (comment in the UI first)
 gh api -X PATCH /repos/fleetdm/fleet/security-advisories/<ghsa> -f state=closed
+gh api /repos/fleetdm/fleet/security-advisories/<ghsa> -q '{ghsa_id,state,severity}'   # PATCH can silently no-op; always re-read
 ```
 
 Rules:
@@ -117,14 +127,17 @@ Rules:
 Reads are free. Writes notify the hunter; one at a time, and verify each with a read.
 
 ```bash
-python3 scripts/bugbop.py GET /reports/<id>                       # includes internal_notes, suspected_duplicate_of_id
-python3 scripts/bugbop.py GET /reports/<id>/comments --summary
-python3 scripts/bugbop.py POST /reports/<id>/comments --data '{"content":"..."}'
-python3 scripts/bugbop.py PATCH /reports/<id> --data '{"status":"open","severity":"medium","internal_notes":"Tracked via https://github.com/fleetdm/security/issues/<n>"}'
-python3 scripts/bugbop.py POST /reports/<id>/close_as_duplicate   # same program only; uses suspected_duplicate_of_id
+BUGBOP=$(find ~/.claude/plugins -path '*bugbop/scripts/bugbop.py' | head -1)   # from the bugbop:bugbop plugin
+python3 "$BUGBOP" GET /reports/<id>                       # includes internal_notes, suspected_duplicate_of_id
+python3 "$BUGBOP" GET /reports/<id>/comments --summary
+python3 "$BUGBOP" POST /reports/<id>/comments --data '{"content":"..."}'
+python3 "$BUGBOP" PATCH /reports/<id> --data '{"status":"open","severity":"medium","internal_notes":"Tracked via https://github.com/fleetdm/security/issues/<n>"}'
+python3 "$BUGBOP" POST /reports/<id>/close_as_duplicate   # same program only; uses suspected_duplicate_of_id
 ```
 
-`scripts/bugbop.py` lives in the `bugbop:bugbop` plugin skill directory. The script needs `BUGBOP_TOKEN` in the environment; never paste the token into chat.
+The script needs `BUGBOP_TOKEN` in the environment; never paste the token into chat.
+
+A report whose bug was fixed and shipped before it arrived, with the canonical tracker outside Bugbop (email disclosure, advisory submission), can't be closed as `duplicate`. Set `not_applicable`, severity to Fleet's rating of the underlying bug, and an internal note naming the tracker and advisory. Use the "Fixed before the report" reply.
 
 Bugbop's "Suspected duplicate" banner matches titles, not root causes. Two reports with similar titles can be different bugs. Read both before clicking.
 

@@ -1,7 +1,7 @@
 ---
 name: security-triage
 description: Use when a security report arrives or needs a reply - a new Bugbop report (VDP or private bug bounty), a GitHub security advisory submission in the "triage" state on fleetdm/fleet, a disclosure in the security inbox, a reporter asking "any update?", or a fix merging for a tracked report. Also use for the daily security report triage ritual.
-allowed-tools: Bash(gh *), Bash(python3 *), Bash(git *), Bash(grep *), Read, Grep, Glob, Write
+allowed-tools: Bash(gh *), Bash(python3 *), Bash(git *), Bash(grep *), Bash(find *), Bash(ls *), Bash(base64 *), Read, Grep, Glob, Write
 ---
 
 # Security report triage
@@ -20,10 +20,11 @@ Three intake channels. Check all three every business day; reports that only sho
 
 ```bash
 # 1. Bugbop: anything new, or open with a hunter comment newer than ours (both programs)
-python3 scripts/bugbop.py GET "/reports?status=new,open,needs_info" --all --summary
+BUGBOP=$(find ~/.claude/plugins -path '*bugbop/scripts/bugbop.py' | head -1)
+python3 "$BUGBOP" GET "/reports?status=new,open,needs_info" --all --summary
 # 2. GitHub advisory submissions awaiting triage
 gh api '/repos/fleetdm/fleet/security-advisories?state=triage&per_page=100' \
-  -q '.[] | "\(.ghsa_id) \(.severity) \(.created_at[:10]) \(.author.login) comments=\(.comments) | \(.summary)"'
+  -q '.[] | "\(.ghsa_id) \(.severity) \(.cve_id // "-") \(.created_at[:10]) \(.author.login // "fleet") comments=\(.comments) | \(.summary)"'
 # 3. The security inbox (see the repository security policy for the address)
 ```
 
@@ -33,7 +34,7 @@ Acknowledge every new report within one business day, even if the only content i
 
 1. **Read it skeptically.** Scanner and AI-written reports often describe fixed behavior, a nonexistent endpoint, or a privilege the attacker already holds. The report's own severity is a claim, not a rating.
 2. **Dedup before anything else.** `gh search issues` misses body text, so dump and grep. Run the sweep in `reference.md` against `fleetdm/security` (open and closed), `fleetdm/confidential`, all advisories on `fleetdm/fleet` (triage, draft, published), both Bugbop programs, and the advisory running list. Search exact endpoint paths, parameter names, and function names, not the title.
-3. **Verify against `main`.** Read the handler, the authz policy, and the datastore query the report names. Note the commit you checked. If the code was fixed, find the fixing PR with `git log -S` and the first release tag that contains it. Write down what you verified and what you did not.
+3. **Verify against `main`.** Read the handler, the authz policy, and the datastore query the report names (for UI reports, every render site of the field; checklist in `reference.md`). Note the commit you checked. If the code was fixed, find the fixing PR with `git log -S` and the first release tag that contains it. Write down what you verified and what you did not.
 4. **Classify and rate** with `severity.md`. Decide vulnerability vs. hardening first, then severity, then the matching priority label.
 5. **Route** by outcome:
 
@@ -43,11 +44,12 @@ digraph route {
   "Already tracked or fixed?" [shape=diamond];
   "Vulnerability or hardening?" [shape=diamond];
   "Close: not applicable (tell reporter why)" [shape=box];
-  "Close: duplicate, credit first reporter" [shape=box];
+  "Close: duplicate, credit first reporter (fixed before the report arrived counts too)" [shape=box];
   "File fleetdm/security issue" [shape=box];
-  "Reproduces on main?" -> "Close: not applicable (tell reporter why)" [label="no, and reporter can't show otherwise"];
+  "Reproduces on main?" -> "Close: not applicable (tell reporter why)" [label="never did, and reporter can't show otherwise"];
+  "Reproduces on main?" -> "Already tracked or fixed?" [label="did at the reporter's version, fixed since"];
   "Reproduces on main?" -> "Already tracked or fixed?" [label="yes"];
-  "Already tracked or fixed?" -> "Close: duplicate, credit first reporter" [label="yes"];
+  "Already tracked or fixed?" -> "Close: duplicate, credit first reporter (fixed before the report arrived counts too)" [label="yes"];
   "Already tracked or fixed?" -> "Vulnerability or hardening?" [label="no"];
   "Vulnerability or hardening?" -> "File fleetdm/security issue" [label="either; hardening files as Medium/p3 max"];
 }
