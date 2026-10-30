@@ -815,6 +815,10 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			Name: "Deadline App up to date", Query: "SELECT 1;",
 		})
 		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
+		})
 
 		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
 		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
