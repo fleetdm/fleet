@@ -105,7 +105,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 			stanza := []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: quit}}}
 			artifact := &brewArtifact{Uninstall: stanza}
-			if appToken == "zap-quit-injection" {
+			if appToken == "zap-quit-injection" { //nolint:gosec // G101: cask token, not a credential
 				artifact = &brewArtifact{Zap: stanza}
 			}
 			cask = brewCask{
@@ -171,7 +171,7 @@ func TestIngestValidations(t *testing.T) {
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"invalid uninstall quit for cask quit-injection", inputApp{Token: "quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}},
-		{"invalid uninstall quit for cask zap-quit-injection", inputApp{Token: "zap-quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask zap-quit-injection", inputApp{Token: "zap-quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "pale-moon", UniqueIdentifier: "org.mozilla.pale moon", InstallerFormat: "dmg", Name: "Pale Moon", Slug: "pale-moon/darwin"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
