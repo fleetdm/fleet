@@ -53,6 +53,22 @@ const (
 	windowsEnrollSecretPolicyURI = "./Device/Vendor/MSFT/Policy/Config/FleetdEnrollSecret~Policy~fleetd/EnrollSecret"
 )
 
+// windowsPolicyData renders the Policy CSP payload that sets an ADMX text element to value. The value goes into an XML
+// attribute and the whole payload into the SyncML <Data> element, so it is escaped twice. xml.EscapeText escapes " as
+// &#34;, which is valid in an attribute.
+func windowsPolicyData(elementID, value string) (string, error) {
+	var attr bytes.Buffer
+	if err := xml.EscapeText(&attr, []byte(value)); err != nil {
+		return "", err
+	}
+	payload := `<enabled/><data id="` + elementID + `" value="` + attr.String() + `"/>`
+	var data bytes.Buffer
+	if err := xml.EscapeText(&data, []byte(payload)); err != nil {
+		return "", err
+	}
+	return data.String(), nil
+}
+
 // windowsEnrollSecretProfileSyncML builds the Fleet-managed profile that carries a one-time enroll secret to the registry.
 func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 	var admx bytes.Buffer
@@ -60,12 +76,10 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 		return nil, err
 	}
 
-	// The policy payload is itself markup, so it is escaped into the <Data> element rather than sent raw. The placeholder
-	// survives escaping unchanged, and the token it expands to is URL-safe base64, so nothing in it needs escaping either.
-	policyValue := `<enabled/><data id="EnrollSecret_Value" value="` +
-		fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `"/>`
-	var value bytes.Buffer
-	if err := xml.EscapeText(&value, []byte(policyValue)); err != nil {
+	// The placeholder survives escaping unchanged, and the token it expands to at send time is URL-safe base64, so nothing in
+	// it needs escaping either.
+	value, err := windowsPolicyData("EnrollSecret_Value", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+	if err != nil {
 		return nil, err
 	}
 
@@ -90,7 +104,7 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
     <Target>
       <LocURI>` + windowsEnrollSecretPolicyURI + `</LocURI>
     </Target>
-    <Data>` + value.String() + `</Data>
+    <Data>` + value + `</Data>
   </Item>
 </Replace>`), nil
 }
