@@ -1,395 +1,535 @@
 # Migrate from Fleet 4 to Fleet 5
 
-Fleet 5 removes deprecated features such as API endpoints, API parameters, and YAML (GitOps) keys. This guide lists each breaking change and the steps to update your setup, so you can upgrade without issues.
+Fleet 5 removes deprecated features such as API endpoints, API parameters, and YAML (GitOps) keys. This guide lists every breaking change, what changed, and what you need to do.
 
-Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
+Update to the latest Fleet 4 first, then work through the list. Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
-
-## Prerequisites
-
-Check these before you start:
-
-- You're running the latest version of Fleet 4. Update to it first, then follow the steps below.
-- For SSO changes, you have access to your identity provider (IdP).
+If you miss a change, Fleet 5 tells you what to use instead and links back to this guide. For example, `GET /api/v1/fleet/teams` returns `410 Gone` with: `GET /api/v1/fleet/teams was removed in Fleet 5. Use GET /api/v1/fleet/fleets instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`. On the latest Fleet 4, `fleetctl` and `fleetctl gitops --dry-run` print a `[!] ... is deprecated` warning for each deprecated name you use.
 
 
-## Before you upgrade
+## Breaking changes
 
-Do these on the latest Fleet 4. Some of them make the upgrade fail if you skip them, and some can't be done after you upgrade.
-
-1. Convert 2017 packs into reports. Run `fleetctl upgrade-packs -o packs-to-reports.yml`, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`. Fleet 5 removes `fleetctl upgrade-packs`, and packs stop running on hosts after the upgrade.
-2. Give every certificate authority (CA) a unique name. To find CAs that share a name, call `GET /api/v1/fleet/certificate_authorities` and compare the `name` values.
-3. Keep only one automation on each policy. Find policies that have more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhooks_and_tickets_enabled`, and move the extra automations to new policies.
-4. In your identity provider (IdP), rename the `FLEET_JIT_USER_ROLE_TEAM_<ID>` SAML attribute to `FLEET_JIT_USER_ROLE_FLEET_<ID>`. Fleet 4 already accepts the new name.
-5. Run `fleetctl gitops --dry-run` against your GitOps repo and fix every `[!] ... is deprecated` warning. Then follow the YAML and GitOps steps below.
-6. Decide whether you still need the manual enrollment profile endpoint. See [Fleet server configuration](#fleet-server-configuration).
-7. Prepare your Fleet server configuration changes. Fleet 5 fails at startup if a removed Apple Business option is still set, so update your configuration file and environment variables in the same deploy that upgrades to Fleet 5.
-
-
-## Errors and warnings
-
-Fleet 5 tells you exactly what to change when you use something it no longer supports. Each message names what you used, what to use instead, and links to the matching section of this guide.
-
-### Errors in Fleet 5
-
-| You use | Fleet 5 returns | Example message |
-|:--|:--|:--|
-| A removed API endpoint | `410 Gone` | `GET /api/v1/fleet/teams was removed in Fleet 5. Use GET /api/v1/fleet/fleets instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
-| A removed API parameter or request body key | `400 Bad Request` | `team_id was removed in Fleet 5. Use fleet_id instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
-| An API request without a parameter that's now required | `400 Bad Request` | `host_identifier is required in Fleet 5. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#rest-api` |
-| An endpoint that's off by default in Fleet 5 | `400 Bad Request` | `GET /api/v1/fleet/enrollment_profiles/manual is off by default in Fleet 5. To turn it on, set mdm.apple_scep_static_challenge_enabled (FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED) to true. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#fleet-server-configuration` |
-| A removed YAML (GitOps) key | `fleetctl gitops` fails | `fleets/workstations.yml: controls.macos_setup was removed in Fleet 5. Use controls.setup_experience instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#yaml` |
-| A removed `fleetctl` command or flag | `fleetctl` fails | `--team was removed in Fleet 5. Use --fleet instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams` |
-| A removed server configuration option or environment variable | Fleet doesn't start | `mdm.apple_bm_server_token was removed in Fleet 5. Use mdm.apple_business_server_token instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#fleet-server-configuration` |
-
-API errors use Fleet's standard error response, with the message in `reason`:
-
-```json
-{
-  "message": "Removed in Fleet 5",
-  "errors": [
-    {
-      "name": "fleet_id",
-      "reason": "team_id was removed in Fleet 5. Use fleet_id instead. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration#farewell-teams"
-    }
-  ]
-}
-```
-
-`fleetctl gitops` lists every removed key in your repo in one run, so you can fix them all at once.
-
-### Warnings in the latest Fleet 4
-
-Use these warnings to find what to change before you upgrade:
-
-- API responses to a deprecated endpoint or parameter include a `Deprecation: true` header and a `Link` header that points to this guide.
-- `fleetctl` and `fleetctl gitops` print a warning for each deprecated command, flag, or YAML key, for example: `[!] '--team' is deprecated; use '--fleet' instead. This will stop working in Fleet 5. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`
-- Admins see a banner in the Fleet UI when Fleet sees deprecated API endpoints or parameters in use.
+- [Teams are now fleets](#teams-are-now-fleets)
+- [SSO: Fleet role SAML attribute renamed](#sso-fleet-role-saml-attribute-renamed)
+- [Policy endpoints merged](#policy-endpoints-merged)
+- [One automation per policy](#one-automation-per-policy)
+- [Schedule endpoints replaced by reports](#schedule-endpoints-replaced-by-reports)
+- [Built-in labels can't target reports](#built-in-labels-cant-target-reports)
+- [MDM endpoints moved out of /mdm](#mdm-endpoints-moved-out-of-mdm)
+- [List MDM commands requires a host](#list-mdm-commands-requires-a-host)
+- [Other endpoints moved](#other-endpoints-moved)
+- [Apple Business Manager renamed to Apple Business](#apple-business-manager-renamed-to-apple-business)
+- [macos_setup renamed to setup_experience](#macos_setup-renamed-to-setup_experience)
+- [Setup experience script removed](#setup-experience-script-removed)
+- [Setup experience and Recovery Lock settings renamed](#setup-experience-and-recovery-lock-settings-renamed)
+- [Organization logo settings renamed](#organization-logo-settings-renamed)
+- [all_linux_count removed](#all_linux_count-removed)
+- [os_name and os_version are separate](#os_name-and-os_version-are-separate)
+- [Windows wipe options moved](#windows-wipe-options-moved)
+- [YAML-only lists removed from configuration responses](#yaml-only-lists-removed-from-configuration-responses)
+- [detail_query_overrides removed](#detail_query_overrides-removed)
+- [Software API changes](#software-api-changes)
+- [Label platforms: centos and ubuntu replaced by linux](#label-platforms-centos-and-ubuntu-replaced-by-linux)
+- [Host identifiers for personal and Android hosts](#host-identifiers-for-personal-and-android-hosts)
+- [Android Lock resets the PIN](#android-lock-resets-the-pin)
+- [SCIM user delete requires an admin](#scim-user-delete-requires-an-admin)
+- [GitOps users can't run custom MDM commands](#gitops-users-cant-run-custom-mdm-commands)
+- [Omitted GitOps settings reset to defaults](#omitted-gitops-settings-reset-to-defaults)
+- [Manual labels don't accept hostname](#manual-labels-dont-accept-hostname)
+- [scripts_disabled removed](#scripts_disabled-removed)
+- [Package YAML files must be lists](#package-yaml-files-must-be-lists)
+- [Certificate authority names must be unique](#certificate-authority-names-must-be-unique)
+- [Fleet names must be unique](#fleet-names-must-be-unique)
+- [Packs removed](#packs-removed)
+- [Disk encryption activity types merged](#disk-encryption-activity-types-merged)
+- [fleetd process name is Fleet](#fleetd-process-name-is-fleet)
+- [fleetctl package file names changed](#fleetctl-package-file-names-changed)
+- [Static SCEP challenge off by default](#static-scep-challenge-off-by-default)
+- [Async host processing removed](#async-host-processing-removed)
+- [osquery_min_software_last_opened_at_diff removed](#osquery_min_software_last_opened_at_diff-removed)
 
 
-## Farewell, teams
+### Teams are now fleets
 
 You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `POST /api/v1/fleet/spec/teams` | `POST /api/v1/fleet/spec/fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `POST /api/v1/fleet/teams` | `POST /api/v1/fleet/fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `GET /api/v1/fleet/teams` | `GET /api/v1/fleet/fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `GET /api/v1/fleet/teams/:id` | `GET /api/v1/fleet/fleets/:id` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `PATCH /api/v1/fleet/teams/:id` | `PATCH /api/v1/fleet/fleets/:id` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `DELETE /api/v1/fleet/teams/:id` | `DELETE /api/v1/fleet/fleets/:id` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `PATCH /api/v1/fleet/teams/:id/secrets` | `PATCH /api/v1/fleet/fleets/:id/secrets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `GET /api/v1/fleet/teams/:id/secrets` | `GET /api/v1/fleet/fleets/:id/secrets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `POST /api/v1/fleet/teams/:id/agent_options` | `POST /api/v1/fleet/fleets/:id/agent_options` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `GET /api/v1/fleet/teams/:id/users` | `GET /api/v1/fleet/fleets/:id/users` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `PATCH /api/v1/fleet/teams/:id/users` | `PATCH /api/v1/fleet/fleets/:id/users` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `DELETE /api/v1/fleet/teams/:id/users` | `DELETE /api/v1/fleet/fleets/:id/users` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `PATCH /api/v1/fleet/ab_tokens/:id/teams` | `PATCH /api/v1/fleet/ab_tokens/:id/fleets` | `/api/v1/fleet/abm_tokens/:id/teams` and `/api/v1/fleet/abm_tokens/:id/fleets` are also removed. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `PATCH /api/v1/fleet/vpp_tokens/:id/teams` | `PATCH /api/v1/fleet/vpp_tokens/:id/fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_id` | `fleet_id` | Applies to REST API requests, responses, and query parameters. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_name` | `fleet_name` | Applies to REST API requests, responses, and query parameters. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team` | `fleet` | Applies to REST API requests and responses. Includes the `team` target type. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `teams` | `fleets` | Applies to REST API requests and responses. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_ids` | `fleet_ids` | Applies to REST API requests and responses. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_ids_by_name` | `fleet_ids_by_name` | Applies to REST API requests and responses. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `available_teams` | `available_fleets` | Applies to REST API requests and responses. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `default_team` | `default_fleet` | Applies to Apple Business (AB) settings. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `macos_team`, `ios_team`, `ipados_team`, and `byod_team` | `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` | Applies to AB settings. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` | `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` | Used when you assign fleets to an AB token. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_id` and `team_name` as `order_key` values | `fleet_id` and `fleet_name` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `fleetctl get teams` | `fleetctl get fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `fleetctl gitops --delete-other-teams` | `fleetctl gitops --delete-other-fleets` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `fleetctl apply --policies-team` | `fleetctl apply --policies-fleet` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `--team` on `fleetctl report`, `user create`, `hosts transfer`, `run-script`, `get reports`, `get labels`, `get hosts`, and `get software` | `--fleet` on the same commands |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `fleetctl generate-gitops --team no-team` | `fleetctl generate-gitops --fleet unassigned` |  | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| Activity types `created_team`, `deleted_team`, `applied_spec_team`, `changed_user_team_role`, and `deleted_user_team_role` | `created_fleet`, `deleted_fleet`, `applied_spec_fleet`, `changed_user_fleet_role`, and `deleted_user_fleet_role` | Update anything that filters or parses activities by type. | [#52795](https://github.com/fleetdm/fleet/issues/52795) |
-| `FLEET_JIT_USER_ROLE_TEAM_<ID>` SAML attribute | `FLEET_JIT_USER_ROLE_FLEET_<ID>` | Rename it in your IdP. | [#53925](https://github.com/fleetdm/fleet/issues/53925) |
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `/api/v1/fleet/teams` endpoints, including `/spec/teams`, `/teams/:id`, `/teams/:id/secrets`, `/teams/:id/agent_options`, and `/teams/:id/users` | The same paths under `/api/v1/fleet/fleets` |
+| `PATCH /api/v1/fleet/ab_tokens/:id/teams` and `PATCH /api/v1/fleet/vpp_tokens/:id/teams` | `PATCH /api/v1/fleet/ab_tokens/:id/fleets` and `PATCH /api/v1/fleet/vpp_tokens/:id/fleets` |
+| `team_id`, `team_name`, `team`, `teams`, `team_ids`, `team_ids_by_name`, and `available_teams` in API requests, responses, and query parameters | `fleet_id`, `fleet_name`, `fleet`, `fleets`, `fleet_ids`, `fleet_ids_by_name`, and `available_fleets` |
+| `team_id` and `team_name` as `order_key` values and hosts CSV columns | `fleet_id` and `fleet_name` |
+| `default_team`, `macos_team`, `ios_team`, `ipados_team`, and `byod_team` in Apple Business settings, and `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` | `default_fleet`, `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet`, and `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` |
+| `fleetctl get teams`, `--team`, `--policies-team`, `--delete-other-teams`, and `generate-gitops --team no-team` | `fleetctl get fleets`, `--fleet`, `--policies-fleet`, `--delete-other-fleets`, and `generate-gitops --fleet unassigned` |
+| Activity types `created_team`, `deleted_team`, `applied_spec_team`, `changed_user_team_role`, and `deleted_user_team_role` | `created_fleet`, `deleted_fleet`, `applied_spec_fleet`, `changed_user_fleet_role`, and `deleted_user_fleet_role` |
 
-> **Warning:** Fleet 5 ignores `FLEET_JIT_USER_ROLE_TEAM_<ID>`. If you don't rename it, new users who log in with SSO get the global observer role, and existing users keep the roles they have now.
-
-### How to update
+What to do:
 
 1. Search your scripts, integrations, and GitOps repo for the old names:
    ```sh
-   grep -rnE '/fleet/teams|ab_tokens/[^/]+/teams|vpp_tokens/[^/]+/teams|team_ids?\b|team_name|available_teams|default_team|(macos|ios|ipados|byod)_team|--team\b|--policies-team|--delete-other-teams|no-team|get teams' .
+   grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|default_team|(macos|ios|ipados|byod)_team|--team\b|--policies-team|--delete-other-teams|no-team|get teams' .
    ```
-2. Replace each match with its Fleet 5 name from the table above. The `/fleets` endpoints and `--fleet` flags already work in Fleet 4, so you can make this change before you upgrade.
-3. Update anything that reads the hosts CSV export to use the `fleet_id` and `fleet_name` columns.
-4. Update anything that filters or parses activities, like SIEM rules or log pipelines, to use the new activity type names.
-5. Rename the SAML attribute in your IdP. See [Before you upgrade](#before-you-upgrade).
-6. To check your work, run the search again. It should return no matches.
+2. Replace each match with its Fleet 5 name. The `/fleets` endpoints and `--fleet` flags already work in Fleet 4, so you can do this before you upgrade.
+3. Update anything that reads the hosts CSV or filters activities, like SIEM rules, to use the new names.
+
+Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 
+### SSO: Fleet role SAML attribute renamed
 
-## REST API
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `FLEET_JIT_USER_ROLE_TEAM_<ID>` | `FLEET_JIT_USER_ROLE_FLEET_<ID>` |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `GET /api/v1/fleet/hosts/identifier/:identifier` | `GET /api/v1/fleet/hosts_identifier/:identifier` |  | [#53080](https://github.com/fleetdm/fleet/issues/53080) |
-| `GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id` | `GET /api/v1/fleet/scripts/batch/:batch_execution_id` |  | [#53080](https://github.com/fleetdm/fleet/issues/53080) |
-| `POST /api/v1/fleet/hosts/:host_id/configuration_profiles/resend/:profile_uuid` | `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend` |  | [#53080](https://github.com/fleetdm/fleet/issues/53080) |
-| `os_name` and `os_version` combined in responses | `os_name` and `os_version` as separate keys | Applies to [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), `GET /api/v1/fleet/hosts`, and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv), `GET /api/v1/fleet/hosts/report`. | [#53877](https://github.com/fleetdm/fleet/issues/53877) |
-| `require_all_software_macos` | `macos_require_all_software` | Applies to the request body of [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), `PATCH /api/v1/fleet/setup_experience`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `require_all_software_windows` | `windows_require_all_software` | Applies to the request body of [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), `PATCH /api/v1/fleet/setup_experience`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `enable_recovery_lock_password` | `macos_enable_recovery_lock_password` | Applies to the `mdm` settings in the request and response of [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), `PATCH /api/v1/fleet/config`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `all_linux_count` in the [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) response | The [Count hosts](https://fleetdm.com/docs/rest-api/rest-api#count-hosts) endpoint with `label_id` set to the ID of the built-in "All Linux" label | You can find the ID in `builtin_labels` in the [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) response. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `org_logo_url` | `org_logo_url_dark_mode` | Applies to API requests and responses. | [#52800](https://github.com/fleetdm/fleet/issues/52800) |
-| `org_logo_url_light_background` | `org_logo_url_light_mode` | Applies to API requests and responses. | [#52800](https://github.com/fleetdm/fleet/issues/52800) |
-| `windows` object with `wipe_type` in the request body of [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host), `POST /api/v1/fleet/hosts/:id/wipe` | Removed. Use `POST /api/v1/fleet/hosts/:id/reset` instead. |  | [#55003](https://github.com/fleetdm/fleet/issues/55003) |
-| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in the responses of [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed | These lists only included settings applied with YAML. Use the list endpoints for each feature instead. | [#53932](https://github.com/fleetdm/fleet/issues/53932) |
-| `features.detail_query_overrides` | Removed | Applies to the REST API and YAML. | [#33769](https://github.com/fleetdm/fleet/issues/33769) |
-| `GET /api/v1/fleet/global/policies` | `GET /api/v1/fleet/policies` | Returns global policies when `fleet_id` is omitted. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `GET /api/v1/fleet/fleets/:id/policies` | `GET /api/v1/fleet/policies?fleet_id=:id` | The `/team/:id/policies` and `/teams/:id/policies` paths are also removed. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `GET /api/v1/fleet/global/policies/:id` | `GET /api/v1/fleet/policies/:id` |  | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `GET /api/v1/fleet/fleets/:fleet_id/policies/:policy_id` | `GET /api/v1/fleet/policies/:id` | The `/team/...` and `/teams/...` paths are also removed. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `POST /api/v1/fleet/global/policies` | `POST /api/v1/fleet/policies` |  | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `POST /api/v1/fleet/fleets/:id/policies` | `POST /api/v1/fleet/policies` | Pass `fleet_id` in the request body. The `/team/:id/policies` and `/teams/:id/policies` paths are also removed. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `PATCH /api/v1/fleet/global/policies/:id` | `PATCH /api/v1/fleet/policies/:id` |  | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `PATCH /api/v1/fleet/fleets/:fleet_id/policies/:policy_id` | `PATCH /api/v1/fleet/policies/:id` | The `/teams/...` path is also removed. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `POST /api/v1/fleet/global/policies/delete` | `POST /api/v1/fleet/policies/delete` |  | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `POST /api/v1/fleet/fleets/:fleet_id/policies/delete` | `POST /api/v1/fleet/policies/delete` | The `/team/...` and `/teams/...` paths are also removed. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `failing_policies_webhook.policy_ids` | `webhooks_and_tickets_enabled` on each policy | Applies to the REST API and YAML. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| A policy with more than one automation (`install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhooks_and_tickets_enabled`) | One automation per policy | `fleetctl gitops` fails if a policy has more than one. Update these policies before you upgrade. | [#52900](https://github.com/fleetdm/fleet/issues/52900) |
-| `GET /api/v1/fleet/global/schedule` | `GET /api/v1/fleet/reports` | Scheduled reports have an `interval` greater than `0`. The `/api/latest/fleet/schedule` path is also removed. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `GET /api/v1/fleet/fleets/:id/schedule` | `GET /api/v1/fleet/reports?fleet_id=:id` | Scheduled reports have an `interval` greater than `0`. The `/team/:id/schedule` and `/teams/:id/schedule` paths are also removed. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `POST /api/v1/fleet/global/schedule` | `POST /api/v1/fleet/reports` | Set `interval`, `platform`, `min_osquery_version`, and `logging` on the report. Fleet 4 copied the report and scheduled the copy. Fleet 5 doesn't. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `POST /api/v1/fleet/fleets/:id/schedule` | `POST /api/v1/fleet/reports` | Set `fleet_id`, `interval`, `platform`, `min_osquery_version`, and `logging` on the report. Fleet 4 copied the report and scheduled the copy. Fleet 5 doesn't. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `PATCH /api/v1/fleet/global/schedule/:id` | `PATCH /api/v1/fleet/reports/:id` |  | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `PATCH /api/v1/fleet/fleets/:id/schedule/:report_id` | `PATCH /api/v1/fleet/reports/:id` |  | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `DELETE /api/v1/fleet/global/schedule/:id` | `DELETE /api/v1/fleet/reports/:id` | To unschedule a report and keep it, send `PATCH` with `interval` set to `0`. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `DELETE /api/v1/fleet/fleets/:id/schedule/:report_id` | `DELETE /api/v1/fleet/reports/:id` | To unschedule a report and keep it, send `PATCH` with `interval` set to `0`. | [#54461](https://github.com/fleetdm/fleet/issues/54461) |
-| `POST /api/v1/fleet/reports` with built-in labels in `labels_include_any` or `labels_include_all` | Returns an error | Use platform targeting instead. | [#53800](https://github.com/fleetdm/fleet/issues/53800) |
-| `GET /api/v1/fleet/mdm/commands` | `GET /api/v1/fleet/commands` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/commandresults` | `GET /api/v1/fleet/commands/results` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/commands/run` | `POST /api/v1/fleet/commands/run` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/commands` without `host_identifier` | `host_identifier` is required | `fleetctl get mdm-commands` requires `--host`. | [#53146](https://github.com/fleetdm/fleet/issues/53146) |
-| `PATCH /api/v1/fleet/mdm/hosts/:id/unenroll` | `PATCH /api/v1/fleet/hosts/:id/mdm` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/hosts/:id/lock` | `POST /api/v1/fleet/hosts/:id/lock` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/hosts/:id/wipe` | `POST /api/v1/fleet/hosts/:id/wipe` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/hosts/:id/profiles` | `GET /api/v1/fleet/hosts/:id/configuration_profiles` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/hosts/:id/encryption_key` | `GET /api/v1/fleet/hosts/:id/encryption_key` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/disk_encryption/summary` | `GET /api/v1/fleet/disk_encryption` | The `/mdm/apple/filevault/summary` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/profiles` | `GET /api/v1/fleet/configuration_profiles` | The `/mdm/apple/profiles` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/profiles` | `POST /api/v1/fleet/configuration_profiles` | The `/mdm/apple/profiles` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/profiles/:profile_uuid` | `GET /api/v1/fleet/configuration_profiles/:profile_uuid` | The `/mdm/apple/profiles/:profile_id` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid` | `DELETE /api/v1/fleet/configuration_profiles/:profile_uuid` | The `/mdm/apple/profiles/:profile_id` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/profiles/summary` | `GET /api/v1/fleet/configuration_profiles/summary` | The `/mdm/apple/profiles/summary` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/apple/commands` | `GET /api/v1/fleet/commands` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `PATCH /api/v1/fleet/mdm/apple/setup` | `PATCH /api/v1/fleet/setup_experience` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/apple` | `GET /api/v1/fleet/apns` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/apple/enrollment_profile` | `POST /api/v1/fleet/enrollment_profiles/automatic` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/apple/enrollment_profile` | `GET /api/v1/fleet/enrollment_profiles/automatic` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `DELETE /api/v1/fleet/mdm/apple/enrollment_profile` | `DELETE /api/v1/fleet/enrollment_profiles/automatic` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/manual_enrollment_profile` | `GET /api/v1/fleet/enrollment_profiles/manual` |  | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/bootstrap` | `POST /api/v1/fleet/bootstrap` | The `/mdm/apple/bootstrap` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/bootstrap/:fleet_id/metadata` | `GET /api/v1/fleet/bootstrap/:fleet_id/metadata` | The `/mdm/apple/bootstrap/:fleet_id/metadata` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `DELETE /api/v1/fleet/mdm/bootstrap/:fleet_id` | `DELETE /api/v1/fleet/bootstrap/:fleet_id` | The `/mdm/apple/bootstrap/:fleet_id` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/bootstrap/summary` | `GET /api/v1/fleet/bootstrap/summary` | The `/mdm/apple/bootstrap/summary` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `POST /api/v1/fleet/mdm/setup/eula` | `POST /api/v1/fleet/setup_experience/eula` | The `/mdm/apple/setup/eula` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `GET /api/v1/fleet/mdm/setup/eula/metadata` | `GET /api/v1/fleet/setup_experience/eula/metadata` | The `/mdm/apple/setup/eula/metadata` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `DELETE /api/v1/fleet/mdm/setup/eula/:token` | `DELETE /api/v1/fleet/setup_experience/eula/:token` | The `/mdm/apple/setup/eula/:token` path is also removed. | [#53563](https://github.com/fleetdm/fleet/issues/53563) |
-| `mdm.macos_setup` in `GET` and `PATCH` `/api/v1/fleet/config` | `mdm.setup_experience` | Applies to organization and fleet settings. In Fleet 5, `macos_setup` is an unknown field. | [#53894](https://github.com/fleetdm/fleet/issues/53894) |
-| `POST`, `GET`, and `DELETE /api/v1/fleet/setup_experience/script` | Removed | Use a script-only package instead. | [#53274](https://github.com/fleetdm/fleet/issues/53274) |
-| `GET /api/v1/fleet/abm_tokens` | `GET /api/v1/fleet/ab_tokens` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `POST /api/v1/fleet/abm_tokens` | `POST /api/v1/fleet/ab_tokens` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `DELETE /api/v1/fleet/abm_tokens/:id` | `DELETE /api/v1/fleet/ab_tokens/:id` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `GET /api/v1/fleet/abm_tokens/count` | `GET /api/v1/fleet/ab_tokens/count` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `PATCH /api/v1/fleet/abm_tokens/:id/renew` | `PATCH /api/v1/fleet/ab_tokens/:id/renew` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `GET /api/v1/fleet/mdm/apple/abm_public_key` | `GET /api/v1/fleet/mdm/apple/ab_public_key` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `GET /api/v1/fleet/abm` and `GET /api/v1/fleet/mdm/apple_bm` | `GET /api/v1/fleet/ab_tokens` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `abm_token` and `abm_tokens` in responses | `ab_token` and `ab_tokens` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `host_dep_assignment.abm_token_id` | `ab_token_id` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_business_manager` in responses | `mdm.apple_business` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_bm_default_team` in requests | Removed |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_bm_enabled_and_configured` in Get configuration | `mdm.apple_business_enabled_and_configured` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_bm_terms_expired` in Get configuration | `mdm.apple_business_terms_expired` |  | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| Lock host (`POST /api/v1/fleet/hosts/:id/lock`) locks the screen of an Android host | Lock host resets the PIN to a random six-digit PIN and locks the host | To get the PIN, use Unlock host (`POST /api/v1/fleet/hosts/:id/unlock`) or `fleetctl mdm unlock --host=<host>`. Both now work for Android hosts. | [#49909](https://github.com/fleetdm/fleet/issues/49909) |
-| `DELETE /api/v1/fleet/scim/Users/:id` with a maintainer's API token succeeds | Returns an error | Use an admin's API token instead. | [#53472](https://github.com/fleetdm/fleet/issues/53472) |
-| `software_id` filter on `GET /api/v1/fleet/hosts` | `software_version_id` or `software_title_id` |  | [#54410](https://github.com/fleetdm/fleet/issues/54410) |
-| `software_package` object in software title responses | `packages` array | `fleetctl get software --json` and `--yaml` output also no longer includes `software_package`. | [#54409](https://github.com/fleetdm/fleet/issues/54409) |
-| `app_store_app` object in software title responses | `app_store_apps` array | `fleetctl get software --json` and `--yaml` output also no longer includes `app_store_app`. | [#52687](https://github.com/fleetdm/fleet/issues/52687) |
-| `browser` | `extension_for` | Applies to host, software title, and software version responses. `fleetctl get software --json` and `--yaml` output also no longer includes `browser`. | [#53395](https://github.com/fleetdm/fleet/issues/53395) |
-| `GET /api/v1/fleet/software` | `GET /api/v1/fleet/software/versions` |  | [#54408](https://github.com/fleetdm/fleet/issues/54408) |
-| `GET /api/v1/fleet/software/:id` | `GET /api/v1/fleet/software/versions/:id` |  | [#54408](https://github.com/fleetdm/fleet/issues/54408) |
-| `GET /api/v1/fleet/software/count` | `GET /api/v1/fleet/software/versions` | Fleet's dashboard now uses this endpoint for counts. | [#54408](https://github.com/fleetdm/fleet/issues/54408) |
-| `centos` and `ubuntu` for label platform targeting | `linux` |  | [#52905](https://github.com/fleetdm/fleet/issues/52905) |
-| `uuid` and `hardware_serial` for personal (BYOD) hosts | `uuid` and `hardware_serial` are empty strings. `enrollment_id` has the enrollment ID | Applies to iOS and iPadOS User Enrollment and Android work profile hosts. | [#53797](https://github.com/fleetdm/fleet/issues/53797) |
-| `uuid` for company-owned Android hosts | `uuid` is an empty string | Fleet 4 returned a hash Fleet generates from the brand and serial. `hardware_serial` doesn't change, and `enrollment_id` is `null`. | [#53797](https://github.com/fleetdm/fleet/issues/53797) |
+What to do: Rename the attribute in your identity provider (IdP) before you upgrade. Fleet 4 already accepts the new name. Fleet 5 ignores the old one, so new users who log in with SSO get the global Observer role, and existing users keep the roles they have now.
 
-### How to update
-
-1. Search your scripts and integrations for each old endpoint path and key in the table above. For example, to find the endpoints that moved out of `/mdm` and `/global`:
-   ```sh
-   grep -rnE '/fleet/(mdm/|global/|abm|hosts/identifier/|scripts/batch/summary/|software(/count|/[0-9:])|(teams?|fleets)/[^/]+/(policies|schedule))' .
-   ```
-2. Replace each endpoint with the Fleet 5 path.
-   - Global and fleet policies now share `/api/v1/fleet/policies`. To work with a fleet's policies, pass `fleet_id`.
-   - Scheduled reports are reports with an `interval` greater than `0`. To schedule a report, create or update it with `interval`, `platform`, `min_osquery_version`, and `logging`. To unschedule a report and keep it, set `interval` to `0`.
-   - Instead of `failing_policies_webhook.policy_ids`, set `webhooks_and_tickets_enabled` on each policy.
-3. Update code that reads responses:
-   - Read `os_name` and `os_version` as separate keys.
-   - Read software packages from the `packages` array and App Store apps from the `app_store_apps` array.
-   - Read `extension_for` instead of `browser`.
-   - Read `ab_token`, `ab_tokens`, `ab_token_id`, and `mdm.apple_business*` instead of the `abm` and `apple_bm` names.
-   - For personal (BYOD) iOS, iPadOS, and Android hosts, identify hosts by `enrollment_id`, since `uuid` and `hardware_serial` are empty strings. For company-owned Android hosts, identify hosts by `hardware_serial`.
-   - Instead of the configuration lists removed from Get configuration and Get fleet, call the list endpoint for each feature.
-4. Update requests that Fleet 5 rejects or handles differently:
-   - Pass `host_identifier` to `GET /api/v1/fleet/commands`, and `--host` to `fleetctl get mdm-commands`.
-   - To filter hosts by software, use `software_version_id` or `software_title_id` instead of `software_id`.
-   - Target reports by platform instead of built-in labels. Use `linux` instead of `centos` or `ubuntu` for label platforms.
-   - Delete SCIM users with an admin's API token.
-   - To wipe a Windows host with options, use `POST /api/v1/fleet/hosts/:id/reset` instead of the `windows` object on Wipe host.
-5. If you lock Android hosts with the API, note that Lock host now resets the PIN. Get the new PIN with Unlock host or `fleetctl mdm unlock --host=<host>`.
-6. To check your work, run the search again. It should return no matches.
+Issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 
 
+### Policy endpoints merged
 
-## YAML
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET`, `POST`, and `PATCH /api/v1/fleet/global/policies` and `/global/policies/:id` | `GET`, `POST`, and `PATCH /api/v1/fleet/policies` and `/policies/:id` |
+| `/api/v1/fleet/fleets/:id/policies` and `/fleets/:fleet_id/policies/:policy_id` (and the `/team/...` and `/teams/...` paths) | `/api/v1/fleet/policies` with `fleet_id`, and `/api/v1/fleet/policies/:id` |
+| `POST /api/v1/fleet/global/policies/delete` and `/fleets/:fleet_id/policies/delete` | `POST /api/v1/fleet/policies/delete` |
+| `failing_policies_webhook.policy_ids` (API and YAML) | `webhooks_and_tickets_enabled` on each policy |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `require_all_software_macos` | `macos_require_all_software` | Under `controls.setup_experience`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `require_all_software_windows` | `windows_require_all_software` | Under `controls.setup_experience`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `enable_recovery_lock_password` | `macos_enable_recovery_lock_password` | Under `controls`. | [#53872](https://github.com/fleetdm/fleet/issues/53872) |
-| `org_logo_url` | `org_logo_url_dark_mode` | Under `org_info`. | [#52800](https://github.com/fleetdm/fleet/issues/52800) |
-| `org_logo_url_light_background` | `org_logo_url_light_mode` | Under `org_info`. | [#52800](https://github.com/fleetdm/fleet/issues/52800) |
-| `controls.macos_setup` in YAML | `controls.setup_experience` | `fleetctl apply` fails with an unknown-field error. `fleetctl get config` no longer prints `macos_setup`. | [#53894](https://github.com/fleetdm/fleet/issues/53894) |
-| `controls.setup_experience.macos_script` in YAML | A script-only package under `software.packages` with `setup_experience` or `setup_experience_platform` | `fleetctl gitops` no longer accepts `macos_script`. The **Run script** tab in **Controls > Setup experience** is hidden. | [#53274](https://github.com/fleetdm/fleet/issues/53274) |
-| `org_settings.mdm.apple_business_manager` in YAML | `org_settings.mdm.apple_business` | `fleetctl gitops` fails with an error that points to `apple_business`. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
+What to do:
 
-### How to update
+1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
+2. Use `/api/v1/fleet/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
+3. Move the IDs in `failing_policies_webhook.policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
-1. On the latest Fleet 4, run `fleetctl gitops --dry-run` against your GitOps repo. Fix every `[!] ... is deprecated` warning by renaming the key it names.
-2. Search for the keys in the table above that the dry run doesn't warn about:
-   ```sh
-   grep -rnE 'require_all_software_(macos|windows)|enable_recovery_lock_password|org_logo_url(_light_background)?:|macos_setup:|macos_script:|apple_business_manager:' .
-   ```
-3. Rename each key to its Fleet 5 name. For `macos_script`, add the script as a script-only package under `software.packages` with `setup_experience` or `setup_experience_platform` set, then remove `macos_script`.
-4. To check your work, run `fleetctl gitops --dry-run` again. It should finish with no deprecation warnings.
+Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 
+### One automation per policy
 
-## GitOps
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| A policy can have more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, and `webhooks_and_tickets_enabled` | One automation per policy. `fleetctl gitops` fails if a policy has more than one. |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| GitOps users can run custom MDM commands | GitOps users get a 403 | Applies to the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) endpoint, `POST /api/v1/fleet/commands/run`. | [#53145](https://github.com/fleetdm/fleet/issues/53145) |
-| Omitted `gitops`, `host_expiry_settings`, and `smtp_settings` keep their current values | Omitted settings reset to their defaults | Add these settings to your YAML to keep their current values. | [#53899](https://github.com/fleetdm/fleet/issues/53899) |
-| `hostname` as a host identifier for manual labels | Not accepted | Applies to the `hosts` key of labels in GitOps and the REST API. | [#53924](https://github.com/fleetdm/fleet/issues/53924) |
-| `server_settings.scripts_disabled` | `fleetctl gitops` fails if it's set | Fleet 5 turns script features back on for instances that had `scripts_disabled: true`. To keep scripts off, deploy fleetd without scripts enabled. The **Disable scripts** checkbox in **Settings > Organization settings > Advanced options** is also removed. | [#53897](https://github.com/fleetdm/fleet/issues/53897) |
-| A package YAML file with one package that isn't in a list | A list of packages | `fleetctl gitops` fails if the package isn't in a list. | [#53378](https://github.com/fleetdm/fleet/issues/53378) |
+What to do: Before you upgrade, find policies with more than one automation and move the extra automations to new policies.
 
-### How to update
-
-1. If your GitOps user runs custom MDM commands, run them with a different API-only user. GitOps users get a 403 in Fleet 5.
-2. Add `gitops`, `host_expiry_settings`, and `smtp_settings` to your YAML with the values you use today, so they don't reset to defaults. To get the current values, run `fleetctl generate-gitops`.
-3. In manual labels, identify hosts by something other than `hostname`.
-4. If you set `server_settings.scripts_disabled: true`, remove it. To keep scripts off, deploy fleetd without `--enable-scripts`.
-5. In each package YAML file, put packages in a list, even if there's only one.
-6. To check your work, run `fleetctl gitops --dry-run`. It should finish with no errors.
+Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 
+### Schedule endpoints replaced by reports
 
-## Certificate authorities (CAs)
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /api/v1/fleet/global/schedule` and `/fleets/:id/schedule` | `GET /api/v1/fleet/reports` (with `fleet_id` for a fleet). Scheduled reports have an `interval` greater than `0`. |
+| `POST /api/v1/fleet/global/schedule` and `/fleets/:id/schedule`, which copied the report and scheduled the copy | `POST /api/v1/fleet/reports` with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
+| `PATCH` and `DELETE /api/v1/fleet/global/schedule/:id` and `/fleets/:id/schedule/:report_id` | `PATCH` and `DELETE /api/v1/fleet/reports/:id` |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| CAs of different types can share a name | Every CA needs a unique name | Rename any CAs that share a name before you upgrade. | [#56271](https://github.com/fleetdm/fleet/issues/56271) |
+The `/api/latest/fleet/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
 
-### How to update
+What to do:
 
-1. Call `GET /api/v1/fleet/certificate_authorities` and look for CAs that share a `name`.
-2. Rename all but one CA in each group, and update the configuration profiles that reference it, before you upgrade.
+1. Search for the old paths: `grep -rnE '/schedule\b' .`
+2. Create or update reports with an `interval` instead. To unschedule a report and keep it, send `PATCH` with `interval` set to `0`.
 
-
-
-## Fleet agent
-
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| Process name `fleet-osquery` (Linux), `Fleet osquery` (Windows), and `orbit` (macOS) | `Fleet` on all platforms | Update any rules that match the old names. | [#56803](https://github.com/fleetdm/fleet/issues/56803) |
-
-### How to update
-
-1. Search your EDR, monitoring, and firewall rules for `fleet-osquery`, `Fleet osquery`, and `orbit`.
-2. Add `Fleet` to each rule. Keep the old names until every host runs the new fleetd.
+Issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
 
+### Built-in labels can't target reports
 
-## fleetctl
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `POST /api/v1/fleet/reports` accepts built-in labels in `labels_include_any` or `labels_include_all` | Returns an error |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `fleetctl package` file names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name | Update scripts that use the file names. `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl`. Global enroll secrets use `unassigned`. | [#53365](https://github.com/fleetdm/fleet/issues/53365) |
-| `fleetctl get mdm-apple-bm` | `fleetctl get mdm-ab` | The `mdm_apple_bm` alias is also removed. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `fleetctl generate mdm-apple-bm` | `fleetctl generate mdm-ab` | The `mdm_apple_bm` alias is also removed. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
+What to do: Target the report by platform instead.
 
-### How to update
-
-1. Search your scripts and CI for `fleetctl package` output file names (for example `fleet-osquery_`) and for `mdm-apple-bm`.
-2. Update file names to the new pattern. Replace `mdm-apple-bm` with `mdm-ab`, which already works in Fleet 4.
+Issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 
+### MDM endpoints moved out of /mdm
 
-## Fleet names
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `/api/v1/fleet/mdm/commands`, `/mdm/commandresults`, `/mdm/commands/run`, and `/mdm/apple/commands` | `/api/v1/fleet/commands`, `/commands/results`, and `/commands/run` |
+| `PATCH /api/v1/fleet/mdm/hosts/:id/unenroll` | `PATCH /api/v1/fleet/hosts/:id/mdm` |
+| `/api/v1/fleet/mdm/hosts/:id/lock`, `/wipe`, `/profiles`, and `/encryption_key` | `/api/v1/fleet/hosts/:id/lock`, `/wipe`, `/configuration_profiles`, and `/encryption_key` |
+| `/api/v1/fleet/mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | `/api/v1/fleet/disk_encryption` |
+| `/api/v1/fleet/mdm/profiles`, `/mdm/profiles/:profile_uuid`, and `/mdm/profiles/summary` (and the `/mdm/apple/profiles` paths) | `/api/v1/fleet/configuration_profiles`, `/configuration_profiles/:profile_uuid`, and `/configuration_profiles/summary` |
+| `PATCH /api/v1/fleet/mdm/apple/setup` | `PATCH /api/v1/fleet/setup_experience` |
+| `GET /api/v1/fleet/mdm/apple` | `GET /api/v1/fleet/apns` |
+| `/api/v1/fleet/mdm/apple/enrollment_profile` and `/mdm/manual_enrollment_profile` | `/api/v1/fleet/enrollment_profiles/automatic` and `/enrollment_profiles/manual` |
+| `/api/v1/fleet/mdm/bootstrap` paths (and `/mdm/apple/bootstrap`) | The same paths under `/api/v1/fleet/bootstrap` |
+| `/api/v1/fleet/mdm/setup/eula` paths (and `/mdm/apple/setup/eula`) | The same paths under `/api/v1/fleet/setup_experience/eula` |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| Fleets can have names that differ only by case or special characters | Fleet names must be unique after Fleet trims whitespace, lowercases the name, and removes special characters | Applies when you create or edit a fleet in the UI or API. GitOps already blocks this. | [#53790](https://github.com/fleetdm/fleet/issues/53790) |
+What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
 
-### How to update
-
-1. Run `fleetctl get fleets` and look for names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`).
-2. Rename one fleet in each pair.
-
-
-
-## Packs
-
-Packs are removed in Fleet 5. Use reports instead.
-
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `/packs` endpoints, including the packs spec endpoints | Removed | They return `410 Gone`. Before you upgrade, run `fleetctl upgrade-packs` on Fleet 4 to convert your 2017 packs into reports, then apply the output. 2017 packs stop running on hosts after the upgrade. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
-| `fleetctl get packs` | Removed |  | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
-| `fleetctl upgrade-packs` | Removed | Run it on Fleet 4 before you upgrade. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
-| `fleetctl apply` with `kind: pack` | Removed |  | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
-
-### How to update
-
-1. Before you upgrade, convert 2017 packs into reports. See [Before you upgrade](#before-you-upgrade).
-2. Search your scripts and GitOps repo for `/packs`, `get packs`, and `kind: pack`, and remove them.
+Issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
 
-## Activities
+### List MDM commands requires a host
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |  | [#53481](https://github.com/fleetdm/fleet/issues/53481) |
-| `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Removed | Fleet 5 keeps existing activities with these types but doesn't create new ones. | [#53470](https://github.com/fleetdm/fleet/issues/53470) |
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /api/v1/fleet/commands` without `host_identifier` | `host_identifier` is required. `fleetctl get mdm-commands` requires `--host`. |
 
-### How to update
+What to do: Pass `host_identifier` (or `--host`) on every call.
 
-Update anything that filters or parses activities, like SIEM rules or log pipelines:
-1. Replace `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` with `edited_disk_encryption_settings`.
-2. Remove filters for the pack activity types.
+Issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 
+### Other endpoints moved
 
-## Fleet server configuration
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /api/v1/fleet/hosts/identifier/:identifier` | `GET /api/v1/fleet/hosts_identifier/:identifier` |
+| `GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id` | `GET /api/v1/fleet/scripts/batch/:batch_execution_id` |
+| `POST /api/v1/fleet/hosts/:host_id/configuration_profiles/resend/:profile_uuid` | `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend` |
 
-| Fleet 4 | Fleet 5 | Notes | Issue |
-|:--|:--|:--|:--|
-| `mdm.apple_scep_static_challenge_enabled` defaults to `true`, and the manual enrollment profile endpoint works | `mdm.apple_scep_static_challenge_enabled` defaults to `false`, and the endpoint returns a 400 | To keep the endpoint working, set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`. That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host. Previously downloaded profiles stop working. Hosts that already have MDM on aren't affected. | [#54190](https://github.com/fleetdm/fleet/issues/54190) |
-| `osquery_enable_async_host_processing` (`FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`) | Removed | Fleet always processes label membership, policy membership, last seen, and scheduled report stats synchronously. Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in. | [#54009](https://github.com/fleetdm/fleet/issues/54009) |
-| `osquery_async_host_collect_interval`, `osquery_async_host_collect_max_jitter_percent`, `osquery_async_host_collect_lock_timeout`, `osquery_async_host_collect_log_stats_interval`, `osquery_async_host_insert_batch`, `osquery_async_host_delete_batch`, `osquery_async_host_update_batch`, `osquery_async_host_redis_pop_count`, and `osquery_async_host_redis_scan_keys_count` | Removed | The matching `FLEET_OSQUERY_*` environment variables are also removed. | [#54009](https://github.com/fleetdm/fleet/issues/54009) |
-| `osquery_min_software_last_opened_at_diff` (`FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`) | Removed |  | [#53787](https://github.com/fleetdm/fleet/issues/53787) |
-| `mdm.apple_bm_server_token` and `mdm.apple_bm_server_token_bytes` | `mdm.apple_business_server_token` and `mdm.apple_business_server_token_bytes` | Fleet fails at startup if an old key is still set. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_bm_cert` and `mdm.apple_bm_cert_bytes` | `mdm.apple_business_cert` and `mdm.apple_business_cert_bytes` | Fleet fails at startup if an old key is still set. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `mdm.apple_bm_key` and `mdm.apple_bm_key_bytes` | `mdm.apple_business_key` and `mdm.apple_business_key_bytes` | Fleet fails at startup if an old key is still set. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
-| `FLEET_MDM_APPLE_BM_*` environment variables | `FLEET_MDM_APPLE_BUSINESS_*` | Fleet fails at startup if an old variable is still set. | [#53272](https://github.com/fleetdm/fleet/issues/53272) |
+What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
+
+Issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
+
+
+### Apple Business Manager renamed to Apple Business
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `/api/v1/fleet/abm_tokens` endpoints, `GET /api/v1/fleet/abm`, and `GET /api/v1/fleet/mdm/apple_bm` | `/api/v1/fleet/ab_tokens` endpoints |
+| `GET /api/v1/fleet/mdm/apple/abm_public_key` | `GET /api/v1/fleet/mdm/apple/ab_public_key` |
+| `abm_token`, `abm_tokens`, and `host_dep_assignment.abm_token_id` in responses | `ab_token`, `ab_tokens`, and `ab_token_id` |
+| `mdm.apple_business_manager`, `mdm.apple_bm_enabled_and_configured`, and `mdm.apple_bm_terms_expired` | `mdm.apple_business`, `mdm.apple_business_enabled_and_configured`, and `mdm.apple_business_terms_expired` |
+| `mdm.apple_bm_default_team` in requests | Removed |
+| `org_settings.mdm.apple_business_manager` in YAML | `org_settings.mdm.apple_business` |
+| `fleetctl get mdm-apple-bm` and `fleetctl generate mdm-apple-bm` (and the `mdm_apple_bm` alias) | `fleetctl get mdm-ab` and `fleetctl generate mdm-ab` |
+| Server options `mdm.apple_bm_server_token`, `mdm.apple_bm_cert`, and `mdm.apple_bm_key` (and their `_bytes` versions), and `FLEET_MDM_APPLE_BM_*` environment variables | `mdm.apple_business_server_token`, `mdm.apple_business_cert`, and `mdm.apple_business_key` (and their `_bytes` versions), and `FLEET_MDM_APPLE_BUSINESS_*` |
+
+What to do:
+
+1. Search your scripts, GitOps repo, and server configuration: `grep -rnE 'abm|apple_bm|APPLE_BM|apple_business_manager|mdm-apple-bm' .`
+2. Replace each match with its Fleet 5 name. `mdm-ab` already works in Fleet 4.
+3. Rename the server options and environment variables in the same deploy that upgrades to Fleet 5. Fleet 5 doesn't start if an old one is still set.
+
+Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
+
+
+### macos_setup renamed to setup_experience
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `mdm.macos_setup` in `GET` and `PATCH /api/v1/fleet/config` and fleet settings | `mdm.setup_experience` |
+| `controls.macos_setup` in YAML | `controls.setup_experience`. `fleetctl get config` no longer prints `macos_setup`. |
+
+What to do: Search for `macos_setup` and rename it to `setup_experience`.
+
+Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
+
+
+### Setup experience script removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `POST`, `GET`, and `DELETE /api/v1/fleet/setup_experience/script` | Removed |
+| `controls.setup_experience.macos_script` in YAML | A script-only package under `software.packages` with `setup_experience` or `setup_experience_platform` |
+| The **Run script** tab in **Controls > Setup experience** | Removed |
+
+What to do: Add your setup script as a script-only package that runs during setup experience, then remove `macos_script` and any calls to `/setup_experience/script`.
+
+Issue: [#53274](https://github.com/fleetdm/fleet/issues/53274)
+
+
+### Setup experience and Recovery Lock settings renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `require_all_software_macos` and `require_all_software_windows` (API and `controls.setup_experience` in YAML) | `macos_require_all_software` and `windows_require_all_software` |
+| `enable_recovery_lock_password` (`mdm` in the API and `controls` in YAML) | `macos_enable_recovery_lock_password` |
+
+What to do: Search for these keys and rename them.
+
+Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
+
+
+### Organization logo settings renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `org_logo_url` (API and `org_info` in YAML) | `org_logo_url_dark_mode` |
+| `org_logo_url_light_background` | `org_logo_url_light_mode` |
+
+What to do: Rename both keys. Fleet 4 already accepts the new names.
+
+Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+
+
+### all_linux_count removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `all_linux_count` in the [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) response | Removed |
+
+What to do: Call [Count hosts](https://fleetdm.com/docs/rest-api/rest-api#count-hosts) with `label_id` set to the ID of the built-in "All Linux" label. You can find the ID in `builtin_labels` in the Get hosts summary response.
+
+Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
+
+
+### os_name and os_version are separate
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `os_name` and `os_version` combined in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) | Separate `os_name` and `os_version` keys |
+
+What to do: Update code that parses `os_name` to read the version from `os_version`.
+
+Issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
+
+
+### Windows wipe options moved
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `windows` object with `wipe_type` in [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) | Removed |
+
+What to do: Use `POST /api/v1/fleet/hosts/:id/reset` instead.
+
+Issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
+
+
+### YAML-only lists removed from configuration responses
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed |
+
+What to do: These lists only included settings applied with YAML. Call the list endpoint for each feature instead.
+
+Issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
+
+
+### detail_query_overrides removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `features.detail_query_overrides` (API and YAML) | Removed |
+
+What to do: Remove `detail_query_overrides` from your YAML and API calls.
+
+Issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
+
+
+### Software API changes
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /api/v1/fleet/software`, `/software/:id`, and `/software/count` | `GET /api/v1/fleet/software/versions` and `/software/versions/:id` |
+| `software_id` filter on `GET /api/v1/fleet/hosts` | `software_version_id` or `software_title_id` |
+| `software_package` object in software title responses | `packages` array |
+| `app_store_app` object in software title responses | `app_store_apps` array |
+| `browser` in host, software title, and software version responses | `extension_for` |
+
+`fleetctl get software --json` and `--yaml` output changes the same way.
+
+What to do: Search for `/fleet/software`, `software_id`, `software_package`, `app_store_app`, and `browser`, and update each request and the code that reads responses.
+
+Issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410](https://github.com/fleetdm/fleet/issues/54410), [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
+
+
+### Label platforms: centos and ubuntu replaced by linux
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `centos` and `ubuntu` for label platform targeting | `linux` |
+
+What to do: Change `centos` and `ubuntu` label platforms to `linux`.
+
+Issue: [#52905](https://github.com/fleetdm/fleet/issues/52905)
+
+
+### Host identifiers for personal and Android hosts
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `uuid` and `hardware_serial` for personal (BYOD) iOS, iPadOS, and Android hosts | Empty strings. `enrollment_id` has the enrollment ID. |
+| `uuid` for company-owned Android hosts (a hash of the brand and serial) | Empty string. `hardware_serial` doesn't change, and `enrollment_id` is `null`. |
+
+What to do: Identify personal hosts by `enrollment_id`, and company-owned Android hosts by `hardware_serial`.
+
+Issue: [#53797](https://github.com/fleetdm/fleet/issues/53797)
+
+
+### Android Lock resets the PIN
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Lock host (`POST /api/v1/fleet/hosts/:id/lock`) locks the screen of an Android host | Lock host resets the PIN to a random six-digit PIN and locks the host |
+
+What to do: To get the PIN, use Unlock host (`POST /api/v1/fleet/hosts/:id/unlock`) or `fleetctl mdm unlock --host=<host>`. Both now work for Android hosts. Update any end user instructions.
+
+Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
+
+
+### SCIM user delete requires an admin
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `DELETE /api/v1/fleet/scim/Users/:id` works with a maintainer's API token | Returns an error |
+
+What to do: Use an admin's API token for your SCIM integration.
+
+Issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
+
+
+### GitOps users can't run custom MDM commands
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| GitOps users can call [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) | GitOps users get a 403 |
+
+What to do: Run custom MDM commands with a different API-only user.
+
+Issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
+
+
+### Omitted GitOps settings reset to defaults
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| If your YAML leaves out `gitops`, `host_expiry_settings`, or `smtp_settings`, they keep their current values | They reset to their defaults |
+
+What to do: Before you upgrade, add these settings to your YAML with the values you use today. To get the current values, run `fleetctl generate-gitops`.
+
+Issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
+
+
+### Manual labels don't accept hostname
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `hostname` as a host identifier in the `hosts` key of manual labels (GitOps and API) | Not accepted |
+
+What to do: Identify hosts in manual labels by something other than `hostname`.
+
+Issue: [#53924](https://github.com/fleetdm/fleet/issues/53924)
+
+
+### scripts_disabled removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `server_settings.scripts_disabled` and the **Disable scripts** checkbox in **Settings > Organization settings > Advanced options** | `fleetctl gitops` fails if it's set. Fleet 5 turns script features back on for instances that had `scripts_disabled: true`. |
+
+What to do: Remove `scripts_disabled` from your YAML. To keep scripts off, deploy fleetd without `--enable-scripts`.
+
+Issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
+
+
+### Package YAML files must be lists
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| A package YAML file can hold one package that isn't in a list | Packages must be in a list. `fleetctl gitops` fails otherwise. |
+
+What to do: In each package YAML file, put packages in a list, even if there's only one.
+
+Issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
+
+
+### Certificate authority names must be unique
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name |
+
+What to do: Before you upgrade, call `GET /api/v1/fleet/certificate_authorities`, find CAs that share a `name`, and rename them. Update the configuration profiles that reference them.
+
+Issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
+
+
+### Fleet names must be unique
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Fleets can have names that differ only by case or special characters | Names must be unique after Fleet trims whitespace, lowercases the name, and removes special characters. Applies when you create or edit a fleet in the UI or API. GitOps already blocks this. |
+
+What to do: Run `fleetctl get fleets`, find names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`), and rename one in each pair.
+
+Issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
+
+
+### Packs removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `/packs` endpoints, including the packs spec endpoints | Removed. They return `410 Gone`. |
+| `fleetctl get packs`, `fleetctl upgrade-packs`, and `fleetctl apply` with `kind: pack` | Removed |
+| Activity types `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Fleet 5 keeps existing activities with these types but doesn't create new ones |
+
+What to do: Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`. 2017 packs stop running on hosts after the upgrade.
+
+Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+
+
+### Disk encryption activity types merged
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |
+
+What to do: Update anything that filters or parses activities, like SIEM rules, to use the new type.
+
+Issue: [#53481](https://github.com/fleetdm/fleet/issues/53481)
+
+
+### fleetd process name is Fleet
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleet-osquery` (Linux), `Fleet osquery` (Windows), and `orbit` (macOS) | `Fleet` on all platforms |
+
+What to do: Add `Fleet` to EDR, monitoring, and firewall rules that match the old names. Keep the old names until every host runs the new fleetd.
+
+Issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
+
+
+### fleetctl package file names changed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| File names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name. Global enroll secrets use `unassigned`. |
+
+What to do: Update scripts and CI that use the file names. `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl`.
+
+Issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
+
+
+### Static SCEP challenge off by default
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `mdm.apple_scep_static_challenge_enabled` defaults to `true`, and the manual enrollment profile endpoint works | Defaults to `false`, and the endpoint returns a `400` |
+
+What to do: If you use the manual enrollment profile endpoint, set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`. That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host. Previously downloaded profiles stop working. Hosts that already have MDM on aren't affected.
+
+Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
+
+
+### Async host processing removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `osquery_enable_async_host_processing` and the `osquery_async_host_*` options (and their `FLEET_OSQUERY_*` environment variables) | Removed. Fleet always processes label membership, policy membership, last seen, and scheduled report stats synchronously. |
+
+What to do: Remove these options from your server configuration. Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
+
+Issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
+
+
+### osquery_min_software_last_opened_at_diff removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `osquery_min_software_last_opened_at_diff` (`FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`) | Removed |
+
+What to do: Remove it from your server configuration.
+
+Issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
 
 <meta name="articleTitle" value="Migrate from Fleet 4 to Fleet 5">
@@ -398,16 +538,3 @@ Update anything that filters or parses activities, like SIEM rules or log pipeli
 <meta name="publishedOn" value="2026-10-30">
 <meta name="category" value="guides">
 <meta name="description" value="Prepare for the upgrade to Fleet 5.">
-
-### How to update
-
-1. Search your Fleet server configuration file, environment variables, and infrastructure code (Terraform, Helm, and so on):
-   ```sh
-   grep -rnE 'apple_bm_|APPLE_BM_|osquery_(enable_)?async_host|OSQUERY_(ENABLE_)?ASYNC_HOST|min_software_last_opened_at_diff|MIN_SOFTWARE_LAST_OPENED_AT_DIFF' .
-   ```
-2. Rename the Apple Business options and environment variables to their `apple_business` names in the same deploy that upgrades to Fleet 5.
-3. Remove the async host processing and `osquery_min_software_last_opened_at_diff` options.
-4. If you use the manual enrollment profile endpoint, decide whether to set `mdm.apple_scep_static_challenge_enabled` to `true`. That turns the static SCEP challenge back on for all Apple MDM enrollments.
-5. To check your work, start Fleet 5. It should start without configuration errors.
-
-
