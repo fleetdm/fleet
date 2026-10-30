@@ -14665,7 +14665,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Install self-service software by Fleet Desktop token](#install-self-service-software-by-fleet-desktop-token)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
-- [Delete software](#delete-software)
+- [Delete package](#delete-package)
+- [Delete app store app](#delete-app-store-app)
 
 ### List software
 
@@ -15538,8 +15539,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`
 
-> `PATCH /api/v1/fleet/software/titles/:id/package` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id` instead.
-
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
@@ -15856,8 +15855,6 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 A software title can have more than one version of the same App Store app on a fleet. Use `version_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
-
-> `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id` instead.
 
 #### Parameters
 
@@ -16294,32 +16291,6 @@ When an install attempt was skipped because a patch policy has `patch_when_close
   }
 }
 ```
-
-### Delete software
-
-_Available in Fleet Premium._
-
-Deletes software that's available for install. For Android hosts, the software is also uninstalled. For all other hosts, the software isn't uninstalled.
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
-
-> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Delete package](#delete-package) or [Delete app store app](#delete-app-store-app) instead.
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
-| fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
-| version_id | integer | query | Deletes only the specified version of an App Store app. If omitted, all of the title's App Store app versions on the fleet are deleted. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/24/available_for_install?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
 
 ### Delete package
 
