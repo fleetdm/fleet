@@ -4522,12 +4522,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "Couldn't edit. Invalid JSON payload")
+		require.ErrorContains(t, err, "Couldn't edit. Invalid JSON payload")
 
 		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", []byte(`{"playStoreMode": "BLACKLIST"}`), nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, `Couldn't edit. Android configuration profile can't include "playStoreMode" setting.`)
+		require.ErrorContains(t, err, `Couldn't edit. Android configuration profile can't include "playStoreMode" setting.`)
 	})
 
 	t.Run("label appearing in both include and exclude lists is rejected", func(t *testing.T) {
