@@ -40,7 +40,6 @@ Set the CVSS vector on the advisory to match the row. Don't inherit the reporter
 | Medium | `p3` | Next minor release |
 | Low | `p4` | Next minor release, or accepted risk with a written reason |
 
-`p1` exists for a High the CTO wants ahead of every other p2. Don't set it yourself; ask.
 
 The label and the assignee are what compliance tracking reads. An issue missing either is invisible to the SLA clock and to the daily digest.
 
