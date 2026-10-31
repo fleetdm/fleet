@@ -1,6 +1,6 @@
 # The following fields are read-only metadata and are not supported in GitOps.
 # They are preserved for reference and for use by other tooling.
-# Affected fields: purpose, tags, contributors, platforms
+# Affected fields: purpose, tags, contributors, platforms, cis_id
 
 - platform: windows
   name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (DisableSavePassword) Prevent the dialup password from being saved (recommended)' is set to 'Enabled'"
