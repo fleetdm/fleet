@@ -1,0 +1,18 @@
+# Closest Fleet equivalent of the Jamf "DNS Servers" extension attribute (Windows half).
+# dns_resolvers is not available on Windows; interface_details.dns_server_search_order is used instead.
+# PLACEHOLDER LIST: edit the addresses below to match the resolvers your organization considers non-corporate.
+# Spaces are stripped and the value is wrapped in commas so '1.1.1.1' does not match '11.1.1.1'.
+- name: Windows hosts using public DNS resolvers
+  description: Windows hosts with at least one well-known public DNS resolver (Cloudflare, Google, Quad9) configured on a network adapter. Placeholder list; edit the addresses in the query to fit your organization.
+  query: |-
+    SELECT 1 FROM interface_details
+    WHERE dns_server_search_order IS NOT NULL AND (
+    (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,1.1.1.1,%'
+    OR (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,1.0.0.1,%'
+    OR (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,8.8.8.8,%'
+    OR (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,8.8.4.4,%'
+    OR (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,9.9.9.9,%'
+    OR (',' || REPLACE(dns_server_search_order, ' ', '') || ',') LIKE '%,149.112.112.112,%'
+    );
+  label_membership_type: dynamic
+  platform: windows
