@@ -148,6 +148,12 @@ func TestConfigCommand(t *testing.T) {
 			"config", "set", "--config", configFile,
 			"--tls-skip-verify", "--rootca", "./rootca",
 		})
+
+		populated, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.True(t, populated.Contexts["default"].TLSSkipVerify)
+		require.Equal(t, "./rootca", populated.Contexts["default"].RootCA)
+
 		runAppForTest(t, []string{
 			"config", "set", "--config", configFile,
 			"--tls-skip-verify=false", "--rootca", "",
@@ -159,6 +165,30 @@ func TestConfigCommand(t *testing.T) {
 		require.True(t, ok)
 		require.False(t, cfgCtx.TLSSkipVerify)
 		require.Empty(t, cfgCtx.RootCA)
+	})
+
+	t.Run("unset tls-skip-verify on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify=false"})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.False(t, cfg.Contexts["default"].TLSSkipVerify)
+	})
+
+	t.Run("clear rootca on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", "./rootca"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", ""})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.Empty(t, cfg.Contexts["default"].RootCA)
 	})
 }
 
