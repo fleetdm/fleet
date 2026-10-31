@@ -1,0 +1,1 @@
+- Host identity certificate requests that use an enroll secret now fail if the host already has a valid certificate. Certificate renewal is unchanged, and a host whose certificate expired can still request a new one. A host that lost its certificate (for example after a reinstall) must be deleted in Fleet before it can request a new one.
