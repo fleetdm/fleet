@@ -356,7 +356,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, new(secondVersionID), state.upserted[0].VPPAppTeamID)
 	})
 
-	t.Run("a host whose row has another version with the same configuration gets no request and its row moves to the version in scope", func(t *testing.T) {
+	t.Run("a host whose row has another version with the same configuration gets no request and its row is set to the version in scope", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
 			installs: []*fleet.HostAndroidSoftwareInstall{
@@ -376,6 +376,29 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Equal(t, new(secondVersionID), state.upserted[0].VPPAppTeamID)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, state.upserted[0].Status)
 		require.True(t, builtAt.Equal(state.upserted[0].PolicyBuiltAt))
+	})
+
+	t.Run("a host whose row has another version with the same configuration and another install type gets the version in scope", func(t *testing.T) {
+		*state = androidAppReconcileState{
+			hosts: []*fleet.Host{hostA},
+			installs: []*fleet.HostAndroidSoftwareInstall{
+				appOneInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false, time.Time{}),
+				agentInstall(hostA.ID, fleet.AndroidSoftwareInstallStatusVerified, false),
+			},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOneSecondVersion}},
+			firstVersionConfig:  []byte(`{"managedConfiguration":{"v":"1"}}`),
+			secondVersionConfig: []byte(`{"managedConfiguration":{"v":"1"}}`),
+			setupApps:           []*fleet.HostAndroidVPPSoftwareInstall{{HostID: hostA.ID, AdamID: "com.example.one", VPPAppTeamID: secondVersionID}},
+		}
+
+		// run the cron, host A should get a request and its row should be set to the second version as preinstalled
+		err := reconcile(0)
+		require.NoError(t, err)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
+		require.Equal(t, new(secondVersionID), state.upserted[0].VPPAppTeamID)
+		require.Equal(t, android.AppStatusPreinstalled, state.upserted[0].InstallType)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
 	})
 
 	t.Run("a host whose row has another version with the same configuration edited after its policy was built gets the version in scope", func(t *testing.T) {

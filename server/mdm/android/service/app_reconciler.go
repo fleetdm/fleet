@@ -161,10 +161,11 @@ func (r *profileReconciler) prepareHostAppList(
 			if install.VPPAppTeamID != nil {
 				sentVersion = versionByID[*install.VPPAppTeamID]
 			}
-			// Update only the install's version when the host moves to a version with the same configuration,
+			// Set only the install's version when the version in scope has the same configuration and install type,
 			// because the app's entry in the policy doesn't change
 			if sentVersion != nil && version != nil && bytes.Equal(sentVersion.Configuration, version.Configuration) &&
-				(sentVersion.ConfigurationUpdatedAt == nil || sentVersion.ConfigurationUpdatedAt.Before(install.PolicyBuiltAt)) {
+				(sentVersion.ConfigurationUpdatedAt == nil || sentVersion.ConfigurationUpdatedAt.Before(install.PolicyBuiltAt)) &&
+				install.InstallType == installTypeByAppID[app.AdamID] {
 				installWithNewVersion := *install
 				installWithNewVersion.VPPAppTeamID = new(app.AppTeamID)
 				installsWithNewVersion = append(installsWithNewVersion, installWithNewVersion)
