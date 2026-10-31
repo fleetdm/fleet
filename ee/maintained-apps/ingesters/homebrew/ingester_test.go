@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -200,6 +200,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
 		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
+		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
@@ -345,6 +346,14 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '1.0') < 0);",
 					out.Queries.Patched,
 				)
+			case "mindmanager":
+				// The bundle ID carries the major version, so the patched query matches
+				// every major while exists stays on the current one.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mindjet.mindmanager.26';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
 			case "qgis":
 				// QGIS and QGIS LTR share a bundle identifier, so each is scoped to its install path.
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';", out.Queries.Exists)
@@ -406,6 +415,12 @@ func TestIngestValidations(t *testing.T) {
 				// KiCad's editors also run as standalone apps nested in KiCad.app, so they count as open too.
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%.app/Contents/MacOS/%')) WHERE a.bundle_identifier = 'org.kicad.kicad' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "mindmanager":
+				// A running older major must defer patching, same as the current one.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			case "chatgpt":
