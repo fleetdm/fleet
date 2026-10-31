@@ -88,6 +88,7 @@ module.exports.policies = {
   'view-arch-linux-management': true,
   'view-omarchy': true,
   'view-europe': true,
+  'view-hire': true,
   'view-pharma': true,
   'view-windows': true,
   'view-apple': true,

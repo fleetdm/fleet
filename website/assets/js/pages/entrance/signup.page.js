@@ -52,6 +52,10 @@ parasails.registerPage('signup', {
         this.loginSlug = '/login#tryfleet';
         this.pageToRedirectToAfterRegistration = '/try-fleet';
         window.location.hash = '';
+      } else if(window.location.hash === '#hire') {
+        this.loginSlug = '/login#hire';
+        this.pageToRedirectToAfterRegistration = '/hire#looking';
+        window.location.hash = '';
       }
     }
   },
