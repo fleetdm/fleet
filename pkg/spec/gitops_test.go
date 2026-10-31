@@ -2803,6 +2803,21 @@ software:
 		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
 	})
 
+	t.Run("fleet_maintained_app_duplicate_slug", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  fleet_maintained_apps:
+    - slug: maccy/darwin
+      self_service: true
+    - slug: maccy/darwin
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, `duplicate fleet_maintained_apps slugs: [maccy/darwin]`)
+	})
+
 	t.Run("multibyte_display_name_at_rune_limit", func(t *testing.T) {
 		// 255 multibyte characters fit the utf8mb4 varchar(255) column, so they
 		// must be accepted even though they take more than 255 bytes
