@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.43.2",
+      "version": "2026.43.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron' AND version_compare(bundle_short_version, '2026.43.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron' AND version_compare(bundle_short_version, '2026.43.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.framer.electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.framer.com/electron/darwin/arm64/Framer-2026.43.2.zip",
+      "installer_url": "https://updates.framer.com/electron/darwin/arm64/Framer-2026.43.3.zip",
       "install_script_ref": "7d1f9f25",
       "uninstall_script_ref": "508ecdcc",
-      "sha256": "390322a69a6f8b85cc4d369c565e48b59242d611d1eb70c40e1d2af0e95ae1e4",
+      "sha256": "464cba4d0d5539df30cba70474ae2fd1a22fef202895b695115212a8f03d01be",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.3.3",
+      "version": "9.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lutzroeder.netron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lutzroeder.netron' AND version_compare(bundle_short_version, '9.3.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lutzroeder.netron' AND version_compare(bundle_short_version, '9.3.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.lutzroeder.netron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/lutzroeder/netron/releases/download/v9.3.3/Netron-9.3.3-mac.zip",
+      "installer_url": "https://github.com/lutzroeder/netron/releases/download/v9.3.4/Netron-9.3.4-mac.zip",
       "install_script_ref": "8ff90941",
       "uninstall_script_ref": "353fb2e8",
-      "sha256": "8eebde2a044a7442c21cd492a79267548cb1012e8a093ad3e446e0148e2f4fb0",
+      "sha256": "5675c292af6b808d826666da4f9fbb8ffd1cd90e447701b75d08c4bccb3cc219",
       "default_categories": [
         "Productivity"
       ]
