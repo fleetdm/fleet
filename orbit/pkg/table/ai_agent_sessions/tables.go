@@ -5,8 +5,8 @@
 //     schedule (transcripts are parsed once and cached while unchanged);
 //   - ai_agent_session_messages: the conversation itself, one row per content
 //     block, for on-demand queries. Results are capped at about 1 MiB so they
-//     stay within what Fleet's server ingests; page with message_index and
-//     block_index.
+//     stay within what Fleet's server ingests; page tool calls with
+//     tool_call_index, and everything else with message_index.
 //
 // Ported from github.com/allenhouchins/fleet-extensions/ai_agent_sessions (MIT).
 package ai_agent_sessions
@@ -103,6 +103,7 @@ func MessagesColumns() []table.ColumnDefinition {
 		table.TextColumn("username"),
 		table.BigIntColumn("message_index"),
 		table.BigIntColumn("block_index"),
+		table.BigIntColumn("tool_call_index"),
 		table.TextColumn("role"),
 		table.TextColumn("block_type"),
 		table.TextColumn("tool_name"),
@@ -238,11 +239,11 @@ func generateMessages(qc table.QueryContext) []map[string]string {
 			rows = append(rows, m.row())
 		}
 		if r.cut {
-			ev := log.Warn().Int("max_bytes", maxResultBytes).Str("session_id", logField(src.id))
+			ev := log.Warn().Int("max_bytes", maxResultBytes).Str("session_id", logField(src.id)).Int64("next_tool_call_index", r.nextCall)
 			if n := len(r.out); n > 0 {
-				ev = ev.Int64("message_index", r.out[n-1].MessageIndex).Int64("block_index", r.out[n-1].BlockIndex)
+				ev = ev.Int64("message_index", r.out[n-1].MessageIndex)
 			}
-			ev.Msg("ai_agent_session_messages: result cut at the size limit; query again with this session_id and (message_index = the last row's AND block_index > its block_index) OR message_index > the last row's")
+			ev.Msg("ai_agent_session_messages: result cut at the size limit; to read on, query the session with block_type = 'tool_use' AND tool_call_index >= next_tool_call_index, or with message_index >= the last row's and drop the rows already read")
 			break
 		}
 	}
@@ -327,16 +328,60 @@ type query struct {
 	// defaultWindow says it is the default rather than the query's.
 	cutoff        time.Time
 	defaultWindow bool
-	// lo and hi bound message_index; hi only applies when hasHi is set.
-	lo, hi int64
-	hasHi  bool
-	// blockLo bounds block_index on message lo, to resume inside a message
-	// the size limit cut.
+	// messages bounds message_index; calls bounds tool_call_index, and when
+	// set at all, only tool_use rows can match.
+	messages, calls bounds
+	// blockLo bounds block_index on message messages.lo, to resume inside a
+	// message the size limit cut.
 	blockLo int64
 	// maxContent caps each content block, in bytes.
 	maxContent int
 	// rows counts the rows this call has returned so far.
 	rows int
+}
+
+// bounds is the range the constraints on an index column allow.
+type bounds struct {
+	lo, hi int64
+	hasHi  bool
+	// set reports whether the column was constrained at all.
+	set bool
+}
+
+func (b *bounds) atLeast(v int64) { b.lo = max(b.lo, v) }
+
+func (b *bounds) atMost(v int64) {
+	if !b.hasHi || v < b.hi {
+		b.hi, b.hasHi = v, true
+	}
+}
+
+func (b bounds) allows(v int64) bool { return v >= b.lo && (!b.hasHi || v <= b.hi) }
+
+// parseBounds reads the single-column comparisons on column.
+func parseBounds(qc table.QueryContext, column string) bounds {
+	var b bounds
+	for _, c := range qc.Constraints[column].Constraints {
+		v, err := strconv.ParseInt(c.Expression, 10, 64)
+		if err != nil {
+			continue
+		}
+		b.set = true
+		switch c.Operator {
+		case table.OperatorEquals:
+			b.atLeast(v)
+			b.atMost(v)
+		case table.OperatorGreaterThan:
+			b.atLeast(v + 1)
+		case table.OperatorGreaterThanOrEquals:
+			b.atLeast(v)
+		case table.OperatorLessThan:
+			b.atMost(v - 1)
+		case table.OperatorLessThanOrEquals:
+			b.atMost(v)
+		}
+	}
+	return b
 }
 
 func parseQuery(qc table.QueryContext, timeColumn string, at time.Time) query {
@@ -376,25 +421,8 @@ func parseQuery(qc table.QueryContext, timeColumn string, at time.Time) query {
 		q.cutoff, q.defaultWindow = time.Time{}, false
 	}
 
-	for _, c := range qc.Constraints["message_index"].Constraints {
-		v, err := strconv.ParseInt(c.Expression, 10, 64)
-		if err != nil {
-			continue
-		}
-		switch c.Operator {
-		case table.OperatorEquals:
-			q.atLeast(v)
-			q.atMost(v)
-		case table.OperatorGreaterThan:
-			q.atLeast(v + 1)
-		case table.OperatorGreaterThanOrEquals:
-			q.atLeast(v)
-		case table.OperatorLessThan:
-			q.atMost(v - 1)
-		case table.OperatorLessThanOrEquals:
-			q.atMost(v)
-		}
-	}
+	q.messages = parseBounds(qc, "message_index")
+	q.calls = parseBounds(qc, "tool_call_index")
 	for _, c := range qc.Constraints["block_index"].Constraints {
 		v, err := strconv.ParseInt(c.Expression, 10, 64)
 		if err != nil {
@@ -408,14 +436,6 @@ func parseQuery(qc table.QueryContext, timeColumn string, at time.Time) query {
 		}
 	}
 	return q
-}
-
-func (q *query) atLeast(v int64) { q.lo = max(q.lo, v) }
-
-func (q *query) atMost(v int64) {
-	if !q.hasHi || v < q.hi {
-		q.hi, q.hasHi = v, true
-	}
 }
 
 // equalities collects a column's `=` constraints; osquery turns an IN list
