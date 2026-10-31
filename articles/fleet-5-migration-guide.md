@@ -216,8 +216,8 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `org_logo_url` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `org_logo_url_dark_mode` |
-| `org_logo_url_light_background` | `org_logo_url_light_mode` |
+| `org_logo_url` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | `org_logo_url_dark_mode` |
+| `org_logo_url_light_background` in the same endpoints | `org_logo_url_light_mode` |
 
 What to do: Rename both keys. Fleet 4.95 already accepts the new names.
 
@@ -698,6 +698,16 @@ Issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https:
 What to do: Add the new names to EDR, monitoring, and firewall rules, and update scripts that call `launchctl` or `systemctl` with the old names. Keep the old names until every host runs the new fleetd.
 
 Issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
+
+### Older fleetd can't find the organization logo
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| fleetd earlier than 1.56.0 reads `org_logo_url` and `org_logo_url_light_background` to show your organization's logo in the macOS MDM migration window | Fleet no longer returns those keys. fleetd 1.56.0 and later read `org_logo_url_dark_mode` and `org_logo_url_light_mode`. Earlier versions show the default Fleet logo. |
+
+What to do: Update fleetd to 1.56.0 or later before you upgrade to Fleet 5.
+
+Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 
 ## Fleet UI
