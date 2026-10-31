@@ -527,6 +527,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
+		sb.AddFunction("remove_system_path", removeSystemPathFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
 }
@@ -1146,19 +1147,18 @@ const trashFunc = `trash() {
   local rand="$(jot -r 1 0 99999)"
   local trash=""
 
-  # At the login window there's no user Trash to move files into, so user
-  # paths are skipped and system paths are deleted outright. Removal is
-  # best-effort and never fails the uninstall.
-  if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
-    if [[ "$target_file" == ~* ]]; then
+  # Paths in the user's home are moved to their Trash as the user: the user
+  # controls those paths and ~/.Trash, so as root the move could be redirected
+  # into a root-only directory. Other paths are deleted as root by
+  # remove_system_path. At the login window there's no user Trash, so home
+  # paths are skipped. Removal is best-effort and never fails the uninstall.
+  if [[ "$target_file" == ~* ]]; then
+    if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
       echo "Not logged into a non-root GUI; skipping $target_file."
       return
     fi
-  else
     # replace ~ with /Users/$logged_in_user
-    if [[ "$target_file" == ~* ]]; then
-      target_file="/Users/$logged_in_user${target_file:1}"
-    fi
+    target_file="/Users/$logged_in_user${target_file:1}"
     trash="/Users/$logged_in_user/.Trash"
   fi
 
@@ -1177,11 +1177,11 @@ const trashFunc = `trash() {
       file_name="$(basename "$file")"
       echo "removing $file."
       if [[ -z "$trash" ]]; then
-        rm -rf "$file" || echo "Failed to remove $file."
+        remove_system_path "$file"
       else
         # The per-match counter keeps matches that share a basename from
         # overwriting each other in the trash.
-        mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+        sudo -u "$logged_in_user" mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
       fi
     done < <(compgen -G "$target_file" 2>/dev/null)
     if [[ "$matched" == false ]]; then
@@ -1195,13 +1195,38 @@ const trashFunc = `trash() {
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
     if [[ -z "$trash" ]]; then
-      rm -rf "$target_file" || echo "Failed to remove $target_file."
+      remove_system_path "$target_file"
     else
-      mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+      sudo -u "$logged_in_user" mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
     fi
   else
     echo "$target_file doesn't exist."
   fi
+}`
+
+// removeSystemPathFunc deletes a trash path outside the user's home as root.
+// rm -rf doesn't follow a symlink at the end of the path, but it does follow
+// one in a parent folder, which a user can plant in a world-writable folder
+// like /Users/Shared to redirect the delete. cd -P pins the real parent, and
+// the delete runs only if no folder below the top level is a symlink. Users
+// can't write to /, so top-level symlinks such as /tmp and /etc are trusted.
+const removeSystemPathFunc = `remove_system_path() {
+  local target="$1"
+  local parent name rel top expected
+  parent="$(dirname "$target")"
+  name="$(basename "$target")"
+  rel="${parent#/}"
+  top="/${rel%%/*}"
+  expected="$(cd -P "$top" 2>/dev/null && pwd -P)${parent#"$top"}"
+
+  (
+    cd -P "$parent" 2>/dev/null || exit 1
+    if [[ "$(pwd -P)" != "$expected" ]]; then
+      echo "Skipped $target: a folder in its path is a symlink."
+      exit 0
+    fi
+    rm -rf "./$name"
+  ) || echo "Failed to remove $target."
 }`
 
 // removeEmptyDirFunc keeps rmdir's empty-only semantics: casks use rmdir for

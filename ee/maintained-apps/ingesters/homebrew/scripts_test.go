@@ -591,11 +591,13 @@ func TestUninstallScriptEscapesApostrophe(t *testing.T) {
 	require.NotContains(t, script, `Cycling '74'`)
 }
 
-// TestUninstallScriptTrashWithoutGUIUser runs generated trash calls in bash with
-// the console user stubbed. Fleet also runs uninstalls at the login window,
-// where there's no user Trash: moving into /Users/loginwindow/.Trash left system
-// paths behind, and an empty user shifted the arguments so nothing was removed.
-func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
+// TestUninstallScriptTrash runs generated trash calls in bash with the console
+// user stubbed and the user's home under a temp dir. Fleet also runs uninstalls
+// at the login window, where there's no user Trash: moving into
+// /Users/loginwindow/.Trash left system paths behind, and an empty user shifted
+// the arguments so nothing was removed. With a user logged in, root must never
+// move files into ~/.Trash, which the user can redirect with a symlink.
+func TestUninstallScriptTrash(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
 	}
@@ -605,19 +607,33 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 	}
 
 	type paths struct {
-		dir, helper1, helper2 string
+		pref, cache, trash, dir, helper1, helper2 string
+		// vendor is a symlink a user planted in a shared folder, pointing at
+		// the folder that holds protected1 and protected2.
+		vendor, protected1, protected2 string
 	}
-	run := func(t *testing.T, consoleUser string, rmFails bool) (string, paths) {
+	// fail is "rm" to make rm fail, or "sudo" to make the user's move fail.
+	run := func(t *testing.T, consoleUser string, fail string) (string, paths) {
 		tmp := t.TempDir()
+		home := filepath.Join(tmp, "Users", "alice")
 		p := paths{
-			dir:     filepath.Join(tmp, "Shared", "Foo"),
-			helper1: filepath.Join(tmp, "Library", "Foo Helper 1"),
-			helper2: filepath.Join(tmp, "Library", "Foo Helper 2"),
+			pref:       filepath.Join(home, "Library", "Preferences", "com.example.foo.plist"),
+			cache:      filepath.Join(home, "Library", "Caches", "com.example.foo.cache"),
+			trash:      filepath.Join(home, ".Trash"),
+			dir:        filepath.Join(tmp, "Shared", "Foo"),
+			helper1:    filepath.Join(tmp, "Library", "Foo Helper 1"),
+			helper2:    filepath.Join(tmp, "Library", "Foo Helper 2"),
+			vendor:     filepath.Join(tmp, "Shared", "Vendor"),
+			protected1: filepath.Join(tmp, "Protected", "Bar"),
+			protected2: filepath.Join(tmp, "Protected", "Baz 1"),
 		}
-		require.NoError(t, os.MkdirAll(filepath.Join(p.dir, "data"), 0o755))
-		require.NoError(t, os.MkdirAll(filepath.Dir(p.helper1), 0o755))
-		require.NoError(t, os.WriteFile(p.helper1, nil, 0o644))
-		require.NoError(t, os.WriteFile(p.helper2, nil, 0o644))
+		for _, dir := range []string{filepath.Join(p.dir, "data"), filepath.Dir(p.pref), filepath.Dir(p.cache), p.trash, filepath.Dir(p.helper1), filepath.Dir(p.protected1)} {
+			require.NoError(t, os.MkdirAll(dir, 0o755))
+		}
+		for _, file := range []string{p.pref, p.cache, p.helper1, p.helper2, p.protected1, p.protected2} {
+			require.NoError(t, os.WriteFile(file, nil, 0o644))
+		}
+		require.NoError(t, os.Symlink(filepath.Dir(p.protected1), p.vendor))
 
 		cask := &brewCask{
 			Artifacts: []*brewArtifact{
@@ -630,6 +646,8 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 									"~/Library/Preferences/com.example.foo.plist",
 									"~/Library/Caches/com.example.foo*",
 									filepath.Join(tmp, "Library", "Foo Helper*"),
+									filepath.Join(p.vendor, "Bar"),
+									filepath.Join(p.vendor, "Baz*"),
 									p.dir,
 								},
 							},
@@ -638,29 +656,57 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 				},
 			},
 		}
-		// mv is stubbed so the logged-in case doesn't touch /Users; rm is real
-		// unless it's made to fail.
+		script := uninstallScriptForApp(inputApp{}, cask)
+		require.Contains(t, script, `"/Users/$logged_in_user`)
+		script = strings.ReplaceAll(script, `"/Users/$logged_in_user`, `"$users_dir/$logged_in_user`)
+
+		// A bare mv runs as root, so it's stubbed to fail loudly. sudo -u runs the
+		// real mv as the test user.
 		stubs := `console_user=` + shellSingleQuote(consoleUser) + `
-rm_fails=` + strconv.FormatBool(rmFails) + `
+users_dir=` + shellSingleQuote(filepath.Join(tmp, "Users")) + `
+fail=` + shellSingleQuote(fail) + `
 scutil() { [[ -z "$console_user" ]] || echo "  Name : $console_user"; }
 jot() { echo 42; }
-mv() { echo "mv $*"; }
+mv() { echo "mv as root: $*"; return 1; }
+sudo() {
+  if [[ "$1" != -u || "$2" != "$console_user" ]]; then
+    echo "unexpected sudo $*"
+    return 1
+  fi
+  shift 2
+  echo "as $console_user: $*"
+  if [[ "$fail" == sudo ]]; then
+    echo "mv: rename: Permission denied" >&2
+    return 1
+  fi
+  command "$@"
+}
 rm() {
-  if [[ "$rm_fails" == true ]]; then
+  if [[ "$fail" == rm ]]; then
     echo "rm: $2: Operation not permitted" >&2
     return 1
   fi
   command rm "$@"
 }
 `
-		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, cask)).CombinedOutput()
+		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
 		require.NoError(t, err, string(out))
+		require.NotContains(t, string(out), "mv as root")
+		require.NotContains(t, string(out), "unexpected sudo")
 		return string(out), p
+	}
+
+	// A symlinked parent folder can't redirect a delete as root.
+	requireNotRedirected := func(t *testing.T, out string, p paths) {
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Bar")+": a folder in its path is a symlink.\n")
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Baz 1")+": a folder in its path is a symlink.\n")
+		require.FileExists(t, p.protected1)
+		require.FileExists(t, p.protected2)
 	}
 
 	for name, user := range map[string]string{"loginwindow": "loginwindow", "empty": "", "root": "root"} {
 		t.Run(name, func(t *testing.T) {
-			out, p := run(t, user, false)
+			out, p := run(t, user, "")
 			require.Contains(t, out, "Not logged into a non-root GUI; skipping ~/Library/Preferences/com.example.foo.plist.\n")
 			require.Contains(t, out, "Not logged into a non-root GUI; skipping ~/Library/Caches/com.example.foo*.\n")
 			require.Contains(t, out, "removing "+p.dir+".\n")
@@ -668,27 +714,45 @@ rm() {
 			require.NoFileExists(t, p.helper1)
 			require.NoFileExists(t, p.helper2)
 			require.NotContains(t, out, "mv ")
+			requireNotRedirected(t, out, p)
 		})
 	}
 
 	t.Run("normal user", func(t *testing.T) {
-		out, p := run(t, "alice", false)
-		require.Contains(t, out, "/Users/alice/Library/Preferences/com.example.foo.plist doesn't exist.\n")
-		require.Contains(t, out, "/Users/alice/Library/Caches/com.example.foo* doesn't exist.\n")
-		require.Contains(t, out, "mv -f "+p.dir+" /Users/alice/.Trash/Foo_")
-		require.Contains(t, out, "mv -f "+p.helper1+" /Users/alice/.Trash/Foo Helper 1_")
-		require.Contains(t, out, "mv -f "+p.helper2+" /Users/alice/.Trash/Foo Helper 2_")
+		out, p := run(t, "alice", "")
+		require.Contains(t, out, "as alice: mv -f "+p.pref+" "+p.trash+"/com.example.foo.plist_")
+		require.Contains(t, out, "as alice: mv -f "+p.cache+" "+p.trash+"/com.example.foo.cache_")
+		require.NoFileExists(t, p.pref)
+		require.NoFileExists(t, p.cache)
+		trashed, err := os.ReadDir(p.trash)
+		require.NoError(t, err)
+		require.Len(t, trashed, 2)
+		// System paths aren't moved into the user's Trash.
+		require.Contains(t, out, "removing "+p.dir+".\n")
+		require.NoDirExists(t, p.dir)
+		require.NoFileExists(t, p.helper1)
+		require.NoFileExists(t, p.helper2)
 		require.NotContains(t, out, "Not logged into")
-		require.DirExists(t, p.dir)
+		requireNotRedirected(t, out, p)
 	})
 
 	// Cleanup is best-effort: a path that can't be removed is reported but
 	// doesn't fail the uninstall, even when it's the script's last command.
 	t.Run("removal fails", func(t *testing.T) {
-		out, p := run(t, "loginwindow", true)
+		out, p := run(t, "loginwindow", "rm")
 		require.Contains(t, out, "Failed to remove "+p.helper1+".\n")
 		require.True(t, strings.HasSuffix(out, "Failed to remove "+p.dir+".\n"), out)
 		require.DirExists(t, p.dir)
+		requireNotRedirected(t, out, p)
+	})
+
+	// Root doesn't take over a move the user can't make.
+	t.Run("move as user fails", func(t *testing.T) {
+		out, p := run(t, "alice", "sudo")
+		require.Contains(t, out, "Failed to move "+p.pref+" to the Trash.\n")
+		require.Contains(t, out, "Failed to move "+p.cache+" to the Trash.\n")
+		require.FileExists(t, p.pref)
+		require.FileExists(t, p.cache)
 	})
 }
 
@@ -706,6 +770,7 @@ func TestCustomUninstallScriptsUseCurrentTrash(t *testing.T) {
 			continue
 		}
 		require.Contains(t, script, trashFunc, "%s has a stale copy of trash()", filepath.Base(path))
+		require.Contains(t, script, removeSystemPathFunc, "%s is missing remove_system_path(), which trash() calls", filepath.Base(path))
 		require.NotContains(t, script, "trash $LOGGED_IN_USER", "%s passes $LOGGED_IN_USER to trash unquoted", filepath.Base(path))
 	}
 }
