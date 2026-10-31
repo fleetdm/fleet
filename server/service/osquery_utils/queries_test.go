@@ -1107,6 +1107,39 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
 }
 
+func TestDetailQueriesSystemInfoUUID(t *testing.T) {
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["system_info"].IngestFunc
+
+	const storedUUID = "5B1D3C1E-0A5A-4E0B-9E1B-1D2C3B4A5F6E"
+	cases := []struct {
+		name        string
+		stored      string
+		reported    string
+		wantUUID    string
+		wantWarnLog bool
+	}{
+		{"first report sets the UUID", "", storedUUID, storedUUID, false},
+		{"same UUID", storedUUID, storedUUID, storedUUID, false},
+		{"case-only difference keeps the stored UUID", storedUUID, strings.ToLower(storedUUID), storedUUID, false},
+		{"different UUID is ignored", storedUUID, "11111111-2222-3333-4444-555555555555", storedUUID, true},
+		{"empty UUID is ignored", storedUUID, "", storedUUID, true},
+		{"empty UUID on a host without one", "", "", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+			host := fleet.Host{UUID: c.stored, Hostname: "old-hostname"}
+
+			err := ingest(t.Context(), logger, &host, []map[string]string{{"uuid": c.reported, "hostname": "new-hostname"}})
+			require.NoError(t, err)
+			require.Equal(t, c.wantUUID, host.UUID)
+			require.Equal(t, "new-hostname", host.Hostname)
+			require.Equal(t, c.wantWarnLog, logs.Len() > 0, logs.String())
+		})
+	}
+}
+
 func TestDetailQueriesUptimeChrome(t *testing.T) {
 	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["uptime"]
 	assert.Contains(t, query.Platforms, "chrome")

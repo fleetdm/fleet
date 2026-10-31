@@ -1,6 +1,6 @@
 # Android zero-touch enrollment
 
-`Available in Fleet Premium`
+_Available in Fleet Premium_
 
 Connect Fleet to the Android zero-touch portal so that company-owned Android devices automatically enroll on first boot.
 

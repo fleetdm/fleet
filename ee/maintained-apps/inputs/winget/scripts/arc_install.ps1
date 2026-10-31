@@ -18,6 +18,30 @@ try {
     throw "INSTALLER_PATH is not set"
   }
 
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $zip = [System.IO.Compression.ZipFile]::OpenRead($msixPath)
+  try {
+    $reader = New-Object System.IO.StreamReader($zip.GetEntry("AppxManifest.xml").Open())
+    [xml]$manifest = $reader.ReadToEnd()
+    $reader.Dispose()
+  } finally {
+    $zip.Dispose()
+  }
+  $identity = $manifest.Package.Identity
+
+  # The host may already be on a newer version than this installer (e.g. from the app's own
+  # updater). Windows won't provision an older version over it (0xc1570118 when the newer
+  # version is provisioned, "Element not found" when it's installed only for a user).
+  $newer = @(Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $identity.Name }) +
+    @(Get-AppxPackage -AllUsers -Name $identity.Name) |
+    Where-Object { [version]$_.Version -gt [version]$identity.Version } |
+    Sort-Object { [version]$_.Version } -Descending |
+    Select-Object -First 1
+  if ($newer) {
+    Write-Host "$softwareName $($newer.Version) is already on this host, which is newer than this installer ($($identity.Version)). Nothing to install."
+    Exit 0
+  }
+
   Write-Host "Provisioning MSIX for all users..."
   $result = Add-AppxProvisionedPackage -Online -PackagePath $msixPath -SkipLicense -Regions "all" -ErrorAction Stop
   $result | Out-String | Write-Host

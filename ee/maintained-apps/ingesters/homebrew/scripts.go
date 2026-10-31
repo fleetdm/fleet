@@ -112,6 +112,13 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
 	quitFallsBackToSignal := appQuit && appSignaled
 
+	// The input's pre/post-uninstall scripts wrap the cask's uninstall stanza.
+	// A cask without one still gets them, around the whole removal.
+	hasUninstallStanza := slices.ContainsFunc(cask.Artifacts, func(a *brewArtifact) bool { return len(a.Uninstall) > 0 })
+	if !hasUninstallStanza && len(cask.PreUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+	}
+
 	var rmDirs []string
 	for _, artifact := range cask.Artifacts {
 		switch {
@@ -167,6 +174,9 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				rmDirs = append(rmDirs, stanzaNames(z.RmDir)...)
 			}
 		}
+	}
+	if !hasUninstallStanza && len(cask.PostUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
 	}
 	removeEmptyDirs(sb, rmDirs)
 
@@ -545,6 +555,27 @@ func caskQuitID(quitID, bundleID string) string {
 	return quitID
 }
 
+// quitIDPattern matches the bundle IDs, and '*' patterns, that cask quit
+// directives name. Some real IDs contain a space.
+var quitIDPattern = regexp.MustCompile(`^[A-Za-z0-9 ._*-]+$`)
+
+// validateQuitIDs rejects a cask whose uninstall or zap quit entries aren't
+// bundle IDs. The quit helpers pass the ID to osascript as data, but a value
+// like `x" & (do shell script ...)` means the cask metadata was tampered with,
+// so the ingest stops instead of shipping it in a root script.
+func validateQuitIDs(cask *brewCask) error {
+	for _, artifact := range cask.Artifacts {
+		for _, u := range slices.Concat(artifact.Uninstall, artifact.Zap) {
+			for _, id := range stanzaNames(u.Quit) {
+				if !quitIDPattern.MatchString(id) {
+					return fmt.Errorf("quit ID %q isn't a bundle ID", id)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // quitTargetsApp reports whether a cask quit ID, which may contain '*'
 // wildcards, names the app being uninstalled. Like LaunchServices and
 // Homebrew's wildcard expansion, the match is case-insensitive.
@@ -790,6 +821,10 @@ func (s *scriptBuilder) String() string {
 // removeLaunchctlServiceFunc removes a launchctl service, it's a direct port
 // of the homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L92
+//
+// Homebrew's user pass runs as the user, but Fleet runs uninstall scripts as
+// root, where launchctl list and remove only see the system domain. As root,
+// the user pass targets the console user's GUI domain and home folder instead.
 const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -798,6 +833,15 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local should_sudo
 
   echo "Removing launchctl service ${service}"
+
+  local console_user
+  local console_uid=""
+  if [[ $EUID -eq 0 ]]; then
+    console_user=$(stat -f "%Su" /dev/console)
+    if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
+      console_uid=$(id -u "$console_user")
+    fi
+  fi
 
   # A wildcard label can't be used with launchctl or as a plist name, so expand
   # it to the labels of currently loaded services that match the pattern.
@@ -814,7 +858,12 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
     # loaded-but-not-running jobs with a "-" in the PID column.
     while read -r _ _ id; do
       [[ "$id" =~ $regex ]] && services+=("$id")
-    done < <(launchctl list 2>/dev/null | tail -n +2)
+    done < <(
+      launchctl list 2>/dev/null | tail -n +2
+      if [[ -n "$console_uid" ]]; then
+        launchctl print "gui/${console_uid}" 2>/dev/null | awk '/^\tservices = [{]$/ { f = 1; next } f && /^\t[}]$/ { f = 0 } f'
+      fi
+    )
     if [[ ${#services[@]} -eq 0 ]]; then
       echo "No loaded launchctl service matches ${service}"
       return
@@ -824,15 +873,22 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local service_label
   for service_label in "${services[@]}"; do
     for should_sudo in "${booleans[@]}"; do
-      plist_status=$(launchctl list "${service_label}" 2>/dev/null)
-
-      if [[ $plist_status == \{* ]]; then
-        if [[ $should_sudo == "true" ]]; then
-          sudo launchctl remove "${service_label}"
-        else
-          launchctl remove "${service_label}"
+      if [[ $should_sudo == "false" && -n "$console_uid" ]]; then
+        if launchctl print "gui/${console_uid}/${service_label}" &>/dev/null; then
+          launchctl bootout "gui/${console_uid}/${service_label}"
+          sleep 1
         fi
-        sleep 1
+      else
+        plist_status=$(launchctl list "${service_label}" 2>/dev/null)
+
+        if [[ $plist_status == \{* ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo launchctl remove "${service_label}"
+          else
+            launchctl remove "${service_label}"
+          fi
+          sleep 1
+        fi
       fi
 
       paths=(
@@ -842,8 +898,12 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
       # if not using sudo, prepend the home directory to the paths
       if [[ $should_sudo == "false" ]]; then
+        local user_home="${HOME}"
+        if [[ -n "$console_uid" ]]; then
+          user_home="/Users/${console_user}"
+        fi
         for i in "${!paths[@]}"; do
-          paths[i]="${HOME}${paths[i]}"
+          paths[i]="${user_home}${paths[i]}"
         done
       fi
 
@@ -865,14 +925,17 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
 // Returns 1 if the application is still running after the timeout. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
-// 'pgrep -f <bundle_id>' never matches.
+// 'pgrep -f <bundle_id>' never matches. Both helpers pass the bundle ID to
+// osascript as a run handler argument, never in the AppleScript source, so it
+// can't inject AppleScript. The '--' stops osascript from parsing an ID that
+// starts with '-' as an option such as -e.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     return
   fi
@@ -890,9 +953,9 @@ const quitApplicationFunc = `quit_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -951,8 +1014,7 @@ ids.join("\n")'
   regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
   regex="^${regex}$"
 
-  # Running apps report their own bundle IDs, and quit_application puts the ID
-  # inside an AppleScript string, so only bundle ID characters are allowed.
+  # Running apps report their own bundle IDs; only pass well-formed ones on.
   local valid_id='^[A-Za-z0-9._-]+$'
   local matches=()
   local id
@@ -989,7 +1051,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
@@ -1013,9 +1075,9 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
