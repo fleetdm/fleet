@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -789,4 +791,101 @@ func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	require.Len(t, resp.Devices, 1)
 	assert.Equal(t, testDeviceName, resp.Devices[0].Name)
 	assert.Empty(t, resp.NextPageToken)
+}
+
+// Fleet's zero-touch configuration parses the expiration timestamp of the
+// token it just created, so a response without one failed that request with a
+// time-parsing error that named neither the mock nor the missing field.
+func TestEnrollmentTokenCreate(t *testing.T) {
+	create := func(t *testing.T, body string) androidmanagement.EnrollmentToken {
+		t.Helper()
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte(body))))
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var token androidmanagement.EnrollmentToken
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &token))
+		return token
+	}
+
+	t.Run("the expiry is set and readable as RFC 3339", func(t *testing.T) {
+		token := create(t, `{"duration":"2592000s"}`)
+		require.NotEmpty(t, token.Value)
+		require.NotEmpty(t, token.ExpirationTimestamp)
+
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err, "Fleet parses this exact way")
+		assert.WithinDuration(t, time.Now().Add(30*24*time.Hour), expiry, time.Minute)
+	})
+
+	// The name is stored against the token Fleet created, so it has to be the
+	// enterprise that was asked for rather than a literal "mock".
+	t.Run("the name carries the enterprise from the path", func(t *testing.T) {
+		token := create(t, `{}`)
+		assert.True(t,
+			strings.HasPrefix(token.Name, "enterprises/"+testEnterpriseID+"/enrollmentTokens/"),
+			"got %q", token.Name)
+	})
+
+	t.Run("no duration gets AMAPI's default of an hour", func(t *testing.T) {
+		token := create(t, `{}`)
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().Add(time.Hour), expiry, time.Minute)
+	})
+
+	t.Run("an empty body is not an error", func(t *testing.T) {
+		require.NotEmpty(t, create(t, "").ExpirationTimestamp)
+	})
+
+	t.Run("malformed JSON is a bad request", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte("{"))))
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestEnrollmentTokenExpiry(t *testing.T) {
+	now := time.Date(2026, time.October, 28, 12, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name     string
+		duration string
+		want     time.Time
+	}{
+		{name: "an hour", duration: "3600s", want: now.Add(time.Hour)},
+		{name: "thirty days", duration: "2592000s", want: now.Add(30 * 24 * time.Hour)},
+		// Fleet's own zero-touch duration. A thousand years overflows
+		// time.Duration, so time.ParseDuration rejects the one value this has
+		// to handle; the seconds are added as seconds for that reason.
+		{
+			name:     "the zero-touch duration Fleet asks for",
+			duration: "31536000000s",
+			want:     time.Unix(now.Unix()+31536000000, 0).UTC(),
+		},
+		{name: "a fractional duration keeps its whole seconds", duration: "90.5s", want: now.Add(90 * time.Second)},
+		{name: "absent", duration: "", want: now.Add(time.Hour)},
+		{name: "not a duration at all", duration: "soon", want: now.Add(time.Hour)},
+		{name: "missing its unit", duration: "3600", want: now.Add(time.Hour)},
+		{name: "zero", duration: "0s", want: now.Add(time.Hour)},
+		{name: "negative", duration: "-60s", want: now.Add(time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want.UTC(), enrollmentTokenExpiry(now, tc.duration))
+		})
+	}
+
+	// RFC 3339 has no year past 9999, and a timestamp Fleet cannot parse back
+	// is the failure this whole handler exists to avoid.
+	t.Run("an absurd duration still formats as RFC 3339", func(t *testing.T) {
+		expiry := enrollmentTokenExpiry(now, "9223372036854775807s")
+		formatted := expiry.Format(time.RFC3339)
+		parsed, err := time.Parse(time.RFC3339, formatted)
+		require.NoError(t, err, "formatted as %q", formatted)
+		require.Equal(t, 9999, parsed.Year())
+	})
 }
