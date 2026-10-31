@@ -710,6 +710,23 @@ func TestCustomUninstallScriptsUseCurrentTrash(t *testing.T) {
 	}
 }
 
+// Custom uninstall scripts carry their own copy of remove_launchctl_service().
+func TestCustomUninstallScriptsUseCurrentLaunchctlHelper(t *testing.T) {
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		script := string(b)
+		if !strings.Contains(script, "\nremove_launchctl_service() {") {
+			continue
+		}
+		require.Contains(t, script, removeLaunchctlServiceFunc, "%s has a stale copy of remove_launchctl_service()", filepath.Base(path))
+	}
+}
+
 // TestUninstallScriptExpandsLaunchctlWildcard guards against a regression where
 // a cask zap/uninstall launchctl label containing a wildcard (e.g.
 // "com.elgato.StreamDeck*") was passed straight to `launchctl list` and used as
@@ -747,6 +764,73 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	require.Contains(t, script, `while read -r _ _ id; do`)
 	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
 	require.NotContains(t, script, `(( pid != 0 ))`)
+}
+
+// TestUninstallScriptRemovesConsoleUserLaunchctlService covers user launch
+// agents and login items. As root, launchctl list and remove only see the
+// system domain, so the helper must remove them from the console user's GUI
+// domain, including when expanding a wildcard label.
+func TestUninstallScriptRemovesConsoleUserLaunchctlService(t *testing.T) {
+	stubs := `id() { echo 501; }
+system=" com.example.Foo.daemon "
+gui=" com.example.Foo.agent com.example.Foo.helper com.other.agent "
+launchctl() {
+  case "$1 $2" in
+    "list ")
+      printf 'PID\tStatus\tLabel\n'
+      for l in $system; do printf -- '-\t0\t%s\n' "$l"; done
+      ;;
+    "list "*) [[ "$system" == *" $2 "* ]] && echo '{' ;;
+    "remove "*) echo "launchctl remove $2" ;;
+    "print gui/501")
+      printf 'gui/501 = {\n\tservices = {\n'
+      for l in $gui; do printf '\t\t       0      - \t%s\n' "$l"; done
+      printf '\t}\n\tendpoints = {\n\t\t0 - com.example.Foo.endpoint\n\t}\n}\n'
+      ;;
+    "print gui/501/"*) [[ "$gui" == *" ${2#gui/501/} "* ]] ;;
+    "bootout "*) echo "launchctl bootout $2" ;;
+  esac
+}
+`
+	run := func(t *testing.T, asRoot bool, labels ...string) string {
+		script := uninstallScriptForApp(inputApp{}, &brewCask{Artifacts: []*brewArtifact{{
+			Uninstall: []*brewUninstall{{LaunchCtl: optjson.StringOr[[]string]{IsOther: true, Other: labels}}},
+		}}})
+		if asRoot {
+			// bash's EUID is read-only, so take the root branch directly.
+			require.Contains(t, script, "if [[ $EUID -eq 0 ]]; then")
+			script = strings.ReplaceAll(script, "if [[ $EUID -eq 0 ]]; then", "if true; then")
+		}
+		out, code := runStubbedUninstallScript(t, stubs+script, "", "", "")
+		require.Zero(t, code, out)
+		return out
+	}
+
+	t.Run("root", func(t *testing.T) {
+		out := run(t, true, "com.example.Foo.agent", "com.example.Foo.daemon")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.agent\n")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\n")
+		require.NotContains(t, out, "bootout gui/501/com.example.Foo.daemon")
+		require.NotContains(t, out, "\nlaunchctl remove")
+	})
+
+	t.Run("root wildcard", func(t *testing.T) {
+		out := run(t, true, "com.example.Foo*")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\n")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.agent\n")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.helper\n")
+		require.NotContains(t, out, "com.other.agent")
+		require.NotContains(t, out, "com.example.Foo.endpoint")
+	})
+
+	t.Run("not root", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("running as root")
+		}
+		out := run(t, false, "com.example.Foo.daemon")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\nlaunchctl remove com.example.Foo.daemon\n")
+		require.NotContains(t, out, "bootout")
+	})
 }
 
 // TestUninstallScriptExpandsQuitWildcard guards against a regression where a
