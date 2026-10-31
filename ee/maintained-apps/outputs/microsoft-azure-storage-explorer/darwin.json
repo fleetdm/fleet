@@ -10,7 +10,7 @@
       "installer_url": "https://github.com/microsoft/AzureStorageExplorer/releases/download/v1.47.0/StorageExplorer-darwin-arm64.zip",
       "install_script_ref": "68b5fbc2",
       "uninstall_script_ref": "ebe9806f",
-      "sha256": "3c3aa4eeb682b0ff0f8f0967cf852685343300eeebe9c22b36bb89e1357c46a3",
+      "sha256": "0cb7ea66a0740c1e3aee79e3229dcd566b151c91777edd95e17c33db39ecd1f1",
       "default_categories": [
         "Productivity"
       ]
