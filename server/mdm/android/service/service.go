@@ -1521,10 +1521,33 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 			continue
 		}
 
-		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+		policyBuiltAt := time.Now()
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
 		if err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			continue
+		}
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "get android host %s", uuid))
+			continue
+		}
+		var inPolicyVersion *int64
+		if policy != nil && policy.Version > 0 {
+			inPolicyVersion = &policy.Version
+		}
+		// Save the sent Fleet agent like the Android app reconciler does, so the next status report will verify it
+		err = svc.fleetDS.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+			HostID:          androidHost.Host.ID,
+			AdamID:          packageName,
+			InstallType:     android.AppStatusForceInstalled,
+			Status:          fleet.AndroidSoftwareInstallStatusPending,
+			InPolicyVersion: inPolicyVersion,
+			PolicyBuiltAt:   policyBuiltAt,
+		}}, nil)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "save fleet agent install for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
@@ -1907,27 +1930,29 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 // SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
 
 		var apiErr error
 		policy := &androidmanagement.Policy{Applications: appPolicies}
 		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
-			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
 		}
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {

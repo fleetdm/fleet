@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -3496,12 +3496,6 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 
 	// --- Managed app config resend ---
 
-	// Create an android enterprise (required for job queuing).
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO android_enterprises (signup_name, enterprise_id) VALUES ('test', 'LC0test123')`)
-		return err
-	})
-
 	// Insert a VPP app and app config with a variable.
 	appID := "com.example.varapp"
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -3522,17 +3516,22 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), config) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
+	// Record the app as sent to the host.
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+		HostID:        host.ID,
+		AdamID:        appID,
+		VPPAppTeamID:  new(uint(appTeamID)), //nolint:gosec // dismiss G115
+		InstallType:   android.AppStatusAvailable,
+		Status:        fleet.AndroidSoftwareInstallStatusVerified,
+		PolicyBuiltAt: time.Now(),
+	}}, nil)
+	require.NoError(t, err)
+
 	// Assign a SCIM user to the host.
 	scimUser, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "cert-user@example.com"})
 	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host.ID, scimUser)
 	require.NoError(t, err)
-
-	// Clear any jobs that may have been queued during setup.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
-		return err
-	})
 
 	// Change the SCIM user's username — this should trigger resends.
 	activities, err := ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "new-user@example.com"})
@@ -3565,25 +3564,12 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 	})
 	assert.Nil(t, androidProfileStatus, "android profile status should be reset to NULL (pending)")
 
-	// (3) Assert a software_worker job was queued for the managed app config.
-	type jobRow struct {
-		Name string          `db:"name"`
-		Args json.RawMessage `db:"args"`
-	}
-	var jobs []jobRow
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &jobs,
-			`SELECT name, args FROM jobs WHERE name = 'software_worker' AND state = 'queued'`)
-	})
-	require.Len(t, jobs, 1, "expected one software_worker job to be queued")
-
-	var jobArgs map[string]any
-	err = json.Unmarshal(jobs[0].Args, &jobArgs)
+	// (3) Assert the host's managed app config was flagged for the Android app reconciler.
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.ID})
 	require.NoError(t, err)
-	assert.Equal(t, "make_android_app_available", jobArgs["task"])
-	assert.Equal(t, appID, jobArgs["application_id"])
-	assert.Equal(t, true, jobArgs["app_config_changed"])
-	assert.Contains(t, jobArgs["enterprise_name"], "LC0test123")
+	require.Len(t, installsByHostID[host.ID], 1)
+	require.NotNil(t, installsByHostID[host.ID][appID])
+	assert.True(t, installsByHostID[host.ID][appID].NeedsResend, "android app install should be flagged for resend")
 }
 
 // scimIdPMappingHost is a host after an IdP-authenticated MDM enrollment and SCIM

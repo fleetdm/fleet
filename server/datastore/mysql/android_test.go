@@ -84,6 +84,10 @@ func TestAndroid(t *testing.T) {
 		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
 		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
 		{"AndroidResetOnReenrollment", testAndroidResetOnReenrollment},
+		{"ListAndroidHostsForAppReconcile", testListAndroidHostsForAppReconcile},
+		{"HostAndroidSoftwareInstallsLifecycle", testHostAndroidSoftwareInstallsLifecycle},
+		{"UpdateAndroidAppConfigurationSetsConfigurationUpdatedAt", testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt},
+		{"GetAndroidAppStoreAppVersionsByID", testGetAndroidAppStoreAppVersionsByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4196,6 +4200,363 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 }
 
 // setupTestApp creates a test Android app in vpp_apps table
+func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "list-on-host-policy"})
+	require.NoError(t, err)
+	setupTestApp(t, ds, "com.example.setup")
+	appTeamID := setupTestAppInFleet(t, ds, "com.example.setup", fleet.AndroidPlatform, 0)
+
+	// enroll an Unassigned host and a fleet host that are on their host policy
+	unassignedHost := createAndroidHost("on-policy-unassigned")
+	unassignedHost.Device.AppliedPolicyID = new("on-policy-unassigned")
+	unassignedHost, err = ds.NewAndroidHost(ctx, unassignedHost, false)
+	require.NoError(t, err)
+	fleetHost := createAndroidHost("on-policy-fleet")
+	fleetHost.Host.TeamID = &team.ID
+	fleetHost.Device.AppliedPolicyID = new("on-policy-fleet")
+	fleetHost, err = ds.NewAndroidHost(ctx, fleetHost, false)
+	require.NoError(t, err)
+
+	// enroll a host still on the default policy, and an unenrolled host on its host policy
+	_, err = ds.NewAndroidHost(ctx, createAndroidHost("on-default-policy"), false)
+	require.NoError(t, err)
+	unenrolledHost := createAndroidHost("unenrolled")
+	unenrolledHost.Device.AppliedPolicyID = new("unenrolled")
+	unenrolledHost, err = ds.NewAndroidHost(ctx, unenrolledHost, false)
+	require.NoError(t, err)
+	_, err = ds.SetAndroidHostUnenrolled(ctx, unenrolledHost.Host.ID)
+	require.NoError(t, err)
+
+	// enroll a re-enrolled host whose applied policy its enrollment status report reset
+	reenrolledHost := createAndroidHost("reenrolled")
+	reenrolledHost.Device.AppliedPolicyID = nil
+	_, err = ds.NewAndroidHost(ctx, reenrolledHost, false)
+	require.NoError(t, err)
+
+	// list the hosts, only the enrolled hosts on their host policy should be returned, in id order
+	hosts, err := ds.ListAndroidHostsOnHostPolicy(ctx)
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, unassignedHost.Host.ID, hosts[0].ID)
+	require.Equal(t, fleetHost.Host.ID, hosts[1].ID)
+	require.Equal(t, "on-policy-fleet", hosts[1].UUID)
+	require.Equal(t, "hardware_serial", hosts[1].HardwareSerial)
+
+	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one and
+	// one of a deleted app version for the Unassigned host
+	for _, commandUUID := range []string{"setup-unassigned", "setup-fleet", "setup-unassigned-failed", "setup-unassigned-deleted-version"} {
+		host := unassignedHost
+		if commandUUID == "setup-fleet" {
+			host = fleetHost
+		}
+		err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+			HostID:            host.Host.ID,
+			AdamID:            "com.example.setup",
+			CommandUUID:       commandUUID,
+			AssociatedEventID: "1",
+			VPPAppTeamID:      appTeamID,
+		})
+		require.NoError(t, err)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE command_uuid = 'setup-unassigned-failed'`)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE command_uuid = 'setup-unassigned-deleted-version'`)
+		return err
+	})
+
+	// read the setup experience apps, only the Unassigned host's pending install should be returned, the fleet host's
+	// app version is in another fleet and the deleted app version's install has no version
+	setupAppsByHostID, err := ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID, fleetHost.Host.ID, unenrolledHost.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, setupAppsByHostID, 1)
+	setupApps := setupAppsByHostID[unassignedHost.Host.ID]
+	require.Len(t, setupApps, 1)
+	require.Equal(t, unassignedHost.Host.ID, setupApps[0].HostID)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
+	require.Equal(t, appTeamID, setupApps[0].VPPAppTeamID)
+
+	// verify the Unassigned host's pending install, it should still be returned
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = 'setup-unassigned'`)
+		return err
+	})
+	setupAppsByHostID, err = ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID})
+	require.NoError(t, err)
+	setupApps = setupAppsByHostID[unassignedHost.Host.ID]
+	require.Len(t, setupApps, 1)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
+}
+
+func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	setupTestApp(t, ds, "com.example.kept")
+	setupTestApp(t, ds, "com.example.removed")
+	keptVersionID := setupTestAppInFleet(t, ds, "com.example.kept", fleet.AndroidPlatform, 0)
+	var keptNewVersionID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('com.example.kept', 'android', 0, 'Second version')`)
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		keptNewVersionID = uint(id) //nolint:gosec // dismiss G115
+		return err
+	})
+	removedVersionID := setupTestAppInFleet(t, ds, "com.example.removed", fleet.AndroidPlatform, 0)
+	host, err := ds.NewAndroidHost(ctx, createAndroidHost("lifecycle-host"), false)
+	require.NoError(t, err)
+	otherHost, err := ds.NewAndroidHost(ctx, createAndroidHost("lifecycle-other-host"), false)
+	require.NoError(t, err)
+	builtAt := time.Now().UTC().Truncate(time.Microsecond)
+
+	// send two apps to the host in policy version 1, and one app to the other host
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: otherHost.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
+	require.NoError(t, err)
+
+	// upsert a failed request that sends the kept app on its new version and keeps the removed app, every row of the host
+	// should be request failed
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 2)
+	for _, install := range installsByHostID[host.Host.ID] {
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, install.Status, install.AdamID)
+	}
+
+	// read the other host's row, it should be untouched
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{otherHost.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[otherHost.Host.ID], 1)
+	otherRemoved := installsByHostID[otherHost.Host.ID]["com.example.removed"]
+	require.NotNil(t, otherRemoved)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, otherRemoved.Status)
+	require.False(t, otherRemoved.NeedsResend)
+
+	// send the kept app on its new version in policy version 2 and remove the removed app, the removed app's row should be
+	// deleted and the kept app's flag cleared
+	newBuiltAt := builtAt.Add(time.Minute)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2)), PolicyBuiltAt: newBuiltAt},
+	}, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed"},
+	})
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	kept := installsByHostID[host.Host.ID]["com.example.kept"]
+	require.NotNil(t, kept)
+	require.Equal(t, &keptNewVersionID, kept.VPPAppTeamID)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, kept.Status)
+	require.Equal(t, new(int64(2)), kept.InPolicyVersion)
+	require.False(t, kept.NeedsResend)
+	require.True(t, newBuiltAt.Equal(kept.PolicyBuiltAt))
+
+	// report applied policy version 1, the kept app should stay pending
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 1)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// report applied policy version 2 twice, the kept app should be verified with one log row
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 2)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 2)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// move the kept app's row back to its first version, only the version should change
+	keptInstall := *installsByHostID[host.Host.ID]["com.example.kept"]
+	keptInstall.VPPAppTeamID = &keptVersionID
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	kept = installsByHostID[host.Host.ID]["com.example.kept"]
+	require.Equal(t, &keptVersionID, kept.VPPAppTeamID)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, kept.Status)
+	require.True(t, newBuiltAt.Equal(kept.PolicyBuiltAt))
+
+	// send the kept app in policy version 3 and report applied policy version 5, the kept app should be verified
+	keptInstall = *kept
+	keptInstall.Status = fleet.AndroidSoftwareInstallStatusPending
+	keptInstall.InPolicyVersion = new(int64(3))
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 5)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// delete the kept app's first version, the host's row should be kept with no version
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE id = ?`, keptVersionID)
+		return err
+	})
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	require.Nil(t, installsByHostID[host.Host.ID]["com.example.kept"].VPPAppTeamID)
+
+	// flag the host's apps for resend, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, nil, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// upsert the kept app's row from a policy built before it was flagged, the kept app's row should still be flagged
+	keptInstall = *installsByHostID[host.Host.ID]["com.example.kept"]
+	keptInstall.NeedsResend = false
+	keptInstall.PolicyBuiltAt = builtAt.Add(-time.Hour)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// upsert the kept app's row from a policy built after it was flagged, the kept app's row should not be flagged
+	keptInstall.PolicyBuiltAt = newBuiltAt
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// flag the host's rows built after the kept app's policy, the kept app's row should not be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &newBuiltAt, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// flag the host's rows built after an earlier time, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &builtAt, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// replace the host's apps with only the removed app, the kept app's row should be deleted and the flag cleared
+	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.Host.ID, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(6)), PolicyBuiltAt: newBuiltAt},
+	})
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	removed := installsByHostID[host.Host.ID]["com.example.removed"]
+	require.NotNil(t, removed)
+	require.False(t, removed.NeedsResend)
+
+	// add the agent's row and flag only the agent for resend, the agent's row should be flagged and the removed app's row
+	// should not
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.fleetdm.agent", InstallType: android.AppStatusForceInstalled, Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: newBuiltAt},
+	}, nil)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, nil, new("com.fleetdm.agent"))
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 2)
+	require.True(t, installsByHostID[host.Host.ID]["com.fleetdm.agent"].NeedsResend)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.removed"].NeedsResend)
+
+	// delete the host, its rows should be deleted
+	err = ds.DeleteHost(ctx, host.Host.ID)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Empty(t, installsByHostID)
+}
+
+func testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	setupTestApp(t, ds, "com.example.configured")
+	appTeamID := setupTestAppInFleet(t, ds, "com.example.configured", fleet.AndroidPlatform, 0)
+	readConfigurationUpdatedAt := func() *time.Time {
+		var updatedAt *time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &updatedAt, `SELECT configuration_updated_at FROM vpp_apps_teams WHERE id = ?`, appTeamID)
+		})
+		return updatedAt
+	}
+
+	// set a configuration, configuration_updated_at should be set
+	err := ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+	firstUpdatedAt := readConfigurationUpdatedAt()
+	require.NotNil(t, firstUpdatedAt)
+
+	// save the same configuration, configuration_updated_at should not change
+	time.Sleep(10 * time.Millisecond)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+	require.Equal(t, firstUpdatedAt, readConfigurationUpdatedAt())
+
+	// change the configuration, configuration_updated_at should move forward
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"2"}}`))
+	require.NoError(t, err)
+	secondUpdatedAt := readConfigurationUpdatedAt()
+	require.True(t, secondUpdatedAt.After(*firstUpdatedAt))
+
+	// delete the configuration, configuration_updated_at should move forward again
+	time.Sleep(10 * time.Millisecond)
+	err = ds.DeleteAndroidAppConfiguration(ctx, "com.example.configured", 0)
+	require.NoError(t, err)
+	require.True(t, readConfigurationUpdatedAt().After(*secondUpdatedAt))
+}
+
+func testGetAndroidAppStoreAppVersionsByID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "versions-by-id"})
+	require.NoError(t, err)
+	setupTestApp(t, ds, "com.example.versions")
+	unassignedVersionID := setupTestAppInFleet(t, ds, "com.example.versions", fleet.AndroidPlatform, 0)
+	fleetVersionID := setupTestAppInFleet(t, ds, "com.example.versions", fleet.AndroidPlatform, team.ID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('ios-versions', 'ios', 'iOS App')`)
+		return err
+	})
+	setupTestAppInFleet(t, ds, "ios-versions", fleet.IOSPlatform, 0)
+
+	// set a configuration on the fleet version
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), fleetVersionID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+
+	// read the versions, both Android versions should be returned by id with only the fleet version's configuration, and
+	// the iOS version should not be returned
+	versionByID, err := ds.GetAndroidAppStoreAppVersionsByID(ctx)
+	require.NoError(t, err)
+	require.Len(t, versionByID, 2)
+	unassignedVersion := versionByID[unassignedVersionID]
+	require.NotNil(t, unassignedVersion)
+	require.Nil(t, unassignedVersion.Configuration)
+	require.Nil(t, unassignedVersion.ConfigurationUpdatedAt)
+	fleetVersion := versionByID[fleetVersionID]
+	require.NotNil(t, fleetVersion)
+	require.JSONEq(t, `{"managedConfiguration":{"key":"1"}}`, string(fleetVersion.Configuration))
+	require.NotNil(t, fleetVersion.ConfigurationUpdatedAt)
+}
+
 func setupTestApp(t *testing.T, ds *Datastore, appID string) {
 	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
 		INSERT INTO vpp_apps (adam_id, platform, bundle_identifier, name, latest_version, icon_url)

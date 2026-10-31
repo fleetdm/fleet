@@ -3272,7 +3272,9 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 
 func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	cfg := config.TestConfig()
+	cfg.MDM.AndroidAgent.Package = "com.fleetdm.agent"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -3300,6 +3302,9 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
 		return nil
 	}
 
@@ -3369,11 +3374,33 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		assert.False(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.False(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 	})
+
+	t.Run("transfer of an android host flags its agent for resend in the request", func(t *testing.T) {
+		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+			return map[string]uint{"android-uuid-1": 1}, nil
+		}
+		var flaggedHostIDs []uint
+		var flaggedAdamID *string
+		ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
+			require.Nil(t, builtAfter)
+			flaggedHostIDs = hostIDs
+			flaggedAdamID = adamID
+			return nil
+		}
+
+		// transfer the android host, its agent's row should be flagged for resend before the request returns
+		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
+		assert.Equal(t, []uint{1}, flaggedHostIDs)
+		require.NotNil(t, flaggedAdamID)
+		assert.Equal(t, "com.fleetdm.agent", *flaggedAdamID)
+	})
 }
 
 func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	cfg := config.TestConfig()
+	cfg.MDM.AndroidAgent.Package = "com.fleetdm.agent"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -3401,6 +3428,9 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
 		return nil
 	}
 
@@ -3459,6 +3489,27 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 		assert.Equal(t, uint(0), certTeamID)
 		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 		assert.Nil(t, syncedTeamID)
+	})
+
+	t.Run("transfer of an android host by filter flags its agent for resend in the request", func(t *testing.T) {
+		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+			return map[string]uint{"android-uuid-1": 1}, nil
+		}
+		var flaggedHostIDs []uint
+		var flaggedAdamID *string
+		ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
+			require.Nil(t, builtAfter)
+			flaggedHostIDs = hostIDs
+			flaggedAdamID = adamID
+			return nil
+		}
+
+		// transfer the android host by filter, its agent's row should be flagged for resend before the request returns
+		emptyFilter := &map[string]any{}
+		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), new(uint(5)), emptyFilter))
+		assert.Equal(t, []uint{1}, flaggedHostIDs)
+		require.NotNil(t, flaggedAdamID)
+		assert.Equal(t, "com.fleetdm.agent", *flaggedAdamID)
 	})
 }
 
