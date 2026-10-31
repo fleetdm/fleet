@@ -54,6 +54,9 @@ quit_and_track_application() {
 
 relaunch_application() {
   local bundle_id="$1"
+  # optional: open this copy instead of looking up the bundle ID, which can pick
+  # another copy or miss one Launch Services hasn't registered yet
+  local app_path="$2"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
@@ -77,13 +80,17 @@ relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_target=(-b "$bundle_id")
+  if [[ -n "$app_path" ]]; then
+    open_target=("$app_path")
+  fi
   local open_status=0
   if [[ $EUID -eq 0 ]]; then
     local console_uid
     console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_target[@]}" >/dev/null 2>&1 || open_status=$?
   else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+    open "${open_target[@]}" >/dev/null 2>&1 || open_status=$?
   fi
 
   if [[ $open_status -eq 0 ]]; then
@@ -112,6 +119,8 @@ if [[ ! "$NEW_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ ]]; then
 fi
 # copy to the applications folder
 quit_and_track_application "$NEW_BUNDLE_ID" || exit 1
+NEW_WAS_RUNNING_VAR="APP_WAS_RUNNING_${NEW_BUNDLE_ID//[^[:alnum:]_]/_}"
+NEW_WAS_RUNNING="${!NEW_WAS_RUNNING_VAR}"
 OLD_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPDIR/MindManager.app/Contents/Info.plist" 2>/dev/null)
 if [[ ! "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ ]]; then
 	OLD_BUNDLE_ID=""
@@ -124,20 +133,36 @@ if [[ -n "$OLD_BUNDLE_ID" && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
 	fi
 	OLD_WAS_RUNNING_VAR="APP_WAS_RUNNING_${OLD_BUNDLE_ID//[^[:alnum:]_]/_}"
 	if [[ "${!OLD_WAS_RUNNING_VAR}" == "1" ]]; then
-		export "APP_WAS_RUNNING_${NEW_BUNDLE_ID//[^[:alnum:]_]/_}=1"
+		export "$NEW_WAS_RUNNING_VAR=1"
 	fi
 fi
+# After a failed install, reopen what was quit for it: a new-major copy running
+# from elsewhere, and the previous version if it's in place again.
+reopen_quit_apps() {
+	local previous_in_place="$1"
+	export "$NEW_WAS_RUNNING_VAR=$NEW_WAS_RUNNING"
+	if [[ "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" || "$previous_in_place" == "1" ]]; then
+		relaunch_application "$NEW_BUNDLE_ID"
+	fi
+	if [[ -n "$OLD_BUNDLE_ID" && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" && "$previous_in_place" == "1" ]]; then
+		relaunch_application "$OLD_BUNDLE_ID"
+	fi
+}
 if [ -d "$APPDIR/MindManager.app" ]; then
-	sudo mv "$APPDIR/MindManager.app" "$TMPDIR/MindManager.app.bkp" || exit $?
+	if ! sudo mv "$APPDIR/MindManager.app" "$TMPDIR/MindManager.app.bkp"; then
+		reopen_quit_apps 1
+		exit 1
+	fi
 fi
 if ! sudo cp -R "$TMPDIR/MindManager.app" "$APPDIR"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
-	# version, then restore the previous version if there was one and reopen it
-	# if it was quit for the update
+	# version, then restore the previous version if there was one
 	sudo rm -rf "$APPDIR/MindManager.app"
-	if [ -d "$TMPDIR/MindManager.app.bkp" ] && sudo mv "$TMPDIR/MindManager.app.bkp" "$APPDIR/MindManager.app" && [[ -n "$OLD_BUNDLE_ID" ]]; then
-		relaunch_application "$OLD_BUNDLE_ID"
+	restored=0
+	if [ -d "$TMPDIR/MindManager.app.bkp" ] && sudo mv "$TMPDIR/MindManager.app.bkp" "$APPDIR/MindManager.app"; then
+		restored=1
 	fi
+	reopen_quit_apps "$restored"
 	exit 1
 fi
-relaunch_application "$NEW_BUNDLE_ID"
+relaunch_application "$NEW_BUNDLE_ID" "$APPDIR/MindManager.app"
