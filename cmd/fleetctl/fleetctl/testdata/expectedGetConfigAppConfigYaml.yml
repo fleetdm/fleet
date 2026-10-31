@@ -60,6 +60,7 @@ spec:
     microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     only_allow_apple_business_enrollment: false
+    enable_profile_validation: false
     macos_migration:
       enable: false
       mode: ""
@@ -155,6 +156,7 @@ spec:
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

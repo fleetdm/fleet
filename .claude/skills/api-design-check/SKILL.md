@@ -15,7 +15,7 @@ Fleet has no written API style guide. The rule is "be consistent with what's alr
 
 ## 1. Collect the proposed endpoints
 
-- **Docs PR or branch**: diff `docs/REST API/rest-api.md` (and `docs/Contributing/reference/api-for-contributors.md` for internal endpoints). Each endpoint is a `### Heading`, then a `` `METHOD /api/v1/fleet/...` `` line, then `#### Parameters`, `#### Example`, and `##### Default response`.
+- **Docs PR or branch**: diff `docs/API/rest-api.md` (and `docs/Contributing/reference/api-for-contributors.md` for internal endpoints). Each endpoint is a `### Heading`, then a `` `METHOD /api/v1/fleet/...` `` line, then `#### Parameters`, `#### Example`, and `##### Default response`.
 - **Code**: diff `server/service/handler.go` and `ee/server/service/handler.go` for new `ue.GET/POST/PATCH/PUT/DELETE` registrations. Read the matching request and response structs for the parameter and response field names.
 - **Spec or pasted text**: read the endpoint definitions directly.
 
@@ -23,11 +23,11 @@ For each endpoint, write down: the method, the path, the parameters (name, type,
 
 ## 2. Find the closest existing endpoints
 
-For each proposed endpoint, find 2–4 existing endpoints to compare it with, in `docs/REST API/rest-api.md`. Use them in this order:
+For each proposed endpoint, find 2–4 existing endpoints to compare it with, in `docs/API/rest-api.md`. Use them in this order:
 
 1. The same resource with a different verb. For a new `PATCH /fleet/foo/:id`, compare `GET /fleet/foo/:id` and `POST /fleet/foo`.
 2. The same kind of operation on a sibling resource. A new list endpoint is compared with other `List ...` endpoints, a host-scoped action with other `POST /hosts/:id/...` actions, and a Fleet Desktop endpoint with other `/device/:token/...` endpoints.
-3. Recently added endpoints over old ones when they disagree. Check with `git log -S '<path>' --format='%h %ad' --date=short -- "docs/REST API/rest-api.md"`. Older endpoints are often the inconsistent ones.
+3. Recently added endpoints over old ones when they disagree. Check with `git log -S '<path>' --format='%h %ad' --date=short -- "docs/API/rest-api.md"`. Older endpoints are often the inconsistent ones.
 
 Quote the neighbor you compared against in each finding. A finding with no existing endpoint as evidence is an opinion, so drop it or label it as one.
 

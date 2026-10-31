@@ -16,6 +16,11 @@ function validateGitopsPath(normalizedPath) {
   return null;
 }
 
+// The activity log is written with chat.update, which rejects text over
+// 4,000 chars (msg_too_long). Tool args like live query SQL can be long.
+const MAX_ACTIVITY_TEXT = 4000;
+const MAX_ACTIVITY_ARGS = 200;
+
 /**
  * Tracks tool calls as an activity log.
  */
@@ -31,15 +36,25 @@ class ActivityLog {
   format() {
     if (this.entries.length === 0) return null;
 
-    const lines = this.entries.map((e) => {
-      const argStr = Object.entries(e.args || {})
+    let text = ":mag: *Tools used:*";
+    for (let i = 0; i < this.entries.length; i++) {
+      const e = this.entries[i];
+      let argStr = Object.entries(e.args || {})
         .filter(([, v]) => v !== undefined && v !== null && v !== "")
         .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
         .join(", ");
-      return `• \`${e.tool}\`${argStr ? ` — ${argStr}` : ""}`;
-    });
+      if (argStr.length > MAX_ACTIVITY_ARGS) {
+        argStr = argStr.slice(0, MAX_ACTIVITY_ARGS) + "…";
+      }
+      const line = `\n• \`${e.tool}\`${argStr ? ` — ${argStr}` : ""}`;
+      const more = `\n• …and ${this.entries.length - i} more`;
+      if (text.length + line.length + more.length > MAX_ACTIVITY_TEXT) {
+        return text + more;
+      }
+      text += line;
+    }
 
-    return `:mag: *Tools used:*\n${lines.join("\n")}`;
+    return text;
   }
 }
 
@@ -411,4 +426,4 @@ function registerHandlers(app, config, github, claude) {
   });
 }
 
-module.exports = { registerHandlers };
+module.exports = { registerHandlers, ActivityLog };

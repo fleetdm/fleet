@@ -2,6 +2,7 @@ package homebrew
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -106,8 +107,19 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	sb := newScriptBuilder()
 	// Most casks don't name the app in uninstall quit, so quit it at the stanza's
 	// quit step, or else before the app artifact, which brew lists after it.
-	appStopped := app.UniqueIdentifier == "" || uninstallStopsApp(cask, app.UniqueIdentifier)
+	appQuit := uninstallQuitsApp(cask, app.UniqueIdentifier)
+	appSignaled := uninstallSignalsApp(cask, app.UniqueIdentifier)
+	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
+	quitFallsBackToSignal := appQuit && appSignaled
 
+	// The input's pre/post-uninstall scripts wrap the cask's uninstall stanza.
+	// A cask without one still gets them, around the whole removal.
+	hasUninstallStanza := slices.ContainsFunc(cask.Artifacts, func(a *brewArtifact) bool { return len(a.Uninstall) > 0 })
+	if !hasUninstallStanza && len(cask.PreUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+	}
+
+	var rmDirs []string
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
@@ -149,7 +161,8 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, quitFallsBackToSignal)
+				rmDirs = append(rmDirs, stanzaNames(u.RmDir)...)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -157,12 +170,35 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, quitFallsBackToSignal)
+				rmDirs = append(rmDirs, stanzaNames(z.RmDir)...)
 			}
 		}
 	}
+	if !hasUninstallStanza && len(cask.PostUninstallScripts) > 0 {
+		sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
+	}
+	removeEmptyDirs(sb, rmDirs)
 
 	return sb.String()
+}
+
+// removeEmptyDirs writes the cask rmdir directives. brew defers rmdir until
+// everything else, including every stanza's trash, has run, so a folder emptied
+// along the way can be removed. Deeper paths go first so that a listed parent is
+// tried after its listed children.
+func removeEmptyDirs(sb *scriptBuilder, dirs []string) {
+	if len(dirs) == 0 {
+		return
+	}
+	sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
+	sb.AddFunction("remove_empty_dir", removeEmptyDirFunc)
+	slices.SortStableFunc(dirs, func(a, b string) int {
+		return strings.Count(path.Clean(b), "/") - strings.Count(path.Clean(a), "/")
+	})
+	for _, dir := range dirs {
+		sb.Writef(`remove_empty_dir "$LOGGED_IN_USER" %s`, shellSingleQuote(dir))
+	}
 }
 
 // priority of uninstall directives is defined by homebrew here:
@@ -384,6 +420,8 @@ fi`, cdConsoleUserHome, quoted, quoted)
 	}
 }
 
+const loggedInUserVar = `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`
+
 // cdConsoleUserHome starts script directives in the console user's home, falling
 // back to / when there's none (e.g. at the login window, where the console user
 // is "loginwindow") so the directive still runs.
@@ -391,7 +429,7 @@ const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 // processUninstallArtifact writes an uninstall or zap directive. appStopped is
 // nil for zap, which runs after the app is removed.
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, quitFallsBackToSignal bool) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -403,7 +441,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	}
 
 	addUserVar := func() {
-		sb.AddVariable("LOGGED_IN_USER", `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+		sb.AddVariable("LOGGED_IN_USER", loggedInUserVar)
 	}
 
 	process(u.LaunchCtl, func(lc string) {
@@ -423,9 +461,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		// Other IDs (helpers, shared updaters like Microsoft AutoUpdate, other
 		// vendors' apps) keep Homebrew's warn-and-continue: most of them aren't
 		// in the bundle being removed, and a helper that launchd relaunches would
-		// block the uninstall for good.
+		// block the uninstall for good. A cask that also signals the app counts
+		// on the signal when the quit fails, so the app is checked after the
+		// signal instead.
 		var stop string
-		if quitTargetsApp(appName, bundleID) {
+		if quitTargetsApp(appName, bundleID) && !quitFallsBackToSignal {
 			stop = " || exit 1"
 		}
 		// osascript can't resolve a wildcard application id, so the pattern is
@@ -450,6 +490,12 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
 		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
+		// send_signal doesn't report whether the app stopped: it may find no
+		// process to signal, or the app may ignore the signal.
+		if quitFallsBackToSignal && quitTargetsApp(u.Signal.Other[1], bundleID) {
+			sb.AddFunction("quit_application", quitApplicationFunc)
+			sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
+		}
 	}
 
 	// brew runs early_script ahead of every other directive; keep that order so
@@ -466,11 +512,16 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	})
 
 	process(u.Delete, func(path string) {
+		if strings.HasPrefix(path, "~") {
+			if !isHomeSubpath(path) {
+				return
+			}
+			addUserVar()
+			sb.AddFunction("delete_user_path", deleteUserPathFunc)
+			sb.Writef(`delete_user_path "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
+			return
+		}
 		sb.RemoveFile(shellSingleQuote(path))
-	})
-
-	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
@@ -478,6 +529,17 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		sb.AddFunction("trash", trashFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
+}
+
+// isHomeSubpath reports whether p is a path under "~/" that's safe to delete
+// once "~" is resolved. Like brew, it rejects the home folder itself and paths
+// with "." or ".." segments, which could resolve outside the home folder.
+func isHomeSubpath(p string) bool {
+	segments := strings.Split(p, "/")
+	if segments[0] != "~" || slices.Contains(segments, ".") || slices.Contains(segments, "..") {
+		return false
+	}
+	return slices.ContainsFunc(segments[1:], func(s string) bool { return s != "" })
 }
 
 // caskQuitID returns the ID to quit for a cask uninstall quit entry. Some casks
@@ -492,6 +554,27 @@ func caskQuitID(quitID, bundleID string) string {
 	return quitID
 }
 
+// quitIDPattern matches the bundle IDs, and '*' patterns, that cask quit
+// directives name. Some real IDs contain a space.
+var quitIDPattern = regexp.MustCompile(`^[A-Za-z0-9 ._*-]+$`)
+
+// validateQuitIDs rejects a cask whose uninstall or zap quit entries aren't
+// bundle IDs. The quit helpers pass the ID to osascript as data, but a value
+// like `x" & (do shell script ...)` means the cask metadata was tampered with,
+// so the ingest stops instead of shipping it in a root script.
+func validateQuitIDs(cask *brewCask) error {
+	for _, artifact := range cask.Artifacts {
+		for _, u := range slices.Concat(artifact.Uninstall, artifact.Zap) {
+			for _, id := range stanzaNames(u.Quit) {
+				if !quitIDPattern.MatchString(id) {
+					return fmt.Errorf("quit ID %q isn't a bundle ID", id)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // quitTargetsApp reports whether a cask quit ID, which may contain '*'
 // wildcards, names the app being uninstalled. Like LaunchServices and
 // Homebrew's wildcard expansion, the match is case-insensitive.
@@ -503,30 +586,41 @@ func quitTargetsApp(quitID, bundleID string) bool {
 	return regexp.MustCompile(`(?i)^` + pattern + `$`).MatchString(bundleID)
 }
 
-// uninstallStopsApp reports whether a cask's uninstall stanza quits or signals
-// the app. Casks signal apps that don't quit cleanly, so a quit that stops the
-// script mustn't run ahead of the signal.
-func uninstallStopsApp(cask *brewCask, bundleID string) bool {
-	names := func(target optjson.StringOr[[]string]) []string {
-		if target.IsOther {
-			return target.Other
-		}
-		if target.String == "" {
-			return nil
-		}
-		return []string{target.String}
-	}
-	targetsApp := func(id string) bool { return quitTargetsApp(id, bundleID) }
-	quitsApp := func(id string) bool { return targetsApp(caskQuitID(id, bundleID)) }
+// uninstallQuitsApp reports whether a cask's uninstall stanza quits the app.
+func uninstallQuitsApp(cask *brewCask, bundleID string) bool {
+	quitsApp := func(id string) bool { return quitTargetsApp(caskQuitID(id, bundleID), bundleID) }
 	for _, artifact := range cask.Artifacts {
 		for _, u := range artifact.Uninstall {
-			if slices.ContainsFunc(names(u.Quit), quitsApp) ||
-				(u.Signal.IsOther && len(u.Signal.Other) == 2 && targetsApp(u.Signal.Other[1])) {
+			if slices.ContainsFunc(stanzaNames(u.Quit), quitsApp) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// uninstallSignalsApp reports whether a cask's uninstall stanza signals the
+// app. Casks signal apps that don't quit cleanly, so a quit that stops the
+// script mustn't run ahead of the signal.
+func uninstallSignalsApp(cask *brewCask, bundleID string) bool {
+	for _, artifact := range cask.Artifacts {
+		for _, u := range artifact.Uninstall {
+			if u.Signal.IsOther && len(u.Signal.Other) == 2 && quitTargetsApp(u.Signal.Other[1], bundleID) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func stanzaNames(target optjson.StringOr[[]string]) []string {
+	if target.IsOther {
+		return target.Other
+	}
+	if target.String == "" {
+		return nil
+	}
+	return []string{target.String}
 }
 
 // quitAppBeforeRemoval quits the app being uninstalled, as the install script's
@@ -726,6 +820,10 @@ func (s *scriptBuilder) String() string {
 // removeLaunchctlServiceFunc removes a launchctl service, it's a direct port
 // of the homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L92
+//
+// Homebrew's user pass runs as the user, but Fleet runs uninstall scripts as
+// root, where launchctl list and remove only see the system domain. As root,
+// the user pass targets the console user's GUI domain and home folder instead.
 const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -734,6 +832,15 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local should_sudo
 
   echo "Removing launchctl service ${service}"
+
+  local console_user
+  local console_uid=""
+  if [[ $EUID -eq 0 ]]; then
+    console_user=$(stat -f "%Su" /dev/console)
+    if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
+      console_uid=$(id -u "$console_user")
+    fi
+  fi
 
   # A wildcard label can't be used with launchctl or as a plist name, so expand
   # it to the labels of currently loaded services that match the pattern.
@@ -750,7 +857,12 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
     # loaded-but-not-running jobs with a "-" in the PID column.
     while read -r _ _ id; do
       [[ "$id" =~ $regex ]] && services+=("$id")
-    done < <(launchctl list 2>/dev/null | tail -n +2)
+    done < <(
+      launchctl list 2>/dev/null | tail -n +2
+      if [[ -n "$console_uid" ]]; then
+        launchctl print "gui/${console_uid}" 2>/dev/null | awk '/^\tservices = [{]$/ { f = 1; next } f && /^\t[}]$/ { f = 0 } f'
+      fi
+    )
     if [[ ${#services[@]} -eq 0 ]]; then
       echo "No loaded launchctl service matches ${service}"
       return
@@ -760,15 +872,22 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local service_label
   for service_label in "${services[@]}"; do
     for should_sudo in "${booleans[@]}"; do
-      plist_status=$(launchctl list "${service_label}" 2>/dev/null)
-
-      if [[ $plist_status == \{* ]]; then
-        if [[ $should_sudo == "true" ]]; then
-          sudo launchctl remove "${service_label}"
-        else
-          launchctl remove "${service_label}"
+      if [[ $should_sudo == "false" && -n "$console_uid" ]]; then
+        if launchctl print "gui/${console_uid}/${service_label}" &>/dev/null; then
+          launchctl bootout "gui/${console_uid}/${service_label}"
+          sleep 1
         fi
-        sleep 1
+      else
+        plist_status=$(launchctl list "${service_label}" 2>/dev/null)
+
+        if [[ $plist_status == \{* ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo launchctl remove "${service_label}"
+          else
+            launchctl remove "${service_label}"
+          fi
+          sleep 1
+        fi
       fi
 
       paths=(
@@ -778,8 +897,12 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
       # if not using sudo, prepend the home directory to the paths
       if [[ $should_sudo == "false" ]]; then
+        local user_home="${HOME}"
+        if [[ -n "$console_uid" ]]; then
+          user_home="/Users/${console_user}"
+        fi
         for i in "${!paths[@]}"; do
-          paths[i]="${HOME}${paths[i]}"
+          paths[i]="${user_home}${paths[i]}"
         done
       fi
 
@@ -801,14 +924,17 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
 // Returns 1 if the application is still running after the timeout. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
-// 'pgrep -f <bundle_id>' never matches.
+// 'pgrep -f <bundle_id>' never matches. Both helpers pass the bundle ID to
+// osascript as a run handler argument, never in the AppleScript source, so it
+// can't inject AppleScript. The '--' stops osascript from parsing an ID that
+// starts with '-' as an option such as -e.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     return
   fi
@@ -826,9 +952,9 @@ const quitApplicationFunc = `quit_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -887,8 +1013,7 @@ ids.join("\n")'
   regex=$(printf '%s' "$pattern" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
   regex="^${regex}$"
 
-  # Running apps report their own bundle IDs, and quit_application puts the ID
-  # inside an AppleScript string, so only bundle ID characters are allowed.
+  # Running apps report their own bundle IDs; only pass well-formed ones on.
   local valid_id='^[A-Za-z0-9._-]+$'
   local matches=()
   local id
@@ -925,7 +1050,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
@@ -949,9 +1074,9 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -1077,6 +1202,37 @@ const trashFunc = `trash() {
   else
     echo "$target_file doesn't exist."
   fi
+}`
+
+// removeEmptyDirFunc keeps rmdir's empty-only semantics: casks use rmdir for
+// folders that may hold user data, so a non-empty or missing directory is left
+// alone without failing the script. A quoted "~" never expands, so it's
+// resolved to the console user's home the same way trash does.
+const removeEmptyDirFunc = `remove_empty_dir() {
+  local logged_in_user="$1"
+  local dir="$2"
+
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+    dir="/Users/$logged_in_user${dir:1}"
+  fi
+
+  sudo rmdir "$dir" 2>/dev/null || true
+}`
+
+// deleteUserPathFunc deletes a cask "delete" path under the console user's
+// home. A quoted "~" never expands, so it's resolved the same way trash does
+// it, and the path is skipped when there's no GUI user. rm runs as the user:
+// they control every folder in the path, so as root it could follow a symlink
+// they planted to a file outside their home.
+const deleteUserPathFunc = `delete_user_path() {
+  local logged_in_user="$1"
+  local target="$2"
+
+  [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+  [[ "$target" == "~/"?* ]] || return 0
+  target="/Users/$logged_in_user${target:1}"
+  sudo -u "$logged_in_user" rm -rf "$target" || echo "Failed to remove $target."
 }`
 
 const sendSignalFunc = `send_signal() {

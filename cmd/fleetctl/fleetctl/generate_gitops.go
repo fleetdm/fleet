@@ -297,6 +297,9 @@ type GenerateGitopsCommand struct {
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
 	ScriptList   map[uint]string
+
+	vppTokens       []*fleet.VPPTokenDB
+	vppTokensLoaded bool
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -1173,6 +1176,20 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 		}
 	}
 
+	// The client certificate and key are stored apart from their PKCS#12, so it can't be exported, even with secrets.
+	if ejbcaCAs, ok := result["ejbca"]; ok && ejbcaCAs != nil {
+		for _, intg := range ejbcaCAs.([]any) {
+			intg.(map[string]any)["client_p12"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 (base64) here")
+			intg.(map[string]any)["password"] = cmd.AddComment(filePath, "TODO: Add your EJBCA client certificate PKCS#12 password here")
+			for _, key := range []string{"client_p12", "password"} {
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.ejbca." + key,
+				})
+			}
+		}
+	}
+
 	return result, nil
 }
 
@@ -1335,6 +1352,34 @@ func (cmd *GenerateGitopsCommand) writeEULA(
 	return "./" + fileName, nil
 }
 
+// getVPPTokens fetches the VPP tokens once and caches them.
+func (cmd *GenerateGitopsCommand) getVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	if !cmd.vppTokensLoaded {
+		tokens, err := cmd.Client.GetVPPTokens()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
+			return nil, err
+		}
+		cmd.vppTokens, cmd.vppTokensLoaded = tokens, true
+	}
+	return cmd.vppTokens, nil
+}
+
+// vppTokenCount returns how many VPP tokens are available to the fleet.
+func (cmd *GenerateGitopsCommand) vppTokenCount(teamID uint) (int, error) {
+	tokens, err := cmd.getVPPTokens()
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, t := range tokens {
+		if t.AvailableToTeam(teamID) {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeFor[spec.GitOpsMDM]()
 	result := map[string]interface{}{
@@ -1344,9 +1389,8 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "WindowsAutomaticEnrollment")] = mdm.WindowsAutomaticEnrollment
-		vppTokens, err := cmd.Client.GetVPPTokens()
+		vppTokens, err := cmd.getVPPTokens()
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)
 			return nil, err
 		}
 		var vppConfig []fleet.MDMAppleVolumePurchasingProgramInfo
@@ -1686,6 +1730,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if teamId == nil || *teamId == 0 {
 		mdmT := reflect.TypeFor[fleet.MDM]()
+		// Every tier: omitting it means true, so a Free export must carry a false.
+		result[jsonFieldName(mdmT, "EnableProfileValidation")] = cmd.AppConfig.MDM.EnableProfileValidation
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = true
 		}
@@ -2554,6 +2600,16 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+
+			if tok := softwareTitle.AppStoreApp.VPPToken; tok != nil && softwareTitle.AppStoreApp.Platform != fleet.AndroidPlatform {
+				tokenCount, err := cmd.vppTokenCount(teamID)
+				if err != nil {
+					return nil, err
+				}
+				if tokenCount > 1 {
+					softwareSpec["location"] = tok.Location
+				}
+			}
 
 			if softwareTitle.DisplayName != "" {
 				softwareSpec["display_name"] = softwareTitle.DisplayName

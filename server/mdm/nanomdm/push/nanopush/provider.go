@@ -58,6 +58,10 @@ func (e *JSONPushError) Error() string {
 	return s
 }
 
+type mdmPushPayload struct {
+	MDM string `json:"mdm"`
+}
+
 func newError(body io.Reader, statusCode int) error {
 	var err error = new(JSONPushError)
 	if decodeErr := json.NewDecoder(body).Decode(err); decodeErr != nil {
@@ -68,7 +72,10 @@ func newError(body io.Reader, statusCode int) error {
 
 // do performs the HTTP push request
 func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
-	jsonPayload := []byte(`{"mdm":"` + pushInfo.PushMagic + `"}`)
+	jsonPayload, err := json.Marshal(mdmPushPayload{MDM: pushInfo.PushMagic})
+	if err != nil {
+		return &push.Response{Err: err}
+	}
 
 	url := p.baseURL + "/3/device/" + pushInfo.Token.String()
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonPayload))

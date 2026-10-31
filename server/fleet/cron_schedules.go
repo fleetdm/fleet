@@ -88,6 +88,9 @@ const (
 	// CronEndUserNotifications queues end user notifications that are due and gives up on expired
 	// ones. Runs every 1 minute, which is what a reminder timed to the minute needs.
 	CronEndUserNotifications CronScheduleName = "end_user_notifications"
+	// CronAppStoreAppConfigurationReconciler installs iOS and iPadOS App Store apps again on hosts whose latest install didn't send
+	// the configuration of the version they should have. Runs every 1 minute.
+	CronAppStoreAppConfigurationReconciler CronScheduleName = "app_store_app_configuration_reconciler"
 )
 
 type CronSchedulesService interface {

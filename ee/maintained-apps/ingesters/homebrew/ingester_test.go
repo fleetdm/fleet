@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,12 +88,32 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
 				Version: "1.0",
+			}
+
+		case "quit-injection", "zap-quit-injection", "pale-moon":
+			// The injection value breaks out of an AppleScript string to run
+			// do shell script.
+			quit := "com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x"
+			if appToken == "pale-moon" {
+				quit = "org.mozilla.pale moon"
+			}
+			stanza := []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: quit}}}
+			artifact := &brewArtifact{Uninstall: stanza}
+			if appToken == "zap-quit-injection" { //nolint:gosec // G101: cask token, not a credential
+				artifact = &brewArtifact{Zap: stanza}
+			}
+			cask = brewCask{
+				Token:     appToken,
+				Name:      []string{appToken},
+				URL:       "https://example.com",
+				Version:   "1.0",
+				Artifacts: []*brewArtifact{artifact},
 			}
 
 		case "lm-studio":
@@ -157,6 +178,9 @@ func TestIngestValidations(t *testing.T) {
 		{"missing version for cask noversion", inputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask quit-injection", inputApp{Token: "quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask zap-quit-injection", inputApp{Token: "zap-quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "pale-moon", UniqueIdentifier: "org.mozilla.pale moon", InstallerFormat: "dmg", Name: "Pale Moon", Slug: "pale-moon/darwin"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
 		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
@@ -169,6 +193,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
 		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
 		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
+		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
@@ -177,6 +202,8 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
+		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
+		{"", inputApp{Token: "tableau-prep", UniqueIdentifier: "com.tableausoftware.tableauprep", InstallerFormat: "dmg", Name: "Tableau Prep", Slug: "tableau-prep/darwin"}},
 		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "4k-stogram", UniqueIdentifier: "com.openmedia.4kstogram", InstallerFormat: "dmg", Name: "4K Stogram", Slug: "4k-stogram/darwin"}},
 		{"", inputApp{Token: "4k-video-downloader", UniqueIdentifier: "com.openmedia.4kvideodownloader", InstallerFormat: "dmg", Name: "4K Video Downloader", Slug: "4k-video-downloader/darwin"}}, //nolint:gosec // G101: cask token, not a credential
@@ -273,11 +300,27 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
+			case "wezterm":
+				// The bundle version is a placeholder, so the patched query pins the
+				// frozen release's code-directory hashes instead of comparing versions.
+				require.Equal(t,
+					"SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');",
+					out.Queries.Patched,
+				)
 			case "lm-studio":
 				require.Equal(t, "0.4.26+4", out.Version)
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
+					out.Queries.Patched,
+				)
+			case "tableau", "tableau-prep":
+				// Tableau releases install side by side, so any current copy counts
+				// as patched even when older releases remain.
+				id := c.inputApp.UniqueIdentifier
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"' AND version_compare(bundle_short_version, '1.0') >= 0);",
 					out.Queries.Patched,
 				)
 			case "logitech-g-hub":
