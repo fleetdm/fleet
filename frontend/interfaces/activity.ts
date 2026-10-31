@@ -252,7 +252,8 @@ export type EnrollmentRejectedReason =
   | "one_time_secret_identifier_mismatch"
   | "shared_secret_for_mdm_managed_host"
   | "host_identity_cert_required"
-  | "end_user_authentication_required";
+  | "end_user_authentication_required"
+  | "uuid_of_another_mdm_host";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
