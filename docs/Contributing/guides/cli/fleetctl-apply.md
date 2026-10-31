@@ -431,8 +431,8 @@ spec:
     jira: null
     zendesk: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     contact_url: ""
     org_name: Fleet
   server_settings:
