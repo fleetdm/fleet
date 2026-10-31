@@ -78,9 +78,6 @@ remove_launchctl_service() {
 
   echo "Removing launchctl service ${service}"
 
-  # Homebrew's user pass runs as the user, but Fleet runs this as root, where
-  # launchctl list and remove only see the system domain. As root, the user pass
-  # targets the console user's GUI domain and home folder instead.
   local console_user
   local console_uid=""
   if [[ $EUID -eq 0 ]]; then

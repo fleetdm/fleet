@@ -820,6 +820,10 @@ func (s *scriptBuilder) String() string {
 // removeLaunchctlServiceFunc removes a launchctl service, it's a direct port
 // of the homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L92
+//
+// Homebrew's user pass runs as the user, but Fleet runs uninstall scripts as
+// root, where launchctl list and remove only see the system domain. As root,
+// the user pass targets the console user's GUI domain and home folder instead.
 const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -829,9 +833,6 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
   echo "Removing launchctl service ${service}"
 
-  # Homebrew's user pass runs as the user, but Fleet runs this as root, where
-  # launchctl list and remove only see the system domain. As root, the user pass
-  # targets the console user's GUI domain and home folder instead.
   local console_user
   local console_uid=""
   if [[ $EUID -eq 0 ]]; then
