@@ -3004,8 +3004,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "config": {
     "org_info": {
       "org_name": "Fleet",
-      "org_logo_url": "https://example.com/logo.jpg",
-      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
+      "org_logo_url_dark_mode": "https://example.com/logo.jpg",
+      "org_logo_url_light_mode": "https://example.com/logo-light.jpg",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "mdm": {
@@ -4513,7 +4513,7 @@ If the Fleet instance is provided required parameters to complete setup.
   },
   "org_info": {
     "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png"
   },
   "server_url": "https://localhost:8080",
   "osquery_enroll_secret": null,
