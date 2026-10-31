@@ -1,0 +1,3 @@
+- Added a target option to Add software > App store > Android so Google Play apps can be scoped to hosts with specific labels when they are added.
+- Fixed a bug where labels set when adding an Android app were ignored, so the app was made available to every Android host in the fleet.
+- Fixed a bug where adding, deleting, or setting Android apps via GitOps, and resending their configuration, could change the default policy every Android device enrolls with, or send the change to an empty policy, for hosts that had not yet moved to their own policy.
