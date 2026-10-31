@@ -1294,6 +1294,35 @@ kill() { [[ -n "$ignored" ]] || running=${running/ com.example.Foo / }; }
 			require.Contains(t, out, remove)
 		})
 	}
+
+	// Like parallels: the stanza's script stops the app by process name when the
+	// signal finds no PID. The script runs in a subshell, so the stand-in leaves
+	// a file instead of changing $running.
+	t.Run("script stops the app the signal missed", func(t *testing.T) {
+		pkill := filepath.Join(t.TempDir(), "pkill")
+		stopped := pkill + ".stopped"
+		require.NoError(t, os.WriteFile(pkill, []byte("#!/bin/bash\necho \"pkill $*\"\ntouch "+shellSingleQuote(stopped)+"\n"), 0o755)) //nolint:gosec // G306: the test executes it
+		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				Signal: strs("TERM", "com.example.Foo"),
+				Script: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+					"executable": pkill, "args": []any{"-TERM", "Foo"}, "must_succeed": false,
+				}},
+			}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}})
+		stoppedStub := `eval "orig_$(declare -f osascript)"
+osascript() { [[ ! -e ` + shellSingleQuote(stopped) + ` ]] || running=${running/ com.example.Foo / }; orig_osascript "$@"; }
+`
+
+		out, code := runStubbedUninstallScript(t, "unlisted=1\n"+stubs+stoppedStub+script, "com.example.Foo", "com.example.Foo", "")
+		require.Zero(t, code, out)
+		require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+		require.Contains(t, out, "pkill -TERM Foo")
+		require.NotContains(t, out, "Quitting application")
+		require.Contains(t, out, remove)
+		require.Less(t, strings.Index(out, "pkill -TERM Foo"), strings.Index(out, remove))
+	})
 }
 
 // TestUninstallScriptQuitsAppOnce checks where the generated quit goes and when
