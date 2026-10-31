@@ -1249,13 +1249,14 @@ func TestUninstallScriptChecksAppAfterSignal(t *testing.T) {
 	strs := func(s ...string) optjson.StringOr[[]string] {
 		return optjson.StringOr[[]string]{IsOther: true, Other: s}
 	}
-	// send_signal finds the app's PID with launchctl list unless it's unlisted.
+	// send_signal finds the app's PID with launchctl list unless it's unlisted,
+	// and the signal stops the app unless it's ignored.
 	stubs := `scutil() { echo "  Name : alice"; }
 id() { echo 501; }
 /bin/launchctl() {
   [[ -z "$unlisted" && "$running" == *" com.example.Foo "* ]] && printf '123\t0\tapplication.com.example.Foo.1.2\n'
 }
-kill() { running=${running/ com.example.Foo / }; }
+kill() { [[ -n "$ignored" ]] || running=${running/ com.example.Foo / }; }
 `
 	const remove = "sudo rm -rf /Applications//Foo.app"
 
@@ -1278,6 +1279,12 @@ kill() { running=${running/ com.example.Foo / }; }
 			out, code = runStubbedUninstallScript(t, "unlisted=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
 			require.Equal(t, 1, code, out)
 			require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.NotContains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, "ignored=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Equal(t, 1, code, out)
+			require.Contains(t, out, signaled)
 			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
 			require.NotContains(t, out, remove)
 
@@ -1371,6 +1378,30 @@ func TestUninstallScriptQuitsAppOnce(t *testing.T) {
 		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
 		var prev string
 		for _, s := range []string{`send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`, quit, removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
+	})
+
+	// Like parallels: a script stops the app by process name when the signal
+	// finds no PID, so it runs before the check.
+	t.Run("cask signals the app and runs a script", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				Signal: strs("TERM", "com.example.Foo"),
+				Script: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+					"executable": "/usr/bin/pkill", "args": []any{"-TERM", "Foo"}, "must_succeed": false,
+				}},
+				Delete: strs("/usr/local/bin/foo"),
+			}}},
+			appArtifact,
+		}})
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{"send_signal 'TERM'", "'/usr/bin/pkill' '-TERM' 'Foo'", quit, "sudo rm -rf '/usr/local/bin/foo'", removeApp} {
 			require.Contains(t, script, s)
 			if prev != "" {
 				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)

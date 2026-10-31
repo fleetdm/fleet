@@ -462,7 +462,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		// in the bundle being removed, and a helper that launchd relaunches would
 		// block the uninstall for good. A cask that also signals the app counts
 		// on the signal when the quit fails, so the app is checked after the
-		// signal instead.
+		// signal and the stanza's scripts instead.
 		var stop string
 		if quitTargetsApp(appName, bundleID) && !appSignaled {
 			stop = " || exit 1"
@@ -485,22 +485,28 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 
 	// per the spec, signals can't have a different format. In the homebrew
 	// source code an error is raised when the format is different.
+	var signalsApp bool
 	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
 		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
-		// send_signal doesn't report whether the app stopped: it may find no
-		// process to signal, or the app may ignore the signal.
-		if quitTargetsApp(u.Signal.Other[1], bundleID) {
-			sb.AddFunction("quit_application", quitApplicationFunc)
-			sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
-		}
+		signalsApp = quitTargetsApp(u.Signal.Other[1], bundleID)
 	}
 
 	// brew runs early_script ahead of every other directive; keep that order so
 	// the commands that make removal possible run before anything is removed.
 	processScript(u.EarlyScript, sb, addUserVar)
 	processScript(u.Script, sb, addUserVar)
+
+	// send_signal doesn't report whether the app stopped: it may find no
+	// process to signal, or the app may ignore the signal. The check waits for
+	// the stanza's scripts, which can stop the app by process name when the
+	// signal finds no PID (Parallels' pkill), and still runs before the stanza
+	// removes anything.
+	if signalsApp {
+		sb.AddFunction("quit_application", quitApplicationFunc)
+		sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
+	}
 
 	process(u.PkgUtil, func(pkgID string) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
