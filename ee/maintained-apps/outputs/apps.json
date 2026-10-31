@@ -2543,6 +2543,13 @@
       "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
     },
     {
+      "name": "Dia",
+      "slug": "dia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.dia",
+      "description": "Dia is an AI-focused web browser from The Browser Company."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -8643,7 +8650,7 @@
       "name": "Tableau Prep",
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
+      "unique_identifier": "com.tableausoftware.tableauprep",
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
@@ -8657,7 +8664,7 @@
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableausoftware.Desktop.app",
+      "unique_identifier": "com.tableausoftware.tableaudesktop",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
     },
     {

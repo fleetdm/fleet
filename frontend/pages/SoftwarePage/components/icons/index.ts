@@ -306,6 +306,7 @@ import Devpod from "./png/Devpod.png";
 import Devtoys from "./png/Devtoys.png";
 import Devutils from "./png/Devutils.png";
 import DfuBlasterPro from "./png/DfuBlasterPro.png";
+import Dia from "./png/Dia.png";
 import Dialpad from "./png/Dialpad.png";
 import Dictionaries from "./png/Dictionaries.png";
 import Diffusionbee from "./png/Diffusionbee.png";
@@ -1480,6 +1481,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
+  dia: Dia,
   dialpad: Dialpad,
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,

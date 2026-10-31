@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.3.1",
+      "version": "2026.2.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotPeek%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotPeek%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.3.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotPeek%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('dotpeek32.exe','dotpeek64.exe','dotpeek64a.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.3.1/JetBrains.dotPeek.2026.2.3.1.web.exe",
+      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.4/JetBrains.dotPeek.2026.2.4.web.exe",
       "install_script_ref": "7de224b2",
       "uninstall_script_ref": "6ed051fc",
-      "sha256": "a1104e192bb2ffb677e1be74220ef4650d6a4d4f73cbfe8851260c1d8825b990",
+      "sha256": "c767b1aa2189e1634cb6ffc46a31d60f6d80c72fdd87cf309a2156c43e00613f",
       "default_categories": [
         "Developer tools"
       ]

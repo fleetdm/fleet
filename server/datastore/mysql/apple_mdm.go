@@ -3388,6 +3388,10 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 		return nil
 	}
 
+	if err := transferAdoptedMDMManagedCertificatesDB(ctx, tx, profs); err != nil {
+		return err
+	}
+
 	executeDeleteBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_uuid, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -3429,6 +3433,58 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 
 	if batchCount > 0 {
 		if err := executeDeleteBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// transferAdoptedMDMManagedCertificatesDB moves the managed certificate rows of host profiles
+// that another profile adopted over to that profile. Renewal and the cleanup cron join on the
+// host profile row, so left behind they would lose a certificate that is still on the device.
+func transferAdoptedMDMManagedCertificatesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
+	type adoption struct{ fromProfileUUID, toProfileUUID string }
+	hostUUIDsByAdoption := make(map[adoption][]string)
+	for _, p := range profs {
+		if p.AdoptedByProfileUUID != "" {
+			a := adoption{fromProfileUUID: p.ProfileUUID, toProfileUUID: p.AdoptedByProfileUUID}
+			hostUUIDsByAdoption[a] = append(hostUUIDsByAdoption[a], p.HostUUID)
+		}
+	}
+
+	// The adopted rows track the certificates on the device, so they replace any rows the adopter
+	// still has from an earlier stint in that fleet, including ones for CAs it no longer references.
+	// The join skips hosts with nothing to transfer, so replaying an adoption from a stale snapshot
+	// does not delete the rows an earlier pass already moved.
+	const deleteSupersededStmt = `
+		DELETE adopter FROM host_mdm_managed_certificates adopter
+		JOIN host_mdm_managed_certificates adopted
+			ON adopted.host_uuid = adopter.host_uuid AND adopted.profile_uuid = ?
+		WHERE adopter.profile_uuid = ? AND adopter.host_uuid IN (?)`
+	const transferStmt = `
+		UPDATE host_mdm_managed_certificates SET profile_uuid = ?
+		WHERE profile_uuid = ? AND host_uuid IN (?)`
+
+	const batchSize = 1000
+	for a, hostUUIDs := range hostUUIDsByAdoption {
+		err := common_mysql.BatchProcessSimple(hostUUIDs, batchSize, func(batch []string) error {
+			stmt, args, err := sqlx.In(deleteSupersededStmt, a.fromProfileUUID, a.toProfileUUID, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete superseded managed certificates")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete superseded managed certificates")
+			}
+			stmt, args, err = sqlx.In(transferStmt, a.toProfileUUID, a.fromProfileUUID, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build transfer managed certificates")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "transfer managed certificates")
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 	}
