@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.722.0",
+      "version": "7.722.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.722.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.722.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'granola.exe');"
       },
-      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.722.0/Granola-7.722.0-win-x64.exe",
+      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.722.1/Granola-7.722.1-win-x64.exe",
       "install_script_ref": "7cf7b425",
       "uninstall_script_ref": "b4163601",
-      "sha256": "3e90dc275b59030532ad426b7f286758aeacf720063885d82137f8169090894b",
+      "sha256": "9828a91551626998e8c971e2800dbcf7e18158227e2c82564c85fbe144bbe0db",
       "default_categories": [
         "Productivity"
       ]
