@@ -176,15 +176,20 @@ To require an end user agreement, in Fleet, head to **Settings > Integrations > 
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. You can also install the bootstrap package on macOS hosts that turn on MDM manually by checking **Install during manual enrollment** in **Controls > Setup experience > Bootstrap package**.
+
+Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 > Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-By default, the bootstrap package is not installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) or when a host is enrolled by running `sudo profiles renew -type enrollment`. To change this behavior, you can set the [`fleet​_allow​_bootstrap​_package​_during​_migration`](https://fleetdm.com/docs/configuration/fleet-server-configuration#fleet-allow-bootstrap-package-during-migration) server configuration.
+By default, the bootstrap package isn't installed during [MDM migration](https://fleetdm.com/guides/mdm-migration), when a host is enrolled by running `sudo profiles renew -type enrollment`, or when a host turns on MDM manually. To change this, check these options in **Controls > Setup experience > Bootstrap package**:
 
-Fleet's agent (fleetd) is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#manually-install-fleetd), fleetd won't be installed.
+- **Install during manual enrollment**: installs the bootstrap package on hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment.
+- **Install during migration**: installs the bootstrap package on hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew -type enrollment`.
+
+Fleet's agent (fleetd) is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration), during manual enrollment, and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [deploy a custom agent](#manually-install-fleetd), fleetd won't be installed when the bootstrap package is.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -268,6 +273,8 @@ To sign the package we need a valid Developer ID Installer certificate:
 2. Choose which fleet you want to add the bootstrap package to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
+
+4. (Optional) Check **Install during manual enrollment** or **Install during migration** to also install the bootstrap package on hosts that turn on MDM manually or migrate from another MDM, then select **Save**.
 
 ## Install software
 
@@ -444,7 +451,7 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 ### Manually install fleetd
 
-By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
+By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package. If **Install during manual enrollment** is checked, the custom agent is also deployed on hosts that turn on MDM manually.
 
 How to deploy a custom fleetd:
 
@@ -453,9 +460,9 @@ How to deploy a custom fleetd:
 
 2. Add fleetd to your bootstrap package. To customize fleetd further, you can also add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96).
 
-3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
+3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Select **Advanced options**, check **Deploy custom agent**, and then select **Save**.
 
-4. Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
+4. Once **Deploy custom agent** is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
 
 If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
 

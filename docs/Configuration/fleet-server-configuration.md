@@ -846,6 +846,8 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
+Fleet also encrypts the disk encryption keys it escrows from Windows and Linux hosts with this key, so escrowing them requires it.
+
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
 - Default value: ""
@@ -1127,7 +1129,9 @@ The size of the session key.
 
 ### session_duration
 
-This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration.
+How long a session can be idle before it expires. Every authenticated request resets the clock, so a session that's in use doesn't expire. There's no separate limit on total session length.
+
+In the Fleet UI, the browser cookie is set at login to expire after this duration and isn't refreshed. UI users are logged out when the cookie expires, even if they're active.
 
 Valid time units are `s`, `m`, `h`.
 
@@ -3179,6 +3183,90 @@ The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTA
     software_installers_gcs_signed_url: true
   ```
 
+### azure_software_installers_account_name
+
+*Available in Fleet Premium.*
+
+Azure Storage account name. Setting `azure_software_installers_container` enables Azure Blob Storage
+as the backend for software installers, bootstrap packages, software title icons, and org logos,
+in place of S3. Only one of `s3_software_installers_bucket` and `azure_software_installers_container`
+may be set.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_NAME`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_name: myfleetstorageaccount
+  ```
+
+### cloud_storage_azure_files_account_key
+
+*Available in Fleet Premium.*
+
+Azure Storage account shared key, used to authenticate against the storage account.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_KEY`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_key: <account key>
+  ```
+
+### cloud_storage_azure_files_container
+
+*Available in Fleet Premium.*
+
+Azure Storage container where uploaded software installers, bootstrap packages, software title
+icons, and org logos are stored.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container: fleet-software-installers
+  ```
+
+### cloud_storage_azure_files_container_url
+
+*Available in Fleet Premium.*
+
+Azure Blob Storage endpoint override. Leave blank to use the default
+`https://<account>.blob.core.windows.net` endpoint. Used to point at the
+[Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite) emulator for
+testing.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container_url: http://127.0.0.1:10000/devstoreaccount1
+  ```
+
+### cloud_storage_azure_files_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet hands out [SAS-signed URLs](https://learn.microsoft.com/en-us/azure/storage/common/storage-sas-overview)
+for installer, in-house app, and bootstrap package downloads instead of proxying the bytes through
+Fleet.
+
+- Default value: false
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_SIGNED_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:  
+    azure:
+      files_signed_url: true
+  ```
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
@@ -3912,7 +4000,9 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
+Before Fleet 4.95.0, Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server-private-key), so replacing or renewing the certificate doesn't affect them.
+
+Fleet re-encrypts keys escrowed by an earlier version with `server_private_key` automatically, starting ten minutes after the upgraded server starts. This requires both `server_private_key` and this certificate and key. If the configured certificate and key can't decrypt one of these keys, the host shows "Enforcing" and escrows a new key when it comes online.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -4179,11 +4269,18 @@ This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed
 
 ### fleet_allow_bootstrap_package_during_migration
 
-When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+> **Deprecated.** Use the **Install during migration** option in **Controls > Setup experience > Bootstrap package** (`macos_enable_bootstrap_package_during_migration` in [YAML](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) instead. This environment variable will be removed in a future major release.
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts assigned to Fleet in Apple Business during MDM migration, including re-enrollment via `sudo profiles renew -type enrollment`. It applies to all fleets, even if **Install during migration** isn't checked. It doesn't affect hosts that turn on MDM manually.
+
+When you upgrade to Fleet 4.95, if this variable is set, a one-time database migration checks **Install during migration** for every fleet that has a bootstrap package. If your fleets are managed with GitOps, the next GitOps run unchecks the option unless `macos_enable_bootstrap_package_during_migration: true` is in your YAML. While the variable is set, Fleet logs a deprecation warning on startup and installs the bootstrap package during migration either way.
+
+To stop using this variable, check **Install during migration**, or set `macos_enable_bootstrap_package_during_migration: true` in your YAML, for every fleet that has a bootstrap package. Then remove the variable.
 
 This is only supported as an environment variable.
 
 - Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
 
 ### silent_migration_enrollment_profile
 
