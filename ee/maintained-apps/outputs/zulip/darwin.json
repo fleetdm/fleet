@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.13.2",
+      "version": "5.14.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron' AND version_compare(bundle_short_version, '5.13.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zulip.zulip-electron' AND version_compare(bundle_short_version, '5.14.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.zulip.zulip-electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.13.2/Zulip-5.13.2-arm64.dmg",
+      "installer_url": "https://github.com/zulip/zulip-desktop/releases/download/v5.14.2/Zulip-5.14.2-arm64.dmg",
       "install_script_ref": "2b473372",
       "uninstall_script_ref": "d505b873",
-      "sha256": "1091a2a79be475177e3008e5089f0b546f8b51266e497c840fcb3e8488a5dba2",
+      "sha256": "e54a5e6bcd0150914cf2a2942ccf8ac8df58aa1102039dc66d47af79c6d28776",
       "default_categories": [
         "Communication"
       ]

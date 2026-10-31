@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.4.6",
+      "version": "5.4.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5' AND version_compare(bundle_short_version, '5.4.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5' AND version_compare(bundle_short_version, '5.4.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.red-sweater.marsedit5' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://redsweater.com/marsedit/MarsEdit5.4.6.zip",
+      "installer_url": "https://redsweater.com/marsedit/MarsEdit5.4.7.zip",
       "install_script_ref": "49e125aa",
       "uninstall_script_ref": "3e6b30ec",
-      "sha256": "b05c781f3d6b029585ac2eaf5b0051949d51f99726fcac9f25b91d93e769733a",
+      "sha256": "8e193431d05cb0486d91adbcacc2ecec27f5fc07573bbe1039ffb4dede941450",
       "default_categories": [
         "Productivity"
       ]
