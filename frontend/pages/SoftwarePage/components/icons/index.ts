@@ -28,6 +28,7 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import LinuxOS from "./LinuxOS";
+import lodesong from "./png/lodesong.png";
 import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
 import OnePassword from "./OnePassword";
@@ -1786,6 +1787,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
+  lodesong: lodesong,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
   "logitech g hub": LogitechGHub,
