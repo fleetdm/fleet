@@ -1010,10 +1010,17 @@ func truncateMDMWindowsProfileDetail(detail string) string {
 	return str.TruncateBytes(detail, maxMDMWindowsProfileDetailLen, "... (truncated)")
 }
 
+// RefreshMDMWindowsProfilesStatusRollup recomputes the per-host profile status rollup for the given hosts, one autocommit statement
+// per batch so no locks are held across batches.
+func (ds *Datastore) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	return updateWindowsProfilesStatusRollupDB(ctx, ds.writer(ctx), hostUUIDs, true)
+}
+
 // MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
 // and upserts their profile tracking rows. The command must already exist in
 // windows_mdm_commands (inserted via MDMWindowsBulkInsertCommands or
-// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts).
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts). The per-host profile status rollup is not refreshed here: recomputing it
+// per command re-aggregates every profile row of the hosts each time, so the caller refreshes it once per host window instead.
 func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1106,10 +1113,6 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 			)
 			if _, err := tx.ExecContext(ctx, profileStmt, profileArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
-			}
-
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
 
 			return nil
@@ -1294,23 +1297,51 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.E
 	return allIDs, err
 }
 
-// getEnrollmentIDsByHostUUIDOrDeviceIDDB fetches enrollment IDs using a
-// per-row SELECT that supports both host_uuid and mdm_device_id lookups.
-// Used by the general-purpose command insertion path (typically 1-2 IDs).
+// getEnrollmentIDsByHostUUIDOrDeviceIDDB resolves each host UUID or MDM device ID to its latest enrollment (by created_at, then id),
+// skipping identifiers that match no enrollment. The result follows the order of the input.
 func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string) ([]uint, error) {
-	var allIDs []uint
-	for _, id := range hostUUIDsOrDeviceIDs {
-		var eid uint
-		err := sqlx.GetContext(ctx, tx, &eid,
-			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-			id, id)
+	type enrollmentRow struct {
+		ID          uint      `db:"id"`
+		HostUUID    string    `db:"host_uuid"`
+		MDMDeviceID string    `db:"mdm_device_id"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+
+	allIDs := make([]uint, 0, len(hostUUIDsOrDeviceIDs))
+	err := common_mysql.BatchProcessSimple(hostUUIDsOrDeviceIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(
+			`SELECT id, host_uuid, mdm_device_id, created_at FROM mdm_windows_enrollments WHERE host_uuid IN (?) OR mdm_device_id IN (?)`,
+			batch, batch,
+		)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue // host not enrolled, skip
-			}
-			return nil, ctxerr.Wrap(ctx, err, "looking up enrollment ID")
+			return ctxerr.Wrap(ctx, err, "building enrollment lookup")
 		}
-		allIDs = append(allIDs, eid)
+		var rows []enrollmentRow
+		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "looking up enrollment IDs")
+		}
+
+		latest := make(map[string]enrollmentRow, len(batch))
+		consider := func(key string, row enrollmentRow) {
+			if cur, ok := latest[key]; !ok || row.CreatedAt.After(cur.CreatedAt) ||
+				(row.CreatedAt.Equal(cur.CreatedAt) && row.ID > cur.ID) {
+				latest[key] = row
+			}
+		}
+		// The columns are utf8mb4_unicode_ci, so the match here has to be case-insensitive too.
+		for _, row := range rows {
+			consider(strings.ToLower(row.HostUUID), row)
+			consider(strings.ToLower(row.MDMDeviceID), row)
+		}
+		for _, id := range batch {
+			if row, ok := latest[strings.ToLower(id)]; ok {
+				allIDs = append(allIDs, row.ID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return allIDs, nil
 }
@@ -1701,7 +1732,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 // renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
-// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep).
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, Smallstep, or conditional access).
 func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
 	if len(profileUUIDs) == 0 {
 		return nil, nil
@@ -2039,7 +2070,23 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-	query := `SELECT
+	// The enrollments come from the command's results, plus the ones still waiting in its queue (acked_at IS NULL), which report as
+	// pending even when other enrollments already replied. Every join after that is on the full (enrollment_id, command_uuid) key.
+	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
+	var queueHostFilter, resultsHostFilter string
+	var args []any
+	if hostUUID != "" {
+		queueHostFilter = fmt.Sprintf(hostFilter, "wmcq")
+		resultsHostFilter = fmt.Sprintf(hostFilter, "wmcr")
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID)
+	if hostUUID != "" {
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID, commandUUID)
+
+	query := fmt.Sprintf(`SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(wmcr.status_code, '101') AS status,
@@ -2052,21 +2099,16 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
     wmc.raw_command AS payload
 FROM
     windows_mdm_commands wmc
-    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+    JOIN (
+        SELECT wmcq.enrollment_id FROM windows_mdm_command_queue wmcq%s WHERE wmcq.command_uuid = ? AND wmcq.acked_at IS NULL
+        UNION
+        SELECT wmcr.enrollment_id FROM windows_mdm_command_results wmcr%s WHERE wmcr.command_uuid = ?
+    ) pairs ON TRUE
+    JOIN mdm_windows_enrollments mwe ON mwe.id = pairs.enrollment_id
+    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid AND wmcr.enrollment_id = pairs.enrollment_id
     LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
-    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
-    LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
-        wmcr.enrollment_id,
-        wmcq.enrollment_id
-    )
 WHERE
-    wmc.command_uuid = ?`
-
-	args := []any{commandUUID}
-	if hostUUID != "" {
-		query += " AND mwe.host_uuid = ?"
-		args = append(args, hostUUID)
-	}
+    wmc.command_uuid = ?`, queueHostFilter, resultsHostFilter)
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(

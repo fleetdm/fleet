@@ -2606,6 +2606,9 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, batchActivity.Status)
 	require.Equal(t, uint(3), *batchActivity.NumTargeted)
 
+	_, err = ds.GetBatchActivity(ctx, "missing")
+	require.True(t, fleet.IsNotFound(err))
+
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
 	require.Len(t, hostResults, 3)

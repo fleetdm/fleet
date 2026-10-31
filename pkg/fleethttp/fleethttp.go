@@ -189,6 +189,7 @@ type clientOpts struct {
 	noFollow    bool
 	cookieJar   http.CookieJar
 	maxRespSize int64
+	noOTEL      bool
 
 	responseHeaderTimeout time.Duration
 }
@@ -208,6 +209,16 @@ func WithTimeout(t time.Duration) ClientOpt {
 func WithNoTimeout() ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = 0
+	}
+}
+
+// WithoutOTEL leaves the transport without OpenTelemetry instrumentation, for
+// clients in processes that never configure a provider (e.g. orbit). It also
+// keeps http.Client.CloseIdleConnections working, which otelhttp.Transport
+// doesn't forward.
+func WithoutOTEL() ClientOpt {
+	return func(o *clientOpts) {
+		o.noOTEL = true
 	}
 }
 
@@ -291,12 +302,26 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.maxRespSize > 0 {
 		baseTransport = newSizeLimitTransport(baseTransport, co.maxRespSize)
 	}
-	cli.Transport = otelhttp.NewTransport(baseTransport)
+	if co.noOTEL {
+		cli.Transport = baseTransport
+	} else {
+		cli.Transport = otelhttp.NewTransport(baseTransport)
+	}
 	if co.cookieJar != nil {
 		cli.Jar = co.cookieJar
 	}
 	return cli
 }
+
+// HTTP/2 health check timeouts: a pooled connection that receives nothing for
+// http2SendPingTimeout is pinged, and closed if no reply arrives within
+// http2PingTimeout. Without them, a connection silently dropped by the network
+// (e.g. after sleep or a VPN reconnect) stays pooled and every request on it
+// times out until the OS gives up on the socket, which takes ~15 min on Linux.
+const (
+	http2SendPingTimeout = 30 * time.Second
+	http2PingTimeout     = 15 * time.Second
+)
 
 type transportOpts struct {
 	tlsConf *tls.Config
@@ -337,6 +362,11 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
+	if tr.HTTP2 == nil {
+		tr.HTTP2 = &http.HTTP2Config{}
+	}
+	tr.HTTP2.SendPingTimeout = http2SendPingTimeout
+	tr.HTTP2.PingTimeout = http2PingTimeout
 	return tr
 }
 

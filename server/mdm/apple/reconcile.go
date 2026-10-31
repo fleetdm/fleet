@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -225,21 +227,22 @@ func ComputeReconcileDeltas(
 			}
 
 			toRemove = append(toRemove, &fleet.MDMAppleProfilePayload{
-				ProfileUUID:       c.ProfileUUID,
-				ProfileIdentifier: c.ProfileIdentifier,
-				ProfileName:       c.ProfileName,
-				HostUUID:          host.UUID,
-				HostPlatform:      host.Platform,
-				Checksum:          c.Checksum,
-				SecretsUpdatedAt:  c.SecretsUpdatedAt,
-				Status:            c.Status,
-				OperationType:     c.OperationType,
-				Detail:            c.Detail,
-				CommandUUID:       c.CommandUUID,
-				IgnoreError:       c.IgnoreError,
-				Scope:             c.Scope,
-				DeviceEnrolledAt:  host.DeviceEnrolledAt,
-				CancelOnly:        cancelOnly,
+				ProfileUUID:        c.ProfileUUID,
+				ProfileIdentifier:  c.ProfileIdentifier,
+				ProfileName:        c.ProfileName,
+				HostUUID:           host.UUID,
+				HostPlatform:       host.Platform,
+				Checksum:           c.Checksum,
+				SecretsUpdatedAt:   c.SecretsUpdatedAt,
+				Status:             c.Status,
+				OperationType:      c.OperationType,
+				Detail:             c.Detail,
+				CommandUUID:        c.CommandUUID,
+				IgnoreError:        c.IgnoreError,
+				Scope:              c.Scope,
+				DeviceEnrolledAt:   host.DeviceEnrolledAt,
+				VariablesUpdatedAt: c.VariablesUpdatedAt,
+				CancelOnly:         cancelOnly,
 			})
 		}
 	}
@@ -285,6 +288,123 @@ func adoptableFromAlreadyInstalled(current []*fleet.MDMAppleProfilePayload, p *f
 		return true
 	}
 	return false
+}
+
+// canTakeOverState reports whether install p can take over the state of pp, the same-identifier row
+// it replaces on the host, instead of being sent again: pp is delivered or on its way, with
+// identical content.
+func canTakeOverState(p, pp *fleet.MDMAppleProfilePayload) bool {
+	// Never preserve the state of a cancel-only removal: it would stamp this
+	// install as "removing" and point it at the command we are about to delete.
+	return !pp.CancelOnly && pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum)
+}
+
+// profileUUIDBoundVariables reports whether the profile's Fleet variables render its own UUID into
+// what the device installs: the SCEP proxy URL the device requests its certificate from, or the
+// renewal ID in the certificate's subject.
+func profileUUIDBoundVariables(fleetVars []string) (proxyURL, renewalID bool) {
+	for _, v := range fleetVars {
+		switch {
+		case v == string(fleet.FleetVarNDESSCEPProxyURL),
+			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPProxyURLPrefix)),
+			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+			proxyURL = true
+		case v == string(fleet.FleetVarSCEPRenewalID), v == string(fleet.FleetVarCertificateRenewalID):
+			renewalID = true
+		}
+	}
+	return proxyURL, renewalID
+}
+
+// adoptionsToReinstall returns the installs that must be sent again even though they could take
+// over the state of the identical profile they replace. The device holds that profile as rendered
+// for the old profile UUID, so a pending install would request its certificate from a proxy URL
+// that no longer resolves, and a certificate Fleet hasn't recorded yet carries a renewal ID that
+// can never be matched to the new profile, so it would never be renewed.
+func adoptionsToReinstall(
+	ctx context.Context,
+	ds fleet.Datastore,
+	profileIntersection *ProfileBimap,
+	toInstall []*fleet.MDMAppleProfilePayload,
+	prefetchedContents map[string]mobileconfig.Mobileconfig,
+) (map[*fleet.MDMAppleProfilePayload]struct{}, error) {
+	type adoption struct{ install, replaced *fleet.MDMAppleProfilePayload }
+	var adoptions []adoption
+	missingContents := make(map[string]struct{})
+	for _, p := range toInstall {
+		pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p)
+		if !ok || pp == nil || !canTakeOverState(p, pp) {
+			continue
+		}
+		adoptions = append(adoptions, adoption{install: p, replaced: pp})
+		if _, ok := prefetchedContents[p.ProfileUUID]; !ok {
+			missingContents[p.ProfileUUID] = struct{}{}
+		}
+	}
+	if len(adoptions) == 0 {
+		return nil, nil
+	}
+
+	// prefetchedContents is passed on as the complete set of install contents, so the missing ones
+	// go in a separate map.
+	contents := prefetchedContents
+	if len(missingContents) > 0 {
+		fetched, err := ds.GetMDMAppleProfilesContents(ctx, slices.Collect(maps.Keys(missingContents)))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting contents of profiles adopted from another fleet")
+		}
+		contents = make(map[string]mobileconfig.Mobileconfig, len(prefetchedContents)+len(fetched))
+		maps.Copy(contents, prefetchedContents)
+		maps.Copy(contents, fetched)
+	}
+
+	type boundVariables struct{ proxyURL, renewalID bool }
+	boundByProfile := make(map[string]boundVariables)
+	reinstalls := make(map[*fleet.MDMAppleProfilePayload]struct{})
+	var needsCertificate []adoption
+	for _, a := range adoptions {
+		bound, ok := boundByProfile[a.install.ProfileUUID]
+		if !ok {
+			bound.proxyURL, bound.renewalID = profileUUIDBoundVariables(variables.Find(string(contents[a.install.ProfileUUID])))
+			boundByProfile[a.install.ProfileUUID] = bound
+		}
+		switch {
+		case !bound.proxyURL && !bound.renewalID:
+		case a.replaced.Status != nil && *a.replaced.Status == fleet.MDMDeliveryPending:
+			reinstalls[a.install] = struct{}{}
+		case bound.renewalID:
+			// Only a renewal ID lets ingestion match the certificate to its profile and record its
+			// dates, so without one a reinstall would not help.
+			needsCertificate = append(needsCertificate, a)
+		}
+	}
+	if len(needsCertificate) == 0 {
+		return reinstalls, nil
+	}
+
+	hostProfiles := make([]fleet.HostProfileUUID, 0, len(needsCertificate))
+	for _, a := range needsCertificate {
+		hostProfiles = append(hostProfiles, fleet.HostProfileUUID{HostUUID: a.replaced.HostUUID, ProfileUUID: a.replaced.ProfileUUID})
+	}
+	certs, err := ds.ListMDMManagedCertificatesForHostProfiles(ctx, hostProfiles)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing certificates of profiles adopted from another fleet")
+	}
+	// A profile can reference several CAs: it is recorded only when every one of its certificates
+	// has dates.
+	recorded := make(map[fleet.HostProfileUUID]bool, len(certs))
+	for _, c := range certs {
+		key := fleet.HostProfileUUID{HostUUID: c.HostUUID, ProfileUUID: c.ProfileUUID}
+		if prev, seen := recorded[key]; !seen || prev {
+			recorded[key] = c.NotValidAfter != nil
+		}
+	}
+	for _, a := range needsCertificate {
+		if !recorded[fleet.HostProfileUUID{HostUUID: a.replaced.HostUUID, ProfileUUID: a.replaced.ProfileUUID}] {
+			reinstalls[a.install] = struct{}{}
+		}
+	}
+	return reinstalls, nil
 }
 
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
@@ -561,27 +681,31 @@ func ExecuteReconcileBatch(
 	// replaces. The replaced row is cleaned up below, but its command must stay
 	// queued: the install row now tracks it.
 	adoptedCmds := make(map[hostCommandKey]struct{})
+	reinstalls, err := adoptionsToReinstall(ctx, ds, profileIntersection, toInstall, prefetchedContents)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, p := range toInstall {
-		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
-			// Never preserve the state of a cancel-only removal: it would stamp this
-			// install as "removing" and point it at the command we are about to delete.
-			if !pp.CancelOnly && (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil && canTakeOverState(p, pp) {
+			if _, reinstall := reinstalls[p]; !reinstall {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileUUID:       p.ProfileUUID,
-					HostUUID:          p.HostUUID,
-					ProfileIdentifier: p.ProfileIdentifier,
-					ProfileName:       p.ProfileName,
-					Checksum:          p.Checksum,
-					SecretsUpdatedAt:  p.SecretsUpdatedAt,
-					OperationType:     pp.OperationType,
-					Status:            pp.Status,
-					CommandUUID:       pp.CommandUUID,
-					Detail:            pp.Detail,
-					Scope:             pp.Scope,
+					ProfileUUID:        p.ProfileUUID,
+					HostUUID:           p.HostUUID,
+					ProfileIdentifier:  p.ProfileIdentifier,
+					ProfileName:        p.ProfileName,
+					Checksum:           p.Checksum,
+					SecretsUpdatedAt:   p.SecretsUpdatedAt,
+					OperationType:      pp.OperationType,
+					Status:             pp.Status,
+					CommandUUID:        pp.CommandUUID,
+					Detail:             pp.Detail,
+					Scope:              pp.Scope,
+					VariablesUpdatedAt: pp.VariablesUpdatedAt,
 				}
 				hostProfiles = append(hostProfiles, hp)
 				hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hp
+				pp.AdoptedByProfileUUID = p.ProfileUUID
 				if pp.CommandUUID != "" {
 					adoptedCmds[hostCommandKey{hostUUID: p.HostUUID, commandUUID: pp.CommandUUID}] = struct{}{}
 				}

@@ -566,6 +566,53 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		require.Nil(t, status)
 		return err
 	})
+
+	// returns the TestProfile payload the device received, acknowledging every command
+	installedTestProfile := func() string {
+		s.awaitTriggerProfileSchedule(t)
+		var payload string
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				if p := string(fullCmd.Command.InstallProfile.Payload); strings.Contains(p, "TestProfile") {
+					payload = p
+				}
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return payload
+	}
+	testProfileStatus := func() fleet.MDMDeliveryStatus {
+		hostProfiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range hostProfiles {
+			if p.Identifier == "com.test.profile" {
+				require.NotNil(t, p.Status)
+				return *p.Status
+			}
+		}
+		require.FailNow(t, "TestProfile not found on host")
+		return ""
+	}
+
+	// the cleared username can't be resolved, so the profile fails
+	require.Empty(t, installedTestProfile())
+	require.Equal(t, fleet.MDMDeliveryFailed, testProfileStatus())
+
+	// without a SCIM user, every new IdP username resends the profile with that value
+	for _, email := range []string{"manual.one@example.com", "manual.two@example.com"} {
+		s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{
+			Email:  email,
+			Source: "idp",
+		}, http.StatusOK)
+		require.Equal(t, fleet.MDMDeliveryPending, testProfileStatus())
+		require.Contains(t, installedTestProfile(), email)
+		require.Equal(t, fleet.MDMDeliveryVerifying, testProfileStatus())
+	}
 }
 
 // Moving a host between fleets that hold a byte-identical profile must keep the
@@ -693,6 +740,94 @@ func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsPendingInstallFor
 		require.NotNil(t, row.Status)
 		require.Equal(t, fleet.MDMDeliveryVerifying, *row.Status)
 	}
+}
+
+// Moving a host between fleets that hold a byte-identical profile skips the
+// reinstall, so the certificate that profile installed must stay tracked under the
+// new fleet's profile: renewal has to find it and the cleanup cron must keep it.
+func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsManagedCertificateForIdenticalProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	const identifier = "com.example.transfer.certificate"
+	shared := mobileconfigForTest("TransferCertificate", identifier)
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_B"})
+	require.NoError(t, err)
+	for _, tm := range []*fleet.Team{teamA, teamB} {
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
+			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	}
+
+	type hostProfileRow struct {
+		ProfileUUID        string                   `db:"profile_uuid"`
+		Status             *fleet.MDMDeliveryStatus `db:"status"`
+		CommandUUID        string                   `db:"command_uuid"`
+		VariablesUpdatedAt *time.Time               `db:"variables_updated_at"`
+	}
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	getRow := func() hostProfileRow {
+		var row hostProfileRow
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT profile_uuid, status, command_uuid, variables_updated_at FROM host_mdm_apple_profiles
+				WHERE host_uuid = ? AND profile_identifier = ?`, host.UUID, identifier)
+		})
+		return row
+	}
+	transfer := func(teamID uint) {
+		s.Do("POST", "/api/v1/fleet/hosts/transfer",
+			addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{host.ID}}, http.StatusOK)
+		require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+		s.awaitTriggerProfileSchedule(t)
+	}
+
+	transfer(teamA.ID)
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	installed := getRow()
+	require.NotNil(t, installed.Status)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *installed.Status)
+
+	// the certificate the profile installed, due for renewal in 10 days
+	notValidBefore := time.Now().Add(-355 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(10 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	require.NoError(t, s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{{
+		HostUUID: host.UUID, ProfileUUID: installed.ProfileUUID, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+		NotValidBefore: &notValidBefore, NotValidAfter: &notValidAfter, Serial: new("01"),
+	}}))
+	variablesUpdatedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET variables_updated_at = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			variablesUpdatedAt, host.UUID, installed.ProfileUUID)
+		return err
+	})
+
+	transfer(teamB.ID)
+	adopted := getRow()
+	require.NotEqual(t, installed.ProfileUUID, adopted.ProfileUUID)
+	require.Equal(t, installed.CommandUUID, adopted.CommandUUID, "the identical profile is not reinstalled")
+	require.Equal(t, &variablesUpdatedAt, adopted.VariablesUpdatedAt)
+
+	certs, err := s.ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, adopted.ProfileUUID, certs[0].ProfileUUID)
+	require.Equal(t, new("01"), certs[0].Serial)
+
+	require.NoError(t, s.ds.CleanUpMDMManagedCertificates(ctx))
+	certs, err = s.ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+
+	require.NoError(t, s.ds.RenewMDMManagedCertificates(ctx))
+	require.Nil(t, getRow().Status, "the certificate is due, so its profile is queued for resend")
 }
 
 // mdmActiveCmdCount returns the number of active (undelivered) nano_enrollment_queue

@@ -176,7 +176,7 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, appPath, _ string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -259,6 +259,12 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
 				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
 				return true, nil
+			}
+
+			// The name "Dia" also matches Apple Diagnostics, whose bundle version "1"
+			// prefix-matches Dia's version, so only count Dia's own bundle.
+			if uniqueAppIdentifier == "company.thebrowser.dia" && result.Path != "/Applications/Dia.app" {
+				continue
 			}
 
 			// Adobe DNG Converter's version format includes build number in parentheses

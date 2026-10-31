@@ -120,6 +120,9 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
+		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
+		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
+		{"GetAppleSerialEnrolledUnderAnotherUUID", testGetAppleSerialEnrolledUnderAnotherUUID},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -141,6 +144,7 @@ func TestMDMApple(t *testing.T) {
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
+		{"MDMManagedCertificatesFollowAdoptedProfile", testMDMManagedCertificatesFollowAdoptedProfile},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
@@ -11791,6 +11795,86 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
+// A fleet transfer onto an identical profile adopts the old host profile row. Deleting that row
+// hands its managed certificates to the adopter, or renewal could never find them again.
+func testMDMManagedCertificatesFollowAdoptedProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const profA, profB = "aFleetAProfileUUID", "aFleetBProfileUUID"
+	const adoptedHost, otherHost = "host-adopted", "host-other"
+
+	notValidBefore := time.Now().Add(-24 * time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(300 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	staleNotValidAfter := time.Now().Add(-48 * time.Hour).UTC().Round(time.Microsecond)
+	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID: adoptedHost, ProfileUUID: profA, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &notValidAfter, Serial: new("01"),
+		},
+		// issued but not reported by the host yet
+		{
+			HostUUID: adoptedHost, ProfileUUID: profA, Type: fleet.CAConfigNDES, CAName: "NDES",
+			ChallengeRetrievedAt: &challengeRetrievedAt,
+		},
+		// left over from an earlier stint in fleet B
+		{
+			HostUUID: adoptedHost, ProfileUUID: profB, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &staleNotValidAfter, Serial: new("00"),
+		},
+		// left over from an earlier stint in fleet B, for a CA its profile no longer references
+		{
+			HostUUID: adoptedHost, ProfileUUID: profB, Type: fleet.CAConfigDigiCert, CAName: "retired",
+			NotValidBefore: &notValidBefore, NotValidAfter: &staleNotValidAfter, Serial: new("03"),
+		},
+		{
+			HostUUID: otherHost, ProfileUUID: profA, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &notValidAfter, Serial: new("02"),
+		},
+	}))
+
+	// The second pass replays the adoption, as a reconcile tick reading a stale replica would.
+	for range 2 {
+		require.NoError(t, ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, []*fleet.MDMAppleProfilePayload{
+			{HostUUID: adoptedHost, ProfileUUID: profA, AdoptedByProfileUUID: profB},
+			{HostUUID: otherHost, ProfileUUID: profA},
+		}))
+
+		certs, err := ds.ListHostMDMManagedCertificates(ctx, adoptedHost)
+		require.NoError(t, err)
+		require.Len(t, certs, 2)
+		certsByCA := make(map[string]*fleet.MDMManagedCertificate, len(certs))
+		for _, c := range certs {
+			require.Equal(t, profB, c.ProfileUUID)
+			certsByCA[c.CAName] = c
+		}
+		digicert, ndes := certsByCA["digicert"], certsByCA["NDES"]
+		require.NotNil(t, digicert)
+		require.NotNil(t, ndes)
+		require.Equal(t, new("01"), digicert.Serial, "the adopted certificate replaces the stale one")
+		require.Equal(t, &notValidAfter, digicert.NotValidAfter)
+		require.Equal(t, fleet.CAConfigDigiCert, digicert.Type)
+		require.Nil(t, ndes.NotValidAfter)
+		require.Equal(t, &challengeRetrievedAt, ndes.ChallengeRetrievedAt)
+	}
+
+	certs, err := ds.ListHostMDMManagedCertificates(ctx, otherHost)
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, profA, certs[0].ProfileUUID, "rows that were not adopted stay put")
+
+	certs, err = ds.ListMDMManagedCertificatesForHostProfiles(ctx, []fleet.HostProfileUUID{
+		{HostUUID: adoptedHost, ProfileUUID: profB},
+		{HostUUID: otherHost, ProfileUUID: profA},
+		{HostUUID: otherHost, ProfileUUID: profB},
+	})
+	require.NoError(t, err)
+	listed := make([]string, 0, len(certs))
+	for _, c := range certs {
+		listed = append(listed, c.HostUUID+"/"+c.ProfileUUID+"/"+c.CAName)
+	}
+	require.ElementsMatch(t, []string{adoptedHost + "/" + profB + "/digicert", adoptedHost + "/" + profB + "/NDES", otherHost + "/" + profA + "/digicert"}, listed)
+}
+
 func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -14154,8 +14238,9 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 			scimUserID := newScimUser(t, email)
 
 			// What PUT /hosts/:id/device_mapping {source: idp} does at the datastore layer.
-			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email))
-			_, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+			_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email)
+			require.NoError(t, err)
+			_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
 			require.NoError(t, err)
 			requireLinkedTo(t, host, scimUserID)
 			requireNoIdPAccount(t, host)
@@ -14200,7 +14285,8 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 			host := newDarwinHost(t, fmt.Sprintf("uuid-ade-override-%v", scepRenewal))
 			associateIdPAccount(t, host, fmt.Sprintf("staging-%v@example.com", scepRenewal))
 			realUser := fmt.Sprintf("real-%v@example.com", scepRenewal)
-			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser))
+			_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser)
+			require.NoError(t, err)
 
 			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
 
@@ -14919,4 +15005,222 @@ func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
 			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
 	})
 	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
+}
+
+func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, 'lock-ref', 'darwin')`, enrolled.ID)
+		return err
+	})
+	lockRef := func() *string {
+		var ref *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &ref, `SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, enrolled.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return ref
+	}
+
+	// a check-in from a different UUID claiming the enrolled host's serial leaves the host and its pending lock alone
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "other-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeNone)
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+	assert.Equal(t, enrolled.HardwareSerial, host.HardwareSerial)
+	assert.Equal(t, "darwin", host.Platform)
+	assert.Equal(t, new("lock-ref"), lockRef())
+
+	// the enrolled device itself can still check in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: enrolled.UUID, HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "new-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "new-uuid", host.UUID)
+
+	newHost := func(name, uuid, serial string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname: name, OsqueryHostID: new(name), NodeKey: new(name),
+			UUID: uuid, HardwareSerial: serial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// the serial match picks the lowest ID, so an older host with the serial that isn't enrolled doesn't hide the
+	// enrolled one
+	stale := newHost("stale", "stale-uuid", "shared-serial")
+	nanoEnroll(t, ds, newHost("shared-enrolled", "shared-enrolled-uuid", "shared-serial"), false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "claiming-uuid", HardwareSerial: "shared-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone)
+	require.ErrorAs(t, err, &conflictErr)
+	host, err = ds.HostLite(ctx, stale.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "stale-uuid", host.UUID)
+
+	// a device matched by its own UUID checks in even if another host with its serial is enrolled
+	own := newHost("own", "own-uuid", "own-serial")
+	nanoEnroll(t, ds, newHost("own-duplicate", "own-duplicate-uuid", "own-serial"), false)
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: own.UUID, HardwareSerial: "own-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, own.ID)
+	require.NoError(t, err)
+	assert.Equal(t, own.UUID, host.UUID)
+
+	// an account-driven user enrollment isn't matched by serial, even to a host that isn't enrolled yet
+	pending := newHost("pending", "pending-uuid", "enrollment-id")
+	adue := &fleet.Host{UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios"}
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	host, err = ds.HostLite(ctx, pending.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "pending-uuid", host.UUID)
+	assert.Equal(t, "darwin", host.Platform)
+	countByUUID := func(uuid string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM hosts WHERE uuid = ?`, uuid)
+		})
+		return n
+	}
+	require.Equal(t, 1, countByUUID("enrollment-id"))
+	// and it finds its own host again on the next check-in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	require.Equal(t, 1, countByUUID("enrollment-id"))
+}
+
+func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	// pre-created from Apple Business, not enrolled yet
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "pending",
+		OsqueryHostID:  new("pending"),
+		NodeKey:        new("pending"),
+		UUID:           "pending-uuid",
+		HardwareSerial: "pending-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	challengeCount := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_apple_scep_challenges`)
+		})
+		return n
+	}
+	newChallenge := func(uuid, serial string) error {
+		_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeADE, UUID: &uuid, Serial: &serial,
+		}, time.Hour)
+		return err
+	}
+
+	// another UUID claiming the enrolled host's serial gets no challenge
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, newChallenge("other-uuid", enrolled.HardwareSerial), &conflictErr)
+	require.Zero(t, challengeCount())
+
+	require.NoError(t, newChallenge(enrolled.UUID, enrolled.HardwareSerial))
+	require.NoError(t, newChallenge("new-uuid", "pending-serial"))
+	_, err = ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(uuid.NewString()),
+	}, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, 3, challengeCount())
+
+	// once MDM is turned off, a new UUID can get one
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
+}
+
+func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "enrolled", OsqueryHostID: new("enrolled-uuid"), NodeKey: new("enrolled"),
+		UUID: "enrolled-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	got, err := ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Equal(t, "enrolled-uuid", got)
+
+	// the enrolled device itself, and a serial nobody has
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "enrolled-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "unknown-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// a device with a host of its own is matched by its UUID
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname: "own", OsqueryHostID: new("own-uuid"), NodeKey: new("own"),
+		UUID: "own-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "own-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// once MDM is turned off, the serial is free
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
 }

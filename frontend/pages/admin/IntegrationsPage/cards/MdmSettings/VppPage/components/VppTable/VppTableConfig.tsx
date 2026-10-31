@@ -2,11 +2,12 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 
 import ActionsDropdown from "components/ActionsDropdown";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IMdmVppToken } from "interfaces/mdm";
+import { formatCountry } from "utilities/country";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
@@ -17,9 +18,8 @@ import TeamsCell from "./TeamsCell";
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
 type IRenewDateCellProps = CellProps<IMdmVppToken, IMdmVppToken["renew_date"]>;
+type ICreatedAtCellProps = CellProps<IMdmVppToken, IMdmVppToken["created_at"]>;
 type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
-
-type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "editTeams", label: "Edit fleets", disabled: false },
@@ -74,13 +74,8 @@ export const generateTableConfig = (
   return [
     {
       accessor: "org_name",
-      sortType: "caseInsensitive",
-      Header: (cellProps: ITableHeaderProps) => (
-        <HeaderCell
-          value="Organization name"
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      disableSortBy: true,
+      Header: "Organization name",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -98,12 +93,19 @@ export const generateTableConfig = (
       Header: "Country",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatCountry(cellProps.cell.value) || undefined} />
+      ),
+    },
+    {
+      accessor: "created_at",
+      Header: "Added to Fleet",
+      disableSortBy: true,
+      Cell: (cellProps: ICreatedAtCellProps) => (
         <TextCell
-          value={
-            cellProps.cell.value
-              ? cellProps.cell.value.toUpperCase()
-              : undefined
-          }
+          value={cellProps.cell.value}
+          formatter={(createdAt) => (
+            <HumanTimeDiffWithDateTip timeString={createdAt} />
+          )}
         />
       ),
     },

@@ -35,7 +35,7 @@ quit_application() {
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     return
   fi
@@ -53,9 +53,9 @@ quit_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -69,6 +69,18 @@ quit_application() {
 }
 
 
+remove_empty_dir() {
+  local logged_in_user="$1"
+  local dir="$2"
+
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+    dir="/Users/$logged_in_user${dir:1}"
+  fi
+
+  sudo rmdir "$dir" 2>/dev/null || true
+}
+
 remove_launchctl_service() {
   local service="$1"
   local booleans=("true" "false")
@@ -77,6 +89,15 @@ remove_launchctl_service() {
   local should_sudo
 
   echo "Removing launchctl service ${service}"
+
+  local console_user
+  local console_uid=""
+  if [[ $EUID -eq 0 ]]; then
+    console_user=$(stat -f "%Su" /dev/console)
+    if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
+      console_uid=$(id -u "$console_user")
+    fi
+  fi
 
   # A wildcard label can't be used with launchctl or as a plist name, so expand
   # it to the labels of currently loaded services that match the pattern.
@@ -93,7 +114,12 @@ remove_launchctl_service() {
     # loaded-but-not-running jobs with a "-" in the PID column.
     while read -r _ _ id; do
       [[ "$id" =~ $regex ]] && services+=("$id")
-    done < <(launchctl list 2>/dev/null | tail -n +2)
+    done < <(
+      launchctl list 2>/dev/null | tail -n +2
+      if [[ -n "$console_uid" ]]; then
+        launchctl print "gui/${console_uid}" 2>/dev/null | awk '/^\tservices = [{]$/ { f = 1; next } f && /^\t[}]$/ { f = 0 } f'
+      fi
+    )
     if [[ ${#services[@]} -eq 0 ]]; then
       echo "No loaded launchctl service matches ${service}"
       return
@@ -103,15 +129,22 @@ remove_launchctl_service() {
   local service_label
   for service_label in "${services[@]}"; do
     for should_sudo in "${booleans[@]}"; do
-      plist_status=$(launchctl list "${service_label}" 2>/dev/null)
-
-      if [[ $plist_status == \{* ]]; then
-        if [[ $should_sudo == "true" ]]; then
-          sudo launchctl remove "${service_label}"
-        else
-          launchctl remove "${service_label}"
+      if [[ $should_sudo == "false" && -n "$console_uid" ]]; then
+        if launchctl print "gui/${console_uid}/${service_label}" &>/dev/null; then
+          launchctl bootout "gui/${console_uid}/${service_label}"
+          sleep 1
         fi
-        sleep 1
+      else
+        plist_status=$(launchctl list "${service_label}" 2>/dev/null)
+
+        if [[ $plist_status == \{* ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo launchctl remove "${service_label}"
+          else
+            launchctl remove "${service_label}"
+          fi
+          sleep 1
+        fi
       fi
 
       paths=(
@@ -121,8 +154,12 @@ remove_launchctl_service() {
 
       # if not using sudo, prepend the home directory to the paths
       if [[ $should_sudo == "false" ]]; then
+        local user_home="${HOME}"
+        if [[ -n "$console_uid" ]]; then
+          user_home="/Users/${console_user}"
+        fi
         for i in "${!paths[@]}"; do
-          paths[i]="${HOME}${paths[i]}"
+          paths[i]="${user_home}${paths[i]}"
         done
       fi
 
@@ -264,8 +301,6 @@ sudo rm -rf '/Library/LaunchAgents/com.microsoft.update.agent.plist'
 sudo rm -rf '/Library/LaunchDaemons/com.microsoft.autoupdate.helper.plist'
 sudo rm -rf '/Library/Preferences/com.microsoft.autoupdate2.plist'
 sudo rm -rf '/Library/PrivilegedHelperTools/com.microsoft.autoupdate.helper'
-sudo rmdir '~/Library/Caches/Microsoft'
-sudo rmdir '~/Library/Caches/Microsoft/uls'
 trash "$LOGGED_IN_USER" '~/Library/Application Scripts/UBF8T346G9.com.microsoft.oneauth'
 trash "$LOGGED_IN_USER" '~/Library/Application Support/Microsoft AutoUpdate'
 trash "$LOGGED_IN_USER" '~/Library/Caches/com.microsoft.autoupdate.fba'
@@ -282,3 +317,5 @@ trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate.fba.plis
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.autoupdate2.plist'
 trash "$LOGGED_IN_USER" '~/Library/Preferences/com.microsoft.shared.plist'
 trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.microsoft.autoupdate2.savedState'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft/uls'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Microsoft'

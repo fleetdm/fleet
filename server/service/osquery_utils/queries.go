@@ -398,7 +398,13 @@ var hostDetailQueries = map[string]DetailQuery{
 				return err
 			}
 			host.Hostname = rows[0]["hostname"]
-			host.UUID = rows[0]["uuid"]
+			switch reported := rows[0]["uuid"]; {
+			case host.UUID == "":
+				host.UUID = reported
+			case !strings.EqualFold(host.UUID, reported):
+				logger.WarnContext(ctx, "ignoring a different UUID reported by the host",
+					"component", "service", "method", "IngestFunc", "host_id", host.ID, "uuid", host.UUID, "reported_uuid", reported)
+			}
 			host.CPUType = rows[0]["cpu_type"]
 			host.CPUSubtype = rows[0]["cpu_subtype"]
 			host.CPUBrand = rows[0]["cpu_brand"]

@@ -6,5 +6,6 @@
   "slug": "termius/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

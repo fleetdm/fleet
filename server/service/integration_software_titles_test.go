@@ -45,7 +45,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		HostIDs: []uint{host.ID},
 	}, http.StatusOK, &addResp)
 
-	s.setVPPTokenForTeam(team.ID)
+	tok := s.setVPPTokenForTeam(team.ID)
 
 	// =========================================
 	//           CUSTOM PACKAGES
@@ -333,7 +333,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_display_name": "%s"
 	}`,
 		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.Name, team.ID, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, activityData, tok), 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
@@ -1116,9 +1116,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Empty(titleResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	s.Equal("ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
 
-	// Omitting the fleet resolves to "no team", which this observer has no role
-	// in, so no package is attached. It must still succeed, or a title's
-	// existence becomes inferable from the status.
+	// get the title without a fleet, the request should succeed without a package attached
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET",

@@ -18,7 +18,12 @@ import (
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
-var preInstalled = []string{}
+var preInstalled = []string{
+	// The runner image installs Edge from the same enterprise MSI the FMA ships.
+	// When both are the same version, msiexec /i runs in maintenance mode and
+	// fails with 1603, so remove the image's copy first.
+	"microsoft-edge/windows",
+}
 
 func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
@@ -39,7 +44,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, appPath, existsQuery string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchVersion, appPath, existsQuery string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -132,6 +137,12 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
 			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
 			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
+			// Some installers register a DisplayVersion in a different format
+			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
+			// The patch policy compares against that DisplayVersion, so accept it.
+			if patchVersion != "" && result.Version == patchVersion {
 				return true, nil
 			}
 

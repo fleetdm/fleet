@@ -1,3 +1,4 @@
+import { isPast } from "date-fns";
 import { ReactElement } from "react";
 
 import { getErrorReason } from "interfaces/errors";
@@ -10,31 +11,22 @@ import {
   formatAlreadyAvailableInstallMessage,
 } from "../../helpers";
 
-/**
- * Checks if the given team has an available VPP token (either a token
- * that's associated with the team, or a token that's available to "All
- * teams")
- */
-export const teamHasVPPToken = (
-  currentTeamId: number,
-  tokens?: IMdmVppToken[]
-) => {
-  if (!tokens || tokens.length === 0) {
-    return false;
-  }
+/** Tokens assigned to the fleet, directly or through All fleets, first added first. */
+export const getFleetVppTokens = (
+  teamId: number,
+  tokens: IMdmVppToken[] = []
+) =>
+  tokens
+    .filter(
+      // A non-null, empty `teams` means the token is assigned to All fleets.
+      (t) =>
+        t.teams?.length === 0 || t.teams?.some((tm) => tm.team_id === teamId)
+    )
+    .sort((a, b) => a.id - b.id);
 
-  return tokens.some((token) => {
-    // if we've got a non-null, empty array it means the token is available for
-    // "All teams"
-    if (token.teams?.length === 0) {
-      return true;
-    }
+export const isVppTokenExpired = (token?: IMdmVppToken) =>
+  !!token && isPast(new Date(token.renew_date));
 
-    return token.teams?.some((team) => team.team_id === currentTeamId);
-  });
-};
-
-// eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 

@@ -434,26 +434,32 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileUUID       string             `db:"profile_uuid"`
-	ProfileIdentifier string             `db:"profile_identifier"`
-	ProfileName       string             `db:"profile_name"`
-	HostUUID          string             `db:"host_uuid"`
-	HostPlatform      string             `db:"host_platform"`
-	Checksum          []byte             `db:"checksum"`
-	SecretsUpdatedAt  *time.Time         `db:"secrets_updated_at"`
-	Status            *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType     MDMOperationType   `db:"operation_type"`
-	Detail            string             `db:"detail"`
-	CommandUUID       string             `db:"command_uuid"`
-	IgnoreError       bool               `db:"ignore_error"`
-	Scope             PayloadScope       `db:"scope"`
-	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
+	ProfileUUID        string             `db:"profile_uuid"`
+	ProfileIdentifier  string             `db:"profile_identifier"`
+	ProfileName        string             `db:"profile_name"`
+	HostUUID           string             `db:"host_uuid"`
+	HostPlatform       string             `db:"host_platform"`
+	Checksum           []byte             `db:"checksum"`
+	SecretsUpdatedAt   *time.Time         `db:"secrets_updated_at"`
+	Status             *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType      MDMOperationType   `db:"operation_type"`
+	Detail             string             `db:"detail"`
+	CommandUUID        string             `db:"command_uuid"`
+	IgnoreError        bool               `db:"ignore_error"`
+	Scope              PayloadScope       `db:"scope"`
+	DeviceEnrolledAt   *time.Time         `db:"device_enrolled_at"`
+	VariablesUpdatedAt *time.Time         `db:"variables_updated_at"`
 	// CancelOnly marks a removal carried through the reconciler solely so its
 	// already-queued RemoveProfile command can be cancelled, because the same
 	// identifier is being installed again on the host under a different profile
 	// UUID. Delivering the removal would strip the profile the admin just asked
 	// for, so nothing is ever enqueued for these rows.
 	CancelOnly bool `db:"-"`
+	// AdoptedByProfileUUID marks a row whose state an identical same-identifier
+	// profile took over (a fleet transfer). Deleting the row moves its managed
+	// certificate tracking to that profile, since the certificate stays on the
+	// device.
+	AdoptedByProfileUUID string `db:"-"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -1808,12 +1814,13 @@ type MDMAppleEnrolledDeviceInfo struct {
 }
 
 type AppleMDMVPPInstaller interface {
-	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
-	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	// CheckCanInstallVPPApps returns an error if the host can't be a target for VPP apps
+	CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) error
 
-	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	// InstallVPPAppPostValidation installs a VPP app using the token the app is bound to, assuming that
+	// CheckCanInstallVPPApps has passed.
 	// Returns the command UUID of the installation.
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 }
 
 const (
@@ -1890,6 +1897,13 @@ type HostRecoveryLockPending struct {
 	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
 	OperationType            MDMOperationType `db:"operation_type"`
 	Retries                  int              `db:"retry"`
+}
+
+// HostRecoveryLockVerifyClaim is a host claimed to have its recovery lock verify sent.
+type HostRecoveryLockVerifyClaim struct {
+	HostUUID          string           `db:"host_uuid"`
+	OperationType     MDMOperationType `db:"operation_type"`
+	VerifyCommandUUID string           `db:"-"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
