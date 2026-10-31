@@ -124,6 +124,25 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchWhenClosed: true, NotifyBeforePatching: true},
 			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
 		},
+		{
+			name: "patch policy with patch_deadline is allowed",
+			spec: PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchDeadline: true},
+		},
+		{
+			name:    "dynamic policy with patch_deadline is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic, PatchDeadline: true},
+			wantErr: errPolicyPatchDeadlineRequiresPatch,
+		},
+		{
+			name:    "patch_deadline with patch_when_closed is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchWhenClosed: true, PatchDeadline: true},
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
+		},
+		{
+			name:    "patch_deadline with notify_before_patching is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", NotifyBeforePatching: true, PatchDeadline: true},
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -248,5 +267,39 @@ func TestPolicyVerifyResendProfile(t *testing.T) {
 
 		spec.Platform = "windows"
 		require.NoError(t, spec.Verify())
+	})
+}
+
+func TestPatchOptionsConflict(t *testing.T) {
+	require.False(t, PatchOptionsConflict())
+	require.False(t, PatchOptionsConflict(false, false, false))
+	require.False(t, PatchOptionsConflict(true, false, false))
+	require.False(t, PatchOptionsConflict(false, false, true))
+	require.True(t, PatchOptionsConflict(true, true, false))
+	require.True(t, PatchOptionsConflict(true, false, true))
+	require.True(t, PatchOptionsConflict(false, true, true))
+	require.True(t, PatchOptionsConflict(true, true, true))
+}
+
+func TestPatchDeadlineVerify(t *testing.T) {
+	patchType := PolicyTypePatch
+	titleID := uint(1)
+	patchPayload := func(mod func(*PolicyPayload)) PolicyPayload {
+		p := PolicyPayload{Type: patchType, PatchSoftwareTitleID: &titleID}
+		mod(&p)
+		return p
+	}
+
+	t.Run("PolicyPayload", func(t *testing.T) {
+		require.NoError(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline = true }).Verify())
+		require.ErrorIs(t, PolicyPayload{Name: "p", Query: "SELECT 1;", PatchDeadline: true}.Verify(), errPolicyPatchDeadlineRequiresPatch)
+		require.ErrorIs(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline, p.PatchWhenClosed = true, true }).Verify(), ErrPolicyPatchOptionsMutuallyExclusive)
+		require.ErrorIs(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline, p.NotifyBeforePatching = true, true }).Verify(), ErrPolicyPatchOptionsMutuallyExclusive)
+	})
+
+	t.Run("ModifyPolicyPayload", func(t *testing.T) {
+		require.NoError(t, ModifyPolicyPayload{Type: PolicyTypePatch, PatchDeadline: new(true)}.Verify())
+		require.NoError(t, ModifyPolicyPayload{Type: PolicyTypeDynamic, PatchDeadline: new(false)}.Verify())
+		require.ErrorIs(t, ModifyPolicyPayload{Type: PolicyTypeDynamic, PatchDeadline: new(true)}.Verify(), errPolicyPatchDeadlineRequiresPatch)
 	})
 }

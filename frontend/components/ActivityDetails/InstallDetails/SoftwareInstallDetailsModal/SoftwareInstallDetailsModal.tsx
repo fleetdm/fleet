@@ -40,7 +40,10 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
-import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
+import {
+  isNotifyBeforePatchingSkip,
+  isPatchDeadlineSkip,
+} from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -143,8 +146,12 @@ export const StatusMessage = ({
   // (deferred update); collapsing it into "is installed" would hide the
   // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
-    // Notify variant appends "Fleet notifies the end user..." to
-    // pre_install_query_output; patch_when_closed doesn't.
+    // Three skip variants share the same payload shape; the pre_install_query_output
+    // substring is the only reliable discriminator today. Check deadline first
+    // because the notify marker is a strict substring of the deadline copy.
+    const isDeadlineVariant = isPatchDeadlineSkip(
+      installResult.pre_install_query_output
+    );
     const isNotifyVariant = isNotifyBeforePatchingSkip(
       installResult.pre_install_query_output
     );
@@ -164,6 +171,16 @@ export const StatusMessage = ({
       </>
     );
 
+    const getSkipCopy = () => {
+      if (isDeadlineVariant) {
+        return "The app was open. Fleet will notify the end user 1 hour before the patch deadline.";
+      }
+      if (isNotifyVariant) {
+        return "The app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+      }
+      return skippedDetails;
+    };
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -173,10 +190,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}.{" "}
-            {isNotifyVariant
-              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
-              : skippedDetails}
+            {displayTimeStamp}. {getSkipCopy()}
           </span>
         }
       />

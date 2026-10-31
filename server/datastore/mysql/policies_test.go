@@ -107,6 +107,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
 		{"ApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery", testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery},
 		{"ApplyPolicySpecsNotifyBeforePatchingRejectsWindows", testApplyPolicySpecsNotifyBeforePatchingRejectsWindows},
+		{"PatchDeadlineRoundTrip", testPatchDeadlineRoundTrip},
 		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
 		{"PoliciesHidden", testPoliciesHidden},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
@@ -5004,6 +5005,16 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Len(t, policiesWithInstallers, 1)
 	require.True(t, policiesWithInstallers[0].OverridePreInstallQuery)
 
+	// patch_deadline alone also carries the app open query.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 0, patch_deadline = 1 WHERE id = ?`, p2.ID)
+		return err
+	})
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 1)
+	require.True(t, policiesWithInstallers[0].OverridePreInstallQuery)
+
 	// p2 has associated installer but belongs to team1.
 	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p2.ID})
 	require.NoError(t, err)
@@ -9745,7 +9756,7 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 	})
 	require.NoError(t, err)
 
-	spec := func(patchWhenClosed bool, notifyBeforePatching bool) []*fleet.PolicySpec {
+	spec := func(patchWhenClosed, notifyBeforePatching, patchDeadline bool) []*fleet.PolicySpec {
 		return []*fleet.PolicySpec{{
 			Name:                   "patch-fma-when-closed",
 			Query:                  "SELECT 1;",
@@ -9754,6 +9765,7 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 			FleetMaintainedAppSlug: "maintained2",
 			PatchWhenClosed:        patchWhenClosed,
 			NotifyBeforePatching:   notifyBeforePatching,
+			PatchDeadline:          patchDeadline,
 		}}
 	}
 
@@ -9767,17 +9779,21 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 	}
 
 	// patch_when_closed is rejected while the package has its own pre-install query.
-	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true, false))
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true, false, false))
 	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when patch_when_closed is true`)
 	assertNothingWritten()
 
 	// notify_before_patching is rejected for the same reason, and names itself in the error.
-	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, true))
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, true, false))
 	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when notify_before_patching is true`)
 	assertNothingWritten()
 
-	// The same spec applies without patch_when_closed or notify_before_patching.
-	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false)))
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false, true))
+	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when patch_deadline is true`)
+	assertNothingWritten()
+
+	// The same spec applies without any patch option.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false, false)))
 }
 
 func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Datastore) {
@@ -9810,7 +9826,7 @@ func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Da
 	})
 	require.NoError(t, err)
 
-	spec := func(notifyBeforePatching bool) []*fleet.PolicySpec {
+	spec := func(notifyBeforePatching, patchDeadline bool) []*fleet.PolicySpec {
 		return []*fleet.PolicySpec{{
 			Name:                   "patch-fma-notify",
 			Query:                  "SELECT 1;",
@@ -9818,12 +9834,16 @@ func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Da
 			Type:                   fleet.PolicyTypePatch,
 			FleetMaintainedAppSlug: "maintained-win",
 			NotifyBeforePatching:   notifyBeforePatching,
+			PatchDeadline:          patchDeadline,
 		}}
 	}
 
 	// notify_before_patching is macOS-only, so a Windows Fleet-maintained app is rejected.
-	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true))
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true, false))
 	require.ErrorContains(t, err, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error())
+
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, true))
+	require.ErrorContains(t, err, fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error())
 
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -9832,7 +9852,95 @@ func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Da
 	require.Zero(t, count)
 
 	// The same Windows patch policy applies without notify_before_patching.
-	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false)))
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false)))
+}
+
+func testPatchDeadlineRoundTrip(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-patch-deadline"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "MaintainedDeadline",
+		Slug:             "maintained-deadline",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintaineddeadline",
+	})
+	require.NoError(t, err)
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		StorageID:            "storage-deadline",
+		Filename:             "maintained-deadline",
+		Title:                "MaintainedDeadline",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintaineddeadline",
+		UserID:               user.ID,
+		TeamID:               &team.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	// Create.
+	p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                         "deadline",
+		Type:                         fleet.PolicyTypePatch,
+		PatchSoftwareTitleID:         &titleID,
+		PatchDeadline:                true,
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+	require.True(t, p.PatchDeadline)
+	require.False(t, p.PatchWhenClosed)
+	require.False(t, p.NotifyBeforePatching)
+
+	reloaded, err := ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.True(t, reloaded.PatchDeadline)
+
+	data, err := ds.GetPatchPolicy(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.True(t, data.PatchDeadline)
+	require.False(t, data.NotifyBeforePatching)
+
+	list, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.True(t, list[0].PatchDeadline)
+
+	// SavePolicy.
+	p.PatchDeadline = false
+	p.NotifyBeforePatching = true
+	require.NoError(t, ds.SavePolicy(ctx, p, false, false))
+	data, err = ds.GetPatchPolicy(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.False(t, data.PatchDeadline)
+	require.True(t, data.NotifyBeforePatching)
+
+	// ApplyPolicySpecs sets it, forces continuous automations on, and clears it again.
+	applySpec := func(patchDeadline bool) {
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{{
+			Name:                   "deadline",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained-deadline",
+			PatchDeadline:          patchDeadline,
+		}}))
+	}
+	applySpec(true)
+	reloaded, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.True(t, reloaded.PatchDeadline)
+	require.False(t, reloaded.NotifyBeforePatching)
+	require.True(t, reloaded.ContinuousAutomationsEnabled)
+
+	applySpec(false)
+	reloaded, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.False(t, reloaded.PatchDeadline)
 }
 
 // testApplyPolicySpecsRenamePatchPolicyRegression43687 reproduces the customer

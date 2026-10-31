@@ -95,6 +95,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -117,6 +118,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -136,6 +138,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,
@@ -161,6 +164,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,

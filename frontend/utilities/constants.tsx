@@ -455,6 +455,11 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
+// Fields the host summary row (top of the Host details page and My device page)
+// renders. Not every field is shown on both pages: display_name, maintenance_window,
+// and patch_deadline_at are gated out of My device by the components that read them.
+// timezone rides along to let HostSummary format patch_deadline_at in the host's
+// local time without a second trip through the host record.
 export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
@@ -463,11 +468,13 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "detail_updated_at",
   "policy_updated_at",
   "team_name",
-  "display_name", // Not rendered on my device page
-  "maintenance_window", // Not rendered on my device page
+  "display_name",
+  "maintenance_window",
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
+  "timezone",
+  "patch_deadline_at",
 ];
 
 export const HOST_VITALS_DATA = [

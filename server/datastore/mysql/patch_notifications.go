@@ -18,16 +18,19 @@ func (ds *Datastore) PatchNotificationExistsForApp(ctx context.Context, hostID u
 SELECT 1
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	LEFT JOIN policies p ON p.id = pna.policy_id
 WHERE neu.host_id = ?
 	AND neu.status IN (?, ?)
 	AND pna.software_title_id = ?
+	-- skip a notification that no longer patches the app because its policy changed patch option
+	AND (neu.kind = ?) = COALESCE(p.patch_deadline, 0)
 LIMIT 1
 `
 
 	var exists bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, selectStmt,
 		hostID, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
-		softwareTitleID,
+		softwareTitleID, fleet.PatchDeadlineNotificationKind,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -37,22 +40,57 @@ LIMIT 1
 	return exists, nil
 }
 
+func (ds *Datastore) GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	// install_at is set once the first toast displays, until then the toast is due 1 hour before the deadline
+	const selectStmt = `
+SELECT COALESCE(pn.install_at, neu.next_attempt_at + INTERVAL 1 HOUR) AS patch_deadline_at
+FROM notifications_end_user neu
+	JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
+WHERE neu.host_id = ?
+	AND neu.kind = ?
+	AND neu.status IN (?, ?)
+	-- an app left to patch, whose policy still has the deadline
+	AND EXISTS (
+		SELECT 1
+		FROM patch_notification_apps pna
+			JOIN policies p ON p.id = pna.policy_id
+		WHERE pna.notification_uuid = neu.uuid AND p.patch_deadline = 1
+	)
+ORDER BY patch_deadline_at
+LIMIT 1
+`
+
+	var at *time.Time
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &at, selectStmt, hostID, fleet.PatchDeadlineNotificationKind,
+		notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host patch deadline at")
+	}
+	return at, nil
+}
+
 func (ds *Datastore) DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	// match only a displayed notification, displayed_at is what sets install_at
 	const selectStmt = `
 SELECT 1
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	LEFT JOIN policies p ON p.id = pna.policy_id
 WHERE neu.host_id = ?
 	AND neu.status = ?
 	AND neu.displayed_at IS NOT NULL
 	AND pna.software_title_id = ?
+	-- skip a notification that no longer patches the app because its policy changed patch option
+	AND (neu.kind = ?) = COALESCE(p.patch_deadline, 0)
 LIMIT 1
 `
 
 	var exists bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, selectStmt,
-		hostID, notifications_api.EndUserNotificationDispatched, softwareTitleID,
+		hostID, notifications_api.EndUserNotificationDispatched, softwareTitleID, fleet.PatchDeadlineNotificationKind,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -257,10 +295,12 @@ SELECT
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
 	NULLIF(stdn.display_name, '') AS display_name_override,
 	COALESCE(si.version, '') AS installer_version,
-	sti.software_title_id IS NOT NULL AS has_icon
+	sti.software_title_id IS NOT NULL AS has_icon,
+	(neu.kind = ?) <> COALESCE(p.patch_deadline, 0) AS policy_option_changed
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	JOIN hosts h ON h.id = neu.host_id
+	LEFT JOIN policies p ON p.id = pna.policy_id
 	LEFT JOIN software_titles st ON st.id = pna.software_title_id
 	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
 	LEFT JOIN software_title_display_names stdn
@@ -272,7 +312,7 @@ ORDER BY display_name, pna.software_title_id
 `
 
 	var apps []fleet.PatchNotificationAppDetail
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, selectStmt, notificationUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, selectStmt, fleet.PatchDeadlineNotificationKind, notificationUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 	return apps, nil
@@ -333,11 +373,14 @@ SELECT
 	pna.install_queued,
 	pna.updated_in_inventory,
 	pna.created_at,
-	COALESCE(si.version, '') AS installer_version
+	COALESCE(si.version, '') AS installer_version,
+	(neu.kind = ?) <> COALESCE(p.patch_deadline, 0) AS policy_option_changed
 FROM patch_notification_apps pna
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
+	LEFT JOIN policies p ON p.id = pna.policy_id
 WHERE pna.notification_uuid IN (?)
-`, notificationUUIDs)
+`, fleet.PatchDeadlineNotificationKind, notificationUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list patch notification apps for notifications statement")
 	}

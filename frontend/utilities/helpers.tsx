@@ -643,6 +643,29 @@ export const internationalNumberFormat = (number: number): string => {
   return new Intl.NumberFormat(navigator.language).format(number);
 };
 
+/** Renders a deadline like "Tue, Nov 10 at 5:00 PM" (en-US) or
+ * "Tue, 10 Nov at 17:00" (en-GB) in the host's timezone, with 12/24-hour
+ * following the viewer's browser locale. */
+export const formatHostLocalDeadline = (
+  deadlineISO: string,
+  hostTimezone: string
+): string => {
+  const date = new Date(deadlineISO);
+  const locale = navigator.language;
+  const datePart = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: hostTimezone,
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: hostTimezone,
+  }).format(date);
+  return `${datePart} at ${timePart}`;
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "Unassigned";

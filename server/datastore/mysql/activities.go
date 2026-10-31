@@ -1639,7 +1639,7 @@ SELECT
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	-- Activities queued before the payload carried this key fall back to the
 	-- policy flags so an in-flight patch install keeps its app-open gate.
-	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching, 0),
+	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching OR p.patch_deadline, 0),
 	-- Compute the attempt number for this activation. Each retry creates a
 	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
 	-- new activity activates, COUNT(*) of previous completed attempts gives

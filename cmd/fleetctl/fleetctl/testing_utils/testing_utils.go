@@ -167,6 +167,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.GetPatchDeadlineSettingsFunc = func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+		return fleet.DefaultPatchDeadlineSettings(teamID), nil
+	}
+	ds.SetPatchDeadlineSettingsFunc = func(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}

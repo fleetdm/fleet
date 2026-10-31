@@ -1714,4 +1714,215 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		})
 		require.Equal(t, 1, queued, "the install is queued once the host is online at the reminder's deadline")
 	})
+
+	// A deadline policy on a host whose fleet has a deadline every day at 09:30, local time
+	newDeadlinePolicy := func(t *testing.T, host *fleet.Host, teamID uint, timezone, name string) (uint, uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET timezone = ? WHERE id = ?`, timezone, host.ID)
+			return err
+		})
+		require.NoError(t, s.ds.SetPatchDeadlineSettings(ctx, fleet.PatchDeadlineSettings{
+			TeamID: teamID,
+			Days:   []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"},
+			Time:   "09:30",
+		}))
+
+		policyID, installerID := newNotifyPatchPolicy(t, teamID, name)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 0, patch_deadline = 1 WHERE id = ?`, policyID)
+			return err
+		})
+		return policyID, installerID
+	}
+
+	notificationsForHost := func(t *testing.T, hostID uint) []notifications_api.EndUserNotification {
+		var rows []notifications_api.EndUserNotification
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				`SELECT `+endUserNotificationColumns+` FROM notifications_end_user WHERE host_id = ? ORDER BY id`, hostID)
+		})
+		return rows
+	}
+
+	hostPatchDeadlineAt := func(t *testing.T, hostID uint) *time.Time {
+		var resp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		return resp.Host.PatchDeadlineAt
+	}
+
+	t.Run("a deadline policy that skips with the app open notifies an hour before the deadline and installs an hour after the display", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-policy")
+		const timezone = "America/New_York"
+		policyID, installerID := newDeadlinePolicy(t, host, teamID, timezone, "Deadline Policy App")
+
+		// the next 09:30 whose notice, an hour earlier, is still ahead
+		loc, err := time.LoadLocation(timezone)
+		require.NoError(t, err)
+		nextDeadline := func() time.Time {
+			local := time.Now().In(loc)
+			deadline := time.Date(local.Year(), local.Month(), local.Day(), 9, 30, 0, 0, loc)
+			if !deadline.Add(-time.Hour).After(local) {
+				deadline = time.Date(local.Year(), local.Month(), local.Day()+1, 9, 30, 0, 0, loc)
+			}
+			return deadline
+		}
+		deadline := nextDeadline()
+		firstNotice := deadline.Add(-time.Hour)
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+		executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
+		require.Equal(t, installerID, activatedInstallerID)
+		postSkippedInstall(t, host, executionID)
+		if !deadline.Equal(nextDeadline()) {
+			t.Skip("the run crossed the notice time")
+		}
+
+		// the skip shows the deadline copy and doesn't count as an attempt
+		result, err := s.ds.GetSoftwareInstallResults(ctx, executionID)
+		require.NoError(t, err)
+		require.NotNil(t, result.AttemptNumber)
+		require.Zero(t, *result.AttemptNumber)
+		result.EnhanceOutputDetails()
+		require.NotNil(t, result.PreInstallQueryOutput)
+		require.Equal(t, fleet.SoftwareInstallerAppOpenDeadlineCopy, *result.PreInstallQueryOutput)
+
+		rows := notificationsForHost(t, host.ID)
+		require.Len(t, rows, 1)
+		notification := rows[0]
+		require.Equal(t, fleet.PatchDeadlineNotificationKind, notification.Kind)
+		require.Equal(t, notifications_api.EndUserNotificationPending, notification.Status)
+		require.NotNil(t, notification.NextAttemptAt)
+		require.WithinDuration(t, firstNotice, *notification.NextAttemptAt, time.Second)
+		require.NotNil(t, notification.ExpiresAt)
+		require.WithinDuration(t, notification.NextAttemptAt.Add(24*time.Hour), *notification.ExpiresAt, time.Second)
+
+		// the host's deadline is an hour after its first notice
+		pendingDeadline := hostPatchDeadlineAt(t, host.ID)
+		require.NotNil(t, pendingDeadline)
+		require.WithinDuration(t, notification.NextAttemptAt.Add(time.Hour), *pendingDeadline, time.Second)
+
+		// nothing goes out before the first notice
+		dispatch(t)
+		waiting := getTestNotification(t, s.ds, notification.UUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, waiting.Status)
+		require.Nil(t, waiting.ExecutionID)
+
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE notifications_end_user SET next_attempt_at = NOW(6) - INTERVAL 1 MINUTE WHERE uuid = ?`, notification.UUID)
+			return err
+		})
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notification.UUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, dispatched.Status)
+		require.NotNil(t, dispatched.ExecutionID)
+		fetchScript(t, host, *dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		displayed := getTestNotification(t, s.ds, notification.UUID)
+		require.NotNil(t, displayed.DisplayedAt)
+		installAt := getTestInstallAt(t, s.ds, notification.UUID)
+		require.NotNil(t, installAt)
+		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *installAt, time.Minute)
+
+		var hostFeed listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostFeed)
+		var notified bool
+		for _, activity := range hostFeed.Activities {
+			notified = notified || activity.Type == "notified_end_user_before_patching"
+		}
+		require.True(t, notified, "the 1 hour notice records its activity")
+
+		displayedDeadline := hostPatchDeadlineAt(t, host.ID)
+		require.NotNil(t, displayedDeadline)
+		require.WithinDuration(t, *installAt, *displayedDeadline, time.Second)
+
+		// the 5 minute reminder goes out, then the deadline passes and the install is queued
+		expireTestToast(t, notification.UUID)
+		setTestInstallAt(t, s.ds, notification.UUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		dispatch(t)
+		reminder := getTestNotification(t, s.ds, notification.UUID)
+		require.NotNil(t, reminder.ExecutionID)
+		fetchScript(t, host, *reminder.ExecutionID)
+		postScriptResult(host, *reminder.ExecutionID, 0)
+
+		markTestHostSeen(t, s.ds, host.ID)
+		setTestInstallAt(t, s.ds, notification.UUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		require.Equal(t, notifications_api.EndUserNotificationActed, getTestNotification(t, s.ds, notification.UUID).Status)
+
+		var queued []struct {
+			ExecutionID string `db:"execution_id"`
+			PolicyID    *uint  `db:"policy_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &queued, `
+				SELECT ua.execution_id, siua.policy_id
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? AND siua.software_installer_id = ?`, host.ID, installerID)
+		})
+		require.Len(t, queued, 1)
+		require.NotNil(t, queued[0].PolicyID)
+		require.Equal(t, policyID, *queued[0].PolicyID)
+	})
+
+	t.Run("a second deadline app skipped on the same host joins the first app's notification", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-two-apps")
+		firstPolicyID, firstInstallerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline First App")
+		secondPolicyID, secondInstallerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline Second App")
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{firstPolicyID: new(false), secondPolicyID: new(false)}),
+			http.StatusOK, &distributedResp)
+
+		// the queue activates one install at a time
+		skipped := map[uint]bool{}
+		for range 2 {
+			executionID, installerID := activatedInstallFor(t, host.ID)
+			skipped[installerID] = true
+			postSkippedInstall(t, host, executionID)
+		}
+		require.Equal(t, map[uint]bool{firstInstallerID: true, secondInstallerID: true}, skipped)
+
+		rows := notificationsForHost(t, host.ID)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.PatchDeadlineNotificationKind, rows[0].Kind)
+
+		var apps int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &apps, `SELECT COUNT(*) FROM patch_notification_apps WHERE notification_uuid = ?`, rows[0].UUID)
+		})
+		require.Equal(t, 2, apps)
+	})
+
+	t.Run("a deadline policy installs on the policy run when the app is closed and opens no notification", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-closed")
+		policyID, installerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline Closed App")
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+		executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
+		require.Equal(t, installerID, activatedInstallerID)
+
+		// a non-empty pre install condition output means the app was closed
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID: host.ID, InstallUUID: executionID, PreInstallConditionOutput: new("1"),
+				InstallScriptExitCode: new(0), InstallScriptOutput: new("ok"),
+			},
+		}, http.StatusNoContent)
+
+		result, err := s.ds.GetSoftwareInstallResults(ctx, executionID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.SoftwareInstalled, result.Status)
+		require.Empty(t, notificationsForHost(t, host.ID))
+		require.Nil(t, hostPatchDeadlineAt(t, host.ID))
+	})
 }
