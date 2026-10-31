@@ -1,8 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FileSaver from "file-saver";
 import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
+import { notify } from "components/ToastNotification";
+import { IUserSettings } from "interfaces/config";
+import { IUser } from "interfaces/user";
+import usersAPI from "services/entities/users";
+import { renderWithAppContext, renderWithSetup } from "test/test-utils";
 
 import QueryReport from "./QueryReport";
 
@@ -250,5 +254,191 @@ describe("QueryReport", () => {
     expect(csv).toContain("only_on_page_two");
     expect(csv).toContain("value2");
     saveAs.mockRestore();
+  });
+});
+
+describe("Report column preferences", () => {
+  const queryReport = {
+    query_id: 6,
+    results: [
+      {
+        host_id: 1,
+        host_name: "host1",
+        last_fetched: "2020-01-01",
+        columns: { name: "example", version: "1" },
+      },
+    ],
+    report_clipped: false,
+    count: 1,
+  };
+
+  const setup = (
+    settings: IUserSettings = {
+      hidden_host_columns: ["osquery_version"],
+      report_column_order: { "7": ["name"] },
+    }
+  ) => {
+    const setUserSettings = jest.fn();
+    const view = renderWithAppContext(
+      <QueryReport queryId={6} queryReport={queryReport} {...tableProps} />,
+      {
+        contextValue: {
+          currentUser: { id: 1 } as IUser,
+          userSettings: settings,
+          setUserSettings,
+        },
+      }
+    );
+    return { ...view, setUserSettings };
+  };
+
+  it("saves a report-specific order while preserving other preferences", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockResolvedValue({} as IUser);
+    const { setUserSettings } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    expect(
+      screen.getByRole("button", { name: "Move up: Host" })
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
+    expect(update).toHaveBeenCalledWith(1, {
+      settings: {
+        hidden_host_columns: ["osquery_version"],
+        report_column_order: {
+          "7": ["name"],
+          "6": ["Host", "name", "last_fetched", "version"],
+        },
+      },
+    });
+    update.mockRestore();
+  });
+
+  it("loads saved order, ignores removed columns, and appends new columns", () => {
+    setup({
+      hidden_host_columns: [],
+      report_column_order: { "6": ["name", "removed", "Host", "name"] },
+    });
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers[0]).toHaveTextContent("name");
+    expect(headers[1]).toHaveTextContent("Host");
+    expect(headers[2]).toHaveTextContent("Last fetched");
+    expect(headers[3]).toHaveTextContent("version");
+  });
+
+  it("keeps the dialog and original preferences when saving fails", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockRejectedValue(new Error("offline"));
+    const error = jest.spyOn(notify, "error").mockImplementation(jest.fn());
+    const { setUserSettings } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(error).toHaveBeenCalled());
+    expect(setUserSettings).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(screen.getAllByRole("columnheader")[1]).toHaveTextContent(
+      "Last fetched"
+    );
+    update.mockRestore();
+    error.mockRestore();
+  });
+
+  it("retains absent column positions and keyboard focus", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockResolvedValue({} as IUser);
+    setup({
+      hidden_host_columns: [],
+      report_column_order: {
+        "6": ["Host", "absent", "name", "last_fetched", "version"],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    expect(
+      screen.getByRole("button", { name: "Move down: name" })
+    ).toHaveFocus();
+    expect(
+      screen.getByRole("status", { name: "Column position" })
+    ).toHaveTextContent("name moved to position 1 of 4");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    expect(update.mock.calls[0][1].settings?.report_column_order?.[6]).toEqual([
+      "name",
+      "absent",
+      "Host",
+      "last_fetched",
+      "version",
+    ]);
+    update.mockRestore();
+  });
+
+  it("exports Host at its saved position", async () => {
+    const saveAs = jest
+      .spyOn(FileSaver, "saveAs")
+      .mockImplementation(jest.fn());
+    const load = tableProps.loadAllResults.mockResolvedValue(
+      queryReport.results
+    );
+    setup({
+      hidden_host_columns: [],
+      report_column_order: { "6": ["name", "Host", "version", "last_fetched"] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Export results/ }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalled());
+    const csv = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsText(saveAs.mock.calls[0][0] as File);
+    });
+    expect(csv.split("\n")[0]).toBe(
+      '"name","host_display_name","version","last_fetched"'
+    );
+    expect(csv.split("\n")[1]).toContain('"example","host1","1"');
+    saveAs.mockRestore();
+    load.mockResolvedValue([]);
+  });
+
+  it("keeps keyboard focus in the dialog and restores it on close", () => {
+    setup();
+    const trigger = screen.getByRole("button", { name: "Column preferences" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(
+      screen.getByRole("button", { name: "Move down: Host" })
+    ).toHaveFocus();
+
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: "Tab" });
+    const dialog = cancel.closest(".modal__modal_container") as HTMLElement;
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(document.activeElement).not.toBe(cancel);
+    fireEvent.keyDown(document.activeElement as HTMLElement, {
+      key: "Tab",
+      shiftKey: true,
+    });
+    expect(cancel).toHaveFocus();
+
+    fireEvent.click(cancel);
+    expect(trigger).toHaveFocus();
+  });
+
+  it("cancels without saving", () => {
+    const update = jest.spyOn(usersAPI, "update");
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("columnheader")[1]).toHaveTextContent(
+      "Last fetched"
+    );
+    update.mockRestore();
   });
 });

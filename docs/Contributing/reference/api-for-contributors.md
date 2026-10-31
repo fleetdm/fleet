@@ -5026,9 +5026,14 @@ _Available in Fleet Premium_
 `PATCH /api/v1/fleet/users/1`
 ```json
 {
-  "hidden_host_columns": ["hostname"]
+  "settings": {
+    "hidden_host_columns": ["hostname"],
+    "report_column_order": {"6": ["last_fetched", "Host", "name"]}
+  }
 }
 ```
+
+`report_column_order` optionally maps report (query) IDs to ordered column IDs. Settings replace the stored object; preserve unrelated preferences when updating.
 
 ##### Default response
 * Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.

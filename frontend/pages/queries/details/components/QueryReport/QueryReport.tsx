@@ -1,6 +1,6 @@
 import FileSaver from "file-saver";
-import React, { useState, useMemo, useCallback } from "react";
-import { Row, Column } from "react-table";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import { Column, Row } from "react-table";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -11,13 +11,16 @@ import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 import PATHS from "router/paths";
+import usersAPI from "services/entities/users";
 import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 
+import ColumnPreferencesModal from "./ColumnPreferencesModal";
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
@@ -81,12 +84,57 @@ const QueryReport = ({
   onQueryChange,
   loadAllResults,
 }: IQueryReportProps): JSX.Element => {
+  const { currentUser, userSettings, setUserSettings } = useContext(AppContext);
+  const [showColumnPreferences, setShowColumnPreferences] = useState(false);
+  /** Applies saved column positions and appends columns without a saved position. */
+  const orderColumns = useCallback(
+    (columns: Column[]) => {
+      const savedOrder = userSettings?.report_column_order?.[queryId] || [];
+      const byId = new Map(columns.map((column) => [column.id, column]));
+      const ordered: Column[] = [];
+      Array.from(new Set(savedOrder)).forEach((id) => {
+        const column = byId.get(id);
+        byId.delete(id);
+        if (column) ordered.push(column);
+      });
+      return [...ordered, ...byId.values()];
+    },
+    [userSettings?.report_column_order, queryId]
+  );
+  /** Persists report column order while preserving absent columns and other settings. */
+  const saveColumnPreferences = async (order: string[]) => {
+    if (!currentUser) return;
+    // Keep positions for columns absent from the current server-side page.
+    const previousOrder = userSettings?.report_column_order?.[queryId] || [];
+    const remaining = [...order];
+    const mergedOrder = Array.from(new Set(previousOrder)).map((id) =>
+      order.includes(id) ? (remaining.shift() as string) : id
+    );
+    mergedOrder.push(...remaining);
+    const settings = {
+      hidden_host_columns: [],
+      ...userSettings,
+      report_column_order: {
+        ...userSettings?.report_column_order,
+        [queryId]: mergedOrder,
+      },
+    };
+    try {
+      await usersAPI.update(currentUser.id, { settings });
+      setUserSettings(settings);
+      setShowColumnPreferences(false);
+    } catch (response) {
+      notify.error("Couldn't save column preferences. Please try again.", {
+        response,
+      });
+    }
+  };
   const [isExporting, setIsExporting] = useState(false);
 
   const results = useMemo(() => queryReport?.results ?? [], [queryReport]);
   const totalCount = queryReport?.count ?? results.length;
 
-  const columnConfigs = useMemo<Column[]>(() => {
+  const defaultColumnConfigs = useMemo<Column[]>(() => {
     if (results.length) {
       return generateReportColumnConfigsFromResults(
         flattenResults(results),
@@ -95,6 +143,11 @@ const QueryReport = ({
     }
     return [];
   }, [results, queryId]);
+
+  const columnConfigs = useMemo(() => orderColumns(defaultColumnConfigs), [
+    defaultColumnConfigs,
+    orderColumns,
+  ]);
 
   const onExportQueryResults = async (
     evt: React.MouseEvent<HTMLButtonElement>
@@ -115,7 +168,14 @@ const QueryReport = ({
         generateCSVQueryResults(
           rows,
           generateCSVFilename(`${queryName || CSV_TITLE} - Report`),
-          exportColumns
+          orderColumns(exportColumns).map<Column>((column) => ({
+            ...column,
+            id:
+              column.id === HOST_TABLE_COLUMN_ID
+                ? "host_display_name"
+                : (column.id as string),
+          })),
+          true
         )
       );
     } catch (error) {
@@ -141,6 +201,14 @@ const QueryReport = ({
   const renderTableButtons = () => {
     return (
       <div className={`${baseClass}__results-cta`}>
+        <Button
+          variant="secondary"
+          size="small"
+          disabled={!currentUser || !columnConfigs.length}
+          onClick={() => setShowColumnPreferences(true)}
+        >
+          Column preferences
+        </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
@@ -247,7 +315,19 @@ const QueryReport = ({
     );
   };
 
-  return <div className={`${baseClass}__wrapper`}>{renderTable()}</div>;
+  return (
+    <div className={`${baseClass}__wrapper`}>
+      {renderTable()}
+      {showColumnPreferences && (
+        <ColumnPreferencesModal
+          key={queryId}
+          columns={columnConfigs.map((column) => column.id as string)}
+          onSave={saveColumnPreferences}
+          onExit={() => setShowColumnPreferences(false)}
+        />
+      )}
+    </div>
+  );
 };
 
 export default QueryReport;
