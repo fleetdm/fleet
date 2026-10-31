@@ -3698,7 +3698,8 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
       "platform": "darwin",
       "osquery_version": "5.15.0",
-      "os_version": "macOS 15.2",
+      "os_name": "macOS",
+      "os_version": "15.2",
       "build": "24C101",
       "platform_like": "darwin",
       "code_name": "",
@@ -3897,6 +3898,20 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
+
+Response payload for a Windows host (other host fields not shown):
+
+```json
+{
+  "hosts": [
+    {
+      "platform": "windows",
+      "os_name": "Microsoft Windows 11 Home Single Language 23H2",
+      "os_version": "10.0.22631.5335"
+    }
+  ]
+}
+```
 
 Response payload with the `mdm_id` filter provided:
 
@@ -4177,7 +4192,8 @@ Returns the information of the specified host.
     "orbit_version": "1.22.0",
     "fleet_desktop_version": "1.22.0",
     "scripts_enabled": true,
-    "os_version": "macOS 15.2",
+    "os_name": "macOS",
+    "os_version": "15.2",
     "build": "24C101",
     "platform_like": "darwin",
     "code_name": "",
@@ -4464,7 +4480,8 @@ Returns the information of the specified host.
     "orbit_version": "1.22.0",
     "fleet_desktop_version": null,
     "scripts_enabled": false,
-    "os_version": "iOS 17.4.1",
+    "os_name": "iOS",
+    "os_version": "17.4.1",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "21E236",
@@ -4796,7 +4813,8 @@ Returns the information of the specified host.
     "orbit_version": null,
     "fleet_desktop_version": null,
     "scripts_enabled": null,
-    "os_version": "Android 16 (2026-05-01)",
+    "os_name": "Android",
+    "os_version": "16 (2026-05-01)",
     "os_update_minimum_version": null,
     "os_update_deadline": null,
     "build": "",
@@ -4987,7 +5005,7 @@ The `extension_for` field is included when set and when empty. It shows the brow
 > - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
 > - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
-> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `16 (2026-05-01)`.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -5053,7 +5071,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "ubuntu",
     "osquery_version": "5.5.1",
-    "os_version": "Ubuntu 20.04.3 LTS",
+    "os_name": "Ubuntu",
+    "os_version": "20.04.3 LTS",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "",
@@ -5262,7 +5281,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "ios",
     "osquery_version": "5.5.1",
-    "os_version": "iOS 17.4.1",
+    "os_name": "iOS",
+    "os_version": "17.4.1",
     "build": "21E236",
     "platform_like": "darwin",
     "code_name": "",
@@ -5540,7 +5560,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "orbit_version": null,
     "fleet_desktop_version": null,
     "scripts_enabled": null,
-    "os_version": "Android 16 (2026-05-01)",
+    "os_name": "Android",
+    "os_version": "16 (2026-05-01)",
     "os_update_minimum_version": null,
     "os_update_deadline": null,
     "build": "",
@@ -5722,7 +5743,7 @@ The `extension_for` field is included when set and when empty. It shows the brow
 > - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
 > - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
-> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `16 (2026-05-01)`.
 
 
 ### Get host by Fleet Desktop token
@@ -5778,7 +5799,8 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
     "platform": "darwin",
     "osquery_version": "5.15.0",
-    "os_version": "macOS 15.2",
+    "os_name": "macOS",
+    "os_version": "15.2",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "24C101",
@@ -6279,7 +6301,8 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
   "host_id": 1,
   "health": {
     "updated_at": "2023-09-16T18:52:19Z",
-    "os_version": "CentOS Linux 8.3.2011",
+    "os_name": "CentOS Linux",
+    "os_version": "8.3.2011",
     "disk_encryption_enabled": true,
     "failing_policies_count": 1,
     "failing_critical_policies_count": 1, // Fleet Premium only
@@ -6932,10 +6955,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_name,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -8204,7 +8227,8 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
       "osquery_version": "4.5.1",
-      "os_version": "Ubuntu 20.4.0",
+      "os_name": "Ubuntu",
+      "os_version": "20.4.0",
       "build": "",
       "platform_like": "debian",
       "code_name": "",
@@ -16715,7 +16739,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "rhel",
         "osquery_version": "4.5.1",
-        "os_version": "CentOS 6.10.0",
+        "os_name": "CentOS",
+        "os_version": "6.10.0",
         "build": "",
         "platform_like": "rhel",
         "code_name": "",
@@ -16756,7 +16781,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "ubuntu",
         "osquery_version": "4.5.1",
-        "os_version": "Ubuntu 16.4.0",
+        "os_name": "Ubuntu",
+        "os_version": "16.4.0",
         "build": "",
         "platform_like": "debian",
         "code_name": "",
