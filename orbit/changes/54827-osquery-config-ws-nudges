@@ -1,0 +1,1 @@
+- When Fleet enables osquery config notifications over the WebSocket transport, fleetd serves osquery its config: it fetches the config from Fleet as soon as Fleet notifies it of a change, and at the interval Fleet sets (10 minutes by default) instead of every minute.

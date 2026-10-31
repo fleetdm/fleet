@@ -81,6 +81,11 @@ type OrbitConfigNotifications struct {
 // field names, notifications fields prefixed with "notifications.".
 const OrbitConfigFallbackChangesHeader = "X-Fleet-Orbit-Config-Fallback-Changes"
 
+// OsqueryConfigFallbackChangeHeader is the osquery config request header in
+// which orbit, serving osquery its config, reports that the config it fetched
+// on its fallback poll had changed without the server nudging it.
+const OsqueryConfigFallbackChangeHeader = "X-Fleet-Osquery-Config-Fallback-Change"
+
 // IsQuiet reports whether the notifications ask orbit for nothing: no flag is
 // set and no script or software installer is pending. Orbit receivers use the
 // config poll as their clock while a flag is set, so only a quiet config lets
@@ -125,6 +130,12 @@ type OrbitWebSocketTransportConfig struct {
 	// means the server doesn't send orbit/config nudges; agents keep their
 	// default poll interval.
 	OrbitConfigPollInterval *int `json:"orbit_config_poll_interval,omitempty"`
+	// OsqueryConfigPollInterval, when set, directs orbit to serve osquery its
+	// config (as osquery's config plugin), fetching it from the server when
+	// nudged (AgentWSMessageTypeOsqueryConfig) and, while connected, every
+	// OsqueryConfigPollInterval seconds as a fallback. Unset means osquery
+	// fetches its config from the server directly.
+	OsqueryConfigPollInterval *int `json:"osquery_config_poll_interval,omitempty"`
 }
 
 type OrbitConfigReceiver interface {

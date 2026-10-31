@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -46,6 +47,28 @@ var orbitConfigFields = func() map[string]struct{} {
 	add(reflect.TypeFor[fleet.OrbitConfigNotifications](), "notifications.")
 	return fields
 }()
+
+// osqueryConfigFallbackChanges counts the osquery configs that agents found
+// changed on a fallback poll, i.e. that changed without a nudge. Label
+// membership changes are never nudged and scoped nudges are delayed, so it
+// doesn't reach zero with label-scoped reports; a steady count without them
+// points at a write missing a nudge.
+var osqueryConfigFallbackChanges = func() metric.Int64Counter {
+	c, err := otel.Meter("fleet").Int64Counter(
+		"fleet.agentws.osquery_config.fallback_changes",
+		metric.WithDescription("Count of osquery configs that agents found changed on a fallback poll"),
+		metric.WithUnit("{config}"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}()
+
+func recordOsqueryConfigFallbackChange(ctx context.Context) {
+	osqueryConfigFallbackChanges.Add(ctx, 1)
+	logging.WithExtras(ctx, "osquery_config_fallback_change", true)
+}
 
 type orbitConfigFallbackChangesKey struct{}
 

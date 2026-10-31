@@ -1,8 +1,10 @@
 package wstransport
 
 import (
+	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // defaultExtensionsTimeout is the minimum --extensions_timeout (seconds)
@@ -12,13 +14,14 @@ import (
 const defaultExtensionsTimeout = 60
 
 // OsqueryFlags returns the osquery command-line flags that route distributed
-// queries through orbit's extension plugin. These flags are passed after
+// queries, and the config when osqueryConfig is set, through orbit's extension
+// plugins. These flags are passed after
 // --flagfile and gflags is last-one-wins, so any --extensions_require or
 // --extensions_timeout the user set in their flagfile would be silently
 // replaced. To honor those, userFlags (the parsed flagfile, keys with the
 // "--" prefix) is merged in: user-required extensions are kept alongside
 // orbit's, and the larger of the two timeouts wins.
-func OsqueryFlags(requiredExtension string, userFlags map[string]string) []string {
+func OsqueryFlags(requiredExtension string, userFlags map[string]string, osqueryConfig bool) []string {
 	required := []string{}
 	for name := range strings.SplitSeq(flagValue(userFlags, "--extensions_require"), ",") {
 		name = strings.TrimSpace(name)
@@ -33,11 +36,33 @@ func OsqueryFlags(requiredExtension string, userFlags map[string]string) []strin
 		timeout = userTimeout
 	}
 
-	return []string{
+	flags := []string{
 		"--distributed_plugin", DistributedPluginName,
 		"--extensions_require", strings.Join(required, ","),
 		"--extensions_timeout", strconv.Itoa(timeout),
 	}
+	if osqueryConfig {
+		// After the flagfile, so the user's --config_refresh (the server poll
+		// interval while disconnected, see ServerConfigRefresh) doesn't apply
+		// to the localhost poll.
+		flags = append(flags,
+			"--config_plugin", ConfigPluginName,
+			"--config_refresh", strconv.Itoa(LocalConfigRefresh),
+		)
+	}
+	return flags
+}
+
+// ServerConfigRefresh returns osquery's config refresh as set by userFlags
+// (the parsed flagfile), or DefaultServerConfigRefresh.
+func ServerConfigRefresh(userFlags map[string]string) time.Duration {
+	for _, name := range []string{"--config_refresh", "--config_tls_refresh"} {
+		// The upper bound keeps the conversion from overflowing.
+		if v, err := strconv.Atoi(flagValue(userFlags, name)); err == nil && v > 0 && v <= math.MaxInt64/int(time.Second) {
+			return time.Duration(v) * time.Second
+		}
+	}
+	return DefaultServerConfigRefresh
 }
 
 // flagValue returns the flag's value with any surrounding quotes stripped

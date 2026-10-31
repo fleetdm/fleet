@@ -152,6 +152,14 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 		case fleet.AgentWSMessageTypeOrbitConfig:
 			w.agent.stats.IncrementWebSocketNotifications()
 			w.agent.requestOrbitConfig()
+		case fleet.AgentWSMessageTypeOsqueryConfig:
+			w.agent.stats.IncrementWebSocketNotifications()
+			if w.agent.osqueryConfigViaOrbit() {
+				select {
+				case w.agent.osqueryConfigNudge <- struct{}{}:
+				default:
+				}
+			}
 		}
 	}
 }
@@ -244,6 +252,13 @@ func (w *wsTransport) sleep(d time.Duration) bool {
 // just starts or stops the loop.
 func (a *agent) syncWSTransport(directive *fleet.OrbitWebSocketTransportConfig) {
 	enabled := a.wsSupported && directive != nil && directive.Enabled
+	// Real fleetd restarts to switch osquery's config plugin; the simulator
+	// switches in place.
+	var osqueryConfigPollInterval int64
+	if enabled && directive.OsqueryConfigPollInterval != nil && a.orbitNodeKey != nil {
+		osqueryConfigPollInterval = int64(*directive.OsqueryConfigPollInterval)
+	}
+	a.osqueryConfigPollInterval.Store(osqueryConfigPollInterval)
 	a.wsMu.Lock()
 	defer a.wsMu.Unlock()
 	switch {
@@ -300,6 +315,29 @@ func (a *agent) distributedAPIPrefix() string {
 		return "/api/osquery"
 	}
 	return "/api/v1/osquery"
+}
+
+// osqueryConfigViaOrbit reports whether orbit serves osquery its config.
+func (a *agent) osqueryConfigViaOrbit() bool {
+	return a.osqueryConfigPollInterval.Load() > 0
+}
+
+// osqueryConfigFallbackInterval returns the osquery config poll interval of
+// an agent whose orbit serves osquery its config over a connected WebSocket,
+// and 0 otherwise (the agent polls at its config interval, like orbit while
+// disconnected).
+func (a *agent) osqueryConfigFallbackInterval() time.Duration {
+	poll := a.osqueryConfigPollInterval.Load()
+	if poll == 0 {
+		return 0
+	}
+	a.wsMu.Lock()
+	ws := a.ws
+	a.wsMu.Unlock()
+	if ws == nil || !ws.connected.Load() {
+		return 0
+	}
+	return time.Duration(poll) * time.Second
 }
 
 // orbitConfigDefaultInterval is orbit's default orbit config poll interval.
