@@ -2,7 +2,6 @@ package fleetctl
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,7 @@ func TestEarlySessionCheck(t *testing.T) {
 		return nil, 0, 0, nil, nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
-		return nil, errors.New("invalid session")
+		return nil, &notFoundError{}
 	}
 
 	tmpDir := t.TempDir()
