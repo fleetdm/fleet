@@ -49,7 +49,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
   if (enableSMTP) {
     if (!smtpSenderAddress) {
       errors.smtpSenderAddress = "Enter a sender address";
-    } else if (!isValidEmail(smtpSenderAddress)) {
+    } else if (!isValidEmail(smtpSenderAddress.trim())) {
       errors.smtpSenderAddress = "Enter a valid sender address";
     }
 
@@ -68,7 +68,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
         errors.smtpPassword = "Enter an SMTP password";
       }
     }
-  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress)) {
+  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress.trim())) {
     // Even when SMTP is disabled, a filled-in sender address must be a valid
     // email so the value is ready when SMTP flips on.
     errors.smtpSenderAddress = "Enter a valid sender address";
