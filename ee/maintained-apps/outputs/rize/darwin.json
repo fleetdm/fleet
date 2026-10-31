@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.149",
+      "version": "3.0.183",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize' AND version_compare(bundle_short_version, '3.0.149') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.rize' AND version_compare(bundle_short_version, '3.0.183') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.rize' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/rize-io/lua/releases/download/v3.0.149/Rize-3.0.149-arm64.dmg",
+      "installer_url": "https://github.com/rize-io/lua/releases/download/v3.0.183/Rize-3.0.183-arm64.dmg",
       "install_script_ref": "ca9a5f40",
       "uninstall_script_ref": "baae9ca8",
-      "sha256": "cb26489bc7e8de0c4aea888d6a9395219aa47e49acbaed7483c528ac969e21e1",
+      "sha256": "857ab9d87e8530c3ce7f5461cc75b0f558e404cb0a4b77465e61bb71adf841bc",
       "default_categories": [
         "Productivity"
       ]
