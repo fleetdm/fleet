@@ -139,6 +139,27 @@ func TestConfigCommand(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("unset tls-skip-verify and clear rootca", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify", "--rootca", "./rootca",
+		})
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify=false", "--rootca", "",
+		})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		cfgCtx, ok := cfg.Contexts["default"]
+		require.True(t, ok)
+		require.False(t, cfgCtx.TLSSkipVerify)
+		require.Empty(t, cfgCtx.RootCA)
+	})
 }
 
 func TestCustomHeadersConfig(t *testing.T) {
