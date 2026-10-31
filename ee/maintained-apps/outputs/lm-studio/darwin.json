@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.4.27+2",
+      "version": "0.4.28+2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.27+2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.28+2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ai.elementlabs.lmstudio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://installers.lmstudio.ai/darwin/arm64/0.4.27-2/LM-Studio-0.4.27-2-arm64.dmg",
+      "installer_url": "https://installers.lmstudio.ai/darwin/arm64/0.4.28-2/LM-Studio-0.4.28-2-arm64.dmg",
       "install_script_ref": "5d9c15dd",
       "uninstall_script_ref": "b0c8b70c",
-      "sha256": "c8682c4dc40788cb353a48e5294ca33cbb4ba5f88c397f06281906576c8c9d65",
+      "sha256": "f8be634f1eeabaa19d9004d6de8b8bf8cd805a22e34b1f9538d4d702cf884775",
       "default_categories": [
         "Developer tools"
       ]
