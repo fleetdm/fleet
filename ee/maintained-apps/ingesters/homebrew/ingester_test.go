@@ -124,6 +124,14 @@ func TestIngestValidations(t *testing.T) {
 				Version: "0.4.26,4",
 			}
 
+		case "updf":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"UPDF"},
+				URL:     "https://download.updf.com/updf/basic/mac/apple/updf-mac-full.dmg",
+				Version: "1.0",
+			}
+
 		case "firefox@developer-edition":
 			cask = brewCask{
 				Token:   appToken,
@@ -193,6 +201,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
+		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
 		{"", inputApp{Token: "tableau-prep", UniqueIdentifier: "com.tableausoftware.tableauprep", InstallerFormat: "dmg", Name: "Tableau Prep", Slug: "tableau-prep/darwin"}},
 		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
@@ -389,6 +398,10 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
+			case "updf":
+				// download.updf.com is behind a Cloudflare challenge; the same path is
+				// served without one from the vendor's download.superace.com.
+				require.Equal(t, "https://download.superace.com/updf/basic/mac/apple/updf-mac-full.dmg", out.InstallerURL)
 			case "kicad":
 				// KiCad's editors also run as standalone apps nested in KiCad.app, so they count as open too.
 				require.Equal(t,
