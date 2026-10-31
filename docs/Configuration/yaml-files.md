@@ -890,6 +890,8 @@ To add the same App Store app for multiple platforms, specify the `app_store_id`
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
+With the default server configuration, GitOps supports over 200 Android Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
+
 #### Separate file
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
