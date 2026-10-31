@@ -631,7 +631,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		return nil, err
 	}
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
+	if err := (&fleet.Script{Name: script.Name, ScriptContents: scriptContents}).ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
