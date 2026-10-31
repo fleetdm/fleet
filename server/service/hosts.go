@@ -444,15 +444,16 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
-// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
-// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
-// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
+// suppressAndroidBYODWipeStatus reports the transient wipe status for Android BYOD (personal) hosts as a pending
+// unenroll. Unenrolling such a host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which
+// writes wipe_ref and would otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe, but the UI still
+// needs to know something is pending so it can hide the actions that conflict with it.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
 		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
-		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
+		host.MDM.PendingAction = new(string(fleet.PendingActionUnenroll))
 	}
 }
 

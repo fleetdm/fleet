@@ -33,6 +33,7 @@ var (
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."

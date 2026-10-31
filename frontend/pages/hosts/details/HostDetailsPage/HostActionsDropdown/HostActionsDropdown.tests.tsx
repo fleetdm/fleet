@@ -1900,9 +1900,16 @@ describe("Host Actions Dropdown", () => {
         deviceStatus: "clearing_passcode" as const,
         expectHidden: ["Lock", "Wipe", "Clear passcode"],
       },
+      {
+        case: "BYO + unenrolling",
+        enrollment: "On (personal)" as const,
+        deviceStatus: "unenrolling" as const,
+        expectHidden: ["Lock", "Unenroll", "Clear passcode"],
+        expectVisible: ["Transfer", "Delete"],
+      },
     ])(
       "hides pending-gated actions for Android when $case (#41683)",
-      async ({ enrollment, deviceStatus, expectHidden }) => {
+      async ({ enrollment, deviceStatus, expectHidden, expectVisible }) => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -1931,6 +1938,9 @@ describe("Host Actions Dropdown", () => {
 
         expectHidden.forEach((label) => {
           expect(screen.queryByText(label)).not.toBeInTheDocument();
+        });
+        expectVisible?.forEach((label) => {
+          expect(screen.getByText(label)).toBeInTheDocument();
         });
       }
     );

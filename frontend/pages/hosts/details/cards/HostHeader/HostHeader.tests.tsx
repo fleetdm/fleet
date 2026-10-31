@@ -7,6 +7,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
+import { DEVICE_STATUS_TAGS } from "./helpers";
 import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
@@ -236,6 +237,22 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
+  });
+
+  it("renders no badge for a pending Android BYOD unenroll", () => {
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"unenrolling" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus="On (personal)"
+      />
+    );
+    Object.values(DEVICE_STATUS_TAGS).forEach(({ title }) => {
+      expect(screen.queryByText(title)).not.toBeInTheDocument();
+    });
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {
