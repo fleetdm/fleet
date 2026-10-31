@@ -139,7 +139,8 @@ const renderPage = (
   const location = createMockLocation({
     pathname: profileUUID
       ? `/controls/os-settings/configuration-profiles/${profileUUID}`
-      : "/controls/os-settings/configuration-profiles/new",
+      : // the manual view; /new opens the AI view
+        "/controls/os-settings/configuration-profiles/new/manual",
     search: Object.keys(query).length
       ? `?${new URLSearchParams(query).toString()}`
       : "",
@@ -1172,6 +1173,108 @@ describe("ProfileFormPage", () => {
       expect(screen.getByText("Force install")).toBeInTheDocument();
       expect(screen.getByRole("combobox")).toBeDisabled();
       expect(hiddenCheckbox()).toHaveAttribute("aria-disabled", "true");
+    });
+  });
+
+  describe("AI view", () => {
+    const NEW_PATH = "/controls/os-settings/configuration-profiles/new";
+    const MANUAL_PATH = `${NEW_PATH}/manual`;
+
+    const renderAt = (
+      pathname: string,
+      customRender = render,
+      state?: unknown
+    ) => {
+      const props = ({
+        router: createMockRouter(),
+        location: createMockLocation({ pathname, state }),
+        routeParams: {},
+      } as unknown) as React.ComponentProps<typeof ProfileFormPage>;
+      return customRender(<ProfileFormPage {...props} />);
+    };
+    const isAIView = () =>
+      !!screen.queryByRole("button", { name: "Generate profile" });
+
+    // Built in only on request until the AI features are released.
+    beforeEach(() => {
+      featureFlags.showAIProfileBuilder = "true";
+    });
+    afterEach(() => {
+      delete featureFlags.showAIProfileBuilder;
+    });
+
+    it("opens by default when adding", () => {
+      renderAt(NEW_PATH);
+      expect(isAIView()).toBe(true);
+      expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    });
+
+    it("isn't shown until the AI features are released, even with Generative AI on", () => {
+      delete featureFlags.showAIProfileBuilder;
+      renderAt(NEW_PATH);
+      expect(isAIView()).toBe(false);
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    });
+
+    it("isn't shown at the manual view's URL", () => {
+      renderAt(MANUAL_PATH);
+      expect(isAIView()).toBe(false);
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Profile creation was taking too long/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the timeout banner when the AI view sent the admin there", () => {
+      renderAt(MANUAL_PATH, render, { aiTimedOut: true });
+      expect(
+        screen.getByText(
+          "Profile creation was taking too long. Upload or paste a profile instead."
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("opens the manual view when Generative AI is off", () => {
+      renderAt(
+        NEW_PATH,
+        makeRenderer({
+          config: createMockConfig({
+            mdm: mdmConfig,
+            server_settings: {
+              ...createMockConfig().server_settings,
+              ai_features_disabled: true,
+            },
+          }),
+        })
+      );
+      expect(isAIView()).toBe(false);
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    });
+
+    it("opens the manual view when only Android MDM is on, which can still add a profile", () => {
+      renderAt(
+        NEW_PATH,
+        makeRenderer({}, false, {
+          ...mdmConfig,
+          enabled_and_configured: false,
+          windows_enabled_and_configured: false,
+        })
+      );
+      expect(isAIView()).toBe(false);
+      expect(screen.getByLabelText("Profile contents")).toBeInTheDocument();
+    });
+
+    it("opens the manual view in GitOps mode", () => {
+      renderAt(NEW_PATH, makeRenderer({}, true));
+      expect(isAIView()).toBe(false);
+    });
+
+    it("is never shown when editing", async () => {
+      renderPage(existingProfile.profile_uuid);
+      await waitFor(() =>
+        expect(screen.getByLabelText("Name")).toHaveValue("Existing Windows")
+      );
+      expect(isAIView()).toBe(false);
     });
   });
 });

@@ -190,7 +190,7 @@ const HostSoftware = ({
 
   // The URL is the source of truth for the selection: foreign keys are
   // removed, and a macOS host whose URL carries no applicable type gets
-  // "macOS app" unless it says `types=none` (the user cleared the selection).
+  // "App (macOS)" unless it says `types=none` (the user cleared the selection).
   // Tab navigation strips the query string, so this runs on every URL change.
   const isCleared = queryParams.types?.length === 0;
   const normalizedTypes =
@@ -204,7 +204,7 @@ const HostSoftware = ({
     queryParams.ai_tool !== !!aiTool;
 
   // "Show helpers" is the inverse of the /Applications filter and only applies
-  // while "macOS app" is selected.
+  // while "App (macOS)" is selected.
   const macosApplicationsFilter =
     isMacOS(platform) && selectedTypes.includes(MACOS_APP_SOFTWARE_TYPE)
       ? queryParams.macos_applications ?? true
@@ -312,7 +312,7 @@ const HostSoftware = ({
       orderDirection: queryParams.order_direction,
       page,
       fleetId: queryParams.fleet_id,
-      // Preserve an explicit Show helpers selection only while "macOS app"
+      // Preserve an explicit Show helpers selection only while "App (macOS)"
       // stays selected, so reselecting it brings the toggle back off.
       macosApplications: newFilters.types?.includes(MACOS_APP_SOFTWARE_TYPE)
         ? queryParams.macos_applications

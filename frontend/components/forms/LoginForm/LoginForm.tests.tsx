@@ -123,6 +123,8 @@ describe("LoginForm - component", () => {
     await user.tab();
     expect(screen.getByPlaceholderText("Password")).toHaveFocus();
     await user.tab();
+    expect(screen.getByRole("button", { name: "Show secret" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByText("Log in").parentElement).toHaveFocus();
     await user.tab();
     expect(

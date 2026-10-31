@@ -2543,6 +2543,13 @@
       "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
     },
     {
+      "name": "Dia",
+      "slug": "dia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.dia",
+      "description": "Dia is an AI-focused web browser from The Browser Company."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -4240,7 +4247,7 @@
       "name": "HoudahSpot",
       "slug": "houdahspot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.houdah.HoudahSpot6",
+      "unique_identifier": "com.houdah.HoudahSpot4",
       "description": "HoudahSpot is a file searching application."
     },
     {
@@ -5042,13 +5049,6 @@
       "description": "LinearMouse is a tool to customise mouse behavior."
     },
     {
-      "name": "Lingon X",
-      "slug": "lingon-x/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.peterborgapps.LingonX9",
-      "description": "Lingon X is an automator software to start apps, run scripts or commands and more."
-    },
-    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
@@ -5544,6 +5544,27 @@
       "platform": "windows",
       "unique_identifier": "Microsoft .NET Runtime - 8",
       "description": "Microsoft .NET Runtime 8 is the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
+    },
+    {
+      "name": "Microsoft .NET SDK 10",
+      "slug": "microsoft-dotnet-sdk-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 10",
+      "description": "Microsoft .NET SDK 10 is the software development kit for building, testing, and publishing .NET 10 apps, including the dotnet CLI and the .NET 10 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 8",
+      "slug": "microsoft-dotnet-sdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 8",
+      "description": "Microsoft .NET SDK 8 is the software development kit for building, testing, and publishing .NET 8 apps, including the dotnet CLI and the .NET 8 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 9",
+      "slug": "microsoft-dotnet-sdk-9/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 9",
+      "description": "Microsoft .NET SDK 9 is the software development kit for building, testing, and publishing .NET 9 apps, including the dotnet CLI and the .NET 9 runtimes."
     },
     {
       "name": "Microsoft Edge",
@@ -7621,7 +7642,7 @@
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.witt-software.Rocket-Typist-3",
+      "unique_identifier": "com.witt-software.Rocket-Typist-2",
       "description": "Rocket Typist is a text expander for common phrases."
     },
     {
@@ -8507,6 +8528,13 @@
       "description": "Superkey is a tool to search and click text anywhere on screen."
     },
     {
+      "name": "Superset",
+      "slug": "superset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superset.desktop",
+      "description": "Superset is a terminal for orchestrating AI coding agents."
+    },
+    {
       "name": "superwhisper",
       "slug": "superwhisper/darwin",
       "platform": "darwin",
@@ -8598,6 +8626,13 @@
       "description": "Syntax Highlight is a quicklook extension for source files."
     },
     {
+      "name": "T3 Code",
+      "slug": "t3-code/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.t3tools.t3code",
+      "description": "T3 Code is a minimal GUI for AI coding agents."
+    },
+    {
       "name": "Tabby",
       "slug": "tabby/darwin",
       "platform": "darwin",
@@ -8615,7 +8650,7 @@
       "name": "Tableau Prep",
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
+      "unique_identifier": "com.tableausoftware.tableauprep",
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
@@ -8629,7 +8664,7 @@
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableausoftware.Desktop.app",
+      "unique_identifier": "com.tableausoftware.tableaudesktop",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
     },
     {
@@ -9156,6 +9191,13 @@
       "platform": "darwin",
       "unique_identifier": "com.theron.UnnaturalScrollWheels",
       "description": "UnnaturalScrollWheels is a utility that inverts the scroll direction of physical scroll wheels independently of the trackpad."
+    },
+    {
+      "name": "UPDF",
+      "slug": "updf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superace.updf.mac",
+      "description": "UPDF is a PDF editor."
     },
     {
       "name": "Upscayl",

@@ -3,7 +3,7 @@
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
-  local app_running; app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  local app_running; app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then return; fi
   local console_user; console_user=$(stat -f "%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then echo "Skipping quit for '$bundle_id'."; return; fi
@@ -11,9 +11,9 @@ quit_application() {
   local still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1 || true
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then echo "'$bundle_id' quit successfully."; return 0; fi
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then echo "'$bundle_id' quit successfully."; return 0; fi
   done
   echo "'$bundle_id' did not quit."
   return 1

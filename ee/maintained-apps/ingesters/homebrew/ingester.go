@@ -198,6 +198,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	switch input.UninstallScriptPath {
 	case "":
+		if err := validateQuitIDs(&cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "invalid uninstall quit for cask %s", input.Token)
+		}
+
 		if len(input.PreUninstallScripts) != 0 {
 			cask.PreUninstallScripts = input.PreUninstallScripts
 		}
@@ -346,6 +350,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// CFBundleVersion carries the full cask version.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	case "tableau", "tableau-prep":
+		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
+		// Desktop (Apple silicon) 2026.3.app") and the pkg never removes earlier
+		// ones, which users keep to match their Tableau Server version. Treat the
+		// host as patched when any installed copy is current, so an upgrade passes
+		// without deleting those older releases.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s' AND version_compare(bundle_short_version, '%[2]s') >= 0);",
 			out.UniqueIdentifier, out.Version,
 		)
 	}

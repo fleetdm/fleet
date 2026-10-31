@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"errors"
@@ -180,6 +181,80 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 // syncMLAddItem builds a SyncML Add item with a LocURI target and Data content.
 func syncMLAddItem(locURI, data string) string {
 	return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
+}
+
+// TestValidateWindowsProfileConditionalAccessVariables covers what is specific to the conditional access group on
+// Windows: the URL variable marks the profile and must sit in the ServerURL node, and the challenge is a global enroll
+// secret the admin writes in (directly or through a secret variable, expanded before validation) that Windows can send.
+// The required-variable rules are in TestValidateProfileCertificateAuthorityVariables.
+func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
+	const scepPrefix = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/"
+	challengeItem := syncMLAddItem(scepPrefix+"Challenge", "aB3+/= secret")
+	urlItem := syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL")
+	subjectItem := syncMLAddItem(scepPrefix+"SubjectName", "CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+	sanItem := syncMLAddItem(scepPrefix+"SubjectAlternativeNames", "7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID")
+	const challengeMsg = `The SCEP certificate's "Challenge" field must contain a global enroll secret`
+
+	cases := []struct {
+		name        string
+		contents    string
+		errContains string
+	}{
+		{
+			name:     "valid profile",
+			contents: urlItem + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name:     "valid profile with braces syntax",
+			contents: syncMLAddItem(scepPrefix+"ServerURL", "${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}") + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name:        "challenge with characters windows rejects",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "bad_secret") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "empty challenge",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "no challenge item",
+			contents:    urlItem + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "url variable in the Challenge node",
+			contents:    syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must only be in the SCEP certificate's "ServerURL" field.`,
+		},
+		{
+			name: "variable in a LocURI",
+			contents: challengeItem + subjectItem +
+				syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL/Install/KeyProtection", "2"),
+			errContains: "Conditional access Fleet variables must not appear in LocURI target paths.",
+		},
+		{
+			name:        "subject name without the renewal ID",
+			contents:    urlItem + challengeItem + syncMLAddItem(scepPrefix+"SubjectName", "CN=x,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID") + syncMLAddItem(scepPrefix+"SubjectName", "CN=y"),
+			errContains: "SubjectName item must contain the",
+		},
+		{
+			name:        "url variable only in an XML comment",
+			contents:    "<!-- $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL -->" + challengeItem + subjectItem + sanItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must be in the SCEP certificate's "ServerURL" field.`,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(c.contents, &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+			if c.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.errContains)
+		})
+	}
 }
 
 func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
@@ -712,6 +787,60 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}
+
+// TestNewMDMWindowsConfigProfileSecretVariableChallenge covers a conditional access SCEP profile uploaded on its own
+// with its challenge in a secret variable: the challenge check must run on the expanded value, as the batch path does,
+// while the stored profile keeps the variable.
+func TestNewMDMWindowsConfigProfileSecretVariableChallenge(t *testing.T) {
+	const secretVar = "$FLEET_SECRET_OKTA_SCEP_CHALLENGE"
+	// The rendered profile, as an admin copies it, with the placeholder replaced by the variable.
+	var rendered bytes.Buffer
+	require.NoError(t, conditionalAccessWindowsSCEPProfileTemplateParsed.Execute(&rendered, struct {
+		CAThumbprintSHA1 string
+		CertificateCN    string
+	}{CAThumbprintSHA1: strings.Repeat("A", 40), CertificateCN: fleet.ConditionalAccessOktaCertificateCN}))
+	profile := bytes.Replace(rendered.Bytes(), []byte(conditionalAccessWindowsChallengePlaceholder), []byte(secretVar), 1)
+
+	setup := func(t *testing.T, secretValue string) (fleet.Service, context.Context, *mock.Store) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			return ac, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+			return strings.ReplaceAll(document, secretVar, secretValue), nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("secret expands to a challenge windows can send", func(t *testing.T) {
+		svc, ctx, ds := setup(t, "aB3+/= secret")
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "okta-scep", profile, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+		require.Contains(t, string(p.SyncML), secretVar, "stored profile keeps the variable")
+		require.NotContains(t, string(p.SyncML), "aB3+/= secret")
+	})
+
+	t.Run("secret expands to a challenge windows rejects", func(t *testing.T) {
+		svc, ctx, ds := setup(t, "bad_secret")
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "okta-scep", profile, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.ErrorContains(t, err, `"Challenge" field must contain a global enroll secret`)
+		require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
 }
 
