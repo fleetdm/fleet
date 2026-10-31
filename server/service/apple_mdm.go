@@ -5789,7 +5789,27 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		HasSetupExperienceItems: hasSetupExpItems,
 		UserEnrollmentID:        m.EnrollmentID,
 		FromMDMMigration:        info.MigrationInProgress || (info.DEPAssignedToFleet && !m.AwaitingConfiguration),
+		EnrolledFromADE:         svc.enrolledFromADE(r, m.AwaitingConfiguration && info.DEPAssignedToFleet),
 	})
+}
+
+// enrolledFromADE reports whether the device enrolled with the automatic (ADE) enrollment profile: an assigned device
+// in Setup Assistant, or a certificate issued for the "ade" or "acme" purpose, which only that profile uses. It returns
+// nil when the certificate can't tell.
+func (svc *MDMAppleCheckinAndCommandService) enrolledFromADE(r *mdm.Request, inSetupAssistant bool) *bool {
+	if inSetupAssistant {
+		return new(true)
+	}
+	if r.Certificate == nil {
+		return nil
+	}
+	binding, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(r.Certificate)
+	if err != nil {
+		svc.logger.WarnContext(r.Context, "reading the enrollment certificate's binding extension", "host_uuid", r.ID, "err", err)
+		return nil
+	}
+	fromADE := binding != nil && (binding.Purpose == fleet.AppleMDMCertPurposeADE || binding.Purpose == fleet.AppleMDMCertPurposeACME)
+	return &fromADE
 }
 
 // CheckOut handles MDM [CheckOut][1] requests.
