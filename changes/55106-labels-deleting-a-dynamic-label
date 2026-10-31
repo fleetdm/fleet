@@ -1,0 +1,1 @@
+- Fixed deleting a label with many hosts, or a fleet that has such labels, holding up hosts' check-ins on large deployments.
