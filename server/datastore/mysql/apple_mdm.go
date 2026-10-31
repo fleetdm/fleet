@@ -1407,6 +1407,17 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
+func (ds *Datastore) IsMDMAppleCommandQueuedForEnrollment(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+	var exists bool
+	// primary, like nanomdm's StoreCommandReport, so a just-enqueued command isn't missed due to replica lag
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &exists,
+		`SELECT EXISTS(SELECT 1 FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?)`, enrollmentID, commandUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check command queued for enrollment")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
