@@ -210,6 +210,40 @@ func (c *Client) GetDBVersion(db *sql.DB) (int64, error) {
 	panic("unreachable")
 }
 
+// AppliedVersions returns the set of migration versions currently applied to
+// the DB. As in GetDBVersion, the most recent record for each version decides
+// whether it is applied or was rolled back.
+// Creates and initializes the DB version table if it doesn't exist.
+func (c *Client) AppliedVersions(db *sql.DB) (map[int64]struct{}, error) {
+	rows, err := c.Dialect.dbVersionQuery(db, c.TableName)
+	if err != nil {
+		if err := c.createVersionTable(db); err != nil {
+			return nil, err
+		}
+		return map[int64]struct{}{}, nil
+	}
+	defer rows.Close()
+
+	applied := make(map[int64]struct{})
+	seen := make(map[int64]struct{})
+	// rows are ordered by id DESC, so the first record found for a version is
+	// the most recent one and decides its state.
+	for rows.Next() {
+		var row MigrationRecord
+		if err := rows.Scan(&row.VersionId, &row.IsApplied); err != nil {
+			return nil, err
+		}
+		if _, ok := seen[row.VersionId]; ok {
+			continue
+		}
+		seen[row.VersionId] = struct{}{}
+		if row.IsApplied {
+			applied[row.VersionId] = struct{}{}
+		}
+	}
+	return applied, rows.Err()
+}
+
 // Create the goose_db_version table
 // and insert the initial 0 value into it
 func (c *Client) createVersionTable(db *sql.DB) error {
