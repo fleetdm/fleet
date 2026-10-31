@@ -1,0 +1,450 @@
+# Reports the DEX dashboards read. Keep the names exactly as written: the
+# collector finds each report by name, in any fleet or in All fleets.
+- name: DEX - Hardware experience - Device health
+  description: CPU class, RAM tier, swap/compression pressure, and battery condition in a single row. This is the physical-layer health signal — answers whether the hardware can keep up with what the user is asking it to do.
+  query: |
+    SELECT
+      si.hardware_model,
+      si.hardware_serial,
+      si.cpu_brand,
+
+      CASE
+        WHEN ci.model LIKE '%Apple M6%'               THEN 'apple_m6'
+        WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
+        WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
+        WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'
+        WHEN ci.model LIKE '%Apple M2%'               THEN 'apple_m2'
+        WHEN ci.model LIKE '%Apple M1%'               THEN 'apple_m1'
+        WHEN ci.model LIKE '%Intel%Core i9%'          THEN 'intel_i9'
+        WHEN ci.model LIKE '%Intel%Core i7%'          THEN 'intel_i7'
+        WHEN ci.model LIKE '%Intel%Core i5%'          THEN 'intel_i5'
+        WHEN ci.model LIKE '%Intel%'                  THEN 'intel_other'
+        ELSE 'unknown'
+      END                                               AS cpu_class,
+
+      ci.number_of_cores                                AS cpu_cores,
+      ci.logical_processors,
+
+      ROUND(CAST(si.physical_memory AS REAL) / 1073741824, 0)
+                                                        AS ram_gb,
+      CASE
+        WHEN si.physical_memory >= 34359738368        THEN '32gb_plus'
+        WHEN si.physical_memory >= 17179869184        THEN '16gb'
+        WHEN si.physical_memory >= 8589934592         THEN '8gb'
+        ELSE 'under_8gb'
+      END                                               AS ram_tier,
+
+      -- Swap/compression from virtual_memory_info (macOS only)
+      (SELECT CASE
+        WHEN swap_ins > 100000                         THEN 'severe'
+        WHEN swap_ins > 10000                          THEN 'elevated'
+        WHEN swap_ins > 0                              THEN 'light'
+        ELSE 'none'
+       END FROM virtual_memory_info
+      )                                                 AS swap_pressure,
+
+      (SELECT CASE
+        WHEN compressed > (free + active) * 0.5       THEN 'high'
+        WHEN compressed > free * 0.25                 THEN 'moderate'
+        ELSE 'low'
+       END FROM virtual_memory_info
+      )                                                 AS compression_pressure,
+
+      -- Battery
+      (SELECT percent_remaining FROM battery)           AS battery_percent,
+      (SELECT cycle_count FROM battery)                 AS battery_cycles,
+      (SELECT state FROM battery)                       AS battery_state,
+      (SELECT charging FROM battery)                    AS battery_charging,
+      (SELECT CASE
+        WHEN minutes_until_empty > 0                  THEN minutes_until_empty
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_minutes_remaining,
+      (SELECT CASE
+        WHEN max_capacity > 0 AND designed_capacity > 0
+        THEN ROUND(CAST(max_capacity AS REAL) / designed_capacity * 100, 0)
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_health_pct,
+      (SELECT CASE
+        WHEN max_capacity <= 0 OR designed_capacity <= 0  THEN NULL
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.80 THEN 'good'
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.60 THEN 'degraded'
+        ELSE 'replace'
+       END FROM battery
+      )                                                 AS battery_health_score
+
+    FROM system_info si
+    CROSS JOIN cpu_info ci;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - System experience - OS health
+  description: OS version currency (macOS 26 = current), uptime risk, and recent kernel panic / crash count. A device on a current OS with fresh uptime and zero crashes is healthy; stale uptime + legacy OS + panics is actionable.
+  query: |
+    SELECT
+      ov.name                                           AS os_name,
+      ov.version                                        AS os_version,
+      ov.build                                          AS os_build,
+
+      -- macOS 26 = Tahoe, 15 = Sequoia, 14 = Sonoma
+      CASE
+        WHEN ov.major >= 26                             THEN 'current'
+        WHEN ov.major = 15                              THEN 'n_minus_1'
+        WHEN ov.major = 14                              THEN 'n_minus_2'
+        ELSE 'legacy'
+      END                                               AS os_currency,
+
+      u.total_seconds                                   AS uptime_seconds,
+      ROUND(CAST(u.total_seconds AS REAL) / 86400, 1)  AS uptime_days,
+
+      CASE
+        WHEN u.total_seconds < 300                      THEN 'just_rebooted'
+        WHEN u.total_seconds <= 172800                  THEN 'fresh'
+        WHEN u.total_seconds <= 604800                  THEN 'normal'
+        WHEN u.total_seconds <= 1209600                 THEN 'stale_7d'
+        ELSE                                                 'stale_14d'
+      END                                               AS uptime_risk,
+
+      -- Crash frequency: kernel panics in diagnostic reports (last 30 days)
+      (SELECT COUNT(*) FROM file
+       WHERE (path LIKE '/Library/Logs/DiagnosticReports/%.panic'
+              OR path LIKE '/Library/Logs/DiagnosticReports/%.crash')
+         AND ctime > (strftime('%s', 'now') - 2592000)
+      )                                                 AS crashes_30d,
+
+      -- Composite
+      CASE
+        WHEN ov.major >= 26
+             AND u.total_seconds < 604800               THEN 'healthy'
+        WHEN ov.major >= 15
+             AND u.total_seconds < 1209600              THEN 'acceptable'
+        ELSE                                                 'degraded'
+      END                                               AS dex_os_health
+
+    FROM os_version ov
+    CROSS JOIN uptime u;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 14400
+- name: DEX - AI governance - AI tools per host
+  description: Every AI tool fleetd's ai_tools table finds on the host (desktop apps, agent CLIs, IDE plugins, browser extensions, MCP servers, live AI connections, and agent instruction files), packed into one row per host so Fleet's 1,000-row report limit doesn't cut hosts off. Needs fleetd 1.59.0 or later.
+  query: |
+    SELECT
+      COUNT(*) AS tool_count,
+      json_group_array(json_object(
+        'type', type, 'category', category, 'name', name, 'identifier', identifier,
+        'version', version, 'source', source, 'location', location, 'endpoint', endpoint,
+        'path', path, 'risk_flags', risk_flags, 'running', running, 'detail', detail
+      )) AS tools
+    FROM ai_tools;
+  platform: darwin,linux,windows
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - Network experience - Wi-Fi signal quality
+  description: Wi-Fi connection signal strength and quality metrics. Poor Wi-Fi directly impacts cloud application performance and user experience.
+  query: |
+    SELECT
+      interface,
+      security_type,
+      rssi,
+      noise,
+      (rssi - noise)                                    AS snr_db,
+      channel,
+      channel_width,
+      channel_band,
+      transmit_rate,
+      CASE channel_band
+        WHEN 1 THEN '2.4GHz'
+        WHEN 5 THEN '5GHz'
+        WHEN 6 THEN '6GHz'
+        ELSE 'unknown'
+      END                                               AS wifi_band,
+      CASE
+        WHEN rssi >= -50                               THEN 'excellent'
+        WHEN rssi >= -65                               THEN 'good'
+        WHEN rssi >= -75                               THEN 'fair'
+        WHEN rssi >= -85                               THEN 'poor'
+        ELSE 'unusable'
+      END                                               AS signal_quality,
+      CASE
+        WHEN (rssi - noise) >= 25                      THEN 'good'
+        WHEN (rssi - noise) >= 15                      THEN 'marginal'
+        ELSE 'degraded'
+      END                                               AS snr_quality,
+      CASE WHEN channel_band = 1 THEN 1 ELSE 0
+      END                                               AS stuck_on_2_4ghz,
+      CASE
+        WHEN channel_band IN (5, 6)
+             AND rssi >= -65
+             AND (rssi - noise) >= 20
+             AND channel_width >= 40
+        THEN 'good'
+        WHEN channel_band = 1
+             OR rssi < -75
+             OR (rssi - noise) < 15
+        THEN 'degraded'
+        ELSE 'acceptable'
+      END                                               AS dex_wifi_score
+    FROM wifi_status
+    WHERE interface IS NOT NULL
+      AND interface != '';
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 600
+- name: DEX - Network experience - VPN gate
+  description: Network context as a confidence gate — not a score. Detects VPN tunnel presence and activity to determine whether the device is on a managed network path. When no VPN is active, other DEX signals (especially app latency, update status) lose confidence. This query provides the boolean gate, not a quality number.
+  query: |
+    SELECT
+      -- Count active VPN tunnels (utun/tun/ipsec/ppp with traffic)
+      (SELECT COUNT(*) FROM interface_details
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%')
+         AND ipackets > 0
+      )                                                 AS vpn_tunnels_active,
+      -- Is any VPN tunnel present (even without traffic)?
+      (SELECT COUNT(*) FROM interface_details
+       WHERE interface LIKE 'utun%' OR interface LIKE 'tun%'
+          OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%'
+      )                                                 AS vpn_tunnels_total,
+      -- Is default route going through a tunnel (strongest VPN signal)
+      (SELECT COUNT(*) FROM routes
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%')
+         AND destination = '0.0.0.0'
+      )                                                 AS vpn_default_route,
+      -- Primary interface (en0 = wifi typically)
+      (SELECT interface FROM interface_details
+       WHERE interface = 'en0' AND (flags & 1) = 1
+       LIMIT 1
+      )                                                 AS primary_interface,
+      -- Is primary interface up and carrying traffic?
+      (SELECT CASE
+        WHEN ipackets > 0 AND opackets > 0 THEN 1 ELSE 0
+       END FROM interface_details
+       WHERE interface = 'en0'
+       LIMIT 1
+      )                                                 AS primary_active,
+      -- Network path decision
+      CASE
+        WHEN (SELECT COUNT(*) FROM routes
+              WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+                     OR interface LIKE 'ipsec%')
+                AND destination = '0.0.0.0') > 0
+        THEN 'tunnel_active'
+        WHEN (SELECT COUNT(*) FROM interface_details
+              WHERE interface = 'en0' AND (flags & 1) = 1
+                AND ipackets > 0) > 0
+        THEN 'direct_connected'
+        ELSE 'disconnected'
+      END                                               AS network_confidence,
+      strftime('%s', 'now')                             AS checked_at_epoch,
+      datetime('now')                                   AS checked_at_display
+    FROM interface_details
+    LIMIT 1;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 600
+- name: DEX - System experience - Security posture
+  description: Verifying the following components are enabled on the host - filevault, sip, gatekeeper, firewall
+  query: |
+    SELECT
+      (SELECT 1 FROM filevault_status WHERE status LIKE '%on%')   AS filevault,
+      (SELECT 1 FROM alf WHERE global_state >= 1)                 AS firewall,
+      (SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1)    AS gatekeeper,
+      (SELECT 1 FROM sip_config WHERE config_flag = 'sip')        AS sip;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - Security compliance - Windows firewall status
+  description: Windows firewall and security center status.
+  query: |
+    SELECT
+      firewall,
+      autoupdate,
+      antivirus,
+      antispyware,
+      windows_security_center_service,
+      user_account_control
+    FROM windows_security_center;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Security compliance - Secure Boot status (Windows)
+  description: Windows Secure Boot status for hardware security compliance.
+  query: |
+    SELECT
+      secure_boot AS secure_boot_enabled,
+      CASE secure_boot
+        WHEN 1 THEN 'enabled'
+        ELSE 'disabled'
+      END AS secure_boot_status
+    FROM secureboot;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Security compliance - TPM status (Windows)
+  description: Trusted Platform Module status for hardware security compliance.
+  query: |
+    SELECT
+      activated,
+      enabled,
+      owned,
+      manufacturer_name,
+      manufacturer_version,
+      spec_version,
+      CASE
+        WHEN activated = 1 AND enabled = 1 THEN 'active'
+        WHEN enabled = 1 THEN 'enabled_not_activated'
+        ELSE 'disabled'
+      END AS tpm_status
+    FROM tpm_info;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Sustainability - Mac energy
+  description: Energy the Mac has used since it booted, from the power telemetry Apple silicon Macs keep in AppleSmartBattery (laptops and desktops), plus the current system power draw. The dashboard turns the difference between two readings into kWh. Needs fleetd for the ioreg table.
+  query: |
+    SELECT
+      (SELECT total_seconds FROM uptime)                                  AS uptime_s,
+      (SELECT state FROM battery)                                         AS power_source,
+      (SELECT ROUND(CAST(value AS REAL), 2) FROM power_sensors WHERE key = 'PSTR')
+                                                                          AS system_watts,
+      MAX(CASE WHEN key = 'AccumulatedSystemLoad' THEN CAST(value AS INTEGER) END)
+                                                                          AS energy_mj,
+      MAX(CASE WHEN key = 'SystemLoad' THEN CAST(value AS INTEGER) END)   AS load_mw
+    FROM ioreg
+    WHERE n = 'AppleSmartBattery' AND r = 1 AND query = '*/PowerTelemetryData';
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - Sustainability - Mac sleep settings
+  description: Sleep and display sleep timers on AC and battery power, what's keeping the Mac awake right now, and how many times it has slept since boot. Needs fleetd for the pmset table.
+  query: |
+    SELECT
+      json_extract(c.json_result, '$."AC Power:".sleep')                  AS ac_sleep,
+      json_extract(c.json_result, '$."AC Power:".displaysleep')           AS ac_displaysleep,
+      json_extract(c.json_result, '$."AC Power:".powernap')               AS ac_powernap,
+      json_extract(c.json_result, '$."AC Power:".womp')                   AS ac_womp,
+      json_extract(c.json_result, '$."Battery Power:".sleep')             AS battery_sleep,
+      json_extract(c.json_result, '$."Battery Power:".displaysleep')      AS battery_displaysleep,
+      json_extract(c.json_result, '$."Battery Power:".lowpowermode')      AS battery_lowpowermode,
+      json_extract(g.json_result, '$."Currently in use:".sleep')          AS sleep_now,
+      json_extract(g.json_result, '$."Currently in use:".displaysleep')   AS displaysleep_now,
+      (SELECT CAST(substr(j.key, instr(j.key, ':') + 1) AS INTEGER)
+       FROM pmset s, json_each(s.json_result) j
+       WHERE s.getting = 'stats' AND j.key LIKE 'Sleep Count:%')         AS sleep_count,
+      (SELECT CAST(substr(j.key, instr(j.key, ':') + 1) AS INTEGER)
+       FROM pmset s, json_each(s.json_result) j
+       WHERE s.getting = 'stats' AND j.key LIKE 'User Wake Count:%')      AS user_wake_count
+    FROM pmset c, pmset g
+    WHERE c.getting = 'custom' AND g.getting = '';
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 14400
+- name: DEX - Sustainability - Windows power
+  description: Power draw while on battery, effective sleep and display-off timeouts for the active power plan (Group Policy or MDM first, then the plan's own value, then the OEM and Windows defaults, because Windows only stores a value once it's changed), Fast Startup, and sleep events in the last 30 days (Kernel-Power 42, and 506 on Modern Standby PCs).
+  query: |
+    WITH
+    scheme AS (
+      SELECT data AS guid FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\ActivePowerScheme'
+    ),
+    vals AS (
+      SELECT lower(path) AS p, data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\%\238c9fa8-0aad-41ed-83f4-97be242c8f20\29f6c1db-86da-48c5-9fdb-f2b67b1f44da\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\%\7516b95f-f776-4464-8c53-06167f40cc99\3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\238c9fa8-0aad-41ed-83f4-97be242c8f20\29f6c1db-86da-48c5-9fdb-f2b67b1f44da\DefaultPowerSchemeValues\%\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\7516b95f-f776-4464-8c53-06167f40cc99\3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e\DefaultPowerSchemeValues\%\%'
+      UNION ALL
+      SELECT lower(path), data FROM registry
+      WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Power\PowerSettings\%\%'
+    ),
+    setting(name, sub, guid) AS (
+      VALUES ('sleep', '238c9fa8-0aad-41ed-83f4-97be242c8f20', '29f6c1db-86da-48c5-9fdb-f2b67b1f44da'),
+             ('display', '7516b95f-f776-4464-8c53-06167f40cc99', '3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e')
+    ),
+    source(name, idx) AS (VALUES ('ac', 'acsettingindex'), ('dc', 'dcsettingindex')),
+    effective AS (
+      SELECT st.name || '_' || so.name AS k, COALESCE(
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\software\policies\microsoft\power\powersettings\' || st.guid || '\' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\user\powerschemes\' || lower(sc.guid) || '\' || st.sub || '\' || st.guid || '\' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\powersettings\' || st.sub || '\' || st.guid || '\defaultpowerschemevalues\' || lower(sc.guid) || '\prov' || so.idx),
+        (SELECT data FROM vals WHERE p = 'hkey_local_machine\system\currentcontrolset\control\power\powersettings\' || st.sub || '\' || st.guid || '\defaultpowerschemevalues\' || lower(sc.guid) || '\' || so.idx)
+      ) AS v
+      FROM setting st, source so, scheme sc
+    ),
+    events AS (
+      SELECT
+        SUM(datetime >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-30 days')) AS sleeps_30d,
+        MAX(datetime)                                                      AS last_sleep
+      FROM windows_eventlog
+      WHERE channel = 'System' AND eventid IN (42, 506) AND provider_name = 'Microsoft-Windows-Kernel-Power'
+    )
+    SELECT
+      (SELECT guid FROM scheme)                                           AS power_plan,
+      (SELECT v FROM effective WHERE k = 'sleep_ac')                      AS sleep_ac_s,
+      (SELECT v FROM effective WHERE k = 'sleep_dc')                      AS sleep_dc_s,
+      (SELECT v FROM effective WHERE k = 'display_ac')                    AS display_ac_s,
+      (SELECT v FROM effective WHERE k = 'display_dc')                    AS display_dc_s,
+      (SELECT data FROM registry
+       WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Power\HiberbootEnabled')
+                                                                          AS fast_startup,
+      (SELECT state FROM battery)                                         AS power_source,
+      (SELECT CASE WHEN amperage < 0 THEN ROUND(voltage / 1000.0 * -amperage / 1000.0, 2) END FROM battery)
+                                                                          AS discharge_watts,
+      COALESCE((SELECT sleeps_30d FROM events), 0)                        AS sleeps_30d,
+      (SELECT last_sleep FROM events)                                     AS last_sleep;
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - Sustainability - Linux power
+  description: Whether sleep is disabled in systemd, GNOME's automatic suspend setting for the first desktop user, whether the computer has a battery, and power sensor readings (the amdgpu sensor reports package power on AMD APUs). Needs fleetd for the file_lines and dconf_read tables.
+  query: |
+    WITH u AS (
+      SELECT username FROM users
+      WHERE uid >= 1000 AND uid < 60000 AND shell NOT LIKE '%nologin' AND shell NOT LIKE '%false'
+      ORDER BY uid LIMIT 1
+    )
+    SELECT
+      (SELECT load_state FROM systemd_units WHERE id = 'sleep.target')    AS sleep_target,
+      (SELECT load_state FROM systemd_units WHERE id = 'suspend.target')  AS suspend_target,
+      (SELECT active_state FROM systemd_units WHERE id = 'graphical.target')
+                                                                          AS graphical,
+      CASE WHEN (SELECT username FROM u) IS NOT NULL THEN
+        (SELECT value FROM dconf_read WHERE username = (SELECT username FROM u)
+         AND key = '/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type')
+      END                                                                 AS gnome_sleep_ac_type,
+      CASE WHEN (SELECT username FROM u) IS NOT NULL THEN
+        (SELECT value FROM dconf_read WHERE username = (SELECT username FROM u)
+         AND key = '/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-timeout')
+      END                                                                 AS gnome_sleep_ac_timeout,
+      (SELECT COUNT(*) FROM file_lines
+       WHERE path LIKE '/sys/class/power_supply/%/uevent' AND line = 'POWER_SUPPLY_TYPE=Battery')
+                                                                          AS batteries,
+      (SELECT json_group_object(path, line) FROM file_lines WHERE path LIKE '/sys/class/hwmon/hwmon%/name')
+                                                                          AS hwmon_names,
+      (SELECT json_group_object(path, line) FROM file_lines WHERE path LIKE '/sys/class/hwmon/hwmon%/power1_average')
+                                                                          AS hwmon_power;
+  platform: linux
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600

@@ -1,0 +1,502 @@
+<title>Sustainability</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); }
+.notice b { color: var(--ink); }
+.cover { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) auto; gap: 8px 16px; align-items: baseline; }
+.cover > div { padding: 10px 0; border-top: 1px solid var(--line); }
+.cover .h { border-top: 0; padding-top: 0; font-size: 12px; color: var(--ink-2); }
+.cover .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings { display: grid; gap: 0 16px; align-items: baseline; }
+.settings > div { padding: 8px 0; border-top: 1px solid var(--line); }
+.settings .h { border-top: 0; padding-top: 0; font-size: 12px; color: var(--ink-2); }
+.settings .r { text-align: right; font-variant-numeric: tabular-nums; }
+.na { color: var(--ink-2); }
+.fix-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 4px 0 16px; }
+.fix-inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.fix-inputs input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; padding: 6px 8px; width: 100%; box-sizing: border-box; }
+.fix-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.script-note { margin: 8px 0 0; font-size: 12px; color: var(--ink-2); }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>Sustainability</h1>
+      <p class="subtitle">How much energy your computers use, whether they sleep when they're idle, and which batteries need service before the computer does. Energy is measured on Macs. Windows and Linux show single power readings and their sleep settings.</p>
+    </div>
+  </div>
+  <div id="notice"></div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="cover-h">
+    <div class="sec-head">
+      <h2 id="cover-h">What the energy numbers are</h2>
+      <span class="hint">Each platform reports power differently, so their numbers aren't added together.</span>
+    </div>
+    <div class="panel"><div class="cover" id="cover"></div></div>
+  </section>
+
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="where-h">
+    <div class="sec-head">
+      <h2 id="where-h">Where the energy goes</h2>
+      <span class="hint" id="where-hint"></span>
+    </div>
+    <div class="grid" id="where"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="sleep-h">
+    <div class="sec-head">
+      <h2 id="sleep-h">Sleep settings</h2>
+      <span class="hint">A computer that sleeps when it's idle uses a fraction of the power.</span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Settings that keep computers awake</h3><div id="settings"></div></div>
+      <div class="panel"><h3>What's keeping them awake</h3><div id="blockers"></div></div>
+    </div>
+    <div class="panel" id="fix-panel">
+      <h3>Fix sleep settings</h3>
+      <p class="panel-note" style="margin-top:0">Pick timeouts in minutes, then copy a configuration profile or script and add it in Fleet. Test it on one computer before you roll it out.</p>
+      <div class="fix-inputs" id="fix-inputs"></div>
+      <div class="fix-btns" id="fix-btns"></div>
+      <div id="fix-notes"></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="batt-h">
+    <div class="sec-head">
+      <h2 id="batt-h">Battery health</h2>
+      <span class="hint">Replacing a worn battery keeps a laptop in service, and making a new computer is where most of its lifetime carbon comes from.</span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Battery condition</h3><div id="battery"></div></div>
+      <div class="panel"><h3>Replace the battery, not the computer</h3><div id="battery-list"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="act-h">
+    <div class="sec-head">
+      <h2 id="act-h">Computers to look at</h2>
+      <span class="hint">Grouped by what to fix. A computer shows in the first group that fits.</span>
+    </div>
+    <div class="act-bar"><div class="chips" id="act-chips"></div><span id="act-tools"></span></div>
+    <div id="act"></div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><span class="term">Energy (macOS):</span> Apple silicon Macs, laptops and desktops alike, keep a running total of the energy the whole system has used since boot. The <code>DEX - Sustainability - Mac energy</code> report reads it every hour, and each refresh turns the difference since the last reading into kWh, spread over the days it covers. The Mac's own uptime times each reading, so a result Fleet receives late still counts once. A reboot starts the total over. Energy totals start after the second reading. Until then, the page shows each Mac's average power since boot.</p>
+        <p><span class="term">Power now (macOS):</span> the <code>PSTR</code> sensor, the same total system power reading Activity Monitor and SAP's Power Monitor app use.</p>
+      </div>
+      <div>
+        <p><span class="term">Windows:</span> Windows doesn't keep an energy total that a query can read. The <code>DEX - Sustainability - Windows power</code> report records the battery's draw while a laptop is unplugged, and the dashboard averages those readings over <span class="spot-days"></span> days. Sleep and display-off timeouts come from the active power plan: Group Policy or MDM first, then the plan's own value, then the OEM and Windows defaults. Sleep counts come from Kernel-Power events 42 and 506.</p>
+        <p><span class="term">Linux:</span> the CPU energy counter (RAPL) wraps around every hour or so, faster than this page refreshes, so it can't give kWh. On AMD APUs, the <code>amdgpu</code> sensor reports package power, and the page averages those readings. NVIDIA GPUs need <code>nvidia-smi</code> from a script.</p>
+      </div>
+      <div>
+        <p><span class="term">Carbon:</span> kWh times the carbon intensity of electricity in the computer's country, from Fleet's GeoIP lookup. <span id="grid-source"></span> It's an estimate: it uses national averages, not the time of day or the local grid.</p>
+        <p><span class="term">Hasn't slept:</span> on macOS, up <span class="never-days"></span> or more days with no sleep since boot. On Windows, no sleep event in 30 days. Virtual machines are left out of every count.</p>
+        <p><span class="term">Battery:</span> service when it's under 80% of its design capacity or past 1,000 cycles, worn from 80% to 89%. Capacity comes from the Device health report on Macs. Windows reports Fleet's battery health and cycle count.</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const G = [
+  { key: "never", label: "Hasn't slept", tone: "bad", hint: "On for a week or more without sleeping. Check what's keeping it awake.", test: (r) => r.never_slept === 1 },
+  { key: "off", label: "Sleep turned off", tone: "warn", hint: "Never sleeps on power. A configuration profile can set a timeout.", test: (r) => r.sleep_off === 1 },
+  { key: "battery", label: "Battery needs service", tone: "serious", hint: "Replace the battery to keep the laptop in service.", test: (r) => r.battery && r.battery.status === "service" },
+  { key: "display", label: "Display stays on", tone: "neutral", hint: "The display stays on for more than 30 minutes, or never turns off.", test: (r) => r.display_long === 1 },
+];
+let shown = new Set(G.map((g) => g.key));
+
+DATA.rows.forEach((r) => (r._id = r.id));
+const fleets = [...new Set(DATA.rows.map((r) => r.f))].sort();
+const platformCounts = {};
+for (const r of DATA.rows) platformCounts[r.p] = (platformCounts[r.p] || 0) + 1;
+const groupOf = (r) => G.find((g) => g.test(r));
+const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+const kwhFmt = (x) => (x == null ? "---" : x >= 100 ? fmt.n(Math.round(x)) : x >= 10 ? (Math.round(x * 10) / 10).toString()
+  : x > 0 && x < 0.01 ? "<0.01" : (Math.round(x * 100) / 100).toString());
+const wFmt = (x) => (x == null ? "---" : `${x >= 20 ? Math.round(x) : Math.round(x * 10) / 10} W`);
+const kgFmt = (g) => (g == null ? "---" : g >= 10000 ? `${fmt.n(Math.round(g / 1000))} kg` : g >= 1000 ? `${Math.round(g / 100) / 10} kg` : `${Math.round(g)} g`);
+const historyDays = (Date.parse(DATA.generated_at) - Date.parse(DATA.history_since + "T00:00:00Z")) / 864e5;
+// History shorter than the window means the total only covers part of it. That
+// start date is always within the last 30 days, so the year is left out.
+const windowLabel = (days) => (historyDays < days
+  ? `since ${new Date(DATA.history_since + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`
+  : `last ${days} days`);
+const minFmt = (m) => (m == null ? "---" : m === 0 ? "never" : `${m} min`);
+const kindLabel = { laptop: "laptop", desktop: "desktop", server: "server" };
+// Normal stays gray: green and red can't be told apart with deuteranopia in dark mode.
+const STATUS = [["normal", "Normal", "neutral"], ["worn", "Worn (80 to 89%)", "warn"], ["service", "Service", "bad"]];
+
+function render() {
+  const rows = DATA.rows.filter((r) => inFleet(r.f) && inPlatform(r.p));
+  const macs = rows.filter((r) => r.p === "macos");
+  const wins = rows.filter((r) => r.p === "windows");
+  const lins = rows.filter((r) => r.p === "linux");
+  const measured = macs.filter((r) => r.measured);
+  const withKwh = rows.filter((r) => r.kwh7 != null);
+  const kwh7 = withKwh.length ? sum(withKwh.map((r) => r.kwh7)) : null;
+  const kwh30 = rows.some((r) => r.kwh30 != null) ? sum(rows.map((r) => r.kwh30 || 0)) : null;
+  const co2 = (key) => {
+    const xs = rows.filter((r) => r[key] != null && r.grid != null);
+    return xs.length ? sum(xs.map((r) => r[key] * r.grid)) : null;
+  };
+  const co2_7 = co2("kwh7"), co2_30 = co2("kwh30");
+  const bootAvg = mean(measured.map((r) => r.avg_boot_w).filter(Number.isFinite));
+  const never = rows.filter((r) => r.never_slept === 1);
+  const off = rows.filter((r) => r.sleep_off === 1);
+  const service = rows.filter((r) => r.battery && r.battery.status === "service");
+  const spotWin = wins.filter((r) => r.spot_w != null);
+  const spotLin = lins.filter((r) => r.spot_w != null);
+
+  const missing = [["mac_energy", "Mac energy"], ["mac_sleep", "Mac sleep settings"], ["win_power", "Windows power"], ["lin_power", "Linux power"]]
+    .filter(([k]) => !DATA.reports[k]).map(([, label]) => label);
+  mount("notice", missing.length ? h("div", { class: "notice" }, h("b", {}, "Some reports aren't set up. "),
+    `Add the ${missing.join(", ")} ${missing.length === 1 ? "report" : "reports"} from dex-reports.yml to fill in the rest of this page.`) : null);
+
+  // Summary
+  const plat = PLATFORM;
+  let eyebrow, big, unit, lede;
+  if (plat === "windows") {
+    eyebrow = "Average draw on battery"; big = wFmt(mean(spotWin.map((r) => r.spot_w)));
+    unit = `from ${fmt.plural(spotWin.length, "laptop")}`;
+    lede = "Windows doesn't keep an energy total, so this is the average power laptops drew while unplugged.";
+  } else if (plat === "linux") {
+    eyebrow = "Average power reading"; big = wFmt(mean(spotLin.map((r) => r.spot_w)));
+    unit = `from ${fmt.plural(spotLin.length, "computer")}`;
+    lede = "Linux readings come from AMD's package power sensor. GPU power and other computers aren't measured.";
+  } else if (kwh7 != null) {
+    eyebrow = `Energy used, ${windowLabel(7)}`; big = kwhFmt(kwh7); unit = `kWh across ${fmt.plural(withKwh.length, "Mac")}`;
+    lede = co2_7 != null ? `About ${kgFmt(co2_7)} of CO2 at local grid averages. Macs are measured; Windows and Linux aren't in this total.` : "Macs are measured; Windows and Linux aren't in this total.";
+  } else {
+    eyebrow = "Average power since boot"; big = wFmt(bootAvg); unit = `across ${fmt.plural(measured.length, "Mac")}`;
+    lede = "Energy totals start after the second reading. Until then, this is each Mac's average draw since it booted, including time asleep.";
+  }
+  const support = [];
+  if (never.length) support.push(`${fmt.n(never.length)} ${never.length === 1 ? "computer hasn't" : "computers haven't"} slept in a week or more.`);
+  if (off.length) support.push(`${fmt.n(off.length)} ${off.length === 1 ? "has" : "have"} sleep turned off on power.`);
+  if (service.length) support.push(`${fmt.n(service.length)} ${service.length === 1 ? "battery needs" : "batteries need"} service.`);
+  if (!support.length) support.push("Every computer here sleeps when idle, and no battery needs service.");
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, eyebrow), h("div", { class: "big" }, h("b", {}, big), h("span", {}, unit))),
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" "))),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      plat === "windows" ? h("div", { class: "rail-row" }, h("span", {}, "Laptops with readings"), h("b", {}, `${fmt.n(spotWin.length)} of ${fmt.n(wins.filter((r) => r.kind === "laptop").length)}`))
+        : plat === "linux" ? h("div", { class: "rail-row" }, h("span", {}, "Computers with a power sensor"), h("b", {}, `${fmt.n(spotLin.length)} of ${fmt.n(lins.length)}`))
+        : h("div", { class: "rail-row" }, h("span", {}, `Carbon, ${windowLabel(30)}`), h("b", {}, kgFmt(co2_30))),
+      h("div", { class: "rail-row" }, h("span", {}, "Haven't slept"), h("b", { class: never.length ? "hl-bad" : null }, fmt.n(never.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Sleep turned off"), h("b", {}, fmt.n(off.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Batteries to service"), h("b", {}, fmt.n(service.length)))));
+
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  const settingRows = rows.filter((r) => r.sleep_off != null);
+  const offStat = stat("Sleep turned off", fmt.n(off.length), `of ${fmt.plural(settingRows.length, "computer")} reporting settings`);
+  const battStat = stat("Batteries to service", fmt.n(service.length), `of ${fmt.plural(rows.filter((r) => r.battery).length, "laptop")}`);
+  const displayOn = rows.filter((r) => r.display_long === 1);
+  if (plat === "windows") {
+    mount("stats",
+      stat("Average draw on battery", wFmt(mean(spotWin.map((r) => r.spot_w))), `${fmt.plural(sum(spotWin.map((r) => r.spot_n)), "reading")} over ${DATA.spot_days} days`),
+      offStat,
+      stat("Display stays on", fmt.n(displayOn.length), `over ${DATA.long_display_min} minutes, or never off`),
+      stat("No sleep in 30 days", fmt.n(never.length), "no Kernel-Power sleep event"),
+      stat("Fast Startup on", fmt.n(wins.filter((r) => r.fast_startup === 1).length), "uptime keeps counting through shutdowns"),
+      battStat);
+  } else if (plat === "linux") {
+    mount("stats",
+      stat("Average power reading", wFmt(mean(spotLin.map((r) => r.spot_w))), "AMD package power, CPU and GPU"),
+      stat("Computers with a power sensor", fmt.n(spotLin.length), `of ${fmt.plural(lins.length, "computer")}`),
+      offStat,
+      stat("Batteries to service", "---", lins.some((r) => r.kind === "laptop") ? "Linux battery health isn't collected yet" : "no Linux laptops"));
+  } else {
+    mount("stats",
+      stat(`Energy, ${windowLabel(30)}`, kwh30 == null ? "---" : `${kwhFmt(kwh30)} kWh`, "Macs, measured"),
+      stat(`Estimated carbon, ${windowLabel(30)}`, kgFmt(co2_30), "CO2 at country grid averages"),
+      stat("Average power since boot", wFmt(bootAvg), `across ${fmt.plural(measured.length, "Mac")}, asleep or awake`),
+      offStat,
+      stat("Haven't slept", fmt.n(never.length), `up ${DATA.never_slept_days}+ days without sleeping`),
+      battStat);
+  }
+
+  // Coverage
+  const cov = [];
+  const covRow = (label, what, n) => cov.push(h("div", {}, label), h("div", { class: "muted" }, what), h("div", { class: "r" }, n));
+  cov.push(h("div", { class: "h" }, "Platform"), h("div", { class: "h" }, "What the energy numbers are"), h("div", { class: "h r" }, "Reporting"));
+  const pm = (p) => !PLATFORM || PLATFORM === p;
+  if (pm("macos")) covRow("macOS", "Measured. A running energy total on laptops and desktops, turned into kWh.", `${fmt.n(measured.length)} of ${fmt.n(macs.length)}`);
+  if (pm("windows")) covRow("Windows", `Single readings. Battery draw while unplugged, averaged over ${DATA.spot_days} days. Desktops and plugged-in laptops aren't measured.`, `${fmt.n(spotWin.length)} of ${fmt.n(wins.length)}`);
+  if (pm("linux")) covRow("Linux", "Single readings from AMD's package power sensor. CPU kWh isn't possible, and GPU power isn't measured.", `${fmt.n(spotLin.length)} of ${fmt.n(lins.length)}`);
+  mount("cover", cov);
+
+  // Over time
+  renderTrend(["kwh", "co2", "computers", "sleep_off", "never_slept"], [
+    pm("macos") ? { title: "Energy used per day, Macs", kind: "bar", series: [{ label: "kWh", color: "var(--info)", value: (r) => r.kwh }],
+      yFmt: (v) => kwhFmt(v), note: "Measured from each Mac's energy total." } : null,
+    { title: "Computers that don't sleep", series: [{ label: "Sleep turned off", color: "var(--warn)", value: (r) => r.sleep_off },
+      { label: "Haven't slept", color: "var(--bad)", value: (r) => r.never_slept }] },
+  ].filter(Boolean));
+
+  // Where the energy goes
+  const panels = [];
+  const byModel = (list, value) => {
+    const m = {};
+    for (const r of list) { const v = value(r); if (v != null) (m[r.model] = m[r.model] || []).push(v); }
+    return Object.entries(m).map(([model, vs]) => ({ model, w: mean(vs), n: vs.length })).sort((a, b) => b.w - a.w);
+  };
+  if (pm("macos")) {
+    const models = byModel(measured, (r) => (r.hours7 ? (r.kwh7 * 1000) / r.hours7 : r.avg_boot_w));
+    panels.push(h("div", { class: "panel" }, h("h3", {}, "Average power by Mac model"),
+      models.length ? [barRows(models.slice(0, 10).map((m) => ({ label: m.model, valueText: wFmt(m.w),
+        segs: [{ value: m.w, color: "var(--info)", tip: `${m.model}: ${wFmt(m.w)} average, ${fmt.plural(m.n, "Mac")}` }] }))),
+        h("p", { class: "panel-note" }, "Average over the last 7 days, asleep or awake. Before 7 days of readings, average since boot.")]
+        : empty("No Mac energy readings", DATA.reports.mac_energy ? "No Mac in this view has reported energy yet." : "Add the Mac energy report from dex-reports.yml.")));
+    const top = measured.filter((r) => r.kwh7 != null).sort((a, b) => b.kwh7 - a.kwh7).slice(0, 8);
+    const topBoot = measured.filter((r) => r.avg_boot_w != null).sort((a, b) => b.avg_boot_w - a.avg_boot_w).slice(0, 8);
+    panels.push(h("div", { class: "panel" }, h("h3", {}, top.length ? `Top consumers, ${windowLabel(7)}` : "Highest average power since boot"),
+      (top.length || topBoot.length) ? barRows((top.length ? top : topBoot).map((r) => ({ label: r.n,
+        valueText: top.length ? `${kwhFmt(r.kwh7)} kWh` : wFmt(r.avg_boot_w),
+        segs: [{ value: top.length ? r.kwh7 : r.avg_boot_w, color: "var(--info)", tip: `${r.n} (${r.model})` }] })))
+        : empty("No readings yet", "")));
+  }
+  if (pm("windows")) {
+    const models = byModel(spotWin, (r) => r.spot_w);
+    panels.push(h("div", { class: "panel" }, h("h3", {}, "Average draw on battery, by Windows model"),
+      models.length ? barRows(models.map((m) => ({ label: m.model, valueText: wFmt(m.w), segs: [{ value: m.w, color: "var(--info)", tip: `${m.model}: ${wFmt(m.w)}, ${fmt.plural(m.n, "laptop")}` }] })))
+        : empty("No readings on battery yet", "A reading counts only while a laptop is unplugged, so these build up over time.")));
+  }
+  if (pm("linux")) {
+    panels.push(h("div", { class: "panel" }, h("h3", {}, "Power readings, Linux"),
+      spotLin.length ? barRows(spotLin.sort((a, b) => b.spot_w - a.spot_w).map((r) => ({ label: r.n, valueText: wFmt(r.spot_w), segs: [{ value: r.spot_w, color: "var(--info)", tip: `${r.n}: ${wFmt(r.spot_w)} average of ${fmt.plural(r.spot_n, "reading")}` }] })))
+        : empty("No power sensor", "None of these computers has a power sensor osquery can read."),
+      h("p", { class: "panel-note" }, "CPU energy can't be measured this way, and GPU power isn't included. GPU workstations draw much more than this shows.")));
+  }
+  document.getElementById("where-hint").textContent = PLATFORM === "windows" ? "Single readings, not kWh" : PLATFORM === "linux" ? "Single readings, CPU and SoC only" : "kWh is measured on Macs";
+  mount("where", panels);
+
+  // Sleep settings grid
+  const plats = PLATFORMS.filter(([p]) => pm(p) && (platformCounts[p] || 0));
+  const cell = (list, test, applies) => {
+    if (!applies) return h("div", { class: "r na" }, "---");
+    const known = list.filter((r) => test(r) != null);
+    const yes = known.filter((r) => test(r) === 1).length;
+    return h("div", { class: "r" }, known.length ? `${fmt.n(yes)} of ${fmt.n(known.length)}` : "---");
+  };
+  const lists = { macos: macs, windows: wins, linux: lins.filter((r) => r.kind !== "server") };
+  const SETTINGS = [
+    ["Sleep turned off on power", (r) => r.sleep_off, () => true],
+    [`Display stays on over ${DATA.long_display_min} minutes`, (r) => r.display_long, (p) => p !== "linux"],
+    ["Hasn't slept", (r) => r.never_slept, (p) => p !== "linux"],
+    ["Wake for network access on", (r) => r.womp, (p) => p === "macos"],
+    ["Fast Startup on", (r) => r.fast_startup, (p) => p === "windows"],
+  ];
+  const grid = h("div", { class: "settings", style: `grid-template-columns: minmax(0, 1fr) repeat(${plats.length}, auto)` });
+  grid.append(h("div", { class: "h" }, "Setting"), ...plats.map(([, label]) => h("div", { class: "h r" }, label)));
+  for (const [label, test, applies] of SETTINGS) {
+    if (!plats.some(([p]) => applies(p))) continue;
+    grid.append(h("div", {}, label), ...plats.map(([p]) => cell(lists[p], test, applies(p))));
+  }
+  mount("settings", plats.length ? [grid, h("p", { class: "panel-note" }, "Counts are out of computers that reported the setting. Linux servers and virtual machines are left out.")] : empty("No computers", ""));
+
+  const blockers = [];
+  if (pm("macos")) {
+    const apps = {};
+    for (const r of macs) for (const a of r.apps) apps[a] = (apps[a] || 0) + 1;
+    const sys = {};
+    for (const r of macs) for (const a of r.system) sys[a] = (sys[a] || 0) + 1;
+    const top = Object.entries(apps).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    blockers.push(top.length ? barRows(top.map(([a, n]) => ({ label: a, valueText: fmt.n(n), segs: [{ value: n, color: "var(--warn)", tip: `${a} is keeping ${fmt.plural(n, "Mac")} awake` }] })))
+      : empty("No apps keeping Macs awake", DATA.reports.mac_sleep ? "No app held a sleep assertion at the last reading." : "Add the Mac sleep settings report."));
+    const sysTop = Object.entries(sys).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (sysTop.length) blockers.push(h("p", { class: "panel-note" }, `macOS itself: ${sysTop.map(([a, n]) => `${a} ${fmt.n(n)}`).join(", ")}. These usually mean audio is playing or a background task is running, and clear on their own.`));
+  }
+  if (pm("windows")) blockers.push(h("p", { class: "panel-note" }, h("b", {}, "Windows: "), "needs a script. ", h("code", {}, "powercfg /requests"), " lists what's blocking sleep, and osquery can't read it."));
+  if (pm("linux")) blockers.push(h("p", { class: "panel-note" }, h("b", {}, "Linux: "), "needs a script. ", h("code", {}, "systemd-inhibit --list"), " lists what's blocking sleep, and osquery can't read it."));
+  mount("blockers", blockers);
+
+  renderFix();
+  renderBattery(rows);
+
+  // Computers to look at
+  const grouped = G.map((g) => ({ ...g, rows: rows.filter((r) => groupOf(r) === g) }));
+  mount("act-chips", grouped.map((g) => h("button", { type: "button", class: "chip", style: `--tone:var(--${g.tone})`, "aria-pressed": shown.has(g.key) ? "true" : "false",
+    onclick: () => { shown.has(g.key) ? shown.delete(g.key) : shown.add(g.key); render(); } }, h("i"), g.label, h("b", {}, fmt.n(g.rows.length)))));
+  const groups = grouped.filter((g) => shown.has(g.key) && g.rows.length).map((g) => ({ label: g.label, hint: g.hint, pill: pill(fmt.n(g.rows.length), g.tone), rows: g.rows }));
+  const visible = groups.flatMap((g) => g.rows);
+  mount("act-tools", visible.length ? copyButton("Copy as CSV", () => csv([["host", "fleet", "platform", "model", "group", "kwh_7_days", "avg_watts", "sleep_after_min", "display_after_min", "battery", "uptime_days", "fleet_url"],
+    ...visible.map((r) => [r.n, r.f, platformLabel(r.p), r.model, groupOf(r).label, r.kwh7 ?? "", r.avg_boot_w ?? r.spot_w ?? "", r.sleep_ac ?? "", r.display_ac ?? "", r.battery ? r.battery.status : "", r.up ?? "", hostUrl(r.id)])])) : null);
+  const columns = [
+    { key: "name", label: "Computer", value: (r) => r.n.toLowerCase(), cell: (r) => [hostLink(r.id, r.n), PLATFORM ? null : h("span", { class: "plat" }, platformLabel(r.p))] },
+    { key: "model", label: "Model", value: (r) => r.model.toLowerCase(), cell: (r) => h("span", { class: "cell-sub" }, r.model) },
+    { key: "kwh", label: "kWh, 7 days", num: true, value: (r) => r.kwh7 ?? -1, cell: (r) => (r.kwh7 == null ? "---" : kwhFmt(r.kwh7)) },
+    { key: "w", label: "Average power", num: true, value: (r) => r.avg_boot_w ?? r.spot_w ?? -1, cell: (r) => wFmt(r.avg_boot_w ?? r.spot_w) },
+    { key: "sleep", label: "Sleeps after", num: true, value: (r) => (r.sleep_ac === 0 ? 1e9 : r.sleep_ac ?? -1), cell: (r) => minFmt(r.sleep_ac) },
+    { key: "display", label: "Display off after", num: true, value: (r) => (r.display_ac === 0 ? 1e9 : r.display_ac ?? -1), cell: (r) => minFmt(r.display_ac) },
+    { key: "battery", label: "Battery", value: (r) => (r.battery ? r.battery.status : ""), cell: (r) => (r.battery ? pill((STATUS.find(([k]) => k === r.battery.status) || [, "---"])[1], (STATUS.find(([k]) => k === r.battery.status) || [, , "neutral"])[2]) : "---") },
+    { key: "up", label: "Uptime", num: true, value: (r) => r.up ?? -1, cell: (r) => (r.up == null ? "---" : fmt.days(r.up)) },
+  ];
+  mount("act", groups.length ? sortTable({ columns, groups, sort: ["up", "desc"], id: "sus-table" })
+    : empty("Nothing to fix", "Every computer here sleeps when it's idle, and no battery needs service."));
+
+  document.querySelectorAll(".spot-days").forEach((el) => (el.textContent = DATA.spot_days));
+  document.querySelectorAll(".never-days").forEach((el) => (el.textContent = DATA.never_slept_days));
+  const g = DATA.grid;
+  document.getElementById("grid-source").textContent = `Source: ${g.source}.` + (g.fallback == null ? " No country is known for any computer, so carbon isn't estimated. Turn on GeoIP in Fleet or set DEX_GRID_INTENSITY."
+    : ` Computers with no country use ${fmt.n(Math.round(g.fallback))} g per kWh${g.fallback_from === "DEX_GRID_INTENSITY" ? " from DEX_GRID_INTENSITY" : `, the figure for ${g.fallback_from}, the most common country in the fleet`}.`);
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts, Get host, Get report data). ${DATA.virtual ? `${fmt.plural(DATA.virtual, "virtual machine")} left out. ` : ""}Rebuilt daily.`;
+}
+
+function renderBattery(rows) {
+  const plats = PLATFORMS.filter(([p]) => (!PLATFORM || PLATFORM === p) && p !== "linux");
+  const withBatt = rows.filter((r) => r.battery);
+  const parts = plats.map(([p, label]) => {
+    const list = withBatt.filter((r) => r.p === p);
+    if (!list.length) return null;
+    return [h("h4", { style: "margin:0 0 8px;font-size:14px" }, `${label}, ${fmt.plural(list.length, "laptop")}`),
+      barRows(STATUS.map(([k, name, tone]) => {
+        const n = list.filter((r) => r.battery.status === k).length;
+        return { label: name, segs: [{ value: n, color: `var(--${tone})`, tip: `${name}: ${fmt.plural(n, "laptop")}` }] };
+      }))];
+  }).filter(Boolean);
+  if (!PLATFORM || PLATFORM === "linux") {
+    const lin = rows.filter((r) => r.p === "linux");
+    if (lin.length && !lin.some((r) => r.kind === "laptop")) parts.push(h("p", { class: "panel-note" }, "Linux: --- (no Linux laptops here)."));
+  }
+  const winNote = withBatt.some((r) => r.p === "windows")
+    ? h("p", { class: "panel-note" }, "Windows can't report capacity to Fleet, so a Windows battery shows as normal until it passes 1,000 cycles or Fleet flags it for service.") : null;
+  mount("battery", parts.length ? [...parts.flat(), winNote] : empty("No laptops", "No computer in this view has a battery."));
+  const svc = withBatt.filter((r) => r.battery.status === "service").sort((a, b) => (a.battery.pct ?? 999) - (b.battery.pct ?? 999));
+  mount("battery-list", svc.length ? sortTable({
+    columns: [
+      { key: "name", label: "Laptop", value: (r) => r.n.toLowerCase(), cell: (r) => hostLink(r.id, r.n) },
+      { key: "pct", label: "Capacity", num: true, value: (r) => r.battery.pct ?? -1, cell: (r) => (r.battery.pct == null ? "---" : fmt.pct(r.battery.pct)) },
+      { key: "cycles", label: "Cycles", num: true, value: (r) => r.battery.cycles ?? -1, cell: (r) => fmt.n(r.battery.cycles) },
+    ], groups: [{ rows: svc }], sort: ["pct", "asc"], id: "batt-table" })
+    : empty("No battery needs service", "Every laptop here is above 80% of its design capacity and under 1,000 cycles."));
+}
+
+// Profiles and scripts that set sleep timeouts. Values are minutes.
+const FIX = { acDisplay: 10, acSleep: 30, battDisplay: 5, battSleep: 15 };
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID().toUpperCase() : "00000000-0000-4000-8000-" + String(Date.now()).padStart(12, "0").slice(-12));
+function macProfile() {
+  const timers = (d, s) => `      <dict>\n        <key>Display Sleep Timer</key>\n        <integer>${d}</integer>\n        <key>System Sleep Timer</key>\n        <integer>${s}</integer>\n      </dict>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>Energy Saver</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.dex.energysaver.mcx</string>
+      <key>PayloadType</key>
+      <string>com.apple.MCX</string>
+      <key>PayloadUUID</key>
+      <string>${uuid()}</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>com.apple.EnergySaver.desktop.ACPower</key>
+${timers(FIX.acDisplay, FIX.acSleep)}
+      <key>com.apple.EnergySaver.portable.ACPower</key>
+${timers(FIX.acDisplay, FIX.acSleep)}
+      <key>com.apple.EnergySaver.portable.BatteryPower</key>
+${timers(FIX.battDisplay, FIX.battSleep)}
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Energy Saver sleep settings</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.dex.energysaver</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>${uuid()}</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+`;
+}
+function winProfile() {
+  const item = (setting, id, minutes) => `<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Power/${setting}</LocURI>
+    </Target>
+    <Data>&lt;enabled/&gt;&lt;data id="${id}" value="${minutes * 60}"/&gt;</Data>
+  </Item>
+</Replace>`;
+  return [item("StandbyTimeoutPluggedIn", "EnterACStandbyTimeOut", FIX.acSleep), item("DisplayOffTimeoutPluggedIn", "EnterVideoACPowerDownTimeOut", FIX.acDisplay),
+    item("StandbyTimeoutOnBattery", "EnterDCStandbyTimeOut", FIX.battSleep), item("DisplayOffTimeoutOnBattery", "EnterVideoDCPowerDownTimeOut", FIX.battDisplay)].join("\n") + "\n";
+}
+function linuxScript() {
+  return `#!/bin/bash
+# Sets GNOME to suspend after ${FIX.acSleep} minutes idle on AC power for every
+# user, and locks the setting so users can't turn it off. Skip computers that
+# run long jobs, such as GPU workstations.
+set -euo pipefail
+mkdir -p /etc/dconf/profile /etc/dconf/db/local.d/locks
+profile=/etc/dconf/profile/user
+if [ ! -f "$profile" ]; then
+  printf 'user-db:user\\nsystem-db:local\\n' > "$profile"
+elif ! grep -q '^system-db:local$' "$profile"; then
+  echo 'system-db:local' >> "$profile"
+fi
+cat > /etc/dconf/db/local.d/00-fleet-power <<'CONF'
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='suspend'
+sleep-inactive-ac-timeout=${FIX.acSleep * 60}
+CONF
+cat > /etc/dconf/db/local.d/locks/fleet-power <<'CONF'
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-timeout
+CONF
+dconf update
+`;
+}
+function renderFix() {
+  const field = (key, label) => h("label", {}, label, h("input", { type: "number", min: "1", max: "1440", step: "1", value: String(FIX[key]),
+    oninput: (e) => { const v = Math.round(Number(e.target.value)); if (v >= 1 && v <= 1440) FIX[key] = v; } }));
+  mount("fix-inputs", field("acDisplay", "Display off, plugged in"), field("acSleep", "Sleep, plugged in"),
+    field("battDisplay", "Display off, on battery"), field("battSleep", "Sleep, on battery"));
+  const pm = (p) => !PLATFORM || PLATFORM === p;
+  mount("fix-btns", pm("macos") ? copyButton("Copy macOS profile (.mobileconfig)", macProfile) : null,
+    pm("windows") ? copyButton("Copy Windows profile (.xml)", winProfile) : null,
+    pm("linux") ? copyButton("Copy Linux script (GNOME)", linuxScript) : null);
+  mount("fix-notes",
+    pm("macos") ? h("p", { class: "script-note" }, "macOS: Apple's Energy Saver payload (com.apple.MCX). Recent macOS versions may ignore some of its keys, so confirm on one Mac with pmset -g custom.") : null,
+    pm("windows") ? h("p", { class: "script-note" }, "Windows: the Power policy CSP, which takes seconds. It sets the same Group Policy values this page reads.") : null,
+    pm("linux") ? h("p", { class: "script-note" }, "Linux: a script for Ubuntu and other GNOME desktops. Run it as root from Fleet's script library. The battery timeouts don't apply.") : null);
+}
+
+renderTop(fleets, render, platformCounts);
+render();
+</script>
