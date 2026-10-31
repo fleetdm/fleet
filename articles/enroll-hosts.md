@@ -234,6 +234,7 @@ For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 - [Enroll NixOS hosts](#enroll-nixos-hosts)
 - [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
+- [Host identifiers (UUID and serial number)](#host-identifiers-uuid-and-serial-number)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
@@ -333,6 +334,31 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 ### Best practice for dual-boot workstations or VMs with duplicate hardware identifiers
 
 When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer) or have VMs that share hardware identifiers (UUIDs), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
+
+### Host identifiers (UUID and serial number)
+
+Each host in Fleet has a UUID (`uuid`) and a serial number (`hardware_serial`). Where these values come from depends on the host's platform and how it enrolled. Not every UUID is a hardware identifier, and some hosts have no serial number.
+
+Check this table before you match Fleet hosts to another system, like an asset inventory, or use `$FLEET_VAR_HOST_UUID` and `$FLEET_VAR_HOST_HARDWARE_SERIAL` in [built-in variables](https://fleetdm.com/guides/fleet-variables).
+
+| Platform and enrollment | UUID | Serial number |
+|---|---|---|
+| macOS, Windows, and Linux with fleetd | Hardware UUID, reported by osquery's `system_info` table | Hardware serial number, reported by osquery's `system_info` table |
+| macOS with MDM, without fleetd | Device UDID (the same value as the hardware UUID) | Hardware serial number |
+| iOS and iPadOS, automatic enrollment (ADE) or manual enrollment profile | Device UDID | Hardware serial number |
+| iOS and iPadOS, personal enrollment with a Managed Apple Account | Enrollment ID | Enrollment ID (the same value as the UUID) |
+| macOS, iOS, and iPadOS in Apple Business, not yet enrolled | Empty until the host enrolls | Serial number from Apple Business |
+| Windows in Autopilot, not yet enrolled | Empty until the host enrolls | Serial number from Autopilot |
+| Android, company-owned (fully managed) | ID that Fleet generates from the device's brand and serial number | Hardware serial number |
+| Android, personal (work profile), Android 12 and later | Enrollment ID (what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets)) | Empty. Android doesn't report it. |
+| Android, personal (work profile), Android 11 and earlier | ID that Fleet generates from the device's brand and serial number | Hardware serial number |
+| ChromeOS | ID that the Fleet Chrome extension generates. It's not a hardware identifier. | Hardware serial number |
+
+Things to know:
+
+- On Android, the enrollment ID and the ID that Fleet generates stay the same when a host unenrolls and re-enrolls. The enrollment ID changes if you connect Fleet to a new Android Enterprise.
+- If the serial number osquery reports contains "default", "serial", or "string" (for example, "Default string" or "System Serial Number"), Fleet stores an empty serial number. Other placeholder values, like "To be filled by O.E.M.", are stored as reported. VMs and custom-built computers may share a serial number or have none.
+- fleetd's `--host-identifier=instance` option doesn't change the host's UUID in Fleet. It changes the identifier osquery uses to enroll, so hosts that share a UUID enroll as separate hosts. Learn more in [best practice for dual-boot workstations or VMs](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers).
 
 ### fleetd components
 
