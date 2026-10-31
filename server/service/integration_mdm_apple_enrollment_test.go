@@ -406,6 +406,67 @@ func (s *integrationMDMTestSuite) TestABMTokenDefault() {
 	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
 }
 
+func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	ctx := t.Context()
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "B"})
+	require.NoError(t, err)
+
+	// patch /config with Org A -> TeamA and Org B -> TeamB
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+				"apple_business_manager": [
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""},
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				]
+			}
+		}`, orgA, teamA.Name, orgB, teamB.Name)),
+		http.StatusOK, &appConfigResponse{})
+
+	// list ab tokens and assert macos_team assignments match the config
+	var resp listABMTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
+	for _, token := range resp.Tokens {
+		if token.OrganizationName == orgA {
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
+		}
+		if token.OrganizationName == orgB {
+			assert.Equal(t, teamB.ID, token.MacOSTeam.ID)
+		}
+	}
+
+	// now patch /config with Org A -> TeamA (removing org b)
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+				"apple_business_manager": [
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				]
+			}
+		}`, orgA, teamA.Name)),
+		http.StatusOK, &appConfigResponse{})
+
+	// verify that Org B's token no longer has a macos_team assignment
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
+	for _, token := range resp.Tokens {
+		if token.OrganizationName == orgA {
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
+		}
+		if token.OrganizationName == orgB {
+			assert.EqualValues(t, 0, token.MacOSTeam.ID)
+		}
+	}
+}
+
 func (s *integrationMDMTestSuite) TestListABMTokensRoles() {
 	t := s.T()
 	ctx := t.Context()

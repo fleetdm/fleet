@@ -871,7 +871,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			// both the deprecated toggle and this per-platform setting are
 			// being changed, to disagreeing values
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
-				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings"))
+				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+			))
 		case incomingChanged:
 			*f.merged = f.incoming
 		case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
@@ -1746,19 +1747,22 @@ func (svc *Service) processSavedAppConfigChanges(
 	//
 	// Process OS updates config changes for Apple devices.
 	//
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.MacOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.MacOS,
 		oldAppConfig.MDM.MacOSUpdates,
 		appConfig.MDM.MacOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IOS,
 		oldAppConfig.MDM.IOSUpdates,
 		appConfig.MDM.IOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IPadOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IPadOS,
 		oldAppConfig.MDM.IPadOSUpdates,
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
@@ -2829,10 +2833,9 @@ func (svc *Service) validateABMAssignments(
 			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
 			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
 			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
-			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, defaultTokenID, nil
+		return tokens, defaultTokenID, nil
 	}
 
 	return nil, nil, nil
