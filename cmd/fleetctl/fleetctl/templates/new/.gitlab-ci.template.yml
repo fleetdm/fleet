@@ -26,4 +26,5 @@ fleet-gitops:
       fi
     - export PATH="$HOME/.fleetctl:$PATH"
     - fleetctl config set --address $FLEET_URL --token $FLEET_API_TOKEN
+    - ./.github/fleet-gitops/check-app-store-apps.sh
     - ./.github/fleet-gitops/gitops.sh

@@ -55,8 +55,8 @@ jobs:
           path: untrusted-pr
           persist-credentials: false
 
-      - name: Make github action script executable
-        run: chmod +x ./.github/fleet-gitops/gitops.sh
+      - name: Make github action scripts executable
+        run: chmod +x ./.github/fleet-gitops/gitops.sh ./.github/fleet-gitops/check-app-store-apps.sh
 
       - name: Apply latest configuration to Fleet
         uses: ./.github/fleet-gitops
