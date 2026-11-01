@@ -14,13 +14,13 @@ interface IWebAddressFormData {
   serverURL: string;
 }
 
-const validate = ({ serverURL }: IWebAddressFormData): IFormErrors => {
+export const validate = ({ serverURL }: IWebAddressFormData): IFormErrors => {
   const errors: IFormErrors = {};
   if (!serverURL) {
     errors.serverURL = "Enter your Fleet web address";
   } else if (
     !isValidURL({
-      url: serverURL,
+      url: serverURL.trim(),
       protocols: ["http", "https"],
       allowLocalHost: true,
     })

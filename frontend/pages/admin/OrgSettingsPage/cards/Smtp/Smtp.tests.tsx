@@ -60,6 +60,24 @@ describe("Smtp", () => {
       expect(errors.smtpPort).toBe("Enter a server port");
     });
 
+    it("accepts a valid sender address with surrounding whitespace", () => {
+      const errors = validate({
+        ...baseFormData,
+        smtpSenderAddress: " admin@example.com ",
+      });
+
+      expect(errors.smtpSenderAddress).toBeUndefined();
+    });
+
+    it("still rejects an invalid sender address", () => {
+      const errors = validate({
+        ...baseFormData,
+        smtpSenderAddress: " not-an-email ",
+      });
+
+      expect(errors.smtpSenderAddress).toBe("Enter a valid sender address");
+    });
+
     it("reports only the missing field when the other is filled", () => {
       const errors = validate({ ...baseFormData, smtpPort: undefined });
 
