@@ -10,6 +10,8 @@ export interface IDerivedContext {
   isAbmConfigured: boolean;
   /** GitOps mode active — disables Create-fleet etc. */
   isGitOpsMode: boolean;
+  /** GitOps mode active for software, unless the software exception is on. */
+  isSoftwareGitOpsMode: boolean;
   /** currentTeam is the "No team" / Unassigned sentinel (id 0). */
   isUnassigned: boolean;
   /** A specific team OR unassigned is selected (not "All fleets"). */
@@ -47,6 +49,11 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url
   );
 
+  // Mirrors useGitOpsMode("software"), which SelfServiceCategoriesPage reads.
+  const isSoftwareGitOpsMode = !!(
+    config?.gitops?.gitops_mode_enabled && !config?.gitops?.exceptions?.software
+  );
+
   const isUnassigned = currentTeam?.id === 0;
   // On Fleet Free, the team concept doesn't apply — there's a single
   // implicit fleet, no team picker, and currentTeam stays undefined. Treat
@@ -81,6 +88,7 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   return {
     isAbmConfigured,
     isGitOpsMode,
+    isSoftwareGitOpsMode,
     isUnassigned,
     hasTeamOrUnassigned,
     switchesFromUnassigned,
