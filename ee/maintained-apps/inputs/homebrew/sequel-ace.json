@@ -1,7 +1,7 @@
 {
   "name": "Sequel Ace",
   "slug": "sequel-ace/darwin",
-  "unique_identifier": "com.sequelace.SequelAce",
+  "unique_identifier": "com.sequel-ace.sequel-ace",
   "token": "sequel-ace",
   "installer_format": "zip",
   "default_categories": ["Developer tools"]
