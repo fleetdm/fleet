@@ -5091,6 +5091,13 @@
       "description": "LocationSimulator is an application to spoof your iOS, iPadOS or iPhoneSimulator device location."
     },
     {
+      "name": "lodesong",
+      "slug": "lodesong/darwin",
+      "platform": "darwin",
+      "unique_identifier": "engineer.findmalek.lodesong",
+      "description": "lodesong is a self-hosted music player for Navidrome."
+    },
+    {
       "name": "Logi Options+",
       "slug": "logi-options+/darwin",
       "platform": "darwin",
