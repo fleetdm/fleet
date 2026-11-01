@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.247",
+      "version": "2026.301.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.sqliteprofessional';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.sqliteprofessional' AND version_compare(bundle_short_version, '2026.247') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.sqliteprofessional' AND version_compare(bundle_short_version, '2026.301.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hankinsoft.osx.sqliteprofessional' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/sqlite/SQLProSQLite.2026.247.app.zip",
+      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/sqlite/SQLProSQLite.2026.301.2.app.zip",
       "install_script_ref": "e4696567",
       "uninstall_script_ref": "075d2ddd",
-      "sha256": "f23651b10654d4cb5f053df877f372ffed509cbfffb1f515c32a6579edfabfd7",
+      "sha256": "dc48cc81a022f2aaf5f777382eed77b7a1191195d31673657f1642d4ae224e0b",
       "default_categories": [
         "Productivity"
       ]
