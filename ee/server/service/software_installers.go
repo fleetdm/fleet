@@ -40,7 +40,6 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
@@ -1268,7 +1267,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	if appStoreAppVersionID != nil {
 		for _, version := range versionsVPP {
 			if version.VPPAppsTeamsID == *appStoreAppVersionID {
-				return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, []*fleet.VPPAppStoreApp{version})
+				return svc.deleteAppStoreAppVersions(ctx, teamID, []*fleet.VPPAppStoreApp{version})
 			}
 		}
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
@@ -1291,7 +1290,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		}
 		return nil
 	case len(versionsVPP) > 0:
-		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, versionsVPP)
+		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP)
 	case metaInHouse != nil:
 		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 	}
@@ -5043,74 +5042,11 @@ func (svc *Service) resolveFirstAddedInScopeAppStoreApp(ctx context.Context, hos
 	return vppApp, true, nil
 }
 
-func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versions []*fleet.VPPAppStoreApp, versionsToDelete []*fleet.VPPAppStoreApp) error {
-	versionIDsToDelete := make(map[uint]struct{}, len(versionsToDelete))
-	for _, version := range versionsToDelete {
-		versionIDsToDelete[version.VPPAppsTeamsID] = struct{}{}
-	}
-
-	// Collect the Android hosts before the delete, the worker can't read the scope of a deleted version
-	androidHostsToUninstall := make(map[string]string)
-	androidHostsByNextVersionID := make(map[uint]map[string]string)
-	if versions[0].Platform == fleet.AndroidPlatform {
-		// Walk the versions in id order, the first version that includes a host is its version
-		seenHosts := make(map[string]struct{})
-		for _, version := range versions {
-			hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, version.VPPAppsTeamsID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
-			}
-			_, deletingVersion := versionIDsToDelete[version.VPPAppsTeamsID]
-			for hostUUID, policyID := range hosts {
-				_, seen := seenHosts[hostUUID]
-				if !seen {
-					seenHosts[hostUUID] = struct{}{}
-					// Uninstall the app from a host whose version is deleted, unless a later version that isn't deleted includes it
-					if deletingVersion {
-						androidHostsToUninstall[hostUUID] = policyID
-					}
-					continue
-				}
-
-				// Send the configuration of the first remaining version that includes a host whose version is deleted
-				_, waitingForNextVersion := androidHostsToUninstall[hostUUID]
-				if !waitingForNextVersion || deletingVersion {
-					continue
-				}
-				delete(androidHostsToUninstall, hostUUID)
-				if androidHostsByNextVersionID[version.VPPAppsTeamsID] == nil {
-					androidHostsByNextVersionID[version.VPPAppsTeamsID] = make(map[string]string)
-				}
-				androidHostsByNextVersionID[version.VPPAppsTeamsID][hostUUID] = policyID
-			}
-		}
-	}
-
+func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versionsToDelete []*fleet.VPPAppStoreApp) error {
 	for _, version := range versionsToDelete {
 		err := svc.deleteVPPApp(ctx, teamID, version)
 		if err != nil {
 			return err
-		}
-	}
-
-	if len(androidHostsToUninstall) == 0 && len(androidHostsByNextVersionID) == 0 {
-		return nil
-	}
-
-	enterprise, err := svc.ds.GetEnterprise(ctx)
-	if err != nil {
-		return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
-	}
-	if len(androidHostsToUninstall) > 0 {
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, versions[0].AdamID, androidHostsToUninstall, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
-		}
-	}
-	for nextVersionID, movedHosts := range androidHostsByNextVersionID {
-		err = worker.QueueMakeAndroidAppAvailableForHostsJob(ctx, svc.ds, versions[0].AdamID, nextVersionID, movedHosts, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to send the next version's configuration")
 		}
 	}
 	return nil

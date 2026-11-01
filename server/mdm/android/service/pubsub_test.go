@@ -4102,15 +4102,27 @@ func TestClearReusedHostPolicyApps(t *testing.T) {
 				return &androidmanagement.Policy{}, c.apiErr
 			}
 			mockDS := InitCommonDSMocks()
+			var replacedHostIDs []uint
+			mockDS.DataStore.ReplaceHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+				require.Empty(t, installs)
+				replacedHostIDs = append(replacedHostIDs, hostID)
+				return nil
+			}
 			svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), mockDS, &client, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
 			require.NoError(t, err)
 
-			svc.(*Service).clearReusedHostPolicyApps(t.Context(), enterpriseName, hostUUID, c.appliedPolicyID)
+			svc.(*Service).clearReusedHostPolicyApps(t.Context(), enterpriseName, 7, hostUUID, c.appliedPolicyID)
 
 			if c.wantCleared {
 				require.Equal(t, []string{enterpriseName + "/policies/" + hostUUID}, patched)
 			} else {
 				require.Empty(t, patched)
+			}
+			// check the host's rows, they should be deleted only when its policy's apps were cleared
+			if c.wantCleared && c.apiErr == nil {
+				require.Equal(t, []uint{7}, replacedHostIDs)
+			} else {
+				require.Empty(t, replacedHostIDs)
 			}
 		})
 	}

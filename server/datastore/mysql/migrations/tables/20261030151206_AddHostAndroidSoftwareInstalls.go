@@ -1,0 +1,47 @@
+package tables
+
+import (
+	"database/sql"
+	"fmt"
+)
+
+func init() {
+	MigrationClient.AddMigration(Up_20261030151206, Down_20261030151206)
+}
+
+func Up_20261030151206(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE IF NOT EXISTS host_android_software_installs (
+  host_id           INT UNSIGNED NOT NULL,
+  adam_id           VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  vpp_app_team_id   INT UNSIGNED DEFAULT NULL,
+  install_type      ENUM('INSTALL_TYPE_UNSPECIFIED','PREINSTALLED','FORCE_INSTALLED','BLOCKED','AVAILABLE','REQUIRED_FOR_SETUP','KIOSK','CUSTOM') COLLATE utf8mb4_unicode_ci NOT NULL,
+  status            ENUM('pending','verified','failed','request_failed') COLLATE utf8mb4_unicode_ci NOT NULL,
+  needs_resend      TINYINT(1) NOT NULL DEFAULT '0',
+  in_policy_version INT DEFAULT NULL,
+  policy_built_at   DATETIME(6) NOT NULL,
+  created_at        DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at        DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (host_id, adam_id),
+  KEY idx_host_android_software_installs_vpp_app_team_id (vpp_app_team_id),
+  CONSTRAINT fk_host_android_software_installs_vpp_app_team_id FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+	if err != nil {
+		return fmt.Errorf("create host_android_software_installs table: %w", err)
+	}
+
+	// Insert a temporary row for every existing Android host, for the edge case of a host with no apps in scope
+	// and no Fleet agent package set, so it will still get its app list once. Fleet doesn't know what it last sent
+	// at the point of this migration.
+	_, err = tx.Exec(`
+INSERT IGNORE INTO host_android_software_installs (host_id, adam_id, install_type, status, policy_built_at)
+SELECT ad.host_id, 'TEMPORARY_FOR_MIGRATION', 'AVAILABLE', 'pending', NOW(6) FROM android_devices ad JOIN hosts h ON h.id = ad.host_id`)
+	if err != nil {
+		return fmt.Errorf("insert host_android_software_installs rows for existing android hosts: %w", err)
+	}
+	return nil
+}
+
+func Down_20261030151206(tx *sql.Tx) error {
+	return nil
+}

@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"golang.org/x/text/unicode/norm"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1056,25 +1055,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, nil, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	androidHostPoliciesToUpdate := map[string]string{}
-	if len(incomingAndroidApps) == 0 {
-		// get the currently available VPP apps, and the hosts that have them in scope,
-		// to update their set of apps to the empty set (and remove/uninstall the apps).
-		removedApps, err := svc.ds.GetVPPApps(ctx, teamID)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, app := range removedApps {
-			if app.Platform == fleet.AndroidPlatform {
-				hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
-				if err != nil {
-					return nil, nil, err
-				}
-				maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
-			}
-		}
-	} else {
+	if len(incomingAndroidApps) > 0 {
 		if enterprise == nil {
 			return nil, nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
@@ -1188,39 +1169,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	addedApps, err := svc.ds.GetVPPApps(ctx, teamID)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	var appIDs []string
-	for _, app := range addedApps {
-		if app.Platform == fleet.AndroidPlatform {
-			hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
-			if !slices.Contains(appIDs, app.AppStoreID) {
-				appIDs = append(appIDs, app.AppStoreID)
-			}
-		}
-	}
-
-	if len(androidHostPoliciesToUpdate) > 0 && enterprise != nil {
-		for hostUUID, policyID := range androidHostPoliciesToUpdate {
-			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
-			if err != nil {
-				return nil, nil, ctxerr.WrapWithData(
-					ctx,
-					err,
-					"batch associate app store apps: add apps to android MDM policy",
-					map[string]any{
-						"policy_id":       policyID,
-						"host_uuid":       hostUUID,
-						"application_ids": appIDs,
-					},
-				)
-			}
-		}
 	}
 
 	if setupExperienceChanged {
@@ -1608,14 +1556,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		app.CountryCode = anchor.anchorCountry
 	}
 
-	var androidConfigChanged bool
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
 	if appID.Configuration != nil {
 		switch appID.Platform {
-		case fleet.AndroidPlatform:
-			// Treat any configuration as changed, the version is always new since a duplicate name is rejected above
-			androidConfigChanged = len(appID.Configuration) > 0
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
 			var plist string
 			if err := json.Unmarshal(appID.Configuration, &plist); err != nil {
@@ -1640,13 +1584,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return nil, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country")
 		}
 	}
-	if appID.Platform == fleet.AndroidPlatform {
-		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName, androidConfigChanged, false)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
-		}
-	}
-
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
 	// Only log the window when enabled=true; insertVPPAppTeams drops it otherwise, and the activity shouldn't claim stored values that weren't.
@@ -2010,7 +1947,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	var androidConfigChanged bool
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
 	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
@@ -2024,12 +1960,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			}
 			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 		}
-
-		// check if configuration has changed
-		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), &meta.VPPAppsTeamsID, payload.Configuration)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if android app configuration changed")
-		}
 	}
 
 	actVPPToken, err := fleet.ActivityVPPTokenByID(ctx, svc.ds, meta.VPPTokenID)
@@ -2038,22 +1968,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// Update the app
-	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
+	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
-	}
-
-	// if labelsChanged, new hosts may require having the app made available, and if config
-	// changed, the app policy must be updated.
-	if meta.Platform == fleet.AndroidPlatform && (labelsChanged || androidConfigChanged) {
-		enterprise, err := svc.ds.GetEnterprise(ctx)
-		if err != nil {
-			return nil, nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
-		}
-		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged, labelsChanged)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
-		}
 	}
 
 	if labelsChanged {
