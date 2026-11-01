@@ -947,6 +947,10 @@ const HostDetailsPage = ({
       try {
         await hostAPI.destroy(host);
         queryClient.invalidateQueries(["hosts_count_for_license"]);
+        // Removed rather than invalidated so the Hosts page doesn't render the
+        // cached list, which still includes the deleted host.
+        queryClient.removeQueries([{ scope: "hosts" }]);
+        queryClient.removeQueries([{ scope: "hosts_count" }]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
