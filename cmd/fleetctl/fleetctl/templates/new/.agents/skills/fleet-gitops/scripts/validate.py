@@ -80,6 +80,9 @@ ANDROID_PREMIUM = {"systemUpdate"}
 SQL_ALIAS_STOPWORDS = {"where", "on", "join", "left", "right", "inner", "cross", "natural", "outer", "group", "order",
                        "limit", "union", "using", "having", "and", "or", "not", "as", "set", "when", "then", "else",
                        "end", "select", "from", "values", "intersect", "except", "with"}
+# osquery bundles SQLite 3.42 (no jsonb_*), and its authorizer only allows these pragmas.
+SQLITE_TABLE_FUNCTIONS = {"json_each", "json_tree", "pragma_table_info", "pragma_table_xinfo", "pragma_function_list",
+                          "pragma_collation_list"}
 
 
 # ---------------------------------------------------------------- reporting
@@ -89,7 +92,7 @@ class Ctx:
         self.root = root
         self.offline = offline
         self.ddf_dir = ddf_dir
-        self.findings = []  # (level, relpath, message)
+        self.findings = set()  # (level, relpath, message); a file referenced from several fleet files is checked once per reference
         self.yaml_cache = {}
         self.yaml_backend = detect_yaml_backend()
         self._schema = None
@@ -110,7 +113,7 @@ class Ctx:
             return str(p)
 
     def add(self, level, path, msg):
-        self.findings.append((level, self.rel(path) if path else "", msg))
+        self.findings.add((level, self.rel(path) if path else "", msg))
 
     def fail(self, path, msg):
         self.add("FAIL", path, msg)
@@ -424,9 +427,11 @@ def strip_sql(sql):
 
 
 def extract_tables(sql):
-    """Return {table_name: {aliases}} for every FROM/JOIN source that isn't a CTE or subquery."""
+    """Return {table_name: {aliases}} for every FROM/JOIN source that isn't a CTE, subquery, or SQLite table-valued function."""
     s = strip_sql(sql)
-    ctes = {m.group(1).lower() for m in re.finditer(r"(?i)\b([a-z_][a-z0-9_]*)\s+AS\s*\(\s*SELECT", s)}
+    # A CTE may have a column list and a VALUES body: setting(name, guid) AS (VALUES ...).
+    ctes = {m.group(1).lower() for m in re.finditer(
+        r"(?i)\b([a-z_][a-z0-9_]*)(?:\s*\([^()]*\))?\s+AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(", s)}
     tables = {}
     pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?"
                          r"((?:\s*,\s*[a-z_][a-z0-9_]*(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?)*)")
@@ -436,7 +441,7 @@ def extract_tables(sql):
             sources.append((extra.group(1), extra.group(2)))
         for name, alias in sources:
             name = name.lower()
-            if name in ctes:
+            if name in ctes or name in SQLITE_TABLE_FUNCTIONS:
                 continue
             if alias and alias.lower() in SQL_ALIAS_STOPWORDS:
                 alias = None
