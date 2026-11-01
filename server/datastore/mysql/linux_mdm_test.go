@@ -164,11 +164,11 @@ func TestLinuxDiskEncryptionSupportedPlatforms(t *testing.T) {
 		{"ubuntu", "Ubuntu 24.04.1 LTS"},
 		{"zorin", "Zorin OS 17.2"},
 		{"rhel", "Fedora Linux 41.0.0"},
+		{"omarchy", "Omarchy 4.0.0"},
 	}
 	unsupported := []platformVersion{
 		{"rhel", "CentOS Linux 7.9.2009"},
 		{"arch", "Arch Linux rolling"},
-		{"omarchy", "Omarchy 4.0.0"},
 		{"cachyos", "CachyOS Linux rolling"},
 		{"manjaro", "Manjaro Linux 25.0.0"},
 		{"debian", "Debian GNU/Linux 12"},
