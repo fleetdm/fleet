@@ -47,11 +47,14 @@ const (
 
 // Message is one content block of one turn of a session.
 type Message struct {
-	Agent          string
-	SessionID      string
-	Username       string
-	MessageIndex   int64
-	BlockIndex     int64
+	Agent        string
+	SessionID    string
+	Username     string
+	MessageIndex int64
+	BlockIndex   int64
+	// ToolCallIndex is the call's ordinal in the session on tool_use rows,
+	// and -1 on other rows.
+	ToolCallIndex  int64
 	Role           string
 	BlockType      string
 	ToolName       string
@@ -73,12 +76,17 @@ func (m Message) row() map[string]string {
 	if m.Truncated {
 		truncated = "1"
 	}
+	toolCallIndex := ""
+	if m.ToolCallIndex >= 0 {
+		toolCallIndex = strconv.FormatInt(m.ToolCallIndex, 10)
+	}
 	return map[string]string{
 		"agent":           m.Agent,
 		"session_id":      capField(m.SessionID),
 		"username":        m.Username,
 		"message_index":   strconv.FormatInt(m.MessageIndex, 10),
 		"block_index":     strconv.FormatInt(m.BlockIndex, 10),
+		"tool_call_index": toolCallIndex,
 		"role":            m.Role,
 		"block_type":      m.BlockType,
 		"tool_name":       capField(m.ToolName),
@@ -155,7 +163,11 @@ type recorder struct {
 
 	msgIndex   int64
 	blockIndex int64
-	out        []Message
+	// calls counts the session's tool calls so far, whether or not they
+	// became rows, numbering each; nextCall is the index to ask for after
+	// the last tool_use row returned.
+	calls, nextCall int64
+	out             []Message
 	// pending maps a tool call id to its row, to record its outcome.
 	pending   map[string]int
 	undecided int
@@ -173,6 +185,7 @@ func newMessageRecorder(src *source, q *query) *recorder {
 		q:        q,
 		source:   src,
 		msgIndex: -1,
+		nextCall: q.calls.lo,
 		pending:  map[string]int{},
 	}
 }
@@ -191,15 +204,30 @@ func (r *recorder) stop() {
 // rows reports whether rows are being built at all.
 func (r *recorder) rows() bool { return r.q != nil }
 
-// skipNext reports whether the next message falls before the requested
-// page, so the parser may skip decoding it beyond what next() needs.
-func (r *recorder) skipNext() bool { return r.q != nil && r.msgIndex+1 < r.q.lo }
+// skipNext reports whether the next message may fall before the requested
+// page, so the parser can decode only what skip() needs to tell.
+func (r *recorder) skipNext() bool {
+	return r.q != nil && (r.msgIndex+1 < r.q.messages.lo || (r.q.calls.set && r.calls <= r.q.calls.lo))
+}
+
+// skip takes the next message, with its n tool calls, as read but not
+// wanted, reporting false when it may hold a wanted row and so must be
+// decoded in full: it is on the page, and either the query wants every
+// block or one of its calls reaches the first call wanted.
+func (r *recorder) skip(n int) bool {
+	if r.msgIndex+1 >= r.q.messages.lo && !(r.q.calls.set && r.calls+int64(n) <= r.q.calls.lo) {
+		return false
+	}
+	r.next()
+	r.countCalls(n)
+	return true
+}
 
 func (r *recorder) next() {
 	r.seen = true
 	r.msgIndex++
 	r.blockIndex = 0
-	if r.q != nil && r.q.hasHi && r.msgIndex > r.q.hi {
+	if r.q != nil && r.q.messages.hasHi && r.msgIndex > r.q.messages.hi {
 		r.stop()
 	}
 }
@@ -213,9 +241,13 @@ func (r *recorder) message(ts time.Time, model, cwd string) {
 
 // wanted reports whether the current block becomes a row: its message is on
 // the page, and on the page's first message it is past the block a size cut
-// stopped at.
+// stopped at. A tool_call_index bound selects tool calls only.
 func (r *recorder) wanted() bool {
-	return r.q != nil && !r.past && r.msgIndex >= r.q.lo && (r.msgIndex > r.q.lo || r.blockIndex >= r.q.blockLo)
+	return r.q != nil && !r.past && !r.q.calls.set && r.onPage()
+}
+
+func (r *recorder) onPage() bool {
+	return r.msgIndex >= r.q.messages.lo && (r.msgIndex > r.q.messages.lo || r.blockIndex >= r.q.blockLo)
 }
 
 // Every block of a message takes a block index, whether or not it becomes a
@@ -231,17 +263,32 @@ func (r *recorder) text(role, blockType string, content func() string) {
 
 func (r *recorder) nextBlock() { r.blockIndex++ }
 
+// countCalls numbers n tool calls the parser skipped, so a call's index
+// doesn't depend on the page asked for.
+func (r *recorder) countCalls(n int) { r.calls += int64(n) }
+
 // toolUse records a tool call. classify, which yields the action and target,
 // only runs for rows that are returned.
 func (r *recorder) toolUse(name, id string, input func() string, classify func() (action, target string)) {
 	r.seen = true
 	r.s.ToolCalls++
 	defer r.nextBlock()
-	if !r.wanted() || !r.q.blockTypes.allows(blockToolUse) {
+	index := r.calls
+	r.calls++
+	if r.q == nil || r.past || !r.onPage() || !r.q.calls.allows(index) || !r.q.blockTypes.allows(blockToolUse) {
+		// Calls are numbered in order, so none past an upper bound is wanted.
+		if r.q != nil && r.q.calls.hasHi && index > r.q.calls.hi {
+			r.stop()
+		}
 		return
 	}
 	action, target := classify()
-	if r.add(Message{Role: roleAssistant, BlockType: blockToolUse, ToolName: name, ToolUseID: id, Action: action, Target: target}, input()) && id != "" {
+	m := Message{Role: roleAssistant, BlockType: blockToolUse, ToolName: name, ToolUseID: id, Action: action, Target: target, ToolCallIndex: index}
+	if !r.add(m, input()) {
+		return
+	}
+	r.nextCall = index + 1
+	if id != "" {
 		r.pending[id] = len(r.out) - 1
 		r.undecided++
 	}
@@ -277,10 +324,15 @@ func (r *recorder) decide(id, decision string) {
 	r.out[i].Decision = decision
 }
 
-// add appends a row unless it is empty or the size limit is reached.
+// add appends a row unless it is empty or the size limit is reached. A
+// tool_use row is never empty: the call took an index and counts in
+// tool_calls, so a reader resuming at that count must find it.
 func (r *recorder) add(m Message, content string) bool {
-	if content == "" && m.ToolName == "" {
+	if content == "" && m.BlockType != blockToolUse {
 		return false
+	}
+	if m.BlockType != blockToolUse {
+		m.ToolCallIndex = -1
 	}
 	m.Agent = r.source.agent.name
 	m.SessionID = r.source.id
