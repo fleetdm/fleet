@@ -7425,7 +7425,7 @@
       "name": "REAPER",
       "slug": "reaper/windows",
       "platform": "windows",
-      "unique_identifier": "REAPER",
+      "unique_identifier": "REAPER (x64)",
       "description": "REAPER is a digital audio production application."
     },
     {
