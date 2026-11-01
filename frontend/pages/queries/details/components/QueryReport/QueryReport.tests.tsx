@@ -311,7 +311,33 @@ describe("Report column preferences", () => {
         },
       },
     });
+    const latest = {
+      hidden_host_columns: ["hostname"],
+      report_column_order: { "8": ["version", "Host"] },
+    };
+    expect(setUserSettings.mock.calls[0][0](latest)).toEqual({
+      ...latest,
+      report_column_order: {
+        ...latest.report_column_order,
+        "6": ["Host", "name", "last_fetched", "version"],
+      },
+    });
     update.mockRestore();
+  });
+
+  it("disables column preferences until user settings load", () => {
+    renderWithAppContext(
+      <QueryReport queryId={6} queryReport={queryReport} {...tableProps} />,
+      {
+        contextValue: {
+          currentUser: { id: 1 } as IUser,
+          userSettings: undefined,
+        },
+      }
+    );
+    expect(
+      screen.getByRole("button", { name: "Column preferences" })
+    ).toBeDisabled();
   });
 
   it("loads saved order, ignores removed columns, and appends new columns", () => {

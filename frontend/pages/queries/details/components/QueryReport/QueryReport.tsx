@@ -103,7 +103,7 @@ const QueryReport = ({
   );
   /** Persists report column order while preserving absent columns and other settings. */
   const saveColumnPreferences = async (order: string[]) => {
-    if (!currentUser) return;
+    if (!currentUser || !userSettings) return;
     // Keep positions for columns absent from the current server-side page.
     const previousOrder = userSettings?.report_column_order?.[queryId] || [];
     const remaining = [...order];
@@ -111,19 +111,18 @@ const QueryReport = ({
       order.includes(id) ? (remaining.shift() as string) : id
     );
     mergedOrder.push(...remaining);
-    const settings = {
-      hidden_host_columns: [],
-      ...userSettings,
-      report_column_order: {
-        ...userSettings?.report_column_order,
-        [queryId]: mergedOrder,
-      },
-    };
     try {
       await usersAPI.update(currentUser.id, {
         settings: { report_column_order: { [queryId]: mergedOrder } },
       });
-      setUserSettings(settings);
+      setUserSettings((previous) => ({
+        hidden_host_columns: [],
+        ...previous,
+        report_column_order: {
+          ...previous?.report_column_order,
+          [queryId]: mergedOrder,
+        },
+      }));
       setShowColumnPreferences(false);
     } catch (response) {
       notify.error("Couldn't save column preferences. Please try again.", {
@@ -206,7 +205,7 @@ const QueryReport = ({
         <Button
           variant="secondary"
           size="small"
-          disabled={!currentUser || !columnConfigs.length}
+          disabled={!currentUser || !userSettings || !columnConfigs.length}
           onClick={() => setShowColumnPreferences(true)}
         >
           Column preferences

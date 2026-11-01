@@ -785,7 +785,10 @@ const ManageHostsPage = ({
           settings: { hidden_host_columns: parsed },
         });
         localStorage.removeItem("hostHiddenColumns");
-        setUserSettings({ ...userSettings, hidden_host_columns: parsed });
+        setUserSettings((previous) => ({
+          ...previous,
+          hidden_host_columns: parsed,
+        }));
       } catch {
         // don't remove local storage, proceed with setting context with local storage value
       }
@@ -1178,10 +1181,10 @@ const ManageHostsPage = ({
       // only set state and close modal if server persist succeeds, keeping UI and server state in
       // sync.
       // Can also add local storage fallback behavior in next iteration if we want.
-      setUserSettings({
-        ...userSettings,
+      setUserSettings((previous) => ({
+        ...previous,
         hidden_host_columns: newHiddenColumns,
-      });
+      }));
       setHiddenColumns(newHiddenColumns);
       setShowEditColumnsModal(false);
     } catch (response) {
