@@ -20,6 +20,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -105,7 +106,8 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+// challengeMiddleware checks that ChallengePassword matches an enrollment secret, and refuses to issue a certificate for a name that
+// already holds a valid one. Replacing a valid certificate requires a renewal request, which proves possession of the existing key.
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request by looking for the custom Fleet extension
@@ -124,6 +126,16 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 			return nil, errors.New("invalid challenge")
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+
+		commonName := m.CSR.Subject.CommonName
+		// A replica that has not yet seen a freshly issued certificate would let a second request through.
+		_, err = ds.GetHostIdentityCertByName(ctxdb.RequirePrimary(ctx, true), commonName)
+		switch {
+		case err == nil:
+			return nil, fmt.Errorf("a valid host identity certificate already exists for %q, renew it with its existing key", commonName)
+		case !fleet.IsNotFound(err):
+			return nil, fmt.Errorf("checking existing host identity certificate: %w", err)
 		}
 		return next.SignCSRContext(ctx, m)
 	}

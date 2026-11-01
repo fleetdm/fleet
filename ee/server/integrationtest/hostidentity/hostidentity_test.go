@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
+	"github.com/jmoiron/sqlx"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
@@ -61,6 +62,7 @@ func TestHostIdentity(t *testing.T) {
 	}{
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
+		{"ReissueForExistingNameRejected", testReissueForExistingNameRejected},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
 		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
@@ -819,6 +821,48 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 			testSCEPFailure(t, s, c.config)
 		})
 	}
+}
+
+// testReissueForExistingNameRejected checks that a name with a valid certificate cannot be issued another one with the enroll
+// secret, and that a name whose certificate expired can.
+func testReissueForExistingNameRejected(t *testing.T, s *Suite) {
+	ctx := t.Context()
+	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}}))
+
+	const hostName = "reissue-target-host"
+	victimCert, err := requestSCEPCertificate(t, s, hostName)
+	require.NoError(t, err)
+
+	t.Run("valid certificate is not replaced", func(t *testing.T) {
+		_, err := requestSCEPCertificate(t, s, hostName)
+		require.Error(t, err)
+
+		current, err := s.DS.GetHostIdentityCertByName(ctx, hostName)
+		require.NoError(t, err)
+		require.Equal(t, victimCert.SerialNumber.Uint64(), current.SerialNumber, "the original certificate must stay current")
+	})
+
+	t.Run("other names are unaffected", func(t *testing.T) {
+		otherCert, err := requestSCEPCertificate(t, s, "reissue-other-host")
+		require.NoError(t, err)
+		require.Equal(t, "reissue-other-host", otherCert.Subject.CommonName)
+	})
+
+	t.Run("expired certificate can be replaced with the shared secret", func(t *testing.T) {
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`,
+				hostName)
+			return err
+		})
+
+		newCert, err := requestSCEPCertificate(t, s, hostName)
+		require.NoError(t, err)
+		require.NotEqual(t, victimCert.SerialNumber.Uint64(), newCert.SerialNumber.Uint64())
+
+		current, err := s.DS.GetHostIdentityCertByName(ctx, hostName)
+		require.NoError(t, err)
+		require.Equal(t, newCert.SerialNumber.Uint64(), current.SerialNumber)
+	})
 }
 
 type SCEPFailureConfig struct {

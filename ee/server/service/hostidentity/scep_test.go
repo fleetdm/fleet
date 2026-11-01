@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"log/slog"
 	"math/big"
 	"testing"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -185,3 +187,105 @@ func TestPKIOperationRejectsDeeplyNestedBER(t *testing.T) {
 	require.ErrorAs(t, err, &badReq)
 	require.ErrorIs(t, err, cryptoutil.ErrBERTooDeep)
 }
+
+func TestChallengeMiddleware(t *testing.T) {
+	ctx := t.Context()
+	const (
+		validSecret = "valid-secret"
+		hostName    = "host-identity-name"
+	)
+
+	newCSRMessage := func(t *testing.T, commonName, challenge string) *scep.CSRReqMessage {
+		t.Helper()
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+			Subject:            pkix.Name{CommonName: commonName},
+			SignatureAlgorithm: x509.ECDSAWithSHA256,
+		}, key)
+		require.NoError(t, err)
+		csr, err := x509.ParseCertificateRequest(csrDER)
+		require.NoError(t, err)
+		return &scep.CSRReqMessage{CSR: csr, ChallengePassword: challenge}
+	}
+
+	testCases := []struct {
+		name          string
+		challenge     string
+		existingCert  *types.HostIdentityCertificate
+		lookupErr     error
+		wantErrSubstr string
+		wantSigned    bool
+		wantNoLookup  bool
+	}{
+		{
+			name:       "valid secret and no existing cert is signed",
+			challenge:  validSecret,
+			lookupErr:  &notFoundError{},
+			wantSigned: true,
+		},
+		{
+			name:          "valid secret does not replace a valid cert",
+			challenge:     validSecret,
+			existingCert:  &types.HostIdentityCertificate{SerialNumber: 1, CommonName: hostName},
+			wantErrSubstr: "already exists",
+		},
+		{
+			name:          "cert lookup failure fails closed",
+			challenge:     validSecret,
+			lookupErr:     errors.New("db down"),
+			wantErrSubstr: "checking existing host identity certificate",
+		},
+		{
+			name:          "missing challenge",
+			challenge:     "",
+			wantErrSubstr: "missing challenge",
+			wantNoLookup:  true,
+		},
+		{
+			name:          "invalid secret is rejected before the cert lookup",
+			challenge:     "wrong",
+			wantErrSubstr: "invalid challenge",
+			wantNoLookup:  true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.VerifyEnrollSecretFunc = func(_ context.Context, secret string) (*fleet.EnrollSecret, error) {
+				if secret != validSecret {
+					return nil, &notFoundError{}
+				}
+				return &fleet.EnrollSecret{Secret: secret}, nil
+			}
+			ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+				require.Equal(t, hostName, name)
+				require.True(t, ctxdb.IsPrimaryRequired(ctx), "the existence check must not read from a replica")
+				if tc.existingCert != nil {
+					return tc.existingCert, nil
+				}
+				return nil, tc.lookupErr
+			}
+
+			signed := false
+			next := scepserver.CSRSignerContextFunc(func(_ context.Context, _ *scep.CSRReqMessage) (*x509.Certificate, error) {
+				signed = true
+				return &x509.Certificate{SerialNumber: big.NewInt(2)}, nil
+			})
+
+			_, err := challengeMiddleware(ds, next).SignCSRContext(ctx, newCSRMessage(t, hostName, tc.challenge))
+			if tc.wantErrSubstr != "" {
+				require.ErrorContains(t, err, tc.wantErrSubstr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantSigned, signed)
+			require.Equal(t, !tc.wantNoLookup, ds.GetHostIdentityCertByNameFuncInvoked)
+		})
+	}
+}
+
+type notFoundError struct{}
+
+func (*notFoundError) Error() string    { return "not found" }
+func (*notFoundError) IsNotFound() bool { return true }

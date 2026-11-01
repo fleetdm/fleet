@@ -8,12 +8,18 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -50,17 +56,21 @@ func TestSCEPRateLimit(t *testing.T) {
 		hostID := "test-host-rate-limit"
 
 		// First certificate request - should succeed
-		initialCert, err := requestSCEPCertificate(t, s, hostID)
+		initialCert, initialKey, err := requestSCEPCertificateWithKey(t, s, hostID)
 		require.NoError(t, err)
 		require.Equal(t, hostID, initialCert.Subject.CommonName)
 
-		// Second certificate request immediately after - should fail due to rate limit with HTTP 429
+		// The enroll secret cannot be used to request another certificate for the name
 		_, err = requestSCEPCertificate(t, s, hostID)
+		require.Error(t, err)
+
+		// An authenticated renewal right after issuance is rate limited with HTTP 429
+		_, err = renewSCEPCertificate(t, s, initialCert, initialKey)
 		requireRateLimited(t, err)
 
-		// Wait for a small duration (less than cooldown) and try again - should still fail with HTTP 429
+		// Still rate limited after a short wait, because the cooldown has not elapsed
 		time.Sleep(500 * time.Millisecond)
-		_, err = requestSCEPCertificate(t, s, hostID)
+		_, err = renewSCEPCertificate(t, s, initialCert, initialKey)
 		requireRateLimited(t, err)
 
 		// Different host should be able to get certificate
@@ -71,9 +81,15 @@ func TestSCEPRateLimit(t *testing.T) {
 	})
 }
 
-// requestSCEPCertificate enrolls hostIdentifier with Fleet's host identity SCEP server. A rate
-// limited request fails with a scepserver.ResponseStatusError of 429.
+// requestSCEPCertificate enrolls hostIdentifier with Fleet's host identity SCEP server.
 func requestSCEPCertificate(t *testing.T, s *Suite, hostIdentifier string) (*x509.Certificate, error) {
+	t.Helper()
+	cert, _, err := requestSCEPCertificateWithKey(t, s, hostIdentifier)
+	return cert, err
+}
+
+// requestSCEPCertificateWithKey is like requestSCEPCertificate and also returns the private key the certificate was issued for.
+func requestSCEPCertificateWithKey(t *testing.T, s *Suite, hostIdentifier string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	t.Helper()
 	ctx := t.Context()
 
@@ -89,6 +105,52 @@ func requestSCEPCertificate(t *testing.T, s *Suite, hostIdentifier string) (*x50
 		ChallengePassword: testEnrollmentSecret,
 	}
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, eccPrivateKey)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDerBytes)
+	require.NoError(t, err)
+
+	timeout := 30 * time.Second
+	scepClient, err := scepclient.New(s.Server.URL+"/api/fleet/orbit/host_identity/scep", s.Logger, scepclient.WithTimeout(&timeout))
+	require.NoError(t, err)
+	caCerts, err := enrollment.FetchCACerts(ctx, scepClient)
+	require.NoError(t, err)
+	signerKey, signerCert, err := enrollment.NewEphemeralSigner(csr.Subject)
+	require.NoError(t, err)
+	cert, err := enrollment.Enroll(ctx, scepClient, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  signerKey,
+		SignerCert: signerCert,
+		Logger:     s.Logger,
+	})
+	return cert, eccPrivateKey, err
+}
+
+// renewSCEPCertificate renews existingCert with proof of possession of its private key. A rate limited request fails with a
+// scepserver.ResponseStatusError of 429.
+func renewSCEPCertificate(t *testing.T, s *Suite, existingCert *x509.Certificate, existingKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
+	t.Helper()
+	ctx := t.Context()
+
+	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
+	hash := sha256.Sum256([]byte(serialHex))
+	signature, err := ecdsa.SignASN1(rand.Reader, existingKey, hash[:])
+	require.NoError(t, err)
+	renewalDataJSON, err := json.Marshal(types.RenewalData{
+		SerialNumber: serialHex,
+		Signature:    base64.StdEncoding.EncodeToString(signature),
+	})
+	require.NoError(t, err)
+
+	newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	csrTemplate := x509util.CertificateRequest{
+		CertificateRequest: x509.CertificateRequest{
+			Subject:            pkix.Name{CommonName: existingCert.Subject.CommonName},
+			SignatureAlgorithm: x509.ECDSAWithSHA256,
+			ExtraExtensions:    []pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalDataJSON}},
+		},
+	}
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
