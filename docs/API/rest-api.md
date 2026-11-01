@@ -4452,7 +4452,7 @@ Returns the information of the specified host.
 
 A profile with `"status": null` is a self-service profile the host can install but hasn't yet. Once the end user or an IT admin installs it, `status` follows the same values as any other profile.
 
-#### Example (iOS/iPadOS)
+#### Example (company-owned iOS/iPadOS)
 `GET /api/v1/fleet/hosts/121`
 
 ##### Default response
@@ -4477,10 +4477,10 @@ A profile with `"status": null` is a self-service profile the host can install b
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-iPhone",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "uuid": "00008110-001A2B3C4D5E6F78",
     "udid": "00008110-001A2B3C4D5E6F78",
     "platform": "ios",
-    "osquery_version": "5.15.0",
+    "osquery_version": "",
     "orbit_version": "1.22.0",
     "fleet_desktop_version": null,
     "scripts_enabled": false,
@@ -4791,7 +4791,7 @@ A profile with `"status": null` is a self-service profile the host can install b
 }
 ```
 
-#### Example (Android)
+#### Example (company-owned Android)
 `GET /api/v1/fleet/hosts/121`
 
 ##### Default response
@@ -4816,7 +4816,7 @@ A profile with `"status": null` is a self-service profile the host can install b
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "uuid": "9ec4265a507780e710ce2a1f66587a35ac95796e9e8835112f98f7dd3265ba67",
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
@@ -5287,7 +5287,7 @@ If `hostname` is specified when there is more than one host with the same hostna
   }
 }
 ```
-#### Example (iOS/iPadOS)
+#### Example (company-owned iOS/iPadOS)
 
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
@@ -5312,10 +5312,10 @@ If `hostname` is specified when there is more than one host with the same hostna
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
     "hostname": "Johns-iPhone",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "uuid": "00008110-001A2B3C4D5E6F78",
     "platform": "ios",
     "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
-    "osquery_version": "5.5.1",
+    "osquery_version": "",
     "os_version": "iOS 17.4.1",
     "build": "21E236",
     "platform_like": "darwin",
@@ -5572,7 +5572,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 }
 ```
 
-#### Example (Android)
+#### Example (company-owned Android)
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
@@ -5597,7 +5597,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "uuid": "9ec4265a507780e710ce2a1f66587a35ac95796e9e8835112f98f7dd3265ba67",
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
