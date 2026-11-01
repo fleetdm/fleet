@@ -1841,6 +1841,82 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
 }
 
+func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	const value, crlfValue, xmlValue = "name-secret-value", "name-secret-line1\r\nname-secret-line2", "name-secret-a&b<c"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_PROFILE_NAME", Value: value},
+			{Name: "FLEET_SECRET_PROFILE_NAME_CRLF", Value: crlfValue},
+			{Name: "FLEET_SECRET_PROFILE_NAME_XML", Value: xmlValue},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(identifier, displayName string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>%s
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, displayName, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name        string
+		displayName string
+	}{
+		{"plain", `<string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"cdata", `<string><![CDATA[Name $FLEET_SECRET_PROFILE_NAME]]></string>`},
+		{"line breaks", `<!-- x --><string>${FLEET_SECRET_PROFILE_NAME_CRLF}</string>`},
+		// expansion XML-escapes the value, and CDATA keeps the escaped form as is
+		{"cdata with XML characters", `<string><![CDATA[$FLEET_SECRET_PROFILE_NAME_XML]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			const wantErr = "PayloadDisplayName cannot contain FLEET_SECRET variables"
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, wantErr)
+				assert.NotContains(t, errMsg, "name-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "name.mobileconfig",
+				profile("com.example.name-secret."+c.name+".single", c.displayName), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("com.example.name-secret."+c.name+".batch", c.displayName)},
+			}}, http.StatusUnprocessableEntity))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("com.example.name-secret."+c.name+".apple-batch", c.displayName),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE name LIKE '%name-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
 func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 	// A string setting: schema validation checks the expanded secret value.

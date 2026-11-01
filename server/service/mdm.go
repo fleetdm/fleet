@@ -3006,6 +3006,16 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// Declarations are named by the Name field, not their content, so only .mobileconfig names are checked.
+	for _, p := range profiles {
+		if !isMobileconfigContents(p.Contents) {
+			continue
+		}
+		if err := fleet.ValidateNoSecretsInProfileName(p.Contents); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+		}
+	}
+
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {
