@@ -195,6 +195,7 @@ func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	}
 }
 
+// testSettingsAttribute verifies saved column preferences are returned by UserSettings and omitted by UserByID.
 func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.Settings = &fleet.UserSettings{}
@@ -207,6 +208,7 @@ func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		assert.Nil(t, verify.Settings)
 
 		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		user.Settings.ReportColumnOrder = map[string][]string{"6": {"last_fetched", "Host", "name"}}
 		err = ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
@@ -214,7 +216,48 @@ func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		settings, err := ds.UserSettings(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
+		assert.Equal(t, user.Settings.ReportColumnOrder, settings.ReportColumnOrder)
 	}
+}
+
+func TestUserSettingsPartialUpdates(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer TruncateTables(t, ds)
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Settings", "settings@example.com", true)
+
+	// Both tabs loaded before either report layout was saved.
+	firstTab, err := ds.UserByID(ctx, user.ID)
+	require.NoError(t, err)
+	secondTab, err := ds.UserByID(ctx, user.ID)
+	require.NoError(t, err)
+	user.Settings = &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}}
+	require.NoError(t, ds.SaveUser(ctx, user))
+	firstTab.Settings = &fleet.UserSettings{ReportColumnOrder: map[string][]string{"6": {"name", "Host"}}}
+	require.NoError(t, ds.SaveUser(ctx, firstTab))
+	secondTab.Settings = &fleet.UserSettings{ReportColumnOrder: map[string][]string{"7": {"Host", "version"}}}
+	require.NoError(t, ds.SaveUser(ctx, secondTab))
+	settings, err := ds.UserSettings(ctx, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"osquery_version"}, settings.HiddenHostColumns)
+	require.Equal(t, map[string][]string{"6": {"name", "Host"}, "7": {"Host", "version"}}, settings.ReportColumnOrder)
+
+	// Host-only and unrelated user edits must preserve report layouts too.
+	user.Settings = &fleet.UserSettings{HiddenHostColumns: []string{}}
+	require.NoError(t, ds.SaveUser(ctx, user))
+	user.Settings = nil
+	require.NoError(t, ds.SaveUser(ctx, user))
+	settings, err = ds.UserSettings(ctx, user.ID)
+	require.NoError(t, err)
+	require.Empty(t, settings.HiddenHostColumns)
+	require.Len(t, settings.ReportColumnOrder, 2)
+
+	user.Settings = &fleet.UserSettings{ReportColumnOrder: map[string][]string{"6": {}}}
+	require.NoError(t, ds.SaveUser(ctx, user))
+	settings, err = ds.UserSettings(ctx, user.ID)
+	require.NoError(t, err)
+	require.Empty(t, settings.ReportColumnOrder["6"])
+	require.Equal(t, []string{"Host", "version"}, settings.ReportColumnOrder["7"])
 }
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {

@@ -19,6 +19,10 @@ import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
 
+type UserSettingsUpdate =
+  | IUserSettings
+  | ((previous: IUserSettings | undefined) => IUserSettings);
+
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
   SET_USER_SETTINGS = "SET_USER_SETTINGS",
@@ -48,7 +52,7 @@ interface ISetAvailableTeamsAction {
 
 interface ISetUserSettingsAction {
   type: ACTIONS.SET_USER_SETTINGS;
-  userSettings: IUserSettings;
+  userSettings: UserSettingsUpdate;
 }
 
 interface ISetConfigAction {
@@ -222,7 +226,7 @@ type InitialStateType = {
     user: IUser | null,
     availableTeams: ITeamSummary[]
   ) => void;
-  setUserSettings: (userSettings: IUserSettings) => void;
+  setUserSettings: (userSettings: UserSettingsUpdate) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
@@ -394,7 +398,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
       const { userSettings } = action;
       return {
         ...state,
-        userSettings,
+        userSettings:
+          typeof userSettings === "function"
+            ? userSettings(state.userSettings)
+            : userSettings,
       };
     }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
@@ -554,7 +561,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     []
   );
 
-  const setUserSettings = useCallback((userSettings: IUserSettings) => {
+  const setUserSettings = useCallback((userSettings: UserSettingsUpdate) => {
     dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
   }, []);
 

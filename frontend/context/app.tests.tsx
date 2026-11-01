@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import React, { useContext, useEffect } from "react";
 
 import createMockUser from "__mocks__/userMock";
@@ -110,6 +110,47 @@ describe("AppProvider - setABMExpiry", () => {
       "Acme Inc., Fleet Device Management Inc."
     );
   });
+});
+
+const UserSettingsConsumer = () => {
+  const { userSettings, setUserSettings } = useContext(AppContext);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setUserSettings({ hidden_host_columns: ["hostname"] });
+          setUserSettings((previous) => ({
+            hidden_host_columns: [],
+            ...previous,
+            report_column_order: { "6": ["name", "Host"] },
+          }));
+          setUserSettings((previous) => ({
+            ...previous,
+            hidden_host_columns: [],
+          }));
+        }}
+      >
+        Save preferences
+      </button>
+      <output>{JSON.stringify(userSettings)}</output>
+    </>
+  );
+};
+
+it("applies queued user settings updates to the latest state", () => {
+  renderWithSetup(
+    <AppProvider>
+      <UserSettingsConsumer />
+    </AppProvider>
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    JSON.stringify({
+      hidden_host_columns: [],
+      report_column_order: { "6": ["name", "Host"] },
+    })
+  );
 });
 
 const EJBCAExpiryConsumer = ({ expiry }: { expiry: string }) => {

@@ -308,11 +308,23 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
         sso_enabled = ?,
         mfa_enabled = ?,
         api_only = ?,
-        settings = ?,
+        settings = JSON_MERGE_PATCH(
+          IF(JSON_TYPE(settings) = 'OBJECT', settings, JSON_OBJECT()), CAST(? AS JSON)),
 		global_role = ?
       WHERE id = ?
       `
-	settingsBytes, err := json.Marshal(user.Settings)
+	// Merge only supplied preferences under the row lock, so stale tabs cannot
+	// replace another report's layout or unrelated host preferences.
+	settingsPatch := make(map[string]any)
+	if user.Settings != nil {
+		if user.Settings.HiddenHostColumns != nil {
+			settingsPatch["hidden_host_columns"] = user.Settings.HiddenHostColumns
+		}
+		if user.Settings.ReportColumnOrder != nil {
+			settingsPatch["report_column_order"] = user.Settings.ReportColumnOrder
+		}
+	}
+	settingsBytes, err := json.Marshal(settingsPatch)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling user settings")
 	}
