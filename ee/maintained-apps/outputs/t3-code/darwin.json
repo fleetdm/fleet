@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.1.5",
+      "version": "0.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.t3tools.t3code';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.t3tools.t3code' AND version_compare(bundle_short_version, '0.1.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.t3tools.t3code' AND version_compare(bundle_short_version, '0.1.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.t3tools.t3code' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.5/T3-Code-0.1.5-arm64.dmg",
+      "installer_url": "https://github.com/pingdotgg/t3code/releases/download/v0.1.6/T3-Code-0.1.6-arm64.dmg",
       "install_script_ref": "96b55242",
       "uninstall_script_ref": "599f6d32",
-      "sha256": "d81fd31f041ed03a30d2b412b6d930d297b3f6abef6fca966d3390ee0afae905",
+      "sha256": "db359edd32dd3d47f22a48855a741942335981ed0700baccec561b77fc8700ae",
       "default_categories": [
         "Developer tools"
       ]
