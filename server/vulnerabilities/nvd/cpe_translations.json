@@ -134,6 +134,16 @@
   },
   {
     "software": {
+      "name": ["/(?i)^brotli$/"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "product": ["brotli"],
+      "vendor": ["google"]
+    }
+  },
+  {
+    "software": {
       "name": ["jira"],
       "source": ["python_packages"]
     },
