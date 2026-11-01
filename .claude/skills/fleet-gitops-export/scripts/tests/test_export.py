@@ -160,6 +160,31 @@ class CommandTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
+    def test_preflight_names_the_missing_install(self):
+        tmp, out, saved = Path(tempfile.mkdtemp()), [], gitops_export.say
+        gitops_export.say = out.append
+        try:
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl=str(tmp / "no-fleetctl"), config=None, context=None)
+            self.assertEqual(gitops_export.cmd_preflight(args), 1)
+            self.assertTrue(out[0].startswith("FAIL install fleetctl:"), out)
+        finally:
+            gitops_export.say = saved
+            shutil.rmtree(tmp)
+
+    def test_setup_step(self):
+        # Error text as fleetctl 4.94 prints it.
+        cases = {
+            "Error: set the Fleet API address with: fleetctl config set --address https://fleet.example.com": "address",
+            "couldn't read the address from fleetctl's config; run `fleetctl login`": "address",
+            "GET /api/latest/fleet/me: Token missing. SSO is enabled for this Fleet instance.": "login",
+            "GET /api/latest/fleet/me: Token invalid or session expired.\nError: unauthenticated, or invalid token": "login",
+            'Error: GET /api/latest/fleet/version: do request: Get "https://x.invalid/api": dial tcp: lookup x.invalid: no such host': "network",
+            "GET /api/latest/fleet/config: non 2XX return of 500": "other",
+        }
+        for error, step in cases.items():
+            with self.subTest(error=error):
+                self.assertEqual(gitops_export.setup_step(error), step)
+
 
 class DryRunEnvTest(unittest.TestCase):
     def setUp(self):

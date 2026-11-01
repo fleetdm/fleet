@@ -16,6 +16,8 @@ The export only reads from Fleet. Nothing changes until you merge the repository
 
 ## Install fleetctl and log in
 
+If you skip this step, the agent walks you through it when you start the export. It asks you to log in in your own terminal, so your password or API token never goes through the agent.
+
 1. Install `fleetctl`:
 
    ```bash

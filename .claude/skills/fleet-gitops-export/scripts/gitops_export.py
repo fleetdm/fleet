@@ -108,17 +108,35 @@ def say(msg=""):
 
 # ------------------------------------------------------------ commands
 
+INSTALL_GUIDE = "https://fleetdm.com/guides/fleetctl#installing-fleetctl"
+
+
+def setup_step(error: str) -> str:
+    """Which part of fleetctl's setup an error points at: "address", "login", "network", or "other"."""
+    e = error.lower()
+    if "set the fleet api address" in e or "couldn't read the address" in e:
+        return "address"
+    if any(s in e for s in ("token missing", "token invalid", "session expired", "unauthenticated", "invalid token")):
+        return "login"
+    if any(s in e for s in ("no such host", "connection refused", "dial tcp", "i/o timeout", "certificate", "network is unreachable", "do request")):
+        return "network"
+    return "other"
+
+
 def cmd_preflight(args) -> int:
+    # Each setup FAIL names its step ("install fleetctl", "set the Fleet address", "log in to Fleet",
+    # "reach Fleet"); SKILL.md's "Set up fleetctl" section maps them to what the agent and user do.
     fc, target, work = session(args)
     problems, info = [], {}
+    flags = "".join(" " + f for f in fc._conn_flags())
     try:
         info["fleetctl_version"] = fc.version()
-    except (OSError, FleetctlError) as e:
-        say(f"FAIL fleetctl: {e}. Install it: https://fleetdm.com/guides/fleetctl#installing-fleetctl")
+    except (OSError, FleetctlError):
+        say(f"FAIL install fleetctl: it isn't installed (or isn't on PATH). Install it with `npm install -g fleetctl`, "
+            f"or another way from {INSTALL_GUIDE}, then run preflight again.")
         return 1
     v = parse_version(info["fleetctl_version"])
-    if not fc.has_new() or (v and v < MIN_FLEETCTL):
-        problems.append(f"fleetctl {info['fleetctl_version']} has no `fleetctl new`; upgrade to 4.84.0 or later")
+    too_old = not fc.has_new() or (v and v < MIN_FLEETCTL)
     try:
         info["address"] = fc.address()
         api = API(fc)
@@ -128,14 +146,34 @@ def cmd_preflight(args) -> int:
         info["server_version"] = api.json("/api/latest/fleet/version").get("version")
         cfg = api.json("/api/latest/fleet/config")
     except FleetctlError as e:
-        say(f"FAIL can't reach Fleet with fleetctl's credentials: {e}")
-        say("     Log in with `fleetctl login` (or `fleetctl config set --address URL --token TOKEN`), then retry.")
+        if too_old:
+            say(f"FAIL install fleetctl: fleetctl {info['fleetctl_version']} has no `fleetctl new`; install 4.84.0 or later "
+                "(`npm install -g fleetctl`), ideally the version your Fleet server runs.")
+        step, address = setup_step(str(e)), info.get("address", "")
+        if step == "address":
+            say(f"FAIL set the Fleet address: fleetctl doesn't know which Fleet server to use. Set it to the URL you open Fleet at: "
+                f"`fleetctl config set{flags} --address https://fleet.example.com`, then run preflight again.")
+        elif step == "login":
+            say(f"FAIL log in to Fleet: fleetctl isn't logged in to {address}, or the session expired. In your own terminal, run "
+                f"`fleetctl login{flags}` (it asks for your email and password). If you sign in to Fleet with SSO or two-factor "
+                f"authentication, get an API token from your account page in Fleet and run `fleetctl config set{flags} --token <token>` instead. "
+                "Then run preflight again.")
+        elif step == "network":
+            say(f"FAIL reach Fleet: can't connect to {address} ({str(e).splitlines()[-1].strip()}). Check the URL "
+                f"(`fleetctl config get{flags} address`), your network or VPN, and that commands here are allowed network access.")
+        else:
+            say(f"FAIL can't reach Fleet with fleetctl's credentials: {e}")
         return 1
+    if too_old:
+        problems.append(f"install fleetctl: fleetctl {info['fleetctl_version']} has no `fleetctl new`; install the version your "
+                        f"Fleet server runs: `npm install -g fleetctl@{info['server_version']}`")
     if info["global_role"] != "admin":
-        problems.append(f"{info['user']} isn't a global admin (role: {info['global_role']}); the export needs one to read secrets-adjacent settings and every fleet")
+        problems.append(f"log in as a global admin: {info['user']} has the {info['global_role'] or 'no global'} role, and the export "
+                        "needs a global admin to read every fleet and setting")
     sv = parse_version(info["server_version"] or "")
     if v and sv and v[:2] != sv[:2]:
-        info["version_warning"] = f"fleetctl {info['fleetctl_version']} and the server ({info['server_version']}) differ; CI installs fleetctl to match the server, so a mismatch can hide or invent dry-run differences"
+        info["version_warning"] = (f"fleetctl {info['fleetctl_version']} and the server ({info['server_version']}) differ; CI installs fleetctl to match "
+                                   f"the server, so a mismatch can hide or invent dry-run differences. To match: `npm install -g fleetctl@{info['server_version']}`")
     lic = (cfg.get("license") or {}).get("tier")
     mdm = cfg.get("mdm") or {}
     info.update({

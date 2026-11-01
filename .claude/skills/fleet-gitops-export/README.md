@@ -20,6 +20,8 @@ If you're trying the skill out, point it at a test or staging Fleet first.
 
 ## Step 1: Install fleetctl and log in
 
+If you skip this step, the agent helps when you start the export. It installs `fleetctl` and sets your Fleet address, after asking you, and then asks you to log in in your own terminal, so your password or API token never goes through the agent.
+
 1. Install `fleetctl`:
 
    ```bash

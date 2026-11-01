@@ -37,6 +37,16 @@ python3 <skill folder>/scripts/gitops_export.py preflight --dir <target> [--cont
 
 It checks that fleetctl has `fleetctl new` (4.84.0 or later), that it's logged in, that the user is a global admin, which server and version it reaches, the license tier, MDM status, and Fleet's GitOps-mode exceptions, and that the target is empty. Fix every FAIL before going on. A version WARN means fleetctl and the server differ; suggest installing the fleetctl that matches the server (CI does), since a mismatch can hide or invent dry-run differences. Connection flags are remembered for the directory.
 
+#### Set up fleetctl
+
+Many users haven't set up `fleetctl` yet. Walk them through it one FAIL at a time instead of stopping, and run preflight again after each fix:
+
+- **`FAIL install fleetctl`**: ask before installing anything. With the user's OK, run the `npm install -g fleetctl` command the FAIL names (it includes the server's version once preflight knows it). If `npm` isn't available, or the install needs `sudo`, give the user the command or [the install guide](https://fleetdm.com/guides/fleetctl#installing-fleetctl) to run themselves.
+- **`FAIL set the Fleet address`**: ask for the URL they open Fleet at, then run `fleetctl config set --address <url>` (with the same `--context` or `--config` flags, if any).
+- **`FAIL log in to Fleet`**: the user does this step in their own terminal, because it takes their password or an API token. Give them the command from the FAIL: `fleetctl login`, which prompts for email and password, or, with SSO or two-factor authentication, `fleetctl config set --token <token>` with a token from their account page in Fleet. Never ask for the password or token in chat, and don't run `fleetctl login` yourself. If they paste a secret anyway, don't repeat it or put it in a command; ask them to run the command themselves.
+- **`FAIL log in as a global admin`**: the export needs a global admin's view of Fleet. They log in again (as above) as a user with the global admin role.
+- **`FAIL reach Fleet`**: check the address with them. If `fleetctl` works in their own terminal, your commands are sandboxed without network access; allow it for these commands.
+
 ### 2. Scaffold
 
 ```bash
