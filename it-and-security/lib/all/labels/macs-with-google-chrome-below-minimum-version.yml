@@ -1,0 +1,8 @@
+# Closest Fleet equivalent of the Jamf "Google Chrome Version" extension attribute.
+# "Not Installed" maps to the existing "Macs with Google Chrome installed" label (macs-with-fleet-maintained-apps-installed.yml).
+# PLACEHOLDER THRESHOLD: change '130.0.0.0' to the minimum Chrome version your organization requires.
+- name: Macs with Google Chrome below minimum version
+  description: macOS hosts with Google Chrome installed at a version older than the minimum (placeholder 130.0.0.0; edit the query to set your own).
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome' AND version_compare(bundle_short_version, '130.0.0.0') < 0;
+  label_membership_type: dynamic
+  platform: darwin
