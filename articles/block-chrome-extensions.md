@@ -169,6 +169,121 @@ To allow only specific extensions or force-install extensions, add `ExtensionIns
 
 > **Note:** This path applies to Google Chrome. Chromium reads `/etc/chromium/policies/managed/`, and some distributions use a different directory. Ubuntu's Chromium package, for example, reads `/etc/chromium-browser/policies`.
 
+## Remove installed extensions
+
+Blocking an extension that's already installed disables it but leaves it on the host. It still appears in Fleet's software inventory, and it turns back on if you remove the blocklist. To uninstall an extension and stop users from installing it again, set its `installation_mode` to `removed` in the [`ExtensionSettings` policy](https://chromeenterprise.google/policies/extension-settings/).
+
+The files below work on their own or alongside the blocklist files. Set `ExtensionSettings` in only one profile per host on macOS and Windows, or one JSON file on Linux. If you already use it for other settings, such as `blocked_install_message`, add the `removed` entries there instead.
+
+### macOS
+
+1. Save the following as `chrome-extension-removal.mobileconfig`. Replace the extension ID with your own, and add an entry for each extension you want to remove.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>com.google.Chrome</string>
+      <key>PayloadIdentifier</key>
+      <string>com.example.chrome.extension-removal.41CF818A</string>
+      <key>PayloadUUID</key>
+      <string>41CF818A-AB3E-41F6-A91A-A6A8C6E2F475</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>ExtensionSettings</key>
+      <dict>
+        <key>abcdefghijklmnopabcdefghijklmnop</key>
+        <dict>
+          <key>installation_mode</key>
+          <string>removed</string>
+        </dict>
+      </dict>
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Chrome extension removal</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.chrome.extension-removal</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>282DCA0B-7F5E-4B1E-955E-526E8CA26799</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+3. Choose the `.mobileconfig` file and select **Add profile** to upload it.
+
+### Windows
+
+1. Get `chrome.admx` as described in the [Windows steps](#windows).
+2. Save the following as `chrome-extension-removal.xml`. Replace `PASTE_CHROME_ADMX_HERE` with the full contents of `chrome.admx`, and replace the extension ID with your own.
+
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmxFile</LocURI>
+    </Target>
+    <Data><![CDATA[PASTE_CHROME_ADMX_HERE]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Chrome~Policy~googlechrome~Extensions/ExtensionSettings</LocURI>
+    </Target>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Data><![CDATA[<enabled/><data id="ExtensionSettings" value='{"abcdefghijklmnopabcdefghijklmnop": {"installation_mode": "removed"}}'/>]]></Data>
+  </Item>
+</Replace>
+```
+
+3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+4. Choose the `.xml` file and select **Add profile** to upload it.
+
+> **Note:** Keep the JSON on one line. Wrapping the `value` in single quotes means the double quotes in the JSON don't need to be escaped.
+
+### Linux
+
+1. Save the following as `chrome-extension-removal.sh`. Replace the extension ID with your own.
+
+```bash
+#!/bin/bash
+
+mkdir -p /etc/opt/chrome/policies/managed
+
+cat > /etc/opt/chrome/policies/managed/fleet-extension-removal.json <<'EOF'
+{
+  "ExtensionSettings": {
+    "abcdefghijklmnopabcdefghijklmnop": { "installation_mode": "removed" }
+  }
+}
+EOF
+
+chmod 644 /etc/opt/chrome/policies/managed/fleet-extension-removal.json
+```
+
+2. In Fleet, go to **Controls > Scripts** and upload the script.
+3. Run the script on a host from its **Details** page, or [run it automatically](https://fleetdm.com/guides/policy-automation-run-script) on Linux hosts that fail a policy.
+
+To confirm the extension was removed from your hosts, run the [report in the Verify section](#verify) with `WHERE chrome_extensions.identifier = '<extension ID>'`. It should return no results.
+
+> **Note:** If Chrome sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync with the [`SyncTypesListDisabled` policy](https://chromeenterprise.google/policies/#SyncTypesListDisabled).
+
+
 ## Manage with GitOps
 
 To manage these settings with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), save the files in your GitOps repository and reference them in your fleet's YAML file:
@@ -198,9 +313,31 @@ policies:
 
 > **Note:** This policy only checks that the file exists. After you change the extension list, run the script again from each host's **Details** page.
 
+To also [remove installed extensions](#remove-installed-extensions), add the removal files next to your blocklist files:
+
+```yaml
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ../lib/macos/profiles/chrome-extension-removal.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ../lib/windows/profiles/chrome-extension-removal.xml
+  scripts:
+    - path: ../lib/linux/scripts/chrome-extension-removal.sh
+
+policies:
+  - name: Linux - Chrome extension removal policy is present
+    query: SELECT 1 FROM file WHERE path = '/etc/opt/chrome/policies/managed/fleet-extension-removal.json';
+    platform: linux
+    run_script:
+      path: ../lib/linux/scripts/chrome-extension-removal.sh
+```
+
 ## What users see
 
 - **Blocked extension:** If a user tries to install a blocked extension, Chrome tells them the administrator blocked it: `<name> (extension ID "<id>") is blocked by the administrator.` A blocked extension that's already installed is disabled, and users can't turn it back on.
+- **Removed extension:** Chrome uninstalls it, and users can't install it again.
 - **Force-installed extension:** Chrome installs it without a prompt. Users can't remove or modify it. Chrome tells them the administrator of the machine requires the extension.
 - **Custom message:** To show your own text in the Chrome Web Store when an install is blocked, such as a link to request an exception, use the `blocked_install_message` field of the [`ExtensionSettings` policy](https://chromeenterprise.google/policies/extension-settings/).
 
@@ -226,7 +363,7 @@ Restart Chrome and select **Reload policies**. On Windows, confirm the profile s
 
 **The extension is still installed after you block it**
 
-Chrome disables blocked extensions but doesn't always remove them right away. Confirm the ID matches exactly, and check `chrome://policy` for errors on the policy.
+Chrome disables blocked extensions but doesn't permanently uninstall them; if the blocked profile is removed, the extensions will be reinstalled. To uninstall them completely, see [Remove installed extensions](#remove-installed-extensions). Confirm the ID matches exactly, and check `chrome://policy` for errors on the policy.
 
 **A force-installed extension doesn't install**
 
