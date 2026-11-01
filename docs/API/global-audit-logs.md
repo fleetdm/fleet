@@ -763,9 +763,9 @@ This activity contains the following fields:
 - [set_host_google_device_id](#set-host-google-device-id)
 - [deleted_host_google_device_id](#deleted-host-google-device-id)
 - [edited_host_idp_data](#edited-host-idp-data)
-- [read_host_recovery_lock_password](#read-host-recovery-lock-password)
-- [escrowed_recovery_lock_password](#escrowed-recovery-lock-password)
-- [rotated_recovery_lock_password](#rotated-recovery-lock-password)
+- [viewed_host_recovery_lock_password](#viewed-host-recovery-lock-password)
+- [set_host_recovery_lock_password](#set-host-recovery-lock-password)
+- [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
 - [rotated_managed_local_account_password](#rotated-managed-local-account-password)
 - [failed_to_rotate_managed_local_account_password](#failed-to-rotate-managed-local-account-password)
 - [read_managed_local_account](#read-managed-local-account)
@@ -1219,7 +1219,7 @@ This activity contains the following fields:
 }
 ```
 
-### read_host_recovery_lock_password
+### viewed_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
@@ -1236,9 +1236,9 @@ This activity contains the following fields:
 }
 ```
 
-### escrowed_recovery_lock_password
+### set_host_recovery_lock_password
 
-Generated when a Recovery Lock password is escrowed.
+Generated when Fleet sets the Recovery Lock password on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1253,9 +1253,9 @@ This activity contains the following fields:
 }
 ```
 
-### rotated_recovery_lock_password
+### rotated_host_recovery_lock_password
 
-Generated when a Recovery Lock password is rotated.
+Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1549,8 +1549,8 @@ This activity contains the following fields:
 - [resent_configuration_profile_batch](#resent-configuration-profile-batch)
 - [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
 - [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
-- [enabled_recovery_lock_password](#enabled-recovery-lock-password)
-- [disabled_recovery_lock_password](#disabled-recovery-lock-password)
+- [enabled_recovery_lock_passwords](#enabled-recovery-lock-passwords)
+- [disabled_recovery_lock_passwords](#disabled-recovery-lock-passwords)
 - [edited_host_name_template](#edited-host-name-template)
 - [created_apple_asset_declaration](#created-apple-asset-declaration)
 - [edited_disk_encryption_settings](#edited-disk-encryption-settings)
@@ -2077,7 +2077,7 @@ This activity contains the following fields:
 }
 ```
 
-### enabled_recovery_lock_password
+### enabled_recovery_lock_passwords
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
@@ -2096,7 +2096,7 @@ This activity contains the following fields:
 }
 ```
 
-### disabled_recovery_lock_password
+### disabled_recovery_lock_passwords
 
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 
