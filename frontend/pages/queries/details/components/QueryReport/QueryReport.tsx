@@ -120,7 +120,9 @@ const QueryReport = ({
       },
     };
     try {
-      await usersAPI.update(currentUser.id, { settings });
+      await usersAPI.update(currentUser.id, {
+        settings: { report_column_order: { [queryId]: mergedOrder } },
+      });
       setUserSettings(settings);
       setShowColumnPreferences(false);
     } catch (response) {

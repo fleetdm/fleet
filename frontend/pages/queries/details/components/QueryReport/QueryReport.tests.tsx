@@ -306,9 +306,7 @@ describe("Report column preferences", () => {
     await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith(1, {
       settings: {
-        hidden_host_columns: ["osquery_version"],
         report_column_order: {
-          "7": ["name"],
           "6": ["Host", "name", "last_fetched", "version"],
         },
       },

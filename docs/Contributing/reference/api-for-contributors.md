@@ -5008,7 +5008,7 @@ _Available in Fleet Premium_
 }
 ```
 
-`report_column_order` optionally maps report (query) IDs to ordered column IDs. Settings replace the stored object; preserve unrelated preferences when updating.
+`report_column_order` optionally maps report (query) IDs to ordered column IDs. Settings merge atomically with stored preferences. Send only changed fields and report entries; omitted fields and report IDs are preserved. Send an empty array to reset a report's order or clear hidden host columns.
 
 ##### Default response
 * Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.

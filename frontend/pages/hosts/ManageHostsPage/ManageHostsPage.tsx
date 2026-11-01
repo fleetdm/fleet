@@ -782,7 +782,7 @@ const ManageHostsPage = ({
       const parsed = JSON.parse(locallyHiddenCols) as string[];
       try {
         await usersAPI.update(currentUser.id, {
-          settings: { ...userSettings, hidden_host_columns: parsed },
+          settings: { hidden_host_columns: parsed },
         });
         localStorage.removeItem("hostHiddenColumns");
         setUserSettings({ ...userSettings, hidden_host_columns: parsed });
@@ -1172,7 +1172,7 @@ const ManageHostsPage = ({
     }
     try {
       await usersAPI.update(currentUser.id, {
-        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+        settings: { hidden_host_columns: newHiddenColumns },
       });
       // No success toast, to make column setting more seamless
       // only set state and close modal if server persist succeeds, keeping UI and server state in

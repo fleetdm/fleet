@@ -31,17 +31,29 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
     const dialog = listRef.current?.closest<HTMLElement>(
       ".modal__modal_container"
     );
-    listRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    (
+      listRef.current?.querySelector<HTMLElement>(FOCUSABLE) ??
+      dialog?.querySelector<HTMLElement>(FOCUSABLE) ??
+      dialog
+    )?.focus();
     const trapTab = (event: KeyboardEvent) => {
       if (event.key !== "Tab" || !dialog) return;
       const focusable = Array.from(
         dialog.querySelectorAll<HTMLElement>(FOCUSABLE)
       );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       const active = document.activeElement;
       const outside = !dialog.contains(active);
-      if (event.shiftKey && (active === first || outside)) {
+      if (
+        event.shiftKey &&
+        (active === first || active === dialog || outside)
+      ) {
         event.preventDefault();
         last?.focus();
       } else if (!event.shiftKey && (active === last || outside)) {

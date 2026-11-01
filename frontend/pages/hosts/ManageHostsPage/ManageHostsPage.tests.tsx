@@ -445,9 +445,9 @@ describe("ManageHostsPage", () => {
     await user.click(screen.getByRole("button", { name: /edit columns/i }));
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
-    expect(setUserSettings.mock.calls[0][0]).toEqual(
-      update.mock.calls[0][1].settings
-    );
+    expect(update.mock.calls[0][1].settings).toEqual({
+      hidden_host_columns: setUserSettings.mock.calls[0][0].hidden_host_columns,
+    });
     expect(setUserSettings.mock.calls[0][0].report_column_order).toEqual({
       "6": ["name", "Host"],
     });
