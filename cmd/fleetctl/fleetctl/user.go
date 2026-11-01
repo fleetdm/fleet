@@ -67,9 +67,8 @@ func createUserCommand() *cli.Command {
 				Usage: "Global role to assign to user (default \"observer\")",
 			},
 			&cli.StringSliceFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team", "t"},
-				Usage:   "Fleet assignments in fleet_id:role pairs (multiple may be specified)",
+				Name:  fleetFlagName,
+				Usage: "Fleet assignments in fleet_id:role pairs (multiple may be specified)",
 			},
 			configFlag(),
 			contextFlag(),
