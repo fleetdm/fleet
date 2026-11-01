@@ -2449,7 +2449,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
 	if err != nil {
 		return nil, err
 	}
@@ -2499,7 +2499,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 // parseAndValidateAndroidConfigProfile runs the validation shared by the
 // create and update paths. It returns the constructed profile (with labels
 // set) and the team's name (empty string for no team).
-func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, string, error) {
+func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMAndroidConfigProfile, string, error) {
 	// check that Android MDM is enabled - the middleware of the endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
@@ -2532,7 +2532,7 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
+		err := &fleet.BadRequestError{Message: errPrefix + err.Error()}
 		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
 	// After ValidateUserProvided, as for Windows, so its own 400s win.
@@ -2627,7 +2627,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMAndroidConfigProfile
 	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
 		if err != nil {
 			return err
 		}
