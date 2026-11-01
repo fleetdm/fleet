@@ -579,6 +579,10 @@ export interface IHost {
   /** The date by which os_update_minimum_version must be installed, in
    * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
   os_update_deadline?: string | null;
+  /** When Fleet next forces a patch deadline install on this host (ISO 8601).
+   * Only loaded for macOS hosts, and null when no patch policy has `deadline`
+   * enabled or the host has nothing scheduled. */
+  patch_deadline_at?: string | null;
   // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
   // Omitted entirely (not just null) for every other platform.
   udid?: string;

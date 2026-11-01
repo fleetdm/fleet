@@ -61,6 +61,13 @@
       }
     }
 
+    // Keyboard focus affordance for clickable rows. Matches Fleet's unstyled
+    // button focus mixin (1px solid $core-focused-outline, inset).
+    &.list__row--clickable:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+    }
+
     &:first-child {
       border-radius: $border-radius-large $border-radius-large 0 0;
     }

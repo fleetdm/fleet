@@ -5,12 +5,14 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import { isMacOS } from "interfaces/platform";
 import {
   getInstallablePlatform,
   ISoftwareTitleDetails,
 } from "interfaces/software";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   SoftwareDeploySelector,
@@ -59,13 +61,24 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
-  // If a legacy policy stored both flags (invariant violation), Patch when
-  // closed wins the radio and the dropdown stays hidden — carrying "notify"
-  // in state would reveal it the moment the user picked Force patch.
-  const initialEndUserExperience: EndUserExperience =
-    patchPolicy?.notify_before_patching && !patchPolicy?.patch_when_closed
-      ? "notify"
-      : "immediate";
+  const platform = getInstallablePlatform(softwareTitle.source);
+
+  // If a legacy policy stored multiple flags (invariant violation), Patch when
+  // closed wins the radio and the dropdown stays hidden — carrying "notify" or
+  // "deadline" in state would reveal it the moment the user picked Force patch.
+  // Deadline is also the default when nothing is set on macOS, matching the
+  // add form. Non-macOS titles never show the dropdown and never send
+  // patch_deadline/notify_before_patching, so they default to "immediate".
+  const getInitialEndUserExperience = (): EndUserExperience => {
+    if (patchPolicy?.patch_when_closed) {
+      return isMacOS(platform) ? "deadline" : "immediate";
+    }
+    if (patchPolicy?.patch_deadline) return "deadline";
+    if (patchPolicy?.notify_before_patching) return "notify";
+    if (patchPolicy) return "immediate";
+    return isMacOS(platform) ? "deadline" : "immediate";
+  };
+  const initialEndUserExperience = getInitialEndUserExperience();
 
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);
@@ -76,8 +89,6 @@ const DeployModal = ({
     initialEndUserExperience
   );
   const [isSaving, setIsSaving] = useState(false);
-
-  const platform = getInstallablePlatform(softwareTitle.source);
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
 
@@ -135,13 +146,19 @@ const DeployModal = ({
       } else if (
         patch &&
         patchPolicy &&
+        // Normalize undefined to false on the stored side: legacy policies
+        // (notify_before_patching, patch_deadline) can arrive without the
+        // field at all, and strict !== would otherwise flag undefined vs
+        // false as a change and fire a no-op PATCH.
         (patchOption !== initialPatchOption ||
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
-          patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
-          patchPolicy.notify_before_patching !==
+          (patchPolicy.patch_when_closed ?? false) !==
+            patchFlags.patch_when_closed ||
+          (patchPolicy.notify_before_patching ?? false) !==
             patchFlags.notify_before_patching ||
-          patchPolicy.continuous_automations_enabled !==
+          (patchPolicy.patch_deadline ?? false) !== patchFlags.patch_deadline ||
+          (patchPolicy.continuous_automations_enabled ?? false) !==
             patchFlags.continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
@@ -194,9 +211,15 @@ const DeployModal = ({
               patchOption={patchOption}
               platform={platform}
               endUserExperience={endUserExperience}
+              fleetId={teamId}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
-              onSelectPatchOption={setPatchOption}
+              onSelectPatchOption={(next) => {
+                setPatchOption(next);
+                setEndUserExperience(
+                  getNextEndUserExperience(next, endUserExperience, platform)
+                );
+              }}
               onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}
               showPatchWhenClosedNotice

@@ -3757,6 +3757,84 @@ func TestAuthorizeSoftwareCategory(t *testing.T) {
 	})
 }
 
+func TestAuthorizePatchDeadlineSettings(t *testing.T) {
+	t.Parallel()
+
+	unassigned := &fleet.PatchDeadlineSettings{TeamID: 0}
+	fleet1 := &fleet.PatchDeadlineSettings{TeamID: 1}
+	fleet2 := &fleet.PatchDeadlineSettings{TeamID: 2}
+
+	runTestCases(t, []authTestCase{
+		// Anonymous and role-less users are denied.
+		{user: nil, object: fleet1, action: read, allow: false},
+		{user: nil, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: read, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: unassigned, action: read, allow: false},
+
+		// Global roles apply to any fleet and to Unassigned.
+		{user: test.UserAdmin, object: fleet1, action: read, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
+		{user: test.UserAdmin, object: unassigned, action: read, allow: true},
+		{user: test.UserAdmin, object: unassigned, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: read, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
+		{user: test.UserMaintainer, object: unassigned, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: read, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: unassigned, action: write, allow: true},
+		{user: test.UserObserver, object: fleet1, action: read, allow: true},
+		{user: test.UserObserver, object: fleet1, action: write, allow: false},
+		{user: test.UserObserver, object: unassigned, action: read, allow: true},
+		{user: test.UserObserverPlus, object: fleet1, action: read, allow: true},
+		{user: test.UserObserverPlus, object: fleet1, action: write, allow: false},
+		{user: test.UserObserverPlus, object: unassigned, action: read, allow: true},
+		{user: test.UserTechnician, object: fleet1, action: read, allow: true},
+		{user: test.UserTechnician, object: fleet1, action: write, allow: false},
+		{user: test.UserTechnician, object: unassigned, action: read, allow: true},
+
+		// Fleet roles never reach Unassigned (fleet_id=0).
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: unassigned, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: unassigned, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: unassigned, action: read, allow: false},
+
+		// Fleet admin (fleet1): read+write on own fleet, denied on other.
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: write, allow: false},
+
+		// Fleet maintainer (fleet1): read+write on own fleet, denied on other.
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
+
+		// Fleet gitops (fleet1): read+write on own fleet, denied on other.
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
+
+		// Fleet read-only roles: read own fleet, no write, denied on other.
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: fleet2, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeCertificateTemplate(t *testing.T) {
 	t.Parallel()
 

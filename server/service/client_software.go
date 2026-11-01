@@ -191,6 +191,23 @@ func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategor
 	return responseBody.SelfServiceCategories, nil
 }
 
+func (c *Client) GetPatchDeadlineSettings(fleetID uint) (*fleet.PatchDeadlineSettings, error) {
+	verb, path := "GET", "/api/latest/fleet/software/patch_deadline_settings"
+	query := fmt.Sprintf("fleet_id=%d", fleetID)
+	var responseBody patchDeadlineSettingsResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.PatchDeadlineSettings, nil
+}
+
+func (c *Client) UpdatePatchDeadlineSettings(fleetID uint, s fleet.PatchDeadlineSettings) error {
+	verb, path := "PATCH", "/api/latest/fleet/software/patch_deadline_settings"
+	params := updatePatchDeadlineSettingsRequest{FleetID: &fleetID, Days: s.Days, Time: s.Time}
+	var responseBody patchDeadlineSettingsResponse
+	return c.authenticatedRequest(params, verb, path, &responseBody)
+}
+
 func (c *Client) DeleteSelfServiceCategory(id uint) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
 	var responseBody deleteSelfServiceCategoriesResponse

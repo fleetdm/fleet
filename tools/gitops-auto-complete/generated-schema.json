@@ -3406,6 +3406,36 @@
         "null"
       ]
     },
+    "GitOpsPatchDeadlineSettings": {
+      "additionalProperties": false,
+      "description": "GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.",
+      "properties": {
+        "days": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "time": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "GitOpsPolicySpec": {
       "additionalProperties": false,
       "anyOf": [
@@ -3565,6 +3595,13 @@
             "null"
           ]
         },
+        "patch_deadline": {
+          "description": "PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "patch_when_closed": {
           "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
           "type": [
@@ -3693,6 +3730,10 @@
             "array",
             "null"
           ]
+        },
+        "patch_deadline_settings": {
+          "$ref": "#/$defs/GitOpsPatchDeadlineSettings",
+          "description": "PatchDeadlineSettings is nil when the file omits the key.\n\ntype: `GitOpsPatchDeadlineSettings`"
         }
       },
       "type": [

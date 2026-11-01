@@ -1443,7 +1443,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 				failureMessage = "Fleet couldn't find the notification this script belongs to."
 			}
 			if failureMessage == "" {
-				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, host.ID, notificationUUID)
 			}
 			if failureMessage == "" {
 				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
@@ -2480,21 +2480,23 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:              host.ID,
-				HostDisplayName:     host.DisplayName(),
-				SoftwareTitle:       hsi.SoftwareTitle,
-				SoftwareDisplayName: softwareDisplayName,
-				SoftwarePackage:     hsi.SoftwarePackage,
-				HashSHA256:          hsi.HashSHA256,
-				InstallUUID:         result.InstallUUID,
-				Status:              string(status),
-				Source:              hsi.Source,
-				SelfService:         hsi.SelfService,
-				PolicyID:            hsi.PolicyID,
-				PolicyName:          policyName,
-				FromSetupExperience: fromSetupExperience,
-				SkippedInstall:      isAppOpenSkip,
-				PatchWhenClosed:     hsi.PatchWhenClosed,
+				HostID:               host.ID,
+				HostDisplayName:      host.DisplayName(),
+				SoftwareTitle:        hsi.SoftwareTitle,
+				SoftwareDisplayName:  softwareDisplayName,
+				SoftwarePackage:      hsi.SoftwarePackage,
+				HashSHA256:           hsi.HashSHA256,
+				InstallUUID:          result.InstallUUID,
+				Status:               string(status),
+				Source:               hsi.Source,
+				SelfService:          hsi.SelfService,
+				PolicyID:             hsi.PolicyID,
+				PolicyName:           policyName,
+				FromSetupExperience:  fromSetupExperience,
+				SkippedInstall:       isAppOpenSkip,
+				PatchWhenClosed:      hsi.PatchWhenClosed,
+				NotifyBeforePatching: hsi.NotifyBeforePatching,
+				PatchDeadline:        hsi.PatchDeadline,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
@@ -2511,7 +2513,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// The install result and its activity are already recorded, so a failure
 		// here is logged rather than returned: failing the request would have orbit
 		// report the same result again and emit a second activity.
-		if isAppOpenSkip && hsi.NotifyBeforePatching {
+		if isAppOpenSkip && (hsi.NotifyBeforePatching || hsi.PatchDeadline) {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
 				svc.logger.ErrorContext(
 					ctx,

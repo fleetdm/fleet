@@ -740,8 +740,15 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
-    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
+  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Windows, and Linux always show the row, with "---" until osquery fills
+  // it in.
+  const showTimezone =
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+  if (showTimezone) {
     const localTime = hasValidTimezone
       ? // toZonedTime shifts the instant so its epoch value reads as the
         // host's timezone under the system's own default-timezone formatting,

@@ -3723,4 +3723,74 @@ describe("opt-in configuration profile activities", () => {
       "End user uninstalled the opt-in Wi-Fi profile on Foo Host."
     );
   });
+
+  describe("edited_patch_deadline_settings activity", () => {
+    it("renders fleet name, Oxford-comma'd day list, and time", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["monday", "wednesday", "friday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent(
+        "edited patch deadline for Workstations fleet to Monday, Wednesday, and Friday at 17:00."
+      );
+    });
+
+    it("falls back to 'Unassigned' when fleet_name is null", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: null,
+          days: ["tuesday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent(
+        "edited patch deadline for Unassigned fleet to Tuesday at 17:00."
+      );
+    });
+
+    it("joins two days with 'and' (no Oxford comma)", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["friday", "tuesday"],
+          time: "09:30",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      // Sorted Mon-first regardless of input order.
+      expect(container).toHaveTextContent("to Tuesday and Friday at 09:30.");
+    });
+
+    it("drops unknown weekdays rather than splicing them into the copy", () => {
+      // A malformed BE row (should never happen) must not leak "Fooday" into
+      // the activity feed. Known days render normally; unknowns are filtered.
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["monday", "fooday", "friday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent("to Monday and Friday at 17:00.");
+      expect(container).not.toHaveTextContent("Fooday");
+    });
+  });
 });

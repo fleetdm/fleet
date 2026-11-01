@@ -419,7 +419,8 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
-	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// TimeZone is the host's IANA timezone. Ingested via MDM on iOS/iPadOS and via detail
+	// queries on macOS, Linux, and Windows. nil or "" means unknown.
 	// CSV not exported to not break automations.
 	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
@@ -1372,6 +1373,9 @@ type HostDetail struct {
 
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
+
+	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
+	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
 
 	// IDOnly marks a result where the caller was allowed to resolve the host but
 	// not to read it, so only ID is populated. Handlers must render it as an
