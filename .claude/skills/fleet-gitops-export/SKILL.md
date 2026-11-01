@@ -1,6 +1,6 @@
 ---
 name: fleet-gitops-export
-description: Export a live Fleet instance into a ready-to-use GitOps repository laid out the way `fleetctl new` scaffolds it (default.yml, fleets/*.yml, labels/, platforms/<os>/<kind>/), with secrets replaced by environment variables and a read-only `fleetctl gitops --dry-run` to prove the repo matches Fleet. Use when someone wants to migrate Fleet settings configured in the UI or API to GitOps, export Fleet to a GitOps repo, turn UI settings into YAML, adopt GitOps on an existing Fleet, or replace `fleetctl generate-gitops`, even if they never say "export". It builds a new repo; to edit or validate an existing GitOps repo, use the fleet-gitops skill instead.
+description: Export a live Fleet instance into a ready-to-use GitOps repository laid out the way `fleetctl new` scaffolds it (default.yml, fleets/*.yml, labels/, platforms/[os]/[kind]/), with secrets replaced by environment variables and a read-only `fleetctl gitops --dry-run` to prove the repo matches Fleet. Use when someone wants to migrate Fleet settings configured in the UI or API to GitOps, export Fleet to a GitOps repo, turn UI settings into YAML, adopt GitOps on an existing Fleet, or replace `fleetctl generate-gitops`, even if they never say "export". It builds a new repo; to edit or validate an existing GitOps repo, use the fleet-gitops skill instead.
 compatibility: Needs a shell, Python 3.9+, fleetctl 4.84.0+ logged in to Fleet as a global admin, and network access to the Fleet server.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/gitops_export.py *), Bash(fleetctl --version), Bash(fleetctl new:*), Bash(fleetctl config get:*), Bash(ls:*), Bash(find:*), Bash(cat:*), Bash(git init:*), Bash(git status:*)
 effort: high
@@ -10,7 +10,7 @@ effort: high
 
 This skill turns the Fleet instance that `fleetctl` is logged in to into a GitOps repo: it runs `fleetctl new` for the layout, reads every setting, fleet, profile, script, policy, report, label, and software item through Fleet's API, writes each one where the scaffold's files expect it, and validates that applying the repo would change nothing.
 
-The scripts in `scripts/` (next to this file) do the deterministic work. Your job is the workflow, the conversation with the user, and the judgment calls listed below. Run the scripts with `python3 <skill folder>/scripts/gitops_export.py <command> --dir <target>`, where the skill folder is the absolute path of the directory containing this file. On Windows, use `py -3` (or `python`) where this file says `python3`.
+The scripts in `scripts/` (next to this file) do the deterministic work. Your job is the workflow, the conversation with the user, and the judgment calls listed below. Run the scripts with `python3 <skill folder>/scripts/gitops_export.py <command> --dir <target>`, where the skill folder is the absolute path of the directory containing this file. On Windows, use `py -3` (or `python`) where this file says `python3`. [README.md](README.md) is the same workflow written for people; point a user who's new to `fleetctl` or GitOps there, for example for logging in or setting up CI.
 
 ## Ground rules
 
@@ -58,6 +58,7 @@ Reads Fleet and writes `plan.json` to a work folder outside the repo (the comman
 Handle each `REVIEW` line before placing. To move a file, edit its `"path"` in `plan.json` (files are keyed by id; every reference to the file follows the id, so nothing else needs to change). Keep the folder pattern `platforms/<os>/<kind>/`.
 
 - **`.sh` and `.py` scripts:** Fleet runs them on macOS and Linux alike and doesn't record which one a script is for. The script guesses from its contents and flags the ones it can't tell. Read them: `launchctl`, `defaults`, `/Library` mean macOS; `apt`, `systemctl`, `/etc/os-release` mean Linux. If the fleet only has hosts of one platform, use that. Two scripts with the same name in one folder can't coexist, so keep fleet subfolders (`scripts/<fleet>/`) the planner created.
+- **Fleet-maintained app scripts:** Fleet supplies these apps' install and uninstall scripts and replaces them on each app update unless an admin edited them, but the API doesn't say which were edited. The planner leaves out a stored script that's close to the app's current Fleet script (an older copy Fleet hasn't replaced yet) and lists those in one `REVIEW` line. Ask the user whether anyone edited any of them in Fleet; if so, re-run `export` with `--keep-fma-scripts <slug>[,<slug>...]` (or `all`) so those are kept. A script that differs a lot is kept without asking.
 - **Apple profiles:** Fleet stores one Apple platform for macOS, iOS, and iPadOS. The planner uses `macos/` unless the fleet looks mobile-only, then `ios/`. Move a profile when its payloads or the fleet's purpose clearly point elsewhere.
 - **Fleet files:** each fleet maps to a template file by name (`"💻 Workstations"` fills `fleets/workstations.yml`) or is cloned from the template that fits it (computers or mobile). Check `fleets[].template` for fleets that look wrong, and tell the user which template file each fleet came from.
 - **Naming:** files are named from item names (lowercase, dashes, emoji dropped). Scripts and Windows/DDM/Android profiles keep their exact names, because Fleet derives the name from the file name. Don't rename those.
@@ -87,7 +88,7 @@ Before running it, ask the user to copy `.env.example` to `.env` in the repo and
 
 1. runs the scaffold's own `fleet-gitops` validator (static checks; its FAILs are reported but don't fail the export, because some come from content as it exists in Fleet),
 2. parses every YAML file and checks that every reference exists and no file is orphaned,
-3. reconciles the repo with Fleet item by item and field by field: policy, report, and label definitions against the values Fleet returned, scripts, profiles, activations, and DDM assets by content hash, and software by package hash, Fleet-maintained app slug, or App Store ID with its self-service, category, and label settings,
+3. reconciles the repo with Fleet item by item and field by field: policy, report, and label definitions against the values Fleet returned, scripts, profiles, activations, and DDM assets by content hash, and software by package URL (hash when there's no URL), Fleet-maintained app slug, or App Store ID with its self-service, category, and label settings,
 4. runs `fleetctl gitops -f default.yml -f fleets/*.yml --delete-other-fleets --dry-run` with secrets in the process environment.
 
 The export passes when references and reconcile are clean, the dry run exits 0, and it prints no deletion, creation, or move. Treat any of those as an export bug or a gap: find which, fix the plan or explain the gap, and re-run. Don't edit generated YAML by hand to make a check pass without understanding why it failed. Known cases:
@@ -114,7 +115,7 @@ Report these as gaps, never as failures you worked around (details in [reference
 - Values Fleet only returns masked (Jira and Zendesk tokens, Google service account keys, Apple account provisioning client secret, EJBCA client certificates) and `FLEET_SECRET_*` custom variable values. They become environment variables the user fills in.
 - Fleet-level Jira and Zendesk settings, users and roles, ABM/VPP/APNs tokens and certificates, SMTP settings, GitOps-mode settings.
 - Packages uploaded without a URL: pinned by `hash_sha256` only, so they can't be recreated on another Fleet instance.
-- Hardcoded credentials inside profiles or scripts as they exist in Fleet (a Wi-Fi password in a `.mobileconfig`, say). They're exported as-is, because changing them would change what Fleet deploys. If you see one, tell the user and suggest moving it into a `$FLEET_SECRET_` variable.
+- Hardcoded credentials inside profiles or scripts as they exist in Fleet (a Wi-Fi password in a `.mobileconfig`, say). They're exported as-is, because changing them would change what Fleet deploys. If you see one, tell the user and suggest moving it into a `$FLEET_SECRET_` variable. Enroll secrets are the exception the export can recognize: in a profile or DDM asset it writes the enroll secret's variable (Fleet stores those files after `fleetctl` expanded it), and in a script, which `fleetctl` doesn't expand, it prints a `REVIEW` line.
 
 Secrets and variable names are in [references/secrets.md](references/secrets.md); how this export compares with `fleetctl generate-gitops` is in [references/parity-checklist.md](references/parity-checklist.md).
 

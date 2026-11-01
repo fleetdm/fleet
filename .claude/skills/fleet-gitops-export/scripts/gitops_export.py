@@ -4,7 +4,7 @@
 Usage:
   gitops_export.py preflight --dir DIR [--org-name NAME] [--force]
   gitops_export.py scaffold  --dir DIR --org-name NAME [--force]
-  gitops_export.py export    --dir DIR
+  gitops_export.py export    --dir DIR [--keep-fma-scripts SLUG[,SLUG...]|all]
   gitops_export.py place     --dir DIR
   gitops_export.py validate  --dir DIR [--env-file FILE] [--offline] [--no-dry-run]
   gitops_export.py report    --dir DIR
@@ -188,7 +188,8 @@ def cmd_export(args) -> int:
     blobs = work / "blobs"
     if blobs.exists():
         shutil.rmtree(blobs)
-    plan = Planner(snap, layout, work).build()
+    keep = [s.strip() for s in (args.keep_fma_scripts or "").split(",") if s.strip()]
+    plan = Planner(snap, layout, work, keep_fma_scripts=keep).build()
     (work / "plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
     say(f"plan: {len(plan['files'])} files, {len(plan['fleets'])} fleet files, {len(plan['env'])} environment variables")
     reviews = [n for n in plan["notes"] if n["level"] == "review"]
@@ -223,11 +224,14 @@ def cmd_validate(args) -> int:
     env_file = None if args.no_dry_run else dry_run_env_file(args, target)
     ch = Checker(target, plan)
     ch.run_validator(offline=args.offline)
+    if not args.no_dry_run:
+        say(f"dry-run variables from {env_file} and the environment" if env_file else "dry-run variables from the environment (no .env in the repo)")
+        # Fetched before reconcile, which needs them to compare profiles that hold enroll secrets as variables.
+        ch.env_values, ch.env_notes = ch.dry_run_env(API(fc), env_file)
     if ch.load_repo():
         ch.references()
         ch.reconcile()
     if not args.no_dry_run:
-        say(f"dry-run variables from {env_file} and the environment" if env_file else "dry-run variables from the environment (no .env in the repo)")
         ch.dry_run(API(fc), fc, env_file)
     res = ch.summary()
     (work / "validation.json").write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -350,12 +354,15 @@ def main():
         if name in ("preflight", "scaffold", "all"):
             p.add_argument("--org-name")
             p.add_argument("--force", action="store_true", help="write into a non-empty directory (only with the user's OK)")
+        if name in ("export", "all"):
+            p.add_argument("--keep-fma-scripts", help="Fleet-maintained app slugs (comma-separated, or all) whose stored scripts "
+                                                      "are kept even when they look like older copies of the catalog's")
         if name in ("validate", "all"):
             p.add_argument("--env-file", help="values Fleet can't return, for the dry run (default: the repo's .env)")
             p.add_argument("--offline", action="store_true", help="skip downloads in the fleet-gitops validator")
             p.add_argument("--no-dry-run", action="store_true")
     args = ap.parse_args()
-    for k in ("org_name", "force", "env_file", "offline", "no_dry_run"):
+    for k in ("org_name", "force", "env_file", "offline", "no_dry_run", "keep_fma_scripts"):
         if not hasattr(args, k):
             setattr(args, k, None)
     rc = {"preflight": cmd_preflight, "scaffold": cmd_scaffold, "export": cmd_export, "place": cmd_place,

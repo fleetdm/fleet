@@ -2,7 +2,9 @@
 
 Returns one in-memory snapshot. Secret values are dropped here (enroll secrets
 become counts, masked values stay masked) so nothing downstream can write
-them; the dry run fetches the ones it needs again, in memory.
+them; the dry run fetches the ones it needs again, in memory. Where an enroll
+secret appears inside a profile, DDM asset, or script, the item records the
+span and which secret it is, never the value.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from fleet_api import API, FleetctlError
 
 F = "/api/latest/fleet"
 SETUP_PLATFORMS = "macos,windows,linux,ios,ipados,android"
+MIN_SECRET_LEN = 8  # shorter values match ordinary text too often to be replaced safely
 
 
 def _items(d: dict | None, *keys):
@@ -36,6 +39,7 @@ class Collector:
         self.log = log
         self.warnings: list[dict] = []
         self._fma_cache: dict = {}
+        self._secret_values: list = []
 
     def warn(self, scope, item, message):
         self.warnings.append({"scope": scope, "item": item, "message": message})
@@ -63,7 +67,9 @@ class Collector:
         }
 
         self.log("reading global settings")
-        snap["enroll_secret_count"] = len((api.json(f"{F}/spec/enroll_secret").get("spec") or {}).get("secrets") or [])
+        secrets = (api.json(f"{F}/spec/enroll_secret").get("spec") or {}).get("secrets") or []
+        snap["enroll_secret_count"] = len(secrets)
+        self._secret_values = [(s.get("secret"), {"type": "enroll_secret", "team": None, "index": i}) for i, s in enumerate(secrets)]
         snap["custom_host_vitals"] = api.paged(f"{F}/custom_host_vitals", "custom_host_vitals")
         snap["certificate_authorities"] = api.json(f"{F}/spec/certificate_authorities").get("certificate_authorities") or {}
         snap["graph_credentials"] = api.json(f"{F}/microsoft_graph_credentials").get("microsoft_graph_credentials") or [] if premium else []
@@ -81,8 +87,32 @@ class Collector:
         for sc in scopes:
             self.log(f"reading {sc['name']}")
             snap["scopes"].append(self._scope(sc, flags))
+        self._mark_secrets(snap["scopes"])
+        self._secret_values = []
         snap["warnings"] = self.warnings
         return snap
+
+    def _mark_secrets(self, scopes):
+        values = [(v, src) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
+        for sc in scopes:
+            for item in (sc.get("profiles") or []) + (sc.get("assets") or []) + (sc.get("scripts") or []):
+                try:
+                    text = item["content"].decode("utf-8")
+                except UnicodeDecodeError:
+                    continue
+                spans = []
+                for v, src in values:
+                    start = text.find(v)
+                    while start != -1:
+                        spans.append({"start": start, "end": start + len(v), "source": src})
+                        start = text.find(v, start + len(v))
+                refs, end = [], -1
+                for s in sorted(spans, key=lambda s: (s["start"], -s["end"])):
+                    if s["start"] >= end:
+                        refs.append(s)
+                        end = s["end"]
+                if refs:
+                    item["env_refs"] = refs
 
     # ------------------------------------------------------------ global
 
@@ -122,7 +152,10 @@ class Collector:
         if is_team or tid == 0:
             team = api.json(f"{F}/fleets/{tid}")
             team = team.get("fleet") or team.get("team") or {}
-            out["enroll_secret_count"] = len(team.pop("secrets", None) or [])
+            secrets = team.pop("secrets", None) or []
+            out["enroll_secret_count"] = len(secrets)
+            if is_team:
+                self._secret_values += [(s.get("secret"), {"type": "enroll_secret", "team": tid, "index": i}) for i, s in enumerate(secrets)]
             out["team"] = team
 
         # Global and Unassigned share the global label set; fleets have their own.

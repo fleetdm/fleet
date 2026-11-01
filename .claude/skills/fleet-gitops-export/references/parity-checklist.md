@@ -58,7 +58,7 @@ What `fleetctl generate-gitops` exports (cmd/fleetctl/fleetctl/generate_gitops.g
 |---|---|---|---|---|
 | Policy fields, `critical` and `hidden` on Premium, labels (all four lists) | exported inline | one file per policy in `platforms/<os or all>/policies/` | ✅ | round trip |
 | Patch policies | `fleet_maintained_app_slug`, `patch_when_closed`, `notify_before_patching` | same, plus `install_software: true` (the documented form) | ✅ | round trip |
-| `install_software` (Fleet-maintained app, package hash, App Store ID) | exported | exported | ✅ | round trip (FMA, package) |
+| `install_software` (Fleet-maintained app, package hash, App Store ID) | exported | exported; `package_path` for a package whose hash isn't pinned | ✅ | round trip (FMA, package) |
 | `run_script`, `resend_configuration_profile` | exported | exported | ✅ | round trip |
 | Reports, labels | exported inline | one file per report | ✅ | round trip |
 
@@ -67,11 +67,14 @@ What `fleetctl generate-gitops` exports (cmd/fleetctl/fleetctl/generate_gitops.g
 | Item | generate-gitops | This skill | Status | Verified |
 |---|---|---|---|---|
 | Custom packages (URL, hash, scripts, pre-install query, self-service, categories, labels, display name, setup experience) | inline in the fleet file | `platforms/<os>/software/<name>.package.yml` + options on the fleet entry | ↔️ | round trip |
+| Fleet's default install and uninstall scripts on custom packages | written as custom scripts | left out, so Fleet keeps supplying them | ⬆️ | – |
+| `hash_sha256` for a URL that doesn't name a version | written (the next vendor release fails the run) | left out | ⬆️ | – |
 | Titles with several packages | separate package file | package file with one item per package | ✅ | – |
 | Script-only packages | `hash_sha256` | the script file itself when its hash matches (reviewable in git), else the hash | ⬆️ | round trip |
 | Cross-platform setup experience (`setup_experience_platform`) | exported | exported | ✅ | – |
 | In-house `.ipa` apps (deduplicated, managed configuration) | exported | exported | ✅ | – |
 | Fleet-maintained apps (slug, pinned version, categories, labels, icon, display name, custom scripts when they differ from the defaults, pre-install query unless a patch policy manages it) | exported | exported | ✅ | round trip |
+| Fleet-maintained app scripts that are older copies of the catalog's | written as custom scripts, which stops Fleet's updates to them | left out and listed for review (`--keep-fma-scripts` keeps them) | ⬆️ | dogfood |
 | App Store and Google Play apps (platform, VPP location with more than one token, versions, managed configuration, auto-update window) | exported | exported | ✅ | – |
 | Icons stored in Fleet | `lib/<fleet>/icons/` | `platforms/all/icons/` | ✅ | – |
 | Software managed in the UI (GitOps exception) | not considered | `software:` commented out | ⬆️ | dry run |

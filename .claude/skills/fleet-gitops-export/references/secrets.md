@@ -7,7 +7,7 @@ For the dry run, `validate` builds the values in memory and passes them only to 
 | Source | Meaning |
 |---|---|
 | **API** | Read from Fleet with a GET (the value is identical to what Fleet has, so the dry run compares like with like) |
-| **Mask** | Fleet only returns `********` for this value. The dry run uses that mask, which Fleet treats as "keep the stored value". In CI the variable needs the real value. |
+| **Mask** | Fleet only returns `********` for this value. The dry run uses that mask, quoted so YAML doesn't read the `*` as an alias, and Fleet treats it as "keep the stored value". In CI the variable needs the real value. |
 | **User** | Fleet never returns it. Taken from the repo's `.env` (or `--env-file`), then the environment; otherwise a placeholder, and the report says those files weren't checked with the real value. |
 
 For masked values, a value in `.env` or the environment wins over the mask. Empty entries in `.env` count as unset.
@@ -32,8 +32,12 @@ For masked values, a value in `.env` or the environment wins over the mask. Empt
 
 `SSO_METADATA` values are multi-line XML. `fleetctl gitops` expands variables before parsing YAML, so `place` uncomments the matching lines in `.github/fleet-gitops/gitops.sh` that indent the value (and fixes the template's copy, which reads `FLEET_MDM_SSO_METADATA` for both). `validate` applies the same indentation in memory.
 
+## Enroll secrets inside profiles
+
+A GitOps repo often puts an enroll secret in a profile (a fleetd configuration profile's `EnrollSecret`, say) as `$VARIABLE`, and Fleet stores the profile after `fleetctl` expanded it. The collector finds each enroll secret in profile, DDM asset, and script contents while it still has the values, and keeps only the span and which secret it is. The planner writes that secret's variable (`$FLEET_GLOBAL_ENROLL_SECRET`, `$FLEET_<FLEET>_ENROLL_SECRET`) in its place in profiles and DDM assets, which `fleetctl` expands back to the same bytes, and records the variable on the file in `plan.json` (`env_refs`). Reconcile fills the variable in before comparing hashes; with `validate --no-dry-run` it has no values, so it warns that those files weren't compared. Scripts aren't expanded by `fleetctl`, so an enroll secret in one is exported as-is with a `REVIEW` line.
+
 ## Not treated as secrets
 
 - SSO and end-user authentication `metadata_url`, entity IDs, IdP names: the template writes them in plain text.
-- Values inside profiles and scripts. They're exported exactly as Fleet stores them; `$FLEET_SECRET_*` placeholders stay placeholders. If a profile or script has a credential written into it, flag it to the user rather than changing the file (changing it would change what Fleet deploys).
+- Other values inside profiles and scripts. They're exported exactly as Fleet stores them; `$FLEET_SECRET_*` placeholders stay placeholders. If a profile or script has a credential written into it, flag it to the user rather than changing the file (changing it would change what Fleet deploys).
 - GitOps exceptions: when Fleet marks enroll secrets as managed in the UI (**Settings > Integrations > Change management**), no `secrets:` keys are written, because fleetctl fails when they're present. A fresh Fleet instance has this exception turned on.

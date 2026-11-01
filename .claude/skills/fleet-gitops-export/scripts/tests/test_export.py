@@ -13,17 +13,27 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import gitops_export  # noqa: E402
-from checks import PLACEHOLDER, Checker, read_env_file, yaml_backend  # noqa: E402
+from checks import PLACEHOLDER, Checker, load_yaml, read_env_file, yaml_backend  # noqa: E402
+from collect import Collector  # noqa: E402
 from fleet_api import Fleetctl, FleetctlError  # noqa: E402
+from fleet_defaults import is_default_script  # noqa: E402
 from layout import Layout  # noqa: E402
 from placer import Placer, glob_match  # noqa: E402
-from planner import ALIASES, Planner, slugify  # noqa: E402
+from planner import ALIASES, Planner, _fma_script_state, _script_platform, _url_names_version, slugify  # noqa: E402
 from yamlio import Doc, EnvRef, _shell_name, dump, env_escape  # noqa: E402
 
 REPO = HERE.parents[4]
 TEMPLATES = REPO / "cmd/fleetctl/fleetctl/templates/new"
 DEPRECATIONS = REPO / "pkg/spec/gitops_deprecations.go"
 POINTER = REPO / ".agents/skills/fleet-gitops-export/SKILL.md"
+FLEET_SCRIPTS = REPO / "pkg/file"
+DEFAULT_SCRIPTS = HERE.parent / "fleet_default_scripts"
+
+
+def default_script(name: str, package_id: str = "") -> str:
+    """Fleet's default script as Fleet stores it, with the package ID filled in."""
+    text = (DEFAULT_SCRIPTS / name).read_text(encoding="utf-8")
+    return text.replace("$PACKAGE_ID", f"'{package_id}'") if package_id else text
 
 
 def fleetctl_expand(s: str, env: dict) -> str:
@@ -176,12 +186,81 @@ class DryRunEnvTest(unittest.TestCase):
         self.assertEqual(len(notes), 1)
         self.assertNotIn("s3cr3t", " ".join(notes))
 
+    def test_mask_stays_a_yaml_string(self):
+        backend = yaml_backend()
+        if not backend:
+            self.skipTest("no YAML parser")
+        plan = {"env": [{"name": "FLEET_EXPORT_TEST_MASKED", "source": {"type": "mask"}}]}
+        env, _ = Checker(self.tmp, plan).dry_run_env(None, None)
+        doc = fleetctl_expand("integrations:\n  api_key_json: $FLEET_EXPORT_TEST_MASKED\n", env)
+        self.assertEqual(load_yaml(doc, backend)["integrations"]["api_key_json"], "********")
+
+
+class SecretSpansTest(unittest.TestCase):
+    def test_marks_enroll_secrets_without_keeping_values(self):
+        c = Collector(api=None)
+        c._secret_values = [("wk-s3cr3t-value", {"type": "enroll_secret", "team": 1, "index": 0}),
+                            ("short", {"type": "enroll_secret", "team": None, "index": 0})]
+        scopes = [{"profiles": [{"content": b"<string>wk-s3cr3t-value</string> and wk-s3cr3t-value"}],
+                   "scripts": [{"content": b"echo short"}], "assets": [{"content": b"\xff\xfe"}]}]
+        c._mark_secrets(scopes)
+        refs = scopes[0]["profiles"][0]["env_refs"]
+        self.assertEqual([(r["start"], r["end"]) for r in refs], [(8, 23), (37, 52)])
+        self.assertEqual(refs[0]["source"], {"type": "enroll_secret", "team": 1, "index": 0})
+        self.assertNotIn("env_refs", scopes[0]["scripts"][0])
+        self.assertNotIn("wk-s3cr3t-value", repr(refs))
+
+
+class FleetDefaultsTest(unittest.TestCase):
+    def test_recognizes_defaults_with_ids_filled_in(self):
+        self.assertTrue(is_default_script("install_script", ".deb", default_script("install_deb.sh")))
+        self.assertTrue(is_default_script("uninstall_script", "deb", default_script("uninstall_deb.sh", "slack-desktop")))
+        pkg = default_script("uninstall_pkg.sh").replace("$PACKAGE_ID", "(\n  'com.example.a'\n  'com.example.b'\n)")
+        self.assertTrue(is_default_script("uninstall_script", "pkg", pkg))
+        upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
+        self.assertTrue(is_default_script("uninstall_script", "msi", upgrade))
+
+    def test_custom_scripts_are_not_defaults(self):
+        self.assertFalse(is_default_script("install_script", "deb", default_script("install_deb.sh") + "systemctl restart x\n"))
+        self.assertFalse(is_default_script("install_script", "exe", "Start-Process setup.exe"))
+        self.assertFalse(is_default_script("post_install_script", "deb", default_script("install_deb.sh")))
+
+    @unittest.skipUnless(FLEET_SCRIPTS.exists(), "not inside the Fleet repository")
+    def test_copies_match_fleet(self):
+        management = (FLEET_SCRIPTS / "management.go").read_text()
+        embedded = set(re.findall(r"//go:embed scripts/((?:install|uninstall)_\w+\.(?:sh|ps1))", management))
+        self.assertEqual(embedded, {p.name for p in DEFAULT_SCRIPTS.iterdir()})
+        for name in embedded:
+            self.assertEqual((DEFAULT_SCRIPTS / name).read_bytes(), (FLEET_SCRIPTS / "scripts" / name).read_bytes(), name)
+
 
 class HelpersTest(unittest.TestCase):
     def test_slugify(self):
         self.assertEqual(slugify("💻 Workstations"), "workstations")
         self.assertEqual(slugify("📱🔐 Personal mobile devices"), "personal-mobile-devices")
         self.assertEqual(slugify("macOS - FileVault: on"), "macos-filevault-on")
+
+    def test_script_platform_reads_paths(self):
+        self.assertEqual(_script_platform("ro.sh", 'RULE="/etc/udev/rules.d/99.rules"\nudevadm trigger\n')[0], "linux")
+        self.assertEqual(_script_platform("x.sh", 'rm -rf "/Library/Foo"\n'), ("macos", None))
+        self.assertIsNotNone(_script_platform("certs.sh", 'BUNDLE="${1:-/opt/orbit/certs.pem}"\n')[1])
+
+    def test_url_names_version(self):
+        self.assertTrue(_url_names_version("https://x.test/prod/7.1.5.4332/zoom_amd64.deb", "7.1.5.4332"))
+        self.assertTrue(_url_names_version("https://x.test/slack-4.52.155-0.1.el8.x86_64.rpm", "4.52.155-0.1.el8"))
+        self.assertTrue(_url_names_version("https://x.test/app_2.0.deb", "1:2.0-3"))
+        self.assertFalse(_url_names_version("https://x.test/stable/1password-latest.deb", "8.11.16"))
+        self.assertTrue(_url_names_version("https://x.test/anything.pkg", None))
+
+    def test_fma_script_state(self):
+        catalog = "".join(f"line {i}\n" for i in range(20))
+        older = catalog.replace("line 3\n", "old line 3\n").replace("line 7\n", "old line 7\n")
+        fma = {"uninstall_script": catalog}
+        self.assertEqual(_fma_script_state({"uninstall_script": catalog + "\n"}, fma, "uninstall_script"), "default")
+        self.assertEqual(_fma_script_state({"uninstall_script": older}, fma, "uninstall_script"), "older")
+        self.assertEqual(_fma_script_state({"uninstall_script": "#!/bin/sh\nrm -rf /Applications/X.app\n"}, fma, "uninstall_script"), "custom")
+        self.assertEqual(_fma_script_state({"uninstall_script": older, "uninstall_script_edited": True}, fma, "uninstall_script"), "custom")
+        self.assertEqual(_fma_script_state({"uninstall_script": "x", "uninstall_script_edited": False}, fma, "uninstall_script"), "default")
 
     def test_glob_match_stays_in_segment(self):
         self.assertTrue(glob_match("platforms/macos/scripts/*.sh", "platforms/macos/scripts/a.sh"))
@@ -225,6 +304,21 @@ def team(name, mdm=None):
             "webhook_settings": {}, "integrations": {}, "mdm": mdm or {}}
 
 
+SECRET = "wk-s3cr3t-value-1234"
+SERVER_SECRET = "srv-s3cr3t-value-99"
+FLEETD_PROFILE = (b'<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>PayloadDisplayName</key>'
+                  b"<string>Fleetd config</string><key>EnrollSecret</key><string>" + SECRET.encode() + b"</string>"
+                  b"<key>Note</key><string>costs $5</string></dict></plist>\n")
+ENROLL_SCRIPT = f"#!/bin/sh\napt-get install -y fleet-osquery --enroll-secret {SERVER_SECRET}\n".encode()
+FMA_CATALOG = "".join(f"line {i}\n" for i in range(20))
+FMA_STORED = FMA_CATALOG.replace("line 3\n", "old line 3\n").replace("line 7\n", "old line 7\n")
+
+
+def secret_span(content: bytes, secret: str, team_id) -> list:
+    start = content.decode().index(secret)
+    return [{"start": start, "end": start + len(secret), "source": {"type": "enroll_secret", "team": team_id, "index": 0}}]
+
+
 def snapshot():
     mobileconfig = (b'<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>PayloadDisplayName</key>'
                     b"<string>Firewall on</string><key>PayloadType</key><string>Configuration</string></dict></plist>\n")
@@ -261,17 +355,36 @@ def snapshot():
                          {"id": 3, "name": "hi.ps1", "content": b"Write-Host hi\n"}],
              "profiles": [{"profile_uuid": "a", "name": "Firewall on", "platform": "darwin", "content": mobileconfig,
                            "labels_include_any": [{"name": "Arm Macs"}]},
-                          {"profile_uuid": "b", "name": "Min password", "platform": "windows", "content": b"<Replace><Data>$8</Data></Replace>\n"}],
+                          {"profile_uuid": "b", "name": "Min password", "platform": "windows", "content": b"<Replace><Data>$8</Data></Replace>\n"},
+                          {"profile_uuid": "c", "name": "Fleetd config", "platform": "darwin", "content": FLEETD_PROFILE,
+                           "env_refs": secret_span(FLEETD_PROFILE, SECRET, 1)}],
              "assets": [], "android_certificates": [], "setup": {},
              "software": {"titles": [{"id": 10, "name": "Maccy", "fma": {"slug": "maccy/darwin", "install_script": "i", "uninstall_script": "u"},
                                       "software_package": {"name": "Maccy.zip", "platform": "darwin", "fleet_maintained_app_id": 5,
                                                            "self_service": True, "categories": ["Productivity"],
-                                                           "install_script": "i", "uninstall_script": "u"}}],
+                                                           "install_script": "i", "uninstall_script": "u"}},
+                                     {"id": 11, "name": "Rectangle", "fma": {"slug": "rectangle/darwin", "install_script": "i", "uninstall_script": FMA_CATALOG},
+                                      "software_package": {"name": "Rectangle.dmg", "platform": "darwin", "fleet_maintained_app_id": 6,
+                                                           "install_script": "i", "uninstall_script": FMA_STORED}}],
                           "setup": [], "setup_macos": []}},
             {"key": "2", "id": 2, "name": "Servers", "team": team("Servers"), "enroll_secret_count": 1, "labels": [],
-             "policies": [{"id": 4, "name": "curl installed", "query": "SELECT 1;", "platform": "linux"}], "reports": [],
-             "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"}], "profiles": [], "assets": [],
-             "android_certificates": [], "software": {"titles": [], "setup": [], "setup_macos": []}, "setup": {}},
+             "policies": [{"id": 4, "name": "curl installed", "query": "SELECT 1;", "platform": "linux"},
+                          {"id": 5, "name": "Zoom installed", "query": "SELECT 1;", "platform": "linux",
+                           "install_software": {"software_title_id": 21, "name": "Zoom"}}],
+             "reports": [],
+             "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"},
+                         {"id": 5, "name": "enroll.sh", "content": ENROLL_SCRIPT, "env_refs": secret_span(ENROLL_SCRIPT, SERVER_SECRET, 2)}],
+             "profiles": [], "assets": [], "android_certificates": [], "setup": {},
+             "software": {"titles": [{"id": 20, "name": "Zoom", "software_package": {
+                                          "name": "zoom_amd64.deb", "platform": "linux", "version": "7.1.5.4332",
+                                          "url": "https://cdn.example.test/prod/7.1.5.4332/zoom_amd64.deb", "hash_sha256": "a" * 64,
+                                          "install_script": default_script("install_deb.sh"), "uninstall_script": default_script("uninstall_deb.sh", "zoom")}},
+                                     {"id": 21, "name": "Zoom", "software_package": {
+                                          "name": "zoom_x86_64.rpm", "platform": "linux", "version": "7.1.5.4332",
+                                          "url": "https://cdn.example.test/zoom-latest.rpm", "hash_sha256": "b" * 64,
+                                          "install_script": "#!/bin/sh\nrpm -i --nodeps \"$INSTALLER_PATH\"\n",
+                                          "uninstall_script": default_script("uninstall_rpm.sh", "zoom")}}],
+                          "setup": [], "setup_macos": []}},
         ],
     }
 
@@ -337,9 +450,63 @@ class EndToEndTest(unittest.TestCase):
         ch = Checker(self.root, self.plan)
         if not ch.load_repo():
             self.skipTest("no YAML parser")
+        ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": SECRET}
         ch.references()
         ch.reconcile()
         self.assertEqual([r for k in ("references", "reconcile") for r in ch.results[k]], [])
+
+    def test_enroll_secret_in_profile_becomes_variable(self):
+        rel = "platforms/macos/configuration-profiles/fleetd-config.mobileconfig"
+        text = self.read(rel)
+        self.assertNotIn(SECRET, text)
+        self.assertIn("<string>$FLEET_WORKSTATIONS_ENROLL_SECRET</string>", text)
+        self.assertIn(r"costs \$5", text)
+        self.assertEqual(fleetctl_expand(text, {"FLEET_WORKSTATIONS_ENROLL_SECRET": SECRET}).encode(), FLEETD_PROFILE)
+        self.assertEqual(next(f for f in self.plan["files"].values() if f["path"] == rel)["env_refs"], ["FLEET_WORKSTATIONS_ENROLL_SECRET"])
+        self.assertNotIn(SECRET, repr({k: v for k, v in self.plan.items() if k != "inventory"}))
+
+    def test_enroll_secret_in_script_is_flagged(self):
+        notes = [n for n in self.plan["notes"] if n["level"] == "review" and n["item"].endswith("/enroll.sh")]
+        self.assertEqual(len(notes), 1)
+        self.assertIn("FLEET_SERVERS_ENROLL_SECRET", notes[0]["message"])
+        self.assertNotIn(SERVER_SECRET, notes[0]["message"])
+
+    def test_reconcile_fills_in_enroll_secret_variables(self):
+        ch = Checker(self.root, self.plan)
+        if not ch.load_repo():
+            self.skipTest("no YAML parser")
+        ch.reconcile()
+        self.assertEqual([r["level"] for r in ch.results["reconcile"]], ["WARN"])
+        ch = Checker(self.root, self.plan)
+        ch.load_repo()
+        ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": "a-different-secret"}
+        ch.reconcile()
+        self.assertIn("profile 'Fleetd config': sha256", "\n".join(r["message"] for r in ch.results["reconcile"]))
+
+    def test_older_fma_scripts_left_out_and_flagged(self):
+        self.assertNotIn("rectangle-uninstall.sh", self.read("fleets/workstations.yml"))
+        self.assertTrue(any(n["level"] == "review" and "rectangle/darwin (uninstall)" in n["message"] for n in self.plan["notes"]))
+        kept = Planner(snapshot(), self.layout, self.work, keep_fma_scripts=["rectangle/darwin"]).build()
+        self.assertTrue(any(f["path"].endswith("/rectangle-uninstall.sh") for f in kept["files"].values()))
+
+    def test_packages_skip_fleet_defaults_and_unpinnable_hashes(self):
+        deb = self.read("platforms/linux/software/zoom-deb.package.yml")
+        rpm = self.read("platforms/linux/software/zoom-rpm.package.yml")
+        self.assertIn("hash_sha256", deb)
+        self.assertNotIn("install_script", deb)
+        self.assertNotIn("uninstall_script", deb)
+        self.assertNotIn("hash_sha256", rpm)
+        self.assertIn("install_script", rpm)
+        self.assertNotIn("uninstall_script", rpm)
+        self.assertIn("package_path: ../software/zoom-rpm.package.yml", self.read("platforms/linux/policies/zoom-installed.yml"))
+        self.assertFalse((self.root / "platforms/linux/software/servers").exists())
+
+    def test_profile_validation_only_when_fleet_reports_it(self):
+        snap = snapshot()
+        planner = Planner(snap, self.layout, self.work)
+        self.assertIs(planner._global_controls(snap["config"]["mdm"])["enable_profile_validation"], True)
+        del snap["config"]["mdm"]["enable_profile_validation"]
+        self.assertNotIn("enable_profile_validation", planner._global_controls(snap["config"]["mdm"]))
 
     def test_plan_paths_stay_in_repo(self):
         placer = Placer(self.plan, self.layout, self.work)

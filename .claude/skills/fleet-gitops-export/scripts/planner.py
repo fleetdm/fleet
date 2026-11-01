@@ -10,6 +10,7 @@ editing its "path" in plan.json.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
@@ -17,9 +18,11 @@ import plistlib
 import re
 import unicodedata
 from pathlib import Path
+from urllib.parse import unquote
 
+from fleet_defaults import is_default_script
 from layout import Layout
-from yamlio import fleet_secret_names
+from yamlio import env_escape, fleet_secret_names
 
 PLATFORM_DIR = {"darwin": "macos", "macos": "macos", "windows": "windows", "linux": "linux",
                 "ios": "ios", "ipados": "ipados", "android": "android"}
@@ -37,8 +40,17 @@ ALIASES = {
     "settings": {"custom_settings": "configuration_profiles"},
 }
 
-LINUX_HINTS = re.compile(r"\b(apt-get|apt|dpkg|yum|dnf|rpm|zypper|pacman|snap|flatpak|systemctl|journalctl|update-alternatives|lsb_release|gsettings|nmcli|/etc/os-release|/proc/|/etc/systemd|ubuntu|debian|fedora|rhel|centos)\b", re.I)
-MAC_HINTS = re.compile(r"\b(launchctl|defaults|osascript|profiles|diskutil|softwareupdate|pkgutil|installer|scutil|fdesetup|sw_vers|mdmclient|dscl|plutil|csrutil|spctl|systemsetup|networksetup|sysadminctl|hdiutil|xattr|codesign|/Library/|/Applications/|/System/|macos|darwin)\b", re.I)
+# Paths sit outside the \b group: a word boundary never comes before "/" after a space or quote.
+LINUX_HINTS = re.compile(r"\b(?:apt-get|apt|dpkg|yum|dnf|rpm|zypper|pacman|snap|flatpak|systemctl|journalctl|update-alternatives|lsb_release|"
+                         r"gsettings|dconf|nmcli|loginctl|udevadm|udev|modprobe|blockdev|lsblk|ubuntu|debian|fedora|rhel|centos)\b"
+                         r"|/etc/os-release|/etc/systemd/|/etc/udev/|/etc/apt/|/proc/|/sys/", re.I)
+MAC_HINTS = re.compile(r"\b(?:launchctl|defaults|osascript|profiles|diskutil|softwareupdate|pkgutil|installer|scutil|fdesetup|sw_vers|mdmclient|"
+                       r"dscl|plutil|csrutil|spctl|systemsetup|networksetup|sysadminctl|hdiutil|xattr|codesign|macos|darwin)\b"
+                       r"|/Library/|/Applications/|/System/", re.I)
+
+# An older copy of an app's catalog script scores 0.83 to 0.93 against the current one (measured on
+# dogfood after the uninstall template changed); a script an admin rewrote scores far lower.
+FMA_DRIFT_RATIO = 0.75
 
 UNSAFE_CHARS = set('/\\:*?"<>|[{')
 
@@ -105,7 +117,7 @@ def text_of(b: bytes) -> str | None:
 
 
 class Planner:
-    def __init__(self, snap: dict, layout: Layout, work: Path):
+    def __init__(self, snap: dict, layout: Layout, work: Path, keep_fma_scripts=()):
         self.snap = snap
         self.layout = layout
         self.work = work
@@ -113,6 +125,8 @@ class Planner:
         self.blobs.mkdir(parents=True, exist_ok=True)
         self.flags = snap["flags"]
         self.exceptions = (snap.get("gitops") or {}).get("exceptions") or {}
+        # Fleet-maintained app slugs (or "all") whose stored scripts are kept even when they look like older catalog copies.
+        self.keep_fma_scripts = set(keep_fma_scripts)
         self.files: dict = {}
         self._dedupe: dict = {}
         self._paths: dict = {}
@@ -121,6 +135,8 @@ class Planner:
         self.fleets: list = []
         self.remove: list = []
         self.counts: dict = {}
+        self._older_fma_scripts: dict = {}
+        self._clashes = None
 
     # ------------------------------------------------------------ bookkeeping
 
@@ -131,14 +147,59 @@ class Planner:
         self.counts.setdefault(scope, {}).setdefault(kind, 0)
         self.counts[scope][kind] += n
 
-    def add_env(self, name: str, where: str, description: str, source: dict) -> dict:
+    def add_env(self, name: str, where: str | None, description: str, source: dict) -> dict:
         base, i = name, 2
         while name in self.env and self.env[name]["source"] != source:
             name, i = f"{base}_{i}", i + 1
         entry = self.env.setdefault(name, {"name": name, "description": description, "source": source, "used_in": []})
-        if where not in entry["used_in"]:
+        if where and where not in entry["used_in"]:
             entry["used_in"].append(where)
         return {"$env": name}
+
+    def _enroll_secret_name(self, team_id, index: int) -> tuple[str, str]:
+        if team_id is None:
+            name = "FLEET_GLOBAL_ENROLL_SECRET"
+            description = "Enroll secret for hosts in Unassigned" if self.flags["premium"] else "Enroll secret"
+        else:
+            scope = next((s["name"] for s in self.snap["scopes"] if s["id"] == team_id), str(team_id))
+            name, description = f"FLEET_{_envslug(scope)}_ENROLL_SECRET", f"Enroll secret for {scope}"
+        return (name + f"_{index + 1}" if index else name), description
+
+    def _enroll_secret_env(self, team_id, index: int, where: str | None) -> dict:
+        name, description = self._enroll_secret_name(team_id, index)
+        return self.add_env(name, where, description, {"type": "enroll_secret", "team": team_id, "index": index})
+
+    def _content_with_env_refs(self, item: dict) -> tuple[bytes, bool, list]:
+        """A profile or asset body with the enroll secrets collect found in it written as $VARIABLEs.
+
+        Returns (content, escape, variable names). When there's a variable, the content comes back
+        already escaped, because escaping at placement would turn the inserted $NAME into a literal.
+        """
+        refs, text = item.get("env_refs") or [], text_of(item["content"])
+        if not refs or text is None:
+            return item["content"], text is not None, []
+        out, pos, used = [], 0, []
+        for r in sorted(refs, key=lambda r: r["start"]):
+            src = r["source"]
+            name = self._enroll_secret_env(src["team"], src["index"], None)["$env"]
+            out.append(env_escape(text[pos:r["start"]]))
+            follows = text[r["end"]:r["end"] + 1]
+            out.append("${" + name + "}" if re.match(r"[A-Za-z0-9_]", follows) else "$" + name)
+            pos = r["end"]
+            if name not in used:
+                used.append(name)
+        out.append(env_escape(text[pos:]))
+        return "".join(out).encode("utf-8"), False, used
+
+    def _record_env_refs(self, fid: str, names: list, scope: str):
+        if not names:
+            return
+        path = self.files[fid]["path"]
+        self.files[fid]["env_refs"] = names
+        for name in names:
+            if path not in self.env[name]["used_in"]:
+                self.env[name]["used_in"].append(path)
+        self.note("info", scope, path, "Fleet's copy holds an enroll secret, so it's written as " + ", ".join("$" + n for n in names))
 
     def add_file(self, kind: str, platform: str | None, name: str, *, content: bytes | None = None, data=None,
                  exact: bool = False, ext: str = "", directory: str | None = None, fleet: str = "",
@@ -236,6 +297,12 @@ class Planner:
                 self._team(sc)
 
         self._examples()
+        for scope, items in self._older_fma_scripts.items():
+            self.note("review", scope, "Fleet-maintained app scripts",
+                      f"left out {len(items)} stored scripts that differ only slightly from each app's current Fleet script: {', '.join(items)}. "
+                      "They look like older copies of Fleet's own script that the app's next update would replace, and applying the repo "
+                      "replaces them with the current one. Fleet doesn't report whether an admin edited a script, so ask the user; to keep "
+                      "edited ones, re-run export with --keep-fma-scripts SLUG[,SLUG...]")
         return {
             "version": 1,
             "server": {"version": snap["version"], "premium": premium, "user": snap["me"]},
@@ -349,8 +416,7 @@ class Planner:
         if ti:
             settings["integrations"] = ti
         if not self.exceptions.get("secrets"):
-            settings["secrets"] = [{"secret": self.add_env(f"FLEET_{_envslug(scope)}_ENROLL_SECRET" + (f"_{i + 1}" if i else ""), fleet["file"],
-                                                           f"Enroll secret for {scope}", {"type": "enroll_secret", "team": sc["id"], "index": i})}
+            settings["secrets"] = [{"secret": self._enroll_secret_env(sc["id"], i, fleet["file"])}
                                    for i in range(sc.get("enroll_secret_count", 0))]
         fleet["sections"]["settings"] = settings
         if team.get("agent_options"):
@@ -433,9 +499,7 @@ class Planner:
             self.note("info", "Global", "microsoft_graph_credentials",
                       "client_secret is left out, so Fleet keeps the secret it has; add it only when you change tenant_id or client_id")
         if not self.exceptions.get("secrets"):
-            o["secrets"] = [{"secret": self.add_env("FLEET_GLOBAL_ENROLL_SECRET" + (f"_{i + 1}" if i else ""), "default.yml",
-                                                    "Enroll secret for hosts in Unassigned" if premium else "Enroll secret",
-                                                    {"type": "enroll_secret", "team": None, "index": i})}
+            o["secrets"] = [{"secret": self._enroll_secret_env(None, i, "default.yml")}
                             for i in range(self.snap.get("enroll_secret_count", 0))]
         else:
             self.note("info", "Global", "secrets", "enroll secrets are excepted from GitOps in Fleet settings, so no secrets keys are written")
@@ -555,8 +619,10 @@ class Planner:
             c["windows_enabled_and_configured"] = True
         if mdm.get("android_enabled_and_configured"):
             c["android_enabled_and_configured"] = True
-        # Omitting it means true, so a false has to be written.
-        c["enable_profile_validation"] = bool(mdm.get("enable_profile_validation", True))
+        # Omitting it means true, so a false has to be written. A server that doesn't return it
+        # predates the setting, and so does its fleetctl, which rejects the key.
+        if "enable_profile_validation" in mdm:
+            c["enable_profile_validation"] = bool(mdm["enable_profile_validation"])
         if not premium:
             return c
         for k in ("windows_migration_enabled", "enable_turn_on_windows_mdm_manually", "apple_require_hardware_attestation",
@@ -638,7 +704,9 @@ class Planner:
             if not exact_name_ok(asset["name"] + ".json"):
                 self.note("gap", scope, asset["name"], "Fleet names a DDM asset after its file, and this name can't be a file name; rename the asset in Fleet, then export again")
                 continue
-            fid = self.add_file("asset", "macos", asset["name"] + ".json", content=asset["content"], exact=True, fleet=scope, escape=True)
+            body, escape, refs = self._content_with_env_refs(asset)
+            fid = self.add_file("asset", "macos", asset["name"] + ".json", content=body, exact=True, fleet=scope, escape=escape)
+            self._record_env_refs(fid, refs, scope)
             assets.append({"path": {"$file": fid}})
             self.count(scope, "DDM assets")
         if assets:
@@ -716,6 +784,11 @@ class Planner:
                 self.note("gap", scope, name, "the script name can't be a file name GitOps can reference with `path:`; rename it in Fleet, then export again")
                 continue
             fid = self.add_file("script", platform, name, content=s["content"], exact=True, fleet=scope, review=review)
+            names_found = sorted({self._enroll_secret_name(r["source"]["team"], r["source"]["index"])[0] for r in s.get("env_refs") or []})
+            if names_found:
+                self.note("review", scope, self.files[fid]["path"],
+                          f"holds the value of {', '.join(names_found)} as plain text. fleetctl doesn't expand variables in scripts, "
+                          "so it's exported as-is; tell the user and suggest a $FLEET_SECRET_ variable instead")
             self._script_ids[(fleet["key"], s["id"])] = fid
             entries.append({"file": fid, "opts": {}})
             self.count(scope, "scripts")
@@ -763,8 +836,10 @@ class Planner:
                 opts["name"] = name
             if text is None:
                 self.note("warn", scope, name, "profile isn't UTF-8 text; written as-is without $ escaping")
-            fid = self.add_file(kind, folder_platform, filename, content=content, exact=exact, fleet=scope,
-                                escape=text is not None, review=review, label=name)
+            body, escape, refs = self._content_with_env_refs(p)
+            fid = self.add_file(kind, folder_platform, filename, content=body, exact=exact, fleet=scope,
+                                escape=escape, review=review, label=name)
+            self._record_env_refs(fid, refs, scope)
             if p.get("activation"):
                 afid = self.add_file("activation", folder_platform, filename, content=p["activation"], exact=True, fleet=scope)
                 opts["activation"] = {"$file": afid}
@@ -865,7 +940,7 @@ class Planner:
                 if ref and ref["kind"] == "fma":
                     spec["install_software"] = {"fleet_maintained_app_slug": ref["slug"]}
                 elif ref and ref["kind"] == "package":
-                    spec["install_software"] = {"hash_sha256": ref["hash"]}
+                    spec["install_software"] = {"package_path": {"$file": ref["file"]}} if ref.get("file") else {"hash_sha256": ref["hash"]}
                 elif ref and ref["kind"] == "app_store_app":
                     spec["install_software"] = {"app_store_id": ref["app_store_id"]}
                 else:
@@ -976,6 +1051,21 @@ class Planner:
         fleet["sections"]["software"] = soft
         fleet["entries"]["software.packages"] = packages
 
+    def _package_name_clashes(self) -> set:
+        """(platform folder, slug) pairs that several package types share, like a .deb and an .rpm of one app."""
+        if self._clashes is None:
+            exts: dict = {}
+            for sc in self.snap["scopes"]:
+                for t in (sc.get("software") or {}).get("titles", []):
+                    pkg = t.get("software_package") or {}
+                    ext = os.path.splitext(pkg.get("name", ""))[1].lower()
+                    if not pkg or pkg.get("fleet_maintained_app_id") or ext in (".sh", ".ps1", ".py"):
+                        continue
+                    key = (PLATFORM_DIR.get(pkg.get("platform") or "", "all"), slugify(t.get("name", "")))
+                    exts.setdefault(key, set()).add(ext)
+            self._clashes = {k for k, v in exts.items() if len(v) > 1}
+        return self._clashes
+
     def _vpp_token_count(self, team_id):
         n = 0
         for tok in self.snap.get("vpp_tokens") or []:
@@ -1001,6 +1091,8 @@ class Planner:
         fma = t.get("fma") if pkg.get("fleet_maintained_app_id") else None
         slug = slugify(title)
         files_prefix = slug + ("" if platform in ("macos", "windows", "linux") else f"-{platform}")
+        if not fma and not is_script and (platform, slug) in self._package_name_clashes():
+            files_prefix += "-" + ext.lstrip(".")
         opts = {}
         if fma:
             index[t["id"]] = {"kind": "fma", "slug": fma.get("slug")}
@@ -1038,10 +1130,12 @@ class Planner:
             common(entry, pkg)
             patch = pkg.get("patch_policy") or {}
             managed_query = patch.get("patch_when_closed") or patch.get("notify_before_patching")
-            if pkg.get("install_script") and pkg["install_script"] != fma.get("install_script"):
-                entry["install_script"] = {"path": {"$file": side("install", pkg["install_script"], script_ext)}}
-            if pkg.get("uninstall_script") and pkg["uninstall_script"] != fma.get("uninstall_script"):
-                entry["uninstall_script"] = {"path": {"$file": side("uninstall", pkg["uninstall_script"], script_ext)}}
+            for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall")):
+                state = _fma_script_state(pkg, fma, key)
+                if state == "older" and not ({"all", fma.get("slug")} & self.keep_fma_scripts):
+                    self._older_fma_scripts.setdefault(scope, []).append(f"{fma.get('slug')} ({suffix})")
+                elif state != "default":
+                    entry[key] = {"path": {"$file": side(suffix, pkg[key], script_ext)}}
             if pkg.get("post_install_script"):
                 entry["post_install_script"] = {"path": {"$file": side("post-install", pkg["post_install_script"], script_ext)}}
             if pkg.get("pre_install_query") and not managed_query:
@@ -1081,14 +1175,21 @@ class Planner:
         pkgs = t.get("packages") if multi else [pkg]
         items = []
         pkg_dir, _ = self.layout.dir_for("package", platform)
+        unpinned = False
         for i, p in enumerate(pkgs):
             prefix = files_prefix if not multi else f"{files_prefix}-{i + 1}"
             item = {}
             if p.get("url"):
                 item["url"] = p["url"]
-            item["hash_sha256"] = p.get("hash_sha256") or pkg.get("hash_sha256")
+            if p.get("url") and not _url_names_version(p["url"], p.get("version") or pkg.get("version")):
+                unpinned = True
+                self.note("info", scope, title, "the package URL doesn't name a version, so hash_sha256 isn't pinned and each GitOps run "
+                                                "installs what the URL serves then (a pinned hash would fail once the vendor publishes an update)")
+            else:
+                item["hash_sha256"] = p.get("hash_sha256") or pkg.get("hash_sha256")
+            p_ext = os.path.splitext(p.get("name") or fname)[1]
             for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall"), ("post_install_script", "post-install")):
-                if p.get(key):
+                if p.get(key) and not is_default_script(key, p_ext, p[key]):
                     item[key] = {"path": {"$file": self.add_file("software_file", platform, f"{prefix}-{suffix}{script_ext}",
                                                                  content=p[key].encode(), exact=True, fleet=scope)}}
             if p.get("pre_install_query"):
@@ -1103,6 +1204,9 @@ class Planner:
             items.append(item)
         fid = self.add_file("package", platform, f"{files_prefix}.package.yml", data=items, exact=True, fleet=scope, escape=True,
                             directory=pkg_dir, label=title)
+        if unpinned and not multi:
+            # Without a pinned hash, a policy can't name the package by hash once it updates; package_path finds it by URL.
+            index[t["id"]] = {"kind": "package", "hash": pkg.get("hash_sha256"), "file": fid}
         entry = {}
         if not multi:
             common(entry, pkg)
@@ -1267,10 +1371,12 @@ def _software_identities(t: dict):
         f.update(software_labels(pkg))
         yield f"fma:{(t.get('fma') or {}).get('slug')}", f
     elif pkg:
+        is_script = os.path.splitext(pkg.get("name", ""))[1].lower() in (".sh", ".ps1", ".py")
         for p in (t.get("packages") or [pkg]) if len(t.get("packages") or []) > 1 else [pkg]:
             f = {"self_service": p.get("self_service"), "categories": p.get("categories")}
             f.update(software_labels(p))
-            yield f"package:{p.get('hash_sha256') or pkg.get('hash_sha256')}", f
+            # Keyed by URL when there is one: packages whose URL names no version don't pin a hash.
+            yield f"package:{(not is_script and p.get('url')) or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
     elif app:
         versions = t.get("app_store_apps") or []
         multi = len(versions) > 1 or (len(versions) == 1 and versions[0].get("name") not in (None, "", "Default version"))
@@ -1302,6 +1408,35 @@ def _script_platform(name: str, text: str) -> tuple[str, str | None]:
     if mac > lin:
         return "macos", None
     return "macos", "Fleet runs .sh and .py scripts on both macOS and Linux and the contents don't say which this one is for; placed under macos/"
+
+
+def _fma_script_state(pkg: dict, fma: dict, key: str) -> str:
+    """How a Fleet-maintained app's stored script relates to the catalog's: "default", "custom", or "older".
+
+    Fleet records whether an admin edited the script (install_script_edited, uninstall_script_edited)
+    and refreshes unedited ones on the app's next update, but the API doesn't return those flags yet,
+    so without them a script that differs from the current catalog one is judged by how much it differs.
+    """
+    stored = pkg.get(key) or ""
+    if not stored:
+        return "default"
+    edited = pkg.get(f"{key}_edited")
+    if isinstance(edited, bool):
+        return "custom" if edited else "default"
+    catalog = fma.get(key) or ""
+    if stored.strip() == catalog.strip():
+        return "default"
+    ratio = difflib.SequenceMatcher(None, stored.splitlines(), catalog.splitlines(), autojunk=False).ratio()
+    return "older" if ratio >= FMA_DRIFT_RATIO else "custom"
+
+
+def _url_names_version(url: str, version: str | None) -> bool:
+    """Does the download URL name the package's version (so the bytes behind it shouldn't change)?"""
+    if not version:
+        return True
+    v = version.split(":")[-1]  # Debian epoch
+    path = unquote(url)
+    return any(c and c in path for c in (v, re.split(r"[-+~]", v)[0]))
 
 
 def _payload_display_name(content: bytes):

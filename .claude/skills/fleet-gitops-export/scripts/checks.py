@@ -27,6 +27,7 @@ from fleet_api import API, FleetctlError
 F = "/api/latest/fleet"
 PLACEHOLDER = "fleet-gitops-export-dry-run-placeholder"
 MASK = "********"
+UNCHECKED = "(not compared)"
 
 PATH_KEYS = {"path", "paths", "package_path", "activation", "apple_setup_assistant", "macos_script",
              "end_user_license_agreement", "windows_eula", "org_logo_path_light_mode", "org_logo_path_dark_mode"}
@@ -145,6 +146,10 @@ class Checker:
         self.log = log
         self.results: dict = {"static": [], "references": [], "reconcile": [], "dry_run": {}}
         self.backend = yaml_backend()
+        # Files where the export wrote $VARIABLEs in place of values Fleet stored (enroll secrets in profiles).
+        self.env_refs = {f["path"]: f["env_refs"] for f in (plan.get("files") or {}).values() if f.get("env_refs")}
+        self.env_values: dict | None = None
+        self.env_notes: list = []
 
     def fail(self, section, message):
         self.results[section].append({"level": "FAIL", "message": message})
@@ -278,6 +283,22 @@ class Checker:
                 return b
         return b
 
+    def _expanded_bytes(self, path: str) -> bytes | None:
+        """A profile or asset as fleetctl sends it, with the variables the export wrote filled in.
+
+        None when it has such variables and their values weren't fetched (validate --no-dry-run).
+        """
+        names = self.env_refs.get(path)
+        if not names:
+            return self._bytes(path, True)
+        if self.env_values is None:
+            return None
+        text = (self.root / path).read_text(encoding="utf-8")
+        for n in names:
+            value = self.env_values.get(n, "")
+            text = re.sub(r"(?<!\\)\$(?:\{" + n + r"\}|" + n + r"(?![A-Za-z0-9_]))", lambda _m: value, text)
+        return unescape_env(text).encode("utf-8")
+
     def _found(self, top: str) -> dict:
         """What the repo defines for a top-level file, keyed the same way as the plan's inventory."""
         base = os.path.dirname(top)
@@ -298,19 +319,20 @@ class Checker:
             for path, entry in self._items(top, section):
                 if not path:
                     continue
-                body = self._bytes(path, True)
+                body = self._expanded_bytes(path)
                 name = entry.get("name")
                 if not name and path.endswith(".mobileconfig"):
-                    name = _payload_display_name(body)
+                    name = _payload_display_name(self._bytes(path, True))
                 name = name or os.path.splitext(os.path.basename(path))[0]
                 f = {k: entry.get(k) for k in ("self_service", "hidden", "description", "labels_include_all", "labels_include_any", "labels_exclude_any")}
-                f["sha256"] = _sha(body)
+                f["sha256"] = UNCHECKED if body is None else _sha(body)
                 if entry.get("activation"):
                     f["activation_sha256"] = _sha(self._bytes(os.path.normpath(os.path.join(base, entry["activation"])), False))
                 found["profiles"].append([name, f])
         for path, _ in self._items(top, ["controls", "apple_settings", "assets"]):
             if path:
-                found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": _sha(self._bytes(path, True))}])
+                body = self._expanded_bytes(path)
+                found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": UNCHECKED if body is None else _sha(body)}])
         sw = (self.docs.get(top) or {}).get("software") or {}
         for entry in sw.get("packages") or []:
             if not isinstance(entry, dict):
@@ -318,7 +340,7 @@ class Checker:
             path = os.path.normpath(os.path.join(base, entry["path"])).replace(os.sep, "/") if entry.get("path") else None
             if path and path.endswith((".yml", ".yaml")):
                 for item in self.docs.get(path) or []:
-                    found["software"].append([f"package:{item.get('hash_sha256')}", _package_settings(item, entry)])
+                    found["software"].append([f"package:{item.get('url') or item.get('hash_sha256')}", _package_settings(item, entry)])
             elif path:
                 found["software"].append([f"package:{_sha(self._bytes(path, False))}", _package_settings({}, entry)])
             else:
@@ -358,6 +380,10 @@ class Checker:
                     self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
                 for n in sorted(set(want) & set(got), key=str):
                     for field, fleet_value in want[n].items():
+                        if got[n].get(field) == UNCHECKED:
+                            self.warn("reconcile", f"{top}: {what} {n!r}: {field} not compared; the file holds variables "
+                                                   "whose values validate only fetches when it runs the dry run")
+                            continue
                         if _norm(fleet_value) != _norm(got[n].get(field)):
                             self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
                                                    f"but {_short(fleet_value)} in Fleet (applying would change it)")
@@ -412,7 +438,8 @@ class Checker:
                 elif t == "mask":
                     val = given(name)
                     if not val:
-                        val = MASK
+                        # Masked values are bare `key: $NAME` in YAML, where an unquoted "*" starts an alias.
+                        val = f'"{MASK}"'
                         notes.append(f"{name}: Fleet only returns this value masked; the dry run used Fleet's mask, which Fleet treats as unchanged")
                 else:
                     val = given(name)
@@ -430,7 +457,9 @@ class Checker:
         return env, notes
 
     def dry_run(self, api: API, fleetctl, env_file: Path | None = None):
-        env, notes = self.dry_run_env(api, env_file)
+        if self.env_values is None:
+            self.env_values, self.env_notes = self.dry_run_env(api, env_file)
+        env, notes = self.env_values, self.env_notes
         files = ["default.yml"] + sorted("fleets/" + p.name for p in (self.root / "fleets").glob("*.yml"))
         r = fleetctl.gitops_dry_run(files, cwd=str(self.root), env=env)
         out = (r.stdout.decode(errors="replace") + r.stderr.decode(errors="replace"))
