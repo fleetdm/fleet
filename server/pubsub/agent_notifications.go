@@ -81,6 +81,21 @@ func (n *RedisAgentNotifier) NotifyOrbitConfigScope(ctx context.Context, scope f
 	})
 }
 
+// NotifyOsqueryConfigHosts publishes an osquery/config wake-up for hostIDs.
+func (n *RedisAgentNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return n.publishHosts(ctx, fleet.AgentWSMessageTypeOsqueryConfig, reason, hostIDs)
+}
+
+// NotifyOsqueryConfigScope is NotifyOrbitConfigScope's osquery/config
+// counterpart.
+func (n *RedisAgentNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return n.publish(ctx, AgentNotification{
+		Type:   fleet.AgentWSMessageTypeOsqueryConfig,
+		Reason: reason,
+		Scope:  scope,
+	})
+}
+
 func (n *RedisAgentNotifier) publishHosts(ctx context.Context, msgType, reason string, hostIDs []uint) error {
 	for chunk := range slices.Chunk(hostIDs, publishHostIDsChunkSize) {
 		if err := n.publish(ctx, AgentNotification{Type: msgType, HostIDs: chunk, Reason: reason}); err != nil {
@@ -224,16 +239,23 @@ type DelayedAgentNotifier struct {
 	logger *slog.Logger
 
 	mu sync.Mutex
-	// pendingHosts holds the host IDs of the orbit config notifications
-	// waiting for their batching window to end, by reason.
-	pendingHosts map[string]map[uint]struct{}
+	// pendingHosts holds the host IDs of the host notifications waiting for
+	// their batching window to end, by type and reason.
+	pendingHosts map[pendingHostsKey]map[uint]struct{}
+}
+
+type pendingHostsKey struct {
+	msgType string
+	reason  string
 }
 
 // AgentNotifierDelays holds the delay of each kind of notification.
 type AgentNotifierDelays struct {
-	LiveQuery        time.Duration
-	OrbitConfigHosts time.Duration
-	OrbitConfigScope time.Duration
+	LiveQuery          time.Duration
+	OrbitConfigHosts   time.Duration
+	OrbitConfigScope   time.Duration
+	OsqueryConfigHosts time.Duration
+	OsqueryConfigScope time.Duration
 }
 
 func NewDelayedAgentNotifier(inner fleet.AgentCheckInNotifier, delays AgentNotifierDelays, logger *slog.Logger) *DelayedAgentNotifier {
@@ -241,7 +263,7 @@ func NewDelayedAgentNotifier(inner fleet.AgentCheckInNotifier, delays AgentNotif
 		inner:        inner,
 		delays:       delays,
 		logger:       logger,
-		pendingHosts: make(map[string]map[uint]struct{}),
+		pendingHosts: make(map[pendingHostsKey]map[uint]struct{}),
 	}
 }
 
@@ -260,24 +282,38 @@ func (n *DelayedAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hos
 // NotifyOrbitConfigHosts queues the notification, merging it with the others
 // of the same reason until the batching window ends, and returns immediately.
 func (n *DelayedAgentNotifier) NotifyOrbitConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	n.batchHosts(ctx, fleet.AgentWSMessageTypeOrbitConfig, reason, hostIDs, n.delays.OrbitConfigHosts, n.inner.NotifyOrbitConfigHosts)
+	return nil
+}
+
+// NotifyOsqueryConfigHosts is NotifyOrbitConfigHosts's osquery/config
+// counterpart.
+func (n *DelayedAgentNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	n.batchHosts(ctx, fleet.AgentWSMessageTypeOsqueryConfig, reason, hostIDs, n.delays.OsqueryConfigHosts, n.inner.NotifyOsqueryConfigHosts)
+	return nil
+}
+
+func (n *DelayedAgentNotifier) batchHosts(ctx context.Context, msgType, reason string, hostIDs []uint, delay time.Duration,
+	notify func(ctx context.Context, hostIDs []uint, reason string) error,
+) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	pending, ok := n.pendingHosts[reason]
+	key := pendingHostsKey{msgType: msgType, reason: reason}
+	pending, ok := n.pendingHosts[key]
 	if !ok {
 		pending = make(map[uint]struct{}, len(hostIDs))
-		n.pendingHosts[reason] = pending
-		n.after(ctx, n.delays.OrbitConfigHosts, func(ctx context.Context) error {
+		n.pendingHosts[key] = pending
+		n.after(ctx, delay, func(ctx context.Context) error {
 			n.mu.Lock()
-			ids := slices.Sorted(maps.Keys(n.pendingHosts[reason]))
-			delete(n.pendingHosts, reason)
+			ids := slices.Sorted(maps.Keys(n.pendingHosts[key]))
+			delete(n.pendingHosts, key)
 			n.mu.Unlock()
-			return n.inner.NotifyOrbitConfigHosts(ctx, ids, reason)
-		}, "delayed notify orbit config hosts", "reason", reason)
+			return notify(ctx, ids, reason)
+		}, "delayed notify hosts", "type", msgType, "reason", reason)
 	}
 	for _, id := range hostIDs {
 		pending[id] = struct{}{}
 	}
-	return nil
 }
 
 // NotifyOrbitConfigScope is NotifyAgentsForLiveQuery's orbit/config
@@ -286,6 +322,15 @@ func (n *DelayedAgentNotifier) NotifyOrbitConfigScope(ctx context.Context, scope
 	n.after(ctx, n.delays.OrbitConfigScope, func(ctx context.Context) error {
 		return n.inner.NotifyOrbitConfigScope(ctx, scope, reason)
 	}, "delayed notify orbit config scope", "scope", scope, "reason", reason)
+	return nil
+}
+
+// NotifyOsqueryConfigScope is NotifyOrbitConfigScope's osquery/config
+// counterpart.
+func (n *DelayedAgentNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	n.after(ctx, n.delays.OsqueryConfigScope, func(ctx context.Context) error {
+		return n.inner.NotifyOsqueryConfigScope(ctx, scope, reason)
+	}, "delayed notify osquery config scope", "scope", scope, "reason", reason)
 	return nil
 }
 

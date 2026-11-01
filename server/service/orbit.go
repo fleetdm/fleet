@@ -947,6 +947,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
 			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
 		}
+		// Onboarding hosts keep osquery's TLS config plugin, which retries
+		// osquery enrollment on every refresh; orbit's doesn't. Switching
+		// restarts orbit once (the config plugin is a command-line flag).
+		if svc.config.WebSocket.OsqueryConfigEnabled && !onboarding {
+			wsTransport.OsqueryConfigPollInterval = new(int(svc.config.WebSocket.OsqueryConfigPollInterval.Seconds()))
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options

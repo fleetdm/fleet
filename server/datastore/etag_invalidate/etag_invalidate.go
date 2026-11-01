@@ -186,11 +186,11 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 // ///////////////////////////////////////////////////////////////////////////
 
 func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := d.Datastore.ApplyQueries(ctx, authorID, queries, queriesToDiscardResults); err != nil {
-		return err
-	}
+	err := d.Datastore.ApplyQueries(ctx, authorID, queries, queriesToDiscardResults)
+	// Invalidate even on error: batches commit independently, so earlier ones
+	// may have changed reports.
 	d.invalidateAndResetLabelScopes(ctx, "ApplyQueries")
-	return nil
+	return err
 }
 
 func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {

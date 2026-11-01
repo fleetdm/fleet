@@ -104,7 +104,7 @@ sequenceDiagram
 
 The WebSocket does **not** replace any existing functionality. It acts purely as a notification channel: the server sends a short "check now" signal, and the agent then performs the same HTTP calls it always has. No query data, no config payloads, no results travel over the WebSocket. Everything that works today continues to work exactly the same way. The only difference is that the agent no longer asks on a blind timer; it asks when told to.
 
-Each "check now" signal carries a `type` field indicating which channel the agent should check: `type=distributed/read` since Phase 1, and `type=orbit/config` since Phase 2; future phases add more on the same connection. It also carries a `reason` field saying what triggered it — `live-<campaign ID>`, `label`, `policy`, `detail`, or `refetch` — which is informational only, for debugging/troubleshooting (when several kinds of work are due at once, the server picks one).
+Each "check now" signal carries a `type` field indicating which channel the agent should check: `type=distributed/read` since Phase 1, `type=orbit/config` since Phase 2, and `type=osquery/config` since Phase 3; future phases add more on the same connection. It also carries a `reason` field saying what triggered it — e.g. `live-<campaign ID>`, `label`, `policy`, `detail`, `refetch`, `settings`, or `reports` — which is informational only, for debugging/troubleshooting (when several kinds of work are due at once, the server picks one).
 
 Because live queries, policies, labels, and host vitals (e.g. software) ingestion all share `distributed/read`, a single WebSocket nudge type covers all four. The agent does not need to know which feature triggered the nudge; it just calls `distributed/read` and the server returns whatever is due.
 
@@ -116,8 +116,8 @@ Because live queries, policies, labels, and host vitals (e.g. software) ingestio
 |---|---|---|---|
 | 1 (POC) | `distributed/read` | every 10s | "there is work for you" (live queries, policies, labels, or host vitals) |
 | 2 | `orbit/config` | every 30s | "your orbit config changed" |
-| Future | `desktop` | every 5m | "there is something to show the user" |
-| Future | `osquery/config` | every 60s | "your osquery config changed" |
+| 3 | `osquery/config` | every 60s | "your osquery config changed" |
+| 4 | `desktop` | every 5m | "there is something to show the user" |
 
 ### Orbit config nudges (Phase 2)
 
@@ -127,6 +127,18 @@ Enabled with the server setting `websocket.orbit_config_enabled` (requires `webs
 - **Fleet-wide and global changes** (app config, fleet config, fleet deletion, hosts changing fleet) are nudged by a datastore decorator, only when an orbit config input actually changed. Scoped nudges are published once (`scope` = `global` or `team:<id>`), delayed by the per-instance config cache TTL (1 minute), and each instance spreads the resulting fetches over `websocket.orbit_config_spread` (default 30 seconds).
 - Notifications published while an instance's Redis subscription is down are lost; affected agents get the change on their fallback poll. Instances don't nudge all their agents when the subscription recovers: every agent would fetch at once right as Redis recovers.
 - The agent also fetches its orbit config right after each (re)connect, and reports the fields a fallback poll found changed in the `X-Fleet-Orbit-Config-Fallback-Changes` header (counted by the `fleet.agentws.orbit_config.fallback_changes` metric). Raise the fallback interval only once that metric is near zero.
+
+### Osquery config nudges (Phase 3)
+
+Enabled with the server setting `websocket.osquery_config_enabled` (requires `websocket.transport_enabled`). The orbit config's `websocket_transport` directive then carries `osquery_config_poll_interval` (`websocket.osquery_config_poll_interval`, default 10 minutes), and orbit registers as osquery's config plugin (`--config_plugin=fleet_orbit_config`; toggling it restarts orbit, like the transport itself).
+
+- osquery asks orbit for its config every 10 seconds (`--config_refresh=10`, passed after the flagfile; `config_refresh` is a command-line-only osquery flag, so agent options can't change it): a localhost call answered from memory, which bounds how long a fetched config waits to be applied. osquery skips reloading an unchanged config.
+- Orbit fetches the config from `/api/osquery/config` (authenticating with its orbit node key) when nudged, on the fallback interval while connected (never shorter than the disconnected cadence, so connecting never adds load), and at the flagfile's `--config_refresh` (60 seconds by default) while disconnected — the cadence osquery itself used before. After a disconnect, the first fetch is spread over 30 seconds.
+- Hosts in their first hour after enrolling osquery (or not enrolled yet) keep osquery's TLS config plugin: it retries osquery enrollment on every refresh, while with orbit's plugin osquery enrolls only from its TLS logger plugin at startup, which gives up after about 8 minutes. Orbit restarts once when the host leaves that window. A host whose osquery loses its node key afterwards (e.g. after a re-enrollment) re-enters the window.
+- Orbit always sends the `etag` field (see [ADR-0012](0012-osquery-config-conditional-requests.md)); osquery's own ETag flag doesn't apply, since osquery's TLS config plugin is no longer used. The two are complementary: with ETags enabled on the server, nudges reaching hosts whose config didn't change (e.g. another platform's agent options) are answered with `{"etag":"ok"}`.
+- Changes are detected by a datastore decorator covering the writes that invalidate config ETags: agent options (global, fleet), scheduled reports, 2017 packs, label deletion, plus hosts changing fleet. Reports and agent options are compared before and after the write, so GitOps runs that change nothing nudge nobody. Label membership changes are not nudged: they only affect hosts with label-scoped reports, run continuously at scale, and are picked up by the fallback poll.
+- Scoped nudges are delayed by the TTL of the in-memory caches the config is built from (the cached app config, fleet agent options and packs, plus the pack config cache built from them: about 2 minutes), and spread over `websocket.orbit_config_spread`. Hosts moved between fleets are nudged after a minute, the TTL of their cached packs.
+- A fallback poll that finds the config changed is reported in the `X-Fleet-Osquery-Config-Fallback-Change` header of the next fetch (counted by the `fleet.agentws.osquery_config.fallback_changes` metric).
 
 ### Keepalive and agent liveness
 
@@ -231,9 +243,9 @@ sequenceDiagram
 1. **Live query created.** Today, campaign targeting is written to Redis keys and each server instance discovers it independently when a host polls. There is no inter-instance notification. With WebSockets, the server instance holding an agent's connection may not be the one that created the campaign. To solve this, campaign creation adds a Redis `PUBLISH` on a wake-up channel. All server instances subscribe to this channel and nudge the relevant agents they hold. Redis pub/sub already exists in Fleet for streaming query results back; this extends the same pattern for the wake-up signal. The pub/sub nudge is a latency optimization, not the delivery guarantee: it is fire-and-forget, so a campaign created while a host was mid-reconnect, or whose message was lost (pub/sub, send-buffer overflow, failed write), is recovered by the interval check job, which also nudges held hosts targeted by an active campaign they have not answered yet.
 2. **Interval-based work due (per-instance check, new).** Policies, labels, and host vitals refresh on server-side intervals. Today the agent's blind 10-second poll is what picks up that work once an interval elapses; with nudge-driven `distributed/read`, a per-instance check job takes over that role — see [The interval check job](#the-interval-check-job) below.
 
-**Phase 1 scope: `distributed/read` and `distributed/write` only.** In this first phase, orbit registers only as osquery's `distributed` plugin. All other osquery traffic is unchanged: osquery keeps sending scheduled query result logs (`/api/osquery/log`) and fetching config (`/api/osquery/config`) directly from the server, exactly as it does today.
+**Phase 1 scope: `distributed/read` and `distributed/write` only.** In this first phase, orbit registers only as osquery's `distributed` plugin. All other osquery traffic is unchanged: osquery keeps sending scheduled query result logs (`/api/osquery/log`) and fetching config (`/api/osquery/config`) directly from the server, exactly as it does today. Phase 3 adds orbit as osquery's `config` plugin (see [Osquery config nudges](#osquery-config-nudges-phase-3)).
 
-In a future phase, orbit could also register as osquery's logger and config plugins. At that point orbit becomes the single point of contact between the host and the server: osquery communicates only with orbit on localhost, and orbit handles all external network communication.
+In a future phase, orbit could also register as osquery's logger plugin. At that point orbit becomes the single point of contact between the host and the server: osquery communicates only with orbit on localhost, and orbit handles all external network communication.
 
 **Why the extension plugin approach (not an HTTP proxy):**
 

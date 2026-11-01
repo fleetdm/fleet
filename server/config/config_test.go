@@ -1577,6 +1577,9 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		OrbitConfigEnabled:      true,
 		OrbitConfigPollInterval: 5 * time.Minute,
 		OrbitConfigSpread:       30 * time.Second,
+
+		OsqueryConfigEnabled:      true,
+		OsqueryConfigPollInterval: 10 * time.Minute,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -1599,6 +1602,15 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		{"orbit_config_enabled without transport", func(c *WebSocketConfig) { c.TransportEnabled = false }},
 		{"orbit_config_poll_interval below 30s", func(c *WebSocketConfig) { c.OrbitConfigPollInterval = 10 * time.Second }},
 		{"negative orbit_config_spread", func(c *WebSocketConfig) { c.OrbitConfigSpread = -time.Second }},
+		{"osquery_config_enabled without transport", func(c *WebSocketConfig) {
+			c.TransportEnabled = false
+			c.OrbitConfigEnabled = false
+		}},
+		{"osquery_config_poll_interval below 1m", func(c *WebSocketConfig) { c.OsqueryConfigPollInterval = 30 * time.Second }},
+		{"negative orbit_config_spread with only osquery config", func(c *WebSocketConfig) {
+			c.OrbitConfigEnabled = false
+			c.OrbitConfigSpread = -time.Second
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			cfg := valid
