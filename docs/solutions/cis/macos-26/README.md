@@ -2,6 +2,13 @@
 
 Fleet policies for the **CIS Apple macOS 26 Tahoe Benchmark, v1.1.0**.
 
+## Contents
+
+| Folder | Description |
+|--------|-------------|
+| `policies/` | GitOps-compatible policy YAML — import via `fleetctl apply` or reference with `- path:` in `fleet.yml` |
+| `test/` | Pass/fail scripts and profiles used to test the policies (see [CIS-BENCHMARKS.md](../CIS-BENCHMARKS.md)) |
+
 ## Status
 
 **Generation complete.** All automated recommendations across
@@ -390,11 +397,11 @@ perform out-of-band checks.
   Screen Saver) for that user fails. Because it depends on a
   console user, a non-root user must be logged in when the policy
   is evaluated (see the console-user caveat in
-  `ee/cis/CIS-BENCHMARKS.md`); the `_pass`/`_fail` scripts toggle
+  `docs/solutions/cis/CIS-BENCHMARKS.md`); the `_pass`/`_fail` scripts toggle
   corners for the console user. They write the user's Dock plist by
   path so they also work through Fleet's script execution, where
   per-user `defaults write` fails (see the console-user pattern in
-  `ee/cis/CIS-BENCHMARKS.md`).
+  `docs/solutions/cis/CIS-BENCHMARKS.md`).
 
 ### Section 2.9 notes
 

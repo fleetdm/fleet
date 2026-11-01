@@ -250,32 +250,30 @@ def log_error(msg: str) -> None:
 
 
 def parse_policies(yaml_path: Path) -> list[Policy]:
-    """Parse the multi-document YAML policy file."""
+    """Parse the GitOps policy file."""
     policies = []
     missing_cis_id: list[str] = []
-    with open(yaml_path) as f:
-        for doc in yaml.safe_load_all(f):
-            if not doc or doc.get("kind") != "policy":
-                continue
-            spec = doc.get("spec", {})
-            name = spec.get("name", "")
-            if not name.startswith("CIS -"):
-                continue
-            query = spec.get("query", "").strip()
-            cis_id = spec.get("cis_id", "") or ""
-            if not cis_id:
-                missing_cis_id.append(name)
-                continue
-            policies.append(
-                Policy(
-                    cis_id=cis_id,
-                    name=name,
-                    query=query,
-                    resolution=spec.get("resolution", ""),
-                    tags=spec.get("tags", ""),
-                    needs_mdm="managed_policies" in query,
-                )
+    # cis_id and tags are commented out because GitOps rejects unknown keys.
+    text = re.sub(r"^(\s+)# (cis_id|tags):", r"\1\2:", yaml_path.read_text(), flags=re.M)
+    for spec in yaml.safe_load(text) or []:
+        name = spec.get("name", "")
+        if "CIS -" not in name:
+            continue
+        query = spec.get("query", "").strip()
+        cis_id = spec.get("cis_id", "") or ""
+        if not cis_id:
+            missing_cis_id.append(name)
+            continue
+        policies.append(
+            Policy(
+                cis_id=cis_id,
+                name=name,
+                query=query,
+                resolution=spec.get("resolution", ""),
+                tags=spec.get("tags", ""),
+                needs_mdm="managed_policies" in query,
             )
+        )
     if missing_cis_id:
         # Skip policies without cis_id — without it, the runner can't
         # map to scripts/profiles and would generate paths like
@@ -1570,7 +1568,7 @@ Examples:
         choices=list(VERSION_MAP.keys()),
         help=(
             "macOS version to test. Determines the tart VM image and "
-            "the CIS policy directory (ee/cis/macos-{version}/)."
+            "the CIS policy directory (docs/solutions/cis/macos-{version}/)."
         ),
     )
 
@@ -1791,7 +1789,7 @@ Examples:
         metavar="PATH",
         help=(
             "Override the CIS directory path. By default, resolved "
-            "from the repo root as ee/cis/macos-{version}/. Use this "
+            "from the repo root as docs/solutions/cis/macos-{version}/. Use this "
             "if running from outside the repo or testing a custom "
             "policy set."
         ),
@@ -1869,8 +1867,8 @@ def main() -> int:
 
     # Resolve CIS directory
     repo_root = Path(__file__).resolve().parent.parent.parent
-    cis_dir = Path(args.cis_dir) if args.cis_dir else repo_root / "ee" / "cis" / version_info["dir"]
-    yaml_path = cis_dir / "cis-policy-queries.yml"
+    cis_dir = Path(args.cis_dir) if args.cis_dir else repo_root / "docs" / "solutions" / "cis" / version_info["dir"]
+    yaml_path = cis_dir / "policies" / "cis-policy-queries.yml"
     scripts_dir = cis_dir / "test" / "scripts"
     profiles_dir = cis_dir / "test" / "profiles"
 
