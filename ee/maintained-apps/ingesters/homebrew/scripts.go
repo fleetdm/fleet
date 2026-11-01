@@ -110,7 +110,6 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	appQuit := uninstallQuitsApp(cask, app.UniqueIdentifier)
 	appSignaled := uninstallSignalsApp(cask, app.UniqueIdentifier)
 	appStopped := app.UniqueIdentifier == "" || appQuit || appSignaled
-	quitFallsBackToSignal := appQuit && appSignaled
 
 	// The input's pre/post-uninstall scripts wrap the cask's uninstall stanza.
 	// A cask without one still gets them, around the whole removal.
@@ -161,7 +160,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, quitFallsBackToSignal)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, appSignaled)
 				rmDirs = append(rmDirs, stanzaNames(u.RmDir)...)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
@@ -170,7 +169,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, quitFallsBackToSignal)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, appSignaled)
 				rmDirs = append(rmDirs, stanzaNames(z.RmDir)...)
 			}
 		}
@@ -429,7 +428,7 @@ const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 // processUninstallArtifact writes an uninstall or zap directive. appStopped is
 // nil for zap, which runs after the app is removed.
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, quitFallsBackToSignal bool) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, appSignaled bool) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -463,9 +462,9 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		// in the bundle being removed, and a helper that launchd relaunches would
 		// block the uninstall for good. A cask that also signals the app counts
 		// on the signal when the quit fails, so the app is checked after the
-		// signal instead.
+		// signal and the stanza's scripts instead.
 		var stop string
-		if quitTargetsApp(appName, bundleID) && !quitFallsBackToSignal {
+		if quitTargetsApp(appName, bundleID) && !appSignaled {
 			stop = " || exit 1"
 		}
 		// osascript can't resolve a wildcard application id, so the pattern is
@@ -486,22 +485,28 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 
 	// per the spec, signals can't have a different format. In the homebrew
 	// source code an error is raised when the format is different.
+	var signalsApp bool
 	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
 		addUserVar()
 		sb.AddFunction("send_signal", sendSignalFunc)
 		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
-		// send_signal doesn't report whether the app stopped: it may find no
-		// process to signal, or the app may ignore the signal.
-		if quitFallsBackToSignal && quitTargetsApp(u.Signal.Other[1], bundleID) {
-			sb.AddFunction("quit_application", quitApplicationFunc)
-			sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
-		}
+		signalsApp = quitTargetsApp(u.Signal.Other[1], bundleID)
 	}
 
 	// brew runs early_script ahead of every other directive; keep that order so
 	// the commands that make removal possible run before anything is removed.
 	processScript(u.EarlyScript, sb, addUserVar)
 	processScript(u.Script, sb, addUserVar)
+
+	// send_signal doesn't report whether the app stopped: it may find no
+	// process to signal, or the app may ignore the signal. The check waits for
+	// the stanza's scripts, which can stop the app by process name when the
+	// signal finds no PID (Parallels' pkill), and still runs before the stanza
+	// removes anything.
+	if signalsApp {
+		sb.AddFunction("quit_application", quitApplicationFunc)
+		sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
+	}
 
 	process(u.PkgUtil, func(pkgID string) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
@@ -527,6 +532,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
+		sb.AddFunction("remove_system_path", removeSystemPathFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
 }
@@ -1146,19 +1152,18 @@ const trashFunc = `trash() {
   local rand="$(jot -r 1 0 99999)"
   local trash=""
 
-  # At the login window there's no user Trash to move files into, so user
-  # paths are skipped and system paths are deleted outright. Removal is
-  # best-effort and never fails the uninstall.
-  if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
-    if [[ "$target_file" == ~* ]]; then
+  # Paths in the user's home are moved to their Trash as the user: the user
+  # controls those paths and ~/.Trash, so as root the move could be redirected
+  # into a root-only directory. Other paths are deleted as root by
+  # remove_system_path. At the login window there's no user Trash, so home
+  # paths are skipped. Removal is best-effort and never fails the uninstall.
+  if [[ "$target_file" == ~* ]]; then
+    if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
       echo "Not logged into a non-root GUI; skipping $target_file."
       return
     fi
-  else
     # replace ~ with /Users/$logged_in_user
-    if [[ "$target_file" == ~* ]]; then
-      target_file="/Users/$logged_in_user${target_file:1}"
-    fi
+    target_file="/Users/$logged_in_user${target_file:1}"
     trash="/Users/$logged_in_user/.Trash"
   fi
 
@@ -1177,11 +1182,11 @@ const trashFunc = `trash() {
       file_name="$(basename "$file")"
       echo "removing $file."
       if [[ -z "$trash" ]]; then
-        rm -rf "$file" || echo "Failed to remove $file."
+        remove_system_path "$file"
       else
         # The per-match counter keeps matches that share a basename from
         # overwriting each other in the trash.
-        mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+        sudo -u "$logged_in_user" mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
       fi
     done < <(compgen -G "$target_file" 2>/dev/null)
     if [[ "$matched" == false ]]; then
@@ -1195,13 +1200,38 @@ const trashFunc = `trash() {
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
     if [[ -z "$trash" ]]; then
-      rm -rf "$target_file" || echo "Failed to remove $target_file."
+      remove_system_path "$target_file"
     else
-      mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+      sudo -u "$logged_in_user" mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
     fi
   else
     echo "$target_file doesn't exist."
   fi
+}`
+
+// removeSystemPathFunc deletes a trash path outside the user's home as root.
+// rm -rf doesn't follow a symlink at the end of the path, but it does follow
+// one in a parent folder, which a user can plant in a world-writable folder
+// like /Users/Shared to redirect the delete. cd -P pins the real parent, and
+// the delete runs only if no folder below the top level is a symlink. Users
+// can't write to /, so top-level symlinks such as /tmp and /etc are trusted.
+const removeSystemPathFunc = `remove_system_path() {
+  local target="$1"
+  local parent name rel top expected
+  parent="$(dirname "$target")"
+  name="$(basename "$target")"
+  rel="${parent#/}"
+  top="/${rel%%/*}"
+  expected="$(cd -P "$top" 2>/dev/null && pwd -P)${parent#"$top"}"
+
+  (
+    cd -P "$parent" 2>/dev/null || exit 1
+    if [[ "$(pwd -P)" != "$expected" ]]; then
+      echo "Skipped $target: a folder in its path is a symlink."
+      exit 0
+    fi
+    rm -rf "./$name"
+  ) || echo "Failed to remove $target."
 }`
 
 // removeEmptyDirFunc keeps rmdir's empty-only semantics: casks use rmdir for
