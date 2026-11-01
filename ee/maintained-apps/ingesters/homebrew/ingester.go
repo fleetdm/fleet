@@ -151,6 +151,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
+	if input.Token == "lm-studio" {
+		// App reports "0.4.26+4"; the cask says "0.4.26,4".
+		out.Version = strings.ReplaceAll(cask.Version, ",", "+")
+	}
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
@@ -194,6 +198,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	switch input.UninstallScriptPath {
 	case "":
+		if err := validateQuitIDs(&cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "invalid uninstall quit for cask %s", input.Token)
+		}
+
 		if len(input.PreUninstallScripts) != 0 {
 			cask.PreUninstallScripts = input.PreUninstallScripts
 		}
@@ -202,7 +210,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(input, &cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
@@ -318,6 +326,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "wezterm" {
+		// WezTerm.app ships a placeholder CFBundleShortVersionString ("0.1.0") and
+		// CFBundleVersion ("1") in every release, so no version comparison can work.
+		// The input is frozen, so identify the release by its code-directory hashes
+		// (arm64, x86_64) for 20240203-110809-5046fc22 instead; any other build
+		// counts as outdated.
+		out.Queries.Patched = "SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');"
+	}
 	if input.Token == "logitech-g-hub" {
 		// lghub.app ships without a CFBundleShortVersionString, so bundle_short_version
 		// is empty and the default patch policy can never pass. The cask version
@@ -336,6 +352,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
 		)
+	case "tableau", "tableau-prep":
+		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
+		// Desktop (Apple silicon) 2026.3.app") and the pkg never removes earlier
+		// ones, which users keep to match their Tableau Server version. Treat the
+		// host as patched when any installed copy is current, so an upgrade passes
+		// without deleting those older releases.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s' AND version_compare(bundle_short_version, '%[2]s') >= 0);",
+			out.UniqueIdentifier, out.Version,
+		)
 	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare
@@ -349,6 +375,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "mindmanager" {
+		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
+		// .26, ...), so hosts still on an older major never match the current ID. Flag
+		// any major's bundle that's older than the cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.Version,
 		)
 	}
 	if input.Token == "firefox@developer-edition" {
@@ -396,6 +431,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
+	case "mindmanager":
+		// Match every major's bundle ID, like the patched query, so a running older major
+		// defers patching too.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",

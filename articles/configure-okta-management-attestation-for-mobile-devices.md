@@ -52,7 +52,7 @@ Okta Verify uses managed app configuration to pass the secret key that marks the
 
 > **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
-Other keys for configuring Okta Verify are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm).
+Other keys for configuring Okta Verify are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm). If the app configuration changes, Fleet will automatically redeploy the application.
 
 ### Configure iOS with GitOps
 

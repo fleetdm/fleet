@@ -1,6 +1,7 @@
 package fleethttp
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -60,6 +62,14 @@ func TestClient(t *testing.T) {
 			assert.Equal(t, c.timeout, cli.Timeout)
 		})
 	}
+}
+
+func TestNewClientWithoutOTEL(t *testing.T) {
+	cli := NewClient(WithoutOTEL())
+	assert.IsType(t, &http.Transport{}, cli.Transport) //nolint:gocritic
+
+	cli = NewClient(WithoutOTEL(), WithMaxResponseSize(1))
+	assert.IsType(t, &SizeLimitTransport{}, cli.Transport)
 }
 
 func TestTransport(t *testing.T) {
@@ -716,4 +726,110 @@ func TestNewGithubClientAuthorization(t *testing.T) {
 		require.Equal(t, "Bearer tok", gotAuth)
 		require.Nil(t, req.Header, "the caller's request must not be modified")
 	})
+}
+
+// blackholeProxy forwards TCP connections to target until blackhole is called,
+// after which the connections open at that point silently discard all traffic
+// in both directions, like a network change that drops flows without sending a
+// reset. Connections accepted afterwards forward normally.
+type blackholeProxy struct {
+	ln     net.Listener
+	target string
+
+	mu    sync.Mutex
+	conns []*atomic.Bool
+}
+
+func newBlackholeProxy(t *testing.T, target string) *blackholeProxy {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { ln.Close() })
+	p := &blackholeProxy{ln: ln, target: target}
+	go p.serve()
+	return p
+}
+
+func (p *blackholeProxy) serve() {
+	for {
+		in, err := p.ln.Accept()
+		if err != nil {
+			return
+		}
+		out, err := net.Dial("tcp", p.target)
+		if err != nil {
+			in.Close()
+			continue
+		}
+		dead := new(atomic.Bool)
+		p.mu.Lock()
+		p.conns = append(p.conns, dead)
+		p.mu.Unlock()
+		pipe := func(dst, src net.Conn) {
+			defer dst.Close()
+			buf := make([]byte, 32*1024)
+			for {
+				n, err := src.Read(buf)
+				if err != nil {
+					return
+				}
+				if dead.Load() {
+					continue
+				}
+				if _, err := dst.Write(buf[:n]); err != nil {
+					return
+				}
+			}
+		}
+		go pipe(out, in)
+		go pipe(in, out)
+	}
+}
+
+func (p *blackholeProxy) blackhole() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, dead := range p.conns {
+		dead.Store(true)
+	}
+}
+
+func TestTransportHTTP2HealthCheck(t *testing.T) {
+	tr := NewTransport()
+	require.NotNil(t, tr.HTTP2)
+	assert.Equal(t, http2SendPingTimeout, tr.HTTP2.SendPingTimeout)
+	assert.Equal(t, http2PingTimeout, tr.HTTP2.PingTimeout)
+
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	proxy := newBlackholeProxy(t, srv.Listener.Addr().String())
+
+	tr = NewTransport(WithTLSConfig(srv.Client().Transport.(*http.Transport).TLSClientConfig))
+	// Shortened so the test doesn't wait for the production timeouts.
+	tr.HTTP2.SendPingTimeout = 200 * time.Millisecond
+	tr.HTTP2.PingTimeout = 200 * time.Millisecond
+	t.Cleanup(tr.CloseIdleConnections)
+	cli := &http.Client{Transport: tr} //nolint:gocritic // needs the transport with shortened timeouts
+	proxyURL := "https://" + proxy.ln.Addr().String()
+
+	get := func() error {
+		ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL, nil)
+		require.NoError(t, err)
+		resp, err := cli.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		require.Equal(t, 2, resp.ProtoMajor)
+		return nil
+	}
+	require.NoError(t, get())
+
+	proxy.blackhole()
+	// Without the health check, the dead connection would stay pooled and every
+	// request would keep timing out until the OS gave up on the socket.
+	require.Eventually(t, func() bool { return get() == nil }, 5*time.Second, 50*time.Millisecond)
 }

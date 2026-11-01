@@ -123,6 +123,7 @@ export interface IMdmConfig {
   windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
   only_allow_apple_business_enrollment: boolean;
+  enable_profile_validation: boolean;
 }
 
 /** Settings for new user-driven Windows MDM enrollments (Premium only). */
@@ -176,6 +177,7 @@ export interface IConfigServerSettings {
   query_reports_disabled: boolean;
   scripts_disabled: boolean;
   ai_features_disabled: boolean;
+  mcp_disabled: boolean;
 }
 
 export interface IConfig {

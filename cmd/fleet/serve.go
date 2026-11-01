@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -281,6 +282,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			initFatal(err, "loading profile validation schema")
 		}
 	}
+	pvVersion := profilevalidation.Current().Version
+	logger.InfoContext(cmd.Context(), "profile validation schema loaded",
+		"apple_release", pvVersion.Apple.Release, "windows_release", pvVersion.Windows.Release)
 
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
@@ -591,7 +595,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -606,6 +610,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
@@ -639,12 +644,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
 			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)
@@ -846,7 +852,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
-	var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+	mcpConn := service.NewMCPConn()
+	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
 			"get_frontend",
@@ -866,6 +873,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if agentWSHub != nil {
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
+		extra = append(extra, service.WithMCPConn(mcpConn))
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -926,6 +934,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			serveCSP,
 		)
+
+		endUserEnrollNextStepsHandler = service.ServeEndUserEnrollNextSteps(
+			config.Server.URLPrefix,
+			logger,
+			serveCSP,
+		)
 	}
 
 	healthCheckers := make(map[string]health.Checker)
@@ -957,6 +971,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		),
 	), healthCheckers)
 
+	// Set below, before the server starts serving.
+	var srv *http.Server
 	rootMux := http.NewServeMux()
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
@@ -1103,7 +1119,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger, func() time.Duration { return srv.WriteTimeout }))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1111,6 +1127,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 	rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+	// Registered with and without the trailing slash: the design and any link
+	// written as /enroll/next-steps/ would otherwise fall through to the "/"
+	// catch-all and serve the admin UI to an enrolling end user.
+	rootMux.Handle("/enroll/next-steps", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps", config))
+	rootMux.Handle("/enroll/next-steps/", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps/", config))
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
@@ -1165,10 +1186,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		handler = launcher.Handler(rootMux)
 	}
 
-	srv := config.Server.DefaultHTTPServer(ctx, handler)
+	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {
 		srv.WriteTimeout = liveQueryRestPeriod
 	}
+	mcpConn.Start(ctx, handler)
 	srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 	errs := make(chan error, 2)
 	go func() {
@@ -1227,7 +1249,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			if agentWSHub != nil {
 				agentWSHub.Shutdown()
 			}
-			return srv.Shutdown(ctx)
+			err := srv.Shutdown(ctx)
+			if mcpErr := mcpConn.Shutdown(ctx); mcpErr != nil {
+				logger.ErrorContext(ctx, "failed to shut down the embedded MCP connection", "err", mcpErr)
+			}
+			return err
 		}()
 	}()
 

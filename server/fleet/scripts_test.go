@@ -57,6 +57,38 @@ func TestScriptValidate(t *testing.T) {
 			},
 			wantErr: errors.New("Script contents must not be empty."),
 		},
+		{
+			name: "ps1 with pwsh shebang",
+			script: Script{
+				Name:           "test.ps1",
+				ScriptContents: "#!/usr/bin/pwsh\nWrite-Host hi",
+			},
+			wantErr: errors.New(`PowerShell scripts must not start with a shebang ("#!").`),
+		},
+		{
+			name: "ps1 with env pwsh shebang",
+			script: Script{
+				Name:           "test.ps1",
+				ScriptContents: "#!/usr/bin/env pwsh\nWrite-Host hi",
+			},
+			wantErr: errors.New(`PowerShell scripts must not start with a shebang ("#!").`),
+		},
+		{
+			name: "ps1 with shell shebang",
+			script: Script{
+				Name:           "test.ps1",
+				ScriptContents: "#!/bin/bash\nWrite-Host hi",
+			},
+			wantErr: errors.New(`PowerShell scripts must not start with a shebang ("#!").`),
+		},
+		{
+			name: "ps1 without shebang",
+			script: Script{
+				Name:           "test.ps1",
+				ScriptContents: "Write-Host hi",
+			},
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {

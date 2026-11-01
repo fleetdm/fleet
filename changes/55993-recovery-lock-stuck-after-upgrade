@@ -1,0 +1,1 @@
+- Fixed Recovery Lock passwords stuck at "Enforcing" for macOS hosts that had a password change in progress when Fleet was upgraded from 4.92.

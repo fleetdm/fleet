@@ -19,7 +19,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 
-import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
+import MdmMigrationVideo from "../../../../../../../assets/videos/mdm-migration-video.mp4";
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 const baseClass = "end-user-migration-section";

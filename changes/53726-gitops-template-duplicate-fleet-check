@@ -1,1 +1,0 @@
-- Fixed the duplicate fleet name check in the GitOps `gitops.sh` that `fleetctl new` generates: it never stopped the run, because `set -e` ignores a command starting with `!`. This applies the same fix #53469 made to Fleet's own GitOps action.

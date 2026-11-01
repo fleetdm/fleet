@@ -197,6 +197,7 @@ func TestHosts(t *testing.T) {
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
+		{"OtherMDMHostIDWithUUID", testOtherMDMHostIDWithUUID},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -1397,6 +1398,56 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		require.NotEqual(t, "Pending", h.MDM.EnrollmentStatus)
 	}
+
+	// the pending ABM host was just created but never enrolled, so it is not "new"
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 10)
+	for _, h := range hosts {
+		require.NotEqual(t, "pending-serial", h.HardwareSerial)
+	}
+
+	// "new" is based on last_enrolled_at, not created_at
+	ids := make([]uint, 0, 3)
+	for _, h := range hosts[:3] {
+		ids = append(ids, h.ID)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// enrolled recently, but the host record is old (e.g. ADE host synced from ABM long before enrolling)
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET created_at = NOW() - INTERVAL 10 DAY WHERE id = ?`, ids[0]); err != nil {
+			return err
+		}
+		// record is recent, but the host enrolled more than a day ago
+		if _, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 2 DAY WHERE id = ?`, ids[1]); err != nil {
+			return err
+		}
+		// recently enrolled but still flagged as pending
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, installed_from_dep) VALUES (?, 0, 1)`, ids[2])
+		return err
+	})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 8)
+	got := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		got = append(got, h.ID)
+	}
+	require.Contains(t, got, ids[0])
+	require.NotContains(t, got, ids[1])
+	require.NotContains(t, got, ids[2])
+
+	// the dashboard count matches the filter
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, time.Now(), nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(len(hosts)), summary.NewCount)
+
+	// 24h boundary
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 1435 MINUTE WHERE id = ?`, ids[1])
+		return err
+	})
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 9)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = NOW() - INTERVAL 1445 MINUTE WHERE id = ?`, ids[1])
+		return err
+	})
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusNew}, 8)
 }
 
 func testHostsListQuery(t *testing.T, ds *Datastore) {
@@ -2416,7 +2467,7 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
 		require.Equal(t, "test", hosts[0].MDM.Name)
 
-		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
+		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "", false)
 		require.NoError(t, err)
 		require.Len(t, hosts, 1)
 		require.Equal(t, h.ID, hosts[0].ID)
@@ -2659,33 +2710,33 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
-	_, err = ds.SearchHosts(context.Background(), filter, "")
+	_, err = ds.SearchHosts(context.Background(), filter, "", false)
 	require.NoError(t, err)
 
-	hosts, err := ds.SearchHosts(context.Background(), filter, "fo")
+	hosts, err := ds.SearchHosts(context.Background(), filter, "fo", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 2)
 
-	hosts, err = ds.SearchHosts(context.Background(), filter, "fo.")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "fo.", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 1)
 
-	host, err := ds.SearchHosts(context.Background(), filter, "fo", h3.ID)
+	host, err := ds.SearchHosts(context.Background(), filter, "fo", false, h3.ID)
 	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "fo.local", host[0].Hostname)
 
-	host, err = ds.SearchHosts(context.Background(), filter, "fo", h3.ID, h2.ID)
+	host, err = ds.SearchHosts(context.Background(), filter, "fo", false, h3.ID, h2.ID)
 	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "fo.local", host[0].Hostname)
 
-	host, err = ds.SearchHosts(context.Background(), filter, "abc")
+	host, err = ds.SearchHosts(context.Background(), filter, "abc", false)
 	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "abc-def-ghi", host[0].UUID)
 
-	none, err := ds.SearchHosts(context.Background(), filter, "xxx")
+	none, err := ds.SearchHosts(context.Background(), filter, "xxx", false)
 	require.NoError(t, err)
 	assert.Len(t, none, 0)
 
@@ -2694,11 +2745,11 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(context.Background(), h2)
 	require.NoError(t, err)
 
-	hits, err := ds.SearchHosts(context.Background(), filter, "99.100.101")
+	hits, err := ds.SearchHosts(context.Background(), filter, "99.100.101", false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.111")
+	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.111", false)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
 
@@ -2707,42 +2758,42 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(context.Background(), h2)
 	require.NoError(t, err)
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.4")
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.4", false)
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	assert.Equal(t, h2.ID, hits[0].ID)
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.9")
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.9", false)
 	require.NoError(t, err)
 	assert.Empty(t, hits)
 
 	h3.PrimaryIP = "99.100.101.104"
 	err = ds.UpdateHost(context.Background(), h3)
 	require.NoError(t, err)
-	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101")
+	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", false)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(hits))
-	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", h3.ID)
+	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", false, h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "f")
+	hits, err = ds.SearchHosts(context.Background(), filter, "f", false)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "f", h3.ID)
+	hits, err = ds.SearchHosts(context.Background(), filter, "f", false, h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "fx")
+	hits, err = ds.SearchHosts(context.Background(), filter, "fx", false)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "x")
+	hits, err = ds.SearchHosts(context.Background(), filter, "x", false)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
 
-	hits, err = ds.SearchHosts(context.Background(), filter, "x", h3.ID)
+	hits, err = ds.SearchHosts(context.Background(), filter, "x", false, h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
 
@@ -2750,20 +2801,20 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	filter = fleet.TeamFilter{User: userObs}
 
 	// observer not included
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 0)
 
 	// observer included
 	filter.IncludeObserver = true
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 3)
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
 
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h1.ID)
@@ -2772,27 +2823,27 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	filter = fleet.TeamFilter{User: userTeam2}
 
 	// observer not included
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 0)
 
 	// observer included
 	filter.IncludeObserver = true
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
 
 	// specific team id
 	filter.TeamID = &team2.ID
-	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local", false)
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
 
 	// sorted by ids desc
 	filter = fleet.TeamFilter{User: userObs, IncludeObserver: true}
-	hits, err = ds.SearchHosts(context.Background(), filter, "")
+	hits, err = ds.SearchHosts(context.Background(), filter, "", false)
 	require.NoError(t, err)
 	assert.Len(t, hits, 3)
 	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
@@ -2802,7 +2853,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		hosts[0].ID, "a@b.c", "src1")
 	require.NoError(t, err)
 	// Verify search works
-	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c")
+	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c", false)
 	require.NoError(t, err)
 	assert.Len(t, hits, 1)
 
@@ -2851,7 +2902,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	// find the team2 host even though the 10 team3 hosts have higher IDs.
 	observerOnTeam2 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}}}
 	filter = fleet.TeamFilter{User: observerOnTeam2, IncludeObserver: true}
-	hits, err = ds.SearchHosts(context.Background(), filter, "searchme")
+	hits, err = ds.SearchHosts(context.Background(), filter, "searchme", false)
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	assert.Equal(t, accessibleHost.ID, hits[0].ID)
@@ -2863,7 +2914,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		{Team: *team3, Role: fleet.RoleObserver},
 	}}
 	filter = fleet.TeamFilter{User: observerOnBothTeams, IncludeObserver: true, ObserverTeamID: &team2.ID}
-	hits, err = ds.SearchHosts(context.Background(), filter, "searchme")
+	hits, err = ds.SearchHosts(context.Background(), filter, "searchme", false)
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	assert.Equal(t, accessibleHost.ID, hits[0].ID)
@@ -2995,7 +3046,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit...)
+			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, false, tt.args.omit...)
 			tt.wantErr(t, err)
 			resultHostIDs := make([]uint, len(got))
 			for i, h := range got {
@@ -3023,7 +3074,7 @@ func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	hosts, err := ds.SearchHosts(context.Background(), filter, "foo")
+	hosts, err := ds.SearchHosts(context.Background(), filter, "foo", false)
 	require.NoError(t, err)
 	assert.Len(t, hosts, 10)
 }
@@ -3390,28 +3441,34 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// Mobile hosts are included in CountHostsInTargets and HostIDsInTargets
-	// (pre-#52518 behavior restored so the picker and campaign stay consistent).
+	// Live reports can't reach mobile hosts, so they must not be counted or
+	// targeted by a campaign.
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint(len(targetIDs)), metrics.TotalHosts, "all mobile hosts contribute to target metrics")
+	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
+	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
+	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
 
 	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
 	require.NoError(t, err)
-	assert.ElementsMatch(t, targetIDs, ids, "mobile hosts included in HostIDsInTargets")
+	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
 
-	// SearchHosts returns all platforms including mobile. The live-query
-	// target picker filters mobile hosts at the service layer so that the
-	// manual-label host picker can still find them.
+	// The manual-label picker finds mobile hosts; the live-report picker doesn't.
 	for _, h := range []*fleet.Host{iosOnline, ipadosOnline, androidOnline} {
-		found, err := ds.SearchHosts(ctx, filter, h.Hostname)
+		found, err := ds.SearchHosts(ctx, filter, h.Hostname, false)
 		require.NoError(t, err)
 		var foundIDs []uint
 		for _, r := range found {
 			foundIDs = append(foundIDs, r.ID)
 		}
 		assert.Contains(t, foundIDs, h.ID, "SearchHosts must surface mobile host %q for the label picker", h.Hostname)
+
+		found, err = ds.SearchHosts(ctx, filter, h.Hostname, true)
+		require.NoError(t, err)
+		for _, r := range found {
+			assert.NotEqual(t, h.ID, r.ID, "SearchHosts must not surface mobile host %q to the live report picker", h.Hostname)
+		}
 	}
 }
 
@@ -4412,6 +4469,34 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.Len(t, hostsByIdentifier, 1)
 	assert.Equal(t, hostsByIdentifier[0], hosts[2].ID)
 
+	noSerialHost, err := ds.NewHost(t.Context(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("osq.no-serial"),
+		NodeKey:         new("nk.no-serial"),
+		UUID:            "uuid.no-serial",
+		Hostname:        "no-serial.local",
+	})
+	require.NoError(t, err)
+	// like a host ingested from ABM that hasn't enrolled yet
+	_, err = ds.NewHost(t.Context(), &fleet.Host{
+		HardwareSerial: "hws.pending",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	for _, blankIdentifiers := range [][]string{{""}, {" "}, {"", " ", "\t"}} {
+		hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, blankIdentifiers)
+		require.NoError(t, err)
+		assert.Empty(t, hostsByIdentifier, "identifiers %q", blankIdentifiers)
+	}
+
+	hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, []string{"", "no-serial.local", " "})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{noSerialHost.ID}, hostsByIdentifier)
+
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
@@ -4649,6 +4734,45 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 	}
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+		HardwareSerial:  "serial_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "ios",
+		HardwareSerial:  "serial2_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "ipados",
+		HardwareSerial:  "serial3_no_uuid",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "windows",
+		HardwareSerial:  "serial4_no_uuid",
+	})
+	require.NoError(t, err)
 
 	h, err := ds.HostByUUID(context.Background(), "uuid_3")
 	require.NoError(t, err)
@@ -4662,6 +4786,12 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 		"osquery_host_id_3",
 		"node_key_4",
 		"does-not-exist",
+		"",
+		" ",
+		"\x01",
+		"\u00a0",
+		"\u200b",
+		"\u0301",
 	} {
 		h, err := ds.HostByUUID(context.Background(), ident)
 		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
@@ -5164,8 +5294,8 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 			// resolves the title to this installer when status composition kicks in.
 			res, err := q.ExecContext(ctx,
 				`INSERT INTO software_installers
-					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
-				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', '', 1)`,
 				titleID, storageID+".pkg", storageID, scriptID, scriptID)
 			if err != nil {
 				return err
@@ -5321,6 +5451,54 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	}, 1)
 	require.Equal(t, host2.ID, hosts[0].ID)
 	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// list the hosts of the title with a version of another app, with and without a status, the version should be rejected
+	var otherAppVersion uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('ivv-other-adam', 'darwin', 'ivv-other', '1.0')`)
+		if err != nil {
+			return err
+		}
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('ivv-other-adam', 'darwin', 0, 'Other')`)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherAppVersion = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	failed := fleet.SoftwareFailed
+	var badRequestErr *fleet.BadRequestError
+	_, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion, SoftwareStatusFilter: &failed})
+	require.ErrorAs(t, err, &badRequestErr)
+
+	// list the hosts of the title with a package of another title, with and without a status, the package should be rejected
+	var otherTitleInstaller uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, extension_for) VALUES ('ivv-other-title', 'apps', '')`)
+		if err != nil {
+			return err
+		}
+		otherTitleID, _ := res.LastInsertId()
+		res, err = q.ExecContext(ctx,
+			`INSERT INTO software_installers
+				(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+			VALUES (?, 'ivv-other.pkg', '1.0', 'darwin', 'ivv-storage-other', ?, ?, '', '', '', 1)`,
+			otherTitleID, scriptID, scriptID)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherTitleInstaller = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	linkInstall(host1.ID, otherTitleInstaller)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller, SoftwareStatusFilter: &installed})
+	require.ErrorAs(t, err, &badRequestErr)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
@@ -5351,7 +5529,7 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host.SoftwareUpdatedAt, host.CreatedAt)
 
-	foundHosts, err := ds.SearchHosts(context.Background(), filter, "foo.local0")
+	foundHosts, err := ds.SearchHosts(context.Background(), filter, "foo.local0", false)
 	require.NoError(t, err)
 	require.Len(t, foundHosts, 1)
 	require.Equal(t, foundHosts[0].SoftwareUpdatedAt, foundHosts[0].CreatedAt)
@@ -5394,7 +5572,7 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Greater(t, host.SoftwareUpdatedAt, host.CreatedAt)
 
-	foundHosts, err = ds.SearchHosts(context.Background(), filter, "foo.local2")
+	foundHosts, err = ds.SearchHosts(context.Background(), filter, "foo.local2", false)
 	require.NoError(t, err)
 	require.Len(t, foundHosts, 1)
 	require.Greater(t, foundHosts[0].SoftwareUpdatedAt, foundHosts[0].CreatedAt)
@@ -8381,7 +8559,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	removeHostSeenTimes(h1.ID)
 
-	foundHosts, err := ds.SearchHosts(context.Background(), teamFilter, "")
+	foundHosts, err := ds.SearchHosts(context.Background(), teamFilter, "", false)
 	require.NoError(t, err)
 	require.Len(t, foundHosts, 2)
 	// SearchHosts orders by seen time.
@@ -8781,7 +8959,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test 1: Add first IDP mapping for h1
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user1@idp.com")
 	require.NoError(t, err)
 
 	// Verify the mapping was created
@@ -8792,7 +8970,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 2: Replace IDP mapping with new user (should replace, not add)
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
 	require.NoError(t, err)
 
 	// Should have only the new mapping (user1 should be replaced by user2)
@@ -8803,7 +8981,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 3: Test idempotent behavior - setting same mapping again should not change anything
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "user2@idp.com")
 	require.NoError(t, err)
 
 	// Should still have only the same mapping
@@ -8814,7 +8992,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 4: Add IDP mapping for different host
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, "user3@idp.com")
 	require.NoError(t, err)
 
 	// Verify h2 has its own mapping
@@ -8851,7 +9029,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}
 
 	for i, email := range testEmails {
-		err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
+		_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h2.ID, email)
 		require.NoError(t, err, "Failed to set email: %s", email)
 
 		// Verify only the current email exists (replacement behavior)
@@ -8863,7 +9041,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}
 
 	// Test 7: Test empty email (edge case)
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "")
 	require.NoError(t, err) // Should handle empty email gracefully
 
 	// Verify empty email was added
@@ -8898,7 +9076,7 @@ func testIDPHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.True(t, foundMdmIdp, "Should find MDM IDP mapping")
 
 	// Now set a new IDP mapping - this should replace the mdm_idp_accounts entry
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "new.user@example.com")
 	require.NoError(t, err)
 
 	// Verify in db the source of the replaced entry
@@ -10882,6 +11060,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	_, err = ds.SetHostGoogleDeviceID(ctx, host.ID, "google-device-id")
 	require.NoError(t, err)
 
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
@@ -13319,6 +13500,65 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	t.Run("empty hardware uuid", func(t *testing.T) {
 		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
 		require.Error(t, err)
+	})
+}
+
+func testOtherMDMHostIDWithUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+	nanoEnroll(t, ds, mac, false)
+	windows := newOneTimeSecretTestHost(t, ds, "windows", nil)
+	insertWindowsEnrollment(t, ds, "hw-"+windows.UUID, windows.UUID)
+	notInMDM := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+
+	requireOtherMDMHostID := func(t *testing.T, hostUUID string, excludeHostID, want uint) {
+		t.Helper()
+		got, err := ds.OtherMDMHostIDWithUUID(ctx, hostUUID, excludeHostID)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	}
+
+	t.Run("Apple and Windows MDM hosts", func(t *testing.T) {
+		for _, h := range []*fleet.Host{mac, windows} {
+			requireOtherMDMHostID(t, h.UUID, 0, h.ID)
+			requireOtherMDMHostID(t, strings.ToLower(h.UUID), 0, h.ID)
+			requireOtherMDMHostID(t, h.UUID, h.ID, 0)
+		}
+	})
+
+	t.Run("host without MDM", func(t *testing.T) {
+		requireOtherMDMHostID(t, notInMDM.UUID, 0, 0)
+	})
+
+	t.Run("UUIDs with padding", func(t *testing.T) {
+		requireOtherMDMHostID(t, mac.UUID+" ", 0, mac.ID)
+		requireOtherMDMHostID(t, windows.UUID+"\u200b", 0, windows.ID)
+	})
+
+	t.Run("empty and blank UUIDs", func(t *testing.T) {
+		noUUID := newOneTimeSecretTestHost(t, ds, "ios", nil)
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, noUUID.ID)
+		require.NoError(t, err)
+		insertWindowsEnrollment(t, ds, "hw-unlinked", "")
+
+		for _, blank := range []string{"", " ", "\u200b", "\u00a0", "\x01"} {
+			requireOtherMDMHostID(t, blank, 0, 0)
+		}
+	})
+
+	t.Run("disabled Apple enrollment", func(t *testing.T) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, mac.UUID)
+		require.NoError(t, err)
+		requireOtherMDMHostID(t, mac.UUID, 0, mac.ID)
+	})
+
+	t.Run("hosts sharing a UUID", func(t *testing.T) {
+		duplicate := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = ? WHERE id = ?`, mac.UUID, duplicate.ID)
+		require.NoError(t, err)
+		requireOtherMDMHostID(t, mac.UUID, duplicate.ID, mac.ID)
+		requireOtherMDMHostID(t, mac.UUID, mac.ID, duplicate.ID)
 	})
 }
 
@@ -16134,7 +16374,7 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 
 	// a manual IdP username supersedes the device-reported one and blocks further reports
-	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
+	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
 	require.NoError(t, err)
 	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
 	_, err = ds.ScimUserByHostID(ctx, h1.ID)

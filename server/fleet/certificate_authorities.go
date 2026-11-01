@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -19,17 +21,20 @@ const (
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 	CAConfigEJBCA           CAConfigAssetType = "ejbca"
+	// CAConfigConditionalAccess marks certificates issued by Fleet's own conditional access SCEP server. It is a
+	// managed certificate type only, never a certificate authority admins configure.
+	CAConfigConditionalAccess CAConfigAssetType = "conditional_access"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA, CAConfigConditionalAccess}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
 // is not included as renewal does not need special support within the profile
 func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigConditionalAccess}
 }
 
 // SupportsRenewalID returns whether the CA type supports renewal IDs.
@@ -72,6 +77,7 @@ const (
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
 	CATypeEJBCA           CAType = "ejbca"
+	CATypeGoogleCAS       CAType = "google_cas" // Google Cloud Certificate Authority Service
 )
 
 // IssuedCertificate is a certificate a CA issued for a host, with the key Fleet generated for it, in a PKCS#12 bundle that Password opens.
@@ -138,6 +144,12 @@ type CertificateAuthority struct {
 	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
 	MTLSCertExpiresAt           *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"` // derived from MTLSCertPEM on read
 
+	// Google CAS. The CA pool is identified by project, location and pool name; the service account key is encrypted at rest.
+	GoogleCASProject    *string `json:"project,omitempty" db:"google_cas_project"`
+	GoogleCASLocation   *string `json:"location,omitempty" db:"google_cas_location"`
+	GoogleCASCAPool     *string `json:"ca_pool,omitempty" db:"google_cas_ca_pool"`
+	GoogleCASAPIKeyJSON *string `json:"api_key_json,omitempty" db:"-"`
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -155,6 +167,54 @@ func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
 		return *c.CertificateCommonName
 	}
 	return ""
+}
+
+// EJBCA returns the settings of an EJBCA CA, with the empty value for what isn't set.
+func (c *CertificateAuthority) EJBCA() EJBCA {
+	ejbca := EJBCA{
+		ID:                       c.ID,
+		Name:                     ptr.ValOrZero(c.Name),
+		URL:                      ptr.ValOrZero(c.URL),
+		MTLSCertPEM:              ptr.ValOrZero(c.MTLSCertPEM),
+		MTLSKeyPEM:               ptr.ValOrZero(c.MTLSKeyPEM),
+		TrustCABundlePEM:         ptr.ValOrZero(c.TrustCABundlePEM),
+		CertificateAuthorityName: ptr.ValOrZero(c.EJBCACAName),
+		CertificateProfileName:   ptr.ValOrZero(c.EJBCACertificateProfileName),
+		EndEntityProfileName:     ptr.ValOrZero(c.EJBCAEndEntityProfileName),
+		CertificateCommonName:    ptr.ValOrZero(c.CertificateCommonName),
+		UsernameTemplate:         ptr.ValOrZero(c.EJBCAUsernameTemplate),
+	}
+	if c.CertificateUserPrincipalNames != nil {
+		ejbca.CertificateUserPrincipalNames = *c.CertificateUserPrincipalNames
+	}
+	return ejbca
+}
+
+// CertificateAuthority returns the stored form of the EJBCA CA. The required fields are always set, and the empty optional username
+// template, trust bundle, and UPN list are stored as NULL.
+func (e *EJBCA) CertificateAuthority() *CertificateAuthority {
+	ca := &CertificateAuthority{
+		ID:                          e.ID,
+		Type:                        string(CATypeEJBCA),
+		Name:                        &e.Name,
+		URL:                         &e.URL,
+		MTLSCertPEM:                 &e.MTLSCertPEM,
+		MTLSKeyPEM:                  &e.MTLSKeyPEM,
+		EJBCACAName:                 &e.CertificateAuthorityName,
+		EJBCACertificateProfileName: &e.CertificateProfileName,
+		EJBCAEndEntityProfileName:   &e.EndEntityProfileName,
+		CertificateCommonName:       &e.CertificateCommonName,
+	}
+	if e.TrustCABundlePEM != "" {
+		ca.TrustCABundlePEM = &e.TrustCABundlePEM
+	}
+	if e.UsernameTemplate != "" {
+		ca.EJBCAUsernameTemplate = &e.UsernameTemplate
+	}
+	if len(e.CertificateUserPrincipalNames) > 0 {
+		ca.CertificateUserPrincipalNames = &e.CertificateUserPrincipalNames
+	}
+	return ca
 }
 
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
@@ -197,6 +257,34 @@ func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
 	}, nil
 }
 
+// GoogleCASCA returns the Google CAS settings of a Google CAS CA, which needs all of them to issue a certificate.
+func (c *CertificateAuthority) GoogleCASCA() (GoogleCASCA, error) {
+	if CAType(c.Type) != CATypeGoogleCAS {
+		return GoogleCASCA{}, fmt.Errorf("Certificate authority of type %s is not a Google CAS certificate authority.", c.Type)
+	}
+	for _, field := range []struct {
+		value *string
+		label string
+	}{
+		{c.GoogleCASProject, "Google Cloud project ID"},
+		{c.GoogleCASLocation, "location"},
+		{c.GoogleCASCAPool, "CA pool"},
+		{c.GoogleCASAPIKeyJSON, "service account key"},
+	} {
+		if field.value == nil || *field.value == "" {
+			return GoogleCASCA{}, fmt.Errorf("Certificate authority does not have a %s configured.", field.label)
+		}
+	}
+	return GoogleCASCA{
+		ID:         c.ID,
+		Name:       ptr.ValOrZero(c.Name),
+		Project:    *c.GoogleCASProject,
+		Location:   *c.GoogleCASLocation,
+		CAPool:     *c.GoogleCASCAPool,
+		APIKeyJSON: GoogleCASKeyJSON(*c.GoogleCASAPIKeyJSON),
+	}, nil
+}
+
 type CertificateAuthorityPayload struct {
 	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
@@ -205,6 +293,7 @@ type CertificateAuthorityPayload struct {
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
 	EJBCA           *EJBCA                `json:"ejbca,omitempty"`
+	GoogleCAS       *GoogleCASCA          `json:"google_cas,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -245,11 +334,12 @@ type ESTProxyCA struct {
 	Password string `json:"password"`
 }
 
+// Equals checks if two ESTProxyCA instances are equal, including the password
 func (h *ESTProxyCA) Equals(other *ESTProxyCA) bool {
 	return h.Name == other.Name &&
 		h.URL == other.URL &&
 		h.Username == other.Username &&
-		(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+		h.Password == other.Password
 }
 
 func (h *ESTProxyCA) NeedToVerify(other *ESTProxyCA) bool {
@@ -272,11 +362,12 @@ type HydrantCA struct {
 	ClientSecret string `json:"client_secret,omitempty" db:"-"`
 }
 
+// Equals checks if two HydrantCA instances are equal, including the client secret
 func (h *HydrantCA) Equals(other *HydrantCA) bool {
 	return h.Name == other.Name &&
 		h.URL == other.URL &&
 		h.ClientID == other.ClientID &&
-		(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
+		h.ClientSecret == other.ClientSecret
 }
 
 func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
@@ -330,10 +421,11 @@ type CustomSCEPProxyCA struct {
 	Challenge string `json:"challenge"`
 }
 
+// Equals checks if two CustomSCEPProxyCA instances are equal, including the challenge
 func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 	return s.Name == other.Name &&
 		s.URL == other.URL &&
-		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
+		s.Challenge == other.Challenge
 }
 
 func (s *CustomSCEPProxyCA) Preprocess() {
@@ -349,6 +441,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
 	*EJBCAUpdatePayload                `json:"ejbca,omitempty"`
+	*GoogleCASCAUpdatePayload          `json:"google_cas,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -373,6 +466,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.EJBCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.GoogleCASCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if caInPayload == 0 {
@@ -622,6 +718,8 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCA                `json:"ejbca"`
+	GoogleCAS       []GoogleCASCA          `json:"google_cas"`
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
@@ -631,7 +729,9 @@ func (g *GroupedCertificateAuthorities) IsEmpty() bool {
 		len(g.DigiCert) == 0 &&
 		g.NDESSCEP == nil &&
 		len(g.CustomScepProxy) == 0 &&
-		len(g.Smallstep) == 0
+		len(g.Smallstep) == 0 &&
+		len(g.EJBCA) == 0 &&
+		len(g.GoogleCAS) == 0
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -651,6 +751,8 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCA{},
+		GoogleCAS:       []GoogleCASCA{},
 	}
 
 	for _, ca := range cas {
@@ -702,6 +804,8 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
+		case string(CATypeEJBCA):
+			grouped.EJBCA = append(grouped.EJBCA, ca.EJBCA())
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,
@@ -710,6 +814,15 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				ChallengeURL: *ca.ChallengeURL,
 				Username:     *ca.Username,
 				Password:     *ca.Password,
+			})
+		case string(CATypeGoogleCAS):
+			grouped.GoogleCAS = append(grouped.GoogleCAS, GoogleCASCA{
+				ID:         ca.ID,
+				Name:       *ca.Name,
+				Project:    ptr.ValOrZero(ca.GoogleCASProject),
+				Location:   ptr.ValOrZero(ca.GoogleCASLocation),
+				CAPool:     ptr.ValOrZero(ca.GoogleCASCAPool),
+				APIKeyJSON: GoogleCASKeyJSON(ptr.ValOrZero(ca.GoogleCASAPIKeyJSON)),
 			})
 		}
 	}
@@ -834,6 +947,36 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 		groupedCAs.Smallstep = smallstepData
 	}
 
+	if ejbcaCA, ok := spec.(map[string]any)["ejbca"]; !ok || ejbcaCA == nil {
+		groupedCAs.EJBCA = []EJBCA{}
+	} else {
+		// We unmarshal EJBCA integration into its dedicated type for additional validation
+		ejbcaJSON, err := json.Marshal(ejbcaCA)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be marshalled into JSON: %w", err)
+		}
+		var ejbcaData []EJBCA
+		err = json.Unmarshal(ejbcaJSON, &ejbcaData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be parsed: %w", err)
+		}
+		groupedCAs.EJBCA = ejbcaData
+	}
+
+	if googleCAS, ok := spec.(map[string]any)["google_cas"]; !ok || googleCAS == nil {
+		groupedCAs.GoogleCAS = []GoogleCASCA{}
+	} else {
+		googleCASJSON, err := json.Marshal(googleCAS)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.google_cas cannot be marshalled into JSON: %w", err)
+		}
+		var googleCASData []GoogleCASCA
+		if err := json.Unmarshal(googleCASJSON, &googleCASData); err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.google_cas cannot be parsed: %w", err)
+		}
+		groupedCAs.GoogleCAS = googleCASData
+	}
+
 	return &groupedCAs, nil
 }
 
@@ -858,6 +1001,15 @@ type SmallstepSCEPProxyCA struct {
 	ChallengeURL string `json:"challenge_url,omitempty"`
 	Username     string `json:"username"`
 	Password     string `json:"password"` // not stored here -- encrypted in DB
+}
+
+// Equals checks if two SmallstepSCEPProxyCA instances are equal, including the password
+func (s *SmallstepSCEPProxyCA) Equals(other *SmallstepSCEPProxyCA) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		s.ChallengeURL == other.ChallengeURL &&
+		s.Username == other.Username &&
+		s.Password == other.Password
 }
 
 func (s *SmallstepSCEPProxyCA) Preprocess() {

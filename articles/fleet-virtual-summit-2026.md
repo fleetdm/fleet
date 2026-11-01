@@ -1,4 +1,4 @@
-![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png)
+![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png)
 
 
 # Join the Fleet Virtual Summit 2026
@@ -23,6 +23,10 @@ Engineering teams version-control production infrastructure, review changes in p
 
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-fletcher-previn-100x100@2x.jpeg" alt="Fletcher Previn" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/fletcherprevin/">Fletcher Previn</a></strong>, Cisco, Chief Information Officer</p></td>
+    </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-adam-anklewicz-100x100@2x.jpeg" alt="Adam Anklewicz" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/ankle/">Adam Anklewicz</a></strong>, Thumbtack, Manager of IT Systems Engineering</p></td>
@@ -56,6 +60,10 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
 
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-bart-reardon-100x100@2x.jpg" alt="Bart Reardon" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/bart-reardon-00647889">Bart Reardon</a></strong>, Creator of swiftDialog</p></td>
+    </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-daniel-moore-100x100@2x.png" alt="Daniel Moore" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/sodahabit/">Daniel Moore</a></strong>, Red Hat, Manager and Mac Admin, Endpoint Systems</p></td>
@@ -115,6 +123,10 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
     <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-john-mercante-100x100@2x.png" alt="John Marcante" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/john-t-marcante">John Marcante</a></strong>, US CIO, Deloitte</p></td>
+    </tr>
+    <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-mohammed-saqr-100x100@2x.jpeg" alt="Mohammed Saqr" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/mohammed-saqr/">Mohammed Saqr</a></strong>, Block, Manager of Infrastructure and Platform Engineering</p></td>
     </tr>
@@ -122,10 +134,13 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-nick-fohs-100x100@2x.png" alt="Nick Fohs" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/nickfohs/">Nick Fohs</a></strong>, Senior Manager - Enterprise Security, Reddit</p></td>
+    </tr>
   </tbody>
 </table>
 
-*More panelists to be announced*
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
 
@@ -137,7 +152,7 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 - **Where:** LinkedIn Live
 - **Cost:** Free
 
-[Add the summit to your Google Calendar](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fleet+Virtual+Summit+2026&dates=20261110T160000Z%2F20261110T180000Z&details=Four+panel+conversations+on+how+GitOps%2C+open+source%2C+and+AI+agents+get+device+management+to+2030.+Streaming+free+on+LinkedIn+Live.+Details%3A+https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026&location=https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026), and [follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the stream when it goes live.
+[Add the summit to your Google Calendar](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fleet+Virtual+Summit+2026&dates=20261110T160000Z%2F20261110T180000Z&details=Four+panel+conversations+on+how+GitOps%2C+open+source%2C+and+AI+agents+get+device+management+to+2027.+Streaming+free+on+LinkedIn+Live.+Details%3A+https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026&location=https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026), and [follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the stream when it goes live.
 
 
 <meta name="category" value="announcements">
@@ -145,5 +160,5 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png">
-<meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2030.">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png">
+<meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2027.">

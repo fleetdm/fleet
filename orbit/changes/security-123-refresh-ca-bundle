@@ -1,1 +1,0 @@
-* Orbit now updates the `certs.pem` CA bundle that osquery uses to connect to Fleet to the version embedded in orbit. Previously, hosts kept the bundle from the `fleetctl` version that built their package. Hosts that use `--fleet-certificate` are not affected.

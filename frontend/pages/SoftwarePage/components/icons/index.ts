@@ -306,6 +306,7 @@ import Devpod from "./png/Devpod.png";
 import Devtoys from "./png/Devtoys.png";
 import Devutils from "./png/Devutils.png";
 import DfuBlasterPro from "./png/DfuBlasterPro.png";
+import Dia from "./png/Dia.png";
 import Dialpad from "./png/Dialpad.png";
 import Dictionaries from "./png/Dictionaries.png";
 import Diffusionbee from "./png/Diffusionbee.png";
@@ -596,8 +597,8 @@ import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
@@ -996,6 +997,7 @@ import Superhuman from "./png/Superhuman.png";
 import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -1010,6 +1012,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -1068,6 +1071,7 @@ import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
 import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
+import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1108,6 +1112,7 @@ import Webex from "./png/Webex.png";
 import WebStorm from "./png/WebStorm.png";
 import Wechat from "./png/Wechat.png";
 import Weektodo from "./png/Weektodo.png";
+import WezTerm from "./png/WezTerm.png";
 import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
@@ -1477,6 +1482,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
+  dia: Dia,
   dialpad: Dialpad,
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,
@@ -1775,8 +1781,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
@@ -1835,6 +1841,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "merlin project": MerlinProject,
   "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft .net sdk": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
@@ -2195,6 +2202,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   superhuman: Superhuman,
   "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
@@ -2209,6 +2217,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
@@ -2270,6 +2279,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
   unnaturalscrollwheels: UnnaturalScrollWheels,
+  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
@@ -2315,6 +2325,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
+  wezterm: WezTerm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,

@@ -52,6 +52,7 @@ type Service struct {
 	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	googleCASService       fleet.GoogleCASService
 	msGraphClientFactory   msgraph.ClientFactory
 }
 
@@ -78,6 +79,7 @@ func NewService(
 	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	googleCASService fleet.GoogleCASService,
 	pssoNonceStore fleet.PSSONonceStore,
 	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
@@ -116,6 +118,7 @@ func NewService(
 		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
+		googleCASService:       googleCASService,
 		pssoNonceStore:         pssoNonceStore,
 		msGraphClientFactory:   msGraphClientFactory,
 	}
@@ -136,7 +139,7 @@ func NewService(
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
-		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
+		CheckCanInstallVPPApps:            eeservice.CheckCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
 		VerifyAppleAccountProvisioning:    eeservice.verifyAppleAccountProvisioning,
 	})

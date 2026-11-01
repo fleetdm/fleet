@@ -98,7 +98,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Compliance reporting | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Compliance reporting | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Vulnerability detection | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | CIS Benchmark checks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Binary authorization | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
@@ -151,7 +151,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Windows) | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Remote lock/wipe (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Device unenrollment (Apple) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |

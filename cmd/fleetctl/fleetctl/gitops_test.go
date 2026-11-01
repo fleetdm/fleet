@@ -491,6 +491,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 			if len(g.Hydrant) > 0 {
 				storedCAs.Hydrant = g.Hydrant
 			}
+			if len(g.GoogleCAS) > 0 {
+				storedCAs.GoogleCAS = g.GoogleCAS
+			}
 		}
 		return nil
 	}
@@ -1393,6 +1396,9 @@ func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
 		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -1493,6 +1499,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2108,6 +2117,12 @@ func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
 		return out, nil
 	}
 
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+
+		return &fleet.MDMProfileChecksums{}, nil
+
+	}
+
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
@@ -2273,6 +2288,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			})
 		}
 		return scriptResponses, nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2596,6 +2614,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			})
 		}
 		return scriptResponses, nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -2995,6 +3016,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		}
 		return nil
 	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -3094,6 +3118,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
+		ID:          1,
 		Location:    "Foobar",
 		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
 		Token:       "vpp-token",
@@ -3106,7 +3131,15 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
+		// Copies, since callers reset Teams on the returned tokens.
+		tok, tok2 := *vppToken, *vppToken2
+		if savedTeam != nil {
+			tok.Teams = []fleet.TeamTuple{{ID: savedTeam.ID, Name: savedTeam.Name}}
+		}
+		return []*fleet.VPPTokenDB{&tok, &tok2}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -3260,10 +3293,10 @@ software:
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 
 	// Dry run again (after team was created by real run)
-	ds.GetVPPTokenByTeamIDFuncInvoked = false
+	ds.GetAssignedVPPAppsFuncInvoked = false
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
-	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	// Dry run should resolve each app's VPP token for the existing team, so a missing token errors to the user.
+	require.True(t, ds.GetAssignedVPPAppsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -3341,6 +3374,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			enrolledTeamSecrets = secrets
 		}
 		return nil
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
@@ -5347,6 +5383,26 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 	})
 }
 
+func TestGitOpsEnableProfileValidation(t *testing.T) {
+	t.Run("omitted sets true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = false
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		(*appConfig).MDM.EnableProfileValidation = true
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_profile_validation_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).MDM.EnableProfileValidation)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
@@ -6952,6 +7008,12 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 		},
 	}
 
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+
+		return &fleet.MDMProfileChecksums{}, nil
+
+	}
+
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
@@ -8064,6 +8126,20 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			Token:       string(token),
 			CountryCode: "us",
 		}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil

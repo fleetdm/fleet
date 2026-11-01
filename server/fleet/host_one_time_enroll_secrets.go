@@ -115,6 +115,9 @@ const (
 	// authentication. The device got its enrollment configuration before its
 	// fleet required it, and must be reactivated.
 	EnrollmentRejectedEndUserAuthenticationRequired = "end_user_authentication_required"
+	// EnrollmentRejectedUUIDOfAnotherMDMHost: an enrollment presented the
+	// hardware UUID of another host that is enrolled in Apple or Windows MDM.
+	EnrollmentRejectedUUIDOfAnotherMDMHost = "uuid_of_another_mdm_host"
 )
 
 // EnrollmentRejectedError is returned by the datastore enroll methods when an

@@ -1,0 +1,1 @@
+- Sped up applying and replacing large sets of Windows configuration profiles on many hosts, and reduced the database lock contention with MDM check-ins while it runs.

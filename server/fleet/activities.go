@@ -1716,6 +1716,9 @@ type ActivityAddedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1761,6 +1764,9 @@ type ActivityInstalledAppStoreApp struct {
 	FailureReason           string  `json:"failure_reason,omitempty"`
 	FromConfigurationResend bool    `json:"from_configuration_resend"`
 	VersionName             string  `json:"version_name,omitempty"`
+
+	// VPPToken is the token the install used. Nil for Google Play apps and after the token is deleted.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1804,6 +1810,9 @@ type ActivityEditedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -1970,6 +1979,30 @@ type ActivityEditedEJBCA struct {
 
 func (a ActivityEditedEJBCA) ActivityName() string {
 	return "edited_ejbca"
+}
+
+type ActivityAddedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedGoogleCAS) ActivityName() string {
+	return "added_google_cas"
+}
+
+type ActivityDeletedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedGoogleCAS) ActivityName() string {
+	return "deleted_google_cas"
+}
+
+type ActivityEditedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedGoogleCAS) ActivityName() string {
+	return "edited_google_cas"
 }
 
 type ActivityTypeEnabledAndroidMDM struct{}
@@ -2410,6 +2443,34 @@ func (a ActivityTypeResentCertificate) HostIDs() []uint {
 
 func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
 	return a.Automated
+}
+
+type ActivityTypeSetHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
+	return "set_host_google_device_id"
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeDeletedHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) ActivityName() string {
+	return "deleted_host_google_device_id"
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedHostIdpData struct {
