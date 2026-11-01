@@ -577,6 +577,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /hire': {
+    action: 'view-hire',
+    locals: {
+      pageTitleForMeta: 'Hire from the Fleet community',
+      pageDescriptionForMeta: 'A job board for IT and security engineers who use Fleet: customers, teams evaluating Fleet Premium, and Fleet-certified workshop graduates.',
+    }
+  },
+
   'GET /workshops': {
     action: 'view-workshops',
     locals: {
@@ -1608,6 +1616,7 @@ module.exports.routes = {
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
   'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
+  'POST /api/v1/deliver-job-seeker-submission': { action: 'deliver-job-seeker-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/admin/grant-superadmin': { action: 'admin/grant-superadmin' },
