@@ -779,7 +779,10 @@ const (
 	PendingActionWipe          PendingDeviceAction = "wipe"
 	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
 	PendingActionLocation      PendingDeviceAction = "location"
-	PendingActionNone          PendingDeviceAction = ""
+	// PendingActionUnenroll is never derived from HostLockWipeStatus. It replaces "wipe" for Android BYOD hosts, where the
+	// pending WIPE only removes the work profile (see suppressAndroidBYODWipeStatus).
+	PendingActionUnenroll PendingDeviceAction = "unenroll"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {

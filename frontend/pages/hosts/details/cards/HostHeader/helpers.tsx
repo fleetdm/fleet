@@ -17,9 +17,15 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it
-type DeviceStatusTagConfig = Record<
+// We exclude "unlocked" as we dont display any device status tag for it, and
+// "unenrolling" because Android BYOD unenroll intentionally shows no badge (#41683).
+type HostMdmDeviceStatusUIStateWithTag = Exclude<
   HostMdmDeviceStatusUIStateNoUnlock,
+  "unenrolling"
+>;
+
+type DeviceStatusTagConfig = Record<
+  HostMdmDeviceStatusUIStateWithTag,
   IDeviceStatusTag
 >;
 
@@ -168,6 +174,11 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
   clearing_passcode: (
     <>
       You can&apos;t fetch data from <br /> a host that is clearing passcode.
+    </>
+  ),
+  unenrolling: (
+    <>
+      You can&apos;t fetch data from <br /> an unenrolling host.
     </>
   ),
 } as const;
