@@ -53,14 +53,14 @@ interface ICategoriesSelector {
 
 export const AndroidOptionsDescription = () => (
   <p>
-    Currently, Android apps can only be added as self-service and the end user
-    can install them from the <strong>Play Store</strong> in their work profile.
-    Additionally, you can install it when hosts enroll on the{" "}
+    Currently, Android apps are always available in self-service (Google Play
+    Store) in their work profile. You can automatically install it when hosts
+    enroll via{" "}
     <CustomLink
       url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-      text="Setup experience"
-    />{" "}
-    page.
+      text="setup experience"
+    />
+    .
   </p>
 );
 

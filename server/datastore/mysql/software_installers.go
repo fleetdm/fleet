@@ -4840,11 +4840,14 @@ func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, v
 	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
 }
 
+// getIncludedHostUUIDMapForSoftware returns the Android hosts in the software's label scope, as host
+// UUID to the ID of the host's own policy (named after the host UUID). Hosts that haven't reported
+// applying their own policy yet are left out: they may still be on the default policy every device
+// enrolls with, and the setup experience gives them their in-scope apps when it moves them off it.
 func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
 	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
 	stmt := fmt.Sprintf(`SELECT
-		h.uuid AS uuid,
-		ad.applied_policy_id AS applied_policy_id
+		h.uuid AS uuid
 FROM
 		hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
@@ -4852,20 +4855,17 @@ FROM
 WHERE
 		EXISTS (%s)
 		AND h.platform = 'android'
+		AND ad.applied_policy_id = h.uuid
 `, filter)
 
-	var queryResults []struct {
-		UUID            string  `db:"uuid"`
-		AppliedPolicyID *string `db:"applied_policy_id"`
-	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
+	var uuids []string
+	if err := sqlx.SelectContext(ctx, tx, &uuids, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
-	res := make(map[string]string, len(queryResults))
-	for _, result := range queryResults {
-		polID := ptr.ValOrZero(result.AppliedPolicyID)
-		res[result.UUID] = polID
+	res := make(map[string]string, len(uuids))
+	for _, uuid := range uuids {
+		res[uuid] = uuid
 	}
 
 	return res, nil

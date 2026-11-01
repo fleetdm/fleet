@@ -6,8 +6,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -293,6 +295,51 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 }
 
 // ---- Policy handlers ----
+
+// policyOptions turns on checks for policy requests that real AMAPI accepts but that show a bug
+// in Fleet, or that AMAPI rejects but the mock accepts by default.
+type policyOptions struct {
+	rejectDefaultPolicyApps bool
+}
+
+// guardPolicyRequest rejects policy requests before they reach the handler. An empty policy ID
+// is always rejected, as AMAPI does for an invalid policy name.
+func guardPolicyRequest(opts policyOptions, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := policyID(r)
+		if id == "" {
+			writeAMAPIError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "Invalid policy name: "+policyName(r))
+			return
+		}
+
+		// Every POST on a policy is an app action. A PATCH changes the apps unless its update
+		// mask leaves them out.
+		changesApps := r.Method == http.MethodPost
+		if r.Method == http.MethodPatch {
+			mask := r.URL.Query().Get("updateMask")
+			changesApps = mask == "" || slices.Contains(strings.Split(mask, ","), "applications")
+		}
+		if opts.rejectDefaultPolicyApps && changesApps && id == strconv.Itoa(android.DefaultAndroidPolicyID) {
+			writeAMAPIError(w, http.StatusBadRequest, "FAILED_PRECONDITION",
+				"mock: Fleet must not change the apps of the default policy "+policyName(r))
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func writeAMAPIError(w http.ResponseWriter, code int, status, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]any{
+			"code":    code,
+			"message": message,
+			"status":  status,
+		},
+	})
+}
 
 func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -3783,6 +3783,8 @@ type Datastore interface {
 	// on label membership.
 	GetIncludedHostIDMapForVPPAppHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
 
+	// GetIncludedHostUUIDMapForAppStoreApp returns the Android hosts in the app's label scope that are on
+	// their own policy, as host UUID to policy ID (the host UUID).
 	GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error)
 
 	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
