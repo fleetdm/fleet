@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superset.desktop' AND version_compare(bundle_short_version, '2.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superset.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/superset-sh/superset/releases/download/desktop-v2.0.2/Superset-2.0.2-arm64.dmg",
+      "installer_url": "https://github.com/ParadevAI/Paradev/releases/download/desktop-v2.0.2/Superset-2.0.2-arm64.dmg",
       "install_script_ref": "6390e2b5",
       "uninstall_script_ref": "4f1532d1",
       "sha256": "033f2a85688a75ac429e6cbf600a6fa0db62446b6df8366024b392699adb481d",
