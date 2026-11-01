@@ -22,13 +22,7 @@
 					<array>
 						<array>
 							<string>CN</string>
-							<string>managementAttestation %HardwareUUID%</string>
-						</array>
-					</array>
-					<array>
-						<array>
-							<string>OU</string>
-							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation %HardwareUUID%</string>
 						</array>
 					</array>
 				</array>

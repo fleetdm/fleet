@@ -29,7 +29,7 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
 * In your text editor, copy and paste the following configuration profile and edit the relevant values:
     * `[REPLACE_WITH_CHALLENGE] `with the SCEP challenge you generated in the previous step.
     * `[REPLACE_WITH_URL]`with the URL to your SCEP server.
-    * Adjust the `CN `value according to your organization's needs. You can use any of the [profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device. In the example `%ComputerName%` `managementAttestation` `%HardwareUUID%,` the certificate Common Name (CN) will contain both the computer name and the hardware UUID.
+    * Adjust the `CN` value according to your organization's needs. You can use any of the [profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device. In the example `%ComputerName% $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation %HardwareUUID%`, the certificate Common Name (CN) will contain the computer name, Fleet's renewal ID, and the hardware UUID.
 
 ```xml
 
@@ -77,13 +77,7 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
         	<array>
           	<array>
             	<string>CN</string>
-            	<string>%ComputerName% managementAttestation %HardwareUUID%</string>
-          	</array>
-        	</array>
-        	<array>
-          	<array>
-            	<string>OU</string>
-            	<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+            	<string>%ComputerName% $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation %HardwareUUID%</string>
           	</array>
         	</array>
       	</array>
@@ -105,9 +99,9 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
 
 > Make sure to use `.mobileconfig` as the file extension
 
-> **Automatic renewal**: the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the OU is what enables Fleet to auto-renew this certificate. Include it to opt in; omit it to manage renewal manually (the cert will continue to work, but won't auto-renew before expiry).
+> **Automatic renewal**: the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the CN is what enables Fleet to auto-renew this certificate. Include it to opt in; omit it to manage renewal manually (the cert will continue to work, but won't auto-renew before expiry).
 >
-> **CA-side requirement**: your SCEP CA must preserve the Subject OU in issued certificates for auto-renewal to work. Verify by decoding an issued cert (Keychain Access → Get Info, or `openssl x509 -text`) and confirming the OU contains `fleet-<profile_uuid>` after deployment.
+> Okta drops the Subject OU from the certificates it issues, so put the variable in the CN, not the OU. Use it only once in the profile. To confirm, decode an issued cert (Keychain Access → Get Info, or `openssl x509 -text`) and check that the CN contains `fleet-<profile_uuid>` after deployment.
 
 * Enforce the configuration profile on your hosts. You can follow [this guide on enforcing custom OS settings in Fleet](https://fleetdm.com/guides/custom-os-settings).
 * You can optionally verify the issued certificate by opening Keychain Access on the device or by running a [live report](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries):
