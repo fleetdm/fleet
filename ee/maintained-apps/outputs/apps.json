@@ -6480,7 +6480,7 @@
       "name": "OpenCloud Desktop",
       "slug": "opencloud/darwin",
       "platform": "darwin",
-      "unique_identifier": "eu.opencloud.desktopclient",
+      "unique_identifier": "eu.opencloud.desktop",
       "description": "OpenCloud Desktop is a desktop syncing client for OpenCloud."
     },
     {
