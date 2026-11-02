@@ -192,18 +192,21 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, error) {
+// appExists reports whether the app is installed at the expected version. The
+// second value is always empty because the app is always found in apps, the
+// table the exists query reads.
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, string, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := validateSqlInput(appName); err != nil {
-		return false, fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
+		return false, "", fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
 	}
 	if err := validateSqlInput(uniqueAppIdentifier); err != nil {
-		return false, fmt.Errorf("Invalid character found in uniqueAppIdentifier: '%w'. Not executing query...", err)
+		return false, "", fmt.Errorf("Invalid character found in uniqueAppIdentifier: '%w'. Not executing query...", err)
 	}
 	if err := validateSqlInput(appPath); err != nil {
-		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
+		return false, "", fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
@@ -224,7 +227,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
-		return false, fmt.Errorf("executing osquery command: %w", err)
+		return false, "", fmt.Errorf("executing osquery command: %w", err)
 	}
 
 	type AppResult struct {
@@ -235,7 +238,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
-		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
+		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
 	if len(results) > 0 {
@@ -258,7 +261,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "OneDrive detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
@@ -267,14 +270,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// rather than checking the version.
 			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
 				logger.InfoContext(ctx, "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
-				return true, nil
+				return true, "", nil
 			}
 
 			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
 			// release, which never matches the cask's date-based version.
 			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
 				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
-				return true, nil
+				return true, "", nil
 			}
 
 			// The name "Dia" also matches Apple Diagnostics, whose bundle version "1"
@@ -289,7 +292,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.adobe.DNGConverter" {
 				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
 					logger.InfoContext(ctx, "Adobe DNG Converter detected - version matches with build number")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
@@ -300,7 +303,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.ableton.live" {
 				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
 					logger.InfoContext(ctx, "Ableton Live detected - version matches with build identifier")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
@@ -309,7 +312,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
@@ -321,7 +324,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.logitech.logitune" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "Logi Tune detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
@@ -330,18 +333,18 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "org.mozilla.firefoxdeveloperedition" {
 				if result.Version != "" && strings.HasPrefix(appVersion, result.Version+"b") {
 					logger.InfoContext(ctx, "Firefox Developer Edition detected - cask version matches bundle base version with beta suffix")
-					return true, nil
+					return true, "", nil
 				}
 			}
 
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
-				return true, nil
+				return true, "", nil
 			}
 		}
 	}
 
-	return false, nil
+	return false, "", nil
 }
 
 func executeScript(cfg *Config, scriptContents string) (string, error) {
