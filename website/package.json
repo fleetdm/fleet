@@ -10,7 +10,7 @@
     "@sailshq/lodash": "^3.10.7",
     "@sailshq/socket.io-redis": "^6.1.2",
     "googleapis": "^165.0.0",
-    "jsforce": "3.10.14",
+    "jsforce": "3.10.26",
     "jsonwebtoken": "9.0.2",
     "jsrsasign": "11.1.1",
     "moment": "2.31.0",
@@ -42,7 +42,7 @@
       "form-data": "2.5.6"
     },
     "websocket-driver": "0.7.5",
-    "body-parser": "1.20.6",
+    "body-parser": "1.20.9",
     "qs": "6.16.0",
     "postcss": "8.5.23",
     "proxy-addr": "2.0.8",

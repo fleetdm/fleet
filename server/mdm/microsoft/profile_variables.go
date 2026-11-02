@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -28,6 +29,11 @@ func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDepende
 // any other character (most commonly "_") makes enrollment fail on-device with "The string contains a non-printable character."
 // The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on Windows 11.
 var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`)
+
+// IsValidWindowsSCEPChallenge reports whether Windows can send challenge as a SCEP challenge password.
+func IsValidWindowsSCEPChallenge(challenge string) bool {
+	return windowsSCEPChallengeRegexp.MatchString(challenge)
+}
 
 // scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
 // challenge contains characters Windows can't encode as a PrintableString.
@@ -89,6 +95,7 @@ type ProfilePreprocessParams struct {
 //   - $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME> or ${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>}: Replaced with the proxy URL for the specified custom SCEP CA
 //   - $FLEET_VAR_NDES_SCEP_CHALLENGE or ${FLEET_VAR_NDES_SCEP_CHALLENGE}: Replaced with the one-time NDES challenge password
 //   - $FLEET_VAR_NDES_SCEP_PROXY_URL or ${FLEET_VAR_NDES_SCEP_PROXY_URL}: Replaced with the Fleet SCEP proxy URL for NDES
+//   - $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL or ${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}: Replaced with Fleet's conditional access SCEP URL
 //
 // Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
@@ -217,6 +224,22 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
+
+		case fleetVar == string(fleet.FleetVarConditionalAccessSCEPURL):
+			scepURL, err := url.JoinPath(deps.AppConfig.ServerSettings.ServerURL, fleet.ConditionalAccessSCEPPath)
+			if err != nil {
+				return profileContents, ctxerr.Wrap(deps.Context, err, "building conditional access SCEP URL")
+			}
+			// The URL variable is what marks the certificate as Fleet-tracked; the challenge is the admin's global enroll
+			// secret and passes through.
+			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, &fleet.MDMManagedCertificate{
+				HostUUID:             params.HostUUID,
+				ProfileUUID:          params.ProfileUUID,
+				ChallengeRetrievedAt: new(time.Now()),
+				Type:                 fleet.CAConfigConditionalAccess,
+				CAName:               fleet.ConditionalAccessManagedCertificateCAName,
+			})
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPURLRegexp, result, scepURL)
 		}
 	}
 

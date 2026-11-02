@@ -3421,7 +3421,7 @@ In this case, the URL should be a host that serves the files in the legacy feed 
 Fleet expects to find all the GZ and META files that can be found in https://nvd.nist.gov/vuln/data-feeds#JSON_FEED.
 For example: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL` + `/nvdcve-1.1-2002.meta`
 
-When not defined, Fleet downloads CVE information from the nvd.nist.gov host using the NVD 2.0 API.
+When not defined, Fleet downloads CVE information from the [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities/releases) releases on GitHub.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`

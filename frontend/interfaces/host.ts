@@ -212,6 +212,7 @@ export type HostMdmPendingAction =
   | "wipe"
   | "clear_passcode"
   | "location"
+  | "unenroll"
   | "";
 
 export interface IHostMdmData {

@@ -76,7 +76,6 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg" alt="Jarryd Stanbrook" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Jarryd Stanbrook</a></strong>, Easygo, IT Systems Administrator</p></td>
     </tr>
-
   </tbody>
 </table>
 
@@ -134,6 +133,10 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
     <tr>
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-nick-fohs-100x100@2x.png" alt="Nick Fohs" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/nickfohs/">Nick Fohs</a></strong>, Senior Manager - Enterprise Security, Reddit</p></td>
     </tr>
   </tbody>
 </table>

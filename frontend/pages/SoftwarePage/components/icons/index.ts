@@ -306,6 +306,7 @@ import Devpod from "./png/Devpod.png";
 import Devtoys from "./png/Devtoys.png";
 import Devutils from "./png/Devutils.png";
 import DfuBlasterPro from "./png/DfuBlasterPro.png";
+import Dia from "./png/Dia.png";
 import Dialpad from "./png/Dialpad.png";
 import Dictionaries from "./png/Dictionaries.png";
 import Diffusionbee from "./png/Diffusionbee.png";
@@ -596,7 +597,6 @@ import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
 import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
@@ -997,6 +997,7 @@ import Superhuman from "./png/Superhuman.png";
 import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -1011,6 +1012,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -1069,6 +1071,7 @@ import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
 import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
+import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1123,6 +1126,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
 import WondershareEdrawmax from "./png/WondershareEdrawmax.png";
@@ -1479,6 +1483,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
+  dia: Dia,
   dialpad: Dialpad,
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,
@@ -1777,7 +1782,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
   "lm studio": LMStudio,
   local: Local,
@@ -2199,6 +2203,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   superhuman: Superhuman,
   "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
@@ -2213,6 +2218,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
@@ -2274,6 +2280,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
   unnaturalscrollwheels: UnnaturalScrollWheels,
+  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
@@ -2336,6 +2343,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
   "wondershare filmora": WondershareFilmora,

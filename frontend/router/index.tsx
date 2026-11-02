@@ -390,6 +390,12 @@ const LazyAppleMdmPage = lazyPage(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage"
     )
 );
+const LazyOktaConditionalAccessPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/ConditionalAccess/OktaConditionalAccessPage"
+    )
+);
 const LazyAndroidMdmPage = lazyPage(
   () =>
     import(
@@ -605,6 +611,14 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={LazyVppPage} />
+            <Route component={AuthGlobalAdminRoutes}>
+              <Route component={PremiumRoutes}>
+                <Route
+                  path="integrations/conditional-access/okta"
+                  component={LazyOktaConditionalAccessPage}
+                />
+              </Route>
+            </Route>
             <Route component={ExcludeInSandboxRoutes}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="users/new/human" component={LazyCreateUserPage} />

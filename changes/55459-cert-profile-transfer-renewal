@@ -1,0 +1,1 @@
+- Fixed Fleet losing track of a certificate, so it was never renewed, after moving an Apple host to a fleet with an identical certificate profile.
