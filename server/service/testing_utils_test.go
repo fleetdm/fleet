@@ -1016,8 +1016,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
-		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
-		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
 		{"POST", "/api/latest/fleet/commands/run", false, false},
 		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},

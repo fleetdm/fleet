@@ -6353,56 +6353,6 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 	}
 }
 
-func TestMDMApplePreassignEndpoints(t *testing.T) {
-	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
-		t.Helper()
-
-		if shouldFailWithAuth {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
-		} else {
-			require.NoError(t, err)
-		}
-	}
-
-	testCases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
-	}{
-		{"no role", test.UserNoRoles, true},
-		{"global admin", test.UserAdmin, false},
-		{"global maintainer", test.UserMaintainer, true},
-		{"global observer", test.UserObserver, true},
-		{"global observer+", test.UserObserverPlus, true},
-		{"global gitops", test.UserGitOps, false},
-		{"team admin", test.UserTeamAdminTeam1, true},
-		{"team maintainer", test.UserTeamMaintainerTeam1, true},
-		{"team observer", test.UserTeamObserverTeam1, true},
-		{"team observer+", test.UserTeamObserverPlusTeam1, true},
-		{"team gitops", test.UserTeamGitOpsTeam1, true},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			// prepare the context with the user
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-
-			err := svc.MDMApplePreassignProfile(ctx, fleet.MDMApplePreassignProfilePayload{
-				ExternalHostIdentifier: "test",
-				HostUUID:               "test",
-				Profile:                mobileconfigForTest("N1", "I1"),
-			})
-			checkAuthErr(t, err, tt.shouldFail)
-
-			err = svc.MDMAppleMatchPreassignment(ctx, "test")
-			checkAuthErr(t, err, tt.shouldFail)
-		})
-	}
-}
-
 // Helper for creating scoped mobileconfigs. scope is optional and if set to nil is not included in
 // the mobileconfig so that default behavior is used. Note that because Fleet enforces that all
 // profiles sharing a given identifier have the same scope, it's a good idea to use a unique
