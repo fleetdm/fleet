@@ -33,6 +33,10 @@ func fleetNameForFilename(name string) string {
 	dash := false
 	for _, r := range norm.NFC.String(name) {
 		switch {
+		// Invisible format characters (zero-width joiners inside Persian or Indic words, soft hyphens, bidi controls)
+		// are dropped rather than split the word they sit in.
+		case unicode.Is(unicode.Cf, r):
+			continue
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 		// Combining marks that NFC can't compose (e.g. Devanagari vowel signs) belong to the letter before them.
 		// Variation selectors are marks too, but they only style the emoji before them.

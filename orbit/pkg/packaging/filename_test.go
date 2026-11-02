@@ -60,7 +60,11 @@ func TestFleetNameForFilename(t *testing.T) {
 		{"decomposed accents are composed", "Équipe", "équipe"},
 		{"CJK", "東京 チーム", "東京-チーム"},
 		{"combining marks in Devanagari", "हिन्दी टीम", "हिन्दी-टीम"},
-		{"right-to-left override", "abc‮gpj.exe", "abc-gpj-exe"},
+		{"combining mark after a separator", "a ́b", "a-b"},
+		{"only combining marks", "́̂", ""},
+		{"zero-width non-joiner inside a word", "می‌خواهم", "میخواهم"},
+		{"soft hyphen", "Work­stations", "workstations"},
+		{"right-to-left override", "abc‮gpj.exe", "abcgpj-exe"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, fleetNameForFilename(tc.in))

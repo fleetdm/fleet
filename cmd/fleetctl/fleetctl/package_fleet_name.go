@@ -73,10 +73,11 @@ func fleetNameForPackage(configPath, fleetURL, enrollSecret string, errWriter io
 			return fleetName
 		case err == nil:
 			listed = true
-		case errors.Is(err, service.ErrUnauthenticated):
-			unauthenticated = true
+			zlog.Debug().Str("context", name).Msg("fleet name lookup: no fleet visible to this user has the enroll secret")
+		default:
+			unauthenticated = unauthenticated || errors.Is(err, service.ErrUnauthenticated)
+			zlog.Debug().Err(err).Str("context", name).Msg("fleet name lookup: list fleets")
 		}
-		zlog.Debug().Err(err).Str("context", name).Msg("fleet name lookup: no fleet name")
 	}
 	if unauthenticated && !listed {
 		fmt.Fprintf(errWriter, "Note: left the fleet name out of the file name because the fleetctl token for %s is invalid or expired. "+

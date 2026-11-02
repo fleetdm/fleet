@@ -56,7 +56,7 @@ func TestPackage(t *testing.T) {
 		fleetctltest.RunAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
 		info, err := os.Stat("fleet-linux-amd64.deb")
 		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
+		require.Positive(t, info.Size()) // TODO verify contents
 	})
 
 	t.Run("deb with the fleet name", func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestPackage(t *testing.T) {
 		})
 		info, err := os.Stat("fleet-linux-arm64-workstations-canary.deb")
 		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0))
+		require.Positive(t, info.Size())
 	})
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {

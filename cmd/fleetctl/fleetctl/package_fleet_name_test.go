@@ -38,7 +38,7 @@ func TestFleetNameForPackage(t *testing.T) {
 		case "expired-token":
 			return nil, errors.New("invalid session")
 		case "observer-token":
-			return &fleet.Session{CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()}, AccessedAt: time.Now(), UserID: observer.ID, Key: key}, nil
+			return &fleet.Session{CreatedAt: time.Now(), AccessedAt: time.Now(), UserID: observer.ID, Key: key}, nil
 		}
 		return adminSession(ctx, key)
 	}
