@@ -24,7 +24,7 @@ If you need SSO for apps and websites, use Okta's integration. If you only need 
 - Okta admin access to create an app integration and assign an authentication policy.
 - A fleet or a [label](https://fleetdm.com/guides/managing-labels-in-fleet) that holds only your test Macs.
 
-The Macs don't need to have enrolled through ADE. Fleet has verified this workflow on a manually enrolled Mac as well as on Macs that enrolled automatically.
+The Macs don't need to have enrolled through ADE. Fleet tested this workflow on a manually enrolled Mac.
 
 Managed Apple Accounts aren't required. If you plan to roll them out, the Penn State MacAdmins talk [on Managed Apple Accounts](https://www.youtube.com/watch?v=skCvQ1JjMt8) is a good place to start.
 
