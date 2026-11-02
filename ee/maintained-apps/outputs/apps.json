@@ -8150,6 +8150,13 @@
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
     },
     {
+      "name": "SonicWall Global VPN Client",
+      "slug": "sonicwall-global-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Global VPN Client",
+      "description": "SonicWall Global VPN Client is an IPsec VPN client for secure remote access to SonicWall-protected networks."
+    },
+    {
       "name": "SonicWall NetExtender",
       "slug": "sonicwall-netextender/windows",
       "platform": "windows",
