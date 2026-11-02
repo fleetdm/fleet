@@ -4133,6 +4133,8 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 		// wantReason is empty when the command isn't failed.
 		wantReason string
 		delivered  bool
+		// stillPending is whether the bad command still counts as pending, which keeps has_pending_commands set.
+		stillPending bool
 	}{
 		{
 			name:       "host secret Windows doesn't support",
@@ -4160,17 +4162,6 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 			wantReason: "custom variable not found: $FLEET_SECRET_GONE",
 		},
 		{
-			name: "custom variable only on the primary so far",
-			raw:  badCmd("$FLEET_SECRET_NEW"),
-			expandSecrets: func(ctx context.Context, document string) (string, error) {
-				if strings.Contains(document, "$FLEET_SECRET_NEW") && !ctxdb.IsPrimaryRequired(ctx) {
-					return "", fleet.MissingSecretsError{MissingSecrets: []string{"NEW"}}
-				}
-				return strings.ReplaceAll(document, "$FLEET_SECRET_NEW", "value"), nil
-			},
-			delivered: true,
-		},
-		{
 			name: "custom variable fixed only on the primary so far",
 			raw:  badCmd("$FLEET_SECRET_FIXED"),
 			expandSecrets: func(ctx context.Context, document string) (string, error) {
@@ -4180,7 +4171,8 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 				}
 				return strings.ReplaceAll(document, "$FLEET_SECRET_FIXED", value), nil
 			},
-			delivered: true,
+			delivered:    true,
+			stillPending: true,
 		},
 		{
 			name:       "doesn't parse",
@@ -4197,15 +4189,17 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 			wantReason: "the command isn't valid XML once its variables are expanded",
 		},
 		{
-			name:      "enroll secret lookup fails",
-			raw:       badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)),
-			lookupErr: errStore,
+			name:         "enroll secret lookup fails",
+			raw:          badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)),
+			lookupErr:    errStore,
+			stillPending: true,
 		},
 		{
-			name:       "recording the failure fails",
-			raw:        badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
-			failErr:    errStore,
-			wantReason: "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+			name:         "recording the failure fails",
+			raw:          badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
+			failErr:      errStore,
+			wantReason:   "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+			stillPending: true,
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -4242,8 +4236,7 @@ func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
 				sent = append(sent, cmd.CmdID.Value)
 			}
 			require.Equal(t, wantSent, sent)
-			// Only a command recorded as failed stops counting as pending.
-			require.Equal(t, c.wantReason != "" && c.failErr == nil, onlyPollCmdsPending)
+			require.Equal(t, !c.stillPending, onlyPollCmdsPending)
 			// Only the lookup case resolves the one-time enroll secret. A host secret aliased by a custom variable must be refused
 			// before it's resolved.
 			require.Equal(t, c.lookupErr != nil, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)

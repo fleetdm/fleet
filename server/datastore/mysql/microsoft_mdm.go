@@ -1735,7 +1735,7 @@ func (ds *Datastore) MDMWindowsFailUndeliverableCommand(ctx context.Context, enr
 	if enrolledDevice == nil {
 		return ctxerr.New(ctx, "enrolled device is nil")
 	}
-	rawResponse, err := undeliverableWindowsCommandResponse(commandUUID, reason)
+	rawResponse, err := fabricateWindowsFailureResponse(commandUUID, reason)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building undeliverable command response")
 	}
@@ -1794,9 +1794,9 @@ ON DUPLICATE KEY UPDATE
 // where the raw response is displayed.
 var xmlTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
 
-// undeliverableWindowsCommandResponse builds the response recorded for a command Fleet couldn't deliver: a <Status> carrying
-// the reason, in a SyncML envelope like a device's response.
-func undeliverableWindowsCommandResponse(commandUUID, reason string) ([]byte, error) {
+// fabricateWindowsFailureResponse builds the response Fleet records in the device's place for a command it couldn't deliver: a
+// failed <Status> carrying the reason, in a SyncML envelope like a device's response.
+func fabricateWindowsFailureResponse(commandUUID, reason string) ([]byte, error) {
 	msg := fleet.SyncML{
 		Xmlns:   syncml.SyncCmdNamespace,
 		SyncHdr: fleet.SyncHdr{VerDTD: syncml.SyncMLSupportedVersion, VerProto: syncml.SyncMLVerProto},
