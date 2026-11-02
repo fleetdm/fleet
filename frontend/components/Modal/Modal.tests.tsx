@@ -264,15 +264,26 @@ describe("Modal", () => {
 
   describe("focus trap", () => {
     it("sets role=dialog and aria-modal=true for assistive tech", () => {
-      const { container } = render(
+      render(
         <Modal title="Accessible" onExit={noop}>
           <div>content</div>
         </Modal>
       );
 
-      const dialog = container.querySelector('[role="dialog"]');
+      const dialog = screen.getByRole("dialog", { name: "Accessible" });
       expect(dialog).toHaveAttribute("aria-modal", "true");
-      expect(dialog).toHaveAttribute("aria-label", "Accessible");
+    });
+
+    it("gives JSX titles an accessible name via aria-labelledby", () => {
+      render(
+        <Modal title={<em>Fancy title</em>} onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      expect(
+        screen.getByRole("dialog", { name: "Fancy title" })
+      ).toBeInTheDocument();
     });
 
     it("focuses the first focusable element on open", () => {
@@ -350,6 +361,154 @@ describe("Modal", () => {
       const closeButton = screen.getByTestId("close-icon").closest("button");
       expect(closeButton).toHaveFocus();
       document.body.removeChild(outside);
+    });
+
+    it("treats focus on the dialog container as a backward boundary for Shift+Tab", () => {
+      const outside = document.createElement("button");
+      outside.textContent = "outside";
+      document.body.appendChild(outside);
+      outside.focus();
+
+      const { container } = render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="inside" />
+        </Modal>
+      );
+      const dialog = container.querySelector<HTMLElement>('[role="dialog"]');
+      const input = screen.getByLabelText("inside");
+      dialog?.focus();
+
+      fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+      expect(input).toHaveFocus();
+      document.body.removeChild(outside);
+    });
+
+    it("skips trailing controls with tabIndex=-1 when wrapping Tab", () => {
+      render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="real-input" />
+          <button type="button" tabIndex={-1}>
+            skipped-trailing
+          </button>
+        </Modal>
+      );
+
+      const realInput = screen.getByLabelText("real-input");
+      realInput.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+
+      // Must wrap to the close button, not land on the tabIndex=-1 button.
+      expect(screen.getByTestId("close-icon").closest("button")).toHaveFocus();
+    });
+
+    it("skips controls inside display:none ancestors when choosing boundaries", () => {
+      render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="real-input" />
+          <div style={{ display: "none" }}>
+            <input type="text" aria-label="hidden-input" />
+          </div>
+        </Modal>
+      );
+
+      const closeButton = screen.getByTestId("close-icon").closest("button");
+      closeButton?.focus();
+      fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+
+      // Must land on the real input, not the display:none one.
+      expect(screen.getByLabelText("real-input")).toHaveFocus();
+    });
+
+    it("does not steal focus from an autofocused child on open", () => {
+      const AutoFocusInput = () => {
+        const ref = React.useRef<HTMLInputElement>(null);
+        React.useEffect(() => {
+          ref.current?.focus();
+        }, []);
+        return <input ref={ref} type="text" aria-label="auto" />;
+      };
+      render(
+        <Modal title="AutoFocus" onExit={noop}>
+          <AutoFocusInput />
+        </Modal>
+      );
+      expect(screen.getByLabelText("auto")).toHaveFocus();
+    });
+
+    it("restores focus to the opener even when a child autofocuses on mount", () => {
+      const trigger = document.createElement("button");
+      trigger.textContent = "open";
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const AutoFocusInput = () => {
+        const ref = React.useRef<HTMLInputElement>(null);
+        React.useEffect(() => {
+          ref.current?.focus();
+        }, []);
+        return <input ref={ref} type="text" aria-label="auto" />;
+      };
+      const { unmount } = render(
+        <Modal title="Restore" onExit={noop}>
+          <AutoFocusInput />
+        </Modal>
+      );
+      unmount();
+
+      expect(trigger).toHaveFocus();
+      document.body.removeChild(trigger);
+    });
+
+    it("moves focus into a dialog that transitions from hidden to visible", () => {
+      const Stacked = () => {
+        const [showSecond, setShowSecond] = useState(false);
+        return (
+          <>
+            <Modal title="First" isHidden={showSecond} onExit={noop}>
+              <button type="button" onClick={() => setShowSecond(true)}>
+                open-second
+              </button>
+            </Modal>
+            {showSecond && (
+              <Modal title="Second" onExit={noop}>
+                <input type="text" aria-label="second-input" />
+              </Modal>
+            )}
+          </>
+        );
+      };
+      render(<Stacked />);
+
+      fireEvent.click(screen.getByText("open-second"));
+
+      const secondCloseButton = screen
+        .getAllByTestId("close-icon")[1]
+        .closest("button");
+      expect(secondCloseButton).toHaveFocus();
+    });
+
+    it("only the topmost of two stacked modals handles Tab", () => {
+      render(
+        <>
+          <Modal title="Lower" onExit={noop}>
+            <input type="text" aria-label="lower-input" />
+          </Modal>
+          <Modal title="Upper" onExit={noop}>
+            <input type="text" aria-label="upper-input" />
+          </Modal>
+        </>
+      );
+
+      const upperInput = screen.getByLabelText("upper-input");
+      upperInput.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+
+      // Upper is topmost; Tab from its last focusable (the input) wraps back
+      // to its first focusable (its own close button), not the lower modal.
+      const upperCloseButton = screen
+        .getAllByTestId("close-icon")[1]
+        .closest("button");
+      expect(upperCloseButton).toHaveFocus();
     });
   });
 });
