@@ -251,7 +251,7 @@ func sanitizeUpstreamError(ctx context.Context, err error, message string) error
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
-// It is a pass-through call to the SCEP server.
+// It is a pass-through call to the SCEP server, except that Windows requests drop the message.
 func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
 	scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 	if err != nil {
