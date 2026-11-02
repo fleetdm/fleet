@@ -1413,7 +1413,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 		}
 	}
 	require.NotNil(t, failedProf)
-	require.EqualValues(t, fleet.MDMOperationTypeRemove, failedProf.OperationType)
+	require.Equal(t, fleet.MDMOperationTypeRemove, failedProf.OperationType)
 	require.EqualValues(t, fleet.MDMDeliveryPending, *failedProf.Status)
 
 	// confirm that we remove the failed profile once the device acknowledges the removal
