@@ -3666,7 +3666,7 @@
       "name": "Geekbench",
       "slug": "geekbench/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.primatelabs.Geekbench6",
+      "unique_identifier": "com.primatelabs.parkdale",
       "description": "Geekbench is a tool to measure the computer system's performance."
     },
     {
@@ -3813,7 +3813,7 @@
       "name": "Glyphs",
       "slug": "glyphs/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.GeorgSeifert.Glyphs3",
+      "unique_identifier": "com.GeorgSeifert.Glyphs4",
       "description": "Glyphs is a font editor."
     },
     {
@@ -4373,7 +4373,7 @@
       "name": "IconJar",
       "slug": "iconjar/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.iconjar.iconjar",
+      "unique_identifier": "com.iconjar.iconjar2",
       "description": "IconJar is an icon organiser."
     },
     {
@@ -4716,7 +4716,7 @@
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
-      "unique_identifier": "app.kaleidoscope.v6",
+      "unique_identifier": "app.kaleidoscope.v4",
       "description": "Kaleidoscope is a spot and merge differences in text and image files or folders."
     },
     {
@@ -5087,7 +5087,7 @@
       "name": "LocationSimulator",
       "slug": "locationsimulator/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.schlaubi.LocationSimulator",
+      "unique_identifier": "de.davidklopp.locationsimulator",
       "description": "LocationSimulator is an application to spoof your iOS, iPadOS or iPhoneSimulator device location."
     },
     {
@@ -5290,7 +5290,7 @@
       "name": "MacsyZones",
       "slug": "macsyzones/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.macsyzones.MacsyZones",
+      "unique_identifier": "MeowingCat.MacsyZones",
       "description": "MacsyZones is a window management utility."
     },
     {
