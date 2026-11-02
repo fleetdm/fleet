@@ -354,8 +354,11 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if p.Interval != nil {
 		query.Interval = *p.Interval
 	}
-	if p.StartupPriority != nil {
-		query.StartupPriority = p.StartupPriority
+	if p.StartupPriority.Set {
+		query.StartupPriority = nil
+		if p.StartupPriority.Valid {
+			query.StartupPriority = &p.StartupPriority.Value
+		}
 	}
 	if p.Platform != nil {
 		query.Platform = *p.Platform
@@ -490,8 +493,11 @@ func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p
 	if p.Interval != nil {
 		query.Interval = *p.Interval
 	}
-	if p.StartupPriority != nil {
-		query.StartupPriority = p.StartupPriority
+	if p.StartupPriority.Set {
+		query.StartupPriority = nil
+		if p.StartupPriority.Valid {
+			query.StartupPriority = &p.StartupPriority.Value
+		}
 	}
 	if p.Platform != nil {
 		if !comparePlatforms(query.Platform, *p.Platform) {

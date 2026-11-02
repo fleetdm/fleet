@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 )
 
 // QueryPayload is the payload used to create and modify queries.
 //
-// Fields are pointers to allow omitting fields when modifying existing queries.
+// Fields are optional so callers can omit them when modifying existing queries.
 type QueryPayload struct {
 	// Name is the name to set to the query.
 	Name *string `json:"name"`
@@ -31,7 +32,7 @@ type QueryPayload struct {
 	// a query, then the default value 0 is set on the query.
 	Interval *uint `json:"interval"`
 	// StartupPriority sets the query's execution order during osquery startup.
-	StartupPriority *uint64 `json:"startup_priority"`
+	StartupPriority optjson.Any[uint64] `json:"startup_priority,omitzero"`
 	// Platform is set to empty if not set when creating a query.
 	Platform *string `json:"platform"`
 	// MinOsqueryVersion is set to empty if not set when creating a query.

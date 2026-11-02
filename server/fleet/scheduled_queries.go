@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
@@ -51,7 +52,7 @@ type ScheduledQuery struct {
 	// default is true.
 	Denylist *bool `json:"denylist"`
 	// StartupPriority sets the query's execution order during osquery startup.
-	StartupPriority *uint64 `json:"startup_priority,omitempty"`
+	StartupPriority *uint64 `json:"startup_priority,omitempty" db:"startup_priority"`
 
 	AggregatedStats `json:"stats,omitempty"`
 
@@ -134,16 +135,16 @@ type AggregatedStats struct {
 }
 
 type ScheduledQueryPayload struct {
-	PackID          *uint     `json:"pack_id"`
-	QueryID         *uint     `json:"query_id" renameto:"report_id"`
-	Interval        *uint     `json:"interval"`
-	Snapshot        *bool     `json:"snapshot"`
-	Removed         *bool     `json:"removed"`
-	Platform        *string   `json:"platform"`
-	Version         *string   `json:"version"`
-	Shard           *null.Int `json:"shard"`
-	Denylist        *bool     `json:"denylist"`
-	StartupPriority *uint64   `json:"startup_priority"`
+	PackID          *uint               `json:"pack_id"`
+	QueryID         *uint               `json:"query_id" renameto:"report_id"`
+	Interval        *uint               `json:"interval"`
+	Snapshot        *bool               `json:"snapshot"`
+	Removed         *bool               `json:"removed"`
+	Platform        *string             `json:"platform"`
+	Version         *string             `json:"version"`
+	Shard           *null.Int           `json:"shard"`
+	Denylist        *bool               `json:"denylist"`
+	StartupPriority optjson.Any[uint64] `json:"startup_priority,omitzero"`
 }
 
 type ScheduledQueryStats struct {
@@ -237,15 +238,19 @@ func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuer
 		}
 	}
 	return QueryPayload{
-		Name:               &originalQuery.Name,
-		Description:        &originalQuery.Description,
-		Query:              &originalQuery.Query,
-		ObserverCanRun:     &originalQuery.ObserverCanRun,
-		TeamID:             originalQuery.TeamID,
-		Interval:           &scheduledQuery.Interval,
-		Platform:           scheduledQuery.Platform,
-		MinOsqueryVersion:  scheduledQuery.Version,
-		StartupPriority:    scheduledQuery.StartupPriority,
+		Name:              &originalQuery.Name,
+		Description:       &originalQuery.Description,
+		Query:             &originalQuery.Query,
+		ObserverCanRun:    &originalQuery.ObserverCanRun,
+		TeamID:            originalQuery.TeamID,
+		Interval:          &scheduledQuery.Interval,
+		Platform:          scheduledQuery.Platform,
+		MinOsqueryVersion: scheduledQuery.Version,
+		StartupPriority: optjson.Any[uint64]{
+			Set:   scheduledQuery.StartupPriority != nil,
+			Valid: scheduledQuery.StartupPriority != nil,
+			Value: ptr.ValOrZero(scheduledQuery.StartupPriority),
+		},
 		AutomationsEnabled: ptr.Bool(true),
 		Logging:            logging,
 	}

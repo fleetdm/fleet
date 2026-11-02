@@ -160,8 +160,9 @@ spec:
 }
 
 func TestRoundtripQueriesYaml(t *testing.T) {
+	startupPriority := uint64(1)
 	testCases := []struct{ queries []*Query }{
-		{[]*Query{{Name: "froob", Description: "bing", Query: "blong"}}},
+		{[]*Query{{Name: "froob", Description: "bing", Query: "blong", StartupPriority: &startupPriority}}},
 		{
 			[]*Query{
 				{Name: "froob", Description: "bing", Query: "blong"},

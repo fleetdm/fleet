@@ -217,8 +217,11 @@ func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uin
 		sq.Version = p.Version
 	}
 
-	if p.StartupPriority != nil {
-		sq.StartupPriority = p.StartupPriority
+	if p.StartupPriority.Set {
+		sq.StartupPriority = nil
+		if p.StartupPriority.Valid {
+			sq.StartupPriority = &p.StartupPriority.Value
+		}
 	}
 
 	if p.Shard != nil {

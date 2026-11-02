@@ -214,7 +214,7 @@ type PackSpecQuery struct {
 	Platform        *string `json:"platform,omitempty"`
 	Version         *string `json:"version,omitempty"`
 	Denylist        *bool   `json:"denylist,omitempty"`
-	StartupPriority *uint64 `json:"startup_priority,omitempty"`
+	StartupPriority *uint64 `json:"startup_priority,omitempty" db:"startup_priority"`
 }
 
 type PackStats struct {

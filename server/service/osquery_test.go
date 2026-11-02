@@ -232,6 +232,8 @@ func TestSubmitResultLogsCapWarningOnlyWhenNamesDropped(t *testing.T) {
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
+	startupPriority := uint64(1)
+	packStartupPriority := uint64(2)
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
@@ -246,7 +248,7 @@ func TestGetClientConfig(t *testing.T) {
 		switch pid {
 		case 1:
 			return []*fleet.ScheduledQuery{
-				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
+				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals, StartupPriority: &packStartupPriority},
 			}, nil
 		case 4:
 			return []*fleet.ScheduledQuery{
@@ -270,6 +272,7 @@ func TestGetClientConfig(t *testing.T) {
 				MinOsqueryVersion: "5.12.2",
 				Logging:           "snapshot",
 				TeamID:            ptr.Uint(1),
+				StartupPriority:   &startupPriority,
 			},
 			{
 				Query:    "SELECT 1 FROM table_2",
@@ -346,7 +349,7 @@ func TestGetClientConfig(t *testing.T) {
 		},
 		"pack_by_label": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
+				"time":{"query":"select * from time","interval":30,"removed":false,"startup_priority":2}
 			}
 		}
 	}`,
@@ -359,7 +362,7 @@ func TestGetClientConfig(t *testing.T) {
 	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
+				"time":{"query":"select * from time","interval":30,"removed":false,"startup_priority":2}
 			}
 		}
 	}`,
@@ -372,7 +375,7 @@ func TestGetClientConfig(t *testing.T) {
 	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
+				"time":{"query":"select * from time","interval":30,"removed":false,"startup_priority":2}
 			}
 		},
 		"pack_by_other_label": {
@@ -388,7 +391,8 @@ func TestGetClientConfig(t *testing.T) {
 					"interval": 10,
 					"platform": "linux",
 					"version": "5.12.2",
-					"snapshot": true
+					"snapshot": true,
+					"startup_priority": 1
 				},
 				"You shall not pass": {
 					"query": "SELECT 1 FROM table_2",

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -46,9 +47,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	)
 	require.NoError(t, err)
 
+	startupPriority := uint64(4)
 	gsParams := teamScheduleQueryRequest{
-		QueryID:  &qr.ID,
-		Interval: new(uint(42))}
+		QueryID:         &qr.ID,
+		Interval:        new(uint(42)),
+		StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: startupPriority},
+	}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
@@ -56,12 +60,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
+	assert.Equal(t, &startupPriority, ts.Scheduled[0].StartupPriority)
 	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
 	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
-	modifyParams := modifyTeamScheduleRequest{Interval: new(uint(55))}
+	updatedStartupPriority := uint64(6)
+	modifyParams := modifyTeamScheduleRequest{Interval: new(uint(55)), StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: updatedStartupPriority}}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
 
 	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
@@ -71,6 +77,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
+	assert.Equal(t, &updatedStartupPriority, ts.Scheduled[0].StartupPriority)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), map[string]any{"startup_priority": nil}, http.StatusOK, &modifyResp)
+	ts = getTeamScheduleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Scheduled, 1)
+	assert.Nil(t, ts.Scheduled[0].StartupPriority)
 
 	deleteResp := deleteTeamScheduleResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
