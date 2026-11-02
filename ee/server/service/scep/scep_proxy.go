@@ -258,6 +258,13 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 		return nil, 0, err
 	}
 
+	// Windows hard-codes message=default, which CAs that pick the CA by name (e.g. EJBCA) reject. Without it the CA answers
+	// with its default CA, the same request ValidateSCEPURL makes when the CA is added.
+	if _, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier); ok &&
+		strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		message = ""
+	}
+
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
