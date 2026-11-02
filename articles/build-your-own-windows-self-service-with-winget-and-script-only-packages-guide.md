@@ -2,7 +2,7 @@
 
 Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query, and a post-install script. That is enough to put Microsoft Store apps on your end users' self-service page using winget, with no packages to host. This guide builds one Store app tile end to end, then generates the rest from a Store ID. It covers per-user Store installs driven through self-service, which is the only scope the Store supports through winget.
 
-> **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. If you need a Store app installed machine-wide for every user, see [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide) instead.
+> **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. Fleet can't install Store apps machine-wide for every user yet. See [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide).
 
 ## Prerequisites
 
@@ -256,7 +256,7 @@ Self-service installs are per-user. Fleet can't deploy a Store app for every use
 
 ## Troubleshoot
 
-**The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3, or provision the app machine-wide instead.
+**The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3.
 
 **The install reports success but the app is not there.** The scheduled task ran and winget failed inside it. The task's exit code never reaches your script, so add the verification script from Step 5, which fails the install and triggers the uninstall.
 
@@ -280,4 +280,4 @@ Self-service installs are per-user. Fleet can't deploy a Store app for every use
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-08-07">
-<meta name="description" value="Use Fleet script-only .ps1 packages and winget to add Microsoft Store apps to Windows self-service, per-user or machine-wide.">
+<meta name="description" value="Use Fleet script-only .ps1 packages and winget to add Microsoft Store apps to Windows self-service.">
