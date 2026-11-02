@@ -2791,7 +2791,7 @@
       "name": "Dropshare",
       "slug": "dropshare/darwin",
       "platform": "darwin",
-      "unique_identifier": "net.mkswap.Dropshare6",
+      "unique_identifier": "net.mkswap.Dropshare5",
       "description": "Dropshare is a file sharing solution."
     },
     {
