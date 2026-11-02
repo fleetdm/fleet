@@ -242,13 +242,6 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		// A Gatekeeper rejection fails the app, but the remaining checks still run
-		// so the app is uninstalled and its other problems are reported too.
-		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.AppPath)
-		if gatekeeperErr != nil {
-			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
-		}
-
 		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
@@ -261,6 +254,13 @@ func run(cfg *Config) error {
 			appWithError = append(appWithError, ac.Name)
 			cleanupTmpDir()
 			continue
+		}
+
+		// A Gatekeeper rejection fails the app, but the remaining checks still run
+		// so the app is uninstalled and its other problems are reported too.
+		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier)
+		if gatekeeperErr != nil {
+			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
 		}
 
 		// A failure here still runs the uninstall below so the next app starts

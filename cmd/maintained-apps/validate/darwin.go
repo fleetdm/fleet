@@ -48,8 +48,10 @@ func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath
 // com.apple.quarantine, so there is usually nothing to remove. spctl --add is
 // not used: macOS 15+ no longer supports rule database changes (exit 4).
 func removeAppQuarantine(appPath string) (bool, error) {
-	// xattr -p exits 1 when the attribute isn't set.
-	if err := exec.Command("xattr", "-p", "com.apple.quarantine", appPath).Run(); err != nil {
+	// Search the whole tree: in a folder install, the bundles inside can be
+	// quarantined when the folder isn't.
+	output, _ := exec.Command("find", appPath, "-xattrname", "com.apple.quarantine", "-print", "-quit").Output()
+	if strings.TrimSpace(string(output)) == "" {
 		return false, nil
 	}
 
@@ -62,30 +64,33 @@ func removeAppQuarantine(appPath string) (bool, error) {
 
 // assessGatekeeper returns an error when Gatekeeper would refuse to launch the
 // installed app, e.g. it's unsigned, unnotarized, or its signature is broken.
-func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, appPath string) error {
-	if appPath == "" {
-		return nil
+// It assesses the bundles the exists query matches (every macOS exists query
+// matches on the bundle identifier). The new /Applications entry can't be
+// used: it can be a companion app, or missing when the app installs elsewhere.
+func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier string) error {
+	if err := validateSqlInput(bundleIdentifier); err != nil {
+		return fmt.Errorf("Invalid character found in bundle identifier: '%w'. Not assessing Gatekeeper...", err)
 	}
 
-	bundles := []string{appPath}
-	if filepath.Ext(appPath) != ".app" {
-		// Some installs add a folder (e.g. /Applications/KiCad) holding the app bundles.
-		bundles = nil
-		entries, _ := os.ReadDir(appPath)
-		for _, entry := range entries {
-			if filepath.Ext(entry.Name()) == ".app" {
-				bundles = append(bundles, filepath.Join(appPath, entry.Name()))
-			}
-		}
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	output, err := runOsqueryi(execTimeout, fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier))
+	if err != nil {
+		return fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
+	}
+	var bundles []struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(output, &bundles); err != nil {
+		return fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		appLogger.InfoContext(ctx, fmt.Sprintf("No app bundle found at '%s', skipping Gatekeeper assessment", appPath))
-		return nil
+		return fmt.Errorf("Gatekeeper assessment found no app with bundle identifier '%s'", bundleIdentifier)
 	}
 
 	var rejected []string
 	for _, bundle := range bundles {
-		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle).CombinedOutput()
+		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle.Path).CombinedOutput()
 		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
 		if err != nil {
 			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
