@@ -55,6 +55,10 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
   platform: darwin
   interval: 3600
   query: SELECT t.uid FROM (SELECT uid FROM users) AS t JOIN (SELECT gid FROM groups) g ON g.gid = t.uid;
+- name: Joins without aliases
+  platform: darwin
+  interval: 3600
+  query: SELECT * FROM users JOIN no_such_table, groups JOIN no_such_table_2;
 - name: Named window
   platform: darwin
   interval: 3600
@@ -93,6 +97,8 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
 		}
 	}
 	want := []string{
+		"report 'Joins without aliases': table 'no_such_table' isn't in Fleet's osquery schema",
+		"report 'Joins without aliases': table 'no_such_table_2' isn't in Fleet's osquery schema",
 		"report 'Named window': column 'no_such_column' isn't in table 'users'",
 		"report 'Unknown table after a function': table 'no_such_table' isn't in Fleet's osquery schema",
 		"report 'Unknown table': table 'no_such_table' isn't in Fleet's osquery schema",

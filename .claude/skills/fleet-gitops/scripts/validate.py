@@ -454,18 +454,18 @@ def extract_tables(sql):
     ctes = {m.group(1).lower() for m in re.finditer(
         r"(?i)\b([a-z_][a-z0-9_]*)(?:\s*\([^()]*\))?\s+AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(\s*(?:SELECT|VALUES|WITH)\b", s)}
     tables = {}
-    pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?"
-                         r"((?:\s*,\s*[a-z_][a-z0-9_]*(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?)*)")
+    # A keyword can't be an alias, or the JOIN in "FROM a JOIN b" would be consumed and b never checked.
+    alias_re = r"(?:\s+(?:AS\s+)?(?!(?:" + "|".join(sorted(SQL_ALIAS_STOPWORDS)) + r")\b)([a-z_][a-z0-9_]*))?"
+    pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)" + alias_re
+                         + r"((?:\s*,\s*[a-z_][a-z0-9_]*" + alias_re + r")*)")
     for m in pattern.finditer(s):
         sources = [(m.group(2), m.group(3))]
-        for extra in re.finditer(r",\s*([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?", m.group(4) or "", re.I):
+        for extra in re.finditer(r",\s*([a-z_][a-z0-9_]*)" + alias_re, m.group(4) or "", re.I):
             sources.append((extra.group(1), extra.group(2)))
         for name, alias in sources:
             name = name.lower()
             if name in ctes or name in SQLITE_TABLE_FUNCTIONS:
                 continue
-            if alias and alias.lower() in SQL_ALIAS_STOPWORDS:
-                alias = None
             tables.setdefault(name, set())
             if alias:
                 tables[name].add(alias.lower())
