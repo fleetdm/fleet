@@ -923,6 +923,8 @@ The following steps show how to deploy certificates from any certificate authori
 
 5. Select **Add CA**. Your SCEP certificate authority (CA) should appear in the list in Fleet.
 
+> Windows can't request a CA by name. Windows hosts get their certificates from the CA your SCEP server uses when no CA name is sent. If your SCEP server hosts multiple CAs, use a SCEP URL that points to the CA you want for Windows hosts.
+
 ### Step 2: Add SCEP configuration profile to Fleet
 
 To deploy SCEP certificates to macOS, iOS, iPadOS, and Windows hosts, we'll follow the steps below to add a configuration profile to Fleet. 
