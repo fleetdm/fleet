@@ -49,7 +49,6 @@ SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating components for $SYSTEMS"
 
-NUDGE_VERSION=1.1.10.81462
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 SWIFT_DIALOG_VERSION=2.5.6
 
@@ -183,18 +182,6 @@ for system in $SYSTEMS; do
         if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
             rm desktop.app.tar.gz
         fi
-    fi
-
-    # Add Nudge application on macos (if enabled).
-    if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        curl https://updates.fleetdm.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
-        ./build/fleetctl updates add \
-            --path $TUF_PATH \
-            --target nudge.app.tar.gz \
-            --platform macos \
-            --name nudge \
-            --version $NUDGE_VERSION -t stable
-        rm nudge.app.tar.gz
     fi
 
     # Add swiftDialog on macos (if enabled).

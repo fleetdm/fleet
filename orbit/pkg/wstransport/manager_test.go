@@ -112,6 +112,9 @@ type wsTestServer struct {
 	// reject makes the server refuse upgrades (simulates a down/unreachable
 	// WebSocket endpoint while HTTP keeps working).
 	reject atomic.Bool
+	// unresponsive makes the server stop answering pings (simulates a
+	// half-open connection, e.g. after the agent's host slept).
+	unresponsive atomic.Bool
 }
 
 func newWSTestServer(t *testing.T, nodeKey string) *wsTestServer {
@@ -132,6 +135,12 @@ func newWSTestServer(t *testing.T, nodeKey string) *wsTestServer {
 		if err != nil {
 			return
 		}
+		conn.SetPingHandler(func(data string) error {
+			if ws.unresponsive.Load() {
+				return nil
+			}
+			return conn.WriteControl(websocket.PongMessage, []byte(data), time.Now().Add(time.Second))
+		})
 		ws.mu.Lock()
 		ws.conns = append(ws.conns, conn)
 		ws.mu.Unlock()
@@ -184,7 +193,7 @@ func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache 
 		ReconnectJitterMax: 10 * time.Millisecond,
 		BackoffBase:        10 * time.Millisecond,
 		BackoffCap:         50 * time.Millisecond,
-		ServerPingInterval: time.Minute,
+		PingInterval:       time.Minute,
 		HandshakeTimeout:   time.Second,
 	}
 	for _, set := range setOpts {
@@ -430,4 +439,47 @@ func TestManagerOrbitConfigNotifications(t *testing.T) {
 	ws.closeAll()
 	require.Eventually(t, func() bool { return disconnects.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
 	require.Eventually(t, func() bool { return ws.connCount() == 1 && connects.Load() == 2 }, 5*time.Second, 5*time.Millisecond)
+}
+
+func TestManagerDetectsUnresponsiveConnection(t *testing.T) {
+	ws := newWSTestServer(t, "orbit-key")
+	fc := &countingClient{}
+	var disconnects atomic.Int64
+	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache(), func(o *Options) {
+		o.PingInterval = 50 * time.Millisecond
+		o.PongTimeout = 250 * time.Millisecond
+		o.OnDisconnect = func() { disconnects.Add(1) }
+	})
+
+	require.Eventually(t, m.Connected, 5*time.Second, 5*time.Millisecond)
+
+	// The connection stays open but the server stops answering pings: the
+	// manager must drop it and resume polling, without waiting for the server.
+	ws.reject.Store(true)
+	ws.unresponsive.Store(true)
+	require.Eventually(t, func() bool { return disconnects.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
+	assert.False(t, m.Connected())
+
+	count := fc.readCount()
+	require.Eventually(t, func() bool { return fc.readCount() > count }, 5*time.Second, 5*time.Millisecond,
+		"polling should resume after a dead connection is detected")
+}
+
+func TestManagerStaysConnectedWhileServerAnswersPings(t *testing.T) {
+	ws := newWSTestServer(t, "orbit-key")
+	fc := &countingClient{}
+	var disconnects atomic.Int64
+	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache(), func(o *Options) {
+		o.PingInterval = 50 * time.Millisecond
+		o.PongTimeout = 250 * time.Millisecond
+		o.OnDisconnect = func() { disconnects.Add(1) }
+	})
+
+	require.Eventually(t, m.Connected, 5*time.Second, 5*time.Millisecond)
+
+	// Many ping intervals with no other traffic: pongs keep the connection up.
+	time.Sleep(20 * m.opts.PingInterval)
+	assert.True(t, m.Connected())
+	assert.Zero(t, disconnects.Load())
+	assert.Equal(t, 1, ws.connCount())
 }

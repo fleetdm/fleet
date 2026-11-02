@@ -1,9 +1,10 @@
+import { isOktaConditionalAccessConfigured } from "interfaces/config";
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 
 const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
-  const { canAccessSettings, isPremiumTier, isPrimoMode } = ctx;
+  const { canAccessSettings, config, isPremiumTier, isPrimoMode } = ctx;
 
   // Settings — global admins only
   if (!canAccessSettings) return [];
@@ -172,6 +173,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "scep",
                   "est",
                   "digicert",
+                  "ejbca",
                   "ndes",
                   "smallstep",
                   "ca",
@@ -186,6 +188,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "scep",
                   "est",
                   "digicert",
+                  "ejbca",
                   "ndes",
                   "smallstep",
                   "pki",
@@ -224,6 +227,27 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                 path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
                 keywords: ["okta", "entra", "intune", "zero trust"],
               },
+              // The Okta page redirects back to conditional access until
+              // Okta is configured.
+              ...(isOktaConditionalAccessConfigured(config)
+                ? [
+                    {
+                      id: "edit-okta-conditional-access",
+                      label: "Edit Okta conditional access",
+                      path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA,
+                      keywords: [
+                        "update",
+                        "change",
+                        "modify",
+                        "idp",
+                        "profile",
+                        "scep",
+                        "certificate",
+                        "zero trust",
+                      ],
+                    },
+                  ]
+                : []),
             ]
           : []),
       ],
@@ -247,7 +271,6 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
             group: "Settings" as const,
             path: paths.ADMIN_FLEETS,
             keywords: [
-              "teams",
               "groups",
               "add fleet",
               "create fleet",

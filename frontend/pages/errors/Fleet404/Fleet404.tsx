@@ -20,6 +20,8 @@ const Fleet404 = () => (
       </p>
       <Button
         variant="secondary"
+        icon="external-link"
+        iconPosition="right"
         onClick={() =>
           window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
         }

@@ -544,7 +544,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
 3. Clay (table: [Events - Historical event creation](https://app.clay.com/workspaces/315782/workbooks/wb_0t4mlesfmwB8E6W357B/tables/t_0t90w56wNMpfCnCnfFm/views/gv_0t90w56hCPwZrpWtyC6)) receives the payload.
     - The `Event_key` is used to find the correct campaign.
     - A [historical event](https://fleetdm.com/handbook/finance/gtm-architecture#historical-events-sfdc) gets created with a `relatedCampaign` matching the `Event_key`. Creating a historical event will also create the contact/account if it doesn't already exist.
-    - The name and email is used to pull the correct LinkedIn. If a LinkedIn profile is found, Clay updates the following data in Salesforce:
+    - The name and email are used to pull the correct LinkedIn. If a LinkedIn profile is found, Clay updates the following data in Salesforce:
         - Job title
         - Mailing address: (City, State/Province, Country)
         - Primary buying situation « TODO Document

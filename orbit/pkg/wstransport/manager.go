@@ -58,9 +58,13 @@ type Options struct {
 	// BackoffBase/BackoffCap bound the reconnection backoff (default 5s/5m).
 	BackoffBase time.Duration
 	BackoffCap  time.Duration
-	// ServerPingInterval is the server's keepalive ping cadence, used to size
-	// the read deadline (default 5m; the deadline is twice this).
-	ServerPingInterval time.Duration
+	// PingInterval is the cadence of the agent's keepalive pings (default 30s).
+	// The server's own pings are too sparse to detect a connection left
+	// half-open by sleep or a network change in time.
+	PingInterval time.Duration
+	// PongTimeout is how long past PingInterval to wait for a pong before the
+	// connection is considered dead (default 15s).
+	PongTimeout time.Duration
 	// HandshakeTimeout bounds the WebSocket upgrade (default 30s).
 	HandshakeTimeout time.Duration
 }
@@ -78,8 +82,11 @@ func (o *Options) applyDefaults() {
 	if o.BackoffCap == 0 {
 		o.BackoffCap = 5 * time.Minute
 	}
-	if o.ServerPingInterval == 0 {
-		o.ServerPingInterval = 5 * time.Minute
+	if o.PingInterval == 0 {
+		o.PingInterval = 30 * time.Second
+	}
+	if o.PongTimeout == 0 {
+		o.PongTimeout = 15 * time.Second
 	}
 	if o.HandshakeTimeout == 0 {
 		o.HandshakeTimeout = 30 * time.Second
@@ -114,7 +121,7 @@ const (
 // next local poll. There is deliberately no catch-up read on (re)connect: a
 // notification lost around a connect is recovered by the server's interval
 // check job, which re-notifies until the work is done. A half-open connection
-// is bounded by the keepalive read deadline.
+// is detected by the agent's keepalive pings.
 type Manager struct {
 	opts Options
 
@@ -182,13 +189,13 @@ func (m *Manager) connectionLoop() {
 			continue
 		}
 		tracker.RecordSuccess()
-		log.Debug().Msg("websocket connected, polling paused")
+		log.Info().Msg("websocket connected, polling paused")
 
 		m.connected.Store(true)
 		if m.opts.OnConnect != nil {
 			m.opts.OnConnect()
 		}
-		m.readLoop(conn)
+		err = m.readLoop(conn)
 		m.connected.Store(false)
 		if m.opts.OnDisconnect != nil {
 			m.opts.OnDisconnect()
@@ -197,7 +204,7 @@ func (m *Manager) connectionLoop() {
 		if m.ctx.Err() != nil {
 			return
 		}
-		log.Debug().Msg("websocket disconnected, polling resumed")
+		log.Info().Err(err).Msg("websocket disconnected, polling resumed")
 
 		// Jitter re-dials so a server restart doesn't produce a thundering herd.
 		if !m.sleep(time.Duration(rand.Int64N(int64(m.opts.ReconnectJitterMax)))) { //nolint:gosec // jitter does not need cryptographic randomness
@@ -207,30 +214,29 @@ func (m *Manager) connectionLoop() {
 }
 
 // readLoop consumes notifications until the connection breaks or the manager
-// is interrupted.
-func (m *Manager) readLoop(conn *websocket.Conn) {
+// is interrupted, and returns the error that ended it.
+func (m *Manager) readLoop(conn *websocket.Conn) error {
 	// Unblock the blocking read when interrupted.
 	stop := context.AfterFunc(m.ctx, func() { _ = conn.Close() })
 	defer stop()
 
-	// The read deadline doubles as liveness: the server pings every
-	// ServerPingInterval and every ping refreshes the deadline, so no traffic
-	// for two intervals means a dead (e.g. half-open) connection.
-	deadline := 2 * m.opts.ServerPingInterval
+	// The read deadline doubles as liveness: every pong refreshes it, so a
+	// connection that stops answering pings (e.g. half-open after sleep or a
+	// network change) times out the read.
+	deadline := m.opts.PingInterval + m.opts.PongTimeout
 	_ = conn.SetReadDeadline(time.Now().Add(deadline))
-	defaultPingHandler := conn.PingHandler()
-	conn.SetPingHandler(func(message string) error {
-		_ = conn.SetReadDeadline(time.Now().Add(deadline))
-		return defaultPingHandler(message)
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(deadline))
 	})
+
+	pingDone := make(chan struct{})
+	defer close(pingDone)
+	go m.pingLoop(conn, pingDone)
 
 	for {
 		var msg fleet.AgentWSMessage
 		if err := conn.ReadJSON(&msg); err != nil {
-			if m.ctx.Err() == nil {
-				log.Debug().Err(err).Msg("websocket read failed")
-			}
-			return
+			return err
 		}
 		log.Debug().Str("type", msg.Type).Str("reason", msg.Reason).Msg("check-now notification received")
 		switch msg.Type {
@@ -241,6 +247,27 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 		default:
 			// Ignored for forward compatibility.
 			log.Debug().Str("type", msg.Type).Msg("ignoring unknown websocket notification type")
+		}
+	}
+}
+
+// pingLoop sends keepalive pings until done is closed. A failed write closes
+// the connection, which ends readLoop without waiting for the read deadline.
+func (m *Manager) pingLoop(conn *websocket.Conn, done <-chan struct{}) {
+	ticker := time.NewTicker(m.opts.PingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			// WriteControl is safe to call concurrently with the default ping
+			// handler's pong replies.
+			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(m.opts.PongTimeout)); err != nil {
+				log.Debug().Err(err).Msg("websocket ping failed")
+				_ = conn.Close()
+				return
+			}
+		case <-done:
+			return
 		}
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -134,12 +133,45 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
-	// fleetd is queued ahead of the profiles, as in runPostDEPEnrollment, so the
-	// device doesn't run every profile before installing it.
+	// order is guaranteed for manual enrollments to be:
+	// 1. fleetd, unless the bootstrap package replaces it (see below)
+	// 2. bootstrap package if configured for manual enrollments
+	// 3. apps/profiles
+
 	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		var manualAgentInstall, allowBootstrapDuringManualEnrollment bool
+		if args.TeamID == nil {
+			appCfg, err := a.getAppConfig(ctx, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+		} else {
+			team, err := a.getTeamConfig(ctx, nil, *args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving team config")
+			}
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
 		}
+
+		installBootstrap := license.IsPremium(ctx) && allowBootstrapDuringManualEnrollment
+		// Manual agent install only skips fleetd when the bootstrap package (expected to contain
+		// fleetd) is also sent on manual enrollments, so configs that only use it for automatic
+		// enrollment keep getting fleetd here.
+		if !manualAgentInstall || !installBootstrap {
+			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+		}
+
+		if installBootstrap {
+			if _, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
+			}
+		}
+
 	}
 
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
@@ -149,20 +181,19 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	if !isMacOS(args.Platform) {
+	if !isMacOS(args.Platform) && license.IsPremium(ctx) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
-		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
-			}
-		}
+		//
 		// Refetch is handled by the iphone_ipad_refetcher cron, which now
 		// picks up freshly-enrolled hosts on its next tick (see
 		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
 		// catch-up to the synchronous enrollment path and keeps a single
 		// source of truth for refetch command emission.
+		_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
+		}
 	}
 
 	return nil
@@ -176,18 +207,26 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		err           error
 	)
 
+	// order is guaranteed for DEP enrollments to be:
+	// 1. fleetd if manual agent install is not enabled
+	// 2. bootstrap package if allowed and not skipped during MDM migration
+	// 3. apps/profiles
+	// 4. managed account/end user settings if configured
+
 	if isMacOS(args.Platform) {
-		var manualAgentInstall bool
+		var manualAgentInstall, allowBootstrapDuringMigrationConfig bool
 		if args.TeamID == nil {
 			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 				return err
 			}
 			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		}
 
 		if !manualAgentInstall {
@@ -198,11 +237,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		allowBootstrapDuringMigration := false
-		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
-		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
-			allowBootstrapDuringMigration = true
-		}
+		// the env var overrides the config value when set to true
+		allowBootstrapDuringMigration := fleet.BootstrapPackageDuringMigrationEnvEnabled() || (allowBootstrapDuringMigrationConfig && license.IsPremium(ctx))
 
 		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			a.Log.InfoContext(ctx, "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
@@ -656,8 +692,9 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID:  *vppAppID,
-					AppTeamID: ptr.ValOrZero(app.VPPAppTeamID),
+					VPPAppID:   *vppAppID,
+					AppTeamID:  ptr.ValOrZero(app.VPPAppTeamID),
+					VPPTokenID: app.VPPAppVPPTokenID,
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -704,7 +741,12 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		}
 		var failActivity fleet.ActivityDetails
 		if isVPPApp {
+			vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, a.Datastore, app.VPPAppVPPTokenID)
+			if tokErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up VPP token for setup experience install failure activity", "err", tokErr)
+			}
 			failActivity = fleet.ActivityInstalledAppStoreApp{
+				VPPToken:            vppToken,
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
@@ -743,12 +785,11 @@ func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host,
 	if a.VPPInstaller == nil {
 		return "", errors.New("VPP installer not configured")
 	}
-	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := a.VPPInstaller.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
 func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) (string, error) {
@@ -761,7 +802,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if errors.As(err, &nfe) {
-			a.Log.InfoContext(ctx, "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
+			a.Log.InfoContext(ctx, "unable to find a bootstrap package for enrolled device, skipping installation", "host_uuid", hostUUID)
 			return "", nil
 		}
 

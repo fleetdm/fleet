@@ -1738,7 +1738,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -1802,7 +1802,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	vimTitleID := resp.SoftwareTitles[0].ID
 
 	var vimDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail, "fleet_id", "0")
 	require.NotNil(t, vimDetail.SoftwareTitle)
 	require.NotNil(t, vimDetail.SoftwareTitle.SoftwarePackage)
 	vimInstallerID := vimDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -2081,7 +2081,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
