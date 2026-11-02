@@ -199,7 +199,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
-		{"", inputApp{Token: "zoom-for-it-admins", UniqueIdentifier: "us.zoom.xos", InstallerFormat: "pkg", Name: "Zoom", Slug: "zoom/darwin", ParenthesizedBuildVersion: true}},
+		{"", inputApp{Token: "zoom-for-it-admins", UniqueIdentifier: "us.zoom.xos", InstallerFormat: "pkg", Name: "Zoom", Slug: "zoom/darwin", ParenthesizedBuildVersion: true}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
 		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
 		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
