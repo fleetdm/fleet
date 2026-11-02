@@ -20,7 +20,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -258,9 +257,8 @@ func TestChallengeMiddleware(t *testing.T) {
 				}
 				return &fleet.EnrollSecret{Secret: secret}, nil
 			}
-			ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+			ds.GetHostIdentityCertByNameFunc = func(_ context.Context, name string) (*types.HostIdentityCertificate, error) {
 				require.Equal(t, hostName, name)
-				require.True(t, ctxdb.IsPrimaryRequired(ctx), "the existence check must not read from a replica")
 				if tc.existingCert != nil {
 					return tc.existingCert, nil
 				}

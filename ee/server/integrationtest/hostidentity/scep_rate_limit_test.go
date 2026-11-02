@@ -144,11 +144,9 @@ func renewSCEPCertificate(t *testing.T, s *Suite, existingCert *x509.Certificate
 	newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	csrTemplate := x509util.CertificateRequest{
-		CertificateRequest: x509.CertificateRequest{
-			Subject:            pkix.Name{CommonName: existingCert.Subject.CommonName},
-			SignatureAlgorithm: x509.ECDSAWithSHA256,
-			ExtraExtensions:    []pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalDataJSON}},
-		},
+		Subject:            pkix.Name{CommonName: existingCert.Subject.CommonName},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		ExtraExtensions:    []pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalDataJSON}},
 	}
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
