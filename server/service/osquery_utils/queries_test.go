@@ -6503,7 +6503,7 @@ func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{HostID: hostID}, nil
 	}
-	host := &fleet.Host{ID: 1, Platform: "omarchy", OrbitNodeKey: ptr.String("node-key")}
+	host := &fleet.Host{ID: 1, Platform: "omarchy", OrbitNodeKey: new("node-key")}
 	query, ok := luksVerifyQuery.QueryFunc(t.Context(), slog.New(slog.DiscardHandler), host, ds)
 	require.True(t, ok)
 
