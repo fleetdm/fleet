@@ -251,10 +251,11 @@ func msiFilename(opt Options) string {
 	if opt.CustomOutfile != "" {
 		return opt.CustomOutfile
 	}
-	if opt.Architecture == ArchArm64 {
-		return "fleet-osquery-arm64.msi"
+	arch := opt.Architecture
+	if arch == "" {
+		arch = ArchAmd64
 	}
-	return "fleet-osquery.msi"
+	return outputFilename("windows", arch, opt.FleetName, "msi")
 }
 
 func checkWine(wineChecked bool) error {

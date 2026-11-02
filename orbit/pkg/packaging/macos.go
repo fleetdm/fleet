@@ -191,7 +191,7 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	filename := "fleet-osquery.pkg"
+	filename := outputFilename("macos", "", opt.FleetName, "pkg")
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
 	}
