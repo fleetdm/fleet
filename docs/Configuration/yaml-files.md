@@ -960,6 +960,8 @@ You can add more than one version of the same App Store app to a fleet. Each ver
 
 If a host is in scope for more than one version, Fleet will install the one that was added first.
 
+> When you delete a version, hosts that had it keep the app and its configuration. Fleet sends a new configuration only when the host is in scope for another version. To change the configuration on these hosts, make sure another version covers them, for example a version with no labels.
+
 > In GitOps, the first version added is the first one in the app's `versions` list on the initial run that adds the app. Reordering the list on a later run doesn't change the order.
 >
 > You can preview the order of the versions in the UI. The first version in the list is always a fallback in case a host is in scope for more than one version.
