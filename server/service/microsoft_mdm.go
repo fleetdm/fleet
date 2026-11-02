@@ -2244,8 +2244,8 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
 // next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
 // fleetd wake the device again.
-func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
-	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
+	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
 		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
@@ -2255,40 +2255,27 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 	onlyPollCmdsPending := true
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
-		if !isPollCmd {
-			onlyPollCmdsPending = false
-		}
 		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
 			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			onlyPollCmdsPending = false
 			continue
 		}
-		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
-		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
+		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {
+			// Failing the command is permanent, so confirm on the primary: a custom variable created or changed moments ago
+			// may not be on the replica yet.
+			parsedCmds, err = svc.prepareWindowsPendingCommand(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID, pendingCmd)
+		}
 		if err != nil {
-			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
-		}
-		if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
-			// Skipped like a command whose host secrets can't be expanded, below.
-			err = ctxerr.Wrapf(ctx, err, "refusing Windows pending command %s", pendingCmd.CommandUUID)
-			logging.WithErr(ctx, err)
-			ctxerr.Handle(ctx, err)
+			// Skipped rather than failing the session: one bad command must not hold back every other command pending for
+			// the device. A failed one is no longer pending.
+			if failed := svc.skipWindowsPendingCommand(ctx, enrolledDevice, pendingCmd.CommandUUID, err); !failed && !isPollCmd {
+				onlyPollCmdsPending = false
+			}
 			continue
 		}
-		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
-		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
-		if err != nil {
-			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
-			// back every other command pending for the device. It stays queued and is tried again next session.
-			err = ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID)
-			logging.WithErr(ctx, err)
-			ctxerr.Handle(ctx, err)
-			continue
-		}
-		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
-			continue
+		if !isPollCmd {
+			onlyPollCmdsPending = false
 		}
 		for _, pcmd := range parsedCmds {
 			cmds = append(cmds, &pcmd)
@@ -2296,6 +2283,73 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 	}
 
 	return cmds, onlyPollCmdsPending, nil
+}
+
+// undeliverableWindowsCommandError is why a pending command can never be delivered as written, so it is failed instead of
+// tried again next session.
+type undeliverableWindowsCommandError struct{ err error }
+
+func (e undeliverableWindowsCommandError) Error() string { return e.err.Error() }
+func (e undeliverableWindowsCommandError) Unwrap() error { return e.err }
+
+// prepareWindowsPendingCommand expands the variables in a pending command and parses it for delivery.
+func (svc *Service) prepareWindowsPendingCommand(ctx context.Context, enrollmentID uint, pendingCmd *fleet.MDMWindowsCommand) ([]mdm_types.SyncMLCmd, error) {
+	// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+	rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+	if err != nil {
+		// Profiles are checked for missing secrets on upload, but custom commands aren't, and deleting a secret doesn't check
+		// queued commands.
+		if missing, ok := fleet.MissingSecretNames(err); ok {
+			names := make([]string, 0, len(missing))
+			for _, name := range missing {
+				names = append(names, "$"+fleet.ServerSecretPrefix+name)
+			}
+			return nil, undeliverableWindowsCommandError{fmt.Errorf("custom variable not found: %s", strings.Join(names, ", "))}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+	if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
+		// Its error quotes the placeholder as expanded, which can hold part of a variable's value.
+		return nil, undeliverableWindowsCommandError{errors.New("a $FLEET_HOST_SECRET_ variable comes from a custom variable and can't be used")}
+	}
+	// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
+	rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+	if err != nil {
+		return nil, err
+	}
+	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
+	if err != nil {
+		// The parser quotes the document in its errors, and this one holds variable values, so only an error from the command
+		// as written is passed on.
+		if _, rawErr := fleet.UnmarshallMultiTopLevelXMLProfile(pendingCmd.RawCommand); rawErr != nil {
+			return nil, undeliverableWindowsCommandError{rawErr}
+		}
+		return nil, undeliverableWindowsCommandError{errors.New("the command isn't valid XML once its variables are expanded")}
+	}
+	return parsedCmds, nil
+}
+
+// skipWindowsPendingCommand logs why a pending command can't be delivered this session and, if it never can be, records
+// it as failed. It reports whether it did.
+func (svc *Service) skipWindowsPendingCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID string, cause error) bool {
+	err := ctxerr.Wrapf(ctx, cause, "skipping Windows pending command %s", commandUUID)
+	logging.WithErr(ctx, err)
+
+	// An undeliverable command is reported to the admin as its result, so only the other cases go to the error store.
+	undeliverable, ok := errors.AsType[undeliverableWindowsCommandError](cause)
+	if !ok {
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	reason := "Fleet couldn't deliver the command: " + undeliverable.Error()
+	if err := svc.ds.MDMWindowsFailUndeliverableCommand(ctx, enrolledDevice, commandUUID, reason); err != nil {
+		// It stays pending, so this is tried again next session.
+		err = ctxerr.Wrapf(ctx, err, "failing undeliverable Windows command %s", commandUUID)
+		logging.WithErr(ctx, err)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	return true
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -2371,7 +2425,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}

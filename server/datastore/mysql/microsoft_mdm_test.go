@@ -53,6 +53,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
 		{"TestMDMWindowsProfileManagement", testMDMWindowsProfileManagement},
 		{"TestWindowsProfileRetryOnDeviceFailure", testWindowsProfileRetryOnDeviceFailure},
+		{"TestMDMWindowsFailUndeliverableCommand", testMDMWindowsFailUndeliverableCommand},
 		{"TestBulkOperationsMDMWindowsHostProfiles", testBulkOperationsMDMWindowsHostProfiles},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch2", testBulkOperationsMDMWindowsHostProfilesBatch2},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
@@ -9842,6 +9843,80 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 
 	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
 	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+}
+
+func testMDMWindowsFailUndeliverableCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	device := createEnrolledDevice(t, ds)
+	// The same command and profile are pending for another host, which must be left alone.
+	other := createEnrolledDevice(t, ds)
+
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Replace><CmdID>c</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`),
+		TargetLocURI: "./Device/A",
+	}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID, other.MDMDeviceID}, cmd))
+
+	const profileUUID = "w-undeliverable"
+	pending := fleet.MDMDeliveryPending
+	var profiles []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	for _, d := range []*fleet.MDMWindowsEnrolledDevice{device, other} {
+		profiles = append(profiles, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			ProfileUUID:   profileUUID,
+			ProfileName:   "undeliverable",
+			HostUUID:      d.HostUUID,
+			CommandUUID:   cmd.CommandUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &pending,
+			Checksum:      []byte{1},
+		})
+	}
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, profiles))
+
+	const reason = `Fleet couldn't deliver the command: <a> & "b"`
+	require.NoError(t, ds.MDMWindowsFailUndeliverableCommand(ctx, device, cmd.CommandUUID, reason))
+
+	pendingCmds, err := ds.MDMWindowsGetPendingCommands(ctx, device.ID)
+	require.NoError(t, err)
+	require.Empty(t, pendingCmds)
+	pendingCmds, err = ds.MDMWindowsGetPendingCommands(ctx, other.ID)
+	require.NoError(t, err)
+	require.Len(t, pendingCmds, 1)
+
+	results, err := ds.GetMDMWindowsCommandResults(ctx, cmd.CommandUUID, device.HostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, syncml.CmdStatusBadRequest, results[0].Status)
+	var resp struct {
+		Status struct {
+			CmdRef string `xml:"CmdRef"`
+			Data   string `xml:"Data"`
+			Reason string `xml:"Item>Data"`
+		} `xml:"SyncBody>Status"`
+	}
+	require.NoError(t, xml.Unmarshal(results[0].Result, &resp), "the response must be valid SyncML: %s", results[0].Result)
+	require.Equal(t, cmd.CommandUUID, resp.Status.CmdRef)
+	require.Equal(t, syncml.CmdStatusBadRequest, resp.Status.Data)
+	require.Equal(t, reason, resp.Status.Reason)
+	// The UI shows the raw response, so only what XML requires is escaped.
+	require.Contains(t, string(results[0].Result), `couldn't deliver the command: &lt;a&gt; &amp; "b"`)
+
+	// The profile goes back for another try, like one the device rejected.
+	status, detail, retries := readWindowsHostProfile(t, ds, device.HostUUID, profileUUID)
+	require.Empty(t, status)
+	require.Empty(t, detail)
+	require.Equal(t, 1, retries)
+	status, _, retries = readWindowsHostProfile(t, ds, other.HostUUID, profileUUID)
+	require.Equal(t, fleet.MDMDeliveryPending, status)
+	require.Zero(t, retries)
+
+	// A command that's no longer pending is left alone.
+	require.NoError(t, ds.MDMWindowsFailUndeliverableCommand(ctx, device, cmd.CommandUUID, "a later reason"))
+	var responses int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &responses,
+		`SELECT COUNT(*) FROM windows_mdm_responses WHERE enrollment_id = ?`, device.ID))
+	require.Equal(t, 1, responses)
 }
 
 func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) {
