@@ -1142,7 +1142,6 @@ import Yaak from "./png/Yaak.png";
 import Yacreader from "./png/Yacreader.png";
 import Yarn from "./png/Yarn.png";
 import Yattee from "./png/Yattee.png";
-import Yippy from "./png/Yippy.png";
 import YtMusic from "./png/YtMusic.png";
 import YubicoAuthenticator from "./png/YubicoAuthenticator.png";
 import YubikeyManager from "./png/YubikeyManager.png";
@@ -2352,7 +2351,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yacreader: Yacreader,
   yarn: Yarn,
   yattee: Yattee,
-  yippy: Yippy,
   "youtube music": YtMusic,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,

@@ -9872,13 +9872,6 @@
       "description": "Yattee is an alternative and privacy-friendly YouTube frontend."
     },
     {
-      "name": "Yippy",
-      "slug": "yippy/darwin",
-      "platform": "darwin",
-      "unique_identifier": "MatthewDavidson.Yippy",
-      "description": "Yippy is an open source clipboard manager."
-    },
-    {
       "name": "YouTube Music",
       "slug": "yt-music/darwin",
       "platform": "darwin",
