@@ -324,6 +324,8 @@ func main() {
 	latencyMean := flag.Duration("latency", 200*time.Millisecond, "Mean latency added to AMAPI responses (simulates Google API latency)")
 	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
 	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
+	var policyOpts policyOptions
+	flag.BoolVar(&policyOpts.rejectDefaultPolicyApps, "reject-default-policy-apps", false, "Fail any change to the app list of the default policy (policies/1) with 400. Fleet only manages apps in host-specific policies, so such a request is a Fleet bug")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -346,7 +348,7 @@ func main() {
 		log.Printf("Google credentials loaded — forwarding real device requests to Google AMAPI")
 	}
 
-	mux := newMux(store, google, *latencyMean, *errorRate)
+	mux := newMux(store, google, *latencyMean, *errorRate, policyOpts)
 
 	srv := &http.Server{
 		Addr:         *listen,
@@ -360,7 +362,7 @@ func main() {
 
 // newMux registers every mock route. Route patterns matter to the handlers (they read path
 // values), so this is shared between main and the tests rather than duplicated.
-func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Duration, errorRate float64) *http.ServeMux {
+func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Duration, errorRate float64, policyOpts policyOptions) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// ---- Health check ----
@@ -396,8 +398,13 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", noteEnt(sim(handleDevicesList(store, google))))
 
 	// ---- AMAPI: Policies ----
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePoliciesPatch(store, google))))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePolicyAction(store))))
+	guard := func(h http.HandlerFunc) http.HandlerFunc {
+		return guardPolicyRequest(policyOpts, h)
+	}
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(guard(handlePoliciesPatch(store, google)))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(guard(handlePolicyAction(store)))))
+	// An empty policy ID doesn't match {pid}; the guard rejects it like any other invalid name.
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{$}", noteEnt(guard(handlePoliciesPatch(store, google))))
 
 	// ---- AMAPI: Other ----
 	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", noteEnt(sim(forwardOrMock(google, handleEnrollmentTokenCreate()))))

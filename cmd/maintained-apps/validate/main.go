@@ -258,7 +258,7 @@ func run(cfg *Config) error {
 
 		// A Gatekeeper rejection fails the app, but the remaining checks still run
 		// so the app is uninstalled and its other problems are reported too.
-		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier)
+		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier, ac.ExistsQuery)
 		if gatekeeperErr != nil {
 			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
 		}
@@ -563,6 +563,18 @@ var programsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+
 // "SELECT 1 FROM programs WHERE ...", or "" for any other shape.
 func programsExistsWhereClause(existsQuery string) string {
 	m := programsExistsQueryRegex.FindStringSubmatch(existsQuery)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+var appsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+apps\s+WHERE\s+(.+?);?\s*$`)
+
+// appsExistsWhereClause returns the WHERE clause of an exists query shaped
+// "SELECT 1 FROM apps WHERE ...", or "" for any other shape.
+func appsExistsWhereClause(existsQuery string) string {
+	m := appsExistsQueryRegex.FindStringSubmatch(existsQuery)
 	if m == nil {
 		return ""
 	}

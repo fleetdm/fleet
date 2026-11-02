@@ -64,6 +64,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
+	"github.com/fleetdm/fleet/v4/server/datastore/osqueryconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -99,6 +100,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -341,19 +343,34 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query and scoped orbit config wake-ups are delayed by the TTL of
-		// the in-memory caches the notified agent's request reads, so it can't
-		// be served a snapshot predating the change. Host orbit config wake-ups
-		// read nothing cached; their delay only batches them (see
+		// A notified agent calls back within milliseconds, so wake-ups wait for
+		// the in-memory caches its request reads to expire; otherwise it can be
+		// served a snapshot predating the change (see
 		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
-			LiveQuery:        liveQueryMemCacheDuration,
+			// The live query store's active-queries cache TTL (1s).
+			LiveQuery: liveQueryMemCacheDuration,
+			// Host orbit config changes are read uncached: the delay only
+			// batches the per-host wake-ups of one write (100ms).
 			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			// The longest TTL of the cached fleet and global orbit config
+			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			// A host moved to another fleet reads its packs from a per-host
+			// cache (1m).
+			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
+			// The ETag write fence (3m), which outlasts the cached osquery
+			// config inputs plus the pack config cache built from them. Hosts
+			// nudged inside the fence each do a full config build that can't
+			// be stored as an ETag.
+			OsqueryConfigScope: redis_config_etag.DefaultFenceTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {
 			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
 			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
+		if config.WebSocket.OsqueryConfigEnabled {
+			ds = osqueryconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "osqueryconfig-notify"))
 		}
 	}
 
@@ -714,8 +731,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the notifications bounded context into the main service
 	svc.SetNotificationsService(notificationsSvc)
 	// Register kinds here, and nowhere else.
-	patchNotificationKind := service.NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+	patchNotificationKind := service.NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
 	notificationsSvc.RegisterKind(patchNotificationKind)
+	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
 
 	// Bootstrap ACME service module
 	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
@@ -737,16 +755,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub.InstanceID = instanceID
 		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
 
-		if config.WebSocket.OrbitConfigEnabled {
+		if config.WebSocket.ScopedNotificationsEnabled() {
 			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
 		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			switch {
 			case n.Scope != "":
 				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
-			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig, n.Type == fleet.AgentWSMessageTypeOsqueryConfig:
 				// Paced: a write can target thousands of hosts at once (e.g. a
-				// fleet-wide Windows MDM command).
+				// fleet-wide Windows MDM command, or hosts moved between fleets).
 				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
 			default:
 				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)

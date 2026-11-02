@@ -563,6 +563,8 @@ type HostSoftwareInstallerResult struct {
 	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
 	// empty pre-install result as the app being open rather than a query failure.
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// PatchDeadline is read live from the triggering policy. A deadline skip schedules the notification for the next deadline.
+	PatchDeadline bool `json:"-" db:"patch_deadline"`
 	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
 	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
@@ -571,6 +573,7 @@ const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
 	SoftwareInstallerAppOpenNotifyCopy      = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."
+	SoftwareInstallerAppOpenDeadlineCopy    = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch deadline."
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -599,6 +602,8 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 			switch {
 			case !h.OverridePreInstallQuery:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			case h.PatchDeadline:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenDeadlineCopy
 			case h.NotifyBeforePatching:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
 			default:
@@ -845,6 +850,9 @@ type UpdateSoftwareInstallerPayload struct {
 	// NotifyBeforePatching skips the install while the app is open and notifies the end user an
 	// hour before the patch is forced. FMA-only.
 	NotifyBeforePatching *bool
+	// PatchDeadline skips the install while the app is open and notifies the end user an hour
+	// before the fleet's next patch deadline. FMA-only.
+	PatchDeadline *bool
 	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
 	// request of whether to change them.
 	InstallScriptEdited   bool
@@ -857,7 +865,7 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
 		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil &&
-		u.NotifyBeforePatching == nil
+		u.NotifyBeforePatching == nil && u.PatchDeadline == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -1023,6 +1031,7 @@ type PatchPolicyData struct {
 	Name                         string `json:"name" db:"name"`
 	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
 	NotifyBeforePatching         bool   `json:"notify_before_patching" db:"notify_before_patching"`
+	PatchDeadline                bool   `json:"patch_deadline" db:"patch_deadline"`
 	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
