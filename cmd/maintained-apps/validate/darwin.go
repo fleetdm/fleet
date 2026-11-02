@@ -34,53 +34,69 @@ func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath
 		return fmt.Errorf("Error forcing LaunchServices refresh: %v. Attempting to continue", err)
 	}
 
-	appLogger.InfoContext(ctx, fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
-	quarantineResult, err := removeAppQuarantine(appPath)
-
-	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
-	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
-	appLogger.InfoContext(ctx, fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
-	appLogger.InfoContext(ctx, fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
+	removed, err := removeAppQuarantine(appPath)
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
+	}
+	if removed {
+		appLogger.InfoContext(ctx, fmt.Sprintf("Removed quarantine attribute from: '%s'", appPath))
 	}
 	return nil
 }
 
-type QuarantineResult struct {
-	QuarantineOutputError error
-	QuarantineStatus      string
-	SpctlOutputError      error
-	SpctlStatus           string
+// Installers are downloaded with Go's HTTP client, which doesn't set
+// com.apple.quarantine, so there is usually nothing to remove. spctl --add is
+// not used: macOS 15+ no longer supports rule database changes (exit 4).
+func removeAppQuarantine(appPath string) (bool, error) {
+	// xattr -p exits 1 when the attribute isn't set.
+	if err := exec.Command("xattr", "-p", "com.apple.quarantine", appPath).Run(); err != nil {
+		return false, nil
+	}
+
+	cmd := exec.Command("sudo", "xattr", "-r", "-d", "com.apple.quarantine", appPath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return false, fmt.Errorf("removing quarantine attribute: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return true, nil
 }
 
-func removeAppQuarantine(appPath string) (QuarantineResult, error) {
-	var result QuarantineResult
-
-	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		result.QuarantineOutputError = fmt.Errorf("checking quarantine status: %v", err)
-	}
-	result.QuarantineStatus = fmt.Sprintf("Quarantine status: '%s'", strings.TrimSpace(string(output)))
-	cmd = exec.Command("spctl", "-a", "-v", appPath)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		result.SpctlOutputError = fmt.Errorf("checking spctl status: %v", err)
-	}
-	result.SpctlStatus = fmt.Sprintf("spctl status: '%s'", strings.TrimSpace(string(output)))
-
-	cmd = exec.Command("sudo", "spctl", "--add", appPath)
-	if err := cmd.Run(); err != nil {
-		return result, fmt.Errorf("adding app to quarantine exceptions: %w", err)
+// assessGatekeeper returns an error when Gatekeeper would refuse to launch the
+// installed app, e.g. it's unsigned, unnotarized, or its signature is broken.
+func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, appPath string) error {
+	if appPath == "" {
+		return nil
 	}
 
-	cmd = exec.Command("sudo", "xattr", "-r", "-d", "com.apple.quarantine", appPath)
-	if err := cmd.Run(); err != nil {
-		return result, fmt.Errorf("removing quarantine attribute: %w", err)
+	bundles := []string{appPath}
+	if filepath.Ext(appPath) != ".app" {
+		// Some installs add a folder (e.g. /Applications/KiCad) holding the app bundles.
+		bundles = nil
+		entries, _ := os.ReadDir(appPath)
+		for _, entry := range entries {
+			if filepath.Ext(entry.Name()) == ".app" {
+				bundles = append(bundles, filepath.Join(appPath, entry.Name()))
+			}
+		}
+	}
+	if len(bundles) == 0 {
+		appLogger.InfoContext(ctx, fmt.Sprintf("No app bundle found at '%s', skipping Gatekeeper assessment", appPath))
+		return nil
 	}
 
-	return result, nil
+	var rejected []string
+	for _, bundle := range bundles {
+		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle).CombinedOutput()
+		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
+		if err != nil {
+			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
+			continue
+		}
+		appLogger.InfoContext(ctx, fmt.Sprintf("Gatekeeper assessment: %s", status))
+	}
+	if len(rejected) > 0 {
+		return fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
+	}
+	return nil
 }
 
 func forceLaunchServicesRefresh(appPath string) error {

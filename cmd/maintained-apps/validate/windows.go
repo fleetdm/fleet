@@ -29,6 +29,10 @@ func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
 }
 
+func assessGatekeeper(_ context.Context, _ *slog.Logger, _ string) error {
+	return nil
+}
+
 // normalizeVersion normalizes version strings for comparison
 // Handles cases like "11.2.1495.0" vs "11.2.1495" by padding with zeros
 func normalizeVersion(version string) string {
