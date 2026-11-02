@@ -213,6 +213,7 @@ func escapeSQLLiteral(s string) string {
 
 // overrides based on uninstall scripts
 var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false positive: values are app process names, not credentials
+	"010 Editor":                        "= '010editor.exe'",
 	"1Password":                         "LIKE '1password%'",
 	"7-zip":                             "IN ('7zfm.exe','7zg.exe')",
 	"Adobe Acrobat Pro":                 "= 'acrobat.exe'",
