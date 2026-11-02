@@ -157,6 +157,38 @@ func TestProgramsExistsWhereClause(t *testing.T) {
 	}
 }
 
+func TestAppsExistsWhereClause(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo';",
+			"bundle_identifier = 'com.example.foo'",
+		},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');",
+			"bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')",
+		},
+		{
+			"select 1 from apps where bundle_identifier = 'org.qgis.qgis3' and path = '/Applications/QGIS-LTR.app'",
+			"bundle_identifier = 'org.qgis.qgis3' and path = '/Applications/QGIS-LTR.app'",
+		},
+		{
+			"SELECT 1 FROM programs WHERE name = 'Foo';",
+			"",
+		},
+		{
+			"SELECT 1 WHERE EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo');",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, appsExistsWhereClause(tc.query), tc.query)
+	}
+}
+
 func TestPatchedQueryVersion(t *testing.T) {
 	testCases := []struct {
 		query string

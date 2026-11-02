@@ -64,17 +64,27 @@ func removeAppQuarantine(appPath string) (bool, error) {
 
 // assessGatekeeper returns an error when Gatekeeper would refuse to launch the
 // installed app, e.g. it's unsigned, unnotarized, or its signature is broken.
-// It assesses the bundles the exists query matches (every macOS exists query
-// matches on the bundle identifier). The new /Applications entry can't be
-// used: it can be a companion app, or missing when the app installs elsewhere.
-func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier string) error {
-	if err := validateSqlInput(bundleIdentifier); err != nil {
-		return fmt.Errorf("Invalid character found in bundle identifier: '%w'. Not assessing Gatekeeper...", err)
+// It assesses the bundles the exists query matches, falling back to the bundle
+// identifier for other query shapes. The bundle identifier alone can miss: the
+// generator never updates it in apps.json, and ChatGPT's exists query also
+// matches com.openai.codex. The new /Applications entry can't be used: it can
+// be a companion app, or missing when the app installs elsewhere.
+func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier, existsQuery string) error {
+	// The WHERE clause comes from the manifest, so it isn't run through
+	// validateSqlInput.
+	var query string
+	if clause := appsExistsWhereClause(existsQuery); clause != "" {
+		query = "SELECT path FROM apps WHERE " + clause + ";"
+	} else {
+		if err := validateSqlInput(bundleIdentifier); err != nil {
+			return fmt.Errorf("Invalid character found in bundle identifier: '%w'. Not assessing Gatekeeper...", err)
+		}
+		query = fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier)
 	}
 
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	output, err := runOsqueryi(execTimeout, fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier))
+	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
 		return fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
 	}
@@ -85,7 +95,7 @@ func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentif
 		return fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		return fmt.Errorf("Gatekeeper assessment found no app with bundle identifier '%s'", bundleIdentifier)
+		return fmt.Errorf("Gatekeeper assessment found no app: %s", query)
 	}
 
 	var rejected []string

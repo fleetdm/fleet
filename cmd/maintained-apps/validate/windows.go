@@ -29,7 +29,7 @@ func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
 }
 
-func assessGatekeeper(_ context.Context, _ *slog.Logger, _ string) error {
+func assessGatekeeper(_ context.Context, _ *slog.Logger, _, _ string) error {
 	return nil
 }
 
