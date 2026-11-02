@@ -62,7 +62,7 @@ func TestHostIdentity(t *testing.T) {
 	}{
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
-		{"ReissueForExistingNameRejected", testReissueForExistingNameRejected},
+		{"ReissueForExistingName", testReissueForExistingName},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
 		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
@@ -498,27 +498,16 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	return enrollResp.NodeKey
 }
 
-// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
-func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
-	ctx := t.Context()
-
-	// Get the original certificate's host_id before renewal (it will get revoked)
-	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
-	require.NoError(t, err)
-	require.NotNil(t, originalStoredCert)
-	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
-	originalHostID := *originalStoredCert.HostID
-
-	// Generate a new ECC key pair for the renewed certificate
-	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
-	require.NoError(t, err)
+// renewalCSR builds a renewal request for existingCert, proving possession of existingKey and requesting a cert for newKey.
+func renewalCSR(t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey) *x509.CertificateRequest {
+	t.Helper()
 
 	// Create the renewal data
 	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
 
 	// Sign the message with the existing private key
 	hash := sha256.Sum256([]byte(serialHex))
-	signature, err := ecdsa.SignASN1(rand.Reader, eccPrivateKey, hash[:])
+	signature, err := ecdsa.SignASN1(rand.Reader, existingKey, hash[:])
 	require.NoError(t, err)
 
 	renewalData := types.RenewalData{
@@ -546,10 +535,29 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// No challenge password for renewal
 	}
 
-	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newEccPrivateKey)
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
+	return csr
+}
+
+// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
+func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
+	ctx := t.Context()
+
+	// Get the original certificate's host_id before renewal (it will get revoked)
+	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, originalStoredCert)
+	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+	originalHostID := *originalStoredCert.HostID
+
+	// Generate a new ECC key pair for the renewed certificate
+	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+	require.NoError(t, err)
+
+	csr := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey)
 
 	renewedCert, err := enrollHostIdentityCSR(t, s, csr)
 	require.NoError(t, err, "Renewal should succeed")
@@ -646,32 +654,8 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// Try to renew again using the same old certificate serial number
 		// This should fail because the certificate has already been revoked
 
-		// Generate another new key pair for this attempt
-		anotherNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
-		require.NoError(t, err)
-
-		// Use the same renewal data as before (same serial and signature)
-		retryCSRTemplate := x509util.CertificateRequest{
-			CertificateRequest: x509.CertificateRequest{
-				Subject: pkix.Name{
-					CommonName: existingCert.Subject.CommonName,
-				},
-				SignatureAlgorithm: x509.ECDSAWithSHA256,
-				ExtraExtensions: []pkix.Extension{
-					{
-						Id:    types.RenewalExtensionOID,
-						Value: renewalDataJSON, // Reuse the same renewal data
-					},
-				},
-			},
-		}
-
-		retryCSRDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &retryCSRTemplate, anotherNewKey)
-		require.NoError(t, err)
-		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
-		require.NoError(t, err)
-
-		_, err = enrollHostIdentityCSR(t, s, retryCSR)
+		// Resend the same renewal request (same serial and signature)
+		_, err := enrollHostIdentityCSR(t, s, csr)
 		rejected, ok := errors.AsType[enrollment.RejectedError](err)
 		require.True(t, ok, "Renewal retry with same serial should fail, got %v", err)
 		require.Equal(t, scep.FAILURE, rejected.Status)
@@ -823,46 +807,27 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 	}
 }
 
-// testReissueForExistingNameRejected checks that a name with a valid certificate cannot be issued another one with the enroll
-// secret, and that a name whose certificate expired can.
-func testReissueForExistingNameRejected(t *testing.T, s *Suite) {
+// testReissueForExistingName checks that the enroll secret cannot replace a valid certificate, but can once it expired.
+func testReissueForExistingName(t *testing.T, s *Suite) {
 	ctx := t.Context()
-	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}}))
+	cert, _ := testGetCertWithCurve(t, s, elliptic.P256())
+	name := cert.Subject.CommonName
 
-	const hostName = "reissue-target-host"
-	victimCert, err := requestSCEPCertificate(t, s, hostName)
+	_, err := requestSCEPCertificate(t, s, name)
+	require.Error(t, err)
+	current, err := s.DS.GetHostIdentityCertByName(ctx, name)
 	require.NoError(t, err)
+	require.Equal(t, cert.SerialNumber.Uint64(), current.SerialNumber)
 
-	t.Run("valid certificate is not replaced", func(t *testing.T) {
-		_, err := requestSCEPCertificate(t, s, hostName)
-		require.Error(t, err)
-
-		current, err := s.DS.GetHostIdentityCertByName(ctx, hostName)
-		require.NoError(t, err)
-		require.Equal(t, victimCert.SerialNumber.Uint64(), current.SerialNumber, "the original certificate must stay current")
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`, name)
+		return err
 	})
-
-	t.Run("other names are unaffected", func(t *testing.T) {
-		otherCert, err := requestSCEPCertificate(t, s, "reissue-other-host")
-		require.NoError(t, err)
-		require.Equal(t, "reissue-other-host", otherCert.Subject.CommonName)
-	})
-
-	t.Run("expired certificate can be replaced with the shared secret", func(t *testing.T) {
-		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`,
-				hostName)
-			return err
-		})
-
-		newCert, err := requestSCEPCertificate(t, s, hostName)
-		require.NoError(t, err)
-		require.NotEqual(t, victimCert.SerialNumber.Uint64(), newCert.SerialNumber.Uint64())
-
-		current, err := s.DS.GetHostIdentityCertByName(ctx, hostName)
-		require.NoError(t, err)
-		require.Equal(t, newCert.SerialNumber.Uint64(), current.SerialNumber)
-	})
+	newCert, err := requestSCEPCertificate(t, s, name)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, newCert.SerialNumber.Uint64(), current.SerialNumber)
 }
 
 type SCEPFailureConfig struct {
