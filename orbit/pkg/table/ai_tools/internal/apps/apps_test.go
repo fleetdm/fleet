@@ -54,10 +54,14 @@ func TestMatchKnown(t *testing.T) {
 		{[]string{"Muse.app", "Muse", "com.meta.endo"}, true, "meta-muse", 0},
 
 		{[]string{"Museeks"}, false, "", 0},
+		{[]string{"Museeks.app", "Museeks", "com.electron.museeks"}, false, "", 0},
 		{[]string{"MuseScore 4"}, false, "", 0},
+		{[]string{"MuseScore.app", "MuseScore", "org.musescore.MuseScore"}, false, "", 0},
 		{[]string{"Muse Hub"}, false, "", 0},
+		{[]string{"GranolaBar"}, false, "", 0},
 		{[]string{"grok"}, false, "", 0},
 		{[]string{".grok"}, false, "", 0},
+		{[]string{"grok.exe"}, false, "", 0},
 	}
 	for _, c := range cases {
 		k, ok := matchKnown(c.tokens...)
