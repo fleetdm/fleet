@@ -24,9 +24,7 @@ If you need SSO for apps and websites, use Okta's integration. If you only need 
 - Okta admin access to create an app integration and assign an authentication policy.
 - A fleet or a [label](https://fleetdm.com/guides/managing-labels-in-fleet) that holds only your test Macs.
 
-The Macs don't need to have enrolled through ADE. Fleet tested this workflow on a manually enrolled Mac.
-
-Managed Apple Accounts aren't required. If you plan to roll them out, the Penn State MacAdmins talk [on Managed Apple Accounts](https://www.youtube.com/watch?v=skCvQ1JjMt8) is a good place to start.
+The Macs don't need to have enrolled through ADE.
 
 ## Step 1: Create a password sync app in Okta
 
@@ -64,8 +62,6 @@ software:
 ```
 
 > **Note:** This is the standalone Fleet Desktop app (`com.fleetdm.fleet-desktop`), not the Fleet Desktop menu bar item that ships with fleetd. The two can be installed side by side. The Platform SSO extension is only in the standalone app.
-
-You don't need to add Fleet Desktop to setup experience for this workflow. Setup experience only runs on new Macs.
 
 ## Step 4: Deploy the configuration profile
 
@@ -112,7 +108,7 @@ On a test Mac:
 
 ## Roll out to the rest of your Macs
 
-When your test Macs pass, widen the rollout in stages. Add more hosts to your label, or move the label targeting from Fleet Desktop and the profile to the fleets you want. Watch your help desk queue after each stage before you expand again.
+When your test Macs pass, widen the rollout in stages. Add more hosts to your label, or move the label targeting from Fleet Desktop and the profile to the fleets you want.
 
 ## Troubleshoot
 
@@ -144,7 +140,6 @@ This is expected for up to 4 hours. macOS checks the password with Okta when its
 
 - [Deploying Apple account provisioning with Fleet](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet)
 - [Deploying Platform SSO with Okta Device Access](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet)
-- [Use a canary fleet to catch fleetd conflicts before they reach production](https://fleetdm.com/guides/canary-fleet-for-fleetd-updates)
 - [Apple's Extensible Single Sign-On profile reference](https://developer.apple.com/documentation/devicemanagement/extensiblesinglesignon)
 
 <meta name="articleTitle" value="Sync macOS passwords with Okta on Macs that are already set up">
