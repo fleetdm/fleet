@@ -5737,7 +5737,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if fleet.IsNotFound(err) || enrollChallenge == nil {
 			// This should never happen, but we skip IDP assocation.
 			svc.logger.ErrorContext(r.Context, "no enrollment challenge found for User (Device) enrollment",
-				"host_uuid", r.ID, "challenge", challenge)
+				"host_uuid", r.ID)
+		} else if reason := adueCertBindingMismatch(r.Certificate, enrollChallenge.IdPAccountUUID); reason != "" {
+			// The bearer is device-supplied, so it only picks the IdP account that the enrollment certificate was issued for.
+			svc.logger.ErrorContext(r.Context, "skipping IdP association for User (Device) enrollment",
+				"host_uuid", r.ID, "account_uuid", enrollChallenge.IdPAccountUUID, "reason", reason)
 		} else {
 			idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, enrollChallenge.IdPAccountUUID)
 			if err != nil && !fleet.IsNotFound(err) {

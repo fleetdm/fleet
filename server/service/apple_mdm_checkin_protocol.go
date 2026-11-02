@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -303,6 +304,24 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 // boundMatches reports whether a value bound in the certificate is set and equals the claimed one.
 func boundMatches(bound *string, claimed string) bool {
 	return bound != nil && *bound != "" && *bound == claimed
+}
+
+// adueCertBindingMismatch returns why cert isn't bound to idpAccountUUID, or "" when it is.
+func adueCertBindingMismatch(cert *x509.Certificate, idpAccountUUID string) string {
+	if cert == nil {
+		return "no enrollment certificate"
+	}
+	data, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(cert)
+	if err != nil {
+		return "invalid certificate binding extension: " + err.Error()
+	}
+	if data == nil || data.Purpose != fleet.AppleMDMCertPurposeADUE {
+		return "certificate binding is not for account-driven user enrollment"
+	}
+	if !boundMatches(data.IDPAccountUUID, idpAccountUUID) {
+		return "IdP account does not match certificate binding"
+	}
+	return ""
 }
 
 func (s *certVerifierEnrollmentCheckinService) reject(r *mdm.Request, m *mdm.Authenticate, binding *apple_mdm.AppleMDMCertificateBindingExtension, reason string) error {
