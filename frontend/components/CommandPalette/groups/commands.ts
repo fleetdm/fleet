@@ -33,6 +33,7 @@ const buildCommandsItems = (
   const {
     hasTeamOrUnassigned,
     isGitOpsMode,
+    isSoftwareGitOpsMode,
     switchesFromUnassigned,
     switchesFromAllFleets,
     defaultDestination,
@@ -333,26 +334,30 @@ const buildCommandsItems = (
                     "python",
                   ],
                 },
-                {
-                  id: "add-self-service-category",
-                  label: "Add self-service category",
-                  group: "Commands" as const,
-                  // SelfServiceCategoriesPage opens its Add modal on
-                  // `?add_category=1`, mirroring the Variables/Scripts pattern.
-                  path: withTeamId(
-                    `${paths.SOFTWARE_LIBRARY_CATEGORIES}?add_category=1`
-                  ),
-                  keywords: [
-                    "add category",
-                    "create category",
-                    "new category",
-                    "self service",
-                    "self-service",
-                    "create self-service category",
-                    "new self-service category",
-                    "categories",
-                  ],
-                },
+                ...(!isSoftwareGitOpsMode
+                  ? [
+                      {
+                        id: "add-self-service-category",
+                        label: "Add self-service category",
+                        group: "Commands" as const,
+                        // SelfServiceCategoriesPage opens its Add modal on
+                        // `?add_category=1`, mirroring the Variables/Scripts pattern.
+                        path: withTeamId(
+                          `${paths.SOFTWARE_LIBRARY_CATEGORIES}?add_category=1`
+                        ),
+                        keywords: [
+                          "add category",
+                          "create category",
+                          "new category",
+                          "self service",
+                          "self-service",
+                          "create self-service category",
+                          "new self-service category",
+                          "categories",
+                        ],
+                      },
+                    ]
+                  : []),
               ]
             : []),
           // Script and variable actions require a team or unassigned
