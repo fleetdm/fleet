@@ -134,8 +134,8 @@
   },
   {
     "software": {
-      "name": ["/(?i)^brotli$/"],
-      "source": ["python_packages"]
+      "name": ["Brotli", "brotli"],
+      "source": ["python_packages", "homebrew_packages"]
     },
     "filter": {
       "product": ["brotli"],

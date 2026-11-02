@@ -1,14 +1,17 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -317,9 +320,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
-// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
-var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
-
 // PayloadDisplayNameFromMobileconfig returns the top-level PayloadDisplayName
 // of a raw .mobileconfig, or "" when it can't be parsed (for example a stored
 // profile whose <data> still holds an unexpanded secret). A regex won't do:
@@ -332,19 +332,98 @@ func PayloadDisplayNameFromMobileconfig(raw []byte) string {
 	return strings.TrimSpace(parsed.PayloadDisplayName)
 }
 
-// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
-// in the raw XML content of a profile.
+// ValidateNoSecretsInProfileName checks if any PayloadDisplayName in the raw XML content of a profile,
+// at any depth, contains FLEET_SECRET_ variables.
 func ValidateNoSecretsInProfileName(xmlContent []byte) error {
-	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
-			displayName := string(match[1])
-			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
-				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadDisplayName", false)
+}
+
+// ValidateNoSecretsInProfileIdentifier checks if the top-level PayloadIdentifier in the raw XML content of
+// a profile contains FLEET_SECRET_ variables. Nested payload identifiers aren't stored, so they may use them.
+func ValidateNoSecretsInProfileIdentifier(xmlContent []byte) error {
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadIdentifier", true)
+}
+
+// ValidateNoSecretsInDeclarationIdentifier checks if the Identifier of a raw declaration or activation contains
+// FLEET_SECRET_ variables. The stored identifier is read from it after its secrets are expanded.
+func ValidateNoSecretsInDeclarationIdentifier(rawJSON []byte) error {
+	var decl struct{ Identifier string }
+	if err := json.Unmarshal([]byte(secretsOutsideJSONStringsAsZero(string(rawJSON))), &decl); err != nil {
+		// Not valid JSON: left to the parse of the expanded declaration to reject.
+		return nil
+	}
+	if len(ContainsPrefixVars(decl.Identifier, ServerSecretPrefix)) > 0 {
+		return errors.New("Identifier cannot contain FLEET_SECRET variables")
+	}
+	return nil
+}
+
+// secretsOutsideJSONStringsAsZero replaces FLEET_SECRET_ variables outside JSON strings with 0, so a declaration that
+// uses one as a number or boolean can be read before its secrets are expanded.
+func secretsOutsideJSONStringsAsZero(rawJSON string) string {
+	inString := make([]bool, len(rawJSON))
+	var in, escaped bool
+	for i := 0; i < len(rawJSON); i++ {
+		inString[i] = in
+		switch {
+		case escaped:
+			escaped = false
+		case in && rawJSON[i] == '\\':
+			escaped = true
+		case rawJSON[i] == '"':
+			in = !in
+		}
+	}
+	return MaybeExpand(rawJSON, func(name string, start, _ int) (string, bool) {
+		if inString[start] || !strings.HasPrefix(name, ServerSecretPrefix) {
+			return "", false
+		}
+		return "0", true
+	})
+}
+
+// validateNoSecretsInProfileKey reads keys and values the way the plist parser reads them, which drops
+// comments and decodes CDATA and character references, because the stored name and identifier are parsed
+// from the profile after its secrets are expanded.
+func validateNoSecretsInProfileKey(xmlContent []byte, key string, topLevelOnly bool) error {
+	dec := xml.NewDecoder(bytes.NewReader(xmlContent))
+	// The parser takes the first dictionary as the profile, with or without a <plist> around it.
+	var depth, topLevelDepth int
+	var valueNext bool
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			// Not valid XML: left to the parse of the expanded profile to reject.
+			return nil
+		}
+		switch el := tok.(type) {
+		case xml.EndElement:
+			depth--
+		case xml.StartElement:
+			switch {
+			case el.Name.Local == "key":
+				var k string
+				if err := dec.DecodeElement(&k, &el); err != nil {
+					return nil
+				}
+				valueNext = k == key && (!topLevelOnly || depth == topLevelDepth)
+			case valueNext:
+				valueNext = false
+				var value string
+				if err := dec.DecodeElement(&value, &el); err != nil {
+					return nil
+				}
+				if len(ContainsPrefixVars(value, ServerSecretPrefix)) > 0 {
+					return fmt.Errorf("%s cannot contain FLEET_SECRET variables", key)
+				}
+			default:
+				depth++
+				if el.Name.Local == "dict" && topLevelDepth == 0 {
+					topLevelDepth = depth
+				}
 			}
 		}
 	}
-	return nil
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomFileVault bool) error {
@@ -737,15 +816,17 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
+	TeamID                                            *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication                       *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually                       *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall                                *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows                         *bool   `json:"require_all_software_windows"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        *bool   `json:"macos_enable_bootstrap_package_during_migration"`
+	LockEndUserInfo                                   *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount                         *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType                           *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -2228,4 +2309,12 @@ type AppleSCEPChallengeInfo struct {
 	UUID           *string             `db:"host_uuid"`
 	Serial         *string             `db:"hardware_serial"`
 	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}
+
+// BootstrapPackageDuringMigrationEnvEnabled reports whether FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION
+// forces the bootstrap package to be installed during MDM migrations, regardless of the
+// macos_enable_bootstrap_package_during_migration setting.
+func BootstrapPackageDuringMigrationEnvEnabled() bool {
+	v := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+	return v == "1" || strings.EqualFold(v, "true")
 }

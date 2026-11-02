@@ -149,7 +149,7 @@ running=true
 [[ "$mode" == not-running ]] && running=false
 stat() { echo alice; }
 realpath() { echo /tmp/fleet-test/installer; }
-unzip() { :; }
+ditto() { :; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 open() { :; }

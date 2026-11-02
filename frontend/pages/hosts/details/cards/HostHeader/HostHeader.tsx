@@ -229,7 +229,13 @@ const HostHeader = ({
   }
 
   const renderDeviceStatusTag = () => {
-    if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
+    if (
+      !hostMdmDeviceStatus ||
+      hostMdmDeviceStatus === "unlocked" ||
+      hostMdmDeviceStatus === "unenrolling"
+    ) {
+      return null;
+    }
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
     const title = tag.title;

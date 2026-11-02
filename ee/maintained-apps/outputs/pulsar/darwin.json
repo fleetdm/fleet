@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.133.0",
+      "version": "1.133.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.pulsar-edit.pulsar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.pulsar-edit.pulsar' AND version_compare(bundle_short_version, '1.133.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.pulsar-edit.pulsar' AND version_compare(bundle_short_version, '1.133.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.pulsar-edit.pulsar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/pulsar-edit/pulsar/releases/download/v1.133.0/Silicon.Mac.Pulsar-1.133.0-arm64.dmg",
+      "installer_url": "https://github.com/pulsar-edit/pulsar/releases/download/v1.133.1/Silicon.Mac.Pulsar-1.133.1-arm64.dmg",
       "install_script_ref": "912e2722",
       "uninstall_script_ref": "ee5e6132",
-      "sha256": "dcf41b070bff42677490ee74f97242110de23df3579f26ed7e71d5548700f627",
+      "sha256": "93f42641b58669a1aba5b306a26a6043cf8e3ec12b7813133db511df33e9338c",
       "default_categories": [
         "Productivity"
       ]

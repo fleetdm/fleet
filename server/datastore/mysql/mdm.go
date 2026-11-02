@@ -2500,7 +2500,12 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 	}
 
 	// update the status to NULL to trigger resending on the next cron run
-	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE host_uuid = ? AND %s = ?`, table, column)
+	setRetries := ""
+	if table == "host_mdm_apple_profiles" {
+		// A resend starts a new retry budget for verification.
+		setRetries = ", retries = 0"
+	}
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE host_uuid = ? AND %s = ?`, table, setRetries, column)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, updateStmt, hostUUID, profUUID)
@@ -2800,7 +2805,12 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	}
 
 	// update the status to NULL to trigger resending on the next cron run
-	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE %s = ? AND status = ?`, table, column)
+	setRetries := ""
+	if table == "host_mdm_apple_profiles" {
+		// A resend starts a new retry budget for verification.
+		setRetries = ", retries = 0"
+	}
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE %s = ? AND status = ?`, table, setRetries, column)
 
 	var count int64
 	var windowsHostUUIDs []string

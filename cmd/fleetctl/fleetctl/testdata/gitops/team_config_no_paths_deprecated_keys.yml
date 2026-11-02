@@ -56,6 +56,8 @@ controls:
     enable_release_device_manually: false
     script: ./lib/setup_script.sh
     manual_agent_install: false
+    macos_enable_bootstrap_package_during_manual_enrollment: true
+    macos_enable_bootstrap_package_during_migration: true
   macos_updates:
     deadline: null
     minimum_version: null
