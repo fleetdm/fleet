@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -20,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	_ "github.com/mattn/go-sqlite3"
@@ -6444,6 +6447,128 @@ func TestAIToolsProcessResults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := AIToolsProcessResults(tc.platform, tc.main, tc.ai)
 			require.Equal(t, tc.want, summarize(got))
+		})
+	}
+}
+
+// TestLuksVerifyQuerySelectsRootLUKSDevice runs the LUKS verification SQL against sqlite,
+// which osquery embeds, over lsblk output flattened the way orbit's lsblk table does it.
+func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
+	// Captured from an Omarchy 4 VM (util-linux 2.42): the btrfs root device lists
+	// "/home" as its mountpoint and "/" only under "mountpoints".
+	omarchy, err := os.ReadFile("testdata/lsblk-omarchy.json")
+	require.NoError(t, err)
+
+	// "/" is the regular mountpoint, two hops below the LUKS container.
+	lvmOnLUKS := `{"blockdevices": [
+		{"path": "/dev/nvme0n1", "kname": "nvme0n1", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/nvme0n1p1", "kname": "nvme0n1p1", "pkname": "nvme0n1", "fstype": "vfat", "mountpoint": "/boot", "mountpoints": ["/boot"]},
+			{"path": "/dev/nvme0n1p2", "kname": "nvme0n1p2", "pkname": "nvme0n1", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/cryptlvm", "kname": "dm-0", "pkname": "nvme0n1p2", "fstype": "LVM2_member", "mountpoint": null, "mountpoints": [null],
+				 "children": [
+					{"path": "/dev/mapper/vg-swap", "kname": "dm-1", "pkname": "dm-0", "fstype": "swap", "mountpoint": "[SWAP]", "mountpoints": ["[SWAP]"]},
+					{"path": "/dev/mapper/vg-root", "kname": "dm-2", "pkname": "dm-0", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]}
+				 ]}
+			 ]}
+		 ]}
+	]}`
+
+	// util-linux before 2.37 has no "mountpoints" column.
+	legacy := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null,
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "vfat", "mountpoint": "/boot/efi"},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null,
+			 "children": [
+				{"path": "/dev/mapper/root", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/"}
+			 ]}
+		 ]}
+	]}`
+
+	// LUKS exists but holds /home, not the root filesystem.
+	unencryptedRoot := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/home", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/home", "mountpoints": ["/home"]}
+			 ]}
+		 ]}
+	]}`
+
+	ds := new(mock.Store)
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return &fleet.HostDiskEncryptionKey{HostID: hostID}, nil
+	}
+	host := &fleet.Host{ID: 1, Platform: "omarchy", OrbitNodeKey: ptr.String("node-key")}
+	query, ok := luksVerifyQuery.QueryFunc(t.Context(), slog.New(slog.DiscardHandler), host, ds)
+	require.True(t, ok)
+
+	for _, tc := range []struct {
+		name  string
+		lsblk []byte
+		want  string // LUKS device whose salt the query must return, empty for no rows
+	}{
+		{"btrfs root with subvolumes (Omarchy)", omarchy, "/dev/vda2"},
+		{"LVM on LUKS", []byte(lvmOnLUKS), "/dev/nvme0n1p2"},
+		{"legacy lsblk without mountpoints", []byte(legacy), "/dev/sda2"},
+		{"unencrypted root", []byte(unencryptedRoot), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			_, err = db.Exec(`CREATE TABLE lsblk (fullkey TEXT, parent TEXT, key TEXT, value TEXT, query TEXT)`)
+			require.NoError(t, err)
+			_, err = db.Exec(`CREATE TABLE cryptsetup_luks_salt (device TEXT, key_slot TEXT, salt TEXT)`)
+			require.NoError(t, err)
+
+			flattened, err := dataflatten.Json(tc.lsblk, dataflatten.WithQuery([]string{"*"}))
+			require.NoError(t, err)
+			for _, row := range dataflattentable.ToMap(flattened, "*", nil) {
+				_, err = db.Exec(`INSERT INTO lsblk VALUES (?, ?, ?, ?, ?)`,
+					row["fullkey"], row["parent"], row["key"], row["value"], row["query"])
+				require.NoError(t, err)
+			}
+
+			// A salt for every LUKS container so the test fails if the wrong one is picked.
+			rows, err := db.Query(`SELECT DISTINCT parent FROM lsblk WHERE key = 'fstype' AND value = 'crypto_LUKS'`)
+			require.NoError(t, err)
+			var luksParents []string
+			for rows.Next() {
+				var p string
+				require.NoError(t, rows.Scan(&p))
+				luksParents = append(luksParents, p)
+			}
+			require.NoError(t, rows.Err())
+			require.NoError(t, rows.Close())
+			for _, p := range luksParents {
+				var device string
+				require.NoError(t, db.QueryRow(`SELECT value FROM lsblk WHERE parent = ? AND key = 'path'`, p).Scan(&device))
+				_, err = db.Exec(`INSERT INTO cryptsetup_luks_salt VALUES (?, '1', ?)`, device, "salt-for-"+device)
+				require.NoError(t, err)
+			}
+
+			rows, err = db.Query(query)
+			require.NoError(t, err)
+			defer rows.Close()
+			var got []string
+			for rows.Next() {
+				var salt, keySlot string
+				require.NoError(t, rows.Scan(&salt, &keySlot))
+				got = append(got, salt)
+			}
+			require.NoError(t, rows.Err())
+
+			if tc.want == "" {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, []string{"salt-for-" + tc.want}, got)
 		})
 	}
 }
