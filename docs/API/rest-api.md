@@ -3705,6 +3705,9 @@ None.
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
+- [List host's AI sessions](#list-hosts-ai-sessions)
+- [Get host's AI session](#get-hosts-ai-session)
+- [List host's AI session events](#list-hosts-ai-session-events)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live report on host (ad hoc)](#run-live-report-on-host-ad-hoc)
@@ -7985,6 +7988,264 @@ For a pending script run (e.g. the scripts that back lock on Windows/Linux and w
 ##### Default response
 
 `Status: 204`
+
+### List host's AI sessions
+
+_Available in Fleet Premium._
+
+Lists the AI coding agent sessions on a host. Available for macOS, Windows, and Linux hosts.
+
+Only admins and maintainers, globally or of the host's fleet, can see AI sessions, because commands and their arguments can include secrets.
+
+Hosts report the sessions that started in the last 30 days. Fleet keeps each session for 30 days after it started, even after its transcript is gone from the host.
+
+Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_cli`), Cursor (`cursor`), OpenAI Codex CLI (`codex_cli`), and Gemini CLI (`gemini_cli`).
+
+`GET /api/v1/fleet/hosts/:id/ai_sessions`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| query | string | query | Search query keywords. Searchable fields include `username`, `project_path`, `git_repository`, and `model`. |
+| agent | string | query | Filters to only include sessions from the specified agent. Options include `"claude_code"`, `"copilot_cli"`, `"cursor"`, `"codex_cli"`, and `"gemini_cli"`. |
+| category | string | query | Filters to only include sessions with at least one tool call in the specified category. Options include `"command"` and `"file_access"`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Default is `50`.|
+| order_key | string | query | What to order results by. Options include `"started_at"`, `"ended_at"`, `"agent"`, `"username"`, `"model"`, and `"output_token_count"`. Default is `"ended_at"`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+`agent_session_id` is the agent's own identifier for the session. `username` is the local account whose home directory holds the session.
+
+`account_identifier` is the account the agent is signed in with, taken from the agent's own config files. It's usually an email address, or a GitHub username for Copilot CLI. When the agent records no user, it's how the agent authenticates instead, such as `API KEY` or a provider name such as `bedrock` or `vertex`. Users can edit their agent's config files, so `account_identifier` isn't a verified identity.
+
+Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts, and `null` for timestamps. For example, Cursor doesn't record `model` or token counts, and Gemini CLI doesn't record `agent_version`. For Cursor, `started_at` is when the session was created, and it's `null` only when that's unknown.
+
+`user_message_count` only includes prompts a person typed. Tool results sent back to the model aren't included. `assistant_message_count`, `tool_call_count`, and `transcript_size` include sub-agents'.
+
+`categories` lists every category of the session's tool calls that Fleet has collected. See [List host's AI session events](#list-hosts-ai-session-events) for how categories are assigned.
+
+`backfill` is `true` while Fleet is still collecting tool calls the session made before Fleet first saw it, such as when a host first reports its sessions. Fleet collects these a few at a time, so the session can list fewer events than `tool_call_count` for a while.
+
+`input_token_count` only includes uncached input tokens. Tokens read from and written to the prompt cache are reported in `cache_read_token_count` and `cache_write_token_count`.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/ai_sessions?per_page=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "ai_sessions": [
+    {
+      "id": 1042,
+      "host_id": 123,
+      "agent": "claude_code",
+      "agent_version": "2.1.4",
+      "agent_session_id": "5d1f26db-93ed-4161-9cd9-3eafded86d89",
+      "username": "anna",
+      "account_identifier": "anna@example.com",
+      "model": "claude-opus-4-6",
+      "project_path": "/Users/anna/code/fleet",
+      "git_repository": "",
+      "git_branch": "main",
+      "started_at": "2026-10-12T15:02:11Z",
+      "ended_at": "2026-10-12T16:47:39Z",
+      "user_message_count": 14,
+      "assistant_message_count": 96,
+      "tool_call_count": 81,
+      "categories": ["command", "file_access"],
+      "backfill": false,
+      "input_token_count": 18342,
+      "output_token_count": 52117,
+      "cache_read_token_count": 4210983,
+      "cache_write_token_count": 312455,
+      "transcript_path": "/Users/anna/.claude/projects/-Users-anna-code-fleet/5d1f26db-93ed-4161-9cd9-3eafded86d89.jsonl",
+      "transcript_size": 2483915
+    },
+    {
+      "id": 1037,
+      "host_id": 123,
+      "agent": "cursor",
+      "agent_version": "",
+      "agent_session_id": "b7e2c9a4-1f3d-4e8a-9c6b-0d5f2a7e8b13",
+      "username": "anna",
+      "account_identifier": "anna@example.com",
+      "model": "",
+      "project_path": "/Users/anna/code/website",
+      "git_repository": "",
+      "git_branch": "",
+      "started_at": "2026-10-09T20:51:37Z",
+      "ended_at": "2026-10-09T21:18:04Z",
+      "user_message_count": 6,
+      "assistant_message_count": 31,
+      "tool_call_count": 22,
+      "categories": ["file_access"],
+      "backfill": false,
+      "input_token_count": 0,
+      "output_token_count": 0,
+      "cache_read_token_count": 0,
+      "cache_write_token_count": 0,
+      "transcript_path": "/Users/anna/.cursor/projects/Users-anna-code-website/agent-transcripts/b7e2c9a4-1f3d-4e8a-9c6b-0d5f2a7e8b13/b7e2c9a4-1f3d-4e8a-9c6b-0d5f2a7e8b13.jsonl",
+      "transcript_size": 318204
+    }
+  ],
+  "count": 18,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's AI session
+
+_Available in Fleet Premium._
+
+Returns an AI coding agent session on a host.
+
+Only admins and maintainers, globally or of the host's fleet, can see AI sessions.
+
+`GET /api/v1/fleet/hosts/:id/ai_sessions/:ai_session_id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| ai_session_id | integer | path | **Required**. The ID of the AI session. |
+
+See [List host's AI sessions](#list-hosts-ai-sessions) for how each field is reported.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/ai_sessions/1043`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "ai_session": {
+    "id": 1043,
+    "host_id": 123,
+    "agent": "copilot_cli",
+    "agent_version": "0.0.354",
+    "agent_session_id": "e4a1d0c2-7b9f-4c3e-a6d8-25f1b0c9e7a4",
+    "username": "anna",
+    "account_identifier": "anna-gh",
+    "model": "gpt-5",
+    "project_path": "/Users/anna/code/fleet",
+    "git_repository": "fleetdm/fleet",
+    "git_branch": "51825-api-design",
+    "started_at": "2026-10-13T09:14:52Z",
+    "ended_at": "2026-10-13T09:41:20Z",
+    "user_message_count": 5,
+    "assistant_message_count": 27,
+    "tool_call_count": 19,
+    "categories": ["command", "file_access"],
+    "backfill": false,
+    "input_token_count": 41820,
+    "output_token_count": 9634,
+    "cache_read_token_count": 388102,
+    "cache_write_token_count": 0,
+    "transcript_path": "/Users/anna/.copilot/session-state/e4a1d0c2-7b9f-4c3e-a6d8-25f1b0c9e7a4/events.jsonl",
+    "transcript_size": 412876
+  }
+}
+```
+
+### List host's AI session events
+
+_Available in Fleet Premium._
+
+Lists the tool calls an AI coding agent made during a session, in the order they ran.
+
+Only admins and maintainers, globally or of the host's fleet, can see AI sessions.
+
+Fleet collects a session's tool calls on the refresh after it collects the session, so they can trail the session by a refresh (one hour by default). Fleet stops collecting a session's tool calls once its transcript is gone from the host.
+
+`GET /api/v1/fleet/hosts/:id/ai_sessions/:ai_session_id/events`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| ai_session_id | integer | path | **Required**. The ID of the AI session. |
+| category | string | query | Filters to only include events in the specified category. Options include `"command"` and `"file_access"`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Default is `50`.|
+
+`categories` is `["command"]` for a tool call that runs a shell command, and `["file_access"]` for one that reads, writes, or searches files. Other tool calls, such as network requests and calls to MCP servers, have an empty array. No event is in both categories.
+
+`target` is what the tool call was asked to do: the command's first line, the file read or written, the search pattern, or `<server>: <tool>` for a call to an MCP server. It's up to 256 bytes.
+
+`decision` is the tool call's outcome: `"allowed"`, `"denied"` (the user, a permission rule, or a hook refused it), `"error"` (it failed or was interrupted), or `""` if the agent didn't record a result. Cursor doesn't record results, so its tool calls always have an empty `decision`.
+
+`executed_at` is when the agent recorded the tool call. For Cursor, it's when the prompt was sent, to the minute, and it's `null` only when that's unknown.
+
+`payload` is the tool call's `name`, `id`, and arguments (`input`). The tools and their arguments depend on the agent. `input` is a JSON object or array when the agent recorded the arguments as JSON, and a string otherwise. Cursor doesn't record tool call IDs, so `id` is empty.
+
+`truncated` is `true` when the arguments were larger than 8 KB and were cut to fit. Fleet shortens the longest string values in `input`, so JSON arguments stay valid JSON.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/ai_sessions/1042/events?per_page=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "events": [
+    {
+      "id": 88213,
+      "categories": ["command"],
+      "target": "cat .env.local | grep API_",
+      "decision": "allowed",
+      "executed_at": "2026-10-12T15:19:48Z",
+      "payload": {
+        "name": "Bash",
+        "id": "toolu_01r3gER52KtF6xugpshqxkZ4",
+        "input": {
+          "command": "cat .env.local | grep API_",
+          "description": "Check API environment variables"
+        }
+      },
+      "truncated": false
+    },
+    {
+      "id": 88214,
+      "categories": ["file_access"],
+      "target": "refreshToken",
+      "decision": "allowed",
+      "executed_at": "2026-10-12T15:20:14Z",
+      "payload": {
+        "name": "Grep",
+        "id": "toolu_01Hq7vXb2cM9tN4pLwRz8sKd",
+        "input": {
+          "pattern": "refreshToken",
+          "path": "src/"
+        }
+      },
+      "truncated": false
+    }
+  ],
+  "count": 38,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
 
 ### Add labels to host
 
