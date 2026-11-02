@@ -102,6 +102,22 @@ describe("EnrollmentAttemptDetailsModal", () => {
     );
   });
 
+  it("explains an enrollment that presented the UUID of a host with MDM turned on", () => {
+    renderModal({
+      hostDisplayName: "Anna's MacBook Pro",
+      reason: "uuid_of_another_mdm_host",
+    });
+    expect(
+      screen.getByText(/Fleet rejected an enrollment for/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/presented this host's hardware UUID/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/not valid for this host/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("falls back to the serial number when there is no display name", () => {
     renderModal({ hostSerial: "C02ABC", reason: "one_time_secret_spent" });
     expect(screen.getByText(/a host with serial number/i)).toBeInTheDocument();

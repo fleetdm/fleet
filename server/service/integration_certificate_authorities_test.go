@@ -1697,6 +1697,11 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			fleet.ActivityEditedSmallstep{}.ActivityName(), fleet.ActivityEditedGoogleCAS{}.ActivityName(),
 		}, newTypes)
 
+		// Applying the same CAs again changes nothing, so no activity is recorded.
+		lastID = s.lastActivityMatches("", "", 0)
+		apply(named("case_x"), http.StatusOK)
+		s.lastActivityMatches("", "", lastID)
+
 		duplicates := named("DUP_X", "dup_x")
 		for _, tc := range []struct {
 			caType, displayType string

@@ -18,7 +18,12 @@ import (
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
-var preInstalled = []string{}
+var preInstalled = []string{
+	// The runner image installs Edge from the same enterprise MSI the FMA ships.
+	// When both are the same version, msiexec /i runs in maintenance mode and
+	// fails with 1603, so remove the image's copy first.
+	"microsoft-edge/windows",
+}
 
 func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
