@@ -82,6 +82,12 @@ try {
             Exit $exitCode
         }
 
+        # Keep the uninstaller for a retry if it left its registration behind.
+        if (Test-Path -LiteralPath $entry.PSPath) {
+            Write-Host "Global VPN Client is still registered after uninstall."
+            Exit 1
+        }
+
         # Running in place leaves the uninstaller itself behind.
         Remove-Item -LiteralPath $exePath -Force -ErrorAction SilentlyContinue
         if ((Test-Path -LiteralPath $installDir) -and -not (Get-ChildItem -LiteralPath $installDir -Force -ErrorAction SilentlyContinue)) {
