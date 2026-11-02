@@ -1,0 +1,10 @@
+{
+  "name": "Appium Inspector GUI",
+  "unique_identifier": "io.appium.inspector",
+  "token": "appium-inspector",
+  "installer_format": "zip",
+  "slug": "appium-inspector/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
