@@ -388,6 +388,10 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 	if err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInProfileIdentifier(data); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
 
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
@@ -959,6 +963,10 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()), "expanding activation secrets")
 	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInDeclarationIdentifier(activation); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()))
+	}
 
 	// Same allowlist as the declarations they activate.
 	actVars, err := validateDeclarationFleetVariables(expanded, lic)
@@ -1110,6 +1118,10 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, nil, "", fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInDeclarationIdentifier(data); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
@@ -3961,6 +3973,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"missing fleet secrets")
 		}
+		// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+		if err := fleet.ValidateNoSecretsInProfileIdentifier(prof); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
+		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(prof)}); err != nil {
 			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
 				return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
@@ -5950,6 +5967,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 
+		return nil, nil
+	}
+
+	// nanomdm tolerates results for commands not queued for this enrollment, but
+	// the multi service still runs this handler, so skip processing them here.
+	queued, err := svc.ds.IsMDMAppleCommandQueuedForEnrollment(r.Context, r.ID, cmdResult.CommandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "check command queued for enrollment")
+	}
+	if !queued {
+		svc.logger.InfoContext(r.Context, "ignoring result for command not queued for enrollment",
+			"enrollment_id", r.ID, "command_uuid", cmdResult.CommandUUID, "status", cmdResult.Status)
 		return nil, nil
 	}
 

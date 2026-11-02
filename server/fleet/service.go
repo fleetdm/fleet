@@ -1605,6 +1605,12 @@ type Service interface {
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
 
+	// GetPatchDeadlineSettings returns the fleet's patch deadline settings, or the default when none are stored.
+	GetPatchDeadlineSettings(ctx context.Context, teamID *uint) (*PatchDeadlineSettings, error)
+	// UpdatePatchDeadlineSettings validates and stores the fleet's patch deadline settings. days and time
+	// are the values as decoded from JSON.
+	UpdatePatchDeadlineSettings(ctx context.Context, teamID *uint, days, time any) (*PatchDeadlineSettings, error)
+
 	/////////////////////////////////////////////////////////////////////////////////
 	// Organization logo
 
@@ -2031,6 +2037,9 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MinOrbitOmarchyLUKSVersion is the earliest version of Orbit whose passphrase prompt opens
+	// under Hyprland, which Omarchy uses.
+	MinOrbitOmarchyLUKSVersion = "1.64.0"
 	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
 	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
 	LinuxEscrowInFlightWindow = 5 * time.Minute

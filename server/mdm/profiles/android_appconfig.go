@@ -10,7 +10,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/variables"
+	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // ErrUnresolvableAndroidAppConfigVar signals that one of the $FLEET_VAR_*
@@ -160,4 +163,81 @@ func replaceJSONSafe(contents, variableName, value string) string {
 func jsonEscapeString(s string) string {
 	b, _ := json.Marshal(s) // json.Marshal for strings never errors
 	return strings.TrimSuffix(strings.TrimPrefix(string(b), `"`), `"`)
+}
+
+func BuildApplicationPoliciesWithConfig(ctx context.Context, appIDs []string,
+	configsByAppID map[string][]byte, installType string,
+) ([]*androidmanagement.ApplicationPolicy, error) {
+	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
+	for _, appID := range appIDs {
+		appPolicy := &androidmanagement.ApplicationPolicy{}
+		if config := configsByAppID[appID]; config != nil {
+			if err := json.Unmarshal(config, appPolicy); err != nil {
+				// should never happen, as it is stored as json in the db and is pre-validated
+				return nil, ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
+			}
+		} else {
+			// if there is no config for this app, we must make sure we clear any previously-applied
+			// config.
+			appPolicy.ManagedConfiguration = googleapi.RawMessage{}
+			appPolicy.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+			appPolicy.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
+		}
+		// Set after unmarshalling so a stored config can never override them.
+		appPolicy.PackageName = appID
+		appPolicy.InstallType = installType
+		// Google rejects installConstraint on AVAILABLE apps, which fails the whole request.
+		// It only applies to installs Google starts, like the setup experience's.
+		if installType == android.AppStatusAvailable {
+			appPolicy.InstallConstraint = nil
+		}
+		appPolicies = append(appPolicies, appPolicy)
+	}
+	return appPolicies, nil
+}
+
+func SubstituteFleetVarsInAndroidAppConfigs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	configsByAppID map[string][]byte,
+	host AndroidAppConfigSubstitutionHost,
+) (map[string][]byte, error) {
+	if len(configsByAppID) == 0 {
+		return configsByAppID, nil
+	}
+
+	hasVars := false
+	for _, cfg := range configsByAppID {
+		if ContainsFleetVarOrCustomHostVital(cfg) {
+			hasVars = true
+			break
+		}
+	}
+	if !hasVars {
+		return configsByAppID, nil
+	}
+
+	result := make(map[string][]byte, len(configsByAppID))
+	for appID, cfg := range configsByAppID {
+		substituted, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
+		}
+		result[appID] = substituted
+	}
+	return result, nil
+}
+
+// IsUnresolvableAndroidAppConfigForHost separates "this host can't supply a
+// referenced value" — a custom host vital with no value set for this host, or
+// an unresolvable $FLEET_VAR_* — from a real failure. The former is host state
+// no retry can fix, so it's a per-host skip rather than a batch failure.
+func IsUnresolvableAndroidAppConfigForHost(err error) bool {
+	if err == nil {
+		return false
+	}
+	if _, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+		return true
+	}
+	return errors.Is(err, ErrUnresolvableAndroidAppConfigVar)
 }
