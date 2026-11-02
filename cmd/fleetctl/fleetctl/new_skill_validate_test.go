@@ -55,6 +55,14 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
   platform: darwin
   interval: 3600
   query: SELECT t.uid FROM (SELECT uid FROM users) AS t JOIN (SELECT gid FROM groups) g ON g.gid = t.uid;
+- name: Named window
+  platform: darwin
+  interval: 3600
+  query: SELECT users.no_such_column, COUNT(*) OVER users FROM users WINDOW users AS (PARTITION BY uid);
+- name: Unknown table after a function
+  platform: darwin
+  interval: 3600
+  query: SELECT * FROM json_each(json_extract('[]', '$')) AS j, no_such_table AS n;
 - name: Unknown table
   platform: darwin
   interval: 3600
@@ -69,18 +77,28 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
 	validator := filepath.Join("templates", "new", ".agents", "skills", "fleet-gitops", "scripts", "validate.py")
 	cmd := exec.Command(python, validator, root, "--offline")
 	cmd.Env = append(os.Environ(), "XDG_CACHE_HOME="+t.TempDir())
-	out, _ := cmd.CombinedOutput() // exits 1 on the unknown table
+	out, err := cmd.CombinedOutput()
 	if strings.Contains(string(out), "no YAML parser") {
 		t.Skip("validator needs PyYAML or Ruby to parse YAML")
 	}
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr, string(out))
+	require.Equal(t, 1, exitErr.ExitCode(), string(out))
 
-	// The unknown table proves the table check ran; it's reported once even though two fleets reference the file.
+	// Each FAIL is reported once even though two fleets reference the file. The validator sorts findings by message.
 	var fails []string
 	for line := range strings.Lines(string(out)) {
 		if strings.HasPrefix(line, "FAIL") {
 			fails = append(fails, strings.TrimSpace(line))
 		}
 	}
-	require.Len(t, fails, 1, string(out))
-	require.Contains(t, fails[0], "report 'Unknown table': table 'no_such_table' isn't in Fleet's osquery schema", string(out))
+	want := []string{
+		"report 'Named window': column 'no_such_column' isn't in table 'users'",
+		"report 'Unknown table after a function': table 'no_such_table' isn't in Fleet's osquery schema",
+		"report 'Unknown table': table 'no_such_table' isn't in Fleet's osquery schema",
+	}
+	require.Len(t, fails, len(want), string(out))
+	for i, w := range want {
+		require.Contains(t, fails[i], w, string(out))
+	}
 }

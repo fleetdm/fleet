@@ -426,12 +426,33 @@ def strip_sql(sql):
     return sql
 
 
+def move_table_function_args(s):
+    """Move SQLite table-valued function arguments to the end of s.
+
+    A call's parentheses would end the comma-separated source list, hiding the sources after it. Keeping the
+    arguments means a subquery inside them is still checked."""
+    call = re.compile(r"(?i)\b(?:" + "|".join(SQLITE_TABLE_FUNCTIONS) + r")\s*\(")
+    args = []
+    while True:
+        m = call.search(s)
+        if not m:
+            return s + " " + " ".join(args)
+        depth = 0
+        for end in range(m.end() - 1, len(s)):
+            depth += {"(": 1, ")": -1}.get(s[end], 0)
+            if depth == 0:
+                break
+        args.append(s[m.end():end])
+        s = s[:m.end() - 1] + " " + s[end + 1:]
+
+
 def extract_tables(sql):
     """Return {table_name: {aliases}} for every FROM/JOIN source that isn't a CTE, subquery, or SQLite table-valued function."""
-    s = strip_sql(sql)
-    # A CTE may have a column list and a VALUES body: setting(name, guid) AS (VALUES ...).
+    s = move_table_function_args(strip_sql(sql))
+    # A CTE may have a column list and a VALUES body: setting(name, guid) AS (VALUES ...). Requiring the body keyword
+    # keeps named windows (WINDOW w AS (PARTITION BY ...)) out.
     ctes = {m.group(1).lower() for m in re.finditer(
-        r"(?i)\b([a-z_][a-z0-9_]*)(?:\s*\([^()]*\))?\s+AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(", s)}
+        r"(?i)\b([a-z_][a-z0-9_]*)(?:\s*\([^()]*\))?\s+AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(\s*(?:SELECT|VALUES|WITH)\b", s)}
     tables = {}
     pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?"
                          r"((?:\s*,\s*[a-z_][a-z0-9_]*(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?)*)")
