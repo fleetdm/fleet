@@ -300,5 +300,6 @@ fi
 echo "Packages generated."
 
 if [[ $OSTYPE == 'darwin'* && -n "$INSTALL_PKG" ]]; then
-    sudo installer -pkg fleet-osquery.pkg -target /
+    # The name has the fleet name in it when fleetctl is logged in to $PKG_FLEET_URL, so install the newest one.
+    sudo installer -pkg "$(ls -t fleet-macos*.pkg | head -1)" -target /
 fi
