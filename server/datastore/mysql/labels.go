@@ -1190,6 +1190,7 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"public_ip":                      "h.public_ip",
 
 	"display_name": "hdn.display_name",
+	"agent":        "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
@@ -1357,6 +1358,9 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+	if opt.ListOptions.OrderKey == "agent" {
+		query += ` LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id `
 	}
 
 	softwareStatusJoin := ""
