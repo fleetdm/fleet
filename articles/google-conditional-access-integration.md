@@ -9,11 +9,11 @@ How it works:
 3. The page asks Fleet whether the host is enrolled and company-owned. If so, it saves the device's Google device ID on the host in Fleet and marks the device as managed in Google. Once a host has a Google device ID, Fleet refuses a different one, so the link doesn't work on any other device. Fleet also refuses an ID that's already saved on another host.
 4. A Context-Aware Access level blocks sign-in from devices that aren't marked as managed.
 
-> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, everything in this guide works today.
+> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, use the steps in this guide.
 
 ## Prerequisites
 
-- Fleet Premium.
+- Fleet Premium, version 4.95 or later ([coming soon](https://github.com/fleetdm/fleet/issues/54888)).
 - Google Workspace Enterprise Standard, Enterprise Plus, or Enterprise for Education, or Cloud Identity Premium.
 - A Chrome Enterprise Premium license for each end user. Without it, IAP doesn't include the device ID.
 - A Google super admin account.
