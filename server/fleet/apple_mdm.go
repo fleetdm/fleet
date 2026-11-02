@@ -332,37 +332,94 @@ func PayloadDisplayNameFromMobileconfig(raw []byte) string {
 }
 
 // ValidateNoSecretsInProfileName checks if any PayloadDisplayName in the raw XML content of a profile,
-// at any depth, contains FLEET_SECRET_ variables. Keys and values are read the way the plist parser
-// reads them, which drops comments and decodes CDATA and character references, because the stored
-// name is parsed from the profile after its secrets are expanded.
+// at any depth, contains FLEET_SECRET_ variables.
 func ValidateNoSecretsInProfileName(xmlContent []byte) error {
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadDisplayName", false)
+}
+
+// ValidateNoSecretsInProfileIdentifier checks if the top-level PayloadIdentifier in the raw XML content of
+// a profile contains FLEET_SECRET_ variables. Nested payload identifiers aren't stored, so they may use them.
+func ValidateNoSecretsInProfileIdentifier(xmlContent []byte) error {
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadIdentifier", true)
+}
+
+// ValidateNoSecretsInDeclarationIdentifier checks if the Identifier of a raw declaration or activation contains
+// FLEET_SECRET_ variables. The stored identifier is read from it after its secrets are expanded.
+func ValidateNoSecretsInDeclarationIdentifier(rawJSON []byte) error {
+	var decl struct{ Identifier string }
+	if err := json.Unmarshal([]byte(secretsOutsideJSONStringsAsZero(string(rawJSON))), &decl); err != nil {
+		// Not valid JSON: left to the parse of the expanded declaration to reject.
+		return nil
+	}
+	if len(ContainsPrefixVars(decl.Identifier, ServerSecretPrefix)) > 0 {
+		return errors.New("Identifier cannot contain FLEET_SECRET variables")
+	}
+	return nil
+}
+
+// secretsOutsideJSONStringsAsZero replaces FLEET_SECRET_ variables outside JSON strings with 0, so a declaration that
+// uses one as a number or boolean can be read before its secrets are expanded.
+func secretsOutsideJSONStringsAsZero(rawJSON string) string {
+	inString := make([]bool, len(rawJSON))
+	var in, escaped bool
+	for i := 0; i < len(rawJSON); i++ {
+		inString[i] = in
+		switch {
+		case escaped:
+			escaped = false
+		case in && rawJSON[i] == '\\':
+			escaped = true
+		case rawJSON[i] == '"':
+			in = !in
+		}
+	}
+	return MaybeExpand(rawJSON, func(name string, start, _ int) (string, bool) {
+		if inString[start] || !strings.HasPrefix(name, ServerSecretPrefix) {
+			return "", false
+		}
+		return "0", true
+	})
+}
+
+// validateNoSecretsInProfileKey reads keys and values the way the plist parser reads them, which drops
+// comments and decodes CDATA and character references, because the stored name and identifier are parsed
+// from the profile after its secrets are expanded.
+func validateNoSecretsInProfileKey(xmlContent []byte, key string, topLevelOnly bool) error {
 	dec := xml.NewDecoder(bytes.NewReader(xmlContent))
-	var displayNameNext bool
+	// The parser takes the first dictionary as the profile, with or without a <plist> around it.
+	var depth, topLevelDepth int
+	var valueNext bool
 	for {
 		tok, err := dec.Token()
 		if err != nil {
 			// Not valid XML: left to the parse of the expanded profile to reject.
 			return nil
 		}
-		start, ok := tok.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		switch {
-		case start.Name.Local == "key":
-			var key string
-			if err := dec.DecodeElement(&key, &start); err != nil {
-				return nil
-			}
-			displayNameNext = key == "PayloadDisplayName"
-		case displayNameNext:
-			displayNameNext = false
-			var name string
-			if err := dec.DecodeElement(&name, &start); err != nil {
-				return nil
-			}
-			if len(ContainsPrefixVars(name, ServerSecretPrefix)) > 0 {
-				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+		switch el := tok.(type) {
+		case xml.EndElement:
+			depth--
+		case xml.StartElement:
+			switch {
+			case el.Name.Local == "key":
+				var k string
+				if err := dec.DecodeElement(&k, &el); err != nil {
+					return nil
+				}
+				valueNext = k == key && (!topLevelOnly || depth == topLevelDepth)
+			case valueNext:
+				valueNext = false
+				var value string
+				if err := dec.DecodeElement(&value, &el); err != nil {
+					return nil
+				}
+				if len(ContainsPrefixVars(value, ServerSecretPrefix)) > 0 {
+					return fmt.Errorf("%s cannot contain FLEET_SECRET variables", key)
+				}
+			default:
+				depth++
+				if el.Name.Local == "dict" && topLevelDepth == 0 {
+					topLevelDepth = depth
+				}
 			}
 		}
 	}

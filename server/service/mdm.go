@@ -3006,13 +3006,22 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
-	// Declarations are named by the Name field, not their content, so only .mobileconfig names are checked.
+	// Declarations are named by the Name field, not their content, and their identifiers are checked after expansion
+	// below, so only .mobileconfig content is checked here, before the dry run drops profiles with secrets.
 	for _, p := range profiles {
 		if !isMobileconfigContents(p.Contents) {
 			continue
 		}
-		if err := fleet.ValidateNoSecretsInProfileName(p.Contents); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+		err := fleet.ValidateNoSecretsInProfileName(p.Contents)
+		if err == nil {
+			err = fleet.ValidateNoSecretsInProfileIdentifier(p.Contents)
+		}
+		if err != nil {
+			name := p.Name
+			if name == "" {
+				name = fleet.PayloadDisplayNameFromMobileconfig(p.Contents)
+			}
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(name, err.Error()))
 		}
 	}
 
@@ -3042,6 +3051,14 @@ func (svc *Service) BatchSetMDMProfiles(
 		// If the profile does not contain secrets, then expanded and original content point to the same slice/memory location.
 		pCopy.Contents = []byte(expanded)
 		profilesWithSecrets[i] = pCopy
+
+		// Declarations are recognized from the expanded content, since a secret used as a number leaves the raw JSON
+		// invalid. Like the other checks that need secrets, this one doesn't run on a dry run.
+		if mdm.GetRawProfilePlatform(pCopy.Contents) == "darwin" && mdm.GuessProfileExtension(pCopy.Contents) == "json" {
+			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+		}
 	}
 
 	if err := validateProfiles(profilesWithSecrets); err != nil {

@@ -1093,6 +1093,94 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 	}
 }
 
+func TestValidateNoSecretsInProfileIdentifier(t *testing.T) {
+	profile := func(body string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+` + body + `
+</dict>
+</plist>`
+	}
+	nested := `    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadIdentifier</key>
+            <string>com.test.$FLEET_SECRET_KEY</string>
+        </dict>
+    </array>`
+
+	for _, tc := range []struct {
+		name       string
+		xmlContent string
+		expectErr  bool
+	}{
+		{"no secrets", profile(`    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>`), false},
+		{"secret in PayloadIdentifier", profile(`    <key>PayloadIdentifier</key>
+    <string>com.test.$FLEET_SECRET_KEY</string>`), true},
+		{"comment between key and value", profile(`    <key>PayloadIdentifier</key><!-- x -->
+    <string>$FLEET_SECRET_KEY</string>`), true},
+		{"secret in CDATA", profile(`    <key>PayloadIdentifier</key>
+    <string><![CDATA[${FLEET_SECRET_KEY}]]></string>`), true},
+		{"after a nested payload", profile(nested + `
+    <key>PayloadIdentifier</key>
+    <string>$FLEET_SECRET_KEY</string>`), true},
+		{"without a plist element", `<dict>
+    <key>PayloadIdentifier</key>
+    <string>$FLEET_SECRET_KEY</string>
+</dict>`, true},
+		{"secret only in a nested payload", profile(nested + `
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>`), false},
+		{"secret only in PayloadDisplayName", profile(`    <key>PayloadDisplayName</key>
+    <string>$FLEET_SECRET_KEY</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>`), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateNoSecretsInProfileIdentifier([]byte(tc.xmlContent))
+			if tc.expectErr {
+				require.ErrorContains(t, err, "PayloadIdentifier cannot contain FLEET_SECRET variables")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateNoSecretsInDeclarationIdentifier(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		raw       string
+		expectErr bool
+	}{
+		{"no secrets", `{"Type": "com.apple.configuration.test", "Identifier": "com.test.decl", "Payload": {}}`, false},
+		{"secret in Identifier", `{"Type": "com.apple.configuration.test", "Identifier": "com.test.$FLEET_SECRET_KEY"}`, true},
+		{"braced secret in Identifier", `{"Identifier": "${FLEET_SECRET_KEY}"}`, true},
+		{"secret only in the payload", `{"Identifier": "com.test.decl", "Payload": {"Password": "$FLEET_SECRET_KEY"}}`, false},
+		{"secret as a number elsewhere", `{"Payload": {"Port": $FLEET_SECRET_PORT}, "Identifier": "$FLEET_SECRET_KEY"}`, true},
+		{"secret as a number, no secret in Identifier", `{"Payload": {"Port": $FLEET_SECRET_PORT}, "Identifier": "com.test.decl"}`, false},
+		// the declaration parser matches keys the same way
+		{"lowercase key", `{"identifier": "$FLEET_SECRET_KEY"}`, true},
+		{"escaped key", `{"Identifi\u0065r": "$FLEET_SECRET_KEY"}`, true},
+		{"escaped quote before a secret in another string", `{"Note": "a \" $FLEET_SECRET_KEY", "Identifier": "com.test.decl"}`, false},
+		{"not JSON", `$FLEET_SECRET_DECLARATION`, false},
+		// not a string, so the declaration parse rejects it after expansion
+		{"secret as the whole Identifier", `{"Identifier": $FLEET_SECRET_KEY}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateNoSecretsInDeclarationIdentifier([]byte(tc.raw))
+			if tc.expectErr {
+				require.ErrorContains(t, err, "Identifier cannot contain FLEET_SECRET variables")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestIsMacIdentifier(t *testing.T) {
 	cases := []struct {
 		product string

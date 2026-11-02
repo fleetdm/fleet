@@ -1917,6 +1917,140 @@ func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
 	require.Zero(t, leaked)
 }
 
+func (s *integrationMDMTestSuite) TestAppleProfileIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_PROFILE_IDENTIFIER", Value: "identifier-secret-value"}},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(name, identifier string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>%s
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, name, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name       string
+		identifier string
+	}{
+		{"plain", `<string>com.example.$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"cdata", `<string><![CDATA[$FLEET_SECRET_PROFILE_IDENTIFIER]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, "PayloadIdentifier cannot contain FLEET_SECRET variables")
+				assert.NotContains(t, errMsg, "identifier-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "identifier.mobileconfig",
+				profile("Identifier secret "+c.name+" single", c.identifier), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("Identifier secret "+c.name+" batch", c.identifier)},
+			}}, http.StatusUnprocessableEntity))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("Identifier secret "+c.name+" apple-batch", c.identifier),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE identifier LIKE '%identifier-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
+func (s *integrationMDMTestSuite) TestAppleDeclarationIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_DECL_IDENTIFIER", Value: "decl-identifier-secret-value"},
+			{Name: "FLEET_SECRET_DECL_PORT", Value: "443"},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	declaration := func(identifier, payload string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.configuration.management.test", "Identifier": %q, "Payload": %s}`, identifier, payload))
+	}
+	activation := func(identifier, configIdentifier string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.activation.simple", "Identifier": %q, "Payload": {"StandardConfigurations": [%q]}}`,
+			identifier, configIdentifier))
+	}
+	uploadProfile := func(content, act []byte) *http.Response {
+		var extraFiles map[string]multipartFile
+		if act != nil {
+			extraFiles = map[string]multipartFile{"activation": {fileName: "activation.json", content: act}}
+		}
+		body, headers := generateMultipartRequestWithFiles(t, "profile", "decl.json", content, s.token, nil, extraFiles)
+		return s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	}
+	checkRejected := func(t *testing.T, res *http.Response) {
+		t.Helper()
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Identifier cannot contain FLEET_SECRET variables")
+		assert.NotContains(t, errMsg, "decl-identifier-secret")
+	}
+
+	for _, c := range []struct {
+		name    string
+		payload string
+	}{
+		{"plain", `{"Echo": "foo"}`},
+		// raw JSON that only parses once its secrets are expanded
+		{"secret used as a number", `{"Echo": $FLEET_SECRET_DECL_PORT}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			decl := declaration("com.example.$FLEET_SECRET_DECL_IDENTIFIER", c.payload)
+			checkRejected(t, uploadProfile(decl, nil))
+			checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "decl-identifier-" + c.name, Contents: decl},
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	t.Run("activation", func(t *testing.T) {
+		const declIdent = "com.example.decl-identifier.activated"
+		act := activation("com.example.$FLEET_SECRET_DECL_IDENTIFIER", declIdent)
+		checkRejected(t, uploadProfile(declaration(declIdent, `{"Echo": "foo"}`), act))
+		checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "decl-identifier-activated", Contents: declaration(declIdent, `{"Echo": "foo"}`), Activation: act},
+		}}, http.StatusUnprocessableEntity))
+	})
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE identifier LIKE '%decl-identifier-secret%' OR raw_json LIKE '%decl-identifier-secret%'`)
+	})
+	require.Zero(t, leaked)
+}
+
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
 func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 	// A string setting: schema validation checks the expanded secret value.
