@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -26,7 +27,7 @@ func wireDedupHost(t *testing.T, mockDS *AndroidMockDS, hostID uint, hostUUID st
 		Host: &fleet.Host{ID: hostID, UUID: hostUUID},
 		Device: &android.Device{
 			HostID:               hostID,
-			DeviceID:             "existing-device",
+			DeviceID:             "dedup",
 			EnterpriseSpecificID: &hostUUID,
 		},
 	}
@@ -94,6 +95,7 @@ func makeStatusEnvelope(t *testing.T, esID, messageID, publishTime string, delet
 	if deleted {
 		device.AppliedState = string(android.DeviceStateDeleted)
 	}
+	android_mock.RegisterDevice(device)
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 	return &android.PubSubMessage{
@@ -126,7 +128,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 	t.Run("stale ENROLLMENT event time is skipped", func(t *testing.T) {
 		svc, mockDS := createAndroidService(t)
 		wireDedupHost(t, mockDS, hostID, hostUUID)
-		stored := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+		stored := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		mockDS.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint) (string, *time.Time, error) {
 			return "other-msg", &stored, nil
 		}
@@ -233,6 +235,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "test-build", AndroidVersion: "1"},
 			MemoryInfo:   &androidmanagement.MemoryInfo{TotalRam: 1024},
 		}
+		android_mock.RegisterDevice(device)
 		data, err := json.Marshal(device)
 		require.NoError(t, err)
 		msg.Data = base64.StdEncoding.EncodeToString(data)
@@ -263,7 +266,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		svc, mockDS := createAndroidService(t)
 		wireDedupHost(t, mockDS, hostID, hostUUID)
 		// A more-recent re-enrollment was already processed.
-		stored := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+		stored := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		mockDS.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint) (string, *time.Time, error) {
 			return "recent-enroll-msg", &stored, nil
 		}
@@ -302,7 +305,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		// re-enroll the host. Staleness must short-circuit before SetAndroidHostEnrolled.
 		svc, mockDS := createAndroidService(t)
 		wireDedupHost(t, mockDS, hostID, hostUUID)
-		stored := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+		stored := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		mockDS.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, id uint) (string, *time.Time, error) {
 			return "unenroll-msg", &stored, nil
 		}

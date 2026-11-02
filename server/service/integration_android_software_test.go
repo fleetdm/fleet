@@ -574,7 +574,7 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 		require.NoError(s.T(), err)
 	})
 
-	enterpriseID := "LC02k5wxw7"
+	enterpriseID := androidTestEnterpriseID
 	enterpriseSignupURL := "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
 	s.androidAPIClient.InitCommonMocks()
 

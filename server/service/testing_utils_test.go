@@ -59,6 +59,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -1456,8 +1457,12 @@ func getURISchemas() []string {
 	}
 }
 
+// androidTestEnterpriseID is the enterprise enableAndroidMDM creates. Device names must be under it,
+// as AMAPI's are, because Fleet checks a notification's device against its own enterprise.
+const androidTestEnterpriseID = "LC02k5wxw7"
+
 func createAndroidDeviceID(name string) string {
-	return "enterprises/mock-enterprise-id/devices/" + name
+	return "enterprises/" + androidTestEnterpriseID + "/devices/" + name
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
@@ -1521,6 +1526,7 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 

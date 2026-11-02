@@ -41,8 +41,12 @@ func createAndroidService(t *testing.T, opts ...ServiceOption) (android.Service,
 func createAndroidServiceWithActivity(t *testing.T, newActivity fleet.NewActivityFunc, opts ...ServiceOption) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
+	androidAPIClient.InitDeviceLookupMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
+	mockDS.Store.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "mock-enterprise-id"}, nil
+	}
 	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, newActivity, config.AndroidAgentConfig{}, opts...)
 	require.NoError(t, err)
 
@@ -1268,6 +1272,7 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 		LastStatusReportTime: "2024-01-01T12:00:00Z",
 	}
 
+	android_mock.RegisterDevice(device)
 	deviceBytes, err := json.Marshal(device)
 	require.NoError(t, err)
 	encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
@@ -1355,6 +1360,7 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 		},
 		LastStatusReportTime: "2024-01-01T12:00:00Z",
 	}
+	android_mock.RegisterDevice(device)
 	deviceBytes, err := json.Marshal(device)
 	require.NoError(t, err)
 	message := &android.PubSubMessage{
@@ -1510,6 +1516,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 				LastStatusReportTime: "2024-01-01T12:00:00Z",
 			}
 
+			android_mock.RegisterDevice(device)
 			deviceBytes, err := json.Marshal(device)
 			require.NoError(t, err)
 			encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
@@ -1612,6 +1619,7 @@ func TestUpdateHost(t *testing.T) {
 		}
 
 		// Create message
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
@@ -1660,6 +1668,7 @@ func TestUpdateHost(t *testing.T) {
 				TotalInternalStorage: int64(128 * 1024 * 1024 * 1024),
 			},
 		}
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		message := &android.PubSubMessage{
@@ -1697,6 +1706,7 @@ func TestUpdateHost(t *testing.T) {
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
@@ -1754,6 +1764,7 @@ func TestUpdateHost(t *testing.T) {
 		}
 
 		// Create and process message
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		encodedData := base64.StdEncoding.EncodeToString(deviceBytes)
@@ -1829,6 +1840,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		message := &android.PubSubMessage{
@@ -1904,6 +1916,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		message := &android.PubSubMessage{
@@ -1974,6 +1987,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		message := &android.PubSubMessage{
@@ -2039,6 +2053,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
+		android_mock.RegisterDevice(device)
 		deviceBytes, err := json.Marshal(device)
 		require.NoError(t, err)
 		message := &android.PubSubMessage{
@@ -2228,7 +2243,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		return nil
 	}
 	mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
-		return &android.Enterprise{EnterpriseID: "test-enterprise"}, nil
+		return &android.Enterprise{EnterpriseID: "mock-enterprise-id"}, nil
 	}
 
 	t.Run("extracts storage data from AMAPI device", func(t *testing.T) {
@@ -2430,6 +2445,7 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -2470,6 +2486,7 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 		// No INTERNAL_STORAGE_MEASURED or EXTERNAL_STORAGE_MEASURED events
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -2506,6 +2523,7 @@ func createEnrollmentMessageWithoutMemoryEvents(t *testing.T, deviceInfo android
 		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -2574,6 +2592,7 @@ func createEnrollmentMessageWithMultipleExternalDetectedEvents(t *testing.T, dev
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -2616,6 +2635,7 @@ func createStatusAppReportMessage(t *testing.T, deviceId, name, policyName strin
 		LastPolicySyncTime:   "2001-01-01T00:00:00Z",
 	}
 
+	android_mock.RegisterDevice(device)
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 
@@ -3407,6 +3427,7 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
 		},
 	}
+	android_mock.RegisterDevice(device)
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 	statusReport := &android.PubSubMessage{
@@ -3443,6 +3464,7 @@ func TestPubSubStatusReport_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 func TestPubSubCommand(t *testing.T) {
 	const validToken = "value"
 	makeMessage := func(t *testing.T, op androidmanagement.Operation) *android.PubSubMessage {
+		android_mock.RegisterOperation(op)
 		body, err := json.Marshal(op)
 		require.NoError(t, err)
 		return &android.PubSubMessage{
@@ -3657,7 +3679,7 @@ func TestPubSubCommand(t *testing.T) {
 				return nil
 			}
 			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-				return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}, Device: &android.Device{HostID: hostID, DeviceID: "D"}}, nil
 			}
 			mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
 				return &fleet.HostMDM{IsPersonalEnrollment: tc.isBYO}, nil
@@ -3898,7 +3920,7 @@ func TestPubSubDeletedClearsWipeRefForBYO(t *testing.T) {
 		// validateDevice runs before the DELETED branch, so the payload must include hardwareInfo
 		// + softwareInfo + memoryInfo even though those are unused for the unenroll path.
 		device := androidmanagement.Device{
-			Name:         "enterprises/E1/devices/abc123",
+			Name:         createAndroidDeviceId("abc123"),
 			AppliedState: "DELETED",
 			HardwareInfo: &androidmanagement.HardwareInfo{
 				EnterpriseSpecificId: enterpriseSpecificID,
@@ -3911,6 +3933,7 @@ func TestPubSubDeletedClearsWipeRefForBYO(t *testing.T) {
 				TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
 			},
 		}
+		android_mock.RegisterDevice(device)
 		data, err := json.Marshal(device)
 		require.NoError(t, err)
 		return &android.PubSubMessage{
