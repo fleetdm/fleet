@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -460,12 +461,22 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: new("test"),
-			ID:            1,
-			Platform:      "ubuntu",
-			TeamID:        new(uint(1)),
+			OsqueryHostID:  new("test"),
+			ID:             1,
+			Platform:       "ubuntu",
+			TeamID:         new(uint(1)),
+			LastEnrolledAt: time.Now().Add(-2 * time.Hour),
 		})
 		return svc, ctx
+	}
+
+	// setOrbitEnrolled leaves the host as EnrollOrbit creates it, before
+	// osquery enrolls.
+	setOrbitEnrolled := func(host *fleet.Host) {
+		host.OsqueryHostID = new("test")
+		host.LastEnrolledAt = common_mysql.GetDefaultNonZeroTime()
+		host.OrbitNodeKey = new("orbit-node-key")
+		host.NodeKey = host.OrbitNodeKey
 	}
 
 	t.Run("enabled", func(t *testing.T) {
@@ -497,8 +508,7 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.NotNil(t, cfg.WebSocketTransport)
 		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
 
-		host.LastEnrolledAt = time.Now().Add(-2 * time.Hour)
-		host.OsqueryHostID = nil
+		setOrbitEnrolled(host)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
@@ -521,8 +531,7 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.NotNil(t, cfg.WebSocketTransport)
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
 
-		host.LastEnrolledAt = time.Now().Add(-2 * time.Hour)
-		host.OsqueryHostID = nil
+		setOrbitEnrolled(host)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)

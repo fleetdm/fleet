@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -943,7 +944,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		// Onboarding hosts keep the default poll interval: many flags depend
 		// on state ingested from osquery (host_mdm, the Windows MDM enrollment
 		// link), which doesn't notify agents.
-		onboarding := !host.IsOsqueryEnrolled() || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
+		// Orbit and Apple MDM enrollment create the host before osquery
+		// enrolls, with osquery_host_id set and last_enrolled_at at the
+		// "never" sentinel; only osquery enrollment moves it.
+		osqueryEnrolled := host.IsOsqueryEnrolled() && host.LastEnrolledAt.After(common_mysql.GetDefaultNonZeroTime())
+		onboarding := !osqueryEnrolled || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
 		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
 			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
 		}
