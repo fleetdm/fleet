@@ -3120,7 +3120,7 @@
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
-      "unique_identifier": "in.sinew.Enpass-Desktop",
+      "unique_identifier": "in.sinew.Enpass-Desktop.App",
       "description": "Enpass is a password and credentials manager."
     },
     {
@@ -7453,7 +7453,7 @@
       "name": "Recut",
       "slug": "recut/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tinywins.recut",
+      "unique_identifier": "co.tinywins.recut",
       "description": "Recut is a tool to remove silence from videos and automatically generate a cut list."
     },
     {
@@ -9420,7 +9420,7 @@
       "name": "VNC Server",
       "slug": "vnc-server/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncserver",
+      "unique_identifier": "com.realvnc.vncserver_service",
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
@@ -9791,7 +9791,7 @@
       "name": "Worksheet Crafter",
       "slug": "worksheet-crafter/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+      "unique_identifier": "com.schoolcraft.Worksheet Crafter",
       "description": "Worksheet Crafter is a worksheet and lesson material creator."
     },
     {

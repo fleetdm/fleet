@@ -3,8 +3,8 @@
     {
       "version": "26276.513.5241.9675",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation' AND version_compare(version, '26276.513.5241.9675') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft' AND version_compare(version, '26276.513.5241.9675') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));"
       },
       "installer_url": "https://teamsinstaller.public.onecdn.static.microsoft/production-windows-x64/26276.513.5241.9675/MSTeams-x64.msix",

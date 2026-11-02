@@ -3,6 +3,7 @@
   "slug": "microsoft-teams/windows",
   "package_identifier": "Microsoft.Teams",
   "unique_identifier": "Microsoft Teams",
+  "program_publisher": "Microsoft",
   "installer_arch": "x64",
   "installer_type": "msix",
   "installer_scope": "user",
