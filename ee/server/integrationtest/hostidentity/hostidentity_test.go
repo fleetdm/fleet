@@ -499,7 +499,10 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 }
 
 // renewalCSR builds a renewal request for existingCert, proving possession of existingKey and requesting a cert for newKey.
-func renewalCSR(t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey) *x509.CertificateRequest {
+// It also returns the renewal data carried in the request, so that callers can replay it.
+func renewalCSR(
+	t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey,
+) (csr *x509.CertificateRequest, renewalDataJSON []byte) {
 	t.Helper()
 
 	// Create the renewal data
@@ -515,7 +518,7 @@ func renewalCSR(t *testing.T, existingCert *x509.Certificate, existingKey, newKe
 		Signature:    base64.StdEncoding.EncodeToString(signature),
 	}
 
-	renewalDataJSON, err := json.Marshal(renewalData)
+	renewalDataJSON, err = json.Marshal(renewalData)
 	require.NoError(t, err)
 
 	// Create CSR with renewal extension
@@ -537,9 +540,9 @@ func renewalCSR(t *testing.T, existingCert *x509.Certificate, existingKey, newKe
 
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
-	csr, err := x509.ParseCertificateRequest(csrDerBytes)
+	csr, err = x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
-	return csr
+	return csr, renewalDataJSON
 }
 
 // testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
@@ -557,7 +560,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 	require.NoError(t, err)
 
-	csr := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey)
+	csr, renewalDataJSON := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey)
 
 	renewedCert, err := enrollHostIdentityCSR(t, s, csr)
 	require.NoError(t, err, "Renewal should succeed")
@@ -659,13 +662,6 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		require.NoError(t, err)
 
 		// Use the same renewal data as before (same serial and signature)
-		var renewalDataJSON []byte
-		for _, ext := range csr.Extensions {
-			if ext.Id.Equal(types.RenewalExtensionOID) {
-				renewalDataJSON = ext.Value
-			}
-		}
-		require.NotEmpty(t, renewalDataJSON)
 		retryCSRTemplate := x509util.CertificateRequest{
 			CertificateRequest: x509.CertificateRequest{
 				Subject: pkix.Name{
