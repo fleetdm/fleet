@@ -101,6 +101,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
 | IGEL OS | ❌ |
+| Sailfish OS (Jolla Phone) | ❌ |
 | Any other distribution | ❌ |
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
@@ -112,6 +113,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 - SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 - [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
+- [Sailfish OS](https://sailfishos.org/), used on the [Jolla Phone](https://commerce.jolla.com/products/jolla-phone-october-2026), reports its platform as `sailfishos`, which Fleet doesn't recognize. Fleet has no MDM support for Sailfish OS, and Android apps that run through Jolla AppSupport aren't collected.
 
 ## Browser extensions
 
