@@ -134,7 +134,7 @@
     overflow: hidden;
     border: 1em solid #d6d6d6;
     border-radius: 11em;
-    background-color: #fff;
+    background-color: @accent-white;
     box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
     @media (max-width: 991px) {
       width: 752em;
@@ -188,7 +188,7 @@
       border-radius: 5em;
     }
     [purpose='claude-code-mode-selected'] {
-      background-color: #fff;
+      background-color: @accent-white;
       box-shadow: 0 1em 2em rgba(0, 0, 0, 0.08);
     }
   }
@@ -1012,7 +1012,7 @@
     overflow: hidden;
     border: 1em solid #d6d6d6;
     border-radius: 11em;
-    background-color: #fff;
+    background-color: @accent-white;
     box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
     @media (max-width: 991px) {
       width: 752em;
@@ -1070,15 +1070,6 @@
     height: 7em;
     border-radius: 3em;
     background-color: #e1e6eb;
-    &.short {
-      width: 86em;
-    }
-    &.medium {
-      width: 97em;
-    }
-    &.long {
-      width: 119em;
-    }
   }
   [purpose='copilot-repo-name'], [purpose='copilot-session-name'] {
     font-size: 11em;
@@ -1364,7 +1355,7 @@
     padding: 11em 11em 7em;
     border: 1em solid #d1d9e0;
     border-radius: 11em;
-    background-color: #fff;
+    background-color: @accent-white;
     box-shadow: 0 1em 3em rgba(31, 36, 41, 0.06);
   }
   [purpose='copilot-input-text'], [purpose='copilot-placeholder'] {
@@ -1550,7 +1541,7 @@
     background-color: #9a6eb7;
     font-size: 7em;
     font-weight: 600;
-    color: #fff;
+    color: @accent-white;
   }
   // The sidebar and chat sit on an inset panel, like the real app.
   [purpose='codex-panel'] {
@@ -1561,7 +1552,7 @@
     border-top: 1em solid #e6e6e5;
     border-left: 1em solid #e6e6e5;
     border-top-left-radius: 9em;
-    background-color: #fff;
+    background-color: @accent-white;
     @media (max-width: 991px) {
       border-left: none;
       border-top-left-radius: 0;
@@ -1641,6 +1632,7 @@
     color: #959797;
   }
   [purpose='codex-placeholder-bar'] {
+    width: 99em;
     height: 7em;
     border-radius: 3em;
     background-color: #ebebea;
@@ -1772,7 +1764,7 @@
     padding: 13em 14em;
     border: 1em solid #e5e5e5;
     border-radius: 14em;
-    background-color: #fff;
+    background-color: @accent-white;
     box-shadow: 0 2em 7em rgba(0, 0, 0, 0.05);
   }
   [purpose='codex-edited-summary'] {
@@ -1875,7 +1867,7 @@
     padding: 11em 13em 9em;
     border: 1em solid #ececec;
     border-radius: 18em;
-    background-color: #fff;
+    background-color: @accent-white;
     box-shadow: 0 4em 18em rgba(0, 0, 0, 0.06);
   }
   [purpose='codex-input-text'], [purpose='codex-placeholder'] {
