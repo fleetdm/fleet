@@ -1709,6 +1709,17 @@ describe("Timezone vital", () => {
     }
   );
 
+  it("renders the IANA value when the browser doesn't support the host's timezone", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      timezone: "Not/AZone",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Not/AZone")).toBeInTheDocument();
+  });
+
   it.each<[string, HostPlatform]>([
     ["macOS", "darwin"],
     ["Windows", "windows"],

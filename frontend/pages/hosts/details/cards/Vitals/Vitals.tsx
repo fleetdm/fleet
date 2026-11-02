@@ -749,12 +749,17 @@ export const buildHostVitals = ({
   const showTimezone =
     !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
   if (showTimezone) {
-    const localTime = hasValidTimezone
-      ? // toZonedTime shifts the instant so its epoch value reads as the
-        // host's timezone under the system's own default-timezone formatting,
-        // letting internationalTimeFormat run unmodified/as-is elsewhere.
-        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
+    // toZonedTime shifts the instant so its epoch value reads as the host's
+    // timezone under the system's own default-timezone formatting, letting
+    // internationalTimeFormat run unmodified/as-is elsewhere. It returns an
+    // Invalid Date for a zone the browser doesn't know, which would throw.
+    const hostNow = hasValidTimezone
+      ? toZonedTime(new Date(), vitalsData.timezone)
       : null;
+    const localTime =
+      hostNow && !Number.isNaN(hostNow.getTime())
+        ? internationalTimeFormat(hostNow)
+        : DEFAULT_EMPTY_CELL_VALUE;
 
     vitals.push({
       sortKey: "Timezone",
