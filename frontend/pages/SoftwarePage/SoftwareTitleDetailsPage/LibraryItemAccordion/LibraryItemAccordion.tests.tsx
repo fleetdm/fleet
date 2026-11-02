@@ -279,7 +279,7 @@ describe("LibraryItemAccordion", () => {
         screen.queryByRole("button", { name: "Latest" })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Edit package" })
+        screen.queryByRole("button", { name: "Edit version" })
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /auto-install polic/i })
@@ -295,9 +295,9 @@ describe("LibraryItemAccordion", () => {
         onSelfServiceClick,
       });
 
-      // Self-service icon opens the per-package Edit modal; aria-label
+      // Self-service icon opens the Edit version modal; aria-label
       // matches the modal title.
-      const button = screen.getByRole("button", { name: "Edit package" });
+      const button = screen.getByRole("button", { name: "Edit version" });
       await user.click(button);
       expect(onSelfServiceClick).toHaveBeenCalledTimes(1);
     });

@@ -235,6 +235,8 @@
     [purpose='content-column'] {
       display: flex;
       flex-direction: column;
+      // Fill the row even when the page has only short lines (e.g. lists of links); otherwise it shrinks to fit.
+      flex: 1 1 0%;
       min-width: 0;
     }
 
@@ -1001,7 +1003,7 @@
         p {
           line-height: 21px;
         }
-        min-width: 220px;
+        width: 220px;
         position: sticky;
         top: ~'calc(104px + var(--announcement-banner-height, 0px))';
         margin-left: 24px;

@@ -40,6 +40,7 @@ interface IMutuallyExclusiveHostParams {
   softwareVersionId?: number;
   softwareTitleId?: number;
   softwareStatus?: string;
+  appStoreAppVersionId?: number;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
@@ -139,6 +140,7 @@ export const reconcileSoftwareParams = ({
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
 }: Pick<
   IMutuallyExclusiveHostParams,
   | "teamId"
@@ -146,6 +148,7 @@ export const reconcileSoftwareParams = ({
   | "softwareVersionId"
   | "softwareTitleId"
   | "softwareStatus"
+  | "appStoreAppVersionId"
 >) => {
   if (
     isValidSoftwareAggregateStatus(softwareStatus) &&
@@ -155,6 +158,7 @@ export const reconcileSoftwareParams = ({
     return {
       software_title_id: softwareTitleId,
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
+      app_store_app_version_id: appStoreAppVersionId,
       fleet_id: teamId,
     };
   }
@@ -216,6 +220,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
   osVersionId,
   osName,
   osVersion,
@@ -278,6 +283,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
+        appStoreAppVersionId,
       });
       // Software version can be combined with os name and os version
       // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)

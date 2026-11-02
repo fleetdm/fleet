@@ -76,6 +76,26 @@ func TestNewBasicFileStructure(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("generates valid YAML files", func(t *testing.T) {
+		var checked int
+		err := filepath.WalkDir(outDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if ext := filepath.Ext(path); d.IsDir() || (ext != ".yml" && ext != ".yaml") {
+				return nil
+			}
+			content, err := os.ReadFile(path) //nolint:gosec // G122: reading files this test just wrote to its own temp dir
+			require.NoError(t, err)
+			var parsed any
+			assert.NoError(t, yaml.Unmarshal(content, &parsed), "invalid YAML in %s", path)
+			checked++
+			return nil
+		})
+		require.NoError(t, err)
+		require.NotZero(t, checked)
+	})
+
 	t.Run("replaces and escapes org_name template var", func(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(outDir, "default.yml"))
 		require.NoError(t, err)

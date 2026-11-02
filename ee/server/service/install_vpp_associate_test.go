@@ -96,7 +96,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			// BYOD): the primary row is type "Device".
 			return &fleet.NanoEnrollment{ID: hostUUID, DeviceID: hostUUID, Type: "Device", Enabled: true}, nil
 		}
-		ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+		ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			require.Equal(t, uint(99), id)
 			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(24 * time.Hour)}, nil
 		}
 		ds.GetHostManagedAppleIDFunc = func(_ context.Context, id uint) (string, error) {
@@ -121,7 +122,12 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 	}
 
 	host := &fleet.Host{ID: hostID, UUID: hostUUID, HardwareSerial: hostSerial, Platform: "ios"}
-	vppApp := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}}}
+	vppApp := &fleet.VPPApp{
+		AdamID:     adamID,
+		Platform:   fleet.IOSPlatform,
+		AppTeamID:  5,
+		VPPTokenID: new(uint(99)),
+	}
 
 	t.Run("personal enrollment routes via clientUserIds", func(t *testing.T) {
 		var capt captured
@@ -130,7 +136,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
 		require.NotEmpty(t, capt.body, "AssociateAssets request must have been sent")
@@ -154,7 +160,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, false)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
 		require.NotEmpty(t, capt.body)
@@ -192,7 +198,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		}
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
 		require.NotEmpty(t, capt.body)
@@ -231,7 +237,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
 		require.Contains(t, assignmentsQuery, "clientUserId=")
@@ -260,7 +266,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		cmdUUID, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		cmdUUID, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 		require.NotEmpty(t, cmdUUID, "the command must still be enqueued for the install row")
 		require.Equal(t, 0, associateCalls, "AssociateAssets must not run when the user already has the asset")
@@ -287,7 +293,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.Error(t, err)
 
 		var bre *fleet.BadRequestError
@@ -326,11 +332,107 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "9609")
 		require.Equal(t, 1, registerCalls, "only the initial ensureVPPClientUser register; no retry")
 		require.Equal(t, 1, associateCalls, "associate is attempted exactly once")
+	})
+
+	// The app is bound to token B while the fleet's first-added token is A. Every
+	// Apple call and the BYOD client user must use B, and the install row must
+	// record it.
+	t.Run("app bound to a non-first token uses that token end to end", func(t *testing.T) {
+		const (
+			tokenBID     = uint(200)
+			tokenBSecret = "bearer-tok-B" //nolint:gosec // G101: test fixture, not a credential
+		)
+		var bearers []string
+		var registerSToken string
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				bearers = append(bearers, r.Header.Get("Authorization"))
+				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				bearers = append(bearers, r.Header.Get("Authorization"))
+				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				var body struct {
+					SToken            string `json:"sToken"`
+					ClientUserIDStr   string `json:"clientUserIdStr"`
+					ManagedAppleIDStr string `json:"managedAppleIDStr"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+					return
+				}
+				registerSToken = body.SToken
+				_, _ = fmt.Fprintf(w, `{"status":0,"user":{"userId":12345,"status":"Registered","clientUserIdStr":%q,"managedAppleIDStr":%q}}`,
+					body.ClientUserIDStr, body.ManagedAppleIDStr)
+			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				bearers = append(bearers, r.Header.Get("Authorization"))
+				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
+			default:
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		})
+
+		ds := setupDS(t, true)
+		// The fleet's first token (A) must not be consulted.
+		ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(24 * time.Hour)}, nil
+		}
+		ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			require.Equal(t, tokenBID, id)
+			return &fleet.VPPTokenDB{ID: tokenBID, Token: tokenBSecret, RenewDate: time.Now().Add(24 * time.Hour)}, nil
+		}
+		var clientUserTokenID uint
+		ds.GetVPPClientUserFunc = func(_ context.Context, tokenID uint, _ string) (*fleet.VPPClientUser, error) {
+			clientUserTokenID = tokenID
+			return nil, &notFoundError{}
+		}
+		var gotOpts fleet.HostSoftwareInstallOptions
+		ds.InsertHostVPPSoftwareInstallFunc = func(_ context.Context, _ uint, _ fleet.VPPAppID, _ string, _ string, opts fleet.HostSoftwareInstallOptions) error {
+			gotOpts = opts
+			return nil
+		}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		appB := *vppApp
+		appB.VPPTokenID = new(tokenBID)
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, &appB, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+
+		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked, "the fleet's first token must not be consulted")
+		require.Equal(t, tokenBID, clientUserTokenID)
+		require.Equal(t, tokenBSecret, registerSToken)
+		require.Len(t, bearers, 3, "assignments, assets, associate")
+		for _, b := range bearers {
+			require.Equal(t, "Bearer "+tokenBSecret, b)
+		}
+		require.Equal(t, tokenBID, gotOpts.VPPTokenID)
+		require.Equal(t, uint(5), gotOpts.VPPAppTeamID)
+	})
+
+	t.Run("expired or missing bound token fails before any Apple call", func(t *testing.T) {
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		})
+
+		ds := setupDS(t, false)
+		ds.GetVPPTokenFunc = func(_ context.Context, _ uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(-time.Hour)}, nil
+		}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
+		require.ErrorContains(t, err, "Couldn't install. VPP token expired.")
+		require.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
+
+		noToken := *vppApp
+		noToken.VPPTokenID = nil
+		_, err = svc.InstallVPPAppPostValidation(context.Background(), host, &noToken, fleet.HostSoftwareInstallOptions{})
+		require.ErrorContains(t, err, "No available VPP Token")
 	})
 
 	// Pin the dev_mode override in scope until t.Cleanup runs — referenced by the

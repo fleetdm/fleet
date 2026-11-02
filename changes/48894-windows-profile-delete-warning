@@ -1,0 +1,1 @@
+- Added a warning when a Windows configuration profile is deleted in the UI, the API, or `fleetctl gitops`, explaining that some Windows settings may not be cleanly removed from hosts.

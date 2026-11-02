@@ -356,14 +356,14 @@ will be disabled and/or hidden in the UI.
               res.locals.announcementBanner = undefined;
               if (bannerConfig && bannerConfig.enabled) {
                 let requestPath = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
-                let isOnBannerPage = bannerConfig.pages.some((pagePattern)=>{
+                let isOnHiddenPage = bannerConfig.hiddenOnPages.some((pagePattern)=>{
                   if (pagePattern.endsWith('/*')) {
                     let prefix = pagePattern.slice(0, -2);
                     return requestPath === prefix || requestPath.startsWith(prefix + '/');
                   }
                   return requestPath === pagePattern;
                 });
-                if (isOnBannerPage) {
+                if (!isOnHiddenPage) {
                   let banner = { text: bannerConfig.text, textForSmallScreens: bannerConfig.textForSmallScreens, href: bannerConfig.href };
                   if (bannerConfig.forVisitorsInEurope) {
                     const EUROPEAN_COUNTRY_CODES = [

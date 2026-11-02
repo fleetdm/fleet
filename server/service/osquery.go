@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/agentws"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -2421,6 +2422,28 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
+	// The flag lands on the software row shared by every host, so a host must not be able to set
+	// it directly: only the ai_tools merge below may. Every software detail query is stripped,
+	// not just the ones the merge runs on, since any of them can reach directIngestSoftware.
+	for query, rows := range results {
+		if !strings.HasPrefix(query, hostDetailQueryPrefix+"software_") {
+			continue
+		}
+		for _, row := range rows {
+			delete(row, "ai_tool")
+		}
+	}
+
+	// Merged last so every row it can flag is already present, including rows the overrides add
+	// or re-append.
+	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
+	aiToolsMerge := osquery_utils.DetailQuery{
+		SoftwareProcessResults: func(mainRows, aiRows []map[string]string) []map[string]string {
+			return osquery_utils.AIToolsProcessResults(host.Platform, mainRows, aiRows)
+		},
+	}
+	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, aiToolsMerge, logger)
+
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 
@@ -2869,12 +2892,32 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
-		if err := query.IngestFunc(ctx, svc.logger, host, rows); err != nil {
+		uuidBefore := host.UUID
+		err := query.IngestFunc(ctx, svc.logger, host, rows)
+		if uuidBefore == "" && host.UUID != "" {
+			svc.unsetUUIDOwnedByAnotherMDMHost(ctx, host)
+		}
+		if err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 	}
 
 	return nil
+}
+
+func (svc *Service) unsetUUIDOwnedByAnotherMDMHost(ctx context.Context, host *fleet.Host) {
+	mdmHostID, err := svc.ds.OtherMDMHostIDWithUUID(ctxdb.RequirePrimary(ctx, true), host.UUID, host.ID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "checking reported host UUID against MDM hosts", "err", err, "host_id", host.ID)
+		ctxerr.Handle(ctx, err)
+		host.UUID = ""
+		return
+	}
+	if mdmHostID != 0 {
+		svc.logger.WarnContext(ctx, "ignoring a reported UUID that belongs to another MDM host",
+			"host_id", host.ID, "reported_uuid", host.UUID, "mdm_host_id", mdmHostID)
+		host.UUID = ""
+	}
 }
 
 // filterPolicyResults filters out policies that aren't configured for webhook automation.
@@ -3240,8 +3283,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
-	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-	if err != nil {
+	if err := svc.EnterpriseOverrides.CheckCanInstallVPPApps(ctx, true, host); err != nil {
 		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
 	}
 
@@ -3339,7 +3381,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, fleet.HostSoftwareInstallOptions{
 			SelfService:     false,
 			PolicyID:        &policyID,
 			DeferActivation: svc.deferFleetInitiatedActivation(),

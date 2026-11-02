@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.64.1.664",
+      "version": "3.64.2.665",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs' AND version_compare(version, '3.64.1.664') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PreForm' AND publisher = 'Formlabs' AND version_compare(version, '3.64.2.665') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'preform.exe');"
       },
-      "installer_url": "https://downloads.formlabs.com/PreForm/Release/3.64.1/PreForm_win_3.64.1_release_releaser_664_136463.exe",
+      "installer_url": "https://downloads.formlabs.com/PreForm/Release/3.64.2/PreForm_win_3.64.2_release_releaser_665_137153.exe",
       "install_script_ref": "84a9966c",
       "uninstall_script_ref": "5b969dff",
-      "sha256": "12914059f493624b008a1d2e32968fddf0460f53a7ade88d6f15a58a03db1db1",
+      "sha256": "80062180c4fc5af850f1dcaff02cc02b44c7bbb11fa706079cdaccaff13aba00",
       "default_categories": [
         "Productivity"
       ]

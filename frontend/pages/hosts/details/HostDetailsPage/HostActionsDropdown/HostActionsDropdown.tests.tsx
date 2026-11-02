@@ -748,6 +748,61 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Delete")).not.toBeInTheDocument();
     });
 
+    it("does not render when the user is a global technician on Fleet Free", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the user is a technician on the host's fleet on Fleet Free", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
     it("does not render when the user is a global observer", async () => {
       const render = createCustomRenderer({
         context: {

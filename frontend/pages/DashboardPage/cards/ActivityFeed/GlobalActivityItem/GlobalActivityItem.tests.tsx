@@ -876,6 +876,41 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
   });
 
+  it("renders a 'set_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("marked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("unmarked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'set_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.SetHostRecoveryLockPassword,
@@ -2886,6 +2921,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedGoogleCAS, /added a certificate authority/],
+    [ActivityType.EditedGoogleCAS, /edited a certificate authority/],
+    [ActivityType.DeletedGoogleCAS, /deleted a certificate authority/],
+  ])("renders %s activity with the CA's name", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "GOOGLE_WIFI" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("GOOGLE_WIFI")).toBeInTheDocument();
+  });
+
   it("renders addedCustomScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedCustomScepProxy,
@@ -2980,6 +3030,22 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
   });
 
   it("renders addedHydrant activity correctly", () => {
@@ -3202,6 +3268,31 @@ describe("Activity Feed", () => {
     expect(screen.getByText("deleted the label .")).toBeInTheDocument();
     expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
+
+  it.each([
+    [ActivityType.AddedSelfServiceCategory, "added", "to"],
+    [ActivityType.EditedSelfServiceCategory, "edited", "in"],
+    [ActivityType.DeletedSelfServiceCategory, "deleted", "from"],
+  ] as const)(
+    "renders a %s activity with the category and fleet names",
+    (type, action, preposition) => {
+      const activity = createMockActivity({
+        type,
+        actor_full_name: "E2E",
+        details: {
+          self_service_category_name: "🛠️ Utilities",
+          fleet_name: "qa-fma-gitops-1028",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container).toHaveTextContent(
+        `E2E ${action} 🛠️ Utilities self-service category ${preposition} the qa-fma-gitops-1028 fleet.`
+      );
+    }
+  );
 
   it("renders an un-scoped installed_all_self_service_software activity", () => {
     const activity = createMockActivity({

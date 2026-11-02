@@ -1,0 +1,1 @@
+- Fixed saving one fleet webhook (host status, failing policies, or host activities) turning off the fleet's other webhooks. This also applies to "Unassigned".

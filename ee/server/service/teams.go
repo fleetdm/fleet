@@ -217,15 +217,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
-		// A nil HostActivitiesWebhook means "not provided", so preserve the
-		// stored value: existing callers PATCH webhook_settings with only the
-		// webhook they manage (e.g. the policies page sends just
-		// failing_policies_webhook) and must not clear this one. Disabling is
-		// explicit: send the object with enable_host_activities_webhook: false.
-		if payload.WebhookSettings.HostActivitiesWebhook == nil {
-			payload.WebhookSettings.HostActivitiesWebhook = team.Config.WebhookSettings.HostActivitiesWebhook
-		}
-		team.Config.WebhookSettings = *payload.WebhookSettings
+		applyTeamWebhookSettings(&team.Config.WebhookSettings, payload.WebhookSettings)
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -881,16 +873,20 @@ func (svc *Service) rewriteAppConfigTeamNames(
 		}
 	}
 
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get VPP token by team ID")
+	vppTokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list VPP tokens")
 	}
-	if vppToken != nil {
-		for i := range appCfg.MDM.VolumePurchasingProgram.Value {
-			programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
-			if programInfo.Location == vppToken.Location && vpp(programInfo) {
-				updated = true
-			}
+	locations := make(map[string]struct{})
+	for _, tok := range vppTokens {
+		if slices.ContainsFunc(tok.Teams, func(tt fleet.TeamTuple) bool { return tt.ID == teamID }) {
+			locations[tok.Location] = struct{}{}
+		}
+	}
+	for i := range appCfg.MDM.VolumePurchasingProgram.Value {
+		programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
+		if _, ok := locations[programInfo.Location]; ok && vpp(programInfo) {
+			updated = true
 		}
 	}
 
@@ -1762,7 +1758,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
-		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
+		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
+		macOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment || macOSSetup.MacOSEnableBootstrapPackageDuringMigration {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -2325,6 +2322,24 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
 
+	didUpdateBootstrapManualEnrollment := spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != oldMacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+	if didUpdateBootstrapManualEnrollment && spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment",
+				`Couldn't update setup_experience.macos_enable_bootstrap_package_during_manual_enrollment because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+
+	didUpdateBootstrapMigration := spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != oldMacOSSetup.MacOSEnableBootstrapPackageDuringMigration
+	if didUpdateBootstrapMigration && spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_enable_bootstrap_package_during_migration",
+				`Couldn't update setup_experience.macos_enable_bootstrap_package_during_migration because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
+
 	didUpdateWindowsRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftwareWindows != oldMacOSSetup.RequireAllSoftwareWindows
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
@@ -2691,24 +2706,13 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		len(applyUpon.CustomSettings) > 0 &&
 		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
 
-	macOSDiskEncryptionOn := (setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value) ||
-		(setFields["enable_escrow_disk_encryption_key"] && applyUpon.EnableEscrowDiskEncryptionKey.Value)
-
-	if customSettingsChanged || macOSDiskEncryptionOn {
-		field := "custom_settings"
-		switch {
-		case setFields["custom_settings"]:
-		case setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value:
-			field = "enable_disk_encryption"
-		default:
-			field = "enable_escrow_disk_encryption_key"
-		}
-		if !appCfg.MDM.EnabledAndConfigured {
-			// TODO: Address potential edge cases when teams that previously utilized MDM features
-			// are edited later edited when MDM disabled
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("apple_settings.%s", field),
-				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
+	// macOS disk encryption isn't gated on Apple MDM, matching the disk encryption endpoint, so a
+	// Windows-only MDM org can apply its own generate-gitops export.
+	if customSettingsChanged && !appCfg.MDM.EnabledAndConfigured {
+		// TODO: Address potential edge cases when teams that previously utilized MDM features
+		// are edited later edited when MDM disabled
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.custom_settings",
+			`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
 	return setFields, nil
@@ -2914,17 +2918,36 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		didUpdate = true
 	}
 
+	requireBootstrapPackage := svc.bootstrapPackageRequirement(ctx, tm.ID)
+
+	if payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil &&
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = *payload.MacOSEnableBootstrapPackageDuringManualEnrollment
+		didUpdate = true
+	}
+
+	if payload.MacOSEnableBootstrapPackageDuringMigration != nil &&
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != *payload.MacOSEnableBootstrapPackageDuringMigration {
+		if *payload.MacOSEnableBootstrapPackageDuringMigration {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = *payload.MacOSEnableBootstrapPackageDuringMigration
+		didUpdate = true
+	}
+
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			// Try to load the bootstrap package to verify it exists.
-			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, tm.ID, false)
-			// If we got an error other than not found, return it.
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
-			}
-			// Otherwise if we got a not found error, we can't enable manual agent install.
-			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
+			if *payload.ManualAgentInstall {
+				if err := requireBootstrapPackage("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."); err != nil {
+					return err
+				}
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)
 			if err != nil {
@@ -2986,13 +3009,28 @@ func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.C
 	return nil
 }
 
+// applyTeamWebhookSettings replaces only the webhooks present in the payload:
+// each UI page PATCHes just the webhook it manages and must not clear the
+// others. Disabling is explicit, by sending the webhook with enable: false.
+func applyTeamWebhookSettings(dst *fleet.TeamWebhookSettings, src *fleet.TeamSpecWebhookSettings) {
+	if src.HostStatusWebhook != nil {
+		dst.HostStatusWebhook = src.HostStatusWebhook
+	}
+	if src.FailingPoliciesWebhook != nil {
+		dst.FailingPoliciesWebhook = *src.FailingPoliciesWebhook
+	}
+	if src.HostActivitiesWebhook != nil {
+		dst.HostActivitiesWebhook = src.HostActivitiesWebhook
+	}
+}
+
 // validateTeamWebhookSettings validates webhook settings for teams and default team config
-func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.TeamWebhookSettings) error {
+func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.TeamSpecWebhookSettings) error {
 	if webhookSettings == nil {
 		return nil
 	}
 
-	if webhookSettings.FailingPoliciesWebhook.Enable {
+	if webhookSettings.FailingPoliciesWebhook != nil && webhookSettings.FailingPoliciesWebhook.Enable {
 		if webhookSettings.FailingPoliciesWebhook.DestinationURL == "" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("webhook_settings.failing_policies_webhook.destination_url", "destination URL is required when webhook is enabled"))
 		}
@@ -3029,10 +3067,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
-		if payload.WebhookSettings.HostActivitiesWebhook == nil {
-			payload.WebhookSettings.HostActivitiesWebhook = config.WebhookSettings.HostActivitiesWebhook
-		}
-		config.WebhookSettings = *payload.WebhookSettings
+		applyTeamWebhookSettings(&config.WebhookSettings, payload.WebhookSettings)
 	}
 
 	// Apply integrations if provided

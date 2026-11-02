@@ -2543,6 +2543,13 @@
       "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
     },
     {
+      "name": "Dia",
+      "slug": "dia/darwin",
+      "platform": "darwin",
+      "unique_identifier": "company.thebrowser.dia",
+      "description": "Dia is an AI-focused web browser from The Browser Company."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -3113,7 +3120,7 @@
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
-      "unique_identifier": "in.sinew.Enpass-Desktop",
+      "unique_identifier": "in.sinew.Enpass-Desktop.App",
       "description": "Enpass is a password and credentials manager."
     },
     {
@@ -4062,6 +4069,20 @@
       "description": "Grids is an instagram desktop application."
     },
     {
+      "name": "Grok Bot",
+      "slug": "grok-bot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anysphere.sand",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
+      "name": "Grok Bot",
+      "slug": "grok-bot/windows",
+      "platform": "windows",
+      "unique_identifier": "Grok Bot",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
       "name": "Groove OmniDialer",
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
@@ -4102,6 +4123,13 @@
       "platform": "windows",
       "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Handy",
+      "slug": "handy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pais.handy",
+      "description": "Handy is a speech to text application."
     },
     {
       "name": "Harmony SASE",
@@ -4219,7 +4247,7 @@
       "name": "HoudahSpot",
       "slug": "houdahspot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.houdah.HoudahSpot6",
+      "unique_identifier": "com.houdah.HoudahSpot4",
       "description": "HoudahSpot is a file searching application."
     },
     {
@@ -4604,7 +4632,7 @@
       "name": "JASP",
       "slug": "jasp/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.jasp-stats.JASP",
+      "unique_identifier": "org.jaspstats.jasp",
       "description": "JASP is a statistical analysis application."
     },
     {
@@ -4926,7 +4954,7 @@
       "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
-      "unique_identifier": "LastPass",
+      "unique_identifier": "LastPass Universal Windows Installer",
       "description": "LastPass is a password manager."
     },
     {
@@ -5021,18 +5049,18 @@
       "description": "LinearMouse is a tool to customise mouse behavior."
     },
     {
-      "name": "Lingon X",
-      "slug": "lingon-x/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.peterborgapps.LingonX9",
-      "description": "Lingon X is an automator software to start apps, run scripts or commands and more."
-    },
-    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
       "unique_identifier": "at.obdev.LittleSnitch",
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
+    },
+    {
+      "name": "LM Studio",
+      "slug": "lm-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.elementlabs.lmstudio",
+      "description": "LM Studio is an app to discover, download, and run local LLMs."
     },
     {
       "name": "Local",
@@ -5075,6 +5103,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech G HUB",
+      "slug": "logitech-g-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.ghub",
+      "description": "Logitech G HUB is software for customizing Logitech G gaming gear."
     },
     {
       "name": "Logitech Unifying Software",
@@ -5511,6 +5546,27 @@
       "description": "Microsoft .NET Runtime 8 is the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
     },
     {
+      "name": "Microsoft .NET SDK 10",
+      "slug": "microsoft-dotnet-sdk-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 10",
+      "description": "Microsoft .NET SDK 10 is the software development kit for building, testing, and publishing .NET 10 apps, including the dotnet CLI and the .NET 10 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 8",
+      "slug": "microsoft-dotnet-sdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 8",
+      "description": "Microsoft .NET SDK 8 is the software development kit for building, testing, and publishing .NET 8 apps, including the dotnet CLI and the .NET 8 runtimes."
+    },
+    {
+      "name": "Microsoft .NET SDK 9",
+      "slug": "microsoft-dotnet-sdk-9/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET SDK 9",
+      "description": "Microsoft .NET SDK 9 is the software development kit for building, testing, and publishing .NET 9 apps, including the dotnet CLI and the .NET 9 runtimes."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -5661,7 +5717,7 @@
       "name": "MindManager",
       "slug": "mindmanager/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.mindjet.mindmanager.25",
+      "unique_identifier": "com.mindjet.mindmanager.26",
       "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
     },
     {
@@ -6218,6 +6274,13 @@
       "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
     },
     {
+      "name": "NVM for Windows",
+      "slug": "nvm-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "NVM for Windows",
+      "description": "NVM for Windows is a version manager for installing and switching between multiple Node.js versions."
+    },
+    {
       "name": "OBS",
       "slug": "obs/darwin",
       "platform": "darwin",
@@ -6417,7 +6480,7 @@
       "name": "OpenCloud Desktop",
       "slug": "opencloud/darwin",
       "platform": "darwin",
-      "unique_identifier": "eu.opencloud.desktopclient",
+      "unique_identifier": "eu.opencloud.desktop",
       "description": "OpenCloud Desktop is a desktop syncing client for OpenCloud."
     },
     {
@@ -7198,6 +7261,34 @@
       "description": "QEMU is an open-source machine emulator and virtualizer."
     },
     {
+      "name": "QGIS",
+      "slug": "qgis/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS",
+      "slug": "qgis/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS",
+      "description": "QGIS is a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.qgis.qgis3",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
+      "name": "QGIS LTR",
+      "slug": "qgis@ltr/windows",
+      "platform": "windows",
+      "unique_identifier": "QGIS LTR",
+      "description": "QGIS LTR is the long-term release of QGIS, a free and open-source geographic information system (GIS) for viewing, editing, and analyzing geospatial data."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
@@ -7334,7 +7425,7 @@
       "name": "REAPER",
       "slug": "reaper/windows",
       "platform": "windows",
-      "unique_identifier": "REAPER",
+      "unique_identifier": "REAPER (x64)",
       "description": "REAPER is a digital audio production application."
     },
     {
@@ -7362,7 +7453,7 @@
       "name": "Recut",
       "slug": "recut/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tinywins.recut",
+      "unique_identifier": "co.tinywins.recut",
       "description": "Recut is a tool to remove silence from videos and automatically generate a cut list."
     },
     {
@@ -7551,7 +7642,7 @@
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.witt-software.Rocket-Typist-3",
+      "unique_identifier": "com.witt-software.Rocket-Typist-2",
       "description": "Rocket Typist is a text expander for common phrases."
     },
     {
@@ -7789,7 +7880,7 @@
       "name": "Sequel Ace",
       "slug": "sequel-ace/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sequelace.SequelAce",
+      "unique_identifier": "com.sequel-ace.sequel-ace",
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
@@ -8178,6 +8269,13 @@
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
+      "name": "Splashtop Streamer",
+      "slug": "splashtop-streamer/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Streamer",
+      "description": "Splashtop Streamer is used to connect to and control computers."
+    },
+    {
       "name": "Splice",
       "slug": "splice/darwin",
       "platform": "darwin",
@@ -8430,6 +8528,13 @@
       "description": "Superkey is a tool to search and click text anywhere on screen."
     },
     {
+      "name": "Superset",
+      "slug": "superset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superset.desktop",
+      "description": "Superset is a terminal for orchestrating AI coding agents."
+    },
+    {
       "name": "superwhisper",
       "slug": "superwhisper/darwin",
       "platform": "darwin",
@@ -8521,6 +8626,13 @@
       "description": "Syntax Highlight is a quicklook extension for source files."
     },
     {
+      "name": "T3 Code",
+      "slug": "t3-code/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.t3tools.t3code",
+      "description": "T3 Code is a minimal GUI for AI coding agents."
+    },
+    {
       "name": "Tabby",
       "slug": "tabby/darwin",
       "platform": "darwin",
@@ -8538,7 +8650,7 @@
       "name": "Tableau Prep",
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
+      "unique_identifier": "com.tableausoftware.tableauprep",
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
@@ -8552,7 +8664,7 @@
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tableausoftware.Desktop.app",
+      "unique_identifier": "com.tableausoftware.tableaudesktop",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
     },
     {
@@ -9074,6 +9186,20 @@
       "description": "Unity Hub is a management tool for Unity."
     },
     {
+      "name": "UnnaturalScrollWheels",
+      "slug": "unnaturalscrollwheels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.theron.UnnaturalScrollWheels",
+      "description": "UnnaturalScrollWheels is a utility that inverts the scroll direction of physical scroll wheels independently of the trackpad."
+    },
+    {
+      "name": "UPDF",
+      "slug": "updf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superace.updf.mac",
+      "description": "UPDF is a PDF editor."
+    },
+    {
       "name": "Upscayl",
       "slug": "upscayl/darwin",
       "platform": "darwin",
@@ -9294,7 +9420,7 @@
       "name": "VNC Server",
       "slug": "vnc-server/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncserver",
+      "unique_identifier": "com.realvnc.vncserver_service",
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
@@ -9494,6 +9620,13 @@
       "description": "WeekToDo is a weekly planner app focused on privacy."
     },
     {
+      "name": "WezTerm",
+      "slug": "wezterm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.wez.wezterm",
+      "description": "WezTerm is a GPU-accelerated, cross-platform terminal emulator and multiplexer."
+    },
+    {
       "name": "WhatRoute",
       "slug": "whatroute/darwin",
       "platform": "darwin",
@@ -9599,6 +9732,13 @@
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
+      "name": "WireGuard",
+      "slug": "wireguard/windows",
+      "platform": "windows",
+      "unique_identifier": "WireGuard",
+      "description": "WireGuard is a fast, modern VPN that uses state-of-the-art cryptography."
+    },
+    {
       "name": "Wireshark",
       "slug": "wireshark-app/darwin",
       "platform": "darwin",
@@ -9651,7 +9791,7 @@
       "name": "Worksheet Crafter",
       "slug": "worksheet-crafter/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+      "unique_identifier": "com.schoolcraft.Worksheet Crafter",
       "description": "Worksheet Crafter is a worksheet and lesson material creator."
     },
     {
