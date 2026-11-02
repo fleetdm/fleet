@@ -487,7 +487,11 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	// Create an iterator to return one host at a time, hydrated with extra details as needed.
 	hostIterator := func() iter.Seq2[*fleet.Host, error] {
 		return func(yield func(*fleet.Host, error) bool) {
-			for _, host := range hosts {
+			for _, pageHost := range hosts {
+				// Hydrate software on a copy instead of slice elements
+				// to allow memory to be freed at the end of each iteration ...
+				hostCopy := *pageHost
+				host := &hostCopy
 
 				if !opt.DisableIssues && !premiumLicense {
 					host.HostIssues.CriticalVulnerabilitiesCount = nil
@@ -4123,9 +4127,11 @@ func (svc *Service) OSVersions(
 	}, count, meta, nil
 }
 
-var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
-var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
-var ubuntuLTSSuffixPattern = regexp.MustCompile(`(?i)\s+LTS$`)
+var (
+	numericVersionPattern       = regexp.MustCompile(`^\d+(\.\d+)*$`)
+	windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+	ubuntuLTSSuffixPattern      = regexp.MustCompile(`(?i)\s+LTS$`)
+)
 
 // versionSegments returns the segments used to order a version string, and
 // whether it could be parsed. Handles dot-separated numeric versions (e.g.
