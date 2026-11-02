@@ -188,6 +188,17 @@ Once events have been settled for the upcoming quarter, Fleet does not make chan
 3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
 -->
 
+#### Track program spend
+
+Marketing program spend (events, sponsorships, digital ads, PR, and miscellaneous costs like website swag fulfillment) is budgeted each quarter. The single source of truth for the current budget is the "Budgets" tab in the [OKR spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1&gid=1137119307#gid=1137119307). Event budgets include all related costs: travel, swag, sponsorship, and venue.
+
+To keep finance's projections accurate:
+
+1. When an event is confirmed or its costs change, the Marketing Coordinator updates column W in the [event spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?pli=1&gid=692710204#gid=692710204).
+2. Finance updates actual spend in the Budgets tab every month, after the books close.
+3. If a change in plans affects the quarterly budget, ping the CFO in the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) channel so the Budgets tab can be updated.
+
+
 ### Settle content strategy
 
 <!-- 2026-06-02 TODO: Is this still a thing? If so, we need to update the responsibility -->
