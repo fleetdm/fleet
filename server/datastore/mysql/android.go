@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -2939,7 +2940,7 @@ WHERE
 // DeleteAndroidAppConfiguration removes an Android app configuration.
 func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
 	stmt := `
-		UPDATE vpp_apps_teams SET configuration = NULL
+		UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6)
 		WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL
 	`
 
@@ -2967,7 +2968,16 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
 	}
 
-	_, err = tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ? WHERE id = ?`, config, vppAppTeamID)
+	var storedConfig []byte
+	err = sqlx.GetContext(ctx, tx, &storedConfig, `SELECT configuration FROM vpp_apps_teams WHERE id = ?`, vppAppTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get stored android app configuration")
+	}
+	if bytes.Equal(storedConfig, config) {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ?, configuration_updated_at = NOW(6) WHERE id = ?`, config, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
@@ -3071,4 +3081,262 @@ WHERE
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) ListAndroidHostsOnHostPolicy(ctx context.Context) ([]*fleet.Host, error) {
+	const stmt = `
+		SELECT
+			h.id,
+			h.uuid,
+			h.hardware_serial,
+			h.platform
+		FROM
+			android_devices ad
+			JOIN hosts h ON h.id = ad.host_id
+			JOIN host_mdm hm ON hm.host_id = ad.host_id
+		WHERE
+			h.platform = 'android' AND
+			hm.enrolled = 1 AND
+			ad.applied_policy_id = h.uuid
+		ORDER BY ad.host_id
+	`
+	var hosts []*fleet.Host
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android hosts on host policy")
+	}
+	return hosts, nil
+}
+
+func (ds *Datastore) ListHostMDMAndroidVPPAppsFromSetupExperience(
+	ctx context.Context,
+	hostIDs []uint,
+) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	const stmt = `
+		SELECT
+			hvsi.host_id,
+			hvsi.adam_id,
+			hvsi.vpp_app_team_id
+		FROM
+			host_vpp_software_installs hvsi
+			JOIN hosts h ON h.id = hvsi.host_id
+			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id AND vat.team_id <=> h.team_id
+		WHERE
+			hvsi.host_id IN (?) AND
+			hvsi.platform = 'android' AND
+			hvsi.canceled = 0 AND
+			hvsi.removed = 0 AND
+			hvsi.created_at >= h.last_enrolled_at AND
+			hvsi.verification_failed_at IS NULL
+	`
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build android setup experience apps query")
+	}
+	var installs []*fleet.HostAndroidVPPSoftwareInstall
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android setup experience apps")
+	}
+	installsByHostID := make(map[uint][]*fleet.HostAndroidVPPSoftwareInstall)
+	for _, install := range installs {
+		installsByHostID[install.HostID] = append(installsByHostID[install.HostID], install)
+	}
+	return installsByHostID, nil
+}
+
+func (ds *Datastore) ListHostAndroidSoftwareInstalls(
+	ctx context.Context,
+	hostIDs []uint,
+) (map[uint]map[string]*fleet.HostAndroidSoftwareInstall, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	const stmt = `
+		SELECT
+			host_id,
+			adam_id,
+			vpp_app_team_id,
+			install_type,
+			status,
+			needs_resend,
+			in_policy_version,
+			policy_built_at,
+			created_at,
+			updated_at
+		FROM
+			host_android_software_installs
+		WHERE
+			host_id IN (?)
+	`
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list host android software installs query")
+	}
+	var installs []*fleet.HostAndroidSoftwareInstall
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host android software installs")
+	}
+	installsByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall)
+	for _, install := range installs {
+		if installsByHostID[install.HostID] == nil {
+			installsByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
+		}
+		installsByHostID[install.HostID][install.AdamID] = install
+	}
+	return installsByHostID, nil
+}
+
+func (ds *Datastore) GetAndroidAppStoreAppVersionsByID(ctx context.Context) (map[uint]*fleet.VPPAppStoreApp, error) {
+	const stmt = `
+		SELECT
+			id,
+			configuration,
+			configuration_updated_at
+		FROM
+			vpp_apps_teams
+		WHERE
+			platform = 'android'
+	`
+	var versions []struct {
+		ID                     uint       `db:"id"`
+		Configuration          []byte     `db:"configuration"`
+		ConfigurationUpdatedAt *time.Time `db:"configuration_updated_at"`
+	}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android app store app versions")
+	}
+	versionByID := make(map[uint]*fleet.VPPAppStoreApp, len(versions))
+	for _, version := range versions {
+		versionByID[version.ID] = &fleet.VPPAppStoreApp{
+			VPPAppsTeamsID:         version.ID,
+			Configuration:          version.Configuration,
+			ConfigurationUpdatedAt: version.ConfigurationUpdatedAt,
+		}
+	}
+	return versionByID, nil
+}
+
+func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
+	// Write at most 100 installs per statement, because the cron's batch size can be any number of hosts
+	const batchSize = 100
+
+	for batch := range slices.Chunk(removedInstalls, batchSize) {
+		const deleteStmt = `DELETE FROM host_android_software_installs WHERE (host_id, adam_id) IN (%s)`
+		args := make([]any, 0, 2*len(batch))
+		for _, install := range batch {
+			args = append(args, install.HostID, install.AdamID)
+		}
+		values := strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",")
+		_, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(deleteStmt, values), args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host android software installs")
+		}
+	}
+
+	for batch := range slices.Chunk(installs, batchSize) {
+		const upsertStmt = `
+			INSERT INTO host_android_software_installs
+				(host_id, adam_id, vpp_app_team_id, install_type, status, needs_resend, in_policy_version, policy_built_at)
+			VALUES
+				%s
+			ON DUPLICATE KEY UPDATE
+				-- Don't clear a resend flag set after the policy was built, because the sent
+				-- policy doesn't have that change
+				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
+				vpp_app_team_id = VALUES(vpp_app_team_id),
+				install_type = VALUES(install_type),
+				status = VALUES(status),
+				in_policy_version = VALUES(in_policy_version),
+				policy_built_at = VALUES(policy_built_at)
+		`
+		args := make([]any, 0, 8*len(batch))
+		for _, install := range batch {
+			args = append(args, install.HostID, install.AdamID, install.VPPAppTeamID, install.InstallType, install.Status, install.NeedsResend, install.InPolicyVersion, install.PolicyBuiltAt)
+		}
+		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?, ?),", len(batch)), ",")
+		_, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(upsertStmt, values), args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host android software installs")
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []fleet.HostAndroidSoftwareInstall) error {
+	stmt := `DELETE FROM host_android_software_installs WHERE host_id = ?`
+	args := []any{hostID}
+	if len(installs) > 0 {
+		adamIDs := make([]string, 0, len(installs))
+		for _, install := range installs {
+			adamIDs = append(adamIDs, install.AdamID)
+		}
+		var err error
+		stmt, args, err = sqlx.In(`DELETE FROM host_android_software_installs WHERE host_id = ? AND adam_id NOT IN (?)`, hostID, adamIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete host android software installs query")
+		}
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host android software installs of other apps")
+	}
+	return ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
+}
+
+func (ds *Datastore) SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	stmt := `UPDATE host_android_software_installs SET needs_resend = 1, updated_at = NOW(6) WHERE host_id IN (?)`
+	args := []any{hostIDs}
+	if builtAfter != nil {
+		stmt += ` AND policy_built_at > ?`
+		args = append(args, *builtAfter)
+	}
+	if adamID != nil {
+		stmt += ` AND adam_id = ?`
+		args = append(args, *adamID)
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build flag host android software installs for resend query")
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "flag host android software installs for resend")
+	}
+	return nil
+}
+
+func setHostAndroidSoftwareInstallsNeedsResendTx(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, vppAppTeamIDs []uint) error {
+	stmt, args, err := sqlx.In(`UPDATE host_android_software_installs SET needs_resend = 1, updated_at = NOW(6) WHERE host_id IN (?) AND vpp_app_team_id IN (?)`, hostIDs, vppAppTeamIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build flag host android software installs of versions for resend query")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "flag host android software installs of versions for resend")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error {
+	const stmt = `
+		UPDATE host_android_software_installs
+		SET status = ?
+		WHERE host_id = ? AND status = ? AND in_policy_version <= ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.AndroidSoftwareInstallStatusVerified, hostID, fleet.AndroidSoftwareInstallStatusPending, appliedPolicyVersion)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host android software installs verified")
+	}
+	return nil
 }
