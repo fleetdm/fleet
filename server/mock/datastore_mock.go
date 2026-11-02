@@ -118,6 +118,8 @@ type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, h
 
 type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 
+type ScheduledQueriesDigestFunc func(ctx context.Context, teamID *uint) (string, error)
+
 type LabelScopedScheduledQueryScopesFunc func(ctx context.Context) (fleet.ConfigETagLabelScopes, error)
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
@@ -2787,6 +2789,9 @@ type DataStore struct {
 
 	HasLabelScopedScheduledQueriesFunc        HasLabelScopedScheduledQueriesFunc
 	HasLabelScopedScheduledQueriesFuncInvoked bool
+
+	ScheduledQueriesDigestFunc        ScheduledQueriesDigestFunc
+	ScheduledQueriesDigestFuncInvoked bool
 
 	LabelScopedScheduledQueryScopesFunc        LabelScopedScheduledQueryScopesFunc
 	LabelScopedScheduledQueryScopesFuncInvoked bool
@@ -6910,6 +6915,13 @@ func (s *DataStore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *
 	s.HasLabelScopedScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasLabelScopedScheduledQueriesFunc(ctx, teamID, queryReportsDisabled)
+}
+
+func (s *DataStore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	s.mu.Lock()
+	s.ScheduledQueriesDigestFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScheduledQueriesDigestFunc(ctx, teamID)
 }
 
 func (s *DataStore) LabelScopedScheduledQueryScopes(ctx context.Context) (fleet.ConfigETagLabelScopes, error) {
