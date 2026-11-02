@@ -1223,8 +1223,8 @@ org_settings:
         domain: fleetdm.com
         impersonated_user_email: admin@example.com
     google_conditional_access:
-      - customer_id: C01234abc
-        admin_email: fleet-admin@example.com
+      customer_id: C01234abc
+      admin_email: fleet-admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1

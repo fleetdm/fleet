@@ -2038,12 +2038,10 @@ None.
          }
       }
     ],
-    "google_conditional_access": [
-      {
-        "customer_id": "C01234abc",
-        "admin_email": "fleet-admin@example.com"
-      }
-    ],
+    "google_conditional_access": {
+      "customer_id": "C01234abc",
+      "admin_email": "fleet-admin@example.com"
+    },
     "jira": [],
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
@@ -2409,12 +2407,10 @@ Modifies the Fleet's configuration with the supplied information.
         "api_key_json": null
       }
     ],
-    "google_conditional_access": [
-      {
-        "customer_id": "C01234abc",
-        "admin_email": "fleet-admin@example.com"
-      }
-    ],
+    "google_conditional_access": {
+      "customer_id": "C01234abc",
+      "admin_email": "fleet-admin@example.com"
+    },
     "jira": [
       {
         "url": "https://jiraserver.com",
@@ -2785,7 +2781,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
-| google_conditional_access | array | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
+| google_conditional_access | object | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
 
 <br/>
 
@@ -2852,7 +2848,7 @@ _Available in Fleet Premium._
 
 _Available in Fleet Premium._
 
-`integrations.google_conditional_access` is an array of objects with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. To turn it off, set it to `[]`. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+`integrations.google_conditional_access` is an object with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. To turn it off, set it to `null`. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
 
 | Name        | Type   | Description |
 | ----------- | ------ | ----------- |
