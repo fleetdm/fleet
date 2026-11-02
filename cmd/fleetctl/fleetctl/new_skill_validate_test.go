@@ -104,7 +104,7 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
 		"report 'Unknown table': table 'no_such_table' isn't in Fleet's osquery schema",
 	}
 	require.Len(t, fails, len(want), string(out))
-	for i, w := range want {
-		require.Contains(t, fails[i], w, string(out))
+	for i, f := range fails {
+		require.Contains(t, f, want[i], string(out))
 	}
 }
