@@ -1,0 +1,1 @@
+- `fleetctl gitops --dry-run` now reports when an Android `app_store_id` under `software.app_store_apps` isn't available in Play Store, with the same error the real apply returns. Previously the dry run returned success before looking up Android apps, for both existing fleets and fleets that don't exist yet.
