@@ -1,5 +1,5 @@
 // Package removednames is the single source of truth for the "team" names that Fleet 5 removed, and for the error message that
-// tells users what to use instead. The server, fleetctl, and GitOps reject removed names with that message.
+// tells users what to use instead. The server, fleetctl, and GitOps reject removed names with that message once they use this package.
 package removednames
 
 import (

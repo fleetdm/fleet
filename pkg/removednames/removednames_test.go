@@ -38,7 +38,8 @@ func TestMessage(t *testing.T) {
 			"DELETE_OTHER_TEAMS was removed in Fleet 5. Use DELETE_OTHER_FLEETS instead." + suffix},
 		{"path", KindPath, "/api/_version_/fleet/teams", "",
 			"/api/_version_/fleet/teams was removed in Fleet 5. Use /api/_version_/fleet/fleets instead." + suffix},
-		{"command", KindCommand, "fleetctl get teams", "", "fleetctl get teams was removed in Fleet 5. Use fleetctl get fleets instead." + suffix},
+		{"command", KindCommand, "fleetctl get teams", "",
+			"fleetctl get teams was removed in Fleet 5. Use fleetctl get fleets instead." + suffix},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -69,7 +70,7 @@ func TestFindAndFilter(t *testing.T) {
 
 	// Scope filtering: activity details keys do not leak into the request scope and vice versa.
 	for _, e := range Filter(KindJSONKey, ScopeRequest) {
-		assert.NotEqual(t, ScopeActivityDetails, e.Scope, e.Old)
+		assert.Zero(t, e.Scope&ScopeActivityDetails, e.Old)
 	}
 	activityKeys := Filter(KindJSONKey, ScopeActivityDetails)
 	assert.Len(t, activityKeys, 3)
@@ -192,29 +193,32 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 
 	t.Run("fleetctl flag, command, and env var aliases", func(t *testing.T) {
 		t.Parallel()
-		for rel, file := range parseFiles(t, root, []string{filepath.Join("cmd", "fleetctl", "fleetctl")}, "Aliases") {
-			ast.Inspect(file, func(n ast.Node) bool {
-				kv, ok := n.(*ast.KeyValueExpr)
-				if !ok {
-					return true
-				}
-				for _, name := range stringLits(kv.Value) {
-					if !hasTeamToken(name) {
-						continue
-					}
-					switch exprName(kv.Key) {
-					case "Aliases":
-						found := has(KindFlag, ScopeRequest, name, "") || slices.ContainsFunc(entries, func(e Entry) bool {
-							return e.Kind == KindCommand && strings.HasSuffix(e.Old, " "+name)
-						})
-						assert.True(t, found, "%s: alias %q is missing from entries", rel, name)
-					case "EnvVars":
-						assert.True(t, has(KindEnvVar, ScopeRequest, name, ""), "%s: env var %q is missing from entries", rel, name)
-					}
-				}
-				return true
-			})
+		endsWithAny := func(context string, names []string) bool {
+			return slices.ContainsFunc(names, func(name string) bool { return strings.HasSuffix(context, " "+name) })
 		}
+		found := 0
+		for rel, file := range parseFiles(t, root, []string{filepath.Join("cmd", "fleetctl", "fleetctl")}, "") {
+			for _, alias := range collectCLIAliases(file) {
+				found++
+				switch alias.kind {
+				case cliCommandAlias:
+					primary := alias.command[0]
+					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
+						return e.Kind == KindCommand && strings.HasSuffix(e.Old, " "+alias.name) && strings.HasSuffix(e.New, " "+primary)
+					}), "%s: command alias %q of %q is missing from entries", rel, alias.name, primary)
+				case cliFlagAlias:
+					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
+						return e.Kind == KindFlag && e.Old == alias.name && endsWithAny(e.Context, alias.command) &&
+							(alias.flagName == "" || e.New == alias.flagName)
+					}), "%s: flag alias %q of command %v is missing from entries", rel, alias.name, alias.command)
+				case cliEnvVar:
+					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
+						return e.Kind == KindEnvVar && e.Old == alias.name && endsWithAny(e.Context, alias.command)
+					}), "%s: env var %q of command %v is missing from entries", rel, alias.name, alias.command)
+				}
+			}
+		}
+		assert.Positive(t, found)
 	})
 
 	t.Run("gitops key mappings", func(t *testing.T) {
@@ -231,10 +235,12 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				return true
 			}
 			found++
-			// Leaf-only mappings are JSON keys, full paths are YAML keys.
-			leaf := oldPath[strings.LastIndex(oldPath, ".")+1:]
-			assert.True(t, has(KindYAMLKey, ScopeRequest, oldPath, newPath) || has(KindJSONKey, ScopeRequest, leaf, ""),
-				"gitops mapping %s -> %s is missing from entries", oldPath, newPath)
+			// A dotted path must have its own YAML entry; only an undotted name can be covered by a JSON key entry.
+			matched := has(KindYAMLKey, ScopeRequest, oldPath, newPath)
+			if !strings.Contains(oldPath, ".") {
+				matched = matched || has(KindJSONKey, ScopeRequest, oldPath, newPath)
+			}
+			assert.True(t, matched, "gitops mapping %s -> %s is missing from entries", oldPath, newPath)
 			return true
 		})
 		assert.Positive(t, found)
@@ -336,4 +342,76 @@ func stringLits(e ast.Expr) []string {
 		}
 	}
 	return nil
+}
+
+const (
+	cliCommandAlias = "command alias"
+	cliFlagAlias    = "flag alias"
+	cliEnvVar       = "env var"
+)
+
+// cliAlias is a team-named command alias, flag alias, or env var found in a fleetctl command definition.
+type cliAlias struct {
+	kind string
+	name string
+	// command holds the name of the enclosing command followed by its aliases.
+	command []string
+	// flagName is the flag's name when it is a string literal.
+	flagName string
+}
+
+// collectCLIAliases returns the team-named aliases and env vars declared in file, with the command that declares each.
+func collectCLIAliases(file *ast.File) []cliAlias {
+	var out []cliAlias
+	var walk func(node ast.Node, command []string)
+	walk = func(node ast.Node, command []string) {
+		ast.Inspect(node, func(n ast.Node) bool {
+			lit, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			if sel, ok := lit.Type.(*ast.SelectorExpr); ok && sel.Sel.Name == "Command" {
+				names := slices.Concat(literalsOf(lit, "Name"), literalsOf(lit, "Aliases"))
+				if len(names) > 0 {
+					for _, alias := range literalsOf(lit, "Aliases") {
+						if hasTeamToken(alias) {
+							out = append(out, cliAlias{kind: cliCommandAlias, name: alias, command: names})
+						}
+					}
+					for _, elt := range lit.Elts {
+						walk(elt, names)
+					}
+					return false
+				}
+			}
+			flagName := ""
+			if names := literalsOf(lit, "Name"); len(names) == 1 {
+				flagName = names[0]
+			}
+			for _, alias := range literalsOf(lit, "Aliases") {
+				if hasTeamToken(alias) {
+					out = append(out, cliAlias{kind: cliFlagAlias, name: alias, command: command, flagName: flagName})
+				}
+			}
+			for _, envVar := range literalsOf(lit, "EnvVars") {
+				if hasTeamToken(envVar) {
+					out = append(out, cliAlias{kind: cliEnvVar, name: envVar, command: command})
+				}
+			}
+			return true
+		})
+	}
+	walk(file, nil)
+	return out
+}
+
+// literalsOf returns the string literals assigned to the given key of a composite literal.
+func literalsOf(lit *ast.CompositeLit, key string) []string {
+	var out []string
+	for _, elt := range lit.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok && exprName(kv.Key) == key {
+			out = append(out, stringLits(kv.Value)...)
+		}
+	}
+	return out
 }
