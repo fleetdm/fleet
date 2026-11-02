@@ -15,6 +15,7 @@ import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Box from "./Box";
 import Brave from "./Brave";
+import Cap from "./png/Cap.png";
 import ChromeApp from "./ChromeApp";
 import ChromeOS from "./ChromeOS";
 import Cloudflare from "./Cloudflare";
@@ -1356,6 +1357,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   camtasia: Camtasia,
   "camunda modeler": CamundaModeler,
   canva: Canva,
+  cap: Cap,
   capcut: CapCut,
   captain: Captain,
   capto: Capto,
