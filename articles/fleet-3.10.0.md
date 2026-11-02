@@ -16,7 +16,7 @@ or the complete summary of changes and release binaries check out the [release n
 
 Updating the osquery version on your hosts helps reveal new capabilities and information from your fleet, but managing updates can be challenging. Our new self-managed agent auto-updates feature, available for Fleet Basic customers, helps you manage osquery agent versions across your fleet.
 
-We’ve also released the beta for [Orbit](https://github.com/fleetdm/orbit), Fleet’s lightweight osquery runtime and auto-updater. By default, Orbit uses the public Fleet update repository to manage auto-updates.
+We’ve also released the beta for [Orbit](https://github.com/fleetdm/fleet/tree/main/orbit), Fleet’s lightweight osquery runtime and auto-updater. By default, Orbit uses the public Fleet update repository to manage auto-updates.
 
 
 ## Identity Provider-Initiated Single Sign-On
