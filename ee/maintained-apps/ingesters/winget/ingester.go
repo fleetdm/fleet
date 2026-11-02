@@ -453,7 +453,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
 
-	external_refs.EnrichManifest(&out)
+	if err := external_refs.EnrichManifest(&out); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "enriching manifest")
+	}
 
 	// The patch policy normally compares osquery's reported version against the
 	// winget PackageVersion. Some installers report a registry DisplayVersion in a
