@@ -1682,6 +1682,7 @@ func orbitAction(c *cli.Context) error {
 	// list would hit the same race for their extensions (see
 	// wstransport.OsqueryFlags).
 	var wsUserFlags map[string]string
+	serveOsqueryConfig := false
 	if wsTransportEnabled {
 		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
 		if err != nil {
@@ -1692,7 +1693,12 @@ func orbitAction(c *cli.Context) error {
 			userFlags = nil
 		}
 		wsUserFlags = userFlags
-		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags, wsTransportState.OsqueryConfig)))
+		serveOsqueryConfig = wsTransportState.OsqueryConfig
+		if plugin, ok := wstransport.UserConfigPlugin(userFlags); ok && serveOsqueryConfig {
+			log.Info().Str("config_plugin", plugin).Msg("osquery.flags sets a config plugin: orbit won't serve osquery its config")
+			serveOsqueryConfig = false
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags, serveOsqueryConfig)))
 	}
 
 	// Handle additional args after '--' in the command line. These are added last and should
@@ -1781,7 +1787,7 @@ func orbitAction(c *cli.Context) error {
 			OnConnect:          orbitClient.TransportConnected,
 			OnDisconnect:       orbitClient.TransportDisconnected,
 		}
-		if wsTransportState.OsqueryConfig {
+		if serveOsqueryConfig {
 			configFetcher := wstransport.NewConfigFetcher(orbitClient, connected, wstransport.ServerConfigRefresh(wsUserFlags))
 			managerOpts.OnOsqueryConfig = configFetcher.Nudge
 			managerOpts.OnDisconnect = func() {

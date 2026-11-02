@@ -88,3 +88,21 @@ func TestServerConfigRefresh(t *testing.T) {
 	assert.Equal(t, DefaultServerConfigRefresh, ServerConfigRefresh(map[string]string{"--config_refresh": "soon"}))
 	assert.Equal(t, DefaultServerConfigRefresh, ServerConfigRefresh(map[string]string{"--config_refresh": "9223372036854775807"}))
 }
+
+func TestUserConfigPlugin(t *testing.T) {
+	for _, c := range []struct {
+		flags  map[string]string
+		plugin string
+		user   bool
+	}{
+		{flags: nil},
+		{flags: map[string]string{"--config_plugin": "tls"}, plugin: "tls"},
+		{flags: map[string]string{"--config_plugin": `"tls"`}, plugin: "tls"},
+		{flags: map[string]string{"--config_plugin": "filesystem"}, plugin: "filesystem", user: true},
+		{flags: map[string]string{"--config_plugin": "'custom'"}, plugin: "custom", user: true},
+	} {
+		plugin, user := UserConfigPlugin(c.flags)
+		assert.Equal(t, c.plugin, plugin, c.flags)
+		assert.Equal(t, c.user, user, c.flags)
+	}
+}

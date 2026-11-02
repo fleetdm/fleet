@@ -53,6 +53,15 @@ func OsqueryFlags(requiredExtension string, userFlags map[string]string, osquery
 	return flags
 }
 
+// UserConfigPlugin returns the config plugin set by userFlags (the parsed
+// flagfile, e.g. from the agent options' command_line_flags) when it isn't
+// osquery's TLS plugin, Fleet's default. Orbit then doesn't serve osquery its
+// config: the user manages it outside Fleet.
+func UserConfigPlugin(userFlags map[string]string) (string, bool) {
+	plugin := flagValue(userFlags, "--config_plugin")
+	return plugin, plugin != "" && plugin != "tls"
+}
+
 // ServerConfigRefresh returns osquery's config refresh as set by userFlags
 // (the parsed flagfile), or DefaultServerConfigRefresh.
 func ServerConfigRefresh(userFlags map[string]string) time.Duration {
