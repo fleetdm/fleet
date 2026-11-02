@@ -3315,12 +3315,6 @@ ON DUPLICATE KEY UPDATE
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
 	}
-	if len(deletedProfileUUIDs) > 0 {
-		// cancel installs of the deleted profiles immediately
-		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
-		}
-	}
 
 	// The upserts below run one at a time in map order and (team_id, name) is
 	// unique, so a chain or swap of names would fail unless each profile

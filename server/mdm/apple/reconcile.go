@@ -868,6 +868,11 @@ func ExecuteReconcileBatch(
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			p.IgnoreError = true
 		}
+		if p.Status == nil && p.OperationType == fleet.MDMOperationTypeInstall {
+			// profile was never sent, so we can drop the row safely.
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			continue
+		}
 
 		target := removeTargets[p.ProfileUUID]
 		if target == nil {
