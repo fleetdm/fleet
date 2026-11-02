@@ -840,6 +840,7 @@ func testReissueForExistingName(t *testing.T, s *Suite) {
 	cert, _ := testGetCertWithCurve(t, s, elliptic.P256())
 	name := cert.Subject.CommonName
 
+	// Requesting a new certificate for the same name should fail while the existing one is valid
 	_, err := requestSCEPCertificate(t, s, name)
 	require.Error(t, err)
 	current, err := s.DS.GetHostIdentityCertByName(ctx, name)
