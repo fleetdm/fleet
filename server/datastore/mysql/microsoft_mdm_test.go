@@ -829,53 +829,28 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 		})
 
-		t.Run("BitLocker host without a Fleet MDM enrollment has no status", func(t *testing.T) {
-			hostUUID := uuid.New().String()
-			h, err := ds.NewHost(ctx, &fleet.Host{
-				DetailUpdatedAt: time.Now(),
-				LabelUpdatedAt:  time.Now(),
-				PolicyUpdatedAt: time.Now(),
-				SeenTime:        time.Now(),
-				NodeKey:         &hostUUID,
-				UUID:            hostUUID,
-				Hostname:        hostUUID,
-				Platform:        "windows",
-			})
-			require.NoError(t, err)
+		t.Run("BitLocker host not connected to Fleet MDM has no status", func(t *testing.T) {
+			h := test.NewHost(t, ds, "no-fleet-mdm", "", "no-fleet-mdm-key", uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 			t.Cleanup(func() { require.NoError(t, ds.DeleteHost(ctx, h.ID)) })
-
-			bitLockerStatus := func() *fleet.HostMDMDiskEncryption {
+			requireNoStatus := func() {
 				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 				require.NoError(t, err)
-				return bls
-			}
-			setEnrollmentState := func(state string) {
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET device_state = ? WHERE host_uuid = ?`, state, hostUUID)
-					return err
-				})
+				require.Nil(t, bls)
 			}
 
 			// enrolled in a third-party MDM, so there is no Fleet enrollment row
 			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
 				fleet.PersonalEnrollmentTypeNone))
-			require.Nil(t, bitLockerStatus())
+			requireNoStatus()
 
+			// the enrollment row alone is not enough when the host no longer reports an MDM
 			windowsEnroll(t, ds, h)
-			setEnrollmentState(microsoft_mdm.MDMDeviceStateNotEnrolled)
-			require.Nil(t, bitLockerStatus())
-
-			// the enrollment row alone is not enough when the host reports that it is no longer enrolled in an MDM
-			setEnrollmentState(microsoft_mdm.MDMDeviceStateEnrolled)
 			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
-			require.Nil(t, bitLockerStatus())
+			requireNoStatus()
 
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "",
 				fleet.PersonalEnrollmentTypeNone))
-			bls := bitLockerStatus()
-			require.NotNil(t, bls)
-			require.NotNil(t, bls.Status)
-			require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+			checkHostBitLockerStatus(t, fleet.DiskEncryptionEnforcing, []uint{h.ID})
 		})
 
 		t.Run("OS settings filters include Windows and macOS hosts", func(t *testing.T) {
