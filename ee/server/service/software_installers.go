@@ -1897,17 +1897,16 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
-	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := svc.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
-func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	if !appleDevice {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
@@ -1918,20 +1917,20 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
 	}
 
 	if !config.MDM.EnabledAndConfigured {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
 	}
 
 	if !mdmConnected {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
@@ -1940,12 +1939,7 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 		}
 	}
 
-	token, err := svc.getVPPToken(ctx, host.TeamID)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
-	}
-
-	return token, nil
+	return nil
 }
 
 // fleetVarInErrRe matches the $FLEET_VAR_* token embedded in the error
@@ -2010,6 +2004,12 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 		if err := svc.NewActivity(ctx, user, act); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "create activity for failed vpp install")
 		}
+		if opts.PolicyID != nil {
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *opts.PolicyID, host.ID, fleet.ActivityInstalledAppStoreApp{}, false)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for failed vpp install", "host_id", host.ID, "command_uuid", cmdUUID, "err", err)
+			}
+		}
 	}
 	if opts.ForSetupExperience {
 		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
@@ -2064,8 +2064,14 @@ func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, hos
 	return cmdUUID, nil
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	tokenDB, err := svc.getVPPTokenByID(ctx, vppApp.VPPTokenID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
+	}
+	token := tokenDB.Token
 	opts.VPPAppTeamID = vppApp.AppTeamID
+	opts.VPPTokenID = tokenDB.ID
 	if opts.ForConfigurationResend {
 		opts.DeferActivation = svc.config.Activity.FleetInitiatedReleasePerMinute > 0
 	}
@@ -2133,15 +2139,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 	var clientUserID string
 	if isUserEnrollment {
-		// Token-selection policy (per #44009): use the team's default token —
-		// `GetVPPTokenByTeamID` already returns the first token for the team
-		// (existing behavior). Multi-location support is deferred unless a
-		// customer hits the edge case.
-		personalTokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
-		}
-		clientUserID, err = svc.ensureVPPClientUser(ctx, host, personalTokenDB)
+		clientUserID, err = svc.ensureVPPClientUser(ctx, host, tokenDB)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
 		}
@@ -2595,6 +2593,12 @@ func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]
 			continue
 		}
 		if _, ok := allowedSet[platform]; !ok {
+			if len(allowed) == 0 {
+				return nil, fmt.Errorf(
+					`setup_experience_platform is not supported for a .%s package`,
+					extension,
+				)
+			}
 			return nil, fmt.Errorf(
 				`platform %q is not a valid "setup_experience_platform" value for a .%s package (allowed: %s)`,
 				raw, extension, strings.Join(allowed, ", "),
@@ -2805,6 +2809,15 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
 		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
 		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
+
+	// PowerShell scripts don't support any shebang, so catch this before
+	// shebang validation errors on an unrecognized interpreter like pwsh.
+	if extension == "ps1" && strings.HasPrefix(scriptContents, "#!") {
+		return &fleet.BadRequestError{
+			Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+			InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+		}
 	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
@@ -5057,16 +5070,6 @@ func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint,
 		err := svc.deleteVPPApp(ctx, teamID, version)
 		if err != nil {
 			return err
-		}
-	}
-
-	// Re-send the app to iOS and iPadOS hosts whose version is deleted and that are in scope for a remaining version,
-	// the delete cleared the version of their installs. Queue nothing when every version is deleted, deleting an
-	// iOS or iPadOS app never removes it from hosts.
-	if (versions[0].Platform == fleet.IOSPlatform || versions[0].Platform == fleet.IPadOSPlatform) && len(versionsToDelete) < len(versions) {
-		err := worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, versions[0].VPPAppID, ptr.ValOrZero(teamID), nil, false, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
 		}
 	}
 

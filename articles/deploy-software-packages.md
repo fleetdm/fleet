@@ -108,7 +108,7 @@ To add another package to a software:
 
 * Navigate to the **Software** page, select a fleet, and select the **Library** tab.
 * Select the software.
-* In the **Library** section of the **Software details** page, select **Add package**.
+* In the **Library** section of the **Software details** page, select **Add version**.
 * Choose a file to upload, set the **Target**, and configure any advanced options.
 
 Each package has its own [target labels](https://fleetdm.com/guides/managing-labels-in-fleet), [self-service](https://fleetdm.com/guides/software-self-service) availability, categories, and advanced options. Scope each package to a distinct set of labels so that each host matches only one package.

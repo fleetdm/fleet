@@ -231,7 +231,11 @@ const SoftwareOptionsSelector = ({
     : undefined;
 
   return (
-    <div className={`form-field ${classNames}`}>
+    <div
+      className={classnames(`form-field ${classNames}`, {
+        [`${baseClass}--disabled`]: disableOptions,
+      })}
+    >
       <div className="form-field__label">Options</div>
       {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
@@ -251,6 +255,7 @@ const SoftwareOptionsSelector = ({
             selectedCategories={formData.categories}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             teamId={teamId}
+            disabled={disableOptions}
           />
         )}
       </div>

@@ -1,0 +1,1 @@
+- Fixed `POST /api/latest/fleet/hosts/transfer` with an unknown fleet and `GET /api/latest/fleet/scripts/batch/:batch_execution_id/host_results` with an unknown batch returning 500 instead of 404.

@@ -134,6 +134,14 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	// fleetd is queued ahead of the profiles, as in runPostDEPEnrollment, so the
+	// device doesn't run every profile before installing it.
+	if isMacOS(args.Platform) {
+		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+	}
+
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
 	if err != nil {
 		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
@@ -141,11 +149,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-	} else {
+	if !isMacOS(args.Platform) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
@@ -652,8 +656,9 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID:  *vppAppID,
-					AppTeamID: ptr.ValOrZero(app.VPPAppTeamID),
+					VPPAppID:   *vppAppID,
+					AppTeamID:  ptr.ValOrZero(app.VPPAppTeamID),
+					VPPTokenID: app.VPPAppVPPTokenID,
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -700,7 +705,12 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		}
 		var failActivity fleet.ActivityDetails
 		if isVPPApp {
+			vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, a.Datastore, app.VPPAppVPPTokenID)
+			if tokErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up VPP token for setup experience install failure activity", "err", tokErr)
+			}
 			failActivity = fleet.ActivityInstalledAppStoreApp{
+				VPPToken:            vppToken,
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
@@ -739,12 +749,11 @@ func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host,
 	if a.VPPInstaller == nil {
 		return "", errors.New("VPP installer not configured")
 	}
-	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := a.VPPInstaller.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
 func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) (string, error) {

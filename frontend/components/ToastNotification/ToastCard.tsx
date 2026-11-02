@@ -144,6 +144,7 @@ const ToastCard = ({
                 [`${baseClass}__chevron--open`]: isOpen,
               })}
               variant="subdued"
+              size="small"
               icon="chevron-down"
               ariaExpanded={isOpen}
               ariaControls={panelId}
@@ -155,6 +156,7 @@ const ToastCard = ({
           )}
           <Button
             variant="subdued"
+            size="small"
             icon="close"
             ariaLabel="Dismiss notification"
             onClick={handleClose}

@@ -350,6 +350,43 @@ will be disabled and/or hidden in the UI.
             if (req.method === 'GET' || req.method === 'HEAD') {
               // Include information about the primary buying situation for use in the HTML layout, views, and page scripts.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // Decide whether (and which) announcement banner to show in the layout.  See config/announcement-banner.js.
+              let bannerConfig = sails.config.announcementBanner;
+              res.locals.announcementBanner = undefined;
+              if (bannerConfig && bannerConfig.enabled) {
+                let requestPath = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
+                let isOnHiddenPage = bannerConfig.hiddenOnPages.some((pagePattern)=>{
+                  if (pagePattern.endsWith('/*')) {
+                    let prefix = pagePattern.slice(0, -2);
+                    return requestPath === prefix || requestPath.startsWith(prefix + '/');
+                  }
+                  return requestPath === pagePattern;
+                });
+                if (!isOnHiddenPage) {
+                  let banner = { text: bannerConfig.text, textForSmallScreens: bannerConfig.textForSmallScreens, href: bannerConfig.href };
+                  if (bannerConfig.forVisitorsInEurope) {
+                    const EUROPEAN_COUNTRY_CODES = [
+                      // EU member states
+                      'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+                      // EEA (non-EU), UK, and Switzerland
+                      'IS', 'LI', 'NO', 'GB', 'CH'
+                    ];
+                    let visitorCountryCode = (req.get('cf-ipcountry') || '').toUpperCase();
+                    // Allow testing locally with ?simulateCountry=DE (non-production only).
+                    if (sails.config.environment !== 'production' && req.param('simulateCountry')) {
+                      visitorCountryCode = String(req.param('simulateCountry')).toUpperCase();
+                    }
+                    if (EUROPEAN_COUNTRY_CODES.includes(visitorCountryCode)) {
+                      banner = { text: bannerConfig.forVisitorsInEurope.text, textForSmallScreens: bannerConfig.forVisitorsInEurope.textForSmallScreens, href: bannerConfig.forVisitorsInEurope.href };
+                    }
+                  }
+                  // Don't advertise a page to someone who's already on it.
+                  if (banner.href !== requestPath) {
+                    res.locals.announcementBanner = banner;
+                  }
+                }
+              }//ﬁ
             }//ﬁ
 
             // Next, if we're running in our actual "production" or "staging" Sails

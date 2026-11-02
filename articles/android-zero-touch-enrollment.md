@@ -6,17 +6,18 @@ Connect Fleet to the Android zero-touch portal so that company-owned Android dev
 
 > Zero-touch enrollment requires devices purchased from an [authorized zero-touch reseller](https://androidenterprisepartners.withgoogle.com/devices/) and claimed to your organization's [zero-touch customer account](https://enterprise.google.com/android/zero-touch/customers). You also need [Android MDM turned on](https://fleetdm.com/guides/android-mdm-setup) in Fleet.
 
-## Step 1: Copy DPC extras
+## Step 1: Copy the name and DPC extras
 
 1. In Fleet, head to **Settings > Integrations > Mobile device management (MDM)**.
 2. Under **Android zero-touch**, select **Setup**.
-3. Copy the **DPC extras** JSON.
+3. Pick the fleet that hosts will enroll to. The default is **Unassigned**.
+4. Copy the **Name** and the **DPC extras** JSON.
 
 ## Step 2: Create a configuration
 
 1. Sign in to the [Android zero-touch portal](https://enterprise.google.com/android/zero-touch/customers).
 2. Select **Configurations**, then select **+ Add Configuration**.
-3. Enter a **Configuration name** (e.g., "Fleet").
+3. Paste the name you copied from Fleet into **Configuration name**.
 4. For **EMM DPC**, select **Android Device Policy**.
 5. Paste the DPC extras JSON into the **DPC extras** field.
 6. Fill in your **Company name**, **Support email address**, and **Support phone number**.
@@ -30,6 +31,15 @@ To apply your configuration to a device, select **Edit** next to the device and 
 
 To automatically apply the configuration to new devices your organization purchases in the future, set it as the default configuration.
 
+### Enroll hosts to multiple fleets
+
+Each configuration enrolls hosts to one fleet. To enroll hosts to more than one fleet:
+
+1. Repeat [Step 1](#step-1-copy-the-name-and-dpc-extras) and [Step 2](#step-2-create-a-configuration) for each fleet, picking a different fleet each time.
+2. Apply each device's configuration based on the fleet it should enroll to.
+
+The device's configuration in the zero-touch portal at first boot determines its fleet. Only one configuration can be the default for new devices.
+
 ## Step 4: Register test devices
 
 Normally, only an authorized reseller can register devices in the zero-touch portal. 
@@ -40,9 +50,7 @@ In order to test zero-touch enrollment with devices you already own:
 
 ## Step 5: Verify
 
-After a device is factory reset or unboxed and connected to a network: The device enrolls to Fleet and appears on the **Hosts** page.
-
-All zero-touch-enrolled hosts enroll to the **Unassigned** fleet. Enrolling to a specific fleet is [coming soon](https://github.com/fleetdm/fleet/issues/51479).
+After a device is factory reset or unboxed and connected to a network: The device enrolls to Fleet and appears on the **Hosts** page in the fleet you picked in Step 1.
 
 > Zero-touch enrollment doesn't support [end-user authentication (EUA)](https://fleetdm.com/guides/setup-experience#end-user-authentication). There's no browser-based identity provider (IdP) sign-in during zero-touch provisioning, so IdP variables in certificates won't work on these hosts.
 
@@ -57,6 +65,10 @@ If your reseller entered the device's info incorrectly, Google won't recognize t
 **Device enters setup but fails to enroll**
 
 Confirm that Android MDM is turned on in Fleet (**Settings > Integrations > MDM**). If Android MDM was turned off and back on, the DPC extras have changed — copy the new JSON from Fleet and update the configuration in the zero-touch portal.
+
+**Host enrolls to Unassigned instead of the fleet you picked**
+
+If the fleet was deleted after you created the configuration, hosts using that configuration enroll to **Unassigned**. Pick an existing fleet in Fleet, then update the configuration's name and DPC extras in the zero-touch portal.
 
 **Device skips zero-touch and boots normally**
 

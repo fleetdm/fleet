@@ -50,6 +50,13 @@ func (s *Script) ValidateNewScript() error {
 		return errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 	}
 
+	// PowerShell scripts don't support any shebang, so catch this before
+	// ValidateHostScriptContents / shebangInfo error on an unrecognized
+	// interpreter like pwsh.
+	if ext == ".ps1" && strings.HasPrefix(s.ScriptContents, "#!") {
+		return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
+	}
+
 	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
@@ -69,11 +76,6 @@ func (s *Script) ValidateNewScript() error {
 		// python scripts must be directly executable (via a python shebang).
 		if !directExecute || kind != shebangPython {
 			return errors.New(`Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`)
-		}
-	case ".ps1":
-		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
-		if directExecute {
-			return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
 		}
 	}
 

@@ -676,7 +676,11 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseReplay() {
 	client := s.newSSOTestClient()
 	idpInitiatedResponse := s.completeSAMLLogin(client,
 		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, "sso.test.com"), "sso_user2", "user123#")
-	require.Contains(t, postCallback(idpInitiatedResponse), "Redirecting to Fleet at / ...")
+	idpBody := postCallback(idpInitiatedResponse)
+	require.Contains(t, idpBody, "Redirecting to Fleet at / ...")
+	// CSP blocks inline scripts, so the redirect must not rely on one.
+	require.Contains(t, idpBody, `<meta http-equiv="refresh" content="0;url=/">`)
+	require.NotContains(t, idpBody, "<script")
 	require.Contains(t, postCallback(idpInitiatedResponse), "/login?status=error")
 
 	// SP-initiated: after the user logs in with the response, posting it again

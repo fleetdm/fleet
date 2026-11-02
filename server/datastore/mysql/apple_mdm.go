@@ -4159,33 +4159,27 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func isMDMAppleBootstrapPackageInDB(ctx context.Context, q sqlx.QueryerContext, teamID uint) (isInDB, existsForTeam bool, err error) {
-	const stmt = `SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = ?`
-	var pkgLen int
-	if err := sqlx.GetContext(ctx, q, &pkgLen, stmt, teamID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, false, nil
-		}
-		return false, false, ctxerr.Wrapf(ctx, err, "check for bootstrap package content in database for team %d", teamID)
-	}
-	return pkgLen > 0, true, nil
-}
-
 func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
-	const insStmt = `INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)`
-	execInsert := func(args ...any) error {
-		if _, err := ds.writer(ctx).ExecContext(ctx, insStmt, args...); err != nil {
-			if IsDuplicate(err) {
-				return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
-			}
-			return ctxerr.Wrap(ctx, err, "create bootstrap package")
+	// A fleet's existing package is replaced in this single write rather than deleted beforehand, so
+	// a failed upload leaves it in place. created_at is reset because it's the package's upload time.
+	const upsertStmt = `
+INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	name = VALUES(name),
+	sha256 = VALUES(sha256),
+	bytes = VALUES(bytes),
+	token = VALUES(token),
+	created_at = CURRENT_TIMESTAMP`
+	execUpsert := func(args ...any) error {
+		if _, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "save bootstrap package")
 		}
 		return nil
 	}
 
 	if pkgStore == nil {
-		// no S3 storage configured, insert the metadata and the content in the DB
-		return execInsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
+		// no S3 storage configured, save the metadata and the content in the DB
+		return execUpsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	}
 
 	// using distinct storages for content and metadata introduces an
@@ -4193,27 +4187,16 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 	// fail together), so what we do instead is to minimize the risk of data
 	// inconsistency:
 	//
-	//   1. check if the row exists in the DB, if so fail immediately with a
-	//   duplicate error (which would happen at the INSERT stage anyway
-	//   otherwise).
-	//   2. if it does not exist in the DB, check if the package is already on
-	//   S3, to avoid a costly upload if it is.
-	//   3. if it is not already on S3, upload the package - if this fails,
+	//   1. check if the package is already on S3, to avoid a costly upload if
+	//   it is.
+	//   2. if it is not already on S3, upload the package - if this fails,
 	//   return and the DB was not touched and data is still consistent.
-	//   4. after upload, insert the metadata in the DB - if this fails, the
+	//   3. after upload, save the metadata in the DB - if this fails, the
 	//   only possible inconsistency is an unused package stored on S3, which a
 	//   cron job will eventually cleanup.
-	//   5. if everything succeeds, data is consistent and the S3 package
-	//   cannot be used before it is uploaded (since the DB row is inserted
+	//   4. if everything succeeds, data is consistent and the S3 package
+	//   cannot be used before it is uploaded (since the DB row is saved
 	//   after upload).
-	_, existsInDB, err := isMDMAppleBootstrapPackageInDB(ctx, ds.writer(ctx), bp.TeamID)
-	if err != nil {
-		return err
-	}
-	if existsInDB {
-		return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
-	}
-
 	pkgID := hex.EncodeToString(bp.Sha256)
 	ok, err := pkgStore.Exists(ctx, pkgID)
 	if err != nil {
@@ -4229,8 +4212,8 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		}
 	}
 
-	// insert in the DB with a NULL bytes content (to indicate it is on S3)
-	return execInsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
+	// save in the DB with a NULL bytes content (to indicate it is on S3)
+	return execUpsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
 }
 
 func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {

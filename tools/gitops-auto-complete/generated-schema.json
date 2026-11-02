@@ -4441,6 +4441,20 @@
             "null"
           ]
         },
+        "description": {
+          "description": "Description is free text shown next to the profile name.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hidden": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4493,6 +4507,13 @@
             "null"
           ]
         },
+        "name": {
+          "description": "Name overrides the name derived from the file (PayloadDisplayName or\nfile name). Only valid for a single file, so not with a multi-file glob.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "description": "type: `string`",
           "type": [
@@ -4504,6 +4525,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "SelfService is only valid for .mobileconfig profiles.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5927,6 +5955,13 @@
             "null"
           ]
         },
+        "location": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",
@@ -5955,6 +5990,116 @@
         },
         "setup_experience": {
           "description": "InstallDuringSetup indicates whether a package should be incorporated into setup experience;\nif not supplied (Valid field is false) then the server-side value for setup experience membership\nis not changed, for compatibility with the old fleetctl apply format\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "versions": {
+          "description": "type: `array\u003cTeamSpecAppStoreAppVersion\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamSpecAppStoreAppVersion"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecAppStoreAppVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_update_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_update_window_end": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auto_update_window_start": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"

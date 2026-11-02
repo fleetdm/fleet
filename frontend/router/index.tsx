@@ -680,6 +680,10 @@ const routes = (
                 component={LazyProfileFormPage}
               />
               <Route
+                path="controls/os-settings/configuration-profiles/new/manual"
+                component={LazyProfileFormPage}
+              />
+              <Route
                 path="controls/os-settings/configuration-profiles/:profile_uuid"
                 component={LazyProfileFormPage}
               />

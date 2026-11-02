@@ -516,6 +516,16 @@ func TestFeaturesApplyDefaults(t *testing.T) {
 	})
 }
 
+func TestAppConfigApplyDefaultsEnableProfileValidation(t *testing.T) {
+	var c AppConfig
+	c.ApplyDefaults()
+	require.True(t, c.MDM.EnableProfileValidation)
+
+	var n AppConfig
+	n.ApplyDefaultsForNewInstalls()
+	require.True(t, n.MDM.EnableProfileValidation)
+}
+
 func TestHistoricalDataSettingsEnabled(t *testing.T) {
 	t.Run("uptime dataset returns Uptime field", func(t *testing.T) {
 		h := HistoricalDataSettings{Uptime: true, Vulnerabilities: false}

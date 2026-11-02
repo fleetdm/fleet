@@ -189,6 +189,7 @@ type clientOpts struct {
 	noFollow    bool
 	cookieJar   http.CookieJar
 	maxRespSize int64
+	noOTEL      bool
 
 	responseHeaderTimeout time.Duration
 }
@@ -208,6 +209,16 @@ func WithTimeout(t time.Duration) ClientOpt {
 func WithNoTimeout() ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = 0
+	}
+}
+
+// WithoutOTEL leaves the transport without OpenTelemetry instrumentation, for
+// clients in processes that never configure a provider (e.g. orbit). It also
+// keeps http.Client.CloseIdleConnections working, which otelhttp.Transport
+// doesn't forward.
+func WithoutOTEL() ClientOpt {
+	return func(o *clientOpts) {
+		o.noOTEL = true
 	}
 }
 
@@ -291,7 +302,11 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.maxRespSize > 0 {
 		baseTransport = newSizeLimitTransport(baseTransport, co.maxRespSize)
 	}
-	cli.Transport = otelhttp.NewTransport(baseTransport)
+	if co.noOTEL {
+		cli.Transport = baseTransport
+	} else {
+		cli.Transport = otelhttp.NewTransport(baseTransport)
+	}
 	if co.cookieJar != nil {
 		cli.Jar = co.cookieJar
 	}

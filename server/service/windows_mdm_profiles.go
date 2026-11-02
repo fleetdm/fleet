@@ -11,11 +11,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -32,9 +34,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ", validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	cp.Description = description
 	cp.Hidden = hidden
@@ -73,7 +79,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
-func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string, validation *profilevalidation.Mode) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -166,6 +172,18 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
+	if validation != nil {
+		// Validated expanded, like the batch path, so a secret's value is type-checked;
+		// the expanded copy stays local and cp.SyncML is stored unexpanded.
+		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(cp.SyncML))
+		if err != nil {
+			return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		}
+		if err := svc.validateProfileSchema(ctx, profileSchemaWindowsProfile, []byte(expanded), validation, cp.Name, teamID); err != nil {
+			return nil, nil, "", err
+		}
+	}
+
 	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "handling windows profile software update")
 	}
@@ -231,9 +249,15 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.SyncML) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ", validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 	} else {
 		// no new content -- only labels are being changed.
@@ -366,16 +390,63 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPProxyURL,
 }
 
-// subjectNameHasRenewalIDMarker reports whether a SubjectName data string
-// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
-// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
-func subjectNameHasRenewalIDMarker(data string) bool {
-	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
-		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
-			return true
+var (
+	subjectNameMissingRenewalIDMsg = "SubjectName item must contain the " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
+		" variable in the OU field. In some use cases, it can go in the CN field instead."
+	subjectNameRenewalIDInOneOfManyCNsMsg = "SubjectName item can only have one CN field when the CN contains the " +
+		fleet.FleetVarCertificateRenewalID.WithPrefix() + " variable."
+	subjectNameEntityQuotedVariableMsg = `SubjectName values with Fleet variables can't use escaped quotes (&quot;). ` +
+		`Remove them, or use a literal " instead.`
+)
+
+// validateSubjectNameRenewalID checks that a SubjectName <Data> has the renewal-ID variable in an OU or CN attribute, the
+// two fields host certificate ingestion searches for the marker. OU is the norm, but some CAs (Okta) drop the OU from
+// issued certificates. The legacy SCEP_RENEWAL_ID name is accepted for back-compat. The error carries the message for
+// the admin.
+func validateSubjectNameRenewalID(rawData string) error {
+	if microsoft_mdm.HasEntityQuotedSubstitution(rawData) {
+		return errors.New(subjectNameEntityQuotedVariableMsg)
+	}
+	var data strings.Builder
+	// Only character data is read, from a profile the validators above already parsed; encoding/xml resolves no external entities.
+	dec := xml.NewDecoder(strings.NewReader(rawData)) //nolint:gosec // G709: see above
+	for {
+		token, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return errors.New(subjectNameMissingRenewalIDMsg)
+		}
+		if text, ok := token.(xml.CharData); ok {
+			data.Write(text)
 		}
 	}
-	return false
+	var commonNames int
+	var inOU, inCN bool
+	for _, attribute := range microsoft_mdm.SubjectNameAttributes(data.String()) {
+		key, value, ok := strings.Cut(attribute, "=")
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "OU":
+			inOU = inOU || fleet.FleetVarRenewalIDRegexp.MatchString(value)
+		case "CN":
+			commonNames++
+			inCN = inCN || fleet.FleetVarRenewalIDRegexp.MatchString(value)
+		}
+	}
+	switch {
+	case inOU:
+		return nil
+	case !inCN:
+		return errors.New(subjectNameMissingRenewalIDMsg)
+	case commonNames > 1:
+		// Ingestion keeps only one CN per certificate, so the one with the marker might not be it.
+		return errors.New(subjectNameRenewalIDInOneOfManyCNsMsg)
+	}
+	return nil
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -512,9 +583,9 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 					),
 				}
 			}
-			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
-				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
+			if isSubjectName {
+				if err := validateSubjectNameRenewalID(dataContent); err != nil {
+					return &fleet.BadRequestError{Message: err.Error()}
 				}
 			}
 		}
@@ -554,8 +625,8 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 					return errors.New("SubjectName item is missing data")
 				}
 
-				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
+				if err := validateSubjectNameRenewalID(cmd.Data.Content); err != nil {
+					return err
 				}
 			}
 		}

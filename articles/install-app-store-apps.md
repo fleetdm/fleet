@@ -12,11 +12,17 @@ You can also manage which Google Play Store apps are available for self-service 
 
 > Before using Fleet to manage VPP apps, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp). Once you've completed that setup, you can follow the directions below for each app.
 
-1. Purchase the relevant app through Apple Business (AB). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
+1. Sign in to [Apple Business](https://business.apple.com), select **Apps & Services > App Store**, and find the app. For a custom app you own, select **Custom Apps** instead.
 
-2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+2. Add the app to your library:
+   - **Free apps**: Select **Add**. Under **Organizational Units**, choose the units whose content token you uploaded to Fleet, select **Review**, and then select **Add to Library**. Free apps don't have a license limit.
+   - **Paid apps**: Select the app's price. Under **Licence Type**, choose **Managed Licences**. Under **Organizational Units**, choose the unit whose content token you uploaded to Fleet, and enter the number of licenses to buy. Then select **Review** and complete the purchase. Learn more in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
 
-3. Select **Add software > App store**, then select the app you just purchased.
+3. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+4. Select **Add software > App store**, then select the app you just added.
+
+> To see which organizational units can use an app and how many licenses are in use, in Apple Business, select **Apps & Services > Library** and select the app.
 
 > If the developer drops support for a platform (e.g., removes the iPad version), Fleet still shows that platform on fleets where the app was already added, but other fleets can only add the currently supported platforms. To match what Apple currently supports, delete the app from the fleet and add it again.
 >
@@ -63,6 +69,8 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
+
+> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 

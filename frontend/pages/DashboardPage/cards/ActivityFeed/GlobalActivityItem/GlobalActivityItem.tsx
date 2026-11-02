@@ -687,6 +687,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  setHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        marked <b>{activity.details?.host_display_name}</b> as company-owned in
+        Google.
+      </>
+    );
+  },
+  deletedHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        unmarked <b>{activity.details?.host_display_name}</b> as company-owned
+        in Google.
+      </>
+    );
+  },
   rotatedHostRecoveryLockPassword: (activity: IActivity) => {
     return (
       <>
@@ -2537,7 +2555,7 @@ const TAGGED_TEMPLATES = {
   editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
     let { team_name } = activity.details || {};
     if (isPremiumTier && !team_name) {
-      team_name = "No Team";
+      team_name = "Unassigned";
     }
     const postFix = team_name ? (
       <>
@@ -2743,6 +2761,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.SetHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
     }
+    case ActivityType.SetHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.setHostGoogleDeviceId(activity);
+    }
+    case ActivityType.DeletedHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.deletedHostGoogleDeviceId(activity);
+    }
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
     }
@@ -2807,25 +2831,31 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
+    case ActivityType.AddedEJBCA:
     case ActivityType.AddedHydrant:
     case ActivityType.AddedCustomESTProxy:
-    case ActivityType.AddedSmallstep: {
+    case ActivityType.AddedSmallstep:
+    case ActivityType.AddedGoogleCAS: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedEJBCA:
     case ActivityType.DeletedHydrant:
     case ActivityType.DeletedCustomESTProxy:
-    case ActivityType.DeletedSmallstep: {
+    case ActivityType.DeletedSmallstep:
+    case ActivityType.DeletedGoogleCAS: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
+    case ActivityType.EditedEJBCA:
     case ActivityType.EditedHydrant:
     case ActivityType.EditedCustomESTProxy:
-    case ActivityType.EditedSmallstep: {
+    case ActivityType.EditedSmallstep:
+    case ActivityType.EditedGoogleCAS: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );

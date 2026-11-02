@@ -530,13 +530,7 @@ export const generateRoleGroups = (
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = [
-    ROLE_GLOBAL,
-    "Unassigned",
-    ROLE_VARIOUS,
-    "No team",
-    "Unknown",
-  ];
+  const GREYED_TEXT = [ROLE_GLOBAL, "Unassigned", ROLE_VARIOUS, "Unknown"];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")

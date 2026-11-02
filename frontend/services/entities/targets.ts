@@ -22,6 +22,7 @@ export interface ITargetsSearchParams {
   report_id?: number | null;
   query: string;
   excluded_host_ids: number[] | null;
+  exclude_mobile_hosts?: boolean;
 }
 
 export interface ITargetsSearchResponse {

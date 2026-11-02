@@ -28,8 +28,17 @@ const config = {
   mcp: {
     url: process.env.FLEET_MCP_URL || "http://localhost:8181/sse",
     authToken: process.env.FLEET_MCP_AUTH_TOKEN,
+    // The SDK's 60s default is too short for live queries.
+    toolTimeoutMs: Number(process.env.FLEET_MCP_TOOL_TIMEOUT_MS || "240000"),
   },
 };
+
+if (!Number.isSafeInteger(config.mcp.toolTimeoutMs) || config.mcp.toolTimeoutMs <= 0) {
+  console.error(
+    `Invalid FLEET_MCP_TOOL_TIMEOUT_MS: ${process.env.FLEET_MCP_TOOL_TIMEOUT_MS} (must be a positive integer of milliseconds)`
+  );
+  process.exit(1);
+}
 
 // Validate required env vars
 const required = [

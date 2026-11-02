@@ -17,6 +17,7 @@ export default {
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/configuration-profiles`,
   CONTROLS_CUSTOM_SETTINGS_NEW: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new`,
+  CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new/manual`,
   CONTROLS_CUSTOM_SETTINGS_EDIT: (profileUUID: string) =>
     `${URL_PREFIX}/controls/os-settings/configuration-profiles/${profileUUID}`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,

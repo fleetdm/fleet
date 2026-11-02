@@ -196,6 +196,7 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    hidden: false
     labels_include_any:
       - Engineering
       - Customer Support
@@ -214,7 +215,15 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  hidden: false
   resend_configuration_profile: "Passcode requirements"
+- name: Windows - Antivirus is healthy
+  description: This policy checks that Windows Security Center reports antivirus protection as healthy.
+  resolution: Turn on Microsoft Defender Antivirus or another antivirus app, and keep it up to date.
+  query: "SELECT 1 FROM windows_security_center WHERE antivirus = 'Good';"
+  platform: windows
+  critical: false
+  conditional_access_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -421,7 +430,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `only_allow_apple_business_enrollment` specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE) (default: `false`). When `true`, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also `true`, new enrollment is ACME-only: hosts without supported hardware can't enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `enable_profile_validation` specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited (default: `true`). Settings and payload types Fleet doesn't recognize are always allowed. Set to `false` to skip this check. Can only be configured for "All fleets" (`default.yml`).
-- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
+- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. If a host is renamed on the device, or the device rejects the rename, Fleet tries again automatically, up to 3 times, before marking the host as failed. Fleet detects a rename the next time the host reports its name (about every hour). On macOS, this requires fleetd to be installed and running. _Available in Fleet Premium._
 
 > `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
 > `windows_require_bitlocker_pin` at this level is deprecated. Please use `windows_settings.require_bitlocker_pin` instead.
@@ -478,7 +487,15 @@ controls:
     enable_disk_encryption: true # Available in Fleet Premium
     enable_escrow_disk_encryption_key: true # Available in Fleet Premium
     configuration_profiles:
-      - path: ../lib/macos/profiles/ddm.json
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+      - paths: ../lib/macos/profiles/*.mobileconfig2
+        self_service: false
+        hidden: true
+      - path: ../lib/macos/profiles/my-declaration.json
+          name: Passcode Settings
+          description: Enforces passcode requirements for macOS hosts
+      - paths: ../lib/macos/profiles/ddm.json
         labels_include_any:
           - Engineering
         activation: ../lib/macos/activations/activation.json
@@ -490,6 +507,11 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+      - path: ../lib/windows/profiles/background-task.xml
+        hidden: true
+      - path:  ../lib/windows/profiles/win-firewall.xml
+          name: Windows Firewall
+          description: Configures firewall rules
     enable_disk_encryption: true # Available in Fleet Premium
     require_bitlocker_pin: true # Available in Fleet Premium
   linux_settings:
@@ -505,6 +527,8 @@ controls:
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
+    macos_enable_bootstrap_package_during_manual_enrollment: false
+    macos_enable_bootstrap_package_during_migration: false
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
@@ -523,7 +547,7 @@ controls:
 ### macos_updates
 
 - `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest macOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
 - `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 - `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
@@ -544,22 +568,13 @@ controls:
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
+### apple_settings and windows_settings
 
-### apple_settings
-- `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
-  - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
-- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
-- `managed_local_account_settings` are settings for the managed local account.
-  - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
-
-### windows_settings
-- `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
-- `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
-
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
+- `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
+- `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+- `description` specifies an optional description for the profile.
 
 ### linux_settings
 - `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
@@ -568,14 +583,21 @@ controls:
 
 > PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
 
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in. Only supported for `.mobileconfig` profiles. Labels still decide which hosts can see the profile.
+
+Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option. Supported for `.mobileconfig`, declaration (`.json`), and Windows (`.xml`) profiles.
 
 ### android_settings
 
 - `android_settings.configuration_profiles` is a list of Android configuration profiles (.json).
+- `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+- `description` specifies an optional description for the profile.
 
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all` or `labels_include_any` can be specified. `labels_exclude_any` can be used on its own or combined with either one to exclude hosts from the included set. A label can't appear in both an include and an exclude list. If none are specified, all hosts are targeted.
+
+Use `hidden` to mark a profile that doesn't require any action from the end user. Hidden profiles show a hidden indicator on **Host details > Controls**. `self_service` isn't supported for Android profiles.
 
 #### android_settings.certificates
 
@@ -606,7 +628,9 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
-- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
+- `macos_enable_bootstrap_package_during_manual_enrollment` specifies whether the bootstrap package is also installed on macOS hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_enable_bootstrap_package_during_migration` specifies whether the bootstrap package is installed on macOS hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew`. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. When `true`, fleetd also isn't installed on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
@@ -626,6 +650,8 @@ Please use the platform-specific `apple_settings.managed_local_account_settings`
 ```yaml
 setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
+  macos_enable_bootstrap_package_during_manual_enrollment: false
+  macos_enable_bootstrap_package_during_migration: false
   macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
@@ -802,13 +828,13 @@ software:
 ```yaml
 - url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   labels_exclude_any:
     - IT test team
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   categories:
     - "💻 Productivity"
@@ -945,19 +971,27 @@ Currently, labels aren't evaluated during the setup experience on iOS and iPadOS
 ```yaml
 software:
   app_store_apps:
-    - app_store_id: "6443476492"
-      platform: ios
-      versions:
-        - name: Production
-          labels_exclude_any:
-            - Test
-          configuration:
-            path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
-        - name: Test
-          labels_include_any:
-            - Test
-          configuration:
-            path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
+    - path: ../lib/software/zoom.app-store-app.yml
+```
+
+`lib/software/zoom.app-store-app.yml`
+
+```yaml
+- app_store_id: "6443476492"
+  platform: ios
+  categories:
+    - "👬 Communication"
+  versions:
+    - name: Production
+      labels_exclude_any:
+        - Test
+      configuration:
+        path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
+    - name: Test
+      labels_include_any:
+        - Test
+      configuration:
+        path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
 ```
 
 ### fleet_maintained_apps
@@ -1191,9 +1225,10 @@ org_settings:
 
 ### server_settings
 
-- `ai_features_disabled` disables AI features that generate policy descriptions, policy resolutions, and configuration profiles. (default: `false`)
+- `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
+- `mcp_disabled` turns off Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp), so AI tools can't connect to it. (default: `false`) _Available in Fleet Premium._
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
 - `report_cap` sets the maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
@@ -1210,6 +1245,7 @@ org_settings:
     ai_features_disabled: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_disabled: false
     discard_reports_data: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
@@ -1403,7 +1439,16 @@ org_settings:
     ejbca:
       - name: EJBCA_WIFI
         url: https://ejbca.example.com:8443
+        client_p12: $EJBCA_CLIENT_P12
         password: $EJBCA_CLIENT_P12_PASSWORD
+        trust_ca_bundle: $EJBCA_TRUST_CA_BUNDLE
+        certificate_authority_name: ManagementCA
+        certificate_profile_name: ENDUSER
+        end_entity_profile_name: WIFI_DEVICES
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        username_template: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        certificate_user_principal_names:
+          - $FLEET_VAR_HOST_END_USER_IDP_USERNAME
 ```
 
 #### digicert
@@ -1461,9 +1506,21 @@ Can only be configured for "All fleets" (`org_settings`).
 
 #### ejbca
 
-- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the URL of the EJBCA REST API endpoint.
-- `password` is the password for the client certificate.
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. The name can't be `NDES` or the name of another certificate authority of any type, in any case.
+- `url` is the URL of your EJBCA instance (for example, `https://ejbca.example.com:8443`). It must be an `https` URL without a username or password.
+- `client_p12` is the base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. To get the value, run `base64 -i client.p12`, and store the output in an environment variable.
+- `password` is the password of the PKCS#12 file.
+- `trust_ca_bundle` is the PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance: the root CA and any intermediate CAs (optional). The order doesn't matter. If it's empty, Fleet trusts public CAs.
+- `certificate_authority_name` is the name of the CA in EJBCA that issues the certificates.
+- `certificate_profile_name` is the name of the certificate profile in EJBCA.
+- `end_entity_profile_name` is the name of the end entity profile in EJBCA.
+- `certificate_common_name` is the certificate's CN. Accepts the same Fleet variables as `digicert`. Available on Apple hosts only.
+- `username_template` is the username of the end entity that EJBCA creates for each host (optional). Accepts the same Fleet variables as `certificate_common_name`. Defaults to `certificate_common_name`.
+- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN) (optional). Only one item is allowed. Accepts the same Fleet variables as `certificate_common_name`.
+
+When GitOps adds or changes an EJBCA CA, Fleet checks the connection to EJBCA, so the client certificate must be valid and EJBCA must know the CA. Fleet doesn't return the client certificate or its password, so `fleetctl generate-gitops` adds placeholders for `client_p12` and `password` that you have to fill in.
+
+When `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names` is edited, certificates are reissued to every host with a configuration profile that uses this CA, across all fleets. Editing only other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates. Certificates are also reissued when a host's IdP variable value changes.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1713,6 +1770,25 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   mdm:
     end_user_license_agreement: ./lib/eula.pdf
+```
+
+##### windows_eula
+
+You can require an end user to agree to terms and conditions before they can use their new Windows host.
+
+- `windows_eula` is the path to the markdown file.
+
+> Requires Fleet Premium and Windows MDM turned on. Otherwise, GitOps skips this key.
+> Removing the key deletes the Windows agreement.
+
+Can only be configured for "All fleets" (`org_settings`).
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    windows_eula: ./lib/windows-terms.md
 ```
 
 ##### apple_server_url

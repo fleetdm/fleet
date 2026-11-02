@@ -100,7 +100,7 @@ interface IPolicyFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: any } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     errors.query = queryError;

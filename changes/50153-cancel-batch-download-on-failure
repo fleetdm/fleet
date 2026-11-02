@@ -1,1 +1,0 @@
-- Fixed GitOps software batch uploads continuing to download remaining packages after one package failed.

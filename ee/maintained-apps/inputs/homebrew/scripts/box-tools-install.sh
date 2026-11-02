@@ -48,6 +48,35 @@ quit_application() {
   fi
 }
 
+# An interrupted run of the earlier root-based installer can leave Box, Box
+# Edit or the bundles inside root-owned, which the user-run steps below can't
+# touch. Root repairs that from a pinned working directory after checking its
+# kernel path (/bin/pwd, not the shell's string walk), so a symlink the user
+# swaps in can't redirect it. Leftover bundles are unlinked, never chowned
+# recursively, because a recursive chown would follow planted hard links.
+repair_legacy_ownership() { # repair_legacy_ownership <dir> <expected kernel path> [bundle...]
+  local dir="$1" expected="$2"
+  shift 2
+  [[ -d "$dir" ]] || return 0
+  (
+    cd "$dir" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$expected" ]]; then
+      echo "refusing to repair $dir: it resolves to $(/bin/pwd -P)"
+      exit 1
+    fi
+    if [[ "$(stat -f %u .)" -eq 0 ]]; then
+      chown "$target_user":staff . || exit 1
+    fi
+    local app
+    for app in "$@"; do
+      if [[ -e "$app" && "$(stat -f %u "$app")" != "$target_uid" ]]; then
+        rm -rf "$app" || exit 1
+      fi
+    done
+    exit 0
+  )
+}
+
 [[ -n "$INSTALLER_PATH" && -f "$INSTALLER_PATH" ]] || { echo "missing installer"; exit 1; }
 
 target_user=$(stat -f "%Su" /dev/console)
@@ -70,32 +99,38 @@ user_home=$(dscl . -read "/Users/$target_user" NFSHomeDirectory 2>/dev/null | se
 quit_application "com.Box.Box-Edit" || exit 1
 quit_application "com.box.Box-Local-Com-Server" || exit 1
 
+BOX_DIR="$user_home/Library/Application Support/Box"
+DEST="$BOX_DIR/Box Edit"
+BUNDLES=("Box Edit.app" "Box Device Trust.app" "Box Local Com Server.app" "Box Tools Custom Apps.app")
+real_home=$(cd "$user_home" && /bin/pwd -P) || exit 1
+repair_legacy_ownership "$BOX_DIR" "$real_home/Library/Application Support/Box" || exit 1
+repair_legacy_ownership "$DEST" "$real_home/Library/Application Support/Box/Box Edit" "${BUNDLES[@]}" || exit 1
+
 MOUNT_POINT="$(mktemp -d /tmp/box-tools-dmg.XXXXXX)"
 hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null || { echo "failed to mount dmg"; exit 1; }
 
 RESOURCES="$MOUNT_POINT/Install Box Tools.app/Contents/Resources"
-BOX_DIR="$user_home/Library/Application Support/Box"
-DEST="$BOX_DIR/Box Edit"
-mkdir -p "$DEST"
 
+# Create and copy as the target user, never as root: the user controls this
+# tree, so root following a planted symlink out of it could create or chown
+# files anywhere on the system. Files the user copies are already theirs.
 status=0
-for app in "Box Edit.app" "Box Device Trust.app" "Box Local Com Server.app" "Box Tools Custom Apps.app"; do
-  if [[ -d "$RESOURCES/$app" ]]; then
-    rm -rf "${DEST:?}/$app"
-    if ! ditto "$RESOURCES/$app" "$DEST/$app"; then
-      echo "failed to copy $app"
+if sudo -u "$target_user" mkdir -p "$DEST"; then
+  for app in "${BUNDLES[@]}"; do
+    if [[ -d "$RESOURCES/$app" ]]; then
+      if ! sudo -u "$target_user" rm -rf "${DEST:?}/$app" || ! sudo -u "$target_user" ditto "$RESOURCES/$app" "$DEST/$app"; then
+        echo "failed to copy $app"
+        status=1
+      fi
+    else
+      echo "$app not found in installer"
       status=1
     fi
-  else
-    echo "$app not found in installer"
-    status=1
-  fi
-done
-
-# The parent Box directory is shared with other Box products (e.g. Box Drive)
-# that run as the same user, so owning it (non-recursively) is safe.
-chown -R "$target_user":staff "$DEST"
-chown "$target_user":staff "$BOX_DIR"
+  done
+else
+  echo "failed to create $DEST"
+  status=1
+fi
 
 hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
 rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
@@ -106,7 +141,7 @@ rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
 # (osqueryd runs as root and its apps table enumerates LaunchServices) and the
 # user's context (so box.com can launch Box Edit without a first manual launch).
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-for app in "Box Edit.app" "Box Device Trust.app" "Box Local Com Server.app" "Box Tools Custom Apps.app"; do
+for app in "${BUNDLES[@]}"; do
   "$LSREGISTER" -f "$DEST/$app" >/dev/null 2>&1 || true
   /bin/launchctl asuser "$target_uid" sudo -u "$target_user" "$LSREGISTER" -f "$DEST/$app" >/dev/null 2>&1 || true
 done

@@ -966,6 +966,9 @@ type HostSoftwareWithInstaller struct {
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -1487,6 +1490,8 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
+	// VPPTokenID is the VPP token an App Store app install uses.
+	VPPTokenID uint
 	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
 	ForConfigurationResend bool
 }
