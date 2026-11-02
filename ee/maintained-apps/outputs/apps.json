@@ -453,7 +453,7 @@
       "name": "Amadeus Pro",
       "slug": "amadeus-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.HairerSoft.AmadeusPro",
+      "unique_identifier": "com.HairerSoft.AmadeusPro3",
       "description": "Amadeus Pro is a multi-purpose audio recorder, editor, and converter."
     },
     {
@@ -2007,7 +2007,7 @@
       "name": "Cork",
       "slug": "cork/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.davidbures.cork",
+      "unique_identifier": "eu.davidbures.cork",
       "description": "Cork is a GUI companion app for Homebrew."
     },
     {
@@ -2791,7 +2791,7 @@
       "name": "Dropshare",
       "slug": "dropshare/darwin",
       "platform": "darwin",
-      "unique_identifier": "net.mkswap.Dropshare6",
+      "unique_identifier": "net.mkswap.Dropshare5",
       "description": "Dropshare is a file sharing solution."
     },
     {
@@ -3211,7 +3211,7 @@
       "name": "Fantastical",
       "slug": "fantastical/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.flexibits.fantastical",
+      "unique_identifier": "com.flexibits.fantastical2.mac",
       "description": "Fantastical is a calendar software."
     },
     {
