@@ -334,35 +334,39 @@ To run `.py` packages during setup experience, install CLT first:
 
 ```sh
 #!/bin/sh
+# Installs Command Line Tools without a GUI session, so /usr/bin/python3 works for .py packages.
+# Same mechanism as Homebrew's installer: the in-progress flag makes softwareupdate offer Command Line Tools.
 
-# Skip if Command Line Tools are already installed
-if /usr/bin/xcode-select -p >/dev/null 2>&1; then
+if /usr/bin/xcode-select -p >/dev/null 2>&1 && [ -x /Library/Developer/CommandLineTools/usr/bin/python3 ]; then
+  echo "Command Line Tools already installed"
   exit 0
 fi
 
-# This file makes softwareupdate list Command Line Tools without a GUI prompt
-flag="/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
-touch "$flag"
+flag=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+/usr/bin/touch "$flag"
+trap '/bin/rm -f "$flag"' EXIT
 
-label=$(/usr/sbin/softwareupdate --list 2>/dev/null \
-  | grep -E '^\s*\* Label: Command Line Tools' \
-  | sed 's/^.*Label: //' \
-  | sort -V \
-  | tail -n 1)
+label=$(/usr/sbin/softwareupdate -l 2>/dev/null |
+  /usr/bin/grep -B 1 -E 'Command Line Tools' |
+  /usr/bin/awk -F'*' '/^ *\*/ {print $2}' |
+  /usr/bin/sed -e 's/^ *Label: //' -e 's/^ *//' |
+  /usr/bin/sort -V |
+  /usr/bin/tail -n1)
 
 if [ -z "$label" ]; then
-  rm -f "$flag"
-  echo "Command Line Tools not found in Software Update"
+  echo "softwareupdate did not offer Command Line Tools"
   exit 1
 fi
 
-/usr/sbin/softwareupdate --install "$label" --verbose
-status=$?
-rm -f "$flag"
-exit $status
+echo "Installing $label"
+/usr/sbin/softwareupdate -i "$label" --verbose || exit 1
+/usr/bin/xcode-select --switch /Library/Developer/CommandLineTools || exit 1
+/Library/Developer/CommandLineTools/usr/bin/python3 --version || exit 1
 ```
 
 CLT is about a 520 MB download and takes a few minutes to install, so expect setup to take longer. Use a package, not the setup experience [script](#run-script), because the script runs after all software is installed.
+
+On macOS 27, CLT includes Python 3.9.6. `.py` packages that need a newer Python version will still fail.
 
 ### Host stuck during setup experience
 
