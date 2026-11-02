@@ -90,47 +90,6 @@ func TestAppCollectorImpostorDoesNotMaskRealInstall(t *testing.T) {
 	}
 }
 
-func TestAppCollectorExactWindowsPrograms(t *testing.T) {
-	cases := []struct {
-		display   string
-		publisher string
-		wantOK    bool
-		want      string
-	}{
-		{"Granola 7.722.1", "Granola", true, "granola"},
-		{"Grok Bot 0.78.3", "SpaceXAI", true, "grok-bot"},
-		{"Museeks", "Museeks", false, ""},
-		{"MuseScore 4.4", "MuseScore", false, ""},
-		{"Granola 7.722.1", "Not Granola", false, ""},
-		{"My Granola 1.0", "Granola", false, ""},
-		{"Grok 4.7", "SpaceXAI", false, ""},
-	}
-	for _, c := range cases {
-		col := newAppCollector()
-		added := col.add(appCandidate{
-			MatchTokens: []string{c.display},
-			DisplayName: c.display,
-			Vendor:      c.publisher,
-			Source:      "registry",
-			Scope:       "user",
-		})
-		if added != c.wantOK {
-			t.Errorf("add(%q, %q) added=%v want %v", c.display, c.publisher, added, c.wantOK)
-			continue
-		}
-		got := col.apps()
-		if !c.wantOK {
-			if len(got) != 0 {
-				t.Errorf("add(%q, %q) collected %+v", c.display, c.publisher, got)
-			}
-			continue
-		}
-		if len(got) != 1 || got[0].Name != c.want || got[0].DisplayName != c.display || got[0].Vendor != c.publisher {
-			t.Errorf("add(%q, %q) = %+v, want name %q", c.display, c.publisher, got, c.want)
-		}
-	}
-}
-
 func TestAppCollectorSkipsUnknown(t *testing.T) {
 	c := newAppCollector()
 	for _, tokens := range [][]string{

@@ -59,11 +59,6 @@ func (c *appCollector) wants(tokens ...string) bool {
 func (c *appCollector) add(cand appCandidate) bool {
 	k, ok := matchKnown(cand.MatchTokens...)
 	if !ok {
-		// Windows uninstall entries carry a display name and a publisher, which
-		// together identify apps that must not match on the name alone.
-		k, ok = matchWindowsProgram(cand.DisplayName, cand.Vendor)
-	}
-	if !ok {
 		return false
 	}
 	if _, dup := c.seen[k.name]; dup {
