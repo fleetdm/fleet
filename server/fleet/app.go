@@ -559,7 +559,8 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
 	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
-		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN,
+	)
 }
 
 // normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
@@ -1027,18 +1028,53 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
-	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
-	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                      optjson.String                     `json:"script" renameto:"macos_script"`
-	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
-	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
+	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
+	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                bool                               `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows                         bool                               `json:"require_all_software_windows"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
+}
+
+// NewlyEnabledBootstrapPackageSettings returns the setup_experience keys of the settings that need a
+// bootstrap package and are turned on in s but not in old.
+func (mos MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
+	var keys []string
+	if mos.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		keys = append(keys, "macos_enable_bootstrap_package_during_manual_enrollment")
+	}
+	if mos.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
+		keys = append(keys, "macos_enable_bootstrap_package_during_migration")
+	}
+	return keys
+}
+
+// validateBootstrapPackageSettings checks that the bootstrap package settings turned on compared to
+// old come with a bootstrap package in the same payload.
+func (mos *MacOSSetup) validateBootstrapPackageSettings(old MacOSSetup) error {
+	keys := mos.NewlyEnabledBootstrapPackageSettings(old)
+	if len(keys) == 0 || (mos.BootstrapPackage.Valid && mos.BootstrapPackage.Value != "") {
+		return nil
+	}
+	return BootstrapPackageRequiredError(keys)
+}
+
+// BootstrapPackageRequiredError returns the error for bootstrap package settings (setup_experience
+// keys) that can't be turned on without a bootstrap package.
+func BootstrapPackageRequiredError(keys []string) *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+	for _, key := range keys {
+		invalid.Append("setup_experience."+key, fmt.Sprintf("Couldn't enable %s. To use this option, first specify a bootstrap package.", key))
+	}
+	return invalid
 }
 
 // Validate checks the payload is in a valid state.
@@ -1050,6 +1086,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if err := mos.validateBootstrapPackageSettings(MacOSSetup{}); err != nil {
+		return err
 	}
 
 	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {

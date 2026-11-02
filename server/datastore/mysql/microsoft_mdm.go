@@ -1010,10 +1010,17 @@ func truncateMDMWindowsProfileDetail(detail string) string {
 	return str.TruncateBytes(detail, maxMDMWindowsProfileDetailLen, "... (truncated)")
 }
 
+// RefreshMDMWindowsProfilesStatusRollup recomputes the per-host profile status rollup for the given hosts, one autocommit statement
+// per batch so no locks are held across batches.
+func (ds *Datastore) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	return updateWindowsProfilesStatusRollupDB(ctx, ds.writer(ctx), hostUUIDs, true)
+}
+
 // MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
 // and upserts their profile tracking rows. The command must already exist in
 // windows_mdm_commands (inserted via MDMWindowsBulkInsertCommands or
-// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts).
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts). The per-host profile status rollup is not refreshed here: recomputing it
+// per command re-aggregates every profile row of the hosts each time, so the caller refreshes it once per host window instead.
 func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1106,10 +1113,6 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 			)
 			if _, err := tx.ExecContext(ctx, profileStmt, profileArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
-			}
-
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
 
 			return nil

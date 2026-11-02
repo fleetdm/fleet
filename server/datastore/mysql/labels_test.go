@@ -481,6 +481,19 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
 
+	// agent sorts by orbit version, falling back to osquery version (same as ListHosts):
+	// h1 9.0.0 (no orbit row), h2 1.0.0 (orbit), h3 5.0.0 (empty orbit version)
+	for id, v := range map[uint]string{h1.ID: "9.0.0", h2.ID: "9.9.9", h3.ID: "5.0.0"} {
+		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
+		require.NoError(t, err)
+	}
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version) VALUES (?, '1.0.0'), (?, '')`, h2.ID, h3.ID)
+	require.NoError(t, err)
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
+	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
+	require.Equal(t, []uint{h1.ID, h3.ID, h2.ID}, hostIDs(hosts))
+
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
 	require.NoError(t, err)
