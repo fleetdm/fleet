@@ -677,7 +677,7 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 type MDMAppleDeviceLockFunc func(ctx context.Context, hostID uint) error
 
@@ -4906,11 +4906,11 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
+func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending)
+	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun)
 }
 
 func (s *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {

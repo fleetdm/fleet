@@ -1424,13 +1424,13 @@ func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
 
 	// Test profile with FLEET_SECRET in PayloadDisplayName
 	profileWithSecret := mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false, false)
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false)
 	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 
 	// Test multiple profiles where one has a secret in PayloadDisplayName
 	goodProfile := mcBytesForTest("Good Profile", "good.identifier", "UUID1")
 	badProfile := mcBytesForTest("Bad $FLEET_SECRET_KEY Profile", "bad.identifier", "UUID2")
-	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false, false)
+	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false)
 	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 	assert.ErrorContains(t, err, "profiles[1]")
 }
@@ -5307,7 +5307,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
@@ -5334,13 +5334,13 @@ func TestMDMBatchSetAppleProfilesDryRunPayloadScopeConflictValidation(t *testing
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{mobileconfigForTest("N1", "I1")}, true, false)
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{mobileconfigForTest("N1", "I1")}, true)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "scope conflict")
 	require.True(t, ds.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked)
 }
 
-func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
+func TestMDMBatchSetAppleProfilesDryRun(t *testing.T) {
 	svc, ctx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -5351,10 +5351,6 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	}
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 		return nil
-	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string,
-	) (updates fleet.MDMProfilesUpdates, err error) {
-		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
@@ -5367,18 +5363,10 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	// dry run doesn't call methods that save stuff in the db
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, true, false)
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, true)
 	require.NoError(t, err)
 	require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
-	require.False(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
 	require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
-
-	// skipping bulk set only skips that method
-	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, false, true)
-	require.NoError(t, err)
-	require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
-	require.False(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
-	require.True(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestUpdateMDMAppleSettings(t *testing.T) {
