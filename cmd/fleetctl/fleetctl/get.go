@@ -686,6 +686,7 @@ func getReportsCommand() *cli.Command {
 
 							TeamName:           teamName,
 							Interval:           query.Interval,
+							StartupPriority:    query.StartupPriority,
 							ObserverCanRun:     query.ObserverCanRun,
 							Platform:           query.Platform,
 							MinOsqueryVersion:  query.MinOsqueryVersion,
@@ -810,9 +811,10 @@ func getPacksCommand() *cli.Command {
 					}
 
 					if err := printQuerySpec(c, &fleet.QuerySpec{
-						Name:        query.Name,
-						Description: query.Description,
-						Query:       query.Query,
+						Name:            query.Name,
+						Description:     query.Description,
+						Query:           query.Query,
+						StartupPriority: query.StartupPriority,
 					}); err != nil {
 						return fmt.Errorf("unable to print query: %w", err)
 					}

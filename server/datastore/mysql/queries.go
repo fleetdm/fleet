@@ -70,6 +70,7 @@ func (ds *Datastore) applyQueriesInTx(
 			platform,
 			min_osquery_version,
 			schedule_interval,
+			startup_priority,
 			automations_enabled,
 			logging_type,
 			discard_data
@@ -86,6 +87,7 @@ func (ds *Datastore) applyQueriesInTx(
 			platform = VALUES(platform),
 			min_osquery_version = VALUES(min_osquery_version),
 			schedule_interval = VALUES(schedule_interval),
+			startup_priority = VALUES(startup_priority),
 			automations_enabled = VALUES(automations_enabled),
 			logging_type = VALUES(logging_type),
 			discard_data = VALUES(discard_data)`
@@ -122,9 +124,9 @@ func (ds *Datastore) applyQueriesInTx(
 			aToSelect := make([]interface{}, 0, len(batch)*2)
 
 			for _, q := range batch {
-				pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+				pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 				aToInsert = append(aToInsert, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun, q.TeamID,
-					q.TeamIDStr(), q.Platform, q.MinOsqueryVersion, q.Interval, q.AutomationsEnabled, q.Logging,
+					q.TeamIDStr(), q.Platform, q.MinOsqueryVersion, q.Interval, q.StartupPriority, q.AutomationsEnabled, q.Logging,
 					q.DiscardData)
 
 				pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
@@ -251,6 +253,7 @@ const queryColumns = `
 	saved,
 	observer_can_run,
 	schedule_interval,
+	startup_priority,
 	platform,
 	min_osquery_version,
 	automations_enabled,
@@ -417,12 +420,13 @@ func (ds *Datastore) NewQuery(
 			platform,
 			min_osquery_version,
 			schedule_interval,
+			startup_priority,
 			automations_enabled,
 			logging_type,
 			discard_data,
 			created_at,
 			updated_at
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	// Insert the query and its labels in a single transaction. A scheduled
@@ -444,6 +448,7 @@ func (ds *Datastore) NewQuery(
 			query.Platform,
 			query.MinOsqueryVersion,
 			query.Interval,
+			query.StartupPriority,
 			query.AutomationsEnabled,
 			query.Logging,
 			query.DiscardData,
@@ -607,6 +612,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 			platform            = ?,
 			min_osquery_version = ?,
 			schedule_interval   = ?,
+			startup_priority    = ?,
 			automations_enabled = ?,
 			logging_type        = ?,
 			discard_data		= ?
@@ -629,6 +635,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 			q.Platform,
 			q.MinOsqueryVersion,
 			q.Interval,
+			q.StartupPriority,
 			q.AutomationsEnabled,
 			q.Logging,
 			q.DiscardData,
@@ -761,6 +768,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 			q.saved,
 			q.observer_can_run,
 			q.schedule_interval,
+			q.startup_priority,
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
@@ -817,6 +825,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.saved,
 			q.observer_can_run,
 			q.schedule_interval,
+			q.startup_priority,
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
@@ -1088,6 +1097,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.query,
 			q.team_id,
 			q.schedule_interval,
+			q.startup_priority,
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
@@ -1137,6 +1147,7 @@ func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (
 			q.name,
 			q.query,
 			q.schedule_interval,
+			q.startup_priority,
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
@@ -1160,14 +1171,15 @@ func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (
 
 	var digest struct {
 		Queries []struct {
-			Name               string `db:"name"`
-			Query              string `db:"query"`
-			Interval           uint   `db:"schedule_interval"`
-			Platform           string `db:"platform"`
-			MinOsqueryVersion  string `db:"min_osquery_version"`
-			AutomationsEnabled bool   `db:"automations_enabled"`
-			Logging            string `db:"logging_type"`
-			DiscardData        bool   `db:"discard_data"`
+			Name               string  `db:"name"`
+			Query              string  `db:"query"`
+			Interval           uint    `db:"schedule_interval"`
+			StartupPriority    *uint64 `db:"startup_priority"`
+			Platform           string  `db:"platform"`
+			MinOsqueryVersion  string  `db:"min_osquery_version"`
+			AutomationsEnabled bool    `db:"automations_enabled"`
+			Logging            string  `db:"logging_type"`
+			DiscardData        bool    `db:"discard_data"`
 		}
 		Labels []struct {
 			Name       string `db:"name"`

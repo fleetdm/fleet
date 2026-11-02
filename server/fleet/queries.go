@@ -30,6 +30,8 @@ type QueryPayload struct {
 	// Interval is the interval to set on the query. If not set when creating
 	// a query, then the default value 0 is set on the query.
 	Interval *uint `json:"interval"`
+	// StartupPriority sets the query's execution order during osquery startup.
+	StartupPriority *uint64 `json:"startup_priority"`
 	// Platform is set to empty if not set when creating a query.
 	Platform *string `json:"platform"`
 	// MinOsqueryVersion is set to empty if not set when creating a query.
@@ -86,6 +88,8 @@ type Query struct {
 	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
 	Interval uint `json:"interval" db:"schedule_interval"`
+	// StartupPriority sets the query's execution order during osquery startup.
+	StartupPriority *uint64 `json:"startup_priority,omitempty" db:"startup_priority"`
 	// Platform if set, specifies the platform(s) this query will target.
 	//
 	// It's a comma-separated list of platforms where this query will run be when configured
@@ -149,6 +153,10 @@ func (q *Query) Copy() *Query {
 
 	if q.TeamID != nil {
 		clone.TeamID = ptr.Uint(*q.TeamID)
+	}
+	if q.StartupPriority != nil {
+		startupPriority := *q.StartupPriority
+		clone.StartupPriority = &startupPriority
 	}
 	if q.AuthorID != nil {
 		clone.AuthorID = ptr.Uint(*q.AuthorID)
@@ -302,12 +310,13 @@ func (q *Query) Verify() error {
 
 func (q *Query) ToQueryContent() QueryContent {
 	return QueryContent{
-		Query:    q.Query,
-		Interval: q.Interval,
-		Platform: &q.Platform,
-		Version:  &q.MinOsqueryVersion,
-		Removed:  q.GetRemoved(),
-		Snapshot: q.GetSnapshot(),
+		Query:           q.Query,
+		Interval:        q.Interval,
+		Platform:        &q.Platform,
+		Version:         &q.MinOsqueryVersion,
+		Removed:         q.GetRemoved(),
+		Snapshot:        q.GetSnapshot(),
+		StartupPriority: q.StartupPriority,
 	}
 }
 
@@ -400,6 +409,8 @@ type QuerySpec struct {
 	TeamName string `json:"team" renameto:"fleet"`
 	// Interval is set to 0 if not set.
 	Interval uint `json:"interval"`
+	// StartupPriority sets the query's execution order during osquery startup.
+	StartupPriority *uint64 `json:"startup_priority,omitempty"`
 	// ObserverCanRun is set to false if not set.
 	ObserverCanRun bool `json:"observer_can_run"`
 	// Platform is set to empty if not set when creating a query.
@@ -438,9 +449,10 @@ func LoadQueriesFromYaml(yml string) ([]*Query, error) {
 		}
 		queries = append(queries,
 			&Query{
-				Name:        q.Spec.Name,
-				Description: q.Spec.Description,
-				Query:       q.Spec.Query,
+				Name:            q.Spec.Name,
+				Description:     q.Spec.Description,
+				Query:           q.Spec.Query,
+				StartupPriority: q.Spec.StartupPriority,
 			},
 		)
 	}
@@ -457,9 +469,10 @@ func WriteQueriesToYaml(queries []*Query) (string, error) {
 				Kind:       ReportKind,
 			},
 			Spec: QuerySpec{
-				Name:        q.Name,
-				Description: q.Description,
-				Query:       q.Query,
+				Name:            q.Name,
+				Description:     q.Description,
+				Query:           q.Query,
+				StartupPriority: q.StartupPriority,
 			},
 		}
 		yml, err := yaml.Marshal(qYaml)

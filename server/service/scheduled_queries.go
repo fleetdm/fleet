@@ -51,14 +51,15 @@ func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	req := request.(*fleet.ScheduleQueryRequest)
 
 	scheduled, err := svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{
-		PackID:   req.PackID,
-		QueryID:  req.QueryID,
-		Interval: req.Interval,
-		Snapshot: req.Snapshot,
-		Removed:  req.Removed,
-		Platform: req.Platform,
-		Version:  req.Version,
-		Shard:    req.Shard,
+		PackID:          req.PackID,
+		QueryID:         req.QueryID,
+		Interval:        req.Interval,
+		Snapshot:        req.Snapshot,
+		Removed:         req.Removed,
+		Platform:        req.Platform,
+		Version:         req.Version,
+		Shard:           req.Shard,
+		StartupPriority: req.StartupPriority,
 	})
 	if err != nil {
 		return fleet.ScheduleQueryResponse{Err: err}, nil
@@ -214,6 +215,10 @@ func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uin
 
 	if p.Version != nil {
 		sq.Version = p.Version
+	}
+
+	if p.StartupPriority != nil {
+		sq.StartupPriority = p.StartupPriority
 	}
 
 	if p.Shard != nil {

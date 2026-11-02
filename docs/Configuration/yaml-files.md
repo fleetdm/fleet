@@ -312,6 +312,7 @@ reports:
     query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
     platform: darwin,linux,windows
     interval: 300
+    startup_priority: 1
     observer_can_run: false
     automations_enabled: false
     labels_include_any:

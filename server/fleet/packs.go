@@ -204,16 +204,17 @@ type PackSpecTargets struct {
 }
 
 type PackSpecQuery struct {
-	QueryName   string  `json:"query" renameto:"report" db:"query_name"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Interval    uint    `json:"interval"`
-	Snapshot    *bool   `json:"snapshot,omitempty"`
-	Removed     *bool   `json:"removed,omitempty"`
-	Shard       *uint   `json:"shard,omitempty"`
-	Platform    *string `json:"platform,omitempty"`
-	Version     *string `json:"version,omitempty"`
-	Denylist    *bool   `json:"denylist,omitempty"`
+	QueryName       string  `json:"query" renameto:"report" db:"query_name"`
+	Name            string  `json:"name"`
+	Description     string  `json:"description"`
+	Interval        uint    `json:"interval"`
+	Snapshot        *bool   `json:"snapshot,omitempty"`
+	Removed         *bool   `json:"removed,omitempty"`
+	Shard           *uint   `json:"shard,omitempty"`
+	Platform        *string `json:"platform,omitempty"`
+	Version         *string `json:"version,omitempty"`
+	Denylist        *bool   `json:"denylist,omitempty"`
+	StartupPriority *uint64 `json:"startup_priority,omitempty"`
 }
 
 type PackStats struct {
