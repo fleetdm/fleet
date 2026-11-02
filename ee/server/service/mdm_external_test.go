@@ -17,10 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
-	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -28,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -179,13 +176,11 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		ds.NewTeamFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
 		ds.UpsertMDMAppleFleetConfigProfileFuncInvoked = false
-		ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked = false
 		ds.AppConfigFuncInvoked = false
 		ds.NewJobFuncInvoked = false
 		ds.LabelIDsByNameFuncInvoked = false
 		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
 		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
-		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -229,21 +224,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-			return nil, errors.New("not implemented")
-		}
-		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-			return errors.New("not implemented")
-		}
-		ds.CopyDefaultMDMAppleBootstrapPackageFunc = func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-			return errors.New("not implemented")
-		}
-		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-			return nil, errors.New("not implemented")
-		}
-		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-			return nil, errors.New("not implemented")
-		}
 		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
@@ -259,45 +239,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
-		}
-		apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
-		require.NoError(t, err)
-		certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
-		require.NoError(t, err)
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext,
-		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
-				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
-				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
-				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
-			}, nil
-		}
-
-		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
-			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
-		}
-		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
-			return []string{"foobar"}, nil
-		}
-		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-			return []*fleet.ABMToken{{ID: 1}}, nil
-		}
-		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
-			return 0, nil
-		}
-		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
-			return false, nil
-		}
-		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
-			return false, nil
-		}
-		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-			return nil, &eeservice.NotFoundError{}
 		}
 	}
 
@@ -334,7 +275,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})
@@ -372,7 +312,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		require.False(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})
@@ -433,7 +372,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 
@@ -446,7 +384,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})

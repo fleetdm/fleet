@@ -5527,179 +5527,6 @@ func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 	}
 }
 
-func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
-	ctx := t.Context()
-
-	checkStoredBP := func(teamID uint, wantErr error, wantNewToken bool, wantBP *fleet.MDMAppleBootstrapPackage) {
-		var gotBP fleet.MDMAppleBootstrapPackage
-		err := sqlx.GetContext(ctx, ds.primary, &gotBP, "SELECT * FROM mdm_apple_bootstrap_packages WHERE team_id = ?", teamID)
-		if wantErr != nil {
-			require.EqualError(t, err, wantErr.Error())
-			return
-		}
-		require.NoError(t, err)
-		if wantNewToken {
-			require.NotEqual(t, wantBP.Token, gotBP.Token)
-		} else {
-			require.Equal(t, wantBP.Token, gotBP.Token)
-		}
-		require.Equal(t, wantBP.Name, gotBP.Name)
-		require.Equal(t, wantBP.Sha256[:32], gotBP.Sha256)
-		require.Equal(t, wantBP.Bytes, gotBP.Bytes)
-	}
-
-	checkAppConfig := func(wantURL string) {
-		ac, err := ds.AppConfig(ctx)
-		require.NoError(t, err)
-		require.Equal(t, wantURL, ac.MDM.MacOSSetup.BootstrapPackage.Value)
-	}
-
-	checkTeamConfig := func(teamID uint, wantURL string) {
-		tm, err := ds.TeamLite(ctx, teamID)
-		require.NoError(t, err)
-		require.Equal(t, wantURL, tm.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-	}
-
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
-	require.NoError(t, err)
-	teamID := tm.ID
-	noTeamID := uint(0)
-
-	// confirm bootstrap package url is empty by default
-	checkAppConfig("")
-	checkTeamConfig(teamID, "")
-
-	// create a default bootstrap package
-	content := []byte("content")
-	hasher := sha256.New()
-	hasher.Write(content)
-	defaultBP := &fleet.MDMAppleBootstrapPackage{
-		TeamID: noTeamID,
-		Name:   "name",
-		Sha256: hasher.Sum(nil),
-		Bytes:  content,
-		Token:  uuid.New().String(),
-	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP, nil)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, nil, false, defaultBP)   // default bootstrap package is stored
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil) // no bootstrap package yet for team
-
-	ac, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-	require.Empty(t, ac.MDM.MacOSSetup.BootstrapPackage.Value)
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-
-	checkAppConfig("")                             // no bootstrap package url set in app config
-	checkTeamConfig(teamID, "")                    // no bootstrap package url set in team config
-	checkStoredBP(noTeamID, nil, false, defaultBP) // no change to default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP)    // copied default bootstrap package
-
-	// delete and update the default bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, noTeamID)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, sql.ErrNoRows, false, nil) // deleted
-	checkStoredBP(teamID, nil, true, defaultBP)        // still exists
-
-	// update the default bootstrap package
-	newContent := []byte("new content")
-	newHasher := sha256.New()
-	newHasher.Write(newContent)
-	defaultBP2 := &fleet.MDMAppleBootstrapPackage{
-		TeamID: noTeamID,
-		Name:   "new name",
-		Sha256: newHasher.Sum(nil),
-		Bytes:  newContent,
-		Token:  uuid.New().String(),
-	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2, nil)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, nil, false, defaultBP2)
-	// set bootstrap package url in app config
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/bootstrap.pkg")
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkAppConfig("https://example.com/bootstrap.pkg")
-
-	// copy default bootstrap package fails when there is already a team bootstrap package
-	var wantErr error = &existsError{ResourceType: "BootstrapPackage", TeamID: &teamID}
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.ErrorContains(t, err, wantErr.Error())
-	// confirm team bootstrap package is unchanged
-	checkStoredBP(teamID, nil, true, defaultBP)
-	checkTeamConfig(teamID, "")
-
-	// delete the team bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
-	require.NoError(t, err)
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
-	checkTeamConfig(teamID, "")
-
-	// confirm no change to default bootstrap package
-	checkStoredBP(noTeamID, nil, false, defaultBP2)
-	checkAppConfig("https://example.com/bootstrap.pkg")
-
-	// copy default bootstrap package succeeds when there is no team bootstrap package
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-	// confirm team bootstrap package gets new token and otherwise matches default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP2)
-	// confirm bootstrap package url was set in team config to match app config
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
-
-	// test some edge cases
-
-	// delete the team bootstrap package doesn't affect the team config
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
-	require.NoError(t, err)
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
-
-	// set other team config values so we can confirm they are not affected by bootstrap package changes
-	tc, err := ds.TeamWithExtras(ctx, teamID)
-	require.NoError(t, err)
-	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
-	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
-	tc.Config.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("10.15.4")
-	tc.Config.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
-		Enable:         true,
-		DestinationURL: "https://example.com/webhook",
-	}
-	tc.Config.Features.EnableHostUsers = true
-	savedTeam, err := ds.SaveTeam(ctx, tc)
-	require.NoError(t, err)
-	require.Equal(t, tc.Config, savedTeam.Config)
-
-	// change the default bootstrap package url
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/bs.pkg")
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkAppConfig("https://example.com/bs.pkg")
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg") // team config is unchanged
-
-	// copy default bootstrap package succeeds when there is no team bootstrap package
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-	// confirm team bootstrap package gets new token and otherwise matches default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP2)
-	// confirm bootstrap package url was set in team config to match app config
-	checkTeamConfig(teamID, "https://example.com/bs.pkg")
-
-	// confirm other team config values are unchanged
-	teamFromDb, err := ds.TeamWithExtras(ctx, teamID)
-	require.NoError(t, err)
-	require.Equal(t, teamFromDb.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
-	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
-	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
-	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
-	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
-	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, true)
-}
-
 func TestHostDEPAssignments(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -9928,8 +9755,11 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2, pkgStore)
 	require.NoError(t, err)
 
-	// associate the same content as bp1 with team id 1, via a copy
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, &fleet.AppConfig{}, 1)
+	// associate the same content as bp1 with team id 1, so both share one stored object
+	bp1b := *bp1
+	bp1b.TeamID = 1
+	bp1b.Token = uuid.New().String()
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, &bp1b, pkgStore)
 	require.NoError(t, err)
 
 	// get bp for no team
@@ -9937,13 +9767,9 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	bpMatchesWithoutContent(bp1, meta)
 
-	// get for team 1, token differs due to the copy, rest is the same
+	// get for team 1
 	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 1)
 	require.NoError(t, err)
-	require.NotEqual(t, bp1.Token, meta.Token)
-	bp1b := *bp1
-	bp1b.Token = meta.Token
-	bp1b.TeamID = 1
 	bpMatchesWithoutContent(&bp1b, meta)
 
 	// get for team 2
@@ -9961,7 +9787,7 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, bp1.Bytes, bpContent.Bytes)
 
-	// get content for team 1 (copy of no team)
+	// get content for team 1 (shares bp1's stored object)
 	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1b.Token, pkgStore)
 	require.NoError(t, err)
 	require.Equal(t, bp1b.Bytes, bpContent.Bytes)
