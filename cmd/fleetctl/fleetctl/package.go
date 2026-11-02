@@ -268,7 +268,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "outfile",
-				Usage:       "Output file for the generated package",
+				Usage:       "Output file for the generated package (default: named after the platform, architecture and, if fleetctl is logged in to --fleet-url, the fleet)",
 				Value:       "",
 				Destination: &opt.CustomOutfile,
 			},
@@ -278,6 +278,7 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE"},
 				Destination: &opt.FleetManagedHostIdentityCertificate,
 			},
+			configFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -472,6 +473,11 @@ func packageCommand() *cli.Command {
 			}
 
 			fmt.Println("Generating your fleetd agent...")
+			// opt is package-level, so reset what no flag sets.
+			opt.FleetName = ""
+			if opt.CustomOutfile == "" {
+				opt.FleetName = fleetNameForPackage(c.String("config"), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+			}
 			path, err := buildFunc(opt)
 			if err != nil {
 				return err
