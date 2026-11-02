@@ -242,7 +242,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
+		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -256,9 +256,30 @@ func run(cfg *Config) error {
 			continue
 		}
 
+		// A Gatekeeper rejection fails the app, but the remaining checks still run
+		// so the app is uninstalled and its other problems are reported too.
+		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier)
+		if gatekeeperErr != nil {
+			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
+		}
+
+		// A failure here still runs the uninstall below so the next app starts
+		// from a clean runner. When appExists found the app outside programs, no
+		// rows is expected, but the query still runs to catch errors.
+		existsQueryFailed := false
+		if err := checkExistsQuery(ctx, ac.ExistsQuery); err != nil {
+			if existsQueryNoRowsReason != "" && errors.Is(err, errExistsQueryNoRows) {
+				appLogger.WarnContext(ctx, fmt.Sprintf("Exists query returned no rows: app was %s", existsQueryNoRowsReason))
+				warnApp()
+			} else {
+				appLogger.ErrorContext(ctx, fmt.Sprintf("Exists query check failed: %v", err))
+				existsQueryFailed = true
+			}
+		}
+
 		// Uninstall
 		uninstalled := ac.uninstallApp(ctx)
-		if !uninstalled {
+		if !uninstalled || existsQueryFailed || gatekeeperErr != nil {
 			appWithError = append(appWithError, ac.Name)
 			cleanupTmpDir()
 			continue
@@ -494,6 +515,45 @@ func validateSqlInput(input string) error {
 		return fmt.Errorf("invalid characters in input: %s", input)
 	}
 
+	return nil
+}
+
+// runOsqueryi runs a query with osqueryi and returns its JSON output. It's a
+// variable so tests can stub it.
+var runOsqueryi = func(ctx context.Context, query string) ([]byte, error) {
+	output, err := exec.CommandContext(ctx, "osqueryi", "--json", query).Output()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return output, err
+}
+
+var errExistsQueryNoRows = errors.New("exists query returned no rows with the app installed")
+
+// checkExistsQuery runs the manifest's exists query, which is how Fleet
+// detects the app on hosts, and fails if it returns no rows. appExists finds
+// the app with a looser search, so it passes manifests whose exists query
+// never matches the installed app, which leaves the app undetected and its
+// patch policy always passing.
+func checkExistsQuery(ctx context.Context, existsQuery string) error {
+	if strings.TrimSpace(existsQuery) == "" {
+		return errors.New("manifest has no exists query")
+	}
+
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	output, err := runOsqueryi(execTimeout, existsQuery)
+	if err != nil {
+		return fmt.Errorf("executing exists query: %w", err)
+	}
+	var rows []json.RawMessage
+	if err := json.Unmarshal(output, &rows); err != nil {
+		return fmt.Errorf("parsing exists query output %q: %w", output, err)
+	}
+	if len(rows) == 0 {
+		return fmt.Errorf("%w: %s", errExistsQueryNoRows, existsQuery)
+	}
 	return nil
 }
 

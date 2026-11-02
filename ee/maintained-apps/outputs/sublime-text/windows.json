@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "4.0.0.421500",
+      "version": "4.2.1.5",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd' AND version_compare(version, '4.0.0.421500') < 0);",
+        "exists": "SELECT 1 FROM file WHERE path IN (SELECT rtrim(install_location, '\\') || '\\sublime_text.exe' FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path IN (SELECT rtrim(install_location, '\\') || '\\sublime_text.exe' FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd') AND version_compare(file_version, '4.2.1.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sublime_text.exe');"
       },
       "installer_url": "https://download.sublimetext.com/sublime_text_build_4215_x64_setup.exe",
