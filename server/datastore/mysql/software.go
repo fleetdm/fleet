@@ -2148,45 +2148,129 @@ func listSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	var results []softwareCVE
-	if err := sqlx.SelectContext(ctx, q, &results, sql, args...); err != nil {
+	var softwares []fleet.Software
+	if err := sqlx.SelectContext(ctx, q, &softwares, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select host software")
 	}
 
-	var softwares []fleet.Software
-	ids := make(map[uint]int) // map of ids to index into softwares
-	for _, result := range results {
-		result := result // create a copy because we need to take the address to fields below
+	if err := loadSoftwareListCVEs(ctx, q, softwares, opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails); err != nil {
+		return nil, err
+	}
+	return softwares, nil
+}
 
-		idx, ok := ids[result.ID]
-		if !ok {
-			idx = len(softwares)
-			softwares = append(softwares, result.Software)
-			ids[result.ID] = idx
-		}
+// listSoftwareCVEsBatchSize bounds the IN lists used to load CVEs for a page of software.
+var listSoftwareCVEsBatchSize = 5000
 
-		// handle null cve from left join
-		if result.CVE != nil {
-			cveID := *result.CVE
-			cve := fleet.CVE{
-				CVE:         cveID,
-				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CreatedAt:   *result.CreatedAt,
-			}
-			if opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails {
-				cve.CVSSScore = &result.CVSSScore
-				cve.EPSSProbability = &result.EPSSProbability
-				cve.CISAKnownExploit = &result.CISAKnownExploit
-				cve.CVEPublished = &result.CVEPublished
-				cve.Description = &result.Description
-				cve.ResolvedInVersion = &result.ResolvedInVersion
-			}
-			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
-		}
-
+// loadSoftwareListCVEs fills in the vulnerabilities of each software. CVE metadata is loaded once
+// per distinct CVE and shared by every software that has it, since popular software can have
+// thousands of CVEs and many versions of it share most of them.
+func loadSoftwareListCVEs(ctx context.Context, q sqlx.QueryerContext, softwares []fleet.Software, withDetails bool) error {
+	if len(softwares) == 0 {
+		return nil
+	}
+	indexByID := make(map[uint]int, len(softwares))
+	ids := make([]uint, 0, len(softwares))
+	for i, s := range softwares {
+		indexByID[s.ID] = i
+		ids = append(ids, s.ID)
 	}
 
-	return softwares, nil
+	type softwareCVERow struct {
+		SoftwareID        uint       `db:"software_id"`
+		CVE               string     `db:"cve"`
+		CreatedAt         *time.Time `db:"created_at"`
+		ResolvedInVersion *string    `db:"resolved_in_version"`
+	}
+	var rows []softwareCVERow
+	if err := common_mysql.BatchProcessSimple(ids, listSoftwareCVEsBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(`
+			SELECT software_id, cve, created_at, resolved_in_version
+			FROM software_cve
+			WHERE software_id IN (?)
+			ORDER BY software_id, cve`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build software CVEs query")
+		}
+		var batchRows []softwareCVERow
+		if err := sqlx.SelectContext(ctx, q, &batchRows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list software CVEs")
+		}
+		rows = append(rows, batchRows...)
+		return nil
+	}); err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	type cveMetaRow struct {
+		CVE              string     `db:"cve"`
+		CVSSScore        *float64   `db:"cvss_score"`
+		EPSSProbability  *float64   `db:"epss_probability"`
+		CISAKnownExploit *bool      `db:"cisa_known_exploit"`
+		Published        *time.Time `db:"published"`
+		Description      *string    `db:"description"`
+	}
+	detailsLinks := make(map[string]string)
+	for _, r := range rows {
+		if _, ok := detailsLinks[r.CVE]; !ok {
+			detailsLinks[r.CVE] = "https://nvd.nist.gov/vuln/detail/" + r.CVE
+		}
+	}
+	var metaByCVE map[string]*cveMetaRow
+	// A CVE without metadata still gets its details, as nulls.
+	noMeta := &cveMetaRow{}
+	if withDetails {
+		metaByCVE = make(map[string]*cveMetaRow, len(detailsLinks))
+		// Selecting by software ID and letting MySQL deduplicate is several times faster than
+		// sending back thousands of CVE IDs in an IN list.
+		if err := common_mysql.BatchProcessSimple(ids, listSoftwareCVEsBatchSize, func(batch []uint) error {
+			stmt, args, err := sqlx.In(`
+				SELECT c.cve, c.cvss_score, c.epss_probability, c.cisa_known_exploit, c.published, c.description
+				FROM (SELECT DISTINCT cve FROM software_cve WHERE software_id IN (?)) sc
+				JOIN cve_meta c ON c.cve = sc.cve`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build CVE metadata query")
+			}
+			var batchMeta []cveMetaRow
+			if err := sqlx.SelectContext(ctx, q, &batchMeta, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "list CVE metadata")
+			}
+			for i := range batchMeta {
+				if _, ok := metaByCVE[batchMeta[i].CVE]; !ok {
+					metaByCVE[batchMeta[i].CVE] = &batchMeta[i]
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	for i := range rows {
+		r := &rows[i]
+		idx := indexByID[r.SoftwareID]
+		cve := fleet.CVE{CVE: r.CVE, DetailsLink: detailsLinks[r.CVE]}
+		if r.CreatedAt != nil {
+			cve.CreatedAt = *r.CreatedAt
+		}
+		if withDetails {
+			meta, ok := metaByCVE[r.CVE]
+			if !ok {
+				meta = noMeta
+			}
+			cve.CVSSScore = &meta.CVSSScore
+			cve.EPSSProbability = &meta.EPSSProbability
+			cve.CISAKnownExploit = &meta.CISAKnownExploit
+			cve.CVEPublished = &meta.Published
+			cve.Description = &meta.Description
+			cve.ResolvedInVersion = &r.ResolvedInVersion
+		}
+		softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
+	}
+	return nil
 }
 
 // softwareTypeFilterSQL renders f as a parenthesized predicate over alias's source and extension_for
@@ -2299,8 +2383,8 @@ func isMultiColumnSort(orderKey string) bool {
 //  1. Inner query: Covering index scan on software_host_counts that only selects
 //     indexed columns (software_id, hosts_count). This allows MySQL to read
 //     directly from the index without accessing the table.
-//  2. Outer query: LEFT JOINs to all necessary tables (software, software_cpe,
-//     software_host_counts, software_cve, cve_meta) for only the paginated results.
+//  2. Outer query: LEFT JOINs to software, software_cpe and software_host_counts
+//     for only the paginated results. CVEs are loaded separately by listSoftwareDB.
 //
 // Eventual consistency: During the hourly SyncHostsSoftware cron job, there's a
 // ~50-200ms window where orphaned software_host_counts rows may exist (between
@@ -2445,21 +2529,8 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			s.application_id,
 			s.title_id,
 			s.upgrade_code,
-			COALESCE(scp.cpe, '') AS generated_cpe,
-			scv.cve,
-			scv.created_at
+			COALESCE(scp.cpe, '') AS generated_cpe
 	`
-
-	if opts.IncludeCVEScores {
-		outerSQL += `,
-			c.cvss_score,
-			c.epss_probability,
-			c.cisa_known_exploit,
-			c.description,
-			c.published AS cve_published,
-			scv.resolved_in_version
-		`
-	}
 
 	if opts.WithHostCounts {
 		outerSQL += `,
@@ -2495,16 +2566,6 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			`
 			args = append(args, *opts.TeamID)
 		}
-	}
-
-	outerSQL += `
-		LEFT JOIN software_cve scv ON scv.software_id = top.software_id
-	`
-
-	if opts.IncludeCVEScores {
-		outerSQL += `
-		LEFT JOIN cve_meta c ON c.cve = scv.cve
-		`
 	}
 
 	// Filter out any orphaned software_ids (eventual consistency handling)
@@ -2616,21 +2677,21 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		}
 	}
 
+	// The CVEs of each software are loaded afterwards by listSoftwareDB, so the grouped
+	// sub-query only joins the CVE tables when it filters, searches or orders on them.
+	// Joining them for every request multiplies the grouped rows by the CVEs per
+	// software, which is thousands for a browser version.
+	filtersCVEMeta := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+	needsCVEMeta := opts.IncludeCVEScores && (filtersCVEMeta || ordersBySoftwareCVEKey(opts.ListOptions.OrderKey))
+	needsSoftwareCVE := opts.VulnerableOnly || opts.ListOptions.MatchQuery != "" || needsCVEMeta
+
 	if opts.VulnerableOnly {
 		ds = ds.
 			Join(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 			)
-	} else if !opts.WithoutVulnerabilityDetails || opts.IncludeCVEScores || opts.ListOptions.MatchQuery != "" {
-		// LEFT JOIN software_cve if:
-		// 1. We need CVE details in the list (!WithoutVulnerabilityDetails), OR
-		// 2. We need CVE scores for ordering/filtering (IncludeCVEScores), OR
-		// 3. We have a search query (MatchQuery) that might be searching for CVEs
-		//
-		// When WithoutVulnerabilityDetails=true AND IncludeCVEScores=false AND MatchQuery is empty,
-		// we can skip this join entirely in the subquery. The outer query will fetch CVEs only for
-		// the paginated results, which is much more efficient.
+	} else if needsSoftwareCVE {
 		ds = ds.
 			LeftJoin(
 				goqu.I("software_cve").As("scv"),
@@ -2649,13 +2710,13 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			)
 	}
 
-	if opts.IncludeCVEScores {
+	if needsCVEMeta {
 
 		baseJoinConditions := goqu.Ex{
 			"c.cve": goqu.I("scv.cve"),
 		}
 
-		if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+		if filtersCVEMeta {
 
 			if opts.KnownExploit {
 				baseJoinConditions["c.cisa_known_exploit"] = true
@@ -2685,13 +2746,12 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				)
 		}
 
+		// The softwareCVEAllowedOrderKeys columns.
 		ds = ds.SelectAppend(
-			goqu.MAX("c.cvss_score").As("cvss_score"),                     // for ordering
-			goqu.MAX("c.epss_probability").As("epss_probability"),         // for ordering
-			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),     // for ordering
-			goqu.MAX("c.published").As("cve_published"),                   // for ordering
-			goqu.MAX("c.description").As("description"),                   // for ordering
-			goqu.MAX("scv.resolved_in_version").As("resolved_in_version"), // for ordering
+			goqu.MAX("c.cvss_score").As("cvss_score"),
+			goqu.MAX("c.epss_probability").As("epss_probability"),
+			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"),
+			goqu.MAX("c.published").As("cve_published"),
 		)
 	}
 
@@ -2738,15 +2798,16 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"generated_cpe",
 	)
 
-	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
-	// Apply order by again after joining on sub query
+	// Paginate in the sub-query, where the CVE joins are grouped away, and apply the order again
+	// in the outer query.
 	allowedOrderKeys := softwareOrderKeys(opts)
 	ds, err := appendListOptionsToSelect(ds, opts.ListOptions, allowedOrderKeys)
 	if err != nil {
 		return "", nil, err
 	}
 
-	// join on software_cve and cve_meta after apply pagination using the sub-query above
+	// CVEs are loaded separately by listSoftwareDB. An outer CVE join would return one row per
+	// (software, CVE) pair, which runs the server out of memory for software with thousands of CVEs.
 	ds = dialect.From(ds.As("s")).
 		Select(
 			"s.id",
@@ -2764,29 +2825,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.title_id",
 			"s.upgrade_code",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
-			"scv.cve",
-			"scv.created_at",
-		).
-		LeftJoin(
-			goqu.I("software_cve").As("scv"),
-			goqu.On(goqu.I("scv.software_id").Eq(goqu.I("s.id"))),
-		).
-		LeftJoin(
-			goqu.I("cve_meta").As("c"),
-			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 		)
-
-	// select optional columns
-	if opts.IncludeCVEScores {
-		ds = ds.SelectAppend(
-			"c.cvss_score",
-			"c.epss_probability",
-			"c.cisa_known_exploit",
-			"c.description",
-			goqu.I("c.published").As("cve_published"),
-			"scv.resolved_in_version",
-		)
-	}
 
 	if opts.HostID != nil {
 		ds = ds.SelectAppend(
@@ -5358,6 +5397,17 @@ var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"cvss_score":         "cvss_score",
 	"epss_probability":   "epss_probability",
 	"cisa_known_exploit": "cisa_known_exploit",
+}
+
+// ordersBySoftwareCVEKey reports whether any column of orderKey, which may name
+// several ("name,cvss_score"), is one of softwareCVEAllowedOrderKeys.
+func ordersBySoftwareCVEKey(orderKey string) bool {
+	for key := range strings.SplitSeq(orderKey, ",") {
+		if _, ok := softwareCVEAllowedOrderKeys[strings.TrimSpace(key)]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // softwareOrderKeys may return one of the package-level maps above, so the

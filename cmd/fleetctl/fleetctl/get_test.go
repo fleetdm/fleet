@@ -4152,3 +4152,39 @@ func TestFormatCommandOutput(t *testing.T) {
 		require.Equal(t, before, after)
 	})
 }
+
+func TestGetSoftwareVersionsTruncated(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	listed := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "apps"},
+		{Name: "foo", Version: "0.0.2", Source: "apps"},
+	}
+	total := len(listed)
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+		return listed, &fleet.PaginationMetadata{HasNextResults: total > len(listed)}, nil
+	}
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return total, nil
+	}
+
+	var stderr bytes.Buffer
+	out, err := runWithErrWriter([]string{"get", "software", "--versions"}, &stderr)
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "0.0.2")
+	require.Empty(t, stderr.String())
+
+	total = 12345
+	for _, args := range [][]string{
+		{"get", "software", "--versions"},
+		{"get", "software", "--versions", "--json"},
+		{"get", "software", "--versions", "--yaml"},
+	} {
+		stderr.Reset()
+		out, err := runWithErrWriter(args, &stderr)
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "0.0.2")
+		require.Contains(t, stderr.String(), "Showing 2 of 12345 software versions")
+		require.Contains(t, stderr.String(), "per_page")
+	}
+}
