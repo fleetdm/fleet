@@ -489,7 +489,6 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
-import Helium from "./png/Helium.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -616,9 +615,7 @@ import Lunasea from "./png/Lunasea.png";
 import Lunatask from "./png/Lunatask.png";
 import Lycheeslicer from "./png/Lycheeslicer.png";
 import Maccy from "./png/Maccy.png";
-import Macdown from "./png/Macdown.png";
 import Mace from "./png/Mace.png";
-import Macjournal from "./png/Macjournal.png";
 import MacMouseFix from "./png/MacMouseFix.png";
 import Macpacker from "./png/Macpacker.png";
 import Macpass from "./png/Macpass.png";
@@ -1668,7 +1665,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
-  helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1798,9 +1794,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
-  macdown: Macdown,
   mace: Mace,
-  macjournal: Macjournal,
   macpacker: Macpacker,
   macpass: Macpass,
   macpilot: Macpilot,

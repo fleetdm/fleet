@@ -3965,13 +3965,6 @@
     },
     {
       "name": "gPodder",
-      "slug": "gpodder/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.gpodder.gpodder",
-      "description": "gPodder is a podcast client."
-    },
-    {
-      "name": "gPodder",
       "slug": "gpodder/windows",
       "platform": "windows",
       "unique_identifier": "gPodder",
@@ -4123,13 +4116,6 @@
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
-    },
-    {
-      "name": "Helium",
-      "slug": "helium/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.koushikdutta.Helium",
-      "description": "Helium is a macOS application."
     },
     {
       "name": "Hex Fiend",
@@ -5203,25 +5189,11 @@
       "description": "Maccy is a clipboard manager."
     },
     {
-      "name": "MacDown",
-      "slug": "macdown/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.uranusjr.macdown",
-      "description": "MacDown is an open-source Markdown editor."
-    },
-    {
       "name": "MACE",
       "slug": "mace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mace.app",
       "description": "MACE is a tool to simplify compliance baseline creation, auditing, and management."
-    },
-    {
-      "name": "MacJournal",
-      "slug": "macjournal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.DanSchimpf.MacJournal",
-      "description": "MacJournal is an app for journaling and blogging software."
     },
     {
       "name": "MacPacker",
