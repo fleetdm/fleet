@@ -2500,7 +2500,12 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 	}
 
 	// update the status to NULL to trigger resending on the next cron run
-	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE host_uuid = ? AND %s = ?`, table, column)
+	setRetries := ""
+	if table == "host_mdm_apple_profiles" {
+		// A resend starts a new retry budget for verification.
+		setRetries = ", retries = 0"
+	}
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE host_uuid = ? AND %s = ?`, table, setRetries, column)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, updateStmt, hostUUID, profUUID)
@@ -2800,7 +2805,12 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	}
 
 	// update the status to NULL to trigger resending on the next cron run
-	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE %s = ? AND status = ?`, table, column)
+	setRetries := ""
+	if table == "host_mdm_apple_profiles" {
+		// A resend starts a new retry budget for verification.
+		setRetries = ", retries = 0"
+	}
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE %s = ? AND status = ?`, table, setRetries, column)
 
 	var count int64
 	var windowsHostUUIDs []string
@@ -3551,14 +3561,41 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	return nil
 }
 
+const mdmManagedCertificateCols = `profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at`
+
 func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
 	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at
+	SELECT `+mdmManagedCertificateCols+`
 	FROM host_mdm_managed_certificates
 	WHERE host_uuid = ?
 	`, hostUUID)
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
+}
+
+func (ds *Datastore) ListMDMManagedCertificatesForHostProfiles(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+	var certs []*fleet.MDMManagedCertificate
+	const batchSize = 1000
+	err := common_mysql.BatchProcessSimple(hostProfiles, batchSize, func(batch []fleet.HostProfileUUID) error {
+		args := make([]any, 0, len(batch)*2)
+		for _, hp := range batch {
+			args = append(args, hp.HostUUID, hp.ProfileUUID)
+		}
+		stmt := `
+	SELECT ` + mdmManagedCertificateCols + `
+	FROM host_mdm_managed_certificates
+	WHERE (host_uuid, profile_uuid) IN (` + strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",") + `)`
+		var batchCerts []*fleet.MDMManagedCertificate
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchCerts, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm managed certificates for host profiles")
+		}
+		certs = append(certs, batchCerts...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return certs, nil
 }
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required

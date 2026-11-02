@@ -1,0 +1,12 @@
+.okta-conditional-access-page {
+  @include vertical-page-layout;
+
+  &__content {
+    @include vertical-page-layout;
+    max-width: $settings-form-max-width;
+  }
+
+  &__profiles {
+    @include vertical-page-tab-panel-layout;
+  }
+}

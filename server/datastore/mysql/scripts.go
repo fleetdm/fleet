@@ -2187,14 +2187,12 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 
 	// get the MDM command result, which may be not found (indicating the command doesn't exist).
 	// If it is pending, then it returns 101, and result will be empty.
-	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
+	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, hostUUID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
 	}
 
-	// each item in the slice returned by GetMDMWindowsCommandResults is
-	// potentially a result for a different host, we need to find the one for
-	// that specific host.
+	// defensive check: the results are already scoped to the host
 	var cmdRes *fleet.MDMCommandResult
 	for _, r := range cmdResults {
 		if r.HostUUID != hostUUID {

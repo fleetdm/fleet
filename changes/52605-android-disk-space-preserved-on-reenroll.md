@@ -1,1 +1,0 @@
-- Fixed an Android host's disk space changing to "Not supported" (or disappearing from host vitals) after the device re-enrolls. Enrollment payloads and some status reports carry no storage measurement, so Fleet now keeps the host's last measurement until the device reports a new one. Hosts that have never reported a measurement still show "Not supported".

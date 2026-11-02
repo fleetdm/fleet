@@ -1366,6 +1366,10 @@ type HostDetail struct {
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 
+	// GoogleDeviceID is set only for iOS, iPadOS and Android hosts, to "" when the host has no device ID
+	// in Google, so other platforms omit the field.
+	GoogleDeviceID *string `json:"google_device_id,omitempty"`
+
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
 

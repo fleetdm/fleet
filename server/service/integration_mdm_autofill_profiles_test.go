@@ -210,27 +210,28 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 
 	t.Run("strict schema findings fail under base regardless of the setting", func(t *testing.T) {
 		cases := []struct {
-			name, profileType, profile, platform, reason string
+			name, profileType, profile, platform string
+			reasons                              []string
 		}{
 			{
 				"wrong type", "mobileconfig",
 				autofillMobileconfig("com.apple.applicationaccess", `<key>allowAirDrop</key><string>no</string><key>allowCamera</key><string>no</string>`),
-				"apple", `"allowAirDrop" expects a boolean.`,
+				"apple", []string{`"allowAirDrop" expects a boolean.`, `"allowCamera" expects a boolean.`},
 			},
 			{
 				"unknown key", "mobileconfig",
 				autofillMobileconfig("com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
-				"apple", `"allowSomethingMadeUp" isn't valid for the "com.apple.applicationaccess" profile type.`,
+				"apple", []string{`"allowSomethingMadeUp" isn't valid for the "com.apple.applicationaccess" profile type.`},
 			},
 			{
 				"unknown payload type", "mobileconfig",
 				autofillMobileconfig("com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
-				"apple", `"com.example.not.a.real.type" isn't a valid profile type.`,
+				"apple", []string{`"com.example.not.a.real.type" isn't a valid profile type.`},
 			},
 			{
 				"unknown LocURI", "csp",
 				`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>1</Data></Item></Replace>`,
-				"windows", `"./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting" isn't a valid Windows setting.`,
+				"windows", []string{`"./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting" isn't a valid Windows setting.`},
 			},
 		}
 		for _, on := range []bool{true, false} {
@@ -244,9 +245,12 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 					var body autofillErrorBody
 					require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 					require.Equal(t, fleet.AutofillConfigProfileContentErrorMessage, body.Message)
-					require.Len(t, body.Errors, 1)
-					assert.Equal(t, "base", body.Errors[0]["name"])
-					assert.Equal(t, c.reason, body.Errors[0]["reason"])
+					var reasons []string
+					for _, e := range body.Errors {
+						assert.Equal(t, "base", e["name"])
+						reasons = append(reasons, e["reason"])
+					}
+					assert.Equal(t, c.reasons, reasons)
 				})
 			}
 		}

@@ -388,6 +388,10 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 	if err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInProfileIdentifier(data); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
 
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
@@ -505,8 +509,12 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
-		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, caVarValidators{
+		digiCert:   additionalDigiCertValidation,
+		customSCEP: additionalCustomSCEPValidation,
+		ndes:       additionalNDESValidation,
+		smallstep:  additionalSmallstepValidation,
+	})
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
 		return nil, err
@@ -955,6 +963,10 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()), "expanding activation secrets")
 	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInDeclarationIdentifier(activation); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()))
+	}
 
 	// Same allowlist as the declarations they activate.
 	actVars, err := validateDeclarationFleetVariables(expanded, lic)
@@ -1106,6 +1118,10 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, nil, "", fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+	// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+	if err := fleet.ValidateNoSecretsInDeclarationIdentifier(data); err != nil {
+		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
@@ -3018,10 +3034,11 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	}
 
 	defer func() {
-		if _, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
+		if authErr, ok := errors.AsType[*fleet.AuthFailedError](err); ok {
 			// Every refusal looks the same to the device, so the server log is
 			// the only place to tell which device was refused and why.
 			logging.WithExtras(ctx, "serial", machineInfo.Serial, "udid", machineInfo.UDID, "product", machineInfo.Product)
+			err = &fleet.AutomaticEnrollmentRefusedError{Reason: authErr.Internal()}
 		}
 	}()
 
@@ -3956,6 +3973,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"missing fleet secrets")
 		}
+		// After the expansion, which reports a missing secret by name, and before anything reads the identifier.
+		if err := fleet.ValidateNoSecretsInProfileIdentifier(prof); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
+		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(prof)}); err != nil {
 			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
 				return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
@@ -3987,7 +4009,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			err := svc.validateProfileSchemaWith(ctx, schema, profileSchemaAppleProfile, []byte(expanded), profilevalidation.ModeLenient, mdmProf.Name, teamID)
 			if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i),
-					profileValidationBatchMessage(mdmProf.Name, pvErr.finding, pvErr.windows)))
+					profileValidationBatchMessage(mdmProf.Name, pvErr.findings[0], pvErr.windows)))
 			}
 			if err != nil {
 				return err
@@ -5948,6 +5970,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, nil
 	}
 
+	// nanomdm tolerates results for commands not queued for this enrollment, but
+	// the multi service still runs this handler, so skip processing them here.
+	queued, err := svc.ds.IsMDMAppleCommandQueuedForEnrollment(r.Context, r.ID, cmdResult.CommandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "check command queued for enrollment")
+	}
+	if !queued {
+		svc.logger.InfoContext(r.Context, "ignoring result for command not queued for enrollment",
+			"enrollment_id", r.ID, "command_uuid", cmdResult.CommandUUID, "status", cmdResult.Status)
+		return nil, nil
+	}
+
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
@@ -6739,7 +6773,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 
 	// Get VPP token, fail early if we cannot get it
 	// (e.g. not configured, or not configured for the host's team).
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	_, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
 	switch {
 	case err == nil:
 		// OK
@@ -7092,7 +7126,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			continue
 		}
 
-		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
+		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
 			// scheduled updates fan out to many hosts at once, like policy
 			// automations, so they respect the same release budget

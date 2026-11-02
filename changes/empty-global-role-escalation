@@ -1,1 +1,0 @@
-* Fixed a privilege escalation where a fleet (team) admin could gain global admin access by creating a user with an empty global role.

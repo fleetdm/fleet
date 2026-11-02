@@ -3888,6 +3888,172 @@ func TestGenerateProfilesFilenameCollision(t *testing.T) {
 	}, contentsByName)
 }
 
+// MockClientVPPLocation serves the same three App Store titles for every fleet
+// and the VPP tokens set on the struct.
+type MockClientVPPLocation struct {
+	MockClient
+	tokens []*fleet.VPPTokenDB
+}
+
+func (c *MockClientVPPLocation) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	return c.tokens, nil
+}
+
+func (c *MockClientVPPLocation) ListSoftwareTitles(string) ([]fleet.SoftwareTitleListResult, error) {
+	return []fleet.SoftwareTitleListResult{
+		{ID: 30, Name: "iOS App", HashSHA256: new("h30"), AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "30", Platform: string(fleet.IOSPlatform)}},
+		{ID: 31, Name: "Versioned App", HashSHA256: new("h31"), AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "31", Platform: string(fleet.IOSPlatform)}},
+		{ID: 32, Name: "Android App", HashSHA256: new("h32"), AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "32", Platform: string(fleet.AndroidPlatform)}},
+	}, nil
+}
+
+func (c *MockClientVPPLocation) GetSetupExperienceSoftware(string, uint) ([]fleet.SoftwareTitleListResult, error) {
+	return nil, nil
+}
+
+func (c *MockClientVPPLocation) GetSoftwareTitleByID(id uint, _ *uint) (*fleet.SoftwareTitle, error) {
+	tok := &fleet.VPPTokenSummary{ID: 1, Location: "Acme US"}
+	switch id {
+	case 30:
+		return &fleet.SoftwareTitle{ID: id, AppStoreApp: &fleet.VPPAppStoreApp{AdamID: "30", Platform: fleet.IOSPlatform, VPPToken: tok}}, nil
+	case 31:
+		tok = &fleet.VPPTokenSummary{ID: 2, Location: "Acme Japan"}
+		production := &fleet.VPPAppStoreApp{AdamID: "31", Platform: fleet.IOSPlatform, VersionName: "Production", VPPToken: tok}
+		test := &fleet.VPPAppStoreApp{AdamID: "31", Platform: fleet.IOSPlatform, VersionName: "Test", VPPToken: tok}
+		return &fleet.SoftwareTitle{
+			ID:           id,
+			AppStoreApp:  production,
+			AppStoreApps: []fleet.AppStoreAppVersion{production.AppStoreAppVersion(), test.AppStoreAppVersion()},
+		}, nil
+	case 32:
+		return &fleet.SoftwareTitle{ID: id, AppStoreApp: &fleet.VPPAppStoreApp{AdamID: "32", Platform: fleet.AndroidPlatform, VPPToken: tok}}, nil
+	}
+	return nil, errors.New("unknown title")
+}
+
+func TestGenerateSoftwareVPPLocation(t *testing.T) {
+	forTeams := func(ids ...uint) []fleet.TeamTuple {
+		tuples := make([]fleet.TeamTuple, 0, len(ids))
+		for _, id := range ids {
+			tuples = append(tuples, fleet.TeamTuple{ID: id, Name: fmt.Sprintf("fleet %d", id)})
+		}
+		return tuples
+	}
+	allFleets := []fleet.TeamTuple{}
+
+	cases := []struct {
+		name         string
+		teamID       uint
+		tokens       []*fleet.VPPTokenDB
+		wantLocation map[string]string // by app_store_id
+	}{
+		{
+			name:         "two tokens on the fleet",
+			teamID:       1,
+			tokens:       []*fleet.VPPTokenDB{{ID: 1, Teams: forTeams(1)}, {ID: 2, Teams: forTeams(1, 2)}},
+			wantLocation: map[string]string{"30": "Acme US", "31": "Acme Japan"},
+		},
+		{
+			name:   "one token on the fleet",
+			teamID: 1,
+			tokens: []*fleet.VPPTokenDB{{ID: 1, Teams: forTeams(1)}, {ID: 2, Teams: forTeams(2)}},
+		},
+		{
+			name:         "All fleets token plus a fleet token",
+			teamID:       1,
+			tokens:       []*fleet.VPPTokenDB{{ID: 1, Teams: allFleets}, {ID: 2, Teams: forTeams(1)}},
+			wantLocation: map[string]string{"30": "Acme US", "31": "Acme Japan"},
+		},
+		{
+			name:         "Unassigned fleet",
+			teamID:       0,
+			tokens:       []*fleet.VPPTokenDB{{ID: 1, Teams: forTeams(0)}, {ID: 2, Teams: allFleets}},
+			wantLocation: map[string]string{"30": "Acme US", "31": "Acme Japan"},
+		},
+		{
+			name:   "unassigned tokens don't count",
+			teamID: 1,
+			tokens: []*fleet.VPPTokenDB{{ID: 1, Teams: forTeams(1)}, {ID: 2}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fleetClient := &MockClientVPPLocation{tokens: tc.tokens}
+			appConfig, err := fleetClient.GetAppConfig()
+			require.NoError(t, err)
+			cmd := &GenerateGitopsCommand{
+				Client:       fleetClient,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				SoftwareList: make(map[uint]Software),
+				ScriptList:   make(map[uint]string),
+			}
+
+			res, err := cmd.generateSoftware("team.yml", tc.teamID, "some-team", false)
+			require.NoError(t, err)
+			apps, ok := res["app_store_apps"].([]map[string]any)
+			require.True(t, ok)
+			require.Len(t, apps, 3)
+
+			for _, app := range apps {
+				id := app["app_store_id"].(string)
+				if want, ok := tc.wantLocation[id]; ok {
+					assert.Equal(t, want, app["location"], id)
+				} else {
+					assert.NotContains(t, app, "location", id)
+				}
+				for _, v := range versionsOf(app) {
+					assert.NotContains(t, v, "location", "location belongs on the app, not its versions")
+				}
+			}
+			if len(tc.wantLocation) > 0 {
+				assert.Len(t, versionsOf(apps[1]), 2, "the versioned app keeps its versions")
+			}
+		})
+	}
+
+	t.Run("older server without vpp_token", func(t *testing.T) {
+		fleetClient := &MockClientVPPLocation{tokens: []*fleet.VPPTokenDB{{ID: 1, Teams: allFleets}, {ID: 2, Teams: allFleets}}}
+		appConfig, err := fleetClient.GetAppConfig()
+		require.NoError(t, err)
+		cmd := &GenerateGitopsCommand{
+			Client:       &noVPPTokenClient{fleetClient},
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			SoftwareList: make(map[uint]Software),
+			ScriptList:   make(map[uint]string),
+		}
+		res, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
+		require.NoError(t, err)
+		for _, app := range res["app_store_apps"].([]map[string]any) {
+			assert.NotContains(t, app, "location")
+		}
+	})
+}
+
+func versionsOf(app map[string]any) []map[string]any {
+	v, _ := app["versions"].([]map[string]any)
+	return v
+}
+
+// noVPPTokenClient drops vpp_token from titles, like a server that predates it.
+type noVPPTokenClient struct {
+	*MockClientVPPLocation
+}
+
+func (c *noVPPTokenClient) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	title, err := c.MockClientVPPLocation.GetSoftwareTitleByID(id, teamID)
+	if err != nil {
+		return nil, err
+	}
+	title.AppStoreApp.VPPToken = nil
+	return title, nil
+}
+
 // Omitting enable_profile_validation means true, so a false must be exported on every tier
 // or applying the generated files would turn validation back on.
 func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {

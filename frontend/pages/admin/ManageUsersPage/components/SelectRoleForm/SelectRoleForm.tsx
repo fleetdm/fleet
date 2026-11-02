@@ -60,7 +60,7 @@ const SelectRoleForm = ({
 
   return (
     <DropdownWrapper
-      name="Team role"
+      name="Fleet role"
       label="Role"
       options={roleOptions({ isPremiumTier, isApiOnly })}
       value={selectedRole}
