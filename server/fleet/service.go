@@ -2037,6 +2037,9 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MinOrbitOmarchyLUKSVersion is the earliest version of Orbit whose passphrase prompt opens
+	// under Hyprland, which Omarchy uses.
+	MinOrbitOmarchyLUKSVersion = "1.64.0"
 	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
 	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
 	LinuxEscrowInFlightWindow = 5 * time.Minute
