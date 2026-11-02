@@ -7880,7 +7880,7 @@
       "name": "Sequel Ace",
       "slug": "sequel-ace/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sequelace.SequelAce",
+      "unique_identifier": "com.sequel-ace.sequel-ace",
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
