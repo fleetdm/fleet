@@ -13,9 +13,10 @@
 # the documented silentinstallhq.com Python uninstall.
 #
 # We match on the DisplayName (anchored for the bundle) rather than the Publisher
-# string, and scan every hive osquery's "programs" table reads (HKLM +
-# Wow6432Node + all HKU) so this works for per-machine (SYSTEM) and per-user
-# installs alike.
+# string. Only entries in HKLM and SYSTEM's hive are removed: a user's hive is
+# writable by that user, so its uninstaller or MSI product code would run as
+# SYSTEM. User hives (which osquery's "programs" table also reads) are checked at
+# the end so a per-user install is reported instead of passing silently.
 
 $pythonNameLike    = "Python 3.13.* (ARM64)"
 $bundleNamePattern = '^Python 3\.13\.\d+ \(ARM64\)$'
@@ -26,14 +27,14 @@ $ExpectedExitCodes = @(0, 1605, 1614, 1641, 3010)
 $exitCode = 0
 
 function Get-UninstallRoots {
+    param([switch]$IncludeUserHives)
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
-    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
-    # LocalService and NetworkService can write their own hives, and an entry
-    # there would run as SYSTEM.
+    # SYSTEM's hive, plus user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID) when asked.
+    $hivePattern = if ($IncludeUserHives) { '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$' } else { '^S-1-5-18$' }
     foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
+        if ($hive.PSChildName -notmatch $hivePattern) { continue }
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
     }
@@ -87,8 +88,8 @@ function Get-ExePath {
 try {
 
     $roots = Get-UninstallRoots
-    $entries = Get-PythonEntries -Roots $roots
-    if ($entries.Count -eq 0) {
+    $allRoots = Get-UninstallRoots -IncludeUserHives
+    if (@(Get-PythonEntries -Roots $allRoots).Count -eq 0) {
         Write-Host "No Python 3.13 (ARM64) entries found (already removed)."
         Exit 0
     }
@@ -109,7 +110,7 @@ try {
     }
 
     # --- Remove component MSIs in dependency order (Core Interpreter last). ---
-    $components = $entries |
+    $components = Get-PythonEntries -Roots $roots |
         Where-Object { $_.DisplayName -notmatch $bundleNamePattern } |
         Sort-Object @{ Expression = { Get-RemovalPriority $_.DisplayName } }
 
@@ -150,10 +151,13 @@ try {
     }
 
     # --- Verify nothing remains in the programs table. ---
-    $remaining = Get-PythonEntries -Roots $roots
+    $remaining = @(Get-PythonEntries -Roots $allRoots)
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) Python 3.13 entry(ies) still present after uninstall:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if (@($remaining | Where-Object { $_.KeyPath -match 'HKEY_USERS\\S-1-(5-21|12-1)-' }).Count -gt 0) {
+            Write-Host "Entries under a user's hive are per-user installs, which must be removed as that user."
+        }
         if ($exitCode -eq 0) { $exitCode = 1 }
     } else {
         Write-Host "All Python 3.13 (ARM64) entries removed."

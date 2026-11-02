@@ -178,11 +178,12 @@ func TestGenerateOpenQuery(t *testing.T) {
 		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'tortoisegit%');", got, title)
 	}
 
-	// matches both Python313 and Python313-arm64, but not other Python versions
-	for _, title := range []string{"Python 3.13", "Python 3.13 (ARM64)"} {
-		got = patch_policy.GenerateOpenQuery("windows", "", title)
-		require.Equal(t, `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313%\%');`, got, title)
-	}
+	// each Python build matches only its own install dir (Python313 vs Python313-arm64)
+	got = patch_policy.GenerateOpenQuery("windows", "", "Python 3.13")
+	require.Equal(t, `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313\%');`, got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Python 3.13 (ARM64)")
+	require.Equal(t, `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`, got)
 
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }

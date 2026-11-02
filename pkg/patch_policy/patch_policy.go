@@ -177,10 +177,13 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 }
 
 func defaultWindowsOpenQuery(softwareTitle string) string {
-	// An ARM64 build runs the same executable as its x64 sibling.
-	softwareTitle = strings.TrimSuffix(softwareTitle, " (ARM64)")
-
-	if query, ok := windowsOpenQueryOverrides[softwareTitle]; ok {
+	query, ok := windowsOpenQueryOverrides[softwareTitle]
+	if !ok {
+		// An ARM64 build runs the same executable as its x64 sibling.
+		softwareTitle = strings.TrimSuffix(softwareTitle, " (ARM64)")
+		query, ok = windowsOpenQueryOverrides[softwareTitle]
+	}
+	if ok {
 		windowsOpenQueryPrefix := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) %s);"
 		return fmt.Sprintf(windowsOpenQueryPrefix, query)
 	}
@@ -271,8 +274,9 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"ProtonVPN":                         "IN ('proton vpn.exe','protonvpn.exe')",
 	"PyCharm Community Edition":         "IN ('pycharm.exe','pycharm64.exe')",
 	"PyCharm Professional":              "IN ('pycharm.exe','pycharm64.exe')",
-	"Python 3.13":                       "IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python313%\\%'", // install dir only, as in the uninstall script: other Pythons shouldn't block updates
-	"Python 3.14":                       "IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python314%\\%'",
+	"Python 3.13":                       "IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python313\\%'", // install dir only, as in the uninstall script: other Pythons shouldn't block updates
+	"Python 3.13 (ARM64)":               "IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python313-arm64\\%'",
+	"Python 3.14":                       "IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python314\\%'",
 	"QGIS":                              "= 'qgis-bin.exe'",
 	"QGIS LTR":                          "= 'qgis-ltr-bin.exe'",
 	"Raspberry Pi Imager":               "= 'rpi-imager.exe'",

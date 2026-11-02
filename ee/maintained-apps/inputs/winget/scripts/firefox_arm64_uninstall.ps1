@@ -91,7 +91,10 @@ foreach ($key in $uninstallKeys) {
             }
             Start-Sleep -Seconds 2
         }
-        $exitCode = $process.ExitCode
+        # The registry check above confirmed the removal; the original process may still be exiting.
+        if ($process.WaitForExit(10000)) {
+            $exitCode = $process.ExitCode
+        }
 
         # Prints the exit code
         Write-Host "Uninstall exit code: $exitCode"

@@ -12,10 +12,18 @@ $packageFamilyName = $PACKAGE_ID
 $timeoutSeconds = 300  # 5 minute timeout
 $start = Get-Date
 
+# Get-AppxProvisionedPackage objects have no PackageFamilyName. Their PackageName is
+# <Name>_<Version>_<Arch>_<ResourceId>_<PublisherId>, and a package name can't contain "_".
+function Get-ProvisionedPackage {
+  param([string]$pfn)
+  $packageNameLike = $pfn -replace '_', '_*_'
+  Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+    Where-Object { $_.PackageName -like $packageNameLike }
+}
+
 function Test-PackagePresent {
   param([string]$pfn)
-  $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-    Where-Object { $_.PackageFamilyName -eq $pfn }
+  $prov = Get-ProvisionedPackage -pfn $pfn
   $inst = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue |
     Where-Object { $_.PackageFamilyName -eq $pfn }
   return (($prov | Measure-Object).Count -gt 0) -or (($inst | Measure-Object).Count -gt 0)
@@ -28,8 +36,7 @@ try {
   Stop-Process -Name "Teams" -Force -ErrorAction SilentlyContinue
 
   # Remove the machine-wide provisioning so the package is not re-registered at next sign-in.
-  $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-    Where-Object { $_.PackageFamilyName -eq $packageFamilyName }
+  $provisioned = Get-ProvisionedPackage -pfn $packageFamilyName
   foreach ($pkg in $provisioned) {
     Write-Host "Removing provisioned package: $($pkg.PackageName)"
     try {
