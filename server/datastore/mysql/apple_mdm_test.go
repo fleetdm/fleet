@@ -6103,8 +6103,8 @@ func TestHostDEPAssignments(t *testing.T) {
 }
 
 func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
-	// test that the mysql md5 hash exactly matches the hash produced by Go in
-	// the preassign profiles logic (no corner cases with extra whitespace, etc.)
+	// profile validation skips profiles whose Go md5 matches the stored checksum, so
+	// mysql's MD5 must match Go's exactly (no corner cases with extra whitespace, etc.)
 	ctx := t.Context()
 
 	// sprintf placeholders for prefix, content and suffix
@@ -6159,13 +6159,11 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			})
 
-			goProf := fleet.MDMApplePreassignProfilePayload{Profile: mc}
-			goHash := goProf.HexMD5Hash()
-			require.NotEmpty(t, goHash)
+			goHash := md5.Sum(mc) // nolint:gosec // content comparison, not security
 
 			var uid string
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
+				return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE checksum = ?`, goHash[:])
 			})
 			require.Equal(t, prof.ProfileUUID, uid)
 		})

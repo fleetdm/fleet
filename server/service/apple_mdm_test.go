@@ -67,16 +67,6 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 )
 
-type nopProfileMatcher struct{}
-
-func (nopProfileMatcher) PreassignProfile(ctx context.Context, pld fleet.MDMApplePreassignProfilePayload) error {
-	return nil
-}
-
-func (nopProfileMatcher) RetrieveProfiles(ctx context.Context, extHostID string) (fleet.MDMApplePreassignHostProfiles, error) {
-	return fleet.MDMApplePreassignHostProfiles{}, nil
-}
-
 func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...func(*config.FleetConfig)) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
@@ -116,12 +106,11 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	)
 
 	opts := &TestServerOpts{
-		FleetConfig:    &cfg,
-		MDMStorage:     mdmStorage,
-		DEPStorage:     depStorage,
-		MDMPusher:      pusher,
-		License:        license,
-		ProfileMatcher: nopProfileMatcher{},
+		FleetConfig: &cfg,
+		MDMStorage:  mdmStorage,
+		DEPStorage:  depStorage,
+		MDMPusher:   pusher,
+		License:     license,
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -1996,12 +1985,11 @@ func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.License
 	)
 
 	opts := &TestServerOpts{
-		FleetConfig:    &cfg,
-		MDMStorage:     mdmStorage,
-		DEPStorage:     depStorage,
-		MDMPusher:      pusher,
-		License:        license,
-		ProfileMatcher: nopProfileMatcher{},
+		FleetConfig: &cfg,
+		MDMStorage:  mdmStorage,
+		DEPStorage:  depStorage,
+		MDMPusher:   pusher,
+		License:     license,
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -12030,12 +12018,11 @@ func TestSendAPNSPing(t *testing.T) {
 	)
 
 	opts := &TestServerOpts{
-		FleetConfig:    &cfg,
-		MDMStorage:     mdmStorage,
-		DEPStorage:     depStorage,
-		MDMPusher:      pusher,
-		License:        &fleet.LicenseInfo{Tier: fleet.TierFree},
-		ProfileMatcher: nopProfileMatcher{},
+		FleetConfig: &cfg,
+		MDMStorage:  mdmStorage,
+		DEPStorage:  depStorage,
+		MDMPusher:   pusher,
+		License:     &fleet.LicenseInfo{Tier: fleet.TierFree},
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
