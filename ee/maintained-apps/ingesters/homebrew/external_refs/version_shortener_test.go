@@ -80,6 +80,7 @@ func TestMakeVersionShortenerKeep3(t *testing.T) {
 		{name: "harmony sase", version: "12.11.0.12314", slug: "harmony-sase", expected: "12.11.0"},
 		{name: "cmux hotfix", version: "0.65.2.2", slug: "cmux", expected: "0.65.2"},
 		{name: "cmux release", version: "0.65.2", slug: "cmux", expected: "0.65.2"},
+		{name: "megasync", version: "6.7.0.3", slug: "megasync", expected: "6.7.0"},
 	}
 
 	for _, tc := range tcs {
