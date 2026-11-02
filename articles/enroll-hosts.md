@@ -350,7 +350,7 @@ Check this table before you match Fleet hosts to another system, like an asset i
 | macOS, iOS, and iPadOS in Apple Business, not yet enrolled | Empty until the host enrolls | Serial number from Apple Business |
 | Windows in Autopilot, not yet enrolled | Empty until the host enrolls | Serial number from Autopilot |
 | Android, company-owned (fully managed) | ID that Fleet generates from the device's brand and serial number | Hardware serial number |
-| Android, personal (work profile), Android 12 and later | Enrollment ID (what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets)) | Empty. Android doesn't report it. |
+| Android, personal (work profile), Android 12 and later | Enrollment ID (what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets)) | Enrollment ID (the same value as the UUID). Android reports the enrollment ID instead of the serial number. |
 | Android, personal (work profile), Android 11 and earlier | ID that Fleet generates from the device's brand and serial number | Hardware serial number |
 | ChromeOS | ID that the Fleet Chrome extension generates. It's not a hardware identifier. | Hardware serial number |
 
