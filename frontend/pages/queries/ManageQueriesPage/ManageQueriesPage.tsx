@@ -314,7 +314,7 @@ const ManageQueriesPage = ({
         hasNextResults={!!queriesResponse?.meta.has_next_results}
         curTeamScopeQueriesPresent={
           teamIdForApi !== API_ALL_TEAMS_ID
-            ? enhancedQueries.some((q) => q.team_id === currentTeamId)
+            ? enhancedQueries.some((q) => q.fleet_id === currentTeamId)
             : enhancedQueries.length > 0
         }
         isLoading={isLoadingQueries || isFetchingQueries}

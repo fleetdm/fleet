@@ -12,7 +12,7 @@ export interface IMdmApple {
 }
 
 export interface IMdmAppleBm {
-  default_team?: string;
+  default_fleet?: string;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
@@ -20,7 +20,7 @@ export interface IMdmAppleBm {
 }
 
 export type ITokenTeam = {
-  team_id: number;
+  fleet_id: number;
   name: string;
 };
 
@@ -258,7 +258,7 @@ export interface IProfileLabel {
 
 export interface IMdmProfile {
   profile_uuid: string;
-  team_id: number;
+  fleet_id: number;
   name: string;
   description?: string;
   /** The PayloadDisplayName inside a .mobileconfig, which can differ from
@@ -398,7 +398,7 @@ export interface IMdmSSOResponse {
 
 export interface IBootstrapPackageMetadata {
   name: string;
-  team_id: number;
+  fleet_id: number;
   sha256: string;
   token: string;
   created_at: string;

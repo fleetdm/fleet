@@ -33,7 +33,7 @@ const teamMismatchVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 999, name: "Other fleet" }],
+        teams: [{ fleet_id: 999, name: "Other fleet" }],
       },
     ],
   });
@@ -47,7 +47,7 @@ const teamVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 1, name: "Workstations" }],
+        teams: [{ fleet_id: 1, name: "Workstations" }],
       },
     ],
   });
@@ -308,14 +308,14 @@ describe("SoftwareAppStoreVpp", () => {
       org_name: "Acme Inc.",
       location: "Acme Inc.",
       country_code: "us",
-      teams: [{ team_id: 1, name: "Workstations" }],
+      teams: [{ fleet_id: 1, name: "Workstations" }],
     });
     const jpToken = createMockVppToken({
       id: 2,
       org_name: "Acme K.K.",
       location: "Acme K.K.",
       country_code: "jp",
-      teams: [{ team_id: 1, name: "Workstations" }],
+      teams: [{ fleet_id: 1, name: "Workstations" }],
     });
 
     const tokensHandler = (tokens: IMdmVppToken[]) =>
@@ -453,7 +453,7 @@ describe("SoftwareAppStoreVpp", () => {
           jpToken,
           createMockVppToken({
             id: 3,
-            teams: [{ team_id: 999, name: "Other fleet" }],
+            teams: [{ fleet_id: 999, name: "Other fleet" }],
           }),
         ])
       );
@@ -600,7 +600,7 @@ describe("SoftwareAppStoreVpp", () => {
         tokensHandler([
           createMockVppToken({
             ...usToken,
-            teams: [{ team_id: 0, name: "Unassigned" }],
+            teams: [{ fleet_id: 0, name: "Unassigned" }],
           }),
         ])
       );

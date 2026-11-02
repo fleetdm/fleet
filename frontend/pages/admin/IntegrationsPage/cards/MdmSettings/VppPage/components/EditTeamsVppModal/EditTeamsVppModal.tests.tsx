@@ -68,8 +68,8 @@ describe("EditTeamsVppModal", () => {
     it("selects Custom with the token's fleets checked", () => {
       renderModal(
         makeToken([
-          { team_id: 2, name: "Personal mobile devices" },
-          { team_id: 0, name: "No team" },
+          { fleet_id: 2, name: "Personal mobile devices" },
+          { fleet_id: 0, name: "No team" },
         ])
       );
 
@@ -136,7 +136,7 @@ describe("EditTeamsVppModal", () => {
       const bodies = mockPatch();
       const onSuccess = jest.fn();
       const { user } = renderModal(
-        makeToken([{ team_id: 1, name: "W" }]),
+        makeToken([{ fleet_id: 1, name: "W" }]),
         onSuccess
       );
 
