@@ -250,7 +250,7 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 
 ## Deploy a Store app machine-wide
 
-Self-service installs are per-user. Fleet can't deploy a Store app for every user on a host yet. That requires provisioning the app's package files, and Fleet doesn't accept `.msix`, `.msixbundle`, or `.zip` files as custom packages. Support for `.zip` packages is [planned](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
+Currently, Fleet only deploys Microsoft Store apps for the currently logged-in user. Deploying an app for every user requires `.zip` files as custom packages. Support for `.zip` packages is [coming soon](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
 
 > **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
 
