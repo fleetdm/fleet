@@ -3420,6 +3420,15 @@
     },
     "GitOpsPatchDeadlineSettings": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "patch_deadline_settings must set days and time.",
+          "required": [
+            "days",
+            "time"
+          ]
+        }
+      ],
       "description": "GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.",
       "properties": {
         "days": {

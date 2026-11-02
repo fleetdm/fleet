@@ -9941,6 +9941,7 @@ func testPatchDeadlineRoundTrip(t *testing.T, ds *Datastore) {
 	reloaded, err = ds.Policy(ctx, p.ID)
 	require.NoError(t, err)
 	require.False(t, reloaded.PatchDeadline)
+	require.False(t, reloaded.ContinuousAutomationsEnabled)
 }
 
 // testApplyPolicySpecsRenamePatchPolicyRegression43687 reproduces the customer

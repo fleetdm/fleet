@@ -56,7 +56,8 @@ func newPatchNotification(t *testing.T, ds *Datastore, hostID uint, status strin
 	return notificationUUID
 }
 
-// newPatchDeadlinePolicy returns a policy with patch_deadline set as given, for a notification app to point at.
+// newPatchDeadlinePolicy returns a policy with patch_deadline set as given, or notify_before_patching
+// when not, for a notification app to point at.
 func newPatchDeadlinePolicy(t *testing.T, ds *Datastore, name string, deadline bool) uint {
 	t.Helper()
 	policy, err := ds.NewGlobalPolicy(t.Context(), nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
@@ -68,7 +69,8 @@ func newPatchDeadlinePolicy(t *testing.T, ds *Datastore, name string, deadline b
 func setPolicyPatchDeadline(t *testing.T, ds *Datastore, policyID uint, deadline bool) {
 	t.Helper()
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(t.Context(), `UPDATE policies SET patch_deadline = ? WHERE id = ?`, deadline, policyID)
+		_, err := q.ExecContext(t.Context(), `UPDATE policies SET patch_deadline = ?, notify_before_patching = ? WHERE id = ?`,
+			deadline, !deadline, policyID)
 		return err
 	})
 }
@@ -851,6 +853,12 @@ func testPatchNotificationPolicyOptionChanged(t *testing.T, ds *Datastore) {
 		}, true},
 		{"notify unchanged", fleet.PatchNotificationKind, false, nil, false},
 		{"notify turned to deadline", fleet.PatchNotificationKind, false, func(id uint) { setPolicyPatchDeadline(t, ds, id, true) }, true},
+		{"notify turned to patch when closed", fleet.PatchNotificationKind, false, func(id uint) {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 0, patch_when_closed = 1 WHERE id = ?`, id)
+				return err
+			})
+		}, true},
 		{"notify policy deleted", fleet.PatchNotificationKind, false, func(id uint) {
 			_, err := ds.DeleteGlobalPolicies(ctx, []uint{id})
 			require.NoError(t, err)

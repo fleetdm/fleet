@@ -3729,6 +3729,34 @@ func TestPlanPatchPolicy(t *testing.T) {
 		assert.True(t, deadlineFlag)
 	})
 
+	t.Run("patch_deadline displaces notify_before_patching on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("notify_before_patching displaces patch_deadline on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.NotifyBeforePatching = new(true)
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.True(t, notifyFlag)
+		assert.False(t, deadlineFlag)
+	})
+
+	t.Run("patch_when_closed displaces patch_deadline on an existing policy", func(t *testing.T) {
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(payload(nil, new(true)), macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.False(t, deadlineFlag)
+	})
+
 	t.Run("omitted patch_deadline keeps the existing value", func(t *testing.T) {
 		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(payload(nil, nil), macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
 		require.NoError(t, err)

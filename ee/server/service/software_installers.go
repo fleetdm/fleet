@@ -1044,15 +1044,17 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	} else {
 		patchFlag = *payload.Patch
 	}
+	// An omitted option keeps its current value unless the request turns on another one, since the
+	// options are mutually exclusive.
 	if payload.NotifyBeforePatching == nil {
-		if existingPolicy != nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.PatchDeadline) && !ptr.ValOrZero(payload.PatchWhenClosed) {
 			notifyBeforePatchingFlag = existingPolicy.NotifyBeforePatching
 		}
 	} else {
 		notifyBeforePatchingFlag = *payload.NotifyBeforePatching
 	}
 	if payload.PatchDeadline == nil {
-		if existingPolicy != nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.NotifyBeforePatching) && !ptr.ValOrZero(payload.PatchWhenClosed) {
 			patchDeadlineFlag = existingPolicy.PatchDeadline
 		}
 	} else {
