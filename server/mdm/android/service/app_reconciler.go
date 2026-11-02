@@ -371,9 +371,9 @@ func (r *profileReconciler) recordAppListRequest(
 		}
 	}
 
-	if skip || policyRequest.StatusCode != http.StatusOK {
-		// Set the changed apps and the agent to request failed, so the next run will wait before sending again. Count a
-		// not modified response as request failed, because it has no policy version to verify the apps against.
+	// Save the apps of a not modified response as pending with no policy version, because the policy already has them
+	if !skip && policyRequest.StatusCode != http.StatusOK {
+		// Set the changed apps and the agent to request failed, so the next run will wait before sending again
 		for _, install := range appList.installsToUpsert {
 			if install.Status == fleet.AndroidSoftwareInstallStatusPending {
 				install.Status = fleet.AndroidSoftwareInstallStatusRequestFailed
