@@ -850,7 +850,8 @@ func testReissueForExistingName(t *testing.T, s *Suite) {
 
 	// The same request signed with the existing key should succeed
 	csrDER, err := x509util.CreateCertificateRequest(rand.Reader, &x509util.CertificateRequest{
-		CertificateRequest: x509.CertificateRequest{Subject: pkix.Name{CommonName: name}, SignatureAlgorithm: x509.ECDSAWithSHA256},
+		Subject:            pkix.Name{CommonName: name},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
 		ChallengePassword:  testEnrollmentSecret,
 	}, key)
 	require.NoError(t, err)
