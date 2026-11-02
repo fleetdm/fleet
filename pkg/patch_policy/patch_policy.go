@@ -16,6 +16,9 @@ type PolicyData struct {
 	Query       string
 	ExistsQuery string
 	Version     string
+	// ParenthesizedBuild marks a macOS app whose bundle_short_version carries its
+	// build in parentheses (e.g. Zoom's "7.2.2 (88465)").
+	ParenthesizedBuild bool
 }
 
 const (
@@ -36,7 +39,7 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 		return "", ErrNoExistsQuery
 	}
 
-	suffix, err := versionCompareSuffix(p.Platform, p.ExistsQuery, p.Version)
+	suffix, err := versionCompareSuffix(p.Platform, p.ExistsQuery, p.Version, p.ParenthesizedBuild)
 	if err != nil {
 		return "", err
 	}
@@ -68,12 +71,36 @@ func parenthesizeWhereClause(existsQuery string) string {
 	return existsPrefix + table + " WHERE (" + conditions + ")"
 }
 
-func versionCompareSuffix(platform, existsQuery, version string) (string, error) {
+func versionCompareSuffix(platform, existsQuery, version string, parenthesizedBuild bool) (string, error) {
 	column, err := versionCompareColumn(platform, existsQuery)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, escapeSQLLiteral(version)), nil
+	if platform == "darwin" && (parenthesizedBuild || strings.Contains(version, "(")) {
+		column, version = normalizeParenthesizedBuild(column, version)
+	}
+	return fmt.Sprintf(" AND %s < 0);", versionCompare(column, version)), nil
+}
+
+var parenthesizedBuildReplacer = strings.NewReplacer(" (", ".", "(", ".", ")", "")
+
+// normalizeParenthesizedBuild rewrites a parenthesized build as a dotted segment on
+// both sides ("7.2.2 (88465)" and "2.4.3(2EEA)" become "7.2.2.88465" and "2.4.3.2EEA").
+// osquery's version_compare doesn't split on spaces or parentheses either, so it would
+// compare "2 (88465)" against "5" by length and rank the older build higher.
+func normalizeParenthesizedBuild(column, version string) (string, string) {
+	return fmt.Sprintf("REPLACE(REPLACE(REPLACE(%s, ' (', '.'), '(', '.'), ')', '')", column),
+		parenthesizedBuildReplacer.Replace(version)
+}
+
+// versionCompare returns a version_compare call for column against version. osquery
+// doesn't treat "+" as a delimiter, so a "+build" segment compares by string length
+// ("0.4.25+10" sorts above "0.4.26+4"); make "+" a dot on both sides instead.
+func versionCompare(column, version string) string {
+	if strings.Contains(version, "+") {
+		return fmt.Sprintf("version_compare(REPLACE(%s, '+', '.'), '%s')", column, escapeSQLLiteral(strings.ReplaceAll(version, "+", ".")))
+	}
+	return fmt.Sprintf("version_compare(%s, '%s')", column, escapeSQLLiteral(version))
 }
 
 func versionCompareColumn(platform, existsQuery string) (string, error) {
@@ -141,13 +168,17 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 }
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
+	column := "bundle_short_version"
+	if strings.Contains(version, "(") {
+		column, version = normalizeParenthesizedBuild(column, version)
+	}
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare(column, version))
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), escapeSQLLiteral(version))
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), versionCompare("version", version))
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.

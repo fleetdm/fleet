@@ -80,6 +80,10 @@
       "type": "boolean",
       "description": "If true, the app will not be processed during ingestion and no new output will be created."
     },
+    "parenthesized_build_version": {
+      "type": "boolean",
+      "description": "If true, the app's CFBundleShortVersionString carries its build in parentheses (e.g. \"7.2.2 (88465)\"), so the patch policy normalizes it before comparing versions."
+    },
     "cask_path": {
       "type": "string",
       "description": "Path (relative to the repo root) to a local file containing the cask JSON in the same schema as https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask metadata for third-party taps directly into this repo under inputs/homebrew/custom-tap/.",
