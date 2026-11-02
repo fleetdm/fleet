@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.5.0",
+      "version": "1.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk' AND version_compare(bundle_short_version, '1.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.carriez.rustdesk' AND version_compare(bundle_short_version, '1.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.carriez.rustdesk' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.dmg",
+      "installer_url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.1/rustdesk-1.5.1-aarch64.dmg",
       "install_script_ref": "e1bc0931",
       "uninstall_script_ref": "81730608",
-      "sha256": "3929b0a4321e7d0f561a317059798be882d65decc59681eb77061f8efe56fbf4",
+      "sha256": "1b94182cba2375ea29a196f2c8183f7feaa00588474ecd76c92c2303ffd70d7b",
       "default_categories": [
         "Productivity"
       ]
