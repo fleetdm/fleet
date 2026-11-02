@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.11.3",
+      "version": "0.11.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi' AND version_compare(bundle_short_version, '0.11.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi' AND version_compare(bundle_short_version, '0.11.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.gephi' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.3/gephi-0.11.3-macos-aarch64.dmg",
+      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.4/gephi-0.11.4-macos-aarch64.dmg",
       "install_script_ref": "89459a78",
       "uninstall_script_ref": "0bb581d3",
-      "sha256": "4210bef140f5c8d4d5e1c66d6f664ca23d563b9901f91a140374305db6e7e2b1",
+      "sha256": "77400998065042d3cd25c7d5be6a69bdf0ad6ac7b61216186d342f0ffdc9e598",
       "default_categories": [
         "Productivity"
       ]
