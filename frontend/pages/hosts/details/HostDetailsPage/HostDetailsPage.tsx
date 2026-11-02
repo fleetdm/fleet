@@ -792,7 +792,7 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
@@ -824,7 +824,7 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
