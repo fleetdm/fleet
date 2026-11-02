@@ -695,7 +695,10 @@ hdiutil detach "$MOUNT_POINT" || true`)
 
 	case "zip":
 		s.Write("# extract contents")
-		s.Write(`unzip "$INSTALLER_PATH" -d "$TMPDIR"`)
+		// Zips built with `ditto -c -k` (no --sequesterRsrc) carry xattrs as inline
+		// ._ AppleDouble files. unzip writes those into the .app, which breaks its
+		// code signature; ditto merges them back into xattrs, as Homebrew does.
+		s.Write(`ditto -x -k "$INSTALLER_PATH" "$TMPDIR"`)
 	}
 }
 

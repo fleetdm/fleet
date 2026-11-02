@@ -80,14 +80,34 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.Equal(t, "315360000s", issuedCommand.Duration, "android commands must use the long duration to mirror Apple/Windows queue semantics")
 	require.NotEmpty(t, issuedToDeviceName)
 
-	// Per #41683 the transient work-profile-wipe status is suppressed for BYO Android at the API layer, so the host must NOT surface
-	// a pending wipe. The host simply transitions to "Off" once it removes its work profile.
+	// The transient work-profile-wipe status surfaces as a pending unenroll for BYO Android, not a pending wipe, so the UI can hide
+	// conflicting actions without showing a wipe badge. The host transitions to "Off" once it removes its work profile.
 	var byoResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byoHostID), nil, http.StatusOK, &byoResp)
 	require.NotNil(t, byoResp.Host.MDM.PendingAction)
-	require.Empty(t, *byoResp.Host.MDM.PendingAction, "BYO Android unenroll must not surface a pending action")
+	require.Equal(t, string(fleet.PendingActionUnenroll), *byoResp.Host.MDM.PendingAction)
 	require.NotNil(t, byoResp.Host.MDM.DeviceStatus)
 	require.Equal(t, "unlocked", *byoResp.Host.MDM.DeviceStatus, "BYO Android unenroll must not surface a wipe device_status")
+
+	// The pending unenroll also shows up when listing hosts with their device status.
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "include_device_status", "true")
+	var listedBYO bool
+	for _, h := range listResp.Hosts {
+		if h.ID == byoHostID {
+			listedBYO = true
+			require.NotNil(t, h.MDM.PendingAction)
+			require.Equal(t, string(fleet.PendingActionUnenroll), *h.MDM.PendingAction)
+		}
+	}
+	require.True(t, listedBYO, "BYO host must be listed")
+
+	// Neither a second Unenroll nor a Wipe may queue another work-profile wipe while the first is pending.
+	didCallAMAPIIssueWipe = false
+	res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", byoHostID), nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.CantUnenrollPendingUnenrollMessage)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", byoHostID), nil, http.StatusUnprocessableEntity)
+	require.False(t, didCallAMAPIIssueWipe, "no AMAPI command may be issued while the BYO unenroll is pending")
 
 	// The wipe_ref is still written under the hood (suppression is presentation-only), so the work-profile wipe runs.
 	byoHost, err := s.ds.Host(ctx, byoHostID)
@@ -335,8 +355,13 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
 		s.lastHostActivityMatches(byoHostID, fleet.ActivityTypeWipedHost{}.ActivityName(), "", 0)
 
-		// BYO wipe_ref is suppressed on the host page, the same as BYO Unenroll which also runs a WIPE.
-		assertHostMDMStatus(t, byoHostID, "", "unlocked")
+		// BYO wipe_ref surfaces as a pending unenroll on the host page, the same as BYO Unenroll which also runs a WIPE.
+		assertHostMDMStatus(t, byoHostID, "unenroll", "unlocked")
+
+		// Unenroll on top of the pending work-profile wipe is refused.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", byoHostID), nil, http.StatusConflict)
+		_, _, lastOpName := lastIssue()
+		require.Equal(t, opName, lastOpName, "a refused unenroll must not issue an AMAPI command")
 
 		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
 

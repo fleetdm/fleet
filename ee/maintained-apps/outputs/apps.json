@@ -422,13 +422,6 @@
       "description": "alfaview is a GDPR-compliant video conferencing application."
     },
     {
-      "name": "Alloy",
-      "slug": "alloy/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.alloytools.alloy",
-      "description": "Alloy is a programming language for software modelling."
-    },
-    {
       "name": "Allway Sync",
       "slug": "allway-sync/windows",
       "platform": "windows",
@@ -453,7 +446,7 @@
       "name": "Amadeus Pro",
       "slug": "amadeus-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.HairerSoft.AmadeusPro",
+      "unique_identifier": "com.HairerSoft.AmadeusPro3",
       "description": "Amadeus Pro is a multi-purpose audio recorder, editor, and converter."
     },
     {
@@ -597,13 +590,6 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
-      "name": "Angry IP Scanner",
-      "slug": "angry-ip-scanner/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.azib.ipscan",
-      "description": "Angry IP Scanner is a network scanner."
-    },
-    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
@@ -721,13 +707,6 @@
       "platform": "darwin",
       "unique_identifier": "net.freemacsoft.AppCleaner",
       "description": "AppCleaner is an application uninstaller."
-    },
-    {
-      "name": "Appium Inspector GUI",
-      "slug": "appium-inspector/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.appium.inspector",
-      "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
     },
     {
       "name": "Applite",
@@ -1535,13 +1514,6 @@
       "description": "Cavalry is a motion design and animation app."
     },
     {
-      "name": "CellProfiler",
-      "slug": "cellprofiler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.cellprofiler.CellProfiler",
-      "description": "CellProfiler is an open-source application for biological image analysis."
-    },
-    {
       "name": "Certify The Web",
       "slug": "certify-the-web/windows",
       "platform": "windows",
@@ -2007,7 +1979,7 @@
       "name": "Cork",
       "slug": "cork/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.davidbures.cork",
+      "unique_identifier": "eu.davidbures.cork",
       "description": "Cork is a GUI companion app for Homebrew."
     },
     {
@@ -2791,7 +2763,7 @@
       "name": "Dropshare",
       "slug": "dropshare/darwin",
       "platform": "darwin",
-      "unique_identifier": "net.mkswap.Dropshare6",
+      "unique_identifier": "net.mkswap.Dropshare5",
       "description": "Dropshare is a file sharing solution."
     },
     {
@@ -2849,13 +2821,6 @@
       "platform": "windows",
       "unique_identifier": "Duo Desktop",
       "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
-    },
-    {
-      "name": "dupeGuru",
-      "slug": "dupeguru/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.hardcoded-software.dupeguru",
-      "description": "dupeGuru is a finds duplicate files in a computer system."
     },
     {
       "name": "dupeGuru",
@@ -3120,7 +3085,7 @@
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
-      "unique_identifier": "in.sinew.Enpass-Desktop",
+      "unique_identifier": "in.sinew.Enpass-Desktop.App",
       "description": "Enpass is a password and credentials manager."
     },
     {
@@ -3211,7 +3176,7 @@
       "name": "Fantastical",
       "slug": "fantastical/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.flexibits.fantastical",
+      "unique_identifier": "com.flexibits.fantastical2.mac",
       "description": "Fantastical is a calendar software."
     },
     {
@@ -3666,7 +3631,7 @@
       "name": "Geekbench",
       "slug": "geekbench/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.primatelabs.Geekbench6",
+      "unique_identifier": "com.primatelabs.parkdale",
       "description": "Geekbench is a tool to measure the computer system's performance."
     },
     {
@@ -3813,7 +3778,7 @@
       "name": "Glyphs",
       "slug": "glyphs/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.GeorgSeifert.Glyphs3",
+      "unique_identifier": "com.GeorgSeifert.Glyphs4",
       "description": "Glyphs is a font editor."
     },
     {
@@ -4000,13 +3965,6 @@
     },
     {
       "name": "gPodder",
-      "slug": "gpodder/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.gpodder.gpodder",
-      "description": "gPodder is a podcast client."
-    },
-    {
-      "name": "gPodder",
       "slug": "gpodder/windows",
       "platform": "windows",
       "unique_identifier": "gPodder",
@@ -4158,13 +4116,6 @@
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
-    },
-    {
-      "name": "Helium",
-      "slug": "helium/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.koushikdutta.Helium",
-      "description": "Helium is a macOS application."
     },
     {
       "name": "Hex Fiend",
@@ -4373,7 +4324,7 @@
       "name": "IconJar",
       "slug": "iconjar/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.iconjar.iconjar",
+      "unique_identifier": "com.iconjar.iconjar2",
       "description": "IconJar is an icon organiser."
     },
     {
@@ -4716,7 +4667,7 @@
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
-      "unique_identifier": "app.kaleidoscope.v6",
+      "unique_identifier": "app.kaleidoscope.v4",
       "description": "Kaleidoscope is a spot and merge differences in text and image files or folders."
     },
     {
@@ -5087,7 +5038,7 @@
       "name": "LocationSimulator",
       "slug": "locationsimulator/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.schlaubi.LocationSimulator",
+      "unique_identifier": "de.davidklopp.locationsimulator",
       "description": "LocationSimulator is an application to spoof your iOS, iPadOS or iPhoneSimulator device location."
     },
     {
@@ -5238,25 +5189,11 @@
       "description": "Maccy is a clipboard manager."
     },
     {
-      "name": "MacDown",
-      "slug": "macdown/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.uranusjr.macdown",
-      "description": "MacDown is an open-source Markdown editor."
-    },
-    {
       "name": "MACE",
       "slug": "mace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mace.app",
       "description": "MACE is a tool to simplify compliance baseline creation, auditing, and management."
-    },
-    {
-      "name": "MacJournal",
-      "slug": "macjournal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.DanSchimpf.MacJournal",
-      "description": "MacJournal is an app for journaling and blogging software."
     },
     {
       "name": "MacPacker",
@@ -5290,7 +5227,7 @@
       "name": "MacsyZones",
       "slug": "macsyzones/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.macsyzones.MacsyZones",
+      "unique_identifier": "MeowingCat.MacsyZones",
       "description": "MacsyZones is a window management utility."
     },
     {
@@ -7453,7 +7390,7 @@
       "name": "Recut",
       "slug": "recut/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tinywins.recut",
+      "unique_identifier": "co.tinywins.recut",
       "description": "Recut is a tool to remove silence from videos and automatically generate a cut list."
     },
     {
@@ -7894,7 +7831,7 @@
       "name": "Setapp",
       "slug": "setapp/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.setapp.DesktopClient.SetappAgent",
+      "unique_identifier": "com.setapp.DesktopClient",
       "description": "Setapp is a collection of apps available by subscription."
     },
     {
@@ -8517,7 +8454,7 @@
       "name": "Superhuman",
       "slug": "superhuman/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.superhuman.mail",
+      "unique_identifier": "com.superhuman.electron",
       "description": "Superhuman is an email client."
     },
     {
@@ -8832,7 +8769,7 @@
       "name": "The Unarchiver",
       "slug": "the-unarchiver/darwin",
       "platform": "darwin",
-      "unique_identifier": "cx.c3.theunarchiver",
+      "unique_identifier": "com.macpaw.site.theunarchiver",
       "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
     },
     {
@@ -8993,7 +8930,7 @@
       "name": "Tower",
       "slug": "tower/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.fournova.Tower",
+      "unique_identifier": "com.fournova.Tower3",
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
@@ -9273,7 +9210,7 @@
       "name": "Versions",
       "slug": "versions/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.versionsapp.v2",
+      "unique_identifier": "com.versionsapp.v3",
       "description": "Versions is a subversion client."
     },
     {
@@ -9420,7 +9357,7 @@
       "name": "VNC Server",
       "slug": "vnc-server/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncserver",
+      "unique_identifier": "com.realvnc.vncserver_service",
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
@@ -9462,7 +9399,7 @@
       "name": "VPN Tracker 365",
       "slug": "vpn-tracker-365/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.equinux.VPNTracker365",
+      "unique_identifier": "com.vpntracker.365mac",
       "description": "VPN Tracker 365 is a VPN client: IPsec, L2TP, OpenVPN, PPTP, SSTP, SonicWALL/AnyConnect/Fortinet SSL."
     },
     {
@@ -9539,7 +9476,7 @@
       "name": "Wavebox",
       "slug": "wavebox/darwin",
       "platform": "darwin",
-      "unique_identifier": "io.wavebox.wavebox",
+      "unique_identifier": "com.bookry.wavebox",
       "description": "Wavebox is a web browser."
     },
     {
@@ -9791,7 +9728,7 @@
       "name": "Worksheet Crafter",
       "slug": "worksheet-crafter/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+      "unique_identifier": "com.schoolcraft.Worksheet Crafter",
       "description": "Worksheet Crafter is a worksheet and lesson material creator."
     },
     {
@@ -9933,13 +9870,6 @@
       "platform": "darwin",
       "unique_identifier": "stream.yattee.app",
       "description": "Yattee is an alternative and privacy-friendly YouTube frontend."
-    },
-    {
-      "name": "Yippy",
-      "slug": "yippy/darwin",
-      "platform": "darwin",
-      "unique_identifier": "MatthewDavidson.Yippy",
-      "description": "Yippy is an open source clipboard manager."
     },
     {
       "name": "YouTube Music",

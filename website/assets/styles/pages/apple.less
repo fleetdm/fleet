@@ -75,449 +75,12 @@
     gap: @section-gap;
     p {
       max-width: 680px;
+      text-wrap: balance;
     }
     [purpose='button-row'] {
       padding-top: @inner-padding-xs;
     }
   }
-  [purpose='hero-image'] {
-    width: 100%;
-    container-type: inline-size;
-  }
-
-  // Message text is larger than Figma's 14px so it stays legible when the
-  // graphic scales down.
-  @slack-message-text: 16;
-
-  // Slack chat animation, laid out at the Figma frame's size for each layout
-  // (desktop 1072×640, tablet 864×640, mobile 430×590). 1em is one Figma
-  // pixel, so the whole graphic scales through font-size.
-  [purpose='slack-animation'] {
-    position: relative;
-    width: 1072em;
-    height: 640em;
-    margin: 0 auto;
-    // Fallbacks for browsers without container query units (e.g. Safari 14–15):
-    // the hero's width from the viewport and .page-container() padding.
-    font-size: ~'calc(min(1072px, 100vw - 128px) / 1072)';
-    @supports (width: 1cqw) {
-      font-size: ~'calc(min(1072px, 100cqw) / 1072)';
-    }
-    @media (max-width: 991px) {
-      width: 864em;
-      font-size: ~'calc(min(864px, 100vw - 64px) / 864)';
-      @supports (width: 1cqw) {
-        font-size: ~'calc(min(864px, 100cqw) / 864)';
-      }
-    }
-    @media (max-width: 767px) {
-      width: 430em;
-      height: 590em;
-      font-size: ~'calc(min(430px, 100vw - 64px) / 430)';
-      @supports (width: 1cqw) {
-        font-size: ~'calc(min(430px, 100cqw) / 430)';
-      }
-    }
-    @media (max-width: 575px) {
-      font-size: ~'calc(min(430px, 100vw - 48px) / 430)';
-      @supports (width: 1cqw) {
-        font-size: ~'calc(min(430px, 100cqw) / 430)';
-      }
-    }
-    text-align: left;
-    -webkit-text-size-adjust: 100%;
-    font-family: 'Lato', sans-serif;
-    color: #1d1c1d;
-    p {
-      font-family: inherit;
-      font-size: unit(@slack-message-text, em);
-      line-height: 1.3;
-      color: #1d1c1d;
-      margin: 0;
-    }
-  }
-  [purpose='slack-window'] {
-    position: absolute;
-    left: 14em;
-    top: 19em;
-    width: 1044em;
-    height: 602em;
-    border-radius: 16em;
-    overflow: hidden;
-    box-shadow: 0 4em 18em rgba(0, 0, 0, 0.15);
-    @media (max-width: 991px) {
-      left: 10em;
-      width: 844em;
-    }
-    @media (max-width: 767px) {
-      left: 14em;
-      width: 402em;
-      height: 552em;
-      border-radius: 40em;
-    }
-  }
-  [purpose='slack-chrome'] {
-    display: block;
-    width: 100%;
-    height: 100%;
-    img {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-  }
-  // Chrome labels are HTML so they render in Lato, which an <img> SVG can't load.
-  [purpose='slack-section-label'], [purpose='slack-channel-label'], [purpose='slack-channel-title'], [purpose='slack-thread-title'] {
-    position: absolute;
-    white-space: nowrap;
-    @media (max-width: 767px) {
-      display: none;
-    }
-  }
-  [purpose='slack-section-label'] {
-    left: 102.075em / 12;
-    top: 193.8em / 12;
-    font-size: 12em;
-    line-height: 11 / 12;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  [purpose='slack-channel-label'] {
-    left: 104.3em / 14;
-    top: 211.3em / 14;
-    font-size: 14em;
-    line-height: 32 / 14;
-    color: #4d1e4e;
-  }
-  // The channel pane is only in the desktop layout.
-  [purpose='slack-channel-title'] {
-    left: 307.15em / 16;
-    top: 52.9em / 16;
-    font-size: 16em;
-    font-weight: 900;
-    line-height: 18.85 / 16;
-    @media (max-width: 991px) {
-      display: none;
-    }
-  }
-  [purpose='slack-thread-title'] {
-    left: 563.8em / 18;
-    @media (max-width: 991px) {
-      left: 288.8em / 18;
-    }
-    top: 52.9em / 18;
-    font-size: 18em;
-    font-weight: 900;
-    line-height: 18.85 / 18;
-  }
-  [purpose='slack-messages'] {
-    position: absolute;
-    left: 546em;
-    top: 90.05em;
-    width: 490em;
-    height: 503.95em;
-    display: flex;
-    flex-direction: column;
-    gap: 7.25em;
-    overflow: hidden;
-    @media (max-width: 991px) {
-      left: 271em;
-      width: 565em;
-    }
-    @media (max-width: 767px) {
-      left: 0;
-      top: 62em;
-      width: 402em;
-      height: 490em;
-    }
-  }
-  [purpose='slack-question'], [purpose='slack-first-reply'], [purpose='slack-yes'], [purpose='slack-second-reply'] {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 8em;
-    padding: 7.25em 14.5em 12em;
-  }
-  // Beside the avatar, where the message body will appear, centered on the
-  // avatar like Figma's typing row.
-  [purpose='slack-typing'] {
-    position: absolute;
-    left: 58.5em / @slack-message-text;
-    top: (28.25em - @slack-message-text * 0.65em) / @slack-message-text;
-    white-space: nowrap;
-    strong {
-      font-weight: 700;
-    }
-  }
-  [purpose='slack-avatar'] {
-    display: block;
-    flex-shrink: 0;
-    width: 36em;
-    height: 36em;
-    margin-top: 3em;
-    border-radius: 6em;
-  }
-  [purpose='slack-message-body'] {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2em;
-    padding-right: 14.5em;
-  }
-  [purpose='slack-sender'] {
-    display: flex;
-    align-items: center;
-    gap: 4em / @slack-message-text;
-    font-size: unit(@slack-message-text, em);
-    font-weight: 900;
-    line-height: 15.95 / @slack-message-text;
-  }
-  [purpose='slack-app-badge'] {
-    padding: 2em / 12;
-    border-radius: 3em / 12;
-    background-color: #f2f2f2;
-    font-size: 12em / @slack-message-text;
-    font-weight: 700;
-    line-height: 11.6 / 12;
-    color: #454447;
-  }
-  // Overlaps the two spaces after it, like Figma's mention overlay.
-  [purpose='slack-mention'] {
-    margin-left: -2.9em / @slack-message-text;
-    margin-right: -2.9em / @slack-message-text;
-    padding: (1.45em / @slack-message-text) (2.9em / @slack-message-text);
-    border-radius: 1.45em / @slack-message-text;
-    background-color: #e7eff6;
-    color: #1264a3;
-  }
-  [purpose='slack-link'] {
-    color: #1264a3;
-    text-decoration: underline;
-  }
-  [purpose='slack-reactions'] {
-    display: flex;
-    align-items: center;
-    gap: 3.812em;
-    margin-top: 2em;
-  }
-  [purpose='slack-status-reaction'] {
-    position: relative;
-    width: 35.87em;
-    height: 22.87em;
-  }
-  [purpose='slack-pending'], [purpose='slack-done'], [purpose='slack-add-reaction'] {
-    display: flex;
-    align-items: center;
-    border-radius: 95.29em;
-    background-color: #f8f8f8;
-  }
-  [purpose='slack-pending'], [purpose='slack-done'] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    gap: 5.717em / 11.435;
-    padding: 0 5.717em / 11.435;
-    font-size: 11.435em;
-    line-height: 15.246 / 11.435;
-    white-space: nowrap;
-  }
-  [purpose='slack-add-reaction'] {
-    height: 22.87em;
-    padding: 0 9.529em;
-    img {
-      display: block;
-      width: 14.77em;
-      height: 15.246em;
-    }
-  }
-  [purpose='slack-reply-text'] {
-    position: relative;
-    width: 100%;
-  }
-  [purpose='slack-thinking'] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    white-space: nowrap;
-  }
-  [purpose='slack-answer'] {
-    display: flex;
-    flex-direction: column;
-    gap: 4em;
-  }
-
-  // Without animation (prefers-reduced-motion) this is the fourth frame: the
-  // question, marked done, and Fleet's first answer.
-  [purpose='slack-typing'], [purpose='slack-pending'], [purpose='slack-thinking'], [purpose='slack-yes'], [purpose='slack-second-reply'] {
-    opacity: 0;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    [purpose='slack-question'] {
-      animation: slack-question 17.5s ease-out infinite;
-      [purpose='slack-typing'] {
-        animation: slack-question-typing 17.5s linear infinite;
-      }
-      [purpose='slack-message-body'] {
-        animation: slack-question-body 17.5s linear infinite;
-      }
-      [purpose='slack-pending'] {
-        animation: slack-question-pending 17.5s linear infinite;
-      }
-      [purpose='slack-done'] {
-        animation: slack-question-done 17.5s linear infinite;
-      }
-      [purpose='slack-add-reaction'] {
-        animation: slack-question-add-reaction 17.5s linear infinite;
-      }
-    }
-    [purpose='slack-first-reply'] {
-      animation: slack-first-reply 17.5s ease-out infinite;
-      [purpose='slack-thinking'] {
-        animation: slack-first-thinking 17.5s linear infinite;
-      }
-      [purpose='slack-answer'] {
-        animation: slack-first-answer 17.5s linear infinite;
-      }
-    }
-    [purpose='slack-yes'] {
-      animation: slack-yes 17.5s ease-out infinite;
-      [purpose='slack-typing'] {
-        animation: slack-yes-typing 17.5s linear infinite;
-      }
-      [purpose='slack-message-body'] {
-        animation: slack-yes-body 17.5s linear infinite;
-      }
-      [purpose='slack-pending'] {
-        animation: slack-yes-pending 17.5s linear infinite;
-      }
-      [purpose='slack-done'] {
-        animation: slack-yes-done 17.5s linear infinite;
-      }
-      [purpose='slack-add-reaction'] {
-        animation: slack-yes-add-reaction 17.5s linear infinite;
-      }
-    }
-    [purpose='slack-second-reply'] {
-      animation: slack-second-reply 17.5s ease-out infinite;
-      [purpose='slack-thinking'] {
-        animation: slack-second-thinking 17.5s linear infinite;
-      }
-      [purpose='slack-answer'] {
-        animation: slack-second-answer 17.5s linear infinite;
-      }
-    }
-  }
-
-  // 17.5s loop, following the Figma frames:
-  // 0s "Mike is typing...", 1.6s the question, 2.4s Fleet starts thinking and
-  // the question gets ⏳, 4.4s Fleet answers, 5.2s the question gets ✅,
-  // 6.4s "Mike is typing...", 7.9s "Yes", 8.7s Fleet thinks again, 10.7s Fleet
-  // answers and "Yes" gets ✅, 16.5s everything fades out.
-  // 9.143% = 1.6s, 13.714% = 2.4s, 14.571% = 2.55s, 15.429% = 2.7s,
-  // 25.143% = 4.4s, 29.714% = 5.2s, 30.857% = 5.4s, 36.571% = 6.4s,
-  // 38.286% = 6.7s, 45.143% = 7.9s, 49.714% = 8.7s, 50.571% = 8.85s,
-  // 51.429% = 9s, 61.143% = 10.7s, 62.286% = 10.9s, 94.286% = 16.5s,
-  // 97.143% = 17s. Typing and thinking swap to their message instantly, over
-  // 0.006% (1ms). Inner states reset at 97.429%, while their message is hidden.
-  @keyframes slack-question {
-    0%, 94.286% { opacity: 1; }
-    97.143% { opacity: 0; }
-    100% { opacity: 1; }
-  }
-  // The avatar stays put while "Mike is typing..." gives way to the message.
-  @keyframes slack-question-typing {
-    0%, 9.143% { opacity: 1; }
-    9.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-question-body {
-    0%, 9.143% { opacity: 0; }
-    9.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-question-pending {
-    0%, 13.714% { opacity: 0; }
-    14.571%, 29.714% { opacity: 1; }
-    30.857%, 100% { opacity: 0; }
-  }
-  @keyframes slack-question-done {
-    0%, 29.714% { opacity: 0; }
-    30.857%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  // The add-reaction button sits where the status reaction will be until it appears.
-  @keyframes slack-question-add-reaction {
-    0%, 13.714% { transform: translateX(-39.682em); }
-    14.571%, 97.143% { transform: translateX(0); }
-    97.429%, 100% { transform: translateX(-39.682em); }
-  }
-  @keyframes slack-first-reply {
-    0%, 13.714% { opacity: 0; transform: translateY(12em); }
-    15.429%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-first-thinking {
-    0%, 25.143% { opacity: 1; }
-    25.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-first-answer {
-    0%, 25.143% { opacity: 0; }
-    25.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes {
-    0%, 36.571% { opacity: 0; transform: translateY(12em); }
-    38.286%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-yes-typing {
-    0%, 45.143% { opacity: 1; }
-    45.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-yes-body {
-    0%, 45.143% { opacity: 0; }
-    45.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-pending {
-    0%, 49.714% { opacity: 0; }
-    50.571%, 61.143% { opacity: 1; }
-    62.286%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-done {
-    0%, 61.143% { opacity: 0; }
-    62.286%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-  @keyframes slack-yes-add-reaction {
-    0%, 49.714% { transform: translateX(-39.682em); }
-    50.571%, 97.143% { transform: translateX(0); }
-    97.429%, 100% { transform: translateX(-39.682em); }
-  }
-  @keyframes slack-second-reply {
-    0%, 49.714% { opacity: 0; transform: translateY(12em); }
-    51.429%, 94.286% { opacity: 1; transform: translateY(0); }
-    97.143% { opacity: 0; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(12em); }
-  }
-  @keyframes slack-second-thinking {
-    0%, 61.143% { opacity: 1; }
-    61.149%, 97.143% { opacity: 0; }
-    97.429%, 100% { opacity: 1; }
-  }
-  @keyframes slack-second-answer {
-    0%, 61.143% { opacity: 0; }
-    61.149%, 97.143% { opacity: 1; }
-    97.429%, 100% { opacity: 0; }
-  }
-
   // Section headings
   [purpose='section-heading'] {
     display: flex;
@@ -825,12 +388,18 @@
   }
 
   @media (max-width: 1199px) {
+    [purpose='page-hero'] {
+      gap: @section-64-lg;
+    }
     [purpose='page-content'] {
       gap: @section-160-lg;
     }
   }
 
   @media (max-width: 991px) {
+    [purpose='page-hero'] {
+      gap: @section-64-md;
+    }
     [purpose='page-content'] {
       gap: @section-160-md;
     }
@@ -861,6 +430,9 @@
   }
 
   @media (max-width: 767px) {
+    [purpose='page-hero'] {
+      gap: @section-64-sm;
+    }
     [purpose='page-content'] {
       gap: @section-160-sm;
     }
@@ -890,6 +462,7 @@
       gap: @section-160-xs;
     }
     [purpose='page-hero'] {
+      gap: @section-64-xs;
       padding-top: 0;
     }
     [purpose='logo-grid'] {

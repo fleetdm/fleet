@@ -890,6 +890,52 @@ describe("Disk encryption data", () => {
     expect(screen.getByText("Always on")).toBeInTheDocument();
   });
 
+  it.each<{
+    platform: HostPlatform;
+    enabled: boolean;
+    status: string;
+    message: string;
+  }>([
+    {
+      platform: "darwin",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. The user must enter their password when they start their computer.",
+    },
+    {
+      platform: "darwin",
+      enabled: false,
+      status: "Off",
+      message:
+        "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
+    },
+    {
+      platform: "windows",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. If recently turned on, encryption could take awhile.",
+    },
+  ])(
+    "renders the $platform '$status' tooltip without forced line breaks",
+    async ({ platform, enabled, status, message }) => {
+      const customRender = createCustomRenderer({});
+      const mockHost = createMockHost({
+        platform,
+        disk_encryption_enabled: enabled,
+      });
+
+      const { user } = customRender(<Vitals vitalsData={mockHost} />);
+
+      await user.hover(screen.getByText(status));
+
+      const tooltip = await screen.findByRole("tooltip");
+      expect(tooltip).toHaveTextContent(message);
+      expect(tooltip.querySelector("br")).toBeNull();
+    }
+  );
+
   it("does not render disk encryption for unsupported platforms", () => {
     const mockHost = createMockHost({
       platform: "android",
