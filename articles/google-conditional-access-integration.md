@@ -481,7 +481,7 @@ The page says "You're done!" In the Google Admin console, the device's **Third-p
 The page marks devices as managed, but it doesn't unmark them. When a host leaves Fleet or stops being company-owned:
 
 1. Remove the device from Google: in the Google Admin console, head to **Devices > Mobile & endpoints > Devices**, select the device, and delete it.
-2. Delete the host in Fleet. This also deletes its Google device ID, including when [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) deletes the host. If the host stays in Fleet, remove its Google device ID instead. Fleet keeps the ID when the device is wiped or enrolls again, so another device can't take over the host. Removing it shows up in the activity feed.
+2. Delete the host in Fleet. This also deletes its Google device ID, including when [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) deletes the host. If the host stays in Fleet, remove its Google device ID instead. Removing a host's Google device ID is [coming soon](https://github.com/fleetdm/fleet/issues/54888). Fleet keeps the ID when the device is wiped or enrolls again, so another device can't take over the host. Removing it shows up in the activity feed.
 
 ```sh
 curl -X DELETE https://<your Fleet URL>/api/v1/fleet/hosts/<host ID>/google_device_id \
