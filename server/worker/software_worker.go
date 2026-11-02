@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -17,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
-	"google.golang.org/api/googleapi"
 )
 
 const softwareWorkerJobName = "software_worker"
@@ -37,11 +35,11 @@ func (v *SoftwareWorker) Name() string {
 
 const (
 	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
-	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
-	makeAndroidAppAvailableBatchTask        SoftwareWorkerTask = "make_android_app_available_batch"
-	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"
+	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"           // deprecated
+	makeAndroidAppAvailableBatchTask        SoftwareWorkerTask = "make_android_app_available_batch"     // deprecated
+	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"         // deprecated
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
-	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
+	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host" // deprecated
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
 	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"       // deprecated
 	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch" // deprecated
@@ -100,29 +98,10 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			makeAndroidAppsAvailableForHostTask,
 		)
 
-	case makeAndroidAppAvailableTask:
-		return ctxerr.Wrapf(
-			ctx,
-			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged, args.VersionLabelsChanged),
-			"running %s task",
-			makeAndroidAppAvailableTask,
-		)
-
-	case makeAndroidAppAvailableBatchTask:
-		return ctxerr.Wrapf(
-			ctx,
-			v.makeAndroidAppAvailableBatch(ctx, args.ApplicationID, args.AppTeamID, args.HostUUIDToPolicyID, args.EnterpriseName, args.AppConfigChanged),
-			"running %s task",
-			makeAndroidAppAvailableBatchTask,
-		)
-
-	case makeAndroidAppUnavailableTask:
-		return ctxerr.Wrapf(
-			ctx,
-			v.makeAndroidAppUnavailable(ctx, args.ApplicationID, args.HostUUIDToPolicyID, args.EnterpriseName),
-			"running %s task",
-			makeAndroidAppUnavailableTask,
-		)
+	case makeAndroidAppAvailableTask, makeAndroidAppAvailableBatchTask, makeAndroidAppUnavailableTask, bulkSetAndroidAppsAvailableForHostTask:
+		// these tasks are deprecated, the Android app reconciler sends the app list, but they must be kept here
+		// in case some pending jobs are still in the queue.
+		return nil
 
 	case runAndroidSetupExperienceTask:
 		return ctxerr.Wrapf(
@@ -132,22 +111,8 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			runAndroidSetupExperienceTask,
 		)
 
-	case bulkSetAndroidAppsAvailableForHostTask:
-		return ctxerr.Wrapf(ctx, v.bulkMakeAndroidAppsAvailableForHost(
-			ctx,
-			args.HostUUID,
-			args.PolicyID,
-			args.ApplicationIDs,
-			args.EnterpriseName,
-		), "running %s task",
-			bulkSetAndroidAppsAvailableForHostTask)
-
 	case bulkSetAndroidAppsAvailableForHostsTask:
-		return ctxerr.Wrapf(ctx, v.bulkSetAndroidAppsAvailableForHosts(
-			ctx,
-			args.UUIDsToIDs,
-			args.EnterpriseName,
-		), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
+		return ctxerr.Wrapf(ctx, v.updateAndroidHostsAfterFleetTransfer(ctx, args.UUIDsToIDs), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
 	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
 		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
@@ -163,175 +128,7 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 // this is called when a new app is added to Fleet and when an existing app is updated
 // (either its scope of affected hosts changed due to labels conditions, or its
 // configuration changed).
-func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool, versionLabelsChanged bool) error {
-	versionIDs, err := v.Datastore.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, appTeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: getting versions of the app")
-	}
-
-	// Queue staggered batch jobs. The phase-2 handler handles per-host
-	// variable substitution within each batch, so we always chunk the same way.
-	batchSize := v.AndroidBatchSize
-	if batchSize <= 0 {
-		batchSize = defaultAndroidBatchSize
-	}
-	queuedHosts := make(map[string]struct{})
-	var batchIndex int
-	var hosts map[string]string
-	for _, versionID := range versionIDs {
-		hosts, err = v.Datastore.GetIncludedHostUUIDMapForAppStoreApp(ctx, versionID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
-		}
-
-		// Give each host the first-added version it is in scope for, versions are ordered by id
-		versionHosts := make(map[string]string, len(hosts))
-		for hostUUID, policyID := range hosts {
-			if _, ok := queuedHosts[hostUUID]; ok {
-				continue
-			}
-			queuedHosts[hostUUID] = struct{}{}
-			versionHosts[hostUUID] = policyID
-		}
-		if len(versionHosts) == 0 {
-			continue
-		}
-		// Push the hosts of every version when the edited version's labels changed, they can move hosts between versions
-		if versionID != appTeamID && !versionLabelsChanged {
-			continue
-		}
-
-		for _, batch := range splitHostMap(versionHosts, batchSize) {
-			delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
-			err = queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, versionID, batch, enterpriseName, appConfigChanged, delay)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
-			}
-			batchIndex++
-		}
-	}
-
-	return nil
-}
-
-func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool) error {
-	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get android app configuration")
-	}
-	var configByAppID map[string][]byte
-	if config != nil {
-		configByAppID = map[string][]byte{applicationID: config}
-	}
-
-	needsPerHostSubstitution := config != nil && profiles.ContainsFleetVarOrCustomHostVital(config)
-
-	if needsPerHostSubstitution {
-		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
-		for uuid := range hostUUIDToPolicyID {
-			hostUUIDs = append(hostUUIDs, uuid)
-		}
-		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}
-		hostDetails, err := v.Datastore.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "batch fetch host details for variable substitution")
-		}
-		hostByUUID := make(map[string]*fleet.Host, len(hostDetails))
-		for _, h := range hostDetails {
-			hostByUUID[h.UUID] = h
-		}
-
-		for hostUUID := range hostUUIDToPolicyID {
-			h, ok := hostByUUID[hostUUID]
-			if !ok {
-				continue // host deleted since the job was queued
-			}
-
-			subHost := profiles.AndroidAppConfigSubstitutionHost{
-				HostID:         h.ID,
-				UUID:           h.UUID,
-				HardwareSerial: h.HardwareSerial,
-				Platform:       h.Platform,
-			}
-			substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
-			if err != nil {
-				// One host that can't supply a referenced value must not block the
-				// rest of the batch, nor burn the job's retries on something no
-				// retry can fix. Whichever value is missing has its own resend
-				// trigger for when it lands.
-				if isUnresolvableAndroidAppConfigForHost(err) {
-					v.Log.WarnContext(ctx, "skipping android app config for host that can't supply a referenced value",
-						"host_uuid", hostUUID, "application_id", applicationID, "err", err)
-					continue
-				}
-				return ctxerr.Wrapf(ctx, err, "substitute fleet vars for host %s", hostUUID)
-			}
-
-			appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, substituted, "AVAILABLE")
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "building application policies with config for host %s", hostUUID)
-			}
-
-			singleHost := map[string]string{hostUUID: hostUUIDToPolicyID[hostUUID]}
-			policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, singleHost)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "add app to android policy for host %s", hostUUID)
-			}
-
-			if appConfigChanged {
-				for uuid, policyRequest := range policyRequestsByHost {
-					if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, uuid, applicationID, policyRequest.PolicyVersion.V); err != nil {
-						return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", uuid, applicationID)
-					}
-				}
-			}
-		}
-	} else {
-		appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building application policies with config")
-		}
-
-		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hostUUIDToPolicyID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
-		}
-
-		if appConfigChanged {
-			for hostUUID, policyRequest := range policyRequestsByHost {
-				if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V); err != nil {
-					return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func queueMakeAndroidAppAvailableBatch(ctx context.Context, ds fleet.Datastore, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool, delay time.Duration) error {
-	args := &softwareWorkerArgs{
-		Task:               makeAndroidAppAvailableBatchTask,
-		ApplicationID:      applicationID,
-		AppTeamID:          appTeamID,
-		HostUUIDToPolicyID: hostUUIDToPolicyID,
-		EnterpriseName:     enterpriseName,
-		AppConfigChanged:   appConfigChanged,
-	}
-	_, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
-	return err
-}
-
 // this is called when an app is removed from Fleet.
-func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicationID string, hostUUIDToPolicyID map[string]string, enterpriseName string) error {
-	// Update Android MDM policy to remove the app from the hosts
-	_, err := v.AndroidModule.RemoveAppsFromAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hostUUIDToPolicyID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
-	}
-	return nil
-}
-
 // prepareHostSpecificPolicy sets the settings of the host-specific policy before the device is moved to it.
 func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID string, enterpriseName string) error {
 	var policy androidmanagement.Policy
@@ -406,10 +203,9 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	appIDs := make([]string, 0, len(appsInScope))
+	policyBuiltAt := time.Now()
 	vppAppTeamIDs := make([]uint, 0, len(appsInScope))
 	for _, app := range appsInScope {
-		appIDs = append(appIDs, app.AdamID)
 		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
 	}
 
@@ -422,27 +218,37 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	// doesn't keep the rest from replacing the previous enrollment's apps, nor the device
 	// from moving to its host policy. Whichever value is missing has its own resend trigger.
 	substitutionHost := androidHostToSubstitutionHost(androidHost)
-	availableAppIDs := make([]string, 0, len(appIDs))
-	for _, appID := range appIDs {
+	availableAppIDs := make([]string, 0, len(appsInScope))
+	installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(appsInScope)+1)
+	var failedInstalls []fleet.HostAndroidSoftwareInstall
+	var substituted []byte
+	for _, app := range appsInScope {
+		appID := app.AdamID
+		install := fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: appID, VPPAppTeamID: new(app.AppTeamID), InstallType: android.AppStatusAvailable,
+			Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: policyBuiltAt}
 		config, ok := configsByAppID[appID]
 		if !ok {
 			availableAppIDs = append(availableAppIDs, appID)
+			installs = append(installs, install)
 			continue
 		}
-		substituted, err := v.substituteFleetVarsInConfigs(ctx, map[string][]byte{appID: config}, substitutionHost)
+		substituted, err = profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, v.Datastore, config, substitutionHost)
 		if err != nil {
-			if isUnresolvableAndroidAppConfigForHost(err) {
+			if profiles.IsUnresolvableAndroidAppConfigForHost(err) {
 				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
 					"host_uuid", hostUUID, "application_id", appID, "err", err)
+				install.Status = fleet.AndroidSoftwareInstallStatusFailed
+				failedInstalls = append(failedInstalls, install)
 				continue
 			}
-			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+			return ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
 		}
-		configsByAppID[appID] = substituted[appID]
+		configsByAppID[appID] = substituted
 		availableAppIDs = append(availableAppIDs, appID)
+		installs = append(installs, install)
 	}
 
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, availableAppIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, availableAppIDs, configsByAppID, android.AppStatusAvailable)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
@@ -459,9 +265,27 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		appPolicies = append(appPolicies, fleetAgentPolicy)
 	}
 
-	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	policyRequests, err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set apps for android policy")
+	}
+
+	var inPolicyVersion *int64
+	policyRequest := policyRequests[hostUUID]
+	if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+		inPolicyVersion = &policyRequest.PolicyVersion.V
+	}
+	for i := range installs {
+		installs[i].InPolicyVersion = inPolicyVersion
+	}
+	installs = append(installs, failedInstalls...)
+	if fleetAgentPolicy != nil {
+		installs = append(installs, fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: fleetAgentPolicy.PackageName, InstallType: android.AppStatusForceInstalled,
+			Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: inPolicyVersion, PolicyBuiltAt: policyBuiltAt})
+	}
+	err = v.Datastore.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, installs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "replace host android software installs")
 	}
 
 	if onDefaultPolicy {
@@ -526,17 +350,18 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		// even if they were already applied when making the apps available for self-service.
 		// However, once installed, if the app config changes it is applied automatically by the
 		// policy change (no need to re-install).
+		policyBuiltAt := time.Now()
 		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 		}
 
-		configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(host))
+		configsByAppID, err = profiles.SubstituteFleetVarsInAndroidAppConfigs(ctx, v.Datastore, configsByAppID, androidHostToSubstitutionHost(host))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
 		}
 
-		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "PREINSTALLED")
+		appPolicies, err := profiles.BuildApplicationPoliciesWithConfig(ctx, appIDs, configsByAppID, android.AppStatusPreinstalled)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building application policies with config")
 		}
@@ -552,6 +377,30 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 		for _, req := range hostToPolicyRequest {
 			policyRequest = req
 		}
+
+		var inPolicyVersion *int64
+		if policyRequest != nil && policyRequest.PolicyVersion.Valid {
+			inPolicyVersion = &policyRequest.PolicyVersion.V
+		}
+		installs := make([]fleet.HostAndroidSoftwareInstall, 0, len(setupApps))
+		for _, app := range setupApps {
+			installs = append(installs, fleet.HostAndroidSoftwareInstall{
+				HostID:          host.Host.ID,
+				AdamID:          app.AdamID,
+				VPPAppTeamID:    &app.AppTeamID,
+				InstallType:     android.AppStatusPreinstalled,
+				Status:          fleet.AndroidSoftwareInstallStatusPending,
+				InPolicyVersion: inPolicyVersion,
+				PolicyBuiltAt:   policyBuiltAt,
+			})
+		}
+		// Save the installs before inserting the setup experience install rows, so a failure here won't make a retry
+		// insert those rows twice
+		err = v.Datastore.BulkUpsertHostAndroidSoftwareInstalls(ctx, installs, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host android software installs for setup experience")
+		}
+
 		for _, app := range setupApps {
 			// NOTE: there is a unique index on the command uuid, so we cannot use the
 			// Android request's UUID for this, as we currently add many apps in the same request
@@ -576,131 +425,6 @@ func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
 	}
 
 	return nil
-}
-
-func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context, hostUUID, policyID string, applicationIDs []string, enterpriseName string) error {
-	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
-	}
-
-	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, host.Host.ID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
-	}
-	var vppAppTeamIDs []uint
-	for _, app := range appsInScope {
-		if slices.Contains(applicationIDs, app.AdamID) {
-			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
-		}
-	}
-
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
-	}
-
-	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(host))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
-	}
-
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, applicationIDs, configsByAppID, "AVAILABLE")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building application policies with config")
-	}
-
-	// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
-	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
-	if err != nil {
-		v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
-	} else if fleetAgentPolicy != nil {
-		appPolicies = append(appPolicies, fleetAgentPolicy)
-	}
-
-	// Update Android MDM policy to include the apps in self service
-	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: policyID})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "make android apps available")
-	}
-
-	return nil
-}
-
-func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
-	configsByAppID map[string][]byte, installType string,
-) ([]*androidmanagement.ApplicationPolicy, error) {
-	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
-	for _, appID := range appIDs {
-		appPolicy := &androidmanagement.ApplicationPolicy{}
-		if config := configsByAppID[appID]; config != nil {
-			if err := json.Unmarshal(config, appPolicy); err != nil {
-				// should never happen, as it is stored as json in the db and is pre-validated
-				return nil, ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
-			}
-		} else {
-			// if there is no config for this app, we must make sure we clear any previously-applied
-			// config.
-			appPolicy.ManagedConfiguration = googleapi.RawMessage{}
-			appPolicy.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
-			appPolicy.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
-		}
-		// Set after unmarshalling so a stored config can never override them.
-		appPolicy.PackageName = appID
-		appPolicy.InstallType = installType
-		// Google rejects installConstraint on AVAILABLE apps, which fails the whole request.
-		// It only applies to installs Google starts, like the setup experience's.
-		if installType == "AVAILABLE" {
-			appPolicy.InstallConstraint = nil
-		}
-		appPolicies = append(appPolicies, appPolicy)
-	}
-	return appPolicies, nil
-}
-
-func (v *SoftwareWorker) substituteFleetVarsInConfigs(
-	ctx context.Context,
-	configsByAppID map[string][]byte,
-	host profiles.AndroidAppConfigSubstitutionHost,
-) (map[string][]byte, error) {
-	if len(configsByAppID) == 0 {
-		return configsByAppID, nil
-	}
-
-	hasVars := false
-	for _, cfg := range configsByAppID {
-		if profiles.ContainsFleetVarOrCustomHostVital(cfg) {
-			hasVars = true
-			break
-		}
-	}
-	if !hasVars {
-		return configsByAppID, nil
-	}
-
-	result := make(map[string][]byte, len(configsByAppID))
-	for appID, cfg := range configsByAppID {
-		substituted, err := profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, v.Datastore, cfg, host)
-		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
-		}
-		result[appID] = substituted
-	}
-	return result, nil
-}
-
-// isUnresolvableAndroidAppConfigForHost separates "this host can't supply a
-// referenced value" — a custom host vital with no value set for this host, or
-// an unresolvable $FLEET_VAR_* — from a real failure. The former is host state
-// no retry can fix, so it's a per-host skip rather than a batch failure.
-func isUnresolvableAndroidAppConfigForHost(err error) bool {
-	if err == nil {
-		return false
-	}
-	if _, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
-		return true
-	}
-	return errors.Is(err, profiles.ErrUnresolvableAndroidAppConfigVar)
 }
 
 func androidHostToSubstitutionHost(h *fleet.AndroidHost) profiles.AndroidAppConfigSubstitutionHost {
@@ -735,99 +459,8 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool, versionLabelsChanged bool) error {
-	args := &softwareWorkerArgs{
-		Task:                 makeAndroidAppAvailableTask,
-		ApplicationID:        applicationID,
-		AppTeamID:            appTeamID,
-		EnterpriseName:       enterpriseName,
-		AppConfigChanged:     appConfigChanged,
-		VersionLabelsChanged: versionLabelsChanged,
-	}
-
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
-	return nil
-}
-
-func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, batchSize int) error {
-	if batchSize <= 0 || len(hostsUUIDToPolicyID) <= batchSize {
-		return queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, hostsUUIDToPolicyID, enterpriseName, 0)
-	}
-
-	batch := make(map[string]string, batchSize)
-	batchIdx := 0
-	for uuid, policyID := range hostsUUIDToPolicyID {
-		batch[uuid] = policyID
-		if len(batch) >= batchSize {
-			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
-			if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
-				return err
-			}
-			batch = make(map[string]string, batchSize)
-			batchIdx++
-		}
-	}
-	if len(batch) > 0 {
-		delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
-		if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func queueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, delay time.Duration) error {
-	args := &softwareWorkerArgs{
-		Task:               makeAndroidAppUnavailableTask,
-		ApplicationID:      applicationID,
-		HostUUIDToPolicyID: hostsUUIDToPolicyID,
-		EnterpriseName:     enterpriseName,
-	}
-
-	job, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(hostsUUIDToPolicyID))
-	return nil
-}
-
-func QueueBulkSetAndroidAppsAvailableForHost(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger *slog.Logger,
-	hostUUID string,
-	policyID string,
-	applicationIDs []string,
-	enterpriseName string,
-) error {
-	args := &softwareWorkerArgs{
-		Task:           bulkSetAndroidAppsAvailableForHostTask,
-		HostUUID:       hostUUID,
-		PolicyID:       policyID,
-		EnterpriseName: enterpriseName,
-		ApplicationIDs: applicationIDs,
-	}
-
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
-	}
-
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
-	return nil
-}
-
-func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context, uuidsToIDs map[string]uint, enterpriseName string) error {
-	// for each host
-	// get the set of self-service apps that are in scope for it
-	for uuid, hostID := range uuidsToIDs {
+func (v *SoftwareWorker) updateAndroidHostsAfterFleetTransfer(ctx context.Context, uuidsToIDs map[string]uint) error {
+	for uuid := range uuidsToIDs {
 		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, uuid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", uuid)
@@ -838,56 +471,13 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		// Update certificate templates for team transfer:
 		// 1. Mark old templates as pending removal
 		// 2. Create new pending templates for the new team
-		// This must happen before building the managed config, which includes certificate template IDs.
 		if err := v.Datastore.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, uuid); err != nil {
 			return ctxerr.Wrap(ctx, err, "set host certificate templates to pending remove for host")
 		}
 		if _, err := v.Datastore.CreatePendingCertificateTemplatesForNewHost(ctx, uuid, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
 		}
-
-		appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "get android apps in scope for host", map[string]any{"host_id": hostID})
-		}
-
-		appIDs := make([]string, 0, len(appsInScope))
-		vppAppTeamIDs := make([]uint, 0, len(appsInScope))
-		for _, app := range appsInScope {
-			appIDs = append(appIDs, app.AdamID)
-			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
-		}
-
-		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
-		}
-
-		configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
-		}
-
-		appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building application policies with config")
-		}
-
-		// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
-		fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, uuid)
-		if err != nil {
-			v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
-		} else if fleetAgentPolicy != nil {
-			appPolicies = append(appPolicies, fleetAgentPolicy)
-		}
-
-		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
-		if err != nil {
-			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
-		}
-
 	}
-
 	return nil
 }
 
@@ -953,38 +543,5 @@ func queueBulkSetAndroidAppsAvailableForHostsJob(
 	}
 
 	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(uuidsToIDs))
-	return nil
-}
-
-func splitHostMap(hosts map[string]string, batchSize int) []map[string]string {
-	if batchSize <= 0 || len(hosts) <= batchSize {
-		return []map[string]string{hosts}
-	}
-	var batches []map[string]string
-	batch := make(map[string]string, batchSize)
-	for k, v := range hosts {
-		batch[k] = v
-		if len(batch) >= batchSize {
-			batches = append(batches, batch)
-			batch = make(map[string]string, batchSize)
-		}
-	}
-	if len(batch) > 0 {
-		batches = append(batches, batch)
-	}
-	return batches
-}
-
-func QueueMakeAndroidAppAvailableForHostsJob(ctx context.Context, ds fleet.Datastore, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, batchSize int) error {
-	if batchSize <= 0 {
-		batchSize = defaultAndroidBatchSize
-	}
-	for batchIndex, batch := range splitHostMap(hostUUIDToPolicyID, batchSize) {
-		delay := time.Duration(batchIndex) * androidSoftwareInstallStaggerInterval
-		err := queueMakeAndroidAppAvailableBatch(ctx, ds, applicationID, appTeamID, batch, enterpriseName, true, delay)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queue batch for make android app available for hosts")
-		}
-	}
 	return nil
 }
