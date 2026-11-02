@@ -741,6 +741,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 
 	androidHost, err := ds.NewAndroidHost(ctx, createAndroidHost("chv-appcfg-host"), false)
 	require.NoError(t, err)
+	setAndroidHostAppliedPolicy(t, ds, androidHost.Host.UUID, &androidHost.Host.UUID)
 	macHost := test.NewHost(t, ds, "chv-appcfg-mac", "9", "chv-appcfg-mackey", "chv-appcfg-macuuid", time.Now())
 
 	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-appcfg-other-team"})
@@ -875,8 +876,8 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	require.Equal(t, appTeamIDs[vitalAppID], jobs[0].AppTeamID)
 	require.Equal(t, "enterprises/LC0vital123", jobs[0].EnterpriseName)
 	require.True(t, jobs[0].AppConfigChanged)
-	require.Equal(t, map[string]string{androidHost.Host.UUID: "1"}, jobs[0].HostUUIDToPolicy,
-		"resend must target only the host whose value changed, at its applied policy")
+	require.Equal(t, map[string]string{androidHost.Host.UUID: androidHost.Host.UUID}, jobs[0].HostUUIDToPolicy,
+		"resend must target only the host whose value changed, at its own policy")
 
 	// The lookalike app resends for its own vital, so its absence above is the id
 	// boundary working rather than a misconfigured fixture.
@@ -914,6 +915,14 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	jobs = drainJobs()
 	require.Len(t, jobs, 1, "the out-of-scope app must not be resent")
 	require.Equal(t, secondVitalAppID, jobs[0].ApplicationID)
+
+	// A host not on its own policy yet gets no resend: its policy would be the default one every
+	// device enrolls with, or none at all.
+	for _, appliedPolicyID := range []*string{new("1"), nil} {
+		setAndroidHostAppliedPolicy(t, ds, androidHost.Host.UUID, appliedPolicyID)
+		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "NotOnOwnPolicy"))
+		require.Empty(t, drainJobs())
+	}
 }
 
 // testSetHostCustomHostVitalValueResendsDeviceName covers the device-name side
