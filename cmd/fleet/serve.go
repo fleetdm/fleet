@@ -342,19 +342,25 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query, scoped orbit config and osquery config wake-ups are
-		// delayed by the TTL of the in-memory caches the notified agent's
-		// request reads, so it can't be served a snapshot predating the change
-		// (a host moved to another fleet reads its packs from a per-host
-		// cache). Host orbit config wake-ups read nothing cached; their delay
-		// only batches them (see pubsub.DelayedAgentNotifier).
+		// A notified agent calls back within milliseconds, so wake-ups wait for
+		// the in-memory caches its request reads to expire; otherwise it can be
+		// served a snapshot predating the change (see
+		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
-			LiveQuery:          liveQueryMemCacheDuration,
-			OrbitConfigHosts:   orbitConfigHostsBatchWindow,
-			OrbitConfigScope:   cached_mysql.MaxOrbitConfigInputTTL(),
+			// The live query store's active-queries cache TTL (1s).
+			LiveQuery: liveQueryMemCacheDuration,
+			// Host orbit config changes are read uncached: the delay only
+			// batches the per-host wake-ups of one write (100ms).
+			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			// The longest TTL of the cached fleet and global orbit config
+			// inputs (1m).
+			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			// A host moved to another fleet reads its packs from a per-host
+			// cache (1m).
 			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
-			// The pack config cache can be rebuilt from a stale cached app
-			// config read, so the two TTLs add up.
+			// The cached osquery config inputs (1m), plus the pack config
+			// cache (1m): it can be rebuilt from a stale cached input read
+			// just before that expires, so the two TTLs add up.
 			OsqueryConfigScope: cached_mysql.MaxConfigInputTTL() + service.PackConfigCacheTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {

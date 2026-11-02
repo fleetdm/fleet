@@ -224,11 +224,14 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 //     predating the campaign misses it.
 //   - Scoped orbit config: the per-instance fleet agent options and MDM config
 //     caches (see cached_mysql) that GetOrbitConfig reads.
+//   - Osquery config: the cached_mysql caches the config is built from, and the
+//     service's pack config cache.
 //
-// Host orbit config notifications are fired after the change commits and read
-// nothing cached; their delay is a batching window instead: notifications with
-// the same reason within it are merged into one publish, since writers notify
-// per host (e.g. a cron activating scripts on thousands of hosts).
+// Host notifications with the same type and reason within their delay are
+// merged into one publish, since writers notify per host (e.g. a cron
+// activating scripts on thousands of hosts). Host orbit config notifications
+// are fired after the change commits and read nothing cached, so their delay
+// is only that batching window.
 //
 // Pending notifications are held in memory only: those of an instance that
 // exits before publishing them are lost, and agents pick the change up on
@@ -249,12 +252,28 @@ type pendingHostsKey struct {
 	reason  string
 }
 
-// AgentNotifierDelays holds the delay of each kind of notification.
+// AgentNotifierDelays holds the delay of each kind of notification (see
+// DelayedAgentNotifier).
 type AgentNotifierDelays struct {
-	LiveQuery          time.Duration
-	OrbitConfigHosts   time.Duration
-	OrbitConfigScope   time.Duration
+	// LiveQuery delays live query notifications until the live query store's
+	// in-memory active-queries cache expires, or the host's next
+	// distributed/read can miss the new campaign.
+	LiveQuery time.Duration
+	// OrbitConfigHosts is the batching window of per-host orbit config
+	// notifications. Their changes are read uncached, so it doesn't need to
+	// outlast any cache.
+	OrbitConfigHosts time.Duration
+	// OrbitConfigScope delays fleet and global orbit config notifications until
+	// the cached fleet agent options and MDM config that GetOrbitConfig reads
+	// expire.
+	OrbitConfigScope time.Duration
+	// OsqueryConfigHosts delays per-host osquery config notifications (hosts
+	// moved to another fleet) until the host's cached packs expire. It is also
+	// their batching window.
 	OsqueryConfigHosts time.Duration
+	// OsqueryConfigScope delays fleet and global osquery config notifications
+	// until the caches the osquery config is built from expire, including the
+	// service's pack config cache.
 	OsqueryConfigScope time.Duration
 }
 
