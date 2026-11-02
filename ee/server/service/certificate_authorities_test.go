@@ -1173,6 +1173,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 	scepID := uint(3)
 	ndesID := uint(4)
 	smallstepID := uint(5)
+	estID := uint(6)
 	createdCAs := []*fleet.CertificateAuthority{}
 	baseSetupForCATests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
@@ -1230,7 +1231,16 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			Password:     ptr.String("smallstep-password"),
 		}
 
-		createdCAs = append(createdCAs, digicertCA, hydrantCA, customSCEPCA, ndesCA, smallstepCA)
+		estCA := &fleet.CertificateAuthority{
+			ID:       estID,
+			Name:     new("EST CA"),
+			URL:      new("https://est.example.com"),
+			Type:     string(fleet.CATypeCustomESTProxy),
+			Username: new("est-username"),
+			Password: new("est-password"),
+		}
+
+		createdCAs = append(createdCAs, digicertCA, hydrantCA, customSCEPCA, ndesCA, smallstepCA, estCA)
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			for _, ca := range createdCAs {
 				if ca.ID == id {
@@ -1351,6 +1361,64 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 		err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
 		require.EqualError(t, err, "Couldn't edit certificate authority. The certificate authority types must be the same.")
+	})
+
+	// The GET endpoint returns secrets masked, so sending one back must not overwrite the stored secret with the mask.
+	t.Run("Masked secrets are rejected", func(t *testing.T) {
+		masked := new(fleet.MaskedPassword)
+		for _, tc := range []struct {
+			name    string
+			id      uint
+			payload fleet.CertificateAuthorityUpdatePayload
+			wantErr string
+		}{
+			{
+				name: "DigiCert API token",
+				id:   digicertID,
+				payload: fleet.CertificateAuthorityUpdatePayload{
+					DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{APIToken: masked},
+				},
+				wantErr: "Invalid DigiCert API token",
+			},
+			{
+				name: "Hydrant client secret",
+				id:   hydrantID,
+				payload: fleet.CertificateAuthorityUpdatePayload{
+					HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{ClientSecret: masked},
+				},
+				wantErr: "Invalid Hydrant Client Secret",
+			},
+			{
+				name: "EST password",
+				id:   estID,
+				payload: fleet.CertificateAuthorityUpdatePayload{
+					CustomESTCAUpdatePayload: &fleet.CustomESTCAUpdatePayload{Password: masked},
+				},
+				wantErr: "Invalid EST Password",
+			},
+			{
+				name: "custom SCEP challenge",
+				id:   scepID,
+				payload: fleet.CertificateAuthorityUpdatePayload{
+					CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{Challenge: masked},
+				},
+				wantErr: "Custom SCEP Proxy challenge cannot be empty",
+			},
+			{
+				name: "Smallstep password",
+				id:   smallstepID,
+				payload: fleet.CertificateAuthorityUpdatePayload{
+					SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{Password: masked},
+				},
+				wantErr: "Smallstep SCEP Proxy password cannot be empty",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				svc, ctx := baseSetupForCATests()
+				err := svc.UpdateCertificateAuthority(ctx, tc.id, tc.payload)
+				require.ErrorContains(t, err, tc.wantErr)
+			})
+		}
 	})
 
 	t.Run("Digicert", func(t *testing.T) {
@@ -2155,6 +2223,104 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 			require.NoError(t, validateDigicertCACN(v.WithPrefix(), ""))
 			require.NoError(t, validateDigicertSeatID(v.WithPrefix(), ""))
 			require.NoError(t, validateDigicertUserPrincipalNames([]string{v.WithPrefix() + "@example.com"}, ""))
+		})
+	}
+}
+
+type recordingESTService struct {
+	fleet.ESTService
+	record func(url string) error
+}
+
+func (r recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
+	return r.record(ca.URL)
+}
+
+func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {
+	stored := func() fleet.GroupedCertificateAuthorities {
+		return fleet.GroupedCertificateAuthorities{
+			DigiCert:        []fleet.DigiCertCA{{Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile"}},
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "SCEP", URL: "https://scep.example.com", Challenge: "challenge"}},
+			Hydrant:         []fleet.HydrantCA{{Name: "HYDRANT", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: "secret"}},
+			EST:             []fleet.ESTProxyCA{{Name: "EST", URL: "https://est.example.com", Username: "user", Password: "pass"}},
+			Smallstep: []fleet.SmallstepSCEPProxyCA{{
+				Name: "SMALLSTEP", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
+				Username: "user", Password: "pass",
+			}},
+		}
+	}
+
+	for _, tc := range []struct {
+		name          string
+		change        func(cas *fleet.GroupedCertificateAuthorities)
+		wantUpdated   []string
+		wantValidated []string
+	}{
+		{name: "identical CAs are skipped", change: func(*fleet.GroupedCertificateAuthorities) {}},
+		{
+			name: "padded values are trimmed before comparing",
+			change: func(cas *fleet.GroupedCertificateAuthorities) {
+				cas.DigiCert[0].ProfileID = " profile "
+				cas.CustomScepProxy[0].URL = " https://scep.example.com "
+				cas.Hydrant[0].Name = " HYDRANT"
+				cas.EST[0].URL = "https://est.example.com\n"
+				cas.Smallstep[0].Username = "user "
+			},
+		},
+		{
+			name: "changed secrets are validated and updated",
+			change: func(cas *fleet.GroupedCertificateAuthorities) {
+				cas.CustomScepProxy[0].Challenge = "new-challenge"
+				cas.Hydrant[0].ClientSecret = "new-secret"
+				cas.EST[0].Password = "new-pass"
+				cas.Smallstep[0].Password = "new-pass"
+			},
+			wantUpdated: []string{"SCEP", "HYDRANT", "EST", "SMALLSTEP"},
+			wantValidated: []string{
+				"https://scep.example.com", "https://hydrant.example.com", "https://est.example.com",
+				"https://smallstep.example.com/scep", "https://smallstep.example.com/challenge",
+			},
+		},
+		{
+			name:          "case-only rename is an update",
+			change:        func(cas *fleet.GroupedCertificateAuthorities) { cas.CustomScepProxy[0].Name = "scep" },
+			wantUpdated:   []string{"scep"},
+			wantValidated: []string{"https://scep.example.com"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			existing, incoming := stored(), stored()
+			tc.change(&incoming)
+			ds := new(mock.Store)
+			ds.GetGroupedCertificateAuthoritiesFunc = func(_ context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				require.True(t, includeSecrets)
+				return &existing, nil
+			}
+			var validatedURLs []string
+			record := func(url string) error {
+				validatedURLs = append(validatedURLs, url)
+				return nil
+			}
+			svc := &Service{
+				ds:         ds,
+				logger:     slog.New(slog.DiscardHandler),
+				estService: recordingESTService{record: record},
+				scepConfigService: &scep_mock.SCEPConfigService{
+					ValidateSCEPURLFunc:               func(_ context.Context, url string) error { return record(url) },
+					ValidateSmallstepChallengeURLFunc: func(_ context.Context, ca fleet.SmallstepSCEPProxyCA) error { return record(ca.ChallengeURL) },
+				},
+			}
+
+			ops, err := svc.getCertificateAuthoritiesBatchOperations(t.Context(), incoming)
+			require.NoError(t, err)
+			require.Empty(t, ops.Add)
+			require.Empty(t, ops.Delete)
+			var updated []string
+			for _, ca := range ops.Update {
+				updated = append(updated, *ca.Name)
+			}
+			require.ElementsMatch(t, tc.wantUpdated, updated)
+			require.ElementsMatch(t, tc.wantValidated, validatedURLs, "only changed CAs call their external services")
 		})
 	}
 }

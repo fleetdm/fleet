@@ -1129,6 +1129,60 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersMSIReuseP
 	mu.Unlock()
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersKeepsTitleAttachedByName() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// A title from inventory with no bundle ID. The lookup prefers a title with the package's bundle ID, so drop any left by other tests.
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `DELETE FROM software_titles WHERE name = 'DummyApp' OR bundle_identifier = 'com.example.dummy'`); err != nil {
+			return err
+		}
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('dummyapp', 'apps')`)
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		titleID = uint(id) //nolint:gosec // dismiss G115
+		return err
+	})
+
+	srv := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("testdata", "software-installers"))))
+	t.Cleanup(srv.Close)
+	pkg := []*fleet.SoftwareInstallerPayload{{URL: srv.URL + "/dummy_installer.pkg"}}
+	batchDeleted := func(payloads []*fleet.SoftwareInstallerPayload, dryRun bool) []fleet.DeletedSoftwarePackage {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: payloads},
+			http.StatusAccepted, &resp, "team_name", tm.Name, "dry_run", strconv.FormatBool(dryRun))
+		result := waitBatchSetSoftwareInstallers(t, &s.withServer, tm.Name, resp.RequestUUID)
+		require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status, result.Message)
+		return result.DeletedPackages
+	}
+
+	// The apply attaches the package to the inventory title by name.
+	require.Empty(t, batchDeleted(pkg, false))
+	var installerTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerTitleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ?`, tm.ID)
+	})
+	require.Equal(t, titleID, installerTitleID)
+
+	// Batching it again reports nothing, dry run or not.
+	for _, dryRun := range []bool{true, false} {
+		require.Empty(t, batchDeleted(pkg, dryRun))
+	}
+
+	// Removing the package from the payload still reports it.
+	deleted := batchDeleted([]*fleet.SoftwareInstallerPayload{}, true)
+	require.Len(t, deleted, 1)
+	require.Equal(t, titleID, deleted[0].TitleID)
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersConditionalDownload() {
 	t := s.T()
 

@@ -311,6 +311,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
 
     const appsRow = await screen.findByText("Apps");
     const appsSection = appsRow.parentElement;
+    expect(appsSection).toHaveClass("data-set--multiline");
     expect(appsSection?.textContent).toContain("1Password");
     expect(appsSection?.textContent).toContain("Slack");
     expect(appsSection?.textContent).toContain("Docker Desktop");

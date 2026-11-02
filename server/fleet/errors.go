@@ -33,6 +33,7 @@ var (
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
@@ -595,8 +596,9 @@ const (
 
 // Error message variables
 var (
-	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
-	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	NDESSCEPVariablesMissingErrMsg              = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg      = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	ConditionalAccessSCEPVariablesMissingErrMsg = fmt.Sprintf("SCEP profile for conditional access requires: $FLEET_VAR_%s and $FLEET_VAR_%s variables.", FleetVarConditionalAccessSCEPURL, FleetVarCertificateRenewalID)
 )
 
 const (

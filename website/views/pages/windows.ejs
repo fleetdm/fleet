@@ -244,48 +244,51 @@
         <div purpose="accordion">
           <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header-faq-1" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-1" aria-controls="accordion__body-faq-1">
-              Can I run Fleet alongside Intune or SCCM?
+              Do I need Autopilot to use Fleet?
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-1" class="collapse" aria-labelledby="accordion__header-faq-1">
-              <p>Yes. Fleet’s agent runs alongside Intune and the Configuration Manager client, so you get live visibility, reports, policies, scripts, and software installs without changing anything else. Windows allows only one MDM at a time, so Intune can stay the MDM while you evaluate. When you’re ready, Fleet’s automatic migration moves hosts over.</p>
+              <p>No. Autopilot is a bundling strategy. It requires Entra, and it’s how Microsoft gets you paying for Entra and Intune.</p>
+              <p>With Fleet, zero-touch setup is simpler. Fleet gives you an order email. Forward it to Dell, Lenovo, or HP, and they install Fleet before the device ships. That’s it. Every new PC arrives already managed by Fleet.</p>
+              <p>Customers run thousands of PCs with Fleet and no Autopilot.</p>
             </div>
           </div>
           <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header-faq-2" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-2" aria-controls="accordion__body-faq-2">
-              Intune comes with Microsoft 365. Why pay for Fleet?
+              What Microsoft license does zero-touch setup need?
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-2" class="collapse" aria-labelledby="accordion__header-faq-2">
-              <p>Included isn’t free. Microsoft sells Intune on its own for $8 per user per month, and that cost is part of every E3 and E5 seat whether you use it or not. Fleet gives you live device data instead of cached check-ins, changes you can review in Git, and the same management for macOS, Linux, iOS, Android, and ChromeOS as for Windows. Many teams end up paying for Intune and a second tool for everything that isn’t Windows. Fleet replaces both.</p>
+              <p>None. Just forward the email from Fleet to Dell, Lenovo, or HP.</p>
+              <p>Autopilot is part of Microsoft’s bundling strategy to maximize revenue. If you already have Entra and want to keep it, Fleet fully supports Autopilot. But it isn’t required, and it isn’t how most of Fleet’s large enterprise customers set up new PCs.</p>
             </div>
           </div>
           <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header-faq-3" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-3" aria-controls="accordion__body-faq-3">
-              Can I migrate from Intune without wiping devices?
+              Intune is included in Microsoft 365 E3 and E5. Why pay for Fleet?
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-3" class="collapse" aria-labelledby="accordion__header-faq-3">
-              <p>Yes. Fleet’s automatic Windows MDM migration moves hosts from Intune or another MDM to Fleet without wiping them and without the end user having to do anything.</p>
+              <p>Because you’ll save money. For example, switching from Microsoft 365 E3 to Office 365 E3 saves about $13 per user per month. That’s almost double the price of Fleet.</p>
+              <p>Even if you have no plans to change your Microsoft licenses, or another team owns that decision, you still save money and gain flexibility. Choose the identity provider and EDR you want for your Windows PCs, without paying for a subscription you don’t want or need. And stop maintaining Entra and Intune just to make the bundle work.</p>
             </div>
           </div>
           <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header-faq-4" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-4" aria-controls="accordion__body-faq-4">
-              Do I need Autopilot or Entra to use Fleet?
+              Can I use Fleet in a hybrid Active Directory environment?
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-4" class="collapse" aria-labelledby="accordion__header-faq-4">
-              <p>No. Hardware vendors’ factory services, available from Dell, Lenovo, and HP, can install Fleet’s agent (fleetd) before the device ships. When the end user turns it on and finishes Windows setup, the device enrolls in Fleet and starts installing your software. No Autopilot or Entra required.</p>
-              <p>Already paying for Entra? Fleet supports Entra and Autopilot too, so you can keep using them. You can also install fleetd directly on devices you already have.</p>
+              <p>Yes. Fleet works with Active Directory, Entra, or both, including hybrid-joined PCs. Fleet customers run it on thousands of Windows PCs in mixed environments. In fact, most companies still run hybrid Active Directory and Entra.</p>
             </div>
           </div>
           <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header-faq-5" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-5" aria-controls="accordion__body-faq-5">
-              What Microsoft licenses does automatic enrollment need?
+              Can I migrate from Intune without wiping devices?
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-5" class="collapse" aria-labelledby="accordion__header-faq-5">
-              <p>None, if you use a hardware vendor’s factory service to preinstall Fleet’s agent. Microsoft licenses only apply if you choose to enroll through Entra. In that case, each user who enrolls needs a Microsoft Entra ID P1 license.</p>
+              <p>Yes. Fleet’s automatic Windows MDM migration moves hosts from Intune or another MDM to Fleet without wiping them and without the end user having to do anything.</p>
             </div>
           </div>
           <div purpose="accordion-item">
@@ -303,7 +306,7 @@
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-7" class="collapse" aria-labelledby="accordion__header-faq-7">
-              <p>Yes. Fleet’s agent runs natively on Windows ARM64 devices, such as Snapdragon-based Copilot+ PCs. Fleet-maintained apps include ARM64 builds where vendors publish them.</p>
+              <p>Yes, Fleet ships zero-day support for Windows on ARM thanks to our customer, NVIDIA. Fleet’s agent runs natively on Windows ARM64 devices, such as Snapdragon-based Copilot+ PCs. Fleet-maintained apps include ARM64 builds where vendors publish them.</p>
             </div>
           </div>
           <div purpose="accordion-item">
@@ -315,7 +318,7 @@
               <p>Installers come straight from the vendor and are verified against a pinned SHA-256 hash. Every catalog change is installed and uninstalled on real hosts and reviewed by a person before release, and any version that fails testing is held back.</p>
             </div>
           </div>
-          <p purpose="faq-note">Couldn’t find an answer? <a href="/contact?sendMessage">Message us</a></p>
+          <p purpose="faq-note">Want to see it for yourself? <a href="/contact?talkToUs">Book a meeting</a></p>
         </div>
       </div>
 
