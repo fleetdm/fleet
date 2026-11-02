@@ -93,7 +93,7 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 ```
 
 1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
-2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share internally`, then `Copy link`.
 3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">

@@ -73,6 +73,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -129,6 +132,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -185,6 +191,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -643,6 +652,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -684,6 +696,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -772,6 +787,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -993,6 +1011,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -3574,6 +3595,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "Calculator",
@@ -6312,6 +6336,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "ManagedBookmarks",
@@ -6384,6 +6411,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "ManagedExtensions",
@@ -6472,6 +6502,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "AcceptCookies",
@@ -7016,6 +7049,9 @@
           "introduced": "n/a"
         }
       },
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "AttestationIdentityAssetReference",

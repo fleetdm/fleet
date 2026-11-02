@@ -175,7 +175,7 @@ export default {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

@@ -6,11 +6,8 @@ If you bought your license through Fleet's [sales team](https://fleetdm.com/hand
 
 ## Change your number of hosts
 
-1. Log in to your [customer dashboard](https://fleetdm.com/customers/dashboard).
-2. Under **Billing and payment**, select **Click here** to change your number of devices. This opens the Stripe billing portal.
-3. Update the quantity to the number of hosts you need, and confirm the change.
-
-> **Note:** If your subscription renews in the next 30 days, the dashboard asks you to [contact us](https://fleetdm.com/contact) to change your number of devices.
+1. Log in to your [subscription page](https://fleetdm.com/customers/update-subscription).
+2. Select **Update subscription**, change your number of devices (**Quantity**), and confirm your payment.
 
 After Stripe processes the change, fleetdm.com generates a new license key for the new host count.
 

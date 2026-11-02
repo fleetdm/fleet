@@ -73,8 +73,8 @@ describe('configuration profile generation pipeline', function() {
     sails.helpers.ai.prompt = originalPromptHelper;
   });
 
-  let generate = async (profileType)=>{
-    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions: 'Turn off the camera', useApplePayloadTypeLookup: false });
+  let generate = async (profileType, forFleet = false, naturalLanguageInstructions = 'Turn off the camera')=>{
+    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions, useApplePayloadTypeLookup: false, forFleet });
   };
   let responseWith = (configurationProfile)=>{
     return { configurationProfile, profileFilename: 'profile', deliveryNotes: '', settingsEnforced: [{ name: 'setting', value: 'value' }] };
@@ -164,6 +164,69 @@ describe('configuration profile generation pipeline', function() {
       generationOutcomes = [responseWith(declaration)];
       let result = await generate('ddm');
       assert.strictEqual(result.couldNotGenerateProfile, false);
+    });
+
+  });
+
+  describe('the declaration schema Fleet is given', function() {
+
+    it('has no asset references at any depth, and keeps the rest of a type that only nests them', async function() {
+      let configuration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({ profileType: 'ddm', naturalLanguageInstructions: 'Configure a managed app', forFleet: true });
+      // Only the rule that forbids them names them.
+      assert.doesNotMatch(configuration.systemPrompt.replace(/Never write a key that ends in AssetReference[^\n]*/, ''), /AssetReference/);
+      assert.match(configuration.systemPrompt, /com\.apple\.configuration\.app\.managed/);
+      assert.doesNotMatch(configuration.systemPrompt, /com\.apple\.configuration\.security\.certificate\b/);
+    });
+
+  });
+
+  describe('keeps links out of a decline reason', function() {
+
+    for (let [reason, expected] of [
+      ['Edge has no CSP nodes. See https://learn.microsoft.com/en-us/deployedge/ for its ADMX templates.', 'Edge has no CSP nodes. See for its ADMX templates.'],
+      ['Use the [Edge ADMX templates](https://learn.microsoft.com/deployedge) instead.', 'Use the Edge ADMX templates instead.'],
+      ['No such setting (www.example.com).', 'No such setting.'],
+      ['No such setting.', 'No such setting.'],
+    ]) {
+      it(JSON.stringify(reason), async function() {
+        generationOutcomes = [{ couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: reason }];
+        let result = await generate('csp');
+        assert.strictEqual(result.couldNotGenerateProfile, true);
+        assert.strictEqual(result.reasonWhyAProfileCouldNotBeGenerated, expected);
+      });
+    }
+
+  });
+
+  describe('scopes a user-channel-only declaration to the user', function() {
+
+    let calDav = JSON.stringify({ Type: 'com.apple.configuration.account.caldav', Identifier: 'caldav', Payload: { HostName: 'cal.acme.example' } });
+
+    it('when Fleet asks', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm', true);
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, 'User');
+      assert.match(result.generatedProfile.deliveryNotes, /label/);
+      assert.match(result.generatedProfile.deliveryNotes, /user channel/);
+    });
+
+    it('in place of another scope, which would deliver it to the device channel', async function() {
+      generationOutcomes = [responseWith(JSON.stringify(Object.assign(JSON.parse(calDav), { PayloadScope: 'System' })))];
+      let result = await generate('ddm', true);
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, 'User');
+    });
+
+    it('but not when the request names only iPhones or iPads, where Fleet fails a User-scoped declaration', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm', true, 'Add our CardDAV server cal.acme.example on iPhones');
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, undefined);
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes || '', /label/);
+    });
+
+    it('but not otherwise', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm');
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, undefined);
     });
 
   });

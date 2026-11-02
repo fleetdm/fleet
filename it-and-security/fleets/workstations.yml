@@ -171,6 +171,7 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
+    - path: ../lib/macos/scripts/hide-fleet-desktop-menu-bar.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/linux/scripts/update-claude-desktop.sh
@@ -181,6 +182,11 @@ controls:
     - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
     - path: ../lib/macos/scripts/remove-emudhra-roots-macos-system.sh
     - path: ../lib/windows/scripts/remove-emudhra-roots-fleetd.ps1
+    - path: ../lib/macos/scripts/remediate-php2shell-macos.sh
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
+    - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
+    - path: ../lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh
+    - path: ../lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -190,7 +196,9 @@ policies:
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/fleet-desktop-installed.yml
   - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
+  - path: ../lib/macos/policies/fleet-desktop-menu-bar-hidden.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
@@ -200,6 +208,7 @@ policies:
   - path: ../lib/macos/policies/remote-login-disabled.yml
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
+  - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml

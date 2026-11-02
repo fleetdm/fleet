@@ -290,11 +290,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	for _, installer := range m.Installers {
 		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
-		if installerType == "" || isVendorType(installerType) {
+		if !isResolvedType(installerType) {
 			installerType = installer.InstallerType
 		}
 
-		if installerType == "" || isVendorType(installerType) {
+		if !isResolvedType(installerType) {
 			// try to get it from the URL
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
@@ -453,7 +453,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
 
-	external_refs.EnrichManifest(&out)
+	if err := external_refs.EnrichManifest(&out); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "enriching manifest")
+	}
 
 	// The patch policy normally compares osquery's reported version against the
 	// winget PackageVersion. Some installers report a registry DisplayVersion in a
@@ -546,6 +548,13 @@ var vendorTypes = map[string]struct{}{
 func isVendorType(installerType string) bool {
 	_, ok := vendorTypes[installerType]
 	return ok
+}
+
+// isResolvedType reports whether a manifest InstallerType says what kind of file the
+// installer is. Vendor types and "portable" (which manifests sometimes mislabel an exe
+// as) don't, so the caller falls back to the URL extension.
+func isResolvedType(installerType string) bool {
+	return installerType != "" && !isVendorType(installerType) && installerType != installerTypePortable
 }
 
 var fileTypes = map[string]struct{}{
@@ -744,6 +753,7 @@ const (
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
 	installerTypeBurn     = "burn"
+	installerTypePortable = "portable"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )

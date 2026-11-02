@@ -17,14 +17,15 @@ import (
 
 type redisInstallAttemptCounter struct {
 	pool       fleet.RedisPool
+	prefix     string
 	testPrefix string // for tests, the key prefix to use to avoid conflicts
 }
 
 var _ fleet.SoftwareInstallAttemptCounter = (*redisInstallAttemptCounter)(nil)
 
-// New creates a new install attempt counter.
-func New(pool fleet.RedisPool) *redisInstallAttemptCounter {
-	return &redisInstallAttemptCounter{pool: pool}
+// New creates a new install attempt counter whose keys start with prefix.
+func New(pool fleet.RedisPool, prefix string) *redisInstallAttemptCounter {
+	return &redisInstallAttemptCounter{pool: pool, prefix: prefix}
 }
 
 type TestNamer interface {
@@ -32,15 +33,19 @@ type TestNamer interface {
 }
 
 // NewTest creates an install attempt counter to be used only in tests.
-func NewTest(t TestNamer, pool fleet.RedisPool) *redisInstallAttemptCounter {
+func NewTest(t TestNamer, pool fleet.RedisPool, prefix string) *redisInstallAttemptCounter {
 	return &redisInstallAttemptCounter{
 		pool:       pool,
+		prefix:     prefix,
 		testPrefix: t.Name() + ":",
 	}
 }
 
-// prefix is used to not collide with other key domains (like live queries or calendar locks).
-const prefix = "install:attempts:"
+// Key prefixes for software installer and App Store app version attempts, so they don't collide with other key domains or each other
+const (
+	SoftwareInstallerPrefix = "install:attempts:"
+	AppStoreAppPrefix       = "install:attempts:vpp:"
+)
 
 // KEYS[1]: $prefix$softwareInstallerID:$hostID (value integer)
 // ARGV[1]: key TTL in milliseconds
@@ -55,7 +60,7 @@ return count
 
 // The installer comes first so every host for one installer shares a key prefix.
 func (r *redisInstallAttemptCounter) key(hostID uint, softwareInstallerID uint) string {
-	return fmt.Sprintf("%s%s%d:%d", r.testPrefix, prefix, softwareInstallerID, hostID)
+	return fmt.Sprintf("%s%s%d:%d", r.testPrefix, r.prefix, softwareInstallerID, hostID)
 }
 
 func (r *redisInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, expireIn time.Duration) (int, error) {
@@ -103,7 +108,7 @@ func (r *redisInstallAttemptCounter) ResetInstallerAttempts(ctx context.Context,
 		return nil
 	}
 
-	base := r.testPrefix + prefix
+	base := r.testPrefix + r.prefix
 	keys, err := redis.ScanKeys(r.pool, base+"*", 1000)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "redis scan software install attempt keys")

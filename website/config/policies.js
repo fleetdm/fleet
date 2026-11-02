@@ -90,4 +90,5 @@ module.exports.policies = {
   'view-europe': true,
   'view-pharma': true,
   'view-windows': true,
+  'view-apple': true,
 };

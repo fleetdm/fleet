@@ -523,12 +523,12 @@ describe("SoftwareFiltersModal component", () => {
         onSubmit: onSubmitSpy,
       });
 
-      await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+      await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
       await user.click(
-        screen.getByRole("checkbox", { name: "Brave extension" })
+        screen.getByRole("checkbox", { name: "Browser extension (Brave)" })
       );
       await user.click(
-        screen.getByRole("checkbox", { name: "Cursor extension" })
+        screen.getByRole("checkbox", { name: "IDE extension (Cursor)" })
       );
       await user.click(screen.getByRole("button", { name: /Apply/i }));
 

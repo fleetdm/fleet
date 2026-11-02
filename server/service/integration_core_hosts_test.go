@@ -1930,6 +1930,28 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	// search for non-existent email, shouldn't get anything back
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
 	require.Empty(t, searchResp.Hosts)
+
+	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "search-ios-host",
+		Platform:        "ios",
+		OsqueryHostID:   new(t.Name() + "-ios"),
+		NodeKey:         new(t.Name() + "-ios"),
+		UUID:            t.Name() + "-ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "search-ios-host"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+	require.Equal(t, iosHost.ID, searchResp.Hosts[0].ID)
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "search-ios-host", ExcludeMobileHosts: true}, http.StatusOK, &searchResp)
+	require.Empty(t, searchResp.Hosts)
 }
 
 func (s *integrationTestSuite) TestHostDeviceToken() {

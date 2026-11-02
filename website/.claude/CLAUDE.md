@@ -19,8 +19,7 @@ api/
 assets/
 ├── js/
 │   ├── components/   # Vue/Parasails components (*.component.js)
-│   ├── pages/        # Page scripts (parasails.registerPage)
-│   └── utilities/    # Shared utilities (parasails.registerUtility)
+│   └── pages/        # Page scripts (parasails.registerPage)
 └── styles/           # LESS stylesheets
 views/
 ├── layouts/          # EJS layout templates
@@ -35,6 +34,9 @@ config/
 ```
 
 ## Backend conventions
+
+### One function per file
+Actions, helpers, scripts, and tests each contain exactly one function: the `fn` (or the test body). **Don't define helper functions** — no `function parseThing() {}` or `const formatThing = () => {}` at the top of the file or inside `fn`. Write the logic inline where it's used, even if that makes `fn` long. If the same logic is needed in three or more places, make it a Sails helper in `api/helpers/` and call it with `sails.helpers.*`. Anonymous callbacks passed inline (to `_.map`, `.filter`, `Promise.all`, etc.) are fine.
 
 ### Controllers & helpers
 Both use the Sails Actions2 machine format (`friendlyName`, `inputs`, `exits`, `fn`). Call helpers with `await sails.helpers.domain.name.with({...})`. Throw exit names (e.g., `throw 'notFound'`) to trigger non-success exits.
@@ -68,20 +70,26 @@ Use EJS when the data is static from the server. Use Vue templates when the valu
 ### Reusable components
 Several Parasails components are used across multiple pages:
 - `<scrollable-tweets>` — testimonial carousel. Requires `testimonialsForScrollableTweets` data from the view action (see Testimonials below).
-- `<parallax-city>` — animated city skyline banner, used at the bottom of landing pages. Must sit at the top level of the page, outside `page-container`/`page-content`, so it can span the full viewport width with no padding. Typically appears just after a `bottom-gradient` section. See `views/pages/landing-pages/linux-management.ejs` for the full end-of-page structure.
+- `<parallax-city>` — animated city skyline banner, used at the bottom of landing pages. Must sit at the top level of the page, outside `page-container`/`page-content`, so it can span the full viewport width with no padding. Typically appears just after a `bottom-gradient` section. Copy the end-of-page structure from a recent landing page.
 - `<logo-carousel>` — rotating customer logo strip, typically placed in hero sections.
 - `<modal>` — modal dialog. Control visibility with `v-if="modal === 'modal-name'"` and `@close="closeModal()"`. Commonly used for video embeds.
+
+"Get a demo" buttons link to `/contact?talkToUs`.
+
+#### Building components
+- Scope component LESS to `[parasails-component='name'], #component-id` (see `call-to-action.component.less`). The ID lets component styles win over page-scoped `#page-id` rules.
+- When a similar component used to exist (e.g. the signup modal), look for it in git history and follow its pattern.
 
 #### Video modal pattern
 Landing pages typically include a "See Fleet in action" video button. The pattern requires:
 1. Page script: add `modal: ''` to `data`, plus `clickOpenVideoModal` and `closeModal` methods
 2. Template: add a `<modal purpose="video-modal">` with a YouTube iframe
-3. LESS: include responsive video modal styles (see `assets/styles/pages/linux-management.less` for reference)
+3. LESS: include responsive video modal styles (copy them from a recent landing page that has a video modal)
 
 #### Testimonials
 Testimonials are defined in `handbook/company/testimonials.yml` and compiled into `sails.config.builtStaticContent.testimonials`. Each has `quote`, `quoteAuthorName`, `quoteAuthorJobTitle`, `productCategories` (e.g., `Device management`, `Observability`, `Software management`), and optional media fields.
 
-View actions that use `<scrollable-tweets>` must filter/sort testimonials and return them as `testimonialsForScrollableTweets`. See `api/controllers/landing-pages/view-linux-management.js` for the pattern.
+View actions that use `<scrollable-tweets>` must filter/sort testimonials and return them as `testimonialsForScrollableTweets`. Copy the pattern from a recent landing page's view action.
 
 ### Cloud SDK (API calls)
 Frontend-to-backend API calls use `Cloud.*` methods, invoked by the `ajax-form` component or via a page script's `handleSubmitting` function. Each Cloud method maps to a backend action. After adding or renaming an action, regenerate the SDK:
@@ -90,10 +98,17 @@ sails run rebuild-cloud-sdk
 ```
 
 ### Ajax forms
-Form submission uses `<ajax-form>` — either `action="cloudMethodName"` for simple cases or `:handle-submitting="fn"` for custom logic. State props (`syncing`, `cloudError`, `formErrors`) use `.sync`. See `views/pages/contact.ejs` for a full example; see `assets/js/components/ajax-form.component.js` for supported validation rules.
+Form submission uses `<ajax-form>` — either `action="cloudMethodName"` for simple cases or `:handle-submitting="fn"` for custom logic. State props (`syncing`, `cloudError`, `formErrors`) use `.sync`. See an existing page with a form for a full example; see `assets/js/components/ajax-form.component.js` for supported validation rules.
+
+Forms inside components use `<ajax-form action="cloudMethodName" @submitted="handler">`, with the success logic in the component's handler method. Don't add a separate utility or wrapper around the Cloud call.
+
+### Scripts in `layout.ejs`
+Don't move existing scripts (analytics, tracking, etc.) between `<head>` and the end of `<body>` without asking. Their placement is usually deliberate.
 
 ### Global browser variables
 `parasails`, `Cloud`, `io`, `_` (Lodash), `$` (jQuery), `moment`, `bowser`, `Vue`, `Stripe`, `gtag`, `ace`
+
+`_` is **Lodash 3.10** in both the browser and server code (Sails' `@sailshq/lodash`). Lodash 4 methods like `_.uniqBy`, `_.flatMap`, `_.keyBy`, and `_.sumBy` don't exist — use 3.10 equivalents (`_.uniq` with an iteratee, `_.indexBy`, `_.sum` with an iteratee, `_.pluck`, `_.sortByAll`) or native methods.
 
 ### Image naming
 Images in `assets/images/` follow the pattern: `{category}-{descriptor}-{css-dimensions}@2x.{extension}`
@@ -102,6 +117,8 @@ The dimensions in the filename are CSS pixels (half the actual pixel resolution)
 ```
 icon-checkmark-green-16x16@2x.png
 ```
+
+When adding images from a design export, rename them to this pattern before referencing them, using the export's pixel dimensions divided by 2.
 
 ## CSS/LESS conventions
 
@@ -240,7 +257,7 @@ The build script enforces several rules and will throw errors for:
 
 ## Creating new pages
 
-**Always use `sails generate page <name>` or `sails generate page <folder>/<name>` — don't hand-create the controller/view/script/LESS files.** The generator produces the correct Actions2 shape, view path, and locals boilerplate; manual scaffolding is error-prone (wrong exits, missing `exposeLocalsToBrowser()` footer, etc.).
+**Always use `sails generate page <name>` or `sails generate page <folder>/<name>` — don't hand-create the controller/view/script/LESS files, and don't copy another page's files as a starting point.** Run the generator first, then bring markup and LESS patterns from other pages into the generated files. The generator produces the correct Actions2 shape, view path, and locals boilerplate; manual scaffolding is error-prone (wrong exits, missing `exposeLocalsToBrowser()` footer, etc.).
 
 The generator creates four files. For root-level pages, use `<name>` paths; for nested pages, include the `<folder>/` segment:
 - `api/controllers/view-<name>.js` or `api/controllers/<folder>/view-<name>.js`
@@ -252,10 +269,19 @@ The generator creates four files. For root-level pages, use `<name>` paths; for 
 1. Add the route in `config/routes.js` with `pageTitleForMeta` and `pageDescriptionForMeta` under `locals`.
 2. Add the matching import to `assets/styles/importer.less`: `@import 'pages/<name>.less';` for root-level pages or `@import 'pages/<folder>/<name>.less';` for nested pages.
 3. If the page needs to bypass `is-logged-in`, update `config/policies.js` (not needed under folders already bypassing it, e.g. `landing-pages/`).
-4. Re-lift the dev server — backend changes don't hot-reload.
+4. Add the page's path to the list in `api/controllers/download-sitemap.js`.
+5. Re-lift the dev server — backend changes don't hot-reload. On lift, Grunt adds a `<script>` tag for the new page script to `views/layouts/layout.ejs`; commit that change with the page files.
 
 ### Reuse existing styles, layout, and elements
-New pages should mirror the structure and styling of existing landing pages rather than inventing new patterns. Before writing markup or LESS, open 1–2 existing landing pages in `views/pages/landing-pages/` (e.g. `linux-management.ejs`, `replace-jamf.ejs`) and their paired stylesheets in `assets/styles/pages/landing-pages/`, and copy the section scaffolding — hero, feature rows, `<scrollable-tweets>`, `bottom-gradient`, `<parallax-city>` footer — along with the `[purpose='...']` naming conventions. Reuse existing components (`<logo-carousel>`, `<animated-arrow-button>`, `<modal>`, video modal pattern) instead of building one-off equivalents. Only introduce new `[purpose]` blocks or LESS variables when nothing existing fits.
+New pages should mirror the structure and styling of existing landing pages rather than inventing new patterns. Before writing markup or LESS, open 1–2 recently added landing pages and their paired stylesheets, and copy the section scaffolding — hero, feature rows, `<scrollable-tweets>`, `bottom-gradient`, `<parallax-city>` footer — along with the `[purpose='...']` naming conventions. Reuse existing components (`<logo-carousel>`, `<animated-arrow-button>`, `<modal>`, video modal pattern) instead of building one-off equivalents. Only introduce new `[purpose]` blocks or LESS variables when nothing existing fits.
+
+### Copy, placeholders, and TODOs
+- Use copy from wireframes or from the user word for word. Don't write marketing copy (FAQ answers, feature descriptions, etc.) to fill gaps — leave a TODO and say exactly what's missing.
+- Customer quotes are verbatim. If a name or job title doesn't match `handbook/company/testimonials.yml`, flag it instead of changing it.
+- Missing images: use `src="TODO"`.
+- If the page's meta title or description isn't clear from the content, use `TODO` for `pageTitleForMeta` / `pageDescriptionForMeta` in `config/routes.js`.
+- Alt text for event photos stays generic (e.g. "Fleet workshop attendees"), not people's names.
+- **Always tell the user about every placeholder and TODO you leave**, listed in your summary.
 
 ### Deprecated
 Do **not** use `sails generate landing-page` (the custom generator under `website/generators/landing-page/`). It's deprecated; use `sails generate page` for landing pages too.
@@ -276,6 +302,14 @@ npm run start-dev       # Start dev server with live reload
 npm run lint            # Run ESLint + HTMLHint + lesshint
 npm run build-for-prod  # Compile markdown, build and minify assets
 ```
+
+The dev server runs on port 2024. Check whether one is already running before lifting another.
+
+In the default development environment, scripts that don't need the database can disable the ORM and skip database-dependent bootstrap work: `sails_hooks__orm=false sails_models__migrate=safe sails run <script>`. For the profile generator tests, use `sails_hooks__orm=false sails_models__migrate=safe npm run test-profile-generator`.
+
+## Git
+
+When restoring files to their pre-branch state, restore from the merge base (`git merge-base main HEAD`), not from `main`'s tip — otherwise unrelated newer changes from `main` get pulled in.
 
 ## Linting
 

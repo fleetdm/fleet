@@ -180,7 +180,7 @@ describe("HostSoftware", () => {
     });
 
     await user.click(await screen.findByRole("button", { name: "Filtered" }));
-    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     const url = new URL(replace.mock.calls[0][0], "http://fleet");
@@ -226,9 +226,9 @@ describe("HostSoftware", () => {
     });
 
     await user.click(await screen.findByRole("button", { name: "Filtered" }));
-    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
     await user.click(
-      screen.getByRole("checkbox", { name: "Chrome extension" })
+      screen.getByRole("checkbox", { name: "Browser extension (Chrome)" })
     );
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
@@ -255,10 +255,10 @@ describe("HostSoftware", () => {
       await screen.findByRole("button", { name: "Add filters" })
     );
     expect(
-      screen.getByRole("checkbox", { name: "Windows app" })
+      screen.getByRole("checkbox", { name: "App (Windows)" })
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("checkbox", { name: "macOS app" })
+      screen.queryByRole("checkbox", { name: "App (macOS)" })
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: "Script-only package (.ps1)" })

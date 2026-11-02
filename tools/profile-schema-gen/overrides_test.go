@@ -107,6 +107,11 @@ loosen:
     key_path: Mode
     action: any
     reason: any value means no value constraints
+  - kind: apple_profile
+    payload_type: com.apple.MCX
+    key_path: com.apple.EnergySaver.portable
+    action: open
+    reason: vendors add their own keys
 `))
 	scep := notNil(t, s.AppleProfiles["com.apple.security.scep"])
 	// Types are unioned, never replaced; listing the existing type again doesn't duplicate it.
@@ -121,6 +126,10 @@ loosen:
 	assert.JSONEq(t, `{"type": "any", "open": true, "required": true, "override": "any value means no value constraints",
 		"keys": {"Nested": {"type": "integer", "range": {"min": 0}}}}`,
 		jsonOf(t, notNil(t, s.AppleProfiles["com.apple.constrained"]).Keys["Mode"]))
+	// "open" keeps the dictionary's type and listed keys, which stay checked.
+	assert.JSONEq(t, `{"type": "dictionary", "open": true, "override": "vendors add their own keys",
+		"keys": {"BatteryPower": {"type": "integer"}}}`,
+		jsonOf(t, notNil(t, s.AppleProfiles["com.apple.MCX"]).Keys["com.apple.EnergySaver.portable"]))
 	// The payload type itself isn't marked; only what was changed.
 	assert.Empty(t, scep.Override)
 }
@@ -329,6 +338,7 @@ loosen:
   - {kind: windows, loc_uri: ./Device/Vendor/MSFT/C, action: types, types: [string, node, any, chr], reason: r}
   - {kind: apple_profile, payload_type: com.apple.MCX, key_path: k, action: types, types: [chr, strng, any, string], reason: r}
   - {kind: apple_declaration, declaration_type: com.apple.configuration.x, key_path: k, action: types, types: [int], reason: r}
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/D, action: open, reason: r}
 `,
 			wantErrs: []string{
 				"loosen[0] (windows ./Device/Vendor/MSFT/A x): windows entries take no key_path; loc_uri is the node",
@@ -341,6 +351,7 @@ loosen:
 				`loosen[4] (apple_profile com.apple.MCX k): types: "strng" isn't valid for apple_profile`,
 				`loosen[4] (apple_profile com.apple.MCX k): types: "any" isn't valid for apple_profile`,
 				`loosen[5] (apple_declaration com.apple.configuration.x k): types: "int" isn't valid for apple_declaration`,
+				`loosen[6] (windows ./Device/Vendor/MSFT/D ): action "open" applies to Apple dictionaries only`,
 			},
 		},
 		{
@@ -352,6 +363,7 @@ loosen:
   - {kind: apple_profile, payload_type: com.apple.MCX, action: types, reason: r}
   - {kind: apple_profile, payload_type: com.apple.MCX, key_path: b, action: any, types: [string], reason: r}
   - {kind: apple_profile, payload_type: com.apple.MCX, key_path: c, action: any, name: n, reason: r}
+  - {kind: apple_profile, payload_type: com.apple.MCX, key_path: d, action: open, types: [string], reason: r}
 add:
   - {kind: apple_profle, payload_type: x, name: n, key: {type: string}, reason: r}
   - {kind: apple_profile, payload_type: x, key: {type: string}, reason: r}
@@ -369,12 +381,13 @@ allow:
 `,
 			wantErrs: []string{
 				"loosen[1] (apple_profile com.apple.MCX a): reason is required",
-				`loosen[1] (apple_profile com.apple.MCX a): action must be "types" or "any", got "widen"`,
+				`loosen[1] (apple_profile com.apple.MCX a): action must be "types", "any", or "open", got "widen"`,
 				"loosen[1] (apple_profile com.apple.MCX a): targets the same thing as loosen[0]",
 				"loosen[2] (apple_profile com.apple.MCX ): key_path is required",
 				`loosen[2] (apple_profile com.apple.MCX ): action "types" needs a non-empty types list`,
 				`loosen[3] (apple_profile com.apple.MCX b): action "any" takes no types`,
 				"loosen[4] (apple_profile com.apple.MCX c): loosen takes no name, key, or keys",
+				`loosen[5] (apple_profile com.apple.MCX d): action "open" takes no types`,
 				`add[0] (apple_profle  ): kind must be apple_profile, apple_declaration, or windows, got "apple_profle"`,
 				"add[1] (apple_profile x ): name is required",
 				"add[2] (apple_profile x ): key with a type is required",
@@ -411,6 +424,7 @@ func TestApplyOverridesSchemaErrors(t *testing.T) {
 loosen:
   - {kind: apple_profile, payload_type: com.apple.MCX, key_path: noSuchKey, action: any, reason: r}
   - {kind: apple_profile, payload_type: com.example.missing, key_path: x, action: any, reason: r}
+  - {kind: apple_profile, payload_type: com.apple.Safari, key_path: ShowFullURL, action: open, reason: r}
 add:
   - {kind: apple_profile, payload_type: com.apple.security.scep, key_path: PayloadContent.missing, name: n, key: {type: string}, reason: r}
   - {kind: apple_profile, payload_type: com.apple.security.scep, key_path: Key Type, name: n, key: {type: string}, reason: r}
@@ -420,13 +434,14 @@ add:
 	for _, want := range []string{
 		`loosen[0] (apple_profile com.apple.MCX noSuchKey): key_path "noSuchKey" not found (no key matches "noSuchKey"); Apple may have renamed or removed it`,
 		"loosen[1] (apple_profile com.example.missing x): com.example.missing isn't in the schema",
+		`loosen[2] (apple_profile com.apple.Safari ShowFullURL): key_path "ShowFullURL" is a [boolean], not a dictionary`,
 		`add[0] (apple_profile com.apple.security.scep PayloadContent.missing): key_path "PayloadContent.missing" not found (no key matches "missing")`,
 		`add[1] (apple_profile com.apple.security.scep Key Type): key_path "Key Type" is a [string], not a dictionary`,
 		"add[2] (apple_declaration com.apple.configuration.nope ): com.apple.configuration.nope isn't in the schema",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
-	assert.Len(t, strings.Split(err.Error(), "\n"), 6, "a header line plus one line per problem")
+	assert.Len(t, strings.Split(err.Error(), "\n"), 7, "a header line plus one line per problem")
 }
 
 func TestResolveKeyPath(t *testing.T) {

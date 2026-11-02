@@ -50,6 +50,13 @@ module.exports = {
       description: 'Whether to ask for a .mobileconfig\'s payloads, or a Windows profile\'s commands, and their values, rather than the document itself.',
       extendedDescription: 'Only .mobileconfig and Windows profiles are written from settings; every other profile type ignores this.',
     },
+
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether the profile is for Fleet, which adds the rules and limits of Fleet\'s own profile checks.'
+    },
+
   },
 
 
@@ -62,7 +69,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, applePayloadTypes, writeProfilesFromSettings}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, applePayloadTypes, writeProfilesFromSettings, forFleet}) {
 
     let path = require('path');
     let isWrittenFromSettings = writeProfilesFromSettings && (profileType === 'mobileconfig' || profileType === 'csp');
@@ -102,6 +109,27 @@ differs from what it sits in: \`[only iOS]\` means the key does nothing on any o
           `Could not read the Apple ${profileType} schema at ${schemaFilePath}.  Run ` +
           `\`sails run regenerate-apple-profile-schemas\` to build it.  Full error: ${err.message}`
         );
+      }
+
+      // Fleet rejects these declaration types on upload, and cannot deliver the asset declarations the others require.
+      // Filtered in a copy, since `require` hands every caller the same cached object.
+      if(profileType === 'ddm' && forFleet) {
+        const DECLARATION_TYPES_FLEET_REJECTS = [
+          'com.apple.configuration.watch.enrollment',
+          'com.apple.configuration.account.google',
+          'com.apple.management.server-capabilities',
+          'com.apple.configuration.management.status-subscriptions',
+          'com.apple.configuration.package',
+        ];
+        schemaFile = Object.assign({}, schemaFile, {
+          entries: _.compact(_.map(schemaFile.entries, (entry)=>{
+            if(_.contains(DECLARATION_TYPES_FLEET_REJECTS, entry.name)) {
+              return undefined;
+            }
+            let pruned = withoutAssetReferences(entry.keys);
+            return pruned.lostARequiredKey ? undefined : Object.assign({}, entry, { keys: pruned.keys });
+          })),
+        });
       }
 
       // A nested key renders inside its parent's braces, so no parent can be rendered until every one of
@@ -238,11 +266,12 @@ differs from what it sits in: \`[only iOS]\` means the key does nothing on any o
       // With describeKeys, which is only affordable once the payload types have been narrowed, every key
       // gets a line and Apple's description of it.  A gloss wins over the description where there is one,
       // since glosses are kept longer precisely because the constraint is in their second sentence.
-      let renderEntries = (entries, {describeKeys})=>{
+      let renderEntries = (entries, {describeKeys, markUserChannelOnly})=>{
         let lines = [];
         for (let entry of entries) {
           let availability = availabilityText(entry.supportedOS);
-          lines.push(availability ? `${entry.name}  [${availability}]` : entry.name);
+          let userChannelOnly = markUserChannelOnly && entry.userChannelOnly ? `  (on ${entry.userChannelOnly.join(', ')}: user channel only)` : '';
+          lines.push((availability ? `${entry.name}  [${availability}]` : entry.name) + userChannelOnly);
 
           let plainKeys = [];
           let keysWithTheirOwnLine = [];
@@ -395,7 +424,7 @@ domain in neither list is an Apple preference domain with no MDM manifest, or a 
 the ProfileManifests reference.  Fall back to one of those only when nothing listed covers the setting,
 and if you cannot recall its keys, return the "couldNotGenerateProfile" shape rather than guessing.`;
       } else {
-        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false});
+        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false, markUserChannelOnly: profileType === 'ddm' && forFleet});
         appleSchemaDescription =
 `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
 from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
@@ -661,6 +690,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           ]),
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
+          'Never write to the DMClient, DMAcc, or EnrollmentStatusTracking CSPs.  The MDM uses them to manage the device, and a profile that changes them can cut the device off from it.  If the request needs one of them, such as changing how often the device checks in, return the "couldNotGenerateProfile" shape.',
+          'Microsoft Edge has no CSP nodes of its own.  The Policy CSP\'s Browser area configures Edge Legacy, which current Windows no longer has, so a profile that uses it does nothing.  For any request about Microsoft Edge, return the "couldNotGenerateProfile" shape.',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
           ...(isWrittenFromSettings ? [
@@ -899,8 +930,17 @@ a field that does not appear here does not exist.`,
       // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
       // session", so it is only offered when the request asks for a default.
       let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // The MDM uses these CSPs to manage the device itself, so a profile that writes to them can cut the device off from its MDM.
+      const MANAGEMENT_PLANE_CSPS = ['DMClient', 'DMAcc', 'EnrollmentStatusTracking'];
       // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
       let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
+          return false;
+        }
+        // Fleet accepts <Exec> only for its own certificate commands, so a node that can only be executed is unusable there.
+        if(forFleet && /Exec/.test(node.accessType || '') && !/Add|Replace/.test(node.accessType || '')) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }
@@ -1303,7 +1343,28 @@ to the profile automatically after you return it.`;
     }
 
 
-    let numberedRules = sharedRules.concat(promptConfig.rules, deliveryNotesRules)
+    // Kept off the public page, which generates for any MDM.  Placed after the type's own rules so they win where the two
+    // disagree, e.g. the CSP rules list <Exec> as a valid command.
+    let fleetRules = [];
+    if(forFleet) {
+      fleetRules = [
+        'This profile is for Fleet.  The rules from here on are Fleet\'s, and they override any rule above that they contradict.',
+        'Return the "couldNotGenerateProfile" shape for any request to enroll or install a certificate identity: SCEP, ACME, PKCS12, or a Wi-Fi or VPN network that authenticates with a client certificate (EAP-TLS).  Fleet configures those with its own certificate authority integrations.',
+        'Return the "couldNotGenerateProfile" shape for any Platform SSO request.  Other single sign-on extensions, such as the Kerberos SSO extension, still generate.',
+        'Fleet has its own features for two kinds of settings.  FileVault and BitLocker settings belong to its Disk encryption feature.  OS update settings -- the Policy CSP Update area on Windows, and software update payloads, keys and declarations on Apple -- belong to its OS updates feature.  Still generate the profile as asked, and name the feature in "deliveryNotes", e.g. "Fleet\'s OS updates feature can manage this instead."  For these settings "deliveryNotes" is never empty.',
+        'Write credentials the admin supplied as literals, and say in "deliveryNotes" to replace them with a Fleet secret variable ($FLEET_SECRET_<NAME>) so the credential is not stored in the profile.',
+      ].concat({
+        csp: [
+          'Never use <Exec>.  Fleet only accepts <Replace>, <Add>, and <Atomic>, so a request to run something on the device -- reboot it, wipe it, install an app -- returns the "couldNotGenerateProfile" shape.',
+        ],
+        ddm: [
+          'Never write a key that ends in AssetReference, since Fleet cannot deliver the asset declaration it points to.  If the setting needs one, return the "couldNotGenerateProfile" shape rather than describing the asset in "deliveryNotes".',
+          'A declaration type marked "(on macOS: user channel only)" does nothing on a Mac unless Fleet delivers it to the user, so add a top-level "PayloadScope": "User" key beside Type, Identifier and Payload.  Say in "deliveryNotes" that the declaration needs the Mac\'s user channel, which Fleet creates for Macs that enroll automatically, and fails on iPhones and iPads, so it should be scoped to those Macs with a label.  When the instructions name only iPhones or iPads, leave "PayloadScope" out.',
+        ],
+      }[profileType] || []);
+    }
+
+    let numberedRules = sharedRules.concat(promptConfig.rules, fleetRules, deliveryNotesRules)
       .map((rule, idx)=>`${idx + 1}. ${rule}`)
       .join('\n    ');
 
@@ -1388,3 +1449,32 @@ ${uuidsToUse}${hexEncodingsToUse}
 
 };
 
+
+/**
+ * A declaration's keys without its asset references, at any depth.
+ *
+ * Fleet cannot deliver the asset declarations these point to.  A dictionary or array item that requires one goes
+ * with it, and so on up, so an optional part such as an app's password items is dropped while the rest of the
+ * declaration stays usable.
+ *
+ * @param  {Array} keys
+ * @returns {Dictionary}  {keys, lostARequiredKey}: whether a required key at this level had to go
+ */
+function withoutAssetReferences(keys) {
+  let lostARequiredKey = false;
+  let kept = _.compact(_.map(keys || [], (key)=>{
+    let goes = /AssetReferences?$/.test(key.key);
+    let subkeys;
+    if(!goes && key.subkeys) {
+      let pruned = withoutAssetReferences(key.subkeys);
+      goes = pruned.lostARequiredKey;
+      subkeys = pruned.keys;
+    }
+    if(goes) {
+      lostARequiredKey = lostARequiredKey || !!key.required;
+      return undefined;
+    }
+    return subkeys ? Object.assign({}, key, { subkeys }) : key;
+  }));
+  return { keys: kept, lostARequiredKey };
+}

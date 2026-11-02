@@ -65,6 +65,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	googlecas_mock "github.com/fleetdm/fleet/v4/server/mock/googlecas"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -113,6 +114,8 @@ type integrationMDMTestSuite struct {
 	mdmCommander   *apple_mdm.MDMAppleCommander
 	logger         *slog.Logger
 	scepChallenge  string
+	// googleCASService stands in for Google CAS, which tests that create Google CAS CAs program.
+	googleCASService *googlecas_mock.Service
 
 	acmeCertCA  *x509.Certificate
 	acmeCertKey *ecdsa.PrivateKey
@@ -136,13 +139,26 @@ type integrationMDMTestSuite struct {
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
 type appleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
-	Location      string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token file's
+	// base64 content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
+	Location       string
 	// Disassociations records every /assets/disassociate request the mock
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// AuthCalls records the path and Authorization header of every
+	// /assets/associate and /assets/disassociate request, in order. Used by
+	// tests that assert which VPP token an operation used.
+	AuthCalls []appleVPPAuthCall
+}
+
+type appleVPPAuthCall struct {
+	Path          string
+	Authorization string
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -215,6 +231,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
+	conditionalAccessSCEPStorage, err := s.ds.NewConditionalAccessSCEPDepot(slog.New(slog.DiscardHandler), &fleetCfg)
+	s.Require().NoError(err)
 
 	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -320,6 +338,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.softwareInstallerStore = softwareInstallerStore
 	if localS3Enabled {
 		s.stagedUploadStore = s3test.SetupStagedUploadStore(s.T(), "integration-tests", "")
+		fleetCfg.S3.SoftwareInstallersSignedURL = true
+		fleetCfg.S3.SoftwareInstallersBucket = "integration-tests"
 	}
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = svc_scep.NewSCEPConfigService(serverLogger, scepTimeout).(*svc_scep.SCEPConfigService)
@@ -331,16 +351,19 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	keyValueStore := redis_key_value.New(s.redisPool)
 
+	s.googleCASService = &googlecas_mock.Service{}
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
+		GoogleCASService:       s.googleCASService,
 		DBConns:                s.dbConns,
 		Logger:                 serverLogger,
 		FleetConfig:            &fleetCfg,
 		MDMStorage:             mdmStorage,
 		DEPStorage:             depStorage,
 		SCEPStorage:            scepStorage,
+		ConditionalAccess:      &ConditionalAccess{SCEPStorage: conditionalAccessSCEPStorage},
 		MDMPusher:              mdmPushService,
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
@@ -554,7 +577,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
 	appleMDMJob.InHouseAppInstaller = svc
-	softwareWorker.VPPInstaller = svc
 
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
@@ -623,10 +645,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assetsForRequest := func() []vpp.Asset {
+			if assets, ok := s.appleVPPConfigSrvConfig.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]; ok {
+				return assets
+			}
+			return s.appleVPPConfigSrvConfig.Assets
+		}
+
 		// Handle /assets/disassociate — must come before the /associate
 		// catch-all below (HasSuffix prevents the substring "associate" from
 		// swallowing this case). Records every call so tests can assert Fleet
 		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") || strings.HasSuffix(r.URL.Path, "/associate") {
+			s.appleVPPConfigSrvConfig.AuthCalls = append(s.appleVPPConfigSrvConfig.AuthCalls, appleVPPAuthCall{Path: r.URL.Path, Authorization: r.Header.Get("Authorization")})
+		}
 		if strings.HasSuffix(r.URL.Path, "/disassociate") {
 			var req vpp.DisassociateAssetsRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -678,7 +710,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var badAssets []vpp.Asset
 			for _, reqAsset := range associations.Assets {
 				var found bool
-				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
+				for _, goodAsset := range assetsForRequest() {
 					if reqAsset == goodAsset {
 						found = true
 					}
@@ -741,9 +773,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var assets []vpp.Asset
 			switch adamID {
 			case "":
-				assets = s.appleVPPConfigSrvConfig.Assets
+				assets = assetsForRequest()
 			default:
-				for _, a := range s.appleVPPConfigSrvConfig.Assets {
+				for _, a := range assetsForRequest() {
 					if a.AdamID == adamID {
 						assets = []vpp.Asset{a}
 					}

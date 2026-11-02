@@ -134,6 +134,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 		noopGraphClientFactory,
 	)
 	if err != nil {
