@@ -113,7 +113,7 @@ To add another package to a software:
 
 Each package has its own [target labels](https://fleetdm.com/guides/managing-labels-in-fleet), [self-service](https://fleetdm.com/guides/software-self-service) availability, categories, and advanced options. Scope each package to a distinct set of labels so that each host matches only one package.
 
-> If multiple packages target the same host, Fleet installs the one that was added first.
+> If multiple versions target the same host, Fleet will deploy the one that was added first.
 
 During [setup experience](https://fleetdm.com/guides/setup-experience), Fleet installs the package that was added first. Labels don't apply during setup experience.
 

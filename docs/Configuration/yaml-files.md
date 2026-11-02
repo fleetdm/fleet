@@ -809,7 +809,7 @@ You can add multiple packages for the same software in a package YAML file. This
 
 `self_service`, `categories`, and labels are defined per package. `setup_experience` is defined on the fleet-level.
 
-If multiple packages target the same host, Fleet will install the one that was added first.
+If multiple versions target the same host, Fleet will deploy the one that was added first.
 
 > In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
 >
