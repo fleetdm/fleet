@@ -299,17 +299,6 @@ What to do: Change `centos` and `ubuntu` label platforms to `linux`. Identify ho
 
 Issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
-### Host identifiers for personal and Android hosts
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `uuid` and `hardware_serial` for personal (BYOD) iOS, iPadOS, and Android hosts | Empty strings. `enrollment_id` has the enrollment ID ([docs](https://fleetdm.com/docs/rest-api/rest-api#get-host)). |
-| `uuid` for company-owned Android hosts (a hash of the brand and serial) | Empty string. `hardware_serial` doesn't change, and `enrollment_id` is `null`. |
-
-What to do: Identify personal hosts by `enrollment_id`, and company-owned Android hosts by `hardware_serial`.
-
-Issue: [#53797](https://github.com/fleetdm/fleet/issues/53797)
-
 ### Android Lock resets the PIN
 
 | Fleet 4 | Fleet 5 |
