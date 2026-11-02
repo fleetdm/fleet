@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "153.4.0",
+      "version": "153.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '153.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '153.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.4.0esr/win64/en-US/Firefox%20Setup%20153.4.0esr.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.5.1esr/win64/en-US/Firefox%20Setup%20153.5.1esr.exe",
       "install_script_ref": "ca7ecb64",
       "uninstall_script_ref": "5dc712f7",
-      "sha256": "3f69fe432de892a9da2ef6ae4f4c568747823c32c6fba9f742f4d6e062bc722d",
+      "sha256": "833147d8124d77331afbc35ef9f85f158dffb633f6d7586ede64f4601131e86c",
       "default_categories": [
         "Browsers"
       ]

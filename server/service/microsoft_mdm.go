@@ -4787,6 +4787,18 @@ func executeWindowsProfileReconcileBatch(
 	// currentByHost is the host_mdm_windows_profiles rows as of the reconcile snapshot.
 	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 ) error {
+	// The enqueues below leave the status rollup to us. Refresh it once for the batch's hosts, also after a partial failure since the
+	// earlier commands are already committed. A miss is healed by the hourly windows_profiles_status_reconcile cron.
+	defer func() {
+		hostUUIDs := make([]string, 0, len(toInstall)+len(toRemove))
+		for _, p := range slices.Concat(toInstall, toRemove) {
+			hostUUIDs = append(hostUUIDs, p.HostUUID)
+		}
+		if err := ds.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs); err != nil {
+			logger.ErrorContext(ctx, "refreshing windows profiles status rollup after reconcile", "hosts", len(hostUUIDs), "err", err)
+		}
+	}()
+
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents

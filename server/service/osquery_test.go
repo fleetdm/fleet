@@ -2740,6 +2740,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
+	ds.OtherMDMHostIDWithUUIDFunc = func(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {
+		return 0, nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -2929,6 +2932,9 @@ func TestDetailQueries(t *testing.T) {
 
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 		return fleet.DeviceNameNotRetried, nil
+	}
+	ds.OtherMDMHostIDWithUUIDFunc = func(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {
+		return 0, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
