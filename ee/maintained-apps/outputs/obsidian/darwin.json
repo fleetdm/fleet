@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.14.5",
+      "version": "1.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian' AND version_compare(bundle_short_version, '1.14.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian' AND version_compare(bundle_short_version, '1.15.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'md.obsidian' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.5/Obsidian-1.14.5.dmg",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.0/Obsidian-1.15.0.dmg",
       "install_script_ref": "deadb8fc",
       "uninstall_script_ref": "b8a31bbc",
-      "sha256": "be79e6410d80fa705218aa4e8cb24ce8418cf16e13be4036227a5659b1f6aab2",
+      "sha256": "d3f837e6fd3efaf65fa0bec987b18296982995d4ddae3171a7f7f67e0e2b7aa8",
       "default_categories": [
         "Productivity"
       ]
