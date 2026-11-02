@@ -829,6 +829,49 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 		})
 
+		t.Run("BitLocker host without a Fleet MDM enrollment has no status", func(t *testing.T) {
+			hostUUID := uuid.New().String()
+			h, err := ds.NewHost(ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				NodeKey:         &hostUUID,
+				UUID:            hostUUID,
+				Hostname:        hostUUID,
+				Platform:        "windows",
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, ds.DeleteHost(ctx, h.ID)) })
+
+			bitLockerStatus := func() *fleet.HostMDMDiskEncryption {
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				return bls
+			}
+			setEnrollmentState := func(state string) {
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET device_state = ? WHERE host_uuid = ?`, state, hostUUID)
+					return err
+				})
+			}
+
+			// enrolled in a third-party MDM, so there is no Fleet enrollment row
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+				fleet.PersonalEnrollmentTypeNone))
+			require.Nil(t, bitLockerStatus())
+
+			windowsEnroll(t, ds, h)
+			setEnrollmentState(microsoft_mdm.MDMDeviceStateNotEnrolled)
+			require.Nil(t, bitLockerStatus())
+
+			setEnrollmentState(microsoft_mdm.MDMDeviceStateEnrolled)
+			bls := bitLockerStatus()
+			require.NotNil(t, bls)
+			require.NotNil(t, bls.Status)
+			require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+		})
+
 		t.Run("OS settings filters include Windows and macOS hosts", func(t *testing.T) {
 			// Make macOS host fail disk encryption
 			require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{

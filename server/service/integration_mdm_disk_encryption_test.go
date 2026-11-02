@@ -2413,6 +2413,18 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	// filters should NOT return this host
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+
+	// the host details agree with the stats: winHost2 has no disk encryption status
+	hostDiskEncryptionStatus := func(hostID uint) *fleet.DiskEncryptionStatus {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+		return getHostResp.Host.MDM.OSSettings.DiskEncryption.Status
+	}
+	winHost1Status := hostDiskEncryptionStatus(winHost1.ID)
+	require.NotNil(t, winHost1Status)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *winHost1Status)
+	require.Nil(t, hostDiskEncryptionStatus(winHost2.ID))
 }
 
 // Test for #24266
