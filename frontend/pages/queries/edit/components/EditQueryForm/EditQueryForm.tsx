@@ -10,7 +10,6 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -290,22 +289,23 @@ const EditQueryForm = ({
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
 
-  const debounceSQL = useDebouncedCallback((sql: string) => {
-    const { errors: newErrors } = validateQuerySQL(sql);
-
-    setErrors({
-      ...newErrors,
-    });
-  }, 500);
-
   queryIdForEdit = queryIdForEdit || 0;
 
+  // Compute compatibility once the stored query lands. Validation and
+  // compatibility update on editor blur and on submit, not on every
+  // keystroke, so incomplete SQL doesn't flash "Syntax error" mid-type.
   useEffect(() => {
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-    debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
+
+  const validateAndSetCompat = (sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors({ ...newErrors });
+    setCompatiblePlatforms(sql);
+  };
 
   const toggleSaveNewQueryModal = () => {
     setShowSaveNewQueryModal(!showSaveNewQueryModal);
@@ -777,6 +777,7 @@ const EditQueryForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
+            onBlur={() => validateAndSetCompat(lastEditedQueryBody)}
             handleSubmit={
               confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }

@@ -20,11 +20,13 @@ jest.mock("components/SQLEditor", () => ({
     value,
     error,
     onChange,
+    onBlur,
   }: {
     name?: string;
     value: string;
     error?: string;
     onChange?: (value: string) => void;
+    onBlur?: () => void;
   }) => (
     <>
       {error && <span>{error}</span>}
@@ -32,6 +34,7 @@ jest.mock("components/SQLEditor", () => ({
         data-testid={`sql-editor-${name}`}
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
+        onBlur={() => onBlur?.()}
       />
     </>
   ),
@@ -62,12 +65,19 @@ const renderPage = () => {
 };
 
 describe("NewLabelPage dynamic label query", () => {
-  it("shows a syntax error for an invalid query without disabling Save", async () => {
+  it("shows a syntax error for an invalid query on blur without disabling Save", async () => {
     const { user } = renderPage();
 
     const editor = screen.getByTestId("sql-editor-query");
     await user.clear(editor);
     await user.type(editor, "SELEC * FRM users");
+
+    // Validation runs on blur, not on keystroke.
+    expect(
+      screen.queryByText(syntaxErrorFor("SELEC * FRM users"))
+    ).not.toBeInTheDocument();
+
+    await user.tab();
 
     expect(
       await screen.findByText(syntaxErrorFor("SELEC * FRM users"))
@@ -81,10 +91,13 @@ describe("NewLabelPage dynamic label query", () => {
     const editor = screen.getByTestId("sql-editor-query");
     await user.clear(editor);
     await user.type(editor, "SELEC 1");
+    await user.tab();
     await screen.findByText(syntaxErrorFor("SELEC 1"));
 
+    await user.click(editor);
     await user.clear(editor);
     await user.type(editor, "SELECT 1");
+    await user.tab();
     await waitFor(() => {
       expect(
         screen.queryByText(syntaxErrorFor("SELEC 1"))

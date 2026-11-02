@@ -7,7 +7,6 @@ import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
 import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
-import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
@@ -476,12 +475,14 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      // Wait past the 500ms debounce so the SQL validator runs and flags the
-      // syntax error. The error surfaces as SQLEditor's label text.
-      await waitFor(() => {
-        expect(screen.getByText(expectedSelectErr(1))).toBeInTheDocument();
-      });
+      // Validation runs on editor blur / submit, not on mount: the user
+      // should not see a syntax error before they interact with the editor.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(
+        screen.queryByText(/Syntax error\. Please review before saving\./)
+      ).not.toBeInTheDocument();
 
+      // Save stays enabled for syntactically invalid (but non-empty) SQL.
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);

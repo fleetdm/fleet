@@ -6,7 +6,6 @@ import { size } from "lodash";
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
-import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -233,19 +232,17 @@ const PolicyForm = ({
     config?.server_settings.ai_features_disabled || false;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const debounceSQL = useDebouncedCallback((sql: string) => {
-    const { errors: newErrors } = validateQuerySQL(sql);
-
-    setErrors({
-      ...newErrors,
-    });
-  }, 500);
-
   const platformCompatibility = usePlatformCompatibility();
   const {
     getCompatiblePlatforms,
     setCompatiblePlatforms,
   } = platformCompatibility;
+
+  const validateAndSetCompat = (sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors({ ...newErrors });
+    setCompatiblePlatforms(sql);
+  };
 
   const platformSelectorDisabled =
     isFetchingAutofillDescription ||
@@ -384,8 +381,10 @@ const PolicyForm = ({
     }
   }, []);
 
+  // Compute compatibility once a policy loads. Validation and compatibility
+  // update on editor blur and on submit, not on every keystroke, so
+  // incomplete SQL doesn't flash "Syntax error" mid-type.
   useEffect(() => {
-    debounceSQL(lastEditedQueryBody);
     if (
       (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
       (isNewTemplatePolicy && !lastEditedQueryBody)
@@ -393,7 +392,8 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyIdForEdit, lastEditedQueryId, isNewTemplatePolicy]);
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
@@ -888,6 +888,7 @@ const PolicyForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicySql}
+            onBlur={() => validateAndSetCompat(lastEditedQueryBody)}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}

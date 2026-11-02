@@ -426,15 +426,6 @@ const NewLabelPage = ({
     setIsUpdating(false);
   };
 
-  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    // A blank query is reported by formErrors as a required field instead.
-    if (!queryString.trim()) {
-      setQuerySyntaxError(null);
-      return;
-    }
-    setQuerySyntaxError(validateQuery(queryString).error);
-  }, 500);
-
   const onQueryChange = (newQuery: string) => {
     const newFormData = { ...formData, labelQuery: newQuery };
     setFormData(newFormData);
@@ -457,8 +448,16 @@ const NewLabelPage = ({
 
       return next;
     });
+  };
 
-    debounceValidateSQL(newQuery);
+  // Validate SQL on blur so incomplete queries don't flash a syntax error
+  // mid-type. A blank query is reported by formErrors as a required field.
+  const onQueryBlur = () => {
+    if (!formData.labelQuery.trim()) {
+      setQuerySyntaxError(null);
+      return;
+    }
+    setQuerySyntaxError(validateQuery(formData.labelQuery).error);
   };
 
   // form rendering helpers
@@ -509,7 +508,7 @@ const NewLabelPage = ({
               error={formErrors.labelQuery?.message || querySyntaxError}
               name="query"
               onChange={onQueryChange}
-              onBlur={onInputBlur}
+              onBlur={onQueryBlur}
               value={labelQuery}
               label="Query"
               labelActionComponent={

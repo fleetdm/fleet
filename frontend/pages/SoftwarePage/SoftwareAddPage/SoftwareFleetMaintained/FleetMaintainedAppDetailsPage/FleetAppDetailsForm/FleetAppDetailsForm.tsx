@@ -181,9 +181,14 @@ const FleetAppDetailsForm = ({
   };
 
   const onChangePreInstallQuery = (value?: string) => {
-    const newData = { ...formData, preInstallQuery: value };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    // Validation runs on blur so incomplete SQL doesn't flash a warning
+    // mid-type. The warning is advisory: Save isn't gated on preInstallQuery
+    // validity.
+    setFormData({ ...formData, preInstallQuery: value });
+  };
+
+  const onBlurPreInstallQuery = () => {
+    setFormValidation(generateFormValidation(formData));
   };
 
   const onChangePostInstallScript = (value?: string) => {
@@ -308,6 +313,7 @@ const FleetAppDetailsForm = ({
             uninstallScript={formData.uninstallScript}
             onClickShowSchema={() => undefined}
             onChangePreInstallQuery={onChangePreInstallQuery}
+            onBlurPreInstallQuery={onBlurPreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}

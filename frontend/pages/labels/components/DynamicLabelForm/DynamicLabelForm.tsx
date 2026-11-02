@@ -1,6 +1,5 @@
 import { Ace } from "ace-builds";
 import React, { useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import { validateQuery } from "components/forms/validators/validate_query";
@@ -51,18 +50,15 @@ const DynamicLabelForm = ({
   const [platform, setPlatform] = useState(defaultPlatform);
   const [queryError, setQueryError] = useState<string | null>(null);
 
-  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    const { error } = validateQuery(queryString);
-    if (query === "" || error === "") {
-      setQueryError(null);
-    } else {
-      setQueryError(error);
-    }
-  }, 500);
-
   const onQueryChange = (newQuery: string) => {
     setQuery(newQuery);
-    debounceValidateSQL(newQuery);
+  };
+
+  // Validate SQL on blur so incomplete queries don't flash a syntax error
+  // mid-type.
+  const onQueryBlur = () => {
+    const { error } = validateQuery(query);
+    setQueryError(query === "" || error === "" ? null : error);
   };
 
   const onSaveForm = (
@@ -136,6 +132,7 @@ const DynamicLabelForm = ({
               error={queryError}
               name="query"
               onChange={onQueryChange}
+              onBlur={onQueryBlur}
               value={query}
               label="Query"
               labelActionComponent={renderLabelComponent()}
