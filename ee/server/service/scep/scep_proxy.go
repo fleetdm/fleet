@@ -271,6 +271,9 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
+		// GetCACert carries no Fleet challenge, so it can't be told apart from the SCEP CSP replaying a superseded
+		// delivery. Only the delivery the host acknowledged is charged.
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "GetCACert", true, err)
 		svc.debugLogger.ErrorContext(ctx, "SCEP proxy GetCACert failed", "scep_url", scepURL, "err", err)
 		return res, num, sanitizeUpstreamError(ctx, err, "Could not GetCACert from SCEP server")
 	}
@@ -292,7 +295,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
-		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "PKIOperation", err)
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "PKIOperation", false, err)
 		svc.debugLogger.ErrorContext(ctx, "SCEP proxy PKIOperation failed", "scep_url", scepURL, "err", err)
 		return res, sanitizeUpstreamError(ctx, err, "Could not do PKIOperation on SCEP server")
 	}
@@ -301,7 +304,9 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 
 // recordWindowsSCEPProxyFailure records a per-profile upstream error the proxy observed against a Windows SCEP profile.
 // The datastore decides whether that means another delivery attempt or a terminal failure.
-func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
+func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, onlyIfVerifying bool,
+	upstreamErr error,
+) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
 	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as
 	// context.DeadlineExceeded / net timeouts and are still surfaced.
@@ -318,7 +323,7 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 	// values (tracing, etc.) while dropping the deadline; the write gets its own short timeout.
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsSCEPFailureWriteTimeout)
 	defer cancel()
-	retried, err := svc.ds.SetMDMWindowsHostProfileFailedOrRetry(writeCtx, hostUUID, profileUUID, detail)
+	retried, err := svc.ds.SetMDMWindowsHostProfileFailedOrRetry(writeCtx, hostUUID, profileUUID, detail, onlyIfVerifying)
 	if err != nil {
 		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
 			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)

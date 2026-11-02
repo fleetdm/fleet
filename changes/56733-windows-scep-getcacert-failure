@@ -1,0 +1,1 @@
+- Windows configuration profiles that use a Fleet-proxied SCEP certificate now report why Fleet couldn't get the CA certificate from the certificate authority (for example, "SCEP GetCACert failed: HTTP 404"), instead of "Fleet did not detect the SCEP certificate on the host after profile was delivered."

@@ -339,7 +339,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			p := "w-fail"
 			upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, retries)
 
-			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 			require.NoError(t, err)
 			require.True(t, retried)
 
@@ -356,7 +356,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		p := "w-fail"
 		upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
 
-		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 		require.NoError(t, err)
 		require.False(t, retried)
 
@@ -374,12 +374,12 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		p := "w-fail-burst"
 		upsertWinProfile(t, h, p, "cmd-fail-burst", fleet.MDMDeliveryVerifying, 0)
 
-		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 		require.NoError(t, err)
 		require.True(t, retried)
 
 		for range 3 {
-			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 			require.NoError(t, err)
 			require.False(t, retried, "a profile already queued for redelivery must not consume another retry")
 		}
@@ -390,12 +390,52 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, retries)
 	})
 
+	// GetCACert carries no challenge, so it could come from the SCEP CSP replaying a superseded delivery. Only a delivery
+	// the host acknowledged and is still verifying may be charged; any other row is left exactly as it was. PKIOperation
+	// keeps charging a delivery the host has not acknowledged yet.
+	for _, tc := range []struct {
+		status          fleet.MDMDeliveryStatus
+		onlyIfVerifying bool
+		retries         int
+		charged         bool
+	}{
+		{fleet.MDMDeliveryVerifying, true, 1, true},
+		{fleet.MDMDeliveryPending, true, 1, false},
+		{fleet.MDMDeliveryFailed, true, 1, false},
+		{fleet.MDMDeliveryVerified, true, 0, false},
+		{fleet.MDMDeliveryPending, false, 1, true},
+	} {
+		t.Run(fmt.Sprintf("proxy failure with onlyIfVerifying=%t on a %s profile", tc.onlyIfVerifying, tc.status), func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("setfailed-only-verifying-%t-%s", tc.onlyIfVerifying, tc.status))
+			p := "w-fail-only-verifying"
+			upsertWinProfile(t, h, p, "cmd-fail-only-verifying", tc.status, tc.retries)
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`, "earlier detail", h.UUID, p)
+			require.NoError(t, err)
+
+			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP GetCACert failed: HTTP 404", tc.onlyIfVerifying)
+			require.NoError(t, err)
+			require.Equal(t, tc.charged, retried)
+
+			status, detail, retries := getProfile(t, h, p)
+			if tc.charged {
+				require.Empty(t, status)
+				require.Empty(t, detail)
+				require.Equal(t, tc.retries+1, retries)
+				return
+			}
+			require.Equal(t, tc.status, status)
+			require.Equal(t, "earlier detail", detail)
+			require.Equal(t, tc.retries, retries)
+		})
+	}
+
 	t.Run("proxy failure does not clobber verified", func(t *testing.T) {
 		h := mkHost(t, "setfailed-verified")
 		p := "w-fail-verified"
 		upsertWinProfile(t, h, p, "cmd-fail-verified", fleet.MDMDeliveryVerified, 0)
 
-		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP GetCACert failed: timeout")
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP GetCACert failed: timeout", false)
 		require.NoError(t, err)
 		require.False(t, retried)
 
@@ -428,12 +468,12 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		// The budget still runs out. Each step redelivers first (status back to verifying) so the failure is judged on
 		// the retry count and not short-circuited by the already-queued guard.
 		upsertWinProfile(t, h, p, "cmd-resend-cert-2", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries-1)
-		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 		require.NoError(t, err)
 		require.True(t, retried)
 
 		upsertWinProfile(t, h, p, "cmd-resend-cert-3", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
-		retried, err = ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		retried, err = ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail, false)
 		require.NoError(t, err)
 		require.False(t, retried, "a challenge resend must not have refilled the budget")
 		status, detail, _ = getProfile(t, h, p)
@@ -485,7 +525,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	t.Run("proxy failure no-ops for a removed profile", func(t *testing.T) {
 		h := mkHost(t, "setfailed-missing")
 		// No profile row exists for this (host, profile): must not error and must not resurrect a row.
-		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403")
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403", false)
 		require.NoError(t, err)
 		require.False(t, retried)
 		var count int

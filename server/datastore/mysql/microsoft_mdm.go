@@ -2030,11 +2030,14 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 // SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
 // today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
-// back in the pending state so the profile manager redelivers it on its next tick.
-func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
+// back in the pending state so the profile manager redelivers it on its next tick. With onlyIfVerifying, only a
+// delivery the host acknowledged and is still verifying is charged.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string,
+	onlyIfVerifying bool,
+) (bool, error) {
 	var retried bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", detail)
+		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
 		if err != nil {
 			return err
 		}
@@ -2056,9 +2059,10 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 
 // failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
 // it failed otherwise. When verifyingCmdUUID is set, the row is only touched while it is still "verifying" for that
-// install command, so a failure reported about an earlier delivery can't charge a newer one. The caller refreshes the
-// rollup when changed is true.
-func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID, detail string,
+// install command, so a failure reported about an earlier delivery can't charge a newer one. onlyIfVerifying requires
+// "verifying" without naming the command. The caller refreshes the rollup when changed is true.
+func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID string,
+	onlyIfVerifying bool, detail string,
 ) (changed bool, retried bool, err error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
@@ -2068,8 +2072,12 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
 	if verifyingCmdUUID != "" {
-		loadStmt += ` AND command_uuid = ? AND status = ?`
-		loadArgs = append(loadArgs, verifyingCmdUUID, fleet.MDMDeliveryVerifying)
+		loadStmt += ` AND command_uuid = ?`
+		loadArgs = append(loadArgs, verifyingCmdUUID)
+	}
+	if verifyingCmdUUID != "" || onlyIfVerifying {
+		loadStmt += ` AND status = ?`
+		loadArgs = append(loadArgs, fleet.MDMDeliveryVerifying)
 	}
 	loadStmt += ` FOR UPDATE`
 
