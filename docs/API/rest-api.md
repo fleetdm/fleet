@@ -6631,7 +6631,7 @@ _Available in Fleet Premium._
 
 `DELETE /api/v1/fleet/hosts/:id/google_device_id`
 
-Removes the host's device ID in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+Removes the host's device ID in Google and marks the device as unmanaged in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
 
 #### Parameters
 
@@ -6646,63 +6646,6 @@ Removes the host's device ID in Google, so another device can register as this h
 ##### Default response
 
 `Status: 204`
-
-
-### Update host's Google device ID
-
-_Available in Fleet Premium_
-
-`PUT /api/v1/fleet/hosts/:id/google_device_id`
-
-Sets the host's device ID in Google. Use this to tie an iOS, iPadOS, or Android host to its device in Google before you mark that device as managed in Google. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
-
-Once set, the ID can't be changed to a different value. If the host already has a different `google_device_id`, Fleet returns `409`. This way, if someone copies a company-owned device's link to a personal device, the personal device can't take over the host. To remove the ID, set it to `""`.
-
-#### Parameters
-
-| Name             | Type    | In   | Description                                                   |
-| ---------------- | ------- | ---- | ------------------------------------------------------------- |
-| id               | integer | path | **Required**. The host's `id`.                                 |
-| google_device_id | string  | body | **Required**. The host's device ID in Google. Set to `""` to remove it. |
-
-#### Example
-
-`PUT /api/v1/fleet/hosts/1/google_device_id`
-
-##### Request body
-
-```json
-{
-  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1,
-  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
-}
-```
-
-##### Conflict response
-
-`Status: 409`
-
-```json
-{
-  "message": "Conflict",
-  "errors": [
-    {
-      "name": "google_device_id",
-      "reason": "This host already has a different Google device ID."
-    }
-  ]
-}
-```
 
 ### Get host's device health report
 
