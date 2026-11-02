@@ -157,7 +157,7 @@ const LabelForm = ({
     <Button
       type="submit"
       isLoading={isUpdatingLabel}
-      disabled={disabled || !formValidation.isValid}
+      disabled={disabled}
     >
       Save
     </Button>

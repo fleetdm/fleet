@@ -2,10 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
-import {
-  EMPTY_QUERY_ERR,
-  validateQuery,
-} from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -112,6 +109,6 @@ describe("NewLabelPage dynamic label query", () => {
     await user.clear(editor);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText(EMPTY_QUERY_ERR)).toBeInTheDocument();
+    expect(await screen.findByText("Enter a query")).toBeInTheDocument();
   });
 });

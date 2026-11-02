@@ -678,7 +678,7 @@ const NewLabelPage = ({
             <Button
               type="submit"
               isLoading={isUpdating}
-              disabled={disableChildren || isUpdating || !formErrors.isValid}
+              disabled={disableChildren || isUpdating}
             >
               Save
             </Button>
