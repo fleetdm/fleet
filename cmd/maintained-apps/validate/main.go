@@ -242,7 +242,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, existsQuerySkipReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
+		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -257,14 +257,17 @@ func run(cfg *Config) error {
 		}
 
 		// A failure here still runs the uninstall below so the next app starts
-		// from a clean runner.
+		// from a clean runner. When appExists found the app outside programs, no
+		// rows is expected, but the query still runs to catch errors.
 		existsQueryFailed := false
-		if existsQuerySkipReason != "" {
-			appLogger.WarnContext(ctx, fmt.Sprintf("Skipping exists query check: app was %s", existsQuerySkipReason))
-			warnApp()
-		} else if err := checkExistsQuery(ctx, ac.ExistsQuery); err != nil {
-			appLogger.ErrorContext(ctx, fmt.Sprintf("Exists query check failed: %v", err))
-			existsQueryFailed = true
+		if err := checkExistsQuery(ctx, ac.ExistsQuery); err != nil {
+			if existsQueryNoRowsReason != "" && errors.Is(err, errExistsQueryNoRows) {
+				appLogger.WarnContext(ctx, fmt.Sprintf("Exists query returned no rows: app was %s", existsQueryNoRowsReason))
+				warnApp()
+			} else {
+				appLogger.ErrorContext(ctx, fmt.Sprintf("Exists query check failed: %v", err))
+				existsQueryFailed = true
+			}
 		}
 
 		// Uninstall
@@ -518,6 +521,8 @@ var runOsqueryi = func(ctx context.Context, query string) ([]byte, error) {
 	return output, err
 }
 
+var errExistsQueryNoRows = errors.New("exists query returned no rows with the app installed")
+
 // checkExistsQuery runs the manifest's exists query, which is how Fleet
 // detects the app on hosts, and fails if it returns no rows. appExists finds
 // the app with a looser search, so it passes manifests whose exists query
@@ -540,7 +545,7 @@ func checkExistsQuery(ctx context.Context, existsQuery string) error {
 		return fmt.Errorf("parsing exists query output %q: %w", output, err)
 	}
 	if len(rows) == 0 {
-		return fmt.Errorf("exists query returned no rows with the app installed: %s", existsQuery)
+		return fmt.Errorf("%w: %s", errExistsQueryNoRows, existsQuery)
 	}
 	return nil
 }
