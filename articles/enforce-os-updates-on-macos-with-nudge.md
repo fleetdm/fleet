@@ -81,7 +81,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/nudge.mobileconfig
 ```
 
-To set a fixed deadline, require a major upgrade, or customize the reminder text, deferrals, and how often Nudge appears, see the [Nudge wiki](https://github.com/macadmins/nudge/wiki). Fleet's own [Nudge profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/nudge-configuration.mobileconfig) is a fuller example.
+To set a fixed deadline, require a major upgrade, or customize the reminder text, deferrals, and how often Nudge appears, see the [Nudge wiki](https://github.com/macadmins/nudge/wiki). Fleet's own [Nudge profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/nudge-preferences.mobileconfig) is a fuller example.
 
 ## Step 4: Optional: Reinstall Nudge if it's removed
 
