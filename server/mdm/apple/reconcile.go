@@ -641,6 +641,7 @@ func ExecuteReconcileBatch(
 	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
 
 	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
+	installsToCancel := []*fleet.MDMAppleProfilePayload{}
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
 	var caProfileUUIDs map[string]struct{}
@@ -853,25 +854,24 @@ func ExecuteReconcileBatch(
 			continue
 		}
 
+		// Rows that go from install to remove keep their row (the upsert below
+		// converts it in place) so the install-time has_acme_payload survives the
+		// profile deletion; only their queued install command is cancelled. The
+		// profile may be on the host, so the remove tolerates "profile not found".
 		if p.FailedInstallOnHost() {
-			if !p.FailedVerificationOnHost() {
-				// protocol/synthesized failure: nothing landed on the device
-				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-				continue
+			if p.FailedVerificationOnHost() {
+				installsToCancel = append(installsToCancel, p)
 			}
-			// device acked this install; pull it off the device, tolerating
-			// "profile not found" if it's gone after all
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			p.IgnoreError = true
 		}
 		if p.PendingInstallOnHost() {
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			installsToCancel = append(installsToCancel, p)
 			p.IgnoreError = true
 		}
 		if p.Status == nil && p.OperationType == fleet.MDMOperationTypeInstall {
-			// profile was never sent, so we can drop the row safely.
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			continue
+			// a resend resets the row to NULL while the profile may still be on the
+			// host, so always send the remove and tolerate "profile not found"
+			p.IgnoreError = true
 		}
 
 		target := removeTargets[p.ProfileUUID]
@@ -970,7 +970,7 @@ func ExecuteReconcileBatch(
 	}
 
 	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
-	for _, hp := range hostProfilesToCleanup {
+	for _, hp := range slices.Concat(hostProfilesToCleanup, installsToCancel) {
 		if _, adopted := adoptedCmds[hostCommandKey{hostUUID: hp.HostUUID, commandUUID: hp.CommandUUID}]; adopted {
 			continue
 		}

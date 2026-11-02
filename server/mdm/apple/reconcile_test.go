@@ -2349,15 +2349,27 @@ func TestMDMAppleExecuteReconcileBatchRemovesUnsentInstall(t *testing.T) {
 		}
 	}
 
-	t.Run("install never sent: row dropped, no RemoveProfile", func(t *testing.T) {
+	t.Run("install not sent (e.g. resend): RemoveProfile sent, error tolerated", func(t *testing.T) {
 		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(nil, "")})
 		require.NoError(t, res.err)
 
-		require.Empty(t, res.enqueued)
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
 		require.Empty(t, res.deletedCmds)
-		require.Empty(t, res.upserted)
-		require.Len(t, res.cleanedUp, 1)
-		require.Equal(t, "aDeletedProfileUUID", res.cleanedUp[0].ProfileUUID)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install failed without verification: RemoveProfile sent, row kept", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryFailed, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
 	})
 
 	t.Run("install pending: queued command deleted and RemoveProfile sent", func(t *testing.T) {
@@ -2365,6 +2377,7 @@ func TestMDMAppleExecuteReconcileBatchRemovesUnsentInstall(t *testing.T) {
 		require.NoError(t, res.err)
 
 		require.Equal(t, []string{hostUUID}, res.deletedCmds["install-cmd"])
+		require.Empty(t, res.cleanedUp, "the row must be converted in place to keep has_acme_payload")
 		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
 		require.Len(t, res.upserted, 1)
 		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)

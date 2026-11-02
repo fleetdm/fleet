@@ -3608,8 +3608,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               detail = VALUES(detail),
               checksum = VALUES(checksum),
               secrets_updated_at = VALUES(secrets_updated_at),
-              -- keep ignore error flag if the operation is still a remove
-              ignore_error = IF(VALUES(operation_type) = '%s', ignore_error, VALUES(ignore_error)),
+              -- on a remove, only ever raise the ignore error flag
+              ignore_error = IF(VALUES(operation_type) = '%s', ignore_error OR VALUES(ignore_error), VALUES(ignore_error)),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid),

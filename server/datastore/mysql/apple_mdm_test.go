@@ -69,6 +69,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
 		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		{"TestBulkUpsertMDMAppleHostProfilesRemoveIgnoreError", testBulkUpsertMDMAppleHostProfilesRemoveIgnoreError},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
 		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -1025,6 +1026,39 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(42))
 	require.NoError(t, err)
 	require.Len(t, cps, 0)
+}
+
+func testBulkUpsertMDMAppleHostProfilesRemoveIgnoreError(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profUUID := "a" + uuid.NewString()[:8]
+	put := func(op fleet.MDMOperationType, status *fleet.MDMDeliveryStatus, ignoreErr bool) {
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profUUID, ProfileIdentifier: "com.example.p", ProfileName: "P",
+			HostUUID: "host-1", Status: status, OperationType: op, CommandUUID: uuid.NewString(),
+			Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem, IgnoreError: ignoreErr,
+		}}))
+	}
+	ignoreError := func() bool {
+		var v bool
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &v,
+			`SELECT ignore_error FROM host_mdm_apple_profiles WHERE host_uuid = 'host-1' AND profile_uuid = ?`, profUUID))
+		return v
+	}
+
+	// install -> remove converts the row in place and must be able to raise the flag
+	put(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, false)
+	require.False(t, ignoreError())
+	put(fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
+	require.True(t, ignoreError())
+
+	// a later remove upsert must not lower it
+	put(fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, false)
+	require.True(t, ignoreError())
+
+	// a fresh install resets it
+	put(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, false)
+	require.False(t, ignoreError())
 }
 
 func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
