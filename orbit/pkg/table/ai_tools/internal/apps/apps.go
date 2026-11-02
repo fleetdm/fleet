@@ -56,7 +56,41 @@ func knownApps() []knownApp {
 		{"antigravity", []string{"antigravity"}, []string{"antigravity"}, 0},
 		{"trae", []string{"trae"}, []string{"trae"}, 0},
 		{"lm-studio-cli", []string{"lms"}, []string{"lms"}, 0},
+		// Exact-id desktop apps. match stays empty so a display name that merely
+		// contains the product word is not enough; see exactBundleIDs and
+		// windowsPrograms. grok-bot is the Grok Bot desktop app, not the Grok CLI
+		// (known agent "grok", discovered from ~/.grok).
+		{"granola", nil, []string{"granola"}, 0},
+		{"grok-bot", nil, []string{"grok bot"}, 0},
+		{"meta-muse", nil, []string{"muse"}, 0},
 	}
+}
+
+// exactBundleIDs are matched by equality against a whole identifying token
+// (a macOS CFBundleIdentifier). They are not word-boundary tokens: a different
+// bundle id, or an unrelated app named Museeks or MuseScore, must not match.
+//
+// Granola and Grok Bot ids are the ones Fleet's maintained-apps catalog
+// queries. Meta Muse is macOS-only; com.meta.endo is CFBundleIdentifier from
+// the official Muse DMG.
+var exactBundleIDs = map[string][]string{
+	"granola":   {"com.granola.app"},
+	"grok-bot":  {"com.anysphere.sand"},
+	"meta-muse": {"com.meta.endo"},
+}
+
+// windowsProgram is an uninstall entry matched the way the maintained-apps
+// catalog matches it: DisplayName LIKE '<prefix> %' and Publisher equal to
+// publisher. Meta Muse has no Windows release and is not listed here.
+type windowsProgram struct {
+	app       string
+	prefix    string
+	publisher string
+}
+
+var windowsPrograms = []windowsProgram{
+	{"granola", "Granola", "Granola"},
+	{"grok-bot", "Grok Bot", "SpaceXAI"},
 }
 
 // Scan returns all detected AI apps with running state filled in.
@@ -122,10 +156,14 @@ func isAlnum(b byte) bool {
 // matchKnown finds the AI app a set of identifying strings belongs to. Tokens
 // are matched at word boundaries, never mid-word: the joining NUL and the
 // non-alphanumeric characters of display names, bundle ids, and file names all
-// delimit words.
+// delimit words. Bundle ids in exactBundleIDs are the exception and match only
+// when a whole token is equal to the id.
 func matchKnown(tokens ...string) (knownApp, bool) {
 	hay := strings.ToLower(strings.Join(tokens, "\x00"))
 	for _, k := range knownApps() {
+		if matchExactBundle(k.name, tokens) {
+			return k, true
+		}
 		for _, m := range k.match {
 			if containsWordBoundary(hay, m) {
 				return k, true
@@ -133,6 +171,46 @@ func matchKnown(tokens ...string) (knownApp, bool) {
 		}
 	}
 	return knownApp{}, false
+}
+
+func matchExactBundle(name string, tokens []string) bool {
+	ids := exactBundleIDs[name]
+	if len(ids) == 0 {
+		return false
+	}
+	for _, tok := range tokens {
+		for _, id := range ids {
+			if tok == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// matchWindowsProgram reports the desktop app whose catalog query is
+// DisplayName LIKE '<prefix> %' AND Publisher = publisher. LIKE is
+// ASCII-case-insensitive; publisher equality is case-sensitive, matching
+// SQLite. A name that only contains the product word does not match.
+func matchWindowsProgram(displayName, publisher string) (knownApp, bool) {
+	if displayName == "" || publisher == "" {
+		return knownApp{}, false
+	}
+	for _, w := range windowsPrograms {
+		if publisher != w.publisher || !likeSpacePrefix(displayName, w.prefix) {
+			continue
+		}
+		return knownByName(w.app)
+	}
+	return knownApp{}, false
+}
+
+// likeSpacePrefix reports whether name matches SQL LIKE 'prefix %'.
+func likeSpacePrefix(name, prefix string) bool {
+	if len(name) <= len(prefix) || name[len(prefix)] != ' ' {
+		return false
+	}
+	return strings.EqualFold(name[:len(prefix)], prefix)
 }
 
 func knownByName(name string) (knownApp, bool) {
