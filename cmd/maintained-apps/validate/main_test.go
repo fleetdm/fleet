@@ -193,10 +193,11 @@ func TestCheckExistsQuery(t *testing.T) {
 		output      string
 		runErr      error
 		wantErr     string
+		wantNoRows  bool
 	}{
 		{name: "one row", existsQuery: existsQuery, output: `[{"1":"1"}]`},
 		{name: "several rows", existsQuery: existsQuery, output: `[{"1":"1"},{"1":"1"}]`},
-		{name: "no rows", existsQuery: existsQuery, output: "[\n\n]\n", wantErr: "returned no rows"},
+		{name: "no rows", existsQuery: existsQuery, output: "[\n\n]\n", wantErr: "returned no rows", wantNoRows: true},
 		{name: "empty query", existsQuery: "  ", wantErr: "no exists query"},
 		{name: "osqueryi fails", existsQuery: existsQuery, runErr: errors.New("exit status 1: Error: near \"FORM\": syntax error"), wantErr: "syntax error"},
 		{name: "unparsable output", existsQuery: existsQuery, output: "not json", wantErr: "parsing exists query output"},
@@ -215,6 +216,9 @@ func TestCheckExistsQuery(t *testing.T) {
 			} else {
 				require.ErrorContains(t, err, tc.wantErr)
 			}
+			// run accepts no rows when appExists found the app outside programs,
+			// but must still fail on every other error.
+			require.Equal(t, tc.wantNoRows, errors.Is(err, errExistsQueryNoRows))
 			if strings.TrimSpace(tc.existsQuery) == "" {
 				require.Empty(t, gotQuery, "osqueryi shouldn't run without a query")
 			} else {
