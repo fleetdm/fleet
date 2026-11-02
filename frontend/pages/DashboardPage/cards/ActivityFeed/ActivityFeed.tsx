@@ -1,5 +1,5 @@
 import { isEmpty } from "lodash";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
@@ -253,14 +253,16 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      onSuccess: () => {
-        setShowActivityFeedTitle(true);
-      },
-      onError: () => {
-        setShowActivityFeedTitle(true);
-      },
     }
   );
+
+  // onSuccess doesn't fire when a remount reads fresh cached data. A layout
+  // effect sets the title before paint, so rows never show without it.
+  useLayoutEffect(() => {
+    if (activitiesData || errorActivities) {
+      setShowActivityFeedTitle(true);
+    }
+  }, [activitiesData, errorActivities, setShowActivityFeedTitle]);
 
   setRefetchActivities(refetch);
 
