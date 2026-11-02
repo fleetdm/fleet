@@ -654,8 +654,39 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// Try to renew again using the same old certificate serial number
 		// This should fail because the certificate has already been revoked
 
-		// Resend the same renewal request (same serial and signature)
-		_, err := enrollHostIdentityCSR(t, s, csr)
+		// Generate another new key pair for this attempt
+		anotherNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+		require.NoError(t, err)
+
+		// Use the same renewal data as before (same serial and signature)
+		var renewalDataJSON []byte
+		for _, ext := range csr.Extensions {
+			if ext.Id.Equal(types.RenewalExtensionOID) {
+				renewalDataJSON = ext.Value
+			}
+		}
+		require.NotEmpty(t, renewalDataJSON)
+		retryCSRTemplate := x509util.CertificateRequest{
+			CertificateRequest: x509.CertificateRequest{
+				Subject: pkix.Name{
+					CommonName: existingCert.Subject.CommonName,
+				},
+				SignatureAlgorithm: x509.ECDSAWithSHA256,
+				ExtraExtensions: []pkix.Extension{
+					{
+						Id:    types.RenewalExtensionOID,
+						Value: renewalDataJSON, // Reuse the same renewal data
+					},
+				},
+			},
+		}
+
+		retryCSRDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &retryCSRTemplate, anotherNewKey)
+		require.NoError(t, err)
+		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
+		require.NoError(t, err)
+
+		_, err = enrollHostIdentityCSR(t, s, retryCSR)
 		rejected, ok := errors.AsType[enrollment.RejectedError](err)
 		require.True(t, ok, "Renewal retry with same serial should fail, got %v", err)
 		require.Equal(t, scep.FAILURE, rejected.Status)
