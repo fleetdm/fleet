@@ -49,6 +49,7 @@
 | `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
 | `cask_path`              | string        | Path (relative to the repo root) to a local file containing the cask JSON in the same schema as `https://formulae.brew.sh/api/cask/<token>.json`. Used to commit cask metadata for third-party taps directly into this repo under [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/). See [Ingesting apps from a custom tap](#ingesting-apps-from-a-custom-tap) below. |
+| `parenthesized_build_version` | boolean | Set to `true` when the app's `CFBundleShortVersionString` includes a build number in parentheses (e.g., Zoom's `7.2.2 (88465)`). The patch policy normalizes the build into a dotted segment before comparing versions. Otherwise, osquery treats outdated versions as up to date. |
 
 ### Ingesting apps from a custom tap
 

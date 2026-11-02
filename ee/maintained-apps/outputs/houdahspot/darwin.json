@@ -4,7 +4,7 @@
       "version": "6.8.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot4' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '6.8.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot4' AND version_compare(bundle_short_version, '6.8.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.houdah.HoudahSpot4' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.houdah.com/houdahSpot/updates/cast_assets/afcbcf67-8e51-47a6-8b9d-a2cea4be06f6/HoudahSpot_6.8.5.dmg",

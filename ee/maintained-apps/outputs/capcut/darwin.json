@@ -4,7 +4,7 @@
       "version": "9.5.0.4590",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '9.5.0.4590') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(bundle_short_version, '9.5.0.4590') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.lemon.lvoverseas' AND a.bundle_executable != '');"
       },
       "installer_url": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/packages/CapCut_9_5_0_4590_capcutpc_0_creatortool.dmg",

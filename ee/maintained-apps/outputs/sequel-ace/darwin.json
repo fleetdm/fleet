@@ -4,7 +4,7 @@
       "version": "6.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequel-ace.sequel-ace';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequel-ace.sequel-ace' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '6.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequel-ace.sequel-ace' AND version_compare(bundle_short_version, '6.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sequel-ace.sequel-ace' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/Sequel-Ace/Sequel-Ace/releases/download/production/6.1.0-20117/Sequel-Ace-6.1.0.zip",

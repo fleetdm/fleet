@@ -4,7 +4,7 @@
       "version": "27.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '27.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '27.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.parallels.desktop.console' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.parallels.com/desktop/v27/27.1.0-58756/ParallelsDesktop-27.1.0-58756.dmg",

@@ -239,9 +239,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
-		Platform:    "darwin",
-		Version:     out.Version,
-		ExistsQuery: out.Queries.Exists,
+		Platform:           "darwin",
+		Version:            out.Version,
+		ExistsQuery:        out.Queries.Exists,
+		ParenthesizedBuild: input.ParenthesizedBuildVersion,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
@@ -777,6 +778,10 @@ type inputApp struct {
 	// inputs/homebrew/custom-tap/). When empty, the ingester fetches from
 	// formulae.brew.sh.
 	CaskPath string `json:"cask_path"`
+	// ParenthesizedBuildVersion marks apps whose CFBundleShortVersionString carries
+	// the build in parentheses (e.g. "7.2.2 (88465)" or "2.4.3(2EEA)"), so the patch
+	// policy normalizes it before version_compare.
+	ParenthesizedBuildVersion bool `json:"parenthesized_build_version"`
 }
 
 type brewCask struct {

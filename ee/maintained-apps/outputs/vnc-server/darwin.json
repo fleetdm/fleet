@@ -4,7 +4,7 @@
       "version": "7.18.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncserver_service';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncserver_service' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '7.18.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncserver_service' AND version_compare(bundle_short_version, '7.18.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.realvnc.vncserver_service' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.realvnc.com/download/file/vnc.files/VNC-Server-7.18.1-MacOSX-universal.pkg",
