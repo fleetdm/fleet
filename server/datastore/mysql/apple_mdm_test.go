@@ -148,6 +148,7 @@ func TestMDMApple(t *testing.T) {
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
+		{"IsMDMAppleCommandQueuedForEnrollment", testIsMDMAppleCommandQueuedForEnrollment},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
@@ -12137,6 +12138,31 @@ func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 0, res.Failed)
 	require.EqualValues(t, 0, res.Verifying)
 	require.EqualValues(t, 0, res.Verified)
+}
+
+func testIsMDMAppleCommandQueuedForEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := test.NewHost(t, ds, "h1", "1", "h1key", "h1uuid", time.Now())
+	h2 := test.NewHost(t, ds, "h2", "2", "h2key", "h2uuid", time.Now())
+	nanoEnroll(t, ds, h1, false)
+	nanoEnroll(t, ds, h2, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	cmdUUID := uuid.NewString()
+	require.NoError(t, commander.EnqueueCommand(ctx, []string{h1.UUID}, createRawAppleCmd("ProfileList", cmdUUID)))
+
+	queued, err := ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h1.UUID, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, queued)
+
+	queued, err = ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h2.UUID, cmdUUID)
+	require.NoError(t, err)
+	require.False(t, queued)
+
+	queued, err = ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h1.UUID, uuid.NewString())
+	require.NoError(t, err)
+	require.False(t, queued)
 }
 
 func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) {
