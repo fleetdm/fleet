@@ -807,7 +807,7 @@ In all cases, once Fleet collects software inventory, the inventory name is used
 
 You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
 
-`self_service`, `categories`, and labels are defined per package. `setup_experience` is defined on the fleet-level.
+`self_service`, `categories`, and labels are defined per version. `setup_experience` is defined on the fleet-level.
 
 If multiple versions target the same host, Fleet will deploy the one that was added first.
 
