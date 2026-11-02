@@ -834,18 +834,34 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 	}
 }
 
-// testReissueForExistingName checks that the enroll secret cannot replace a valid certificate, but can once it expired.
+// testReissueForExistingName checks that the enroll secret cannot replace a valid certificate with a different key, but can re-issue it
+// for the same key (an agent retrying because the certificate never reached it), and can replace it once it expired.
 func testReissueForExistingName(t *testing.T, s *Suite) {
 	ctx := t.Context()
-	cert, _ := testGetCertWithCurve(t, s, elliptic.P256())
+	cert, key := testGetCertWithCurve(t, s, elliptic.P256())
 	name := cert.Subject.CommonName
 
-	// Requesting a new certificate for the same name should fail while the existing one is valid
+	// Requesting a new certificate for the same name with a different key should fail while the existing one is valid
 	_, err := requestSCEPCertificate(t, s, name)
 	require.Error(t, err)
 	current, err := s.DS.GetHostIdentityCertByName(ctx, name)
 	require.NoError(t, err)
 	require.Equal(t, cert.SerialNumber.Uint64(), current.SerialNumber)
+
+	// The same request signed with the existing key should succeed
+	csrDER, err := x509util.CreateCertificateRequest(rand.Reader, &x509util.CertificateRequest{
+		CertificateRequest: x509.CertificateRequest{Subject: pkix.Name{CommonName: name}, SignatureAlgorithm: x509.ECDSAWithSHA256},
+		ChallengePassword:  testEnrollmentSecret,
+	}, key)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDER)
+	require.NoError(t, err)
+	sameKeyCert, err := enrollHostIdentityCSR(t, s, csr)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, sameKeyCert.SerialNumber.Uint64(), current.SerialNumber)
+	require.NotEqual(t, cert.SerialNumber.Uint64(), current.SerialNumber)
 
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`, name)

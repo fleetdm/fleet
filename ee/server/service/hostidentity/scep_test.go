@@ -189,15 +189,31 @@ func TestPKIOperationRejectsDeeplyNestedBER(t *testing.T) {
 }
 
 func TestChallengeMiddlewareExistingCert(t *testing.T) {
+	newKey := func() *ecdsa.PrivateKey {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		return key
+	}
+	existingKey := newKey()
+	existingKeyRaw, err := types.CreateECDSAPublicKeyRaw(&existingKey.PublicKey)
+	require.NoError(t, err)
+	unenrolledCert := &types.HostIdentityCertificate{SerialNumber: 1, PublicKeyRaw: existingKeyRaw}
+	enrolledCert := &types.HostIdentityCertificate{SerialNumber: 1, HostID: new(uint(7)), PublicKeyRaw: existingKeyRaw}
+
 	testCases := []struct {
-		name      string
-		cert      *types.HostIdentityCertificate
-		lookupErr error
-		wantErr   string
+		name         string
+		cert         *types.HostIdentityCertificate
+		lookupErr    error
+		csrKey       *ecdsa.PrivateKey
+		badSignature bool
+		wantErr      string
 	}{
-		{name: "no existing cert", lookupErr: common_mysql.NotFound("host identity certificate")},
-		{name: "valid cert exists", cert: &types.HostIdentityCertificate{SerialNumber: 1}, wantErr: "already exists"},
-		{name: "lookup failure fails closed", lookupErr: errors.New("db down"), wantErr: "checking existing host identity certificate"},
+		{name: "no existing cert", lookupErr: common_mysql.NotFound("host identity certificate"), csrKey: newKey()},
+		{name: "existing cert, different key", cert: unenrolledCert, csrKey: newKey(), wantErr: "already exists"},
+		{name: "existing cert, same key", cert: unenrolledCert, csrKey: existingKey},
+		{name: "existing cert, same key but invalid signature", cert: unenrolledCert, csrKey: existingKey, badSignature: true, wantErr: "already exists"},
+		{name: "enrolled cert, same key", cert: enrolledCert, csrKey: existingKey, wantErr: "already exists"},
+		{name: "lookup failure fails closed", lookupErr: errors.New("db down"), csrKey: newKey(), wantErr: "checking existing host identity"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -214,11 +230,17 @@ func TestChallengeMiddlewareExistingCert(t *testing.T) {
 				return &x509.Certificate{SerialNumber: big.NewInt(2)}, nil
 			})
 
-			msg := &scep.CSRReqMessage{
-				CSR:               &x509.CertificateRequest{Subject: pkix.Name{CommonName: "host-identity-name"}},
-				ChallengePassword: "secret",
+			csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+				Subject: pkix.Name{CommonName: "host-identity-name"}, SignatureAlgorithm: x509.ECDSAWithSHA256,
+			}, tc.csrKey)
+			require.NoError(t, err)
+			if tc.badSignature {
+				csrDER[len(csrDER)-1] ^= 0xff // the signature is the last field of the CSR
 			}
-			_, err := challengeMiddleware(ds, next).SignCSRContext(t.Context(), msg)
+			csr, err := x509.ParseCertificateRequest(csrDER)
+			require.NoError(t, err)
+
+			_, err = challengeMiddleware(ds, next).SignCSRContext(t.Context(), &scep.CSRReqMessage{CSR: csr, ChallengePassword: "secret"})
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 			} else {
