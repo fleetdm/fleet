@@ -405,7 +405,8 @@ func (ds *Datastore) bulkGetHostMDMAppleProfilesByUUIDsTransaction(
 			COALESCE(detail, '') AS detail,
 			command_uuid,
 			ignore_error,
-			scope
+			scope,
+			variables_updated_at
 		FROM host_mdm_apple_profiles
 		WHERE host_uuid IN (?)
 	`

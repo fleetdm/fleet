@@ -245,11 +245,7 @@ func (d *fileDepot) HasCN(_ string, allowTime int, cert *x509.Certificate, revok
 		return false, err
 	}
 	if revokeOldCertificate {
-		file, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, dbPerm)
-		if err != nil {
-			return false, err
-		}
-		if _, err := file.Write(addDB.Bytes()); err != nil {
+		if err := os.WriteFile(name, addDB.Bytes(), dbPerm); err != nil {
 			return false, err
 		}
 	}

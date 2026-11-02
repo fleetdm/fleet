@@ -1956,7 +1956,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	SET
 		hmap.status = NULL,
 		hmap.detail = NULL,
-		hmap.command_uuid = ''
+		hmap.command_uuid = '',
+		hmap.retries = 0
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
@@ -2267,7 +2268,8 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.id IN (?) AND
 				hmap.profile_uuid IN (?) AND
@@ -2292,7 +2294,8 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.team_id <=> ? AND
 				hmap.profile_uuid = ? AND

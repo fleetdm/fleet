@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -434,26 +435,32 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileUUID       string             `db:"profile_uuid"`
-	ProfileIdentifier string             `db:"profile_identifier"`
-	ProfileName       string             `db:"profile_name"`
-	HostUUID          string             `db:"host_uuid"`
-	HostPlatform      string             `db:"host_platform"`
-	Checksum          []byte             `db:"checksum"`
-	SecretsUpdatedAt  *time.Time         `db:"secrets_updated_at"`
-	Status            *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType     MDMOperationType   `db:"operation_type"`
-	Detail            string             `db:"detail"`
-	CommandUUID       string             `db:"command_uuid"`
-	IgnoreError       bool               `db:"ignore_error"`
-	Scope             PayloadScope       `db:"scope"`
-	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
+	ProfileUUID        string             `db:"profile_uuid"`
+	ProfileIdentifier  string             `db:"profile_identifier"`
+	ProfileName        string             `db:"profile_name"`
+	HostUUID           string             `db:"host_uuid"`
+	HostPlatform       string             `db:"host_platform"`
+	Checksum           []byte             `db:"checksum"`
+	SecretsUpdatedAt   *time.Time         `db:"secrets_updated_at"`
+	Status             *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType      MDMOperationType   `db:"operation_type"`
+	Detail             string             `db:"detail"`
+	CommandUUID        string             `db:"command_uuid"`
+	IgnoreError        bool               `db:"ignore_error"`
+	Scope              PayloadScope       `db:"scope"`
+	DeviceEnrolledAt   *time.Time         `db:"device_enrolled_at"`
+	VariablesUpdatedAt *time.Time         `db:"variables_updated_at"`
 	// CancelOnly marks a removal carried through the reconciler solely so its
 	// already-queued RemoveProfile command can be cancelled, because the same
 	// identifier is being installed again on the host under a different profile
 	// UUID. Delivering the removal would strip the profile the admin just asked
 	// for, so nothing is ever enqueued for these rows.
 	CancelOnly bool `db:"-"`
+	// AdoptedByProfileUUID marks a row whose state an identical same-identifier
+	// profile took over (a fleet transfer). Deleting the row moves its managed
+	// certificate tracking to that profile, since the certificate stays on the
+	// device.
+	AdoptedByProfileUUID string `db:"-"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -731,15 +738,17 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
+	TeamID                                            *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication                       *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually                       *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall                                *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows                         *bool   `json:"require_all_software_windows"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        *bool   `json:"macos_enable_bootstrap_package_during_migration"`
+	LockEndUserInfo                                   *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount                         *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType                           *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -2222,4 +2231,12 @@ type AppleSCEPChallengeInfo struct {
 	UUID           *string             `db:"host_uuid"`
 	Serial         *string             `db:"hardware_serial"`
 	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}
+
+// BootstrapPackageDuringMigrationEnvEnabled reports whether FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION
+// forces the bootstrap package to be installed during MDM migrations, regardless of the
+// macos_enable_bootstrap_package_during_migration setting.
+func BootstrapPackageDuringMigrationEnvEnabled() bool {
+	v := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+	return v == "1" || strings.EqualFold(v, "true")
 }

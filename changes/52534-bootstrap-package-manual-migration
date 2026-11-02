@@ -1,0 +1,2 @@
+- Added `macos_enable_bootstrap_package_during_manual_enrollment` and `macos_enable_bootstrap_package_during_migration` setup experience settings to install a configured bootstrap package on a manual enrollment and MDM migration respectively.
+- Deprecated the `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION` environment variable in favor of the `macos_enable_bootstrap_package_during_migration` setting. If the variable is set when upgrading, the setting is turned on for "Unassigned" and every fleet.

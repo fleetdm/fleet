@@ -1,6 +1,6 @@
 {
   "name": "JASP",
-  "unique_identifier": "org.jasp-stats.JASP",
+  "unique_identifier": "org.jaspstats.jasp",
   "token": "jasp",
   "installer_format": "dmg",
   "slug": "jasp/darwin",

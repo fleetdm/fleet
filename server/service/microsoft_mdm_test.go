@@ -1413,9 +1413,16 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		return nil
 	}
 
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
+	require.Equal(t, []string{testHostUUID}, rollupHosts, "the rollup is refreshed once for the hosts the window had work for")
 
 	// Verify the command was preprocessed (UUID should be substituted)
 	require.NotNil(t, receivedCommand, "Command should have been created")
@@ -1439,6 +1446,30 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+func TestReconcileWindowsProfilesRefreshesRollupWhenBatchFails(t *testing.T) {
+	ds := new(mock.Store)
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>1</Data></Item></Replace>`),
+	}
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{"host-a": testProfile, "host-b": testProfile})
+
+	// The commands are enqueued (committed) before the final host profile upsert fails.
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return errors.New("upsert failed")
+	}
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
+	err := ReconcileWindowsProfiles(t.Context(), ds, slog.New(slog.DiscardHandler), false)
+	require.ErrorContains(t, err, "upsert failed")
+	require.ElementsMatch(t, []string{"host-a", "host-b"}, rollupHosts)
 }
 
 func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {

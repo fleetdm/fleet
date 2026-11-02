@@ -1407,6 +1407,17 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
+func (ds *Datastore) IsMDMAppleCommandQueuedForEnrollment(ctx context.Context, enrollmentID, commandUUID string) (bool, error) {
+	var exists bool
+	// primary, like nanomdm's StoreCommandReport, so a just-enqueued command isn't missed due to replica lag
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &exists,
+		`SELECT EXISTS(SELECT 1 FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?)`, enrollmentID, commandUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check command queued for enrollment")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
@@ -3388,6 +3399,10 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 		return nil
 	}
 
+	if err := transferAdoptedMDMManagedCertificatesDB(ctx, tx, profs); err != nil {
+		return err
+	}
+
 	executeDeleteBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_uuid, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -3429,6 +3444,58 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 
 	if batchCount > 0 {
 		if err := executeDeleteBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// transferAdoptedMDMManagedCertificatesDB moves the managed certificate rows of host profiles
+// that another profile adopted over to that profile. Renewal and the cleanup cron join on the
+// host profile row, so left behind they would lose a certificate that is still on the device.
+func transferAdoptedMDMManagedCertificatesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
+	type adoption struct{ fromProfileUUID, toProfileUUID string }
+	hostUUIDsByAdoption := make(map[adoption][]string)
+	for _, p := range profs {
+		if p.AdoptedByProfileUUID != "" {
+			a := adoption{fromProfileUUID: p.ProfileUUID, toProfileUUID: p.AdoptedByProfileUUID}
+			hostUUIDsByAdoption[a] = append(hostUUIDsByAdoption[a], p.HostUUID)
+		}
+	}
+
+	// The adopted rows track the certificates on the device, so they replace any rows the adopter
+	// still has from an earlier stint in that fleet, including ones for CAs it no longer references.
+	// The join skips hosts with nothing to transfer, so replaying an adoption from a stale snapshot
+	// does not delete the rows an earlier pass already moved.
+	const deleteSupersededStmt = `
+		DELETE adopter FROM host_mdm_managed_certificates adopter
+		JOIN host_mdm_managed_certificates adopted
+			ON adopted.host_uuid = adopter.host_uuid AND adopted.profile_uuid = ?
+		WHERE adopter.profile_uuid = ? AND adopter.host_uuid IN (?)`
+	const transferStmt = `
+		UPDATE host_mdm_managed_certificates SET profile_uuid = ?
+		WHERE profile_uuid = ? AND host_uuid IN (?)`
+
+	const batchSize = 1000
+	for a, hostUUIDs := range hostUUIDsByAdoption {
+		err := common_mysql.BatchProcessSimple(hostUUIDs, batchSize, func(batch []string) error {
+			stmt, args, err := sqlx.In(deleteSupersededStmt, a.fromProfileUUID, a.toProfileUUID, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete superseded managed certificates")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete superseded managed certificates")
+			}
+			stmt, args, err = sqlx.In(transferStmt, a.toProfileUUID, a.fromProfileUUID, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build transfer managed certificates")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "transfer managed certificates")
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 	}
@@ -4379,17 +4446,19 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in AB but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
+	// DEP hosts are included from the start (so they show as pending before they enroll). Manually
+	// enrolled hosts are included only once Fleet has sent them the bootstrap package. Hosts with a
+	// pending migration only count as pending if they'll get the package once they migrate.
+	allowedDuringMigration, err := ds.bootstrapPackageAllowedDuringMigration(ctx, &teamID)
+	if err != nil {
+		return nil, err
+	}
+
 	stmt := `
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -4401,10 +4470,10 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           JOIN host_mdm hm ON
               hm.host_id = h.id
           WHERE
-              hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ? AND h.platform = 'darwin'`
+              (hm.installed_from_dep = 1 OR hmabp.host_uuid IS NOT NULL) AND COALESCE(h.team_id, 0) = ? AND h.platform = 'darwin'`
 
 	var bp fleet.MDMAppleBootstrapPackageSummary
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, allowedDuringMigration, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
 	}
 	return &bp, nil
@@ -4437,12 +4506,8 @@ func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUI
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
-	// NOTE: Consider joining on host_dep_assignments instead of host_mdm so DEP hosts that
-	// manually enroll or re-enroll are included in the results so long as they are not unassigned
-	// in Apple Business. The problem with using host_dep_assignments is that a host can be
-	// assigned to Fleet in AB but still manually enroll. We should probably keep using host_mdm,
-	// but be better at updating the table with the right values when a host enrolls (perhaps adding
-	// a query param to the enroll endpoint).
+	// The join on host_mdm_apple_bootstrap_packages scopes this to hosts Fleet sent the package to,
+	// whether they enrolled via DEP or manually.
 	stmt := `
 SELECT
     CASE
@@ -4458,12 +4523,10 @@ JOIN host_mdm_apple_bootstrap_packages hmabp ON
     hmabp.host_uuid = h.uuid
 LEFT JOIN nano_command_results ncr ON
     ncr.command_uuid = hmabp.command_uuid
-JOIN host_mdm hm ON
-    hm.host_id = h.id
 JOIN mdm_apple_bootstrap_packages mabs ON
 		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
-    h.id = ? AND hm.installed_from_dep = 1 AND hmabp.skipped = 0`
+    h.id = ? AND hmabp.skipped = 0`
 
 	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
 
