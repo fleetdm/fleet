@@ -100,6 +100,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -358,10 +359,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			// A host moved to another fleet reads its packs from a per-host
 			// cache (1m).
 			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
-			// The cached osquery config inputs (1m), plus the pack config
-			// cache (1m): it can be rebuilt from a stale cached input read
-			// just before that expires, so the two TTLs add up.
-			OsqueryConfigScope: cached_mysql.MaxConfigInputTTL() + service.PackConfigCacheTTL,
+			// The ETag write fence (3m), which outlasts the cached osquery
+			// config inputs plus the pack config cache built from them. Hosts
+			// nudged inside the fence each do a full config build that can't
+			// be stored as an ETag.
+			OsqueryConfigScope: redis_config_etag.DefaultFenceTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {
 			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
