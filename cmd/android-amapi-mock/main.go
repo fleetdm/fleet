@@ -394,6 +394,7 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesDelete(store)))))
 	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleIssueCommand(store)))))
 	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", noteEnt(sim(handleDevicesList(store, google))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}/operations/{oid}", noteEnt(sim(handleOperationsGet(store))))
 
 	// ---- AMAPI: Policies ----
 	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePoliciesPatch(store, google))))

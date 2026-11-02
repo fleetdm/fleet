@@ -145,11 +145,32 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 			"name":                 name,
 			"appliedPolicyVersion": fmt.Sprintf("%d", d.PolicyVersion),
 			"appliedPolicyName":    d.PolicyName,
+			// Fleet checks a re-enrollment's hardware identity against this before resetting the host.
+			"hardwareInfo": map[string]any{"enterpriseSpecificId": d.EnterpriseSpecificID},
 		}
 		d.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// handleOperationsGet reports every operation on a fake device as done, since simulated
+// devices ack commands as soon as they see them. Fleet looks the operation up when it
+// handles a COMMAND notification.
+func handleOperationsGet(store *deviceStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := deviceName(r)
+		w.Header().Set("Content-Type", "application/json")
+		if store.getByName(name) == nil {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, `{"error":{"code":404,"message":"Operation not found","status":"NOT_FOUND"}}`)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name": name + "/operations/" + r.PathValue("oid"),
+			"done": true,
+		})
 	}
 }
 

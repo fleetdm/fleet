@@ -889,3 +889,31 @@ func TestEnrollmentTokenExpiry(t *testing.T) {
 		require.Equal(t, 9999, parsed.Year())
 	})
 }
+
+// TestDeviceAndOperationLookupsForPubSubVerification checks the lookups Fleet makes when it
+// handles a Pub/Sub notification: a fake device reports its hardware identity, and its
+// operations report as done.
+func TestDeviceAndOperationLookupsForPubSubVerification(t *testing.T) {
+	mux, _ := newTestMux(t)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName, nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var device androidmanagement.Device
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &device))
+	require.NotNil(t, device.HardwareInfo)
+	assert.Equal(t, testESID, device.HardwareInfo.EnterpriseSpecificId)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName+"/operations/op-1", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var op androidmanagement.Operation
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &op))
+	assert.Equal(t, testDeviceName+"/operations/op-1", op.Name)
+	assert.True(t, op.Done)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices/unknown/operations/op-1", nil))
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
