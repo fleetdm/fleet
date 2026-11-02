@@ -3,8 +3,8 @@
     {
       "version": "7.84",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.84') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'REAPER (x64)' AND publisher = 'Cockos Incorporated';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'REAPER (x64)' AND publisher = 'Cockos Incorporated' AND version_compare(version, '7.84') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reaper.exe');"
       },
       "installer_url": "https://www.reaper.fm/files/7.x/reaper784_x64-install.exe",

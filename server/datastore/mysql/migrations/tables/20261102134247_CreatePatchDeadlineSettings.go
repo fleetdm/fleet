@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261030212754, Down_20261030212754)
+	MigrationClient.AddMigration(Up_20261102134247, Down_20261102134247)
 }
 
-func Up_20261030212754(tx *sql.Tx) error {
+func Up_20261102134247(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS patch_deadline_settings (
   team_id    INT UNSIGNED NOT NULL,
@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS patch_deadline_settings (
 	return nil
 }
 
-func Down_20261030212754(tx *sql.Tx) error {
+func Down_20261102134247(tx *sql.Tx) error {
 	return nil
 }

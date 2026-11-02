@@ -1893,6 +1893,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetup() {
 	}))
 	defer bootstrapServer.Close()
 
+	// Omitting the key must clear it.
+	const bootstrapSettingsSet = "macos_enable_bootstrap_package_during_manual_enrollment: true\n    macos_enable_bootstrap_package_during_migration: true"
+
 	const (
 		globalConfig = `
 agent_options:
@@ -1912,6 +1915,7 @@ controls:
   setup_experience:
     macos_bootstrap_package: %s
     macos_manual_agent_install: %t
+    %s
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -1927,6 +1931,8 @@ controls:
   setup_experience:
     macos_bootstrap_package: %s
     macos_manual_agent_install: true
+    macos_enable_bootstrap_package_during_manual_enrollment: true
+    macos_enable_bootstrap_package_during_migration: true
 policies:
 software:
 `
@@ -1936,6 +1942,7 @@ controls:
   setup_experience:
     macos_bootstrap_package: %s
     macos_manual_agent_install: %t
+    %s
 software:
 reports:
 policies:
@@ -1966,26 +1973,26 @@ settings:
 	teamName := uuid.NewString()
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, true, teamName))
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, true, bootstrapSettingsSet, teamName))
 	require.NoError(t, err)
 	err = teamFile.Close()
 	require.NoError(t, err)
 	teamFileClear, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, false, teamName))
+	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, false, "", teamName))
 	require.NoError(t, err)
 	err = teamFileClear.Close()
 	require.NoError(t, err)
 
 	globalFileOnlySet, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileOnlySet.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, true))
+	_, err = globalFileOnlySet.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, true, bootstrapSettingsSet))
 	require.NoError(t, err)
 	err = globalFileOnlySet.Close()
 	require.NoError(t, err)
 	globalFileOnlyClear, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileOnlyClear.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, false))
+	_, err = globalFileOnlyClear.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, false, ""))
 	require.NoError(t, err)
 	err = globalFileOnlyClear.Close()
 	require.NoError(t, err)
@@ -2002,10 +2009,14 @@ settings:
 	appConfig, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+	assert.True(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 	assert.True(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+	assert.True(t, team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+	assert.True(t, team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 
 	// Apply global configs without no-team
 	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t,
@@ -2015,9 +2026,13 @@ settings:
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.False(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+	assert.False(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+	assert.False(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 	team, err = s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 	assert.False(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+	assert.False(t, team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+	assert.False(t, team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 
 	// Apply global configs only
 	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t,
@@ -2026,6 +2041,8 @@ settings:
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+	assert.True(t, appConfig.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedLabels() {
