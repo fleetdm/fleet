@@ -15,6 +15,7 @@ import {
   HISTORICAL_DATA_CONFIG_KEYS,
   HistoricalDataConfigKey,
 } from "interfaces/charts";
+import { formatWeekdayList } from "interfaces/patch_deadline_settings";
 import {
   AppleDisplayPlatform,
   isAndroid,
@@ -2685,6 +2686,28 @@ const TAGGED_TEMPLATES = {
   disabledOnlyAppleBusinessEnrollment: () => {
     return <>disabled Apple Business only enrollment for Apple hosts.</>;
   },
+  editedPatchDeadlineSettings: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const daysLabel = formatWeekdayList(details.days ?? []);
+    const time = details.time || "";
+    return (
+      <>
+        {" "}
+        edited patch deadline for{" "}
+        {details.fleet_name ? (
+          <>
+            <b>{details.fleet_name}</b> fleet
+          </>
+        ) : (
+          <b>Unassigned</b>
+        )}{" "}
+        to <b>{daysLabel}</b> at <b>{time}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -3277,6 +3300,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.NotifiedEndUserBeforePatching: {
       return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
+    case ActivityType.EditedPatchDeadlineSettings: {
+      return TAGGED_TEMPLATES.editedPatchDeadlineSettings(activity);
     }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();

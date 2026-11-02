@@ -118,6 +118,8 @@ type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, h
 
 type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 
+type ScheduledQueriesDigestFunc func(ctx context.Context, teamID *uint) (string, error)
+
 type LabelScopedScheduledQueryScopesFunc func(ctx context.Context) (fleet.ConfigETagLabelScopes, error)
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
@@ -572,6 +574,8 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
+type GetHostPatchDeadlineAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
 type DisplayedPatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
 type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
@@ -681,6 +685,10 @@ type GetSoftwareCategoryNameToIDMapFunc func(ctx context.Context, teamID uint, n
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 type GetCategoriesForSoftwareInstallersFunc func(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
+
+type GetPatchDeadlineSettingsFunc func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error)
+
+type SetPatchDeadlineSettingsFunc func(ctx context.Context, settings fleet.PatchDeadlineSettings) error
 
 type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error)
 
@@ -1078,6 +1086,8 @@ type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbi
 
 type HostPreviouslyOrbitEnrolledFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
+type OtherMDMHostIDWithUUIDFunc func(ctx context.Context, uuid string, excludeHostID uint) (uint, error)
+
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
@@ -1251,6 +1261,8 @@ type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileUUIDs []st
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
+
+type IsMDMAppleCommandQueuedForEnrollmentFunc func(ctx context.Context, enrollmentID string, commandUUID string) (bool, error)
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
@@ -1617,6 +1629,8 @@ type MDMWindowsBulkInsertCommandsFunc func(ctx context.Context, cmds []*fleet.MD
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
+
+type RefreshMDMWindowsProfilesStatusRollupFunc func(ctx context.Context, hostUUIDs []string) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
@@ -2149,6 +2163,8 @@ type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
+
+type ListMDMManagedCertificatesForHostProfilesFunc func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error)
 
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
@@ -2779,6 +2795,9 @@ type DataStore struct {
 
 	HasLabelScopedScheduledQueriesFunc        HasLabelScopedScheduledQueriesFunc
 	HasLabelScopedScheduledQueriesFuncInvoked bool
+
+	ScheduledQueriesDigestFunc        ScheduledQueriesDigestFunc
+	ScheduledQueriesDigestFuncInvoked bool
 
 	LabelScopedScheduledQueryScopesFunc        LabelScopedScheduledQueryScopesFunc
 	LabelScopedScheduledQueryScopesFuncInvoked bool
@@ -3461,6 +3480,9 @@ type DataStore struct {
 	PatchNotificationExistsForAppFunc        PatchNotificationExistsForAppFunc
 	PatchNotificationExistsForAppFuncInvoked bool
 
+	GetHostPatchDeadlineAtFunc        GetHostPatchDeadlineAtFunc
+	GetHostPatchDeadlineAtFuncInvoked bool
+
 	DisplayedPatchNotificationExistsForAppFunc        DisplayedPatchNotificationExistsForAppFunc
 	DisplayedPatchNotificationExistsForAppFuncInvoked bool
 
@@ -3625,6 +3647,12 @@ type DataStore struct {
 
 	GetCategoriesForSoftwareInstallersFunc        GetCategoriesForSoftwareInstallersFunc
 	GetCategoriesForSoftwareInstallersFuncInvoked bool
+
+	GetPatchDeadlineSettingsFunc        GetPatchDeadlineSettingsFunc
+	GetPatchDeadlineSettingsFuncInvoked bool
+
+	SetPatchDeadlineSettingsFunc        SetPatchDeadlineSettingsFunc
+	SetPatchDeadlineSettingsFuncInvoked bool
 
 	GetSoftwareTitlesForInstallAllFunc        GetSoftwareTitlesForInstallAllFunc
 	GetSoftwareTitlesForInstallAllFuncInvoked bool
@@ -4220,6 +4248,9 @@ type DataStore struct {
 	HostPreviouslyOrbitEnrolledFunc        HostPreviouslyOrbitEnrolledFunc
 	HostPreviouslyOrbitEnrolledFuncInvoked bool
 
+	OtherMDMHostIDWithUUIDFunc        OtherMDMHostIDWithUUIDFunc
+	OtherMDMHostIDWithUUIDFuncInvoked bool
+
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
 
@@ -4480,6 +4511,9 @@ type DataStore struct {
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
+
+	IsMDMAppleCommandQueuedForEnrollmentFunc        IsMDMAppleCommandQueuedForEnrollmentFunc
+	IsMDMAppleCommandQueuedForEnrollmentFuncInvoked bool
 
 	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
 	GetMDMAppleProfilesSummaryFuncInvoked bool
@@ -5029,6 +5063,9 @@ type DataStore struct {
 
 	MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc        MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc
 	MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked bool
+
+	RefreshMDMWindowsProfilesStatusRollupFunc        RefreshMDMWindowsProfilesStatusRollupFunc
+	RefreshMDMWindowsProfilesStatusRollupFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
@@ -5827,6 +5864,9 @@ type DataStore struct {
 
 	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
+
+	ListMDMManagedCertificatesForHostProfilesFunc        ListMDMManagedCertificatesForHostProfilesFunc
+	ListMDMManagedCertificatesForHostProfilesFuncInvoked bool
 
 	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
 	ResendHostCertificateProfileFuncInvoked bool
@@ -6890,6 +6930,13 @@ func (s *DataStore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *
 	s.HasLabelScopedScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasLabelScopedScheduledQueriesFunc(ctx, teamID, queryReportsDisabled)
+}
+
+func (s *DataStore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	s.mu.Lock()
+	s.ScheduledQueriesDigestFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScheduledQueriesDigestFunc(ctx, teamID)
 }
 
 func (s *DataStore) LabelScopedScheduledQueryScopes(ctx context.Context) (fleet.ConfigETagLabelScopes, error) {
@@ -8481,6 +8528,13 @@ func (s *DataStore) PatchNotificationExistsForApp(ctx context.Context, hostID ui
 	return s.PatchNotificationExistsForAppFunc(ctx, hostID, softwareTitleID)
 }
 
+func (s *DataStore) GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	s.mu.Lock()
+	s.GetHostPatchDeadlineAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostPatchDeadlineAtFunc(ctx, hostID)
+}
+
 func (s *DataStore) DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	s.mu.Lock()
 	s.DisplayedPatchNotificationExistsForAppFuncInvoked = true
@@ -8864,6 +8918,20 @@ func (s *DataStore) GetCategoriesForSoftwareInstallers(ctx context.Context, inst
 	s.GetCategoriesForSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCategoriesForSoftwareInstallersFunc(ctx, installerIDs)
+}
+
+func (s *DataStore) GetPatchDeadlineSettings(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.GetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPatchDeadlineSettingsFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetPatchDeadlineSettings(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+	s.mu.Lock()
+	s.SetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPatchDeadlineSettingsFunc(ctx, settings)
 }
 
 func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
@@ -10252,6 +10320,13 @@ func (s *DataStore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fl
 	return s.HostPreviouslyOrbitEnrolledFunc(ctx, hostInfo, isMDMEnabled)
 }
 
+func (s *DataStore) OtherMDMHostIDWithUUID(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {
+	s.mu.Lock()
+	s.OtherMDMHostIDWithUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.OtherMDMHostIDWithUUIDFunc(ctx, uuid, excludeHostID)
+}
+
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.mu.Lock()
 	s.SerialUpdateHostFuncInvoked = true
@@ -10859,6 +10934,13 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) IsMDMAppleCommandQueuedForEnrollment(ctx context.Context, enrollmentID string, commandUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsMDMAppleCommandQueuedForEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsMDMAppleCommandQueuedForEnrollmentFunc(ctx, enrollmentID, commandUUID)
 }
 
 func (s *DataStore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -12140,6 +12222,13 @@ func (s *DataStore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Co
 	s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc(ctx, hostUUIDs, cmd, profilePayloads)
+}
+
+func (s *DataStore) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	s.mu.Lock()
+	s.RefreshMDMWindowsProfilesStatusRollupFuncInvoked = true
+	s.mu.Unlock()
+	return s.RefreshMDMWindowsProfilesStatusRollupFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
@@ -14002,6 +14091,13 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 	s.ListHostMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListMDMManagedCertificatesForHostProfiles(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+	s.mu.Lock()
+	s.ListMDMManagedCertificatesForHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMManagedCertificatesForHostProfilesFunc(ctx, hostProfiles)
 }
 
 func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {

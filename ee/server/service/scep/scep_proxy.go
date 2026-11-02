@@ -251,11 +251,18 @@ func sanitizeUpstreamError(ctx context.Context, err error, message string) error
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
-// It is a pass-through call to the SCEP server.
+// It is a pass-through call to the SCEP server, except that Windows requests drop the message.
 func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
 	scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// Windows hard-codes message=default, which CAs that pick the CA by name (e.g. EJBCA) reject. Without it the CA answers
+	// with its default CA, the same request ValidateSCEPURL makes when the CA is added.
+	if _, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier); ok &&
+		strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		message = ""
 	}
 
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))

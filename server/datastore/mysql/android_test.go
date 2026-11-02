@@ -84,6 +84,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
 		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
 		{"AndroidResetOnReenrollment", testAndroidResetOnReenrollment},
+		{"GetIncludedHostUUIDMapForAppStoreAppTargetsOwnPolicy", testGetIncludedHostUUIDMapForAppStoreAppTargetsOwnPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5066,4 +5067,45 @@ func testBulkUpsertMDMAndroidHostProfilesUnlessResetSince(t *testing.T, ds *Data
 		{ProfileUUID: newProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
 		{ProfileUUID: otherHostProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
 	}, rows)
+}
+
+// setAndroidHostAppliedPolicy sets the policy the host last reported applying. Hosts from
+// createAndroidHost report the default policy, pass the host UUID to put one on its own policy.
+func setAndroidHostAppliedPolicy(t *testing.T, ds *Datastore, hostUUID string, policyID *string) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE enterprise_specific_id = ?`, policyID, hostUUID)
+		return err
+	})
+}
+
+func testGetIncludedHostUUIDMapForAppStoreAppTargetsOwnPolicy(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.AddBuiltinLabels(t, ds)
+
+	newHost := func(name string) *fleet.AndroidHost {
+		h, err := ds.NewAndroidHost(ctx, createAndroidHost(name), false)
+		require.NoError(t, err)
+		return h
+	}
+	onOwnPolicy := newHost("own-policy")
+	setAndroidHostAppliedPolicy(t, ds, onOwnPolicy.Host.UUID, &onOwnPolicy.Host.UUID)
+	newHost("default-policy") // createAndroidHost reports policy "1"
+	noPolicyReported := newHost("no-policy")
+	setAndroidHostAppliedPolicy(t, ds, noPolicyReported.Host.UUID, nil)
+	onOtherHostsPolicy := newHost("other-hosts-policy")
+	setAndroidHostAppliedPolicy(t, ds, onOtherHostsPolicy.Host.UUID, &onOwnPolicy.Host.UUID)
+
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "com.example.policytarget",
+		BundleIdentifier: "com.example.policytarget",
+		AdamID:           "com.example.policytarget",
+		Platform:         fleet.AndroidPlatform,
+	}, nil, nil)
+	require.NoError(t, err)
+
+	got, err := ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.VPPAppTeam.AppTeamID)
+	require.NoError(t, err)
+	// Each host maps to its own policy, never to the default policy or an empty name
+	require.Equal(t, map[string]string{onOwnPolicy.Host.UUID: onOwnPolicy.Host.UUID}, got)
 }

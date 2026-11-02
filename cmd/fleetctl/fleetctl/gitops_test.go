@@ -2882,6 +2882,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 			assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+			assert.True(t, savedTeam.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+			assert.True(t, savedTeam.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 			assert.True(t, ds.SetSetupExperienceScriptFuncInvoked)
 			assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 			assert.Equal(t, basePath+".yml", *savedTeam.Filename)

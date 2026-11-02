@@ -1058,16 +1058,62 @@ describe("PolicyForm - component", () => {
         await user.click(screen.getByRole("radio", { name: "Force patch" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
+        // Clicking Force patch (re)defaults the end-user experience to
+        // Deadline per the Figma dev note, so a user who flips the radio and
+        // hits Save gets patch_deadline: true + continuous automations locked
+        // on. This fallback path fires before the automations config loads;
+        // the Patch radio click still has to carry the deadline flag through
+        // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
             team_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
             notify_before_patching: false,
-            continuous_automations_enabled: false,
+            patch_deadline: true,
+            continuous_automations_enabled: true,
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("saves Force patch with Deadline through the loaded automation configuration", async () => {
+        jest.spyOn(teamsAPI, "load").mockResolvedValue({
+          team: createMockTeam({ id: 1 }),
+        } as never);
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            teamIdForApi={1}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        // The conditional access checkbox renders once the configuration loads.
+        await screen.findByRole("checkbox", { name: "conditional_access" });
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(
+            teamPatchPolicy.id,
+            expect.objectContaining({
+              patch_deadline: true,
+              continuous_automations_enabled: true,
+            })
+          )
+        );
       });
 
       it("shows Patch when app is closed (not Force + Notify) for a legacy policy with both flags set", () => {

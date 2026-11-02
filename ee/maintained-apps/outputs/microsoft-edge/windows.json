@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "156.0.4314.50",
+      "version": "156.0.4314.58",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation' AND version_compare(version, '156.0.4314.50') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation' AND version_compare(version, '156.0.4314.58') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'msedge.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/9a5569d2-a134-42cb-940f-d7225433a20c/MicrosoftEdgeEnterpriseX64.msi",
+      "installer_url": "https://download.microsoft.com/download/6a05dff7-d4e0-4e1f-a773-efe3f9c17341/MicrosoftEdgeEnterpriseX64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "e12e9902",
-      "sha256": "f7bc427c4d26aefe12bd492a24959cc6ca328aea2851614637d7133cae329071",
+      "sha256": "784051ebfcc8b28569127f381d515766866c4925312d35c52293382b97eef2fb",
       "default_categories": [
         "Browsers"
       ],
