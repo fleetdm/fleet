@@ -865,7 +865,13 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			setEnrollmentState(microsoft_mdm.MDMDeviceStateNotEnrolled)
 			require.Nil(t, bitLockerStatus())
 
+			// the enrollment row alone is not enough when the host reports that it is no longer enrolled in an MDM
 			setEnrollmentState(microsoft_mdm.MDMDeviceStateEnrolled)
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
+			require.Nil(t, bitLockerStatus())
+
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+				fleet.PersonalEnrollmentTypeNone))
 			bls := bitLockerStatus()
 			require.NotNil(t, bls)
 			require.NotNil(t, bls.Status)

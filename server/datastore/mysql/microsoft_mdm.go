@@ -2379,17 +2379,9 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	// Like the summary and the list filters, ignore hosts without a Fleet MDM enrollment (for example, third-party MDM).
-	var hasFleetMDMEnrollment bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasFleetMDMEnrollment, `
-SELECT EXISTS (
-	SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-	WHERE h.id = ? AND mwe.device_state = ?
-)`, host.ID, microsoft_mdm.MDMDeviceStateEnrolled); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "check windows mdm enrollment for bitlocker status")
-	}
-	if !hasFleetMDMEnrollment {
-		ds.logger.DebugContext(ctx, "no bitlocker status for host without a fleet mdm enrollment", "host_id", host.ID)
+	// Like the summary and the list filters, ignore hosts that are not connected to Fleet MDM (for example, third-party MDM).
+	if !mdmInfo.ConnectedToFleet {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host not connected to fleet mdm", "host_id", host.ID)
 		return nil, nil
 	}
 
