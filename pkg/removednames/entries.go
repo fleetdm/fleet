@@ -3,7 +3,6 @@ package removednames
 // entries is the table of removed names. Its team-related content mirrors what the code accepted as deprecated aliases before Fleet 5
 // (the renameto struct tags, deprecatedPathAliases, the fleetctl flag aliases, and pkg/spec GitOps key mappings);
 // TestEntriesCoverDeprecatedSources fails if any of those sources has a team-related name that is missing here.
-// FLEET_JIT_USER_ROLE_TEAM_ (SAML attribute) is not listed: it is handled separately in #53925.
 var entries = []Entry{
 	// JSON keys in request and response bodies.
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "available_teams", New: "available_fleets"},

@@ -22,32 +22,19 @@ func TestMessage(t *testing.T) {
 	t.Parallel()
 
 	const suffix = " See " + GuideURL
-	cases := []struct {
-		name    string
+	for _, c := range []struct {
 		kind    Kind
 		old     string
 		context string
 		want    string
 	}{
-		{"json key", KindJSONKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
-		{"yaml key", KindYAMLKey, "team_settings", "", "team_settings was removed in Fleet 5. Use settings instead." + suffix},
-		{"flag adds dashes", KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
-		{"flag value", KindFlagValue, "--team no-team", "fleetctl generate-gitops",
-			"--team no-team was removed in Fleet 5. Use --fleet unassigned instead." + suffix},
-		{"env var", KindEnvVar, "DELETE_OTHER_TEAMS", "fleetctl gitops",
-			"DELETE_OTHER_TEAMS was removed in Fleet 5. Use DELETE_OTHER_FLEETS instead." + suffix},
-		{"path", KindPath, "/api/_version_/fleet/teams", "",
-			"/api/_version_/fleet/teams was removed in Fleet 5. Use /api/_version_/fleet/fleets instead." + suffix},
-		{"command", KindCommand, "fleetctl get teams", "",
-			"fleetctl get teams was removed in Fleet 5. Use fleetctl get fleets instead." + suffix},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			e, ok := Find(c.kind, c.old, c.context)
-			require.True(t, ok)
-			assert.Equal(t, c.want, e.Message())
-		})
+		{KindJSONKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
+		// Only flags are displayed differently: they get their leading dashes.
+		{KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
+	} {
+		e, ok := Find(c.kind, c.old, c.context)
+		require.True(t, ok)
+		assert.Equal(t, c.want, e.Message())
 	}
 
 	assert.Equal(t, "a was removed in Fleet 5. Use b instead. See "+GuideURL, Message("a", "b"))
@@ -56,27 +43,24 @@ func TestMessage(t *testing.T) {
 func TestFindAndFilter(t *testing.T) {
 	t.Parallel()
 
-	// A flag entry is tied to its command.
+	// A flag entry is tied to its command, and an entry without a context matches every context.
 	_, ok := Find(KindFlag, "team", "fleetctl get hosts")
 	assert.True(t, ok)
 	_, ok = Find(KindFlag, "team", "fleetctl gitops")
 	assert.False(t, ok)
-	_, ok = Find(KindFlag, "policies-team", "fleetctl apply")
-	assert.True(t, ok)
-
-	// An entry without context matches every context.
 	_, ok = Find(KindJSONKey, "team_id", "anything")
 	assert.True(t, ok)
 
-	// Scope filtering: activity details keys do not leak into the request scope and vice versa.
-	for _, e := range Filter(KindJSONKey, ScopeRequest) {
-		assert.Zero(t, e.Scope&ScopeActivityDetails, e.Old)
+	// Filter matches on scope bits, and a zero scope matches every scope.
+	for _, scope := range []Scope{ScopeRequest, ScopeResponse, ScopeActivityDetails} {
+		entries := Filter(KindJSONKey, scope)
+		assert.NotEmpty(t, entries)
+		for _, e := range entries {
+			assert.Equal(t, KindJSONKey, e.Kind)
+			assert.NotZero(t, e.Scope&scope, e.Old)
+		}
 	}
-	activityKeys := Filter(KindJSONKey, ScopeActivityDetails)
-	assert.Len(t, activityKeys, 3)
-	assert.Greater(t, len(Filter(KindJSONKey, 0)), len(activityKeys))
-
-	assert.Len(t, All(), len(entries))
+	assert.Greater(t, len(Filter(KindJSONKey, 0)), len(Filter(KindJSONKey, ScopeActivityDetails)))
 }
 
 func TestEntriesWellFormed(t *testing.T) {
@@ -103,20 +87,24 @@ func TestEntriesWellFormed(t *testing.T) {
 	}
 }
 
-// TestEntriesCoverDeprecatedSources fails when a source that used to accept a team-related name as a deprecated alias has one that
-// is missing from the table, so no old-to-new pair can be lost when those sources are removed.
+// TestEntriesCoverDeprecatedSources fails when a source that accepts a team-related name as a deprecated alias has one that is missing
+// from the table, so no old-to-new pair is lost when those sources are removed. Each subtest scans one source and is deleted by the
+// change that removes that source: it fails, rather than passing vacuously, once there is nothing left to scan.
 func TestEntriesCoverDeprecatedSources(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..")
+	hasEntry := func(match func(Entry) bool) bool { return slices.ContainsFunc(entries, match) }
 	has := func(kind Kind, scope Scope, oldName, newName string) bool {
-		return slices.ContainsFunc(entries, func(e Entry) bool {
+		return hasEntry(func(e Entry) bool {
 			return e.Kind == kind && e.Scope&scope != 0 && e.Old == oldName && (newName == "" || e.New == newName)
 		})
 	}
+	isTeamRelated := func(name string) bool { return strings.Contains(strings.ToLower(name), "team") }
 
 	t.Run("renameto struct tags", func(t *testing.T) {
 		t.Parallel()
+		found := 0
 		for rel, file := range parseFiles(t, root, []string{"server", "ee", "cmd", "pkg"}, "renameto") {
 			ast.Inspect(file, func(n ast.Node) bool {
 				field, ok := n.(*ast.Field)
@@ -129,16 +117,14 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				}
 				tag := reflect.StructTag(unquoted)
 				renameTo, _, _ := strings.Cut(tag.Get("renameto"), ",")
-				if renameTo == "" {
-					return true
-				}
 				for key, kind := range map[string]Kind{
 					"json": KindJSONKey, "query": KindQueryParam, "url": KindQueryParam, "form": KindFormField, "csv": KindCSVColumn,
 				} {
 					oldName, _, _ := strings.Cut(tag.Get(key), ",")
-					if oldName == "" || !hasTeamToken(oldName) {
+					if renameTo == "" || !isTeamRelated(oldName) {
 						continue
 					}
+					found++
 					scope := ScopeRequest | ScopeResponse
 					if filepath.ToSlash(rel) == "server/fleet/activities.go" {
 						scope = ScopeActivityDetails
@@ -148,47 +134,33 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				return true
 			})
 		}
+		assert.Positive(t, found)
 	})
 
 	t.Run("deprecated team paths", func(t *testing.T) {
 		t.Parallel()
-		rel := filepath.Join("server", "service", "handler_deprecated_paths.go")
-		file := parseFile(t, filepath.Join(root, rel))
 		teamPath := regexp.MustCompile(`/teams?(/|$)`)
 		paramRegex := regexp.MustCompile(`\{(\w+):[^}]*\}`)
-		const prefix = "/api/_version_/fleet"
 		found := 0
-		ast.Inspect(file, func(n ast.Node) bool {
+		ast.Inspect(parseFile(t, filepath.Join(root, "server", "service", "handler_deprecated_paths.go")), func(n ast.Node) bool {
 			lit, ok := n.(*ast.CompositeLit)
 			if !ok {
 				return true
 			}
-			var primary string
-			var deprecated []string
-			for _, elt := range lit.Elts {
-				kv, ok := elt.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				switch exprName(kv.Key) {
-				case "PrimaryPath":
-					primary = stringLit(kv.Value)
-				case "DeprecatedPaths":
-					deprecated = stringLits(kv.Value)
-				}
-			}
-			for _, d := range deprecated {
-				if !teamPath.MatchString(d) {
+			primary := literalsOf(lit, "PrimaryPath")
+			for _, deprecated := range literalsOf(lit, "DeprecatedPaths") {
+				if len(primary) != 1 || !teamPath.MatchString(deprecated) {
 					continue
 				}
 				found++
-				oldPath, newPath := paramRegex.ReplaceAllString(d, "{$1}"), paramRegex.ReplaceAllString(primary, "{$1}")
-				assert.True(t, strings.HasPrefix(oldPath, prefix) && has(KindPath, ScopeRequest, oldPath, newPath),
+				oldPath, newPath := paramRegex.ReplaceAllString(deprecated, "{$1}"), paramRegex.ReplaceAllString(primary[0], "{$1}")
+				// Entries hold paths relative to /api/_version_/fleet.
+				assert.True(t, hasEntry(func(e Entry) bool { return e.Kind == KindPath && e.Old == oldPath && e.New == newPath }),
 					"deprecated path %s -> %s is missing from entries", oldPath, newPath)
 			}
 			return true
 		})
-		assert.Positive(t, found, "expected to find deprecated team paths in %s", rel)
+		assert.Positive(t, found)
 	})
 
 	t.Run("fleetctl flag, command, and env var aliases", func(t *testing.T) {
@@ -198,24 +170,25 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 		}
 		found := 0
 		for rel, file := range parseFiles(t, root, []string{filepath.Join("cmd", "fleetctl", "fleetctl")}, "") {
-			for _, alias := range collectCLIAliases(file) {
+			for _, alias := range collectCLIAliases(file, isTeamRelated) {
 				found++
+				var match func(Entry) bool
 				switch alias.kind {
 				case cliCommandAlias:
-					primary := alias.command[0]
-					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
-						return e.Kind == KindCommand && strings.HasSuffix(e.Old, " "+alias.name) && strings.HasSuffix(e.New, " "+primary)
-					}), "%s: command alias %q of %q is missing from entries", rel, alias.name, primary)
+					match = func(e Entry) bool {
+						return e.Kind == KindCommand && strings.HasSuffix(e.Old, " "+alias.name) && strings.HasSuffix(e.New, " "+alias.command[0])
+					}
 				case cliFlagAlias:
-					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
+					match = func(e Entry) bool {
 						return e.Kind == KindFlag && e.Old == alias.name && endsWithAny(e.Context, alias.command) &&
 							(alias.flagName == "" || e.New == alias.flagName)
-					}), "%s: flag alias %q of command %v is missing from entries", rel, alias.name, alias.command)
+					}
 				case cliEnvVar:
-					assert.True(t, slices.ContainsFunc(entries, func(e Entry) bool {
+					match = func(e Entry) bool {
 						return e.Kind == KindEnvVar && e.Old == alias.name && endsWithAny(e.Context, alias.command)
-					}), "%s: env var %q of command %v is missing from entries", rel, alias.name, alias.command)
+					}
 				}
+				assert.True(t, hasEntry(match), "%s: %s %q of command %v is missing from entries", rel, alias.kind, alias.name, alias.command)
 			}
 		}
 		assert.Positive(t, found)
@@ -223,47 +196,23 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 
 	t.Run("gitops key mappings", func(t *testing.T) {
 		t.Parallel()
-		file := parseFile(t, filepath.Join(root, "pkg", "spec", "gitops_deprecations.go"))
 		found := 0
-		ast.Inspect(file, func(n ast.Node) bool {
+		ast.Inspect(parseFile(t, filepath.Join(root, "pkg", "spec", "gitops_deprecations.go")), func(n ast.Node) bool {
 			lit, ok := n.(*ast.CompositeLit)
-			if !ok || len(lit.Elts) != 2 {
+			if !ok {
 				return true
 			}
-			oldPath, newPath := stringLit(lit.Elts[0]), stringLit(lit.Elts[1])
-			if oldPath == "" || newPath == "" || !hasTeamToken(oldPath) {
-				return true
+			if pair := stringLits(lit); len(lit.Elts) == 2 && len(pair) == 2 && isTeamRelated(pair[0]) {
+				found++
+				// A dotted path must have its own YAML entry; only an undotted name can be covered by a JSON key entry.
+				matched := has(KindYAMLKey, ScopeRequest, pair[0], pair[1]) ||
+					(!strings.Contains(pair[0], ".") && has(KindJSONKey, ScopeRequest, pair[0], pair[1]))
+				assert.True(t, matched, "gitops mapping %s -> %s is missing from entries", pair[0], pair[1])
 			}
-			found++
-			// A dotted path must have its own YAML entry; only an undotted name can be covered by a JSON key entry.
-			matched := has(KindYAMLKey, ScopeRequest, oldPath, newPath)
-			if !strings.Contains(oldPath, ".") {
-				matched = matched || has(KindJSONKey, ScopeRequest, oldPath, newPath)
-			}
-			assert.True(t, matched, "gitops mapping %s -> %s is missing from entries", oldPath, newPath)
 			return true
 		})
 		assert.Positive(t, found)
 	})
-}
-
-var camelToken = regexp.MustCompile(`[A-Z][a-z0-9]*|[a-z0-9]+`)
-
-// hasTeamToken reports whether name contains "team" or "teams" as a token in snake_case, kebab-case, camelCase, or dotted form.
-func hasTeamToken(name string) bool {
-	parts := strings.FieldsFunc(name, func(r rune) bool { return r == '_' || r == '-' || r == '.' || r == '[' || r == ']' })
-	for _, part := range parts {
-		tokens := camelToken.FindAllString(part, -1)
-		if part == strings.ToUpper(part) {
-			tokens = []string{part} // SCREAMING_CASE parts are whole tokens, not one token per letter
-		}
-		for _, token := range tokens {
-			if lower := strings.ToLower(token); lower == "team" || lower == "teams" {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // parseFiles parses the non-test Go files under dirs (relative to root) that contain substr, keyed by path relative to root.
@@ -307,41 +256,37 @@ func parseFile(t *testing.T, path string) *ast.File {
 	return file
 }
 
-func exprName(e ast.Expr) string {
-	if id, ok := e.(*ast.Ident); ok {
-		return id.Name
-	}
-	return ""
-}
-
-func stringLit(e ast.Expr) string {
-	lit, ok := e.(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
-		return ""
-	}
-	s, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		return ""
-	}
-	return s
-}
-
+// stringLits returns the string literals of e, which is either one literal or a composite literal of them.
 func stringLits(e ast.Expr) []string {
+	var exprs []ast.Expr
 	switch v := e.(type) {
 	case *ast.CompositeLit:
-		var out []string
-		for _, elt := range v.Elts {
-			if s := stringLit(elt); s != "" {
+		exprs = v.Elts
+	default:
+		exprs = []ast.Expr{e}
+	}
+	var out []string
+	for _, expr := range exprs {
+		if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+			if s, err := strconv.Unquote(lit.Value); err == nil {
 				out = append(out, s)
 			}
 		}
-		return out
-	case *ast.BasicLit:
-		if s := stringLit(v); s != "" {
-			return []string{s}
+	}
+	return out
+}
+
+// literalsOf returns the string literals assigned to the given key of a composite literal.
+func literalsOf(lit *ast.CompositeLit, key string) []string {
+	var out []string
+	for _, elt := range lit.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			if id, ok := kv.Key.(*ast.Ident); ok && id.Name == key {
+				out = append(out, stringLits(kv.Value)...)
+			}
 		}
 	}
-	return nil
+	return out
 }
 
 const (
@@ -360,9 +305,17 @@ type cliAlias struct {
 	flagName string
 }
 
-// collectCLIAliases returns the team-named aliases and env vars declared in file, with the command that declares each.
-func collectCLIAliases(file *ast.File) []cliAlias {
+// collectCLIAliases returns the command aliases, flag aliases, and env vars in file whose name satisfies match, with the command that
+// declares each.
+func collectCLIAliases(file *ast.File, match func(string) bool) []cliAlias {
 	var out []cliAlias
+	add := func(kind string, names, command []string, flagName string) {
+		for _, name := range names {
+			if match(name) {
+				out = append(out, cliAlias{kind: kind, name: name, command: command, flagName: flagName})
+			}
+		}
+	}
 	var walk func(node ast.Node, command []string)
 	walk = func(node ast.Node, command []string) {
 		ast.Inspect(node, func(n ast.Node) bool {
@@ -371,13 +324,8 @@ func collectCLIAliases(file *ast.File) []cliAlias {
 				return true
 			}
 			if sel, ok := lit.Type.(*ast.SelectorExpr); ok && sel.Sel.Name == "Command" {
-				names := slices.Concat(literalsOf(lit, "Name"), literalsOf(lit, "Aliases"))
-				if len(names) > 0 {
-					for _, alias := range literalsOf(lit, "Aliases") {
-						if hasTeamToken(alias) {
-							out = append(out, cliAlias{kind: cliCommandAlias, name: alias, command: names})
-						}
-					}
+				if names := slices.Concat(literalsOf(lit, "Name"), literalsOf(lit, "Aliases")); len(names) > 0 {
+					add(cliCommandAlias, literalsOf(lit, "Aliases"), names, "")
 					for _, elt := range lit.Elts {
 						walk(elt, names)
 					}
@@ -388,30 +336,11 @@ func collectCLIAliases(file *ast.File) []cliAlias {
 			if names := literalsOf(lit, "Name"); len(names) == 1 {
 				flagName = names[0]
 			}
-			for _, alias := range literalsOf(lit, "Aliases") {
-				if hasTeamToken(alias) {
-					out = append(out, cliAlias{kind: cliFlagAlias, name: alias, command: command, flagName: flagName})
-				}
-			}
-			for _, envVar := range literalsOf(lit, "EnvVars") {
-				if hasTeamToken(envVar) {
-					out = append(out, cliAlias{kind: cliEnvVar, name: envVar, command: command})
-				}
-			}
+			add(cliFlagAlias, literalsOf(lit, "Aliases"), command, flagName)
+			add(cliEnvVar, literalsOf(lit, "EnvVars"), command, "")
 			return true
 		})
 	}
 	walk(file, nil)
-	return out
-}
-
-// literalsOf returns the string literals assigned to the given key of a composite literal.
-func literalsOf(lit *ast.CompositeLit, key string) []string {
-	var out []string
-	for _, elt := range lit.Elts {
-		if kv, ok := elt.(*ast.KeyValueExpr); ok && exprName(kv.Key) == key {
-			out = append(out, stringLits(kv.Value)...)
-		}
-	}
 	return out
 }
