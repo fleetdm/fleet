@@ -256,6 +256,13 @@ func run(cfg *Config) error {
 			continue
 		}
 
+		// A Gatekeeper rejection fails the app, but the remaining checks still run
+		// so the app is uninstalled and its other problems are reported too.
+		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier)
+		if gatekeeperErr != nil {
+			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
+		}
+
 		// A failure here still runs the uninstall below so the next app starts
 		// from a clean runner. When appExists found the app outside programs, no
 		// rows is expected, but the query still runs to catch errors.
@@ -272,7 +279,7 @@ func run(cfg *Config) error {
 
 		// Uninstall
 		uninstalled := ac.uninstallApp(ctx)
-		if !uninstalled || existsQueryFailed {
+		if !uninstalled || existsQueryFailed || gatekeeperErr != nil {
 			appWithError = append(appWithError, ac.Name)
 			cleanupTmpDir()
 			continue
