@@ -4632,7 +4632,7 @@
       "name": "JASP",
       "slug": "jasp/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.jasp-stats.JASP",
+      "unique_identifier": "org.jaspstats.jasp",
       "description": "JASP is a statistical analysis application."
     },
     {
