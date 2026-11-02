@@ -4954,7 +4954,7 @@
       "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
-      "unique_identifier": "LastPass",
+      "unique_identifier": "LastPass Universal Windows Installer",
       "description": "LastPass is a password manager."
     },
     {
