@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.1",
+      "version": "3.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity' AND version_compare(bundle_short_version, '3.3.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity' AND version_compare(bundle_short_version, '3.3.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.canva.affinity' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://affinity-update.s3.amazonaws.com/mac2/retail/Affinity%20Affinity%20Store%204940.zip",
+      "installer_url": "https://affinity-update.s3.amazonaws.com/mac2/retail/Affinity%20Affinity%20Store%205004.zip",
       "install_script_ref": "42d2f0f5",
       "uninstall_script_ref": "1fff133d",
-      "sha256": "c4714eaab9e312dfcc5ab7e37ec7276a702a2a74daedcb98a08e54ac0abe8248",
+      "sha256": "91fb16eadeea616831da95dcd7093cae4ce81d979640e5588a01cdd8c462025f",
       "default_categories": [
         "Productivity"
       ]
