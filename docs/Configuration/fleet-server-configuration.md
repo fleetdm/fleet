@@ -1422,6 +1422,18 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_disable_ai_session_ingestion
+
+Applies only to Fleet Premium. Stops Fleet from collecting AI coding agent sessions and their tool calls from hosts. Sessions Fleet already collected stay available in the Fleet UI and API until they expire, 30 days after they started.
+
+- Default value: false
+- Environment variable: `FLEET_OSQUERY_DISABLE_AI_SESSION_INGESTION`
+- Config file format:
+  ```yaml
+  osquery:
+    disable_ai_session_ingestion: true
+  ```
+
 ### osquery_max_concurrent_query_report_reads
 
 The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
