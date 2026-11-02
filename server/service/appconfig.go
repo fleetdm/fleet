@@ -2863,10 +2863,9 @@ func (svc *Service) validateABMAssignments(
 			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
 			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
 			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
-			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, defaultTokenID, nil
+		return tokens, defaultTokenID, nil
 	}
 
 	return nil, nil, nil
