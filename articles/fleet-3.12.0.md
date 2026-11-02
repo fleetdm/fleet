@@ -33,7 +33,7 @@ Thank you, Joseph Macaulay for adding the ability to [control server-side HTTP k
 
 ## Ready to update?
 
-Visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/7-Updating-Fleet.md) for instructions on how to update.
+Visit our [update guide](https://fleetdm.com/docs/deploy/upgrading-fleet) for instructions on how to update.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
