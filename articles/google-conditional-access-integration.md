@@ -13,7 +13,7 @@ How it works:
 
 ## Prerequisites
 
-- Fleet Premium, version 4.95 or later ([coming soon](https://github.com/fleetdm/fleet/issues/54888)).
+- Fleet Premium, version 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/54888) and adds the Google device ID on hosts that this guide relies on: the page in Step 6 saves it, Fleet refuses a link copied to another device, and [Remove a device](#remove-a-device) clears it.
 - Google Workspace Enterprise Standard, Enterprise Plus, or Enterprise for Education, or Cloud Identity Premium.
 - A Chrome Enterprise Premium license for each end user. Without it, IAP doesn't include the device ID.
 - A Google super admin account.
