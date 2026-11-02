@@ -2,8 +2,6 @@
 
 When a Mac's local password drifts from the user's Okta password, the user ends up calling the help desk. Fleet's [Apple account provisioning](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet) keeps the local password in sync with your identity provider (IdP). That guide covers new Macs that create their account during Setup Assistant. This guide covers Macs that are already enrolled and in use: you install Fleet Desktop, deploy one configuration profile, and each user links their existing local account to Okta. No wipe or reinstall is needed.
 
-This guide uses Okta. Any IdP that supports OAuth Resource Owner Password Grant (ROPG) works the same way on the Fleet side.
-
 ## Password sync vs. Platform SSO
 
 These are separate features, and you can adopt one without the other.
@@ -13,7 +11,7 @@ These are separate features, and you can adopt one without the other.
 
 If you need SSO for apps and websites, use Okta's integration. If you only need the local password to match Okta, follow this guide.
 
-> **Warning:** ROPG sends the user's actual password to your IdP so the IdP can verify it. The Mac encrypts the password for your Fleet server. Fleet decrypts it and sends it to Okta's token endpoint. Okta doesn't apply MFA to this flow, so the Okta app you create must allow password-only sign-in. Review this with your security team before you roll it out.
+> **Warning:** OAuth Resource Owner Password Grant (ROPG) sends the user's actual password to your IdP so the IdP can verify it. The Mac encrypts the password for your Fleet server. Fleet decrypts it and sends it to Okta's token endpoint. Okta doesn't apply MFA to this flow, so the Okta app you create must allow password-only sign-in. Review this with your security team before you roll it out.
 
 ## Prerequisites
 
@@ -35,8 +33,6 @@ The app's authentication policy must allow **Password** as a single factor, or R
 1. Create a new authentication policy just for this app. Don't edit a policy that other apps share.
 2. Add a rule that allows password-only sign-in for the users assigned to this app.
 3. Assign the new policy to the password sync app on its **Sign On** tab.
-
-Every other Okta app keeps its own policy, so MFA still applies everywhere else.
 
 You can skip step 2 of that guide (short name and full name mapping). `TokenToUserMapping` sets the account name and full name when macOS creates a new account. On these Macs the account already exists.
 
@@ -94,8 +90,6 @@ controls:
 If the user selects **Cancel**, nothing is saved and macOS asks again later.
 
 After registration, password sync works the same way it does on new Macs. When the user changes their Okta password, they should lock and unlock their Mac with the new password to sync right away. Learn more in [the account provisioning guide](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet#end-user-experience).
-
-Tell your help desk and users about the notification before you deploy. Users who aren't expecting it may dismiss it.
 
 ## Verify
 
