@@ -501,6 +501,12 @@
                 "null"
               ]
             },
+            "config_tls_etag": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "config_tls_max_attempts": {
               "type": [
                 "integer",
@@ -1446,6 +1452,12 @@
             "tls_session_timeout": {
               "type": [
                 "integer",
+                "null"
+              ]
+            },
+            "tls_user_agent": {
+              "type": [
+                "string",
                 "null"
               ]
             },
@@ -2800,7 +2812,7 @@
       "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "description": "Deadline is the required installation date to enforce the required\noperating system version.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -4220,6 +4232,13 @@
             "null"
           ]
         },
+        "enable_profile_validation": {
+          "description": "EnableProfileValidation turns on schema validation of admin-uploaded\nconfiguration profiles. Defaults to true.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "enable_recovery_lock_password": {
           "description": "type: `boolean`",
           "type": [
@@ -4705,6 +4724,20 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_manual_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_migration": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -5394,6 +5427,13 @@
           ]
         },
         "live_reporting_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mcp_disabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
