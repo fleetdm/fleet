@@ -1376,6 +1376,51 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 	}
 }
 
+func TestGitOpsPoliciesUnresolvedFMAFailsApply(t *testing.T) {
+	const slug = "druva-insync@govcloud/darwin"
+	// The fleet's only installer belongs to another app on the same title.
+	installers := []fleet.SoftwarePackageResponse{{
+		TitleID:     new(uint(1)),
+		InstallerID: 1,
+		URL:         "https://example.com/inSync.dmg",
+		HashSHA256:  "abc",
+		Slug:        "druva-insync/darwin",
+	}}
+
+	tests := []struct {
+		name   string
+		policy *spec.GitOpsPolicySpec
+	}{
+		{
+			name: "install_software",
+			policy: &spec.GitOpsPolicySpec{
+				Name: "Druva",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other:   &spec.PolicyInstallSoftware{FleetMaintainedAppSlug: slug},
+				},
+			},
+		},
+		{
+			name: "patch policy",
+			policy: &spec.GitOpsPolicySpec{
+				Name:                   "Druva",
+				Type:                   fleet.PolicyTypePatch,
+				FleetMaintainedAppSlug: slug,
+				InstallSoftware:        optjson.BoolOr[*spec.PolicyInstallSoftware]{Bool: true},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &spec.GitOps{TeamID: new(uint(1)), TeamName: new("Workstations"), Policies: []*spec.GitOpsPolicySpec{tt.policy}}
+			// Fails before the policies are applied, so no server is needed.
+			err := (&Client{}).doGitOpsPolicies(config, installers, nil, nil, func(string, ...any) {}, false)
+			require.ErrorContains(t, err, `policy "Druva": could not resolve software title ID for fleet_maintained_app_slug "`+slug+`"`)
+		})
+	}
+}
+
 func TestEnsureHistoricalDataDefaults(t *testing.T) {
 	cases := []struct {
 		name      string

@@ -81,6 +81,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
+		{"BatchSetFMASwitchToAppSharingTitle", testBatchSetFMASwitchToAppSharingTitle},
 		{"SoftwareInstallerTitleIDValidation", testSoftwareInstallerTitleIDValidation},
 		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
@@ -6859,6 +6860,150 @@ func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
 	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
 }
 
+func testBatchSetFMASwitchToAppSharingTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Both apps share a bundle identifier, so they land on the same title.
+	commercial, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Druva inSync",
+		Slug:             "druva-insync/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.druva.inSyncClient",
+	})
+	require.NoError(t, err)
+	gov, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Druva inSync (GovCloud)",
+		Slug:             "druva-insync@govcloud/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.druva.inSyncClient",
+	})
+	require.NoError(t, err)
+
+	payload := func(teamID uint, app *fleet.MaintainedApp, version, storageID string) []*fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storageID), t.TempDir)
+		require.NoError(t, err)
+		return []*fleet.UploadSoftwareInstallerPayload{{
+			FleetMaintainedAppID: &app.ID,
+			Title:                app.Name,
+			BundleIdentifier:     app.UniqueIdentifier,
+			Source:               "apps",
+			Platform:             "darwin",
+			InstallScript:        "echo install",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            storageID,
+			Filename:             "inSync-" + version + ".dmg",
+			Extension:            "dmg",
+			Version:              version,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &teamID,
+		}}
+	}
+
+	activeInstallerID := func(teamID uint) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND is_active = 1`, teamID)
+		})
+		return id
+	}
+
+	newPolicy := func(teamID, installerID uint) uint {
+		p, err := ds.NewTeamPolicy(ctx, teamID, &user.ID, fleet.PolicyPayload{
+			Name:                "install druva " + fmt.Sprint(teamID),
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+		return p.ID
+	}
+
+	// GitOps resolves a policy's fleet_maintained_app_slug from GetSoftwareInstallers,
+	// so the title must be left with only the GovCloud app's installer.
+	requireOnlyGov := func(t *testing.T, teamID, policyID uint) {
+		got, err := ds.GetSoftwareInstallers(ctx, teamID)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, gov.Slug, got[0].Slug)
+		require.Equal(t, gov.ID, *got[0].FleetMaintainedAppID)
+
+		var rows int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rows, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ?`, teamID)
+		})
+		require.Equal(t, 1, rows, "the other app's versions must be removed")
+		require.Equal(t, got[0].InstallerID, activeInstallerID(teamID))
+
+		policy, err := ds.TeamPolicy(ctx, teamID, policyID)
+		require.NoError(t, err)
+		require.NotNil(t, policy.SoftwareInstallerID)
+		require.Equal(t, got[0].InstallerID, *policy.SoftwareInstallerID)
+	}
+
+	t.Run("same file cached by the other app", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// Commercial 8.1.3 shipped the same DMG as GovCloud 8.1.3.
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, commercial, "8.1.3", "druva-8.1.3"))
+		require.NoError(t, err)
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, commercial, "8.1.4", "druva-8.1.4"))
+		require.NoError(t, err)
+		policyID := newPolicy(team.ID, activeInstallerID(team.ID))
+
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, gov, "8.1.3", "druva-8.1.3"))
+		require.NoError(t, err)
+		requireOnlyGov(t, team.ID, policyID)
+	})
+
+	t.Run("different file", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, commercial, "8.1.8", "druva-8.1.8"))
+		require.NoError(t, err)
+		policyID := newPolicy(team.ID, activeInstallerID(team.ID))
+
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, gov, "8.1.3", "druva-8.1.3-gov"))
+		require.NoError(t, err)
+		requireOnlyGov(t, team.ID, policyID)
+	})
+
+	t.Run("unchanged app heals an earlier switch", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, gov, "8.1.3", "druva-8.1.3"))
+		require.NoError(t, err)
+		govID := activeInstallerID(team.ID)
+
+		// An earlier switch left the other app's version active on the title.
+		var leftoverID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO software_installers (team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
+					platform, install_script_content_id, uninstall_script_content_id, pre_install_query, package_ids, patch_query,
+					fleet_maintained_app_id, is_active)
+				SELECT team_id, global_or_team_id, title_id, 'druva-8.1.8', filename, extension, '8.1.8',
+					platform, install_script_content_id, uninstall_script_content_id, pre_install_query, package_ids, patch_query, ?, 1
+				FROM software_installers WHERE id = ?`, commercial.ID, govID)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			leftoverID = uint(id) //nolint:gosec // dismiss G115
+			return err
+		})
+		policyID := newPolicy(team.ID, leftoverID)
+
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, payload(team.ID, gov, "8.1.3", "druva-8.1.3"))
+		require.NoError(t, err)
+		requireOnlyGov(t, team.ID, policyID)
+	})
+}
+
 func testSoftwareInstallerTitleIDValidation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -9629,6 +9774,8 @@ func testBatchSetSoftwareInstallersChangesStillApply(t *testing.T, ds *Datastore
 			}, v2, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ?`, "2"},
 			{"stale custom row", func(tmID uint) { copyRow(tmID, "fma", "custom", "0.9", nil, false) }, nil,
 				`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND fleet_maintained_app_id IS NULL`, "0"},
+			{"another app's row", func(tmID uint) { copyRow(tmID, "fma", "fma-y", "0.9", &appY.ID, false) }, nil,
+				`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'fma-y'`, "0"},
 			{"second active row", func(tmID uint) {
 				apply(tmID, payload(v2))
 				exec(`UPDATE software_installers SET is_active = 1 WHERE global_or_team_id = ?`, tmID)
@@ -9660,9 +9807,10 @@ func testBatchSetSoftwareInstallersChangesStillApply(t *testing.T, ds *Datastore
 			apply(tm.ID, payload(nil), y())
 			copyRow(tm.ID, "fma-y", "stale", "9.9", &app.ID, true)
 			apply(tm.ID, payload(nil), y())
+			// FMA Y's apply removes the other app's row from its title.
 			var got string
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &got, `SELECT is_active FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'stale'`, tm.ID)
+				return sqlx.GetContext(ctx, q, &got, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'stale'`, tm.ID)
 			})
 			assert.Equal(t, "0", got)
 		})

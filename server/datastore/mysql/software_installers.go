@@ -3368,10 +3368,12 @@ SET p.software_installer_id = s.survivor_id
 WHERE d.global_or_team_id = ? AND d.title_id IN (?) AND d.id NOT IN (?)
 `
 
-	// custom rows left on a title that is switching to a Fleet-maintained app.
-	const findStaleCustomInstallers = `
+	// rows left on a title that is switching to a Fleet-maintained app: custom
+	// packages, or versions of another app that shares the title (e.g. Druva inSync
+	// and Druva inSync (GovCloud) have the same bundle identifier).
+	const findStaleInstallersForFMA = `
 SELECT id FROM software_installers
-WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+WHERE global_or_team_id = ? AND title_id = ? AND NOT (fleet_maintained_app_id <=> ?)
 `
 
 	// use a team id of 0 if no-team
@@ -3676,14 +3678,16 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// for this team+title. This prevents duplicate rows from repeated batch sets
 			// that re-download the same latest version. Match on storage_id too so a
 			// rebuilt package (same version, new hash) is upserted rather than skipped.
+			// Match on the app too: another app sharing the title can have cached the
+			// same file, and skipping would leave that row linked to the other app.
 			var skipInsert bool
 			var existingID uint
 			if installer.FleetMaintainedAppID != nil {
 				err := sqlx.GetContext(ctx, tx, &existingID, `
 					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ? AND storage_id = ?
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND version = ? AND storage_id = ?
 					LIMIT 1
-				`, globalOrTeamID, titleID, installer.Version, installer.StorageID)
+				`, globalOrTeamID, titleID, installer.FleetMaintainedAppID, installer.Version, installer.StorageID)
 				if err == nil {
 					skipInsert = true
 				} else if !errors.Is(err, sql.ErrNoRows) {
@@ -3849,13 +3853,14 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies to active FMA installer %q", installer.Filename)
 				}
-				// A title switching to an FMA can't also hold custom rows, so remove
-				// them. Their policies were already re-pointed to the active FMA.
-				var staleCustomIDs []uint
-				if err := sqlx.SelectContext(ctx, tx, &staleCustomIDs, findStaleCustomInstallers, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "find stale custom installers for FMA title %q", installer.Filename)
+				// A title switching to an FMA can't also hold custom rows or another
+				// FMA's versions, so remove them. Their policies were already re-pointed
+				// to the active FMA.
+				var staleIDs []uint
+				if err := sqlx.SelectContext(ctx, tx, &staleIDs, findStaleInstallersForFMA, globalOrTeamID, titleID, installer.FleetMaintainedAppID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "find stale installers for FMA title %q", installer.Filename)
 				}
-				dropIDs = append(dropIDs, staleCustomIDs...)
+				dropIDs = append(dropIDs, staleIDs...)
 			}
 
 			// process the labels associated with that software installer
@@ -4308,7 +4313,8 @@ FOR SHARE OF si`
 	}
 
 	if isFMA {
-		// Nothing for the full path to activate, evict, re-point, re-pin, or clean up.
+		// Nothing for the full path to activate, evict, re-point, re-pin, or clean up. Custom rows and another
+		// app's versions on the title are cleaned up even when inactive.
 		var state struct {
 			Pin      string `db:"pin"`
 			Versions int    `db:"versions"`
@@ -4320,10 +4326,10 @@ SELECT
 	COALESCE((SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?), '') pin,
 	(SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL) versions,
 	(SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND id != ?
-		AND ((title_id = ? AND (is_active = 1 OR fleet_maintained_app_id IS NULL)) OR (fleet_maintained_app_id = ? AND is_active = 1))) others,
+		AND ((title_id = ? AND (is_active = 1 OR NOT (fleet_maintained_app_id <=> ?))) OR (fleet_maintained_app_id = ? AND is_active = 1))) others,
 	(SELECT COUNT(*) FROM policies p JOIN software_installers si ON si.id = p.software_installer_id
 		WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.id != ?) policies`,
-			globalOrTeamID, titleID, globalOrTeamID, titleID, globalOrTeamID, id, titleID, *p.FleetMaintainedAppID,
+			globalOrTeamID, titleID, globalOrTeamID, titleID, globalOrTeamID, id, titleID, *p.FleetMaintainedAppID, *p.FleetMaintainedAppID,
 			globalOrTeamID, titleID, id); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "load FMA state")
 		}

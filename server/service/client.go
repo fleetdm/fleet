@@ -3632,6 +3632,12 @@ func resolvePolicySoftwareTitleID(
 	return 0, nil, false
 }
 
+// unresolvedPolicyFMAError is returned when a policy's Fleet-maintained app has no
+// software title after the fleet's software was applied in the same run.
+func unresolvedPolicyFMAError(policyName, slug string) error {
+	return fmt.Errorf("policy %q: could not resolve software title ID for fleet_maintained_app_slug %q", policyName, slug)
+}
+
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
 	// Collect policy names that have webhooks_and_tickets_enabled set.
 	var policyNamesWithWebhooks []string
@@ -3748,9 +3754,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
-					// Should not happen because FMAs are uploaded first.
+					// Should not happen because FMAs are uploaded first. Fail rather than
+					// apply the policy without its automation.
 					if !dryRun {
-						logFn("[!] fleet-maintained app slug without software title ID: %s\n", config.Policies[i].FleetMaintainedAppSlug)
+						return unresolvedPolicyFMAError(config.Policies[i].Name, config.Policies[i].FleetMaintainedAppSlug)
 					}
 					continue
 				}
@@ -3793,6 +3800,9 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				}
 			} else {
 				if !dryRun {
+					if slug := config.Policies[i].InstallSoftware.Other.FleetMaintainedAppSlug; slug != "" {
+						return unresolvedPolicyFMAError(config.Policies[i].Name, slug)
+					}
 					logFn("[!] policy %q: could not resolve software title ID (url=%q, hash=%q)\n",
 						config.Policies[i].Name, config.Policies[i].InstallSoftwareURL,
 						config.Policies[i].InstallSoftware.Other.HashSHA256)
