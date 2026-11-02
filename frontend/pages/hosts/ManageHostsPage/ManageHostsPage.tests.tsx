@@ -637,6 +637,55 @@ describe("ManageHostsPage", () => {
     }
   );
 
+  it("shows each host's fleet_name in the Fleet column on Fleet Premium", async () => {
+    setupHandlers(1, [
+      {
+        id: 1,
+        hostname: "test-host",
+        display_name: "test-host",
+        status: "online",
+        platform: "darwin",
+        fleet_id: 1,
+        fleet_name: "Workstations",
+        issues: { total_issues_count: 0, failing_policies_count: 0 },
+      },
+    ]);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...mockAppContext,
+          isPremiumTier: true,
+          isFreeTier: false,
+          availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+          setCurrentTeam: jest.fn(),
+        },
+      },
+    });
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search: "?fleet_id=1",
+        hash: "",
+        query: { fleet_id: "1" },
+      },
+    });
+    render(<ManageHostsPage {...(props as any)} />);
+
+    expect(await screen.findByText("1 host")).toBeInTheDocument();
+    // The table re-renders when the fleets load, so retry until the cell settles.
+    await waitFor(() => {
+      expect(screen.getByText("Workstations")).toBeInTheDocument();
+    });
+  });
+
   it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
     const mockHost = {
       id: 1,

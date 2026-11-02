@@ -20,7 +20,7 @@ export interface IMdmAppleBm {
 }
 
 export type ITokenTeam = {
-  fleet_id: number;
+  team_id: number;
   name: string;
 };
 

@@ -26,8 +26,8 @@ describe("VppFleetsSelector helpers", () => {
       expect(
         valueFromToken(
           token([
-            { fleet_id: 0, name: "No team" },
-            { fleet_id: 2, name: "Pirates" },
+            { team_id: 0, name: "No team" },
+            { team_id: 2, name: "Pirates" },
           ])
         )
       ).toEqual({ allFleets: false, fleetIds: [0, 2] });

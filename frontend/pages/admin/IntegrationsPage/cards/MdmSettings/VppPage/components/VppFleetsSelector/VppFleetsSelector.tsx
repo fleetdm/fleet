@@ -41,7 +41,7 @@ const VppFleetsSelector = ({
         .filter((t) => t.id !== APP_CONTEXT_ALL_TEAMS_ID)
         .map((t) => ({
           id: t.id,
-          label: getTeamDisplayName({ fleet_id: t.id, name: t.name }),
+          label: getTeamDisplayName({ team_id: t.id, name: t.name }),
         })),
     [availableTeams]
   );

@@ -171,7 +171,7 @@ export const isAnyTeamSelected = (currentTeamId?: number) =>
   currentTeamId !== undefined && currentTeamId > APP_CONTEXT_NO_TEAM_ID;
 
 export const getTeamDisplayName = (team: ITokenTeam) =>
-  team.fleet_id === APP_CONTEXT_NO_TEAM_ID
+  team.team_id === APP_CONTEXT_NO_TEAM_ID
     ? APP_CONTEXT_NO_TEAM_SUMMARY.name
     : team.name;
 
