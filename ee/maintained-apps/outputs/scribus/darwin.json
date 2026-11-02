@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.6",
+      "version": "1.6.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.scribus';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.scribus' AND version_compare(bundle_short_version, '1.6.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.scribus' AND version_compare(bundle_short_version, '1.6.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.scribus' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.sourceforge.net/scribus/scribus/1.6.6/scribus-1.6.6-arm64.dmg",
+      "installer_url": "https://downloads.sourceforge.net/scribus/scribus/1.6.7/scribus-1.6.7-arm64.dmg",
       "install_script_ref": "7453e8ca",
       "uninstall_script_ref": "d9a77c9d",
-      "sha256": "0666a15e843575dea51233f874f2a840c73dc1cc5cbdf676fcff2e8978a71815",
+      "sha256": "46729a3bdc0e432bd3cfbae508da401aeb9f7a0159a7a03f3fef1de631557ac6",
       "default_categories": [
         "Productivity"
       ]
