@@ -7894,7 +7894,7 @@
       "name": "Setapp",
       "slug": "setapp/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.setapp.DesktopClient.SetappAgent",
+      "unique_identifier": "com.setapp.DesktopClient",
       "description": "Setapp is a collection of apps available by subscription."
     },
     {
@@ -8517,7 +8517,7 @@
       "name": "Superhuman",
       "slug": "superhuman/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.superhuman.mail",
+      "unique_identifier": "com.superhuman.electron",
       "description": "Superhuman is an email client."
     },
     {
@@ -8832,7 +8832,7 @@
       "name": "The Unarchiver",
       "slug": "the-unarchiver/darwin",
       "platform": "darwin",
-      "unique_identifier": "cx.c3.theunarchiver",
+      "unique_identifier": "com.macpaw.site.theunarchiver",
       "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
     },
     {
@@ -8993,7 +8993,7 @@
       "name": "Tower",
       "slug": "tower/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.fournova.Tower",
+      "unique_identifier": "com.fournova.Tower3",
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
@@ -9273,7 +9273,7 @@
       "name": "Versions",
       "slug": "versions/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.versionsapp.v2",
+      "unique_identifier": "com.versionsapp.v3",
       "description": "Versions is a subversion client."
     },
     {
@@ -9462,7 +9462,7 @@
       "name": "VPN Tracker 365",
       "slug": "vpn-tracker-365/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.equinux.VPNTracker365",
+      "unique_identifier": "com.vpntracker.365mac",
       "description": "VPN Tracker 365 is a VPN client: IPsec, L2TP, OpenVPN, PPTP, SSTP, SonicWALL/AnyConnect/Fortinet SSL."
     },
     {
@@ -9539,7 +9539,7 @@
       "name": "Wavebox",
       "slug": "wavebox/darwin",
       "platform": "darwin",
-      "unique_identifier": "io.wavebox.wavebox",
+      "unique_identifier": "com.bookry.wavebox",
       "description": "Wavebox is a web browser."
     },
     {
