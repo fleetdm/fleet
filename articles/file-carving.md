@@ -21,7 +21,7 @@ The configured `carver_block_size` must be less than the value of `max_allowed_p
 For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
-Compression of the carve contents can be enabled with the `carver_compression` flag. When used, the carve results will be compressed with [Zstandard](https://facebook.github.io/zstd/) compression.
+Compression of the carve contents can be enabled with the `carver_compression` flag. When used, the carve results will be compressed with [Zstandard](https://github.com/meta/zstd/) compression.
 
 ## Create carves
 
