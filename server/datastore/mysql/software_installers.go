@@ -2358,12 +2358,14 @@ SELECT
 	st.source,
 	hsi.attempt_number,
 	hsi.patch_when_closed,
-	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND NOT COALESCE(p.patch_deadline, 0) AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN policies p ON p.id = hsi.policy_id
 	LEFT JOIN hosts h ON h.id = hsi.host_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = hsi.software_title_id
@@ -2400,6 +2402,7 @@ SELECT
 	NULL AS attempt_number,
 	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
 	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query
 FROM
 	upcoming_activities ua

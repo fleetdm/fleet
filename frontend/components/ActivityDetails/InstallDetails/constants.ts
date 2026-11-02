@@ -35,6 +35,8 @@ export const SKIPPED_PRE_INSTALL_OUTPUT =
   "Query didn't return result or failed\nThe app was open";
 export const SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY =
   "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+export const SKIPPED_PRE_INSTALL_OUTPUT_DEADLINE =
+  "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.";
 export const PRE_INSTALL_QUERY_FAIL_OUTPUT =
   "Query didn't return result or failed\nInstall stopped";
 

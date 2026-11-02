@@ -1,15 +1,12 @@
-.self-service-categories-page {
-  @include vertical-page-layout;
+.self-service-categories-section {
+  @include vertical-page-tab-panel-layout;
   align-items: flex-start;
 
-  &__fleet-row {
+  // SectionHeader is only as wide as its intrinsic content under
+  // align-items: flex-start, which collapses the title/details space-between.
+  // Stretching it fills the panel so the Add button sits flush right.
+  &__header {
     align-self: stretch;
-  }
-
-  &__premium-card {
-    align-self: stretch;
-    display: flex;
-    justify-content: center;
   }
 
   &__list {
@@ -21,13 +18,6 @@
       height: 56px;
       box-sizing: border-box;
     }
-  }
-
-  &__list-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: $x-small;
   }
 
   &__list-title {

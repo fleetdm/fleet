@@ -129,9 +129,10 @@ export const CategoriesSelector = ({
       return (
         <div className={`${baseClass}__categories-empty`}>
           <CustomLink
-            url={getPathWithQueryParams(paths.SOFTWARE_LIBRARY_CATEGORIES, {
-              fleet_id: teamId,
-            })}
+            url={getPathWithQueryParams(
+              paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+              { fleet_id: teamId }
+            )}
             text="Add category"
           />
           <span>to assign software to it.</span>

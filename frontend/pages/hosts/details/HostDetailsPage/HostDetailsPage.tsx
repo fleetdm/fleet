@@ -1876,6 +1876,7 @@ const HostDetailsPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
+                  showPatchDeadline
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}

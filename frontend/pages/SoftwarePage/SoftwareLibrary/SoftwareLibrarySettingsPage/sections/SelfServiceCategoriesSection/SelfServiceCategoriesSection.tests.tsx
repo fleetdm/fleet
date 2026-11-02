@@ -1,10 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import React from "react";
+import React, { useContext } from "react";
+import { InjectedRouter } from "react-router";
 
 import createMockConfig from "__mocks__/configMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import {
   addSelfServiceCategoryConflictHandler,
   addSelfServiceCategoryErrorHandler,
@@ -25,7 +28,47 @@ import {
   queryOpenModal,
 } from "test/test-utils";
 
-import SelfServiceCategoriesPage from "./SelfServiceCategoriesPage";
+import SelfServiceCategoriesSection from "./SelfServiceCategoriesSection";
+
+// Thin wrapper that mirrors what SoftwareLibrarySettingsPage passes to the
+// section: canManage derived from the user's role, gitOpsModeEnabled from
+// config. Keeps the existing per-test context mocks (role, gitops config)
+// as the single source of truth.
+interface IWrapperProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    search: string;
+    query: { fleet_id?: string; team_id?: string; add_category?: string };
+    hash?: string;
+  };
+  fleetId?: number;
+}
+
+const SectionWrapper = ({ router, location, fleetId = 1 }: IWrapperProps) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
+  const canManage =
+    !!isGlobalAdmin ||
+    !!isGlobalMaintainer ||
+    !!isTeamAdmin ||
+    !!isTeamMaintainer;
+  return (
+    <SelfServiceCategoriesSection
+      router={router}
+      location={location}
+      fleetId={fleetId}
+      isRouteOk
+      canManage={canManage}
+      gitOpsModeEnabled={gitOpsModeEnabled}
+    />
+  );
+};
 
 jest.mock("components/ToastNotification", () => ({
   notify: {
@@ -39,7 +82,7 @@ jest.mock("components/ToastNotification", () => ({
 const baseProps = {
   router: createMockRouter(),
   location: {
-    pathname: "/software/library/categories",
+    pathname: "/software/library/settings/categories",
     search: "?fleet_id=1",
     query: { fleet_id: "1" },
     hash: "",
@@ -71,36 +114,9 @@ const premiumAdminGitOpsContext = {
   },
 };
 
-describe("SelfServiceCategoriesPage", () => {
+describe("SelfServiceCategoriesSection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it("renders the premium gate on Fleet Free", () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isPremiumTier: false,
-          isGlobalAdmin: true,
-          currentUser: createMockUser({ global_role: "admin" }),
-        },
-      },
-    });
-
-    const { container } = render(<SelfServiceCategoriesPage {...baseProps} />);
-
-    expect(
-      screen.getByText("This feature is included in Fleet Premium.")
-    ).toBeInTheDocument();
-    // Fleet Free has no concept of fleets — the dropdown must be hidden, and
-    // a static page title takes its place.
-    expect(
-      container.querySelector(".fleet-dropdown-wrapper")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Self-service categories" })
-    ).toBeInTheDocument();
   });
 
   it("renders the empty state with Add button when canManage", async () => {
@@ -110,7 +126,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     expect(
       await screen.findByText("No self-service categories")
@@ -121,7 +137,7 @@ describe("SelfServiceCategoriesPage", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Add category" })
+      screen.getByRole("button", { name: /add category/i })
     ).toBeInTheDocument();
   });
 
@@ -143,7 +159,7 @@ describe("SelfServiceCategoriesPage", () => {
       },
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     expect(
       await screen.findByText("No self-service categories")
@@ -152,7 +168,7 @@ describe("SelfServiceCategoriesPage", () => {
       screen.getByText("No self-service categories are available.")
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Add category" })
+      screen.queryByRole("button", { name: /add category/i })
     ).not.toBeInTheDocument();
   });
 
@@ -163,7 +179,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     expect(await screen.findByText("🌎 Browsers")).toBeInTheDocument();
     expect(screen.getByText("👬 Communication")).toBeInTheDocument();
@@ -188,7 +204,7 @@ describe("SelfServiceCategoriesPage", () => {
       },
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     expect(
@@ -212,10 +228,10 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await user.click(
-      await screen.findByRole("button", { name: "Add category" })
+      await screen.findByRole("button", { name: /add category/i })
     );
     const modal = await getOpenModal();
 
@@ -239,10 +255,10 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await user.click(
-      await screen.findByRole("button", { name: "Add category" })
+      await screen.findByRole("button", { name: /add category/i })
     );
     const modal = await getOpenModal();
 
@@ -268,10 +284,10 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await user.click(
-      await screen.findByRole("button", { name: "Add category" })
+      await screen.findByRole("button", { name: /add category/i })
     );
     const modal = await getOpenModal();
 
@@ -295,7 +311,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
@@ -325,7 +341,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
@@ -353,7 +369,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
     await user.click(
@@ -382,10 +398,10 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await user.click(
-      await screen.findByRole("button", { name: "Add category" })
+      await screen.findByRole("button", { name: /add category/i })
     );
     const modal = await getOpenModal();
 
@@ -404,7 +420,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
@@ -425,7 +441,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
     await user.click(
@@ -448,7 +464,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
@@ -473,7 +489,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
@@ -498,10 +514,12 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminGitOpsContext,
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("No self-service categories");
-    expect(screen.getByRole("button", { name: "Add category" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /add category/i })
+    ).toBeDisabled();
   });
 
   it("disables Add/Edit/Delete triggers under GitOps mode", async () => {
@@ -513,7 +531,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminGitOpsContext,
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🌎 Browsers");
     expect(screen.getByRole("button", { name: /Add category/ })).toBeDisabled();
@@ -535,7 +553,7 @@ describe("SelfServiceCategoriesPage", () => {
       context: premiumAdminContext,
     });
 
-    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { user } = render(<SectionWrapper {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
     await user.click(
@@ -559,11 +577,11 @@ describe("SelfServiceCategoriesPage", () => {
   });
 });
 
-describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
+describe("SelfServiceCategoriesSection ?add_category=1 deep-link", () => {
   const deepLinkProps = (router: ReturnType<typeof createMockRouter>) => ({
     router,
     location: {
-      pathname: "/software/library/categories",
+      pathname: "/software/library/settings/categories",
       search: "?fleet_id=1&add_category=1",
       query: { fleet_id: "1", add_category: "1" },
       hash: "",
@@ -582,12 +600,12 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
       context: premiumAdminContext,
     });
 
-    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+    render(<SectionWrapper {...deepLinkProps(router)} />);
 
     await getOpenModal();
 
     expect(router.replace).toHaveBeenCalledWith({
-      pathname: "/software/library/categories",
+      pathname: "/software/library/settings/categories",
       query: { fleet_id: "1" },
     });
   });
@@ -603,7 +621,7 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
     const cleanProps = {
       router,
       location: {
-        pathname: "/software/library/categories",
+        pathname: "/software/library/settings/categories",
         search: "?fleet_id=1",
         query: { fleet_id: "1" },
         hash: "",
@@ -612,12 +630,12 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
 
     // Round 1: deep-link in.
     const { user, rerender } = render(
-      <SelfServiceCategoriesPage {...deepLinkProps(router)} />
+      <SectionWrapper {...deepLinkProps(router)} />
     );
     await getOpenModal();
 
     // Simulate the effect's router.replace landing us back at the clean URL.
-    rerender(<SelfServiceCategoriesPage {...cleanProps} />);
+    rerender(<SectionWrapper {...cleanProps} />);
 
     // User dismisses the modal.
     await user.keyboard("{Escape}");
@@ -626,7 +644,7 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
     });
 
     // Round 2: palette pushes the deep-link again (new location object).
-    rerender(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+    rerender(<SectionWrapper {...deepLinkProps(router)} />);
     await getOpenModal();
   });
 
@@ -638,11 +656,11 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
       context: premiumAdminGitOpsContext,
     });
 
-    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+    render(<SectionWrapper {...deepLinkProps(router)} />);
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith({
-        pathname: "/software/library/categories",
+        pathname: "/software/library/settings/categories",
         query: { fleet_id: "1" },
       });
     });
@@ -669,11 +687,11 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
       },
     });
 
-    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+    render(<SectionWrapper {...deepLinkProps(router)} />);
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith({
-        pathname: "/software/library/categories",
+        pathname: "/software/library/settings/categories",
         query: { fleet_id: "1" },
       });
     });

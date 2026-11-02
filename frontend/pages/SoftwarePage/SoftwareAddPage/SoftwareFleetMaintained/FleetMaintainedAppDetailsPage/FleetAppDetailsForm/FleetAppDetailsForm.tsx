@@ -11,10 +11,12 @@ import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import TooltipWrapper from "components/TooltipWrapper";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
+import { isMacOS } from "interfaces/platform";
 import { SoftwareCategory } from "interfaces/software";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   PatchOption,
   SoftwareDeploySelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
@@ -104,12 +106,17 @@ const FleetAppDetailsForm = ({
   softwareTitleId,
   platform,
 }: IFleetAppDetailsFormProps) => {
+  // Deadline is macOS-only, so Windows FMAs stay on "immediate" to avoid
+  // locking the pre-install query or sending patch_deadline on save.
+  const defaultEndUserExperience: EndUserExperience = isMacOS(platform)
+    ? "deadline"
+    : "immediate";
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     forceInstall: false,
     patch: false,
     patchOption: "closed",
-    endUserExperience: "immediate",
+    endUserExperience: defaultEndUserExperience,
     preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
@@ -212,6 +219,7 @@ const FleetAppDetailsForm = ({
             patchOption={formData.patchOption}
             platform={platform}
             endUserExperience={formData.endUserExperience}
+            fleetId={teamId ? parseInt(teamId, 10) : undefined}
             onToggleForceInstall={(forceInstall) =>
               setFormData((prevData) => ({ ...prevData, forceInstall }))
             }
@@ -219,7 +227,15 @@ const FleetAppDetailsForm = ({
               setFormData((prevData) => ({ ...prevData, patch }))
             }
             onSelectPatchOption={(patchOption) =>
-              setFormData((prevData) => ({ ...prevData, patchOption }))
+              setFormData((prevData) => ({
+                ...prevData,
+                patchOption,
+                endUserExperience: getNextEndUserExperience(
+                  patchOption,
+                  prevData.endUserExperience,
+                  platform
+                ),
+              }))
             }
             onSelectEndUserExperience={(endUserExperience) =>
               setFormData((prevData) => ({ ...prevData, endUserExperience }))
@@ -301,7 +317,8 @@ const FleetAppDetailsForm = ({
               formData.patch &&
               (formData.patchOption === "closed" ||
                 (formData.patchOption === "force" &&
-                  formData.endUserExperience === "notify"))
+                  (formData.endUserExperience === "notify" ||
+                    formData.endUserExperience === "deadline")))
             }
           />
         )}

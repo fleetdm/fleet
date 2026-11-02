@@ -241,6 +241,7 @@ export enum ActivityType {
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
   NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
+  EditedPatchDeadlineSettings = "edited_patch_deadline_settings",
   EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
   DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
   HostEnrollmentRejected = "host_enrollment_rejected",
@@ -425,12 +426,14 @@ export interface IActivityDetails {
   self_service?: boolean;
   self_service_category_id?: number | null;
   self_service_category_name?: string | null;
-  /** Set on a patch-when-closed skip (the app was open); `status` is then
-   * `failed_install`. */
+  /** Set on any app-open skip (patch-when-closed, notify-before-patching, or
+   * deadline); `status` is then `failed_install`. */
   skipped_install?: boolean;
-  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
-   * because notify before patching did not ship until then. */
+  /** The three skip variants are mutually exclusive. All undefined on legacy
+   * skip rows (pre-4.93 for patch_when_closed; pre-4.94 for the other two). */
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
@@ -500,6 +503,10 @@ export interface IActivityDetails {
   fleet_id?: number | null;
   fleet_name?: string | null;
   dataset?: string;
+  /** `edited_patch_deadline_settings` payload — weekday names (lowercase) and
+   * HH:MM 24-hour time in the host's local timezone. */
+  days?: string[];
+  time?: string;
 }
 
 /**
@@ -777,6 +784,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
   [ActivityType.NotifiedEndUserBeforePatching]:
     "Notified end user before patching",
+  [ActivityType.EditedPatchDeadlineSettings]: "Edited patch deadline",
   [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
