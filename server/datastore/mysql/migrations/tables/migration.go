@@ -27,12 +27,16 @@ func newMigrationClient() *goose.Client {
 	// of concurrently in-flight migrations, and the guard helpers in this file
 	// (columnExists, indexExistsTx, ...) protect against reordering as well as
 	// retries.
-	// Migrations from 2026 onward may be applied out of order, so a migration
-	// shipped in a patch release with a timestamp older than already-applied
-	// migrations is picked up on the next `fleet prepare db` instead of
-	// requiring renumbering. Gaps older than this floor are historical (e.g.
-	// renumbered releases) and are left alone.
-	c.MinOutOfOrderVersion = 20260101000000
+	// Migrations newer than the ones shipped in fleet v4.94.0 may be applied
+	// out of order, so a migration shipped in a patch release with a timestamp
+	// older than already-applied migrations is picked up on the next
+	// `fleet prepare db` instead of requiring renumbering. The floor is the
+	// first migration after the v4.94.0 RC was cut: migrations at or below the
+	// RC's newest (20261014074522) predate the order-independence rule and had
+	// their relative order guaranteed by releases, so gaps there are
+	// historical and are left alone. Bump this to the first post-RC migration
+	// when a release introduces a new ordering guarantee worth anchoring to.
+	c.MinOutOfOrderVersion = 20261014132040
 	return c
 }
 

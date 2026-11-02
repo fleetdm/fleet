@@ -97,3 +97,29 @@ func TestUpOutOfOrder(t *testing.T) {
 		require.True(t, outOfOrderMarkerExists(t, db, oooV2))
 	})
 }
+
+func TestUpByOneOutOfOrder(t *testing.T) {
+	db := newDBConnForTests(t)
+
+	appliedCount := func(version int64) int {
+		var count int
+		require.NoError(t, db.Get(&count,
+			"SELECT COUNT(*) FROM migration_status_out_of_order_test WHERE version_id = ? AND is_applied", version))
+		return count
+	}
+
+	// Apply v1 and v3 only, then add v2 with an older timestamp than the
+	// already-applied v3. v3's record is the newest, so a version walk from
+	// the latest record would select v3 again instead of the missing v2.
+	require.NoError(t, newOutOfOrderTestClient(oooFloor, oooV1, oooV3).Up(db.DB, ""))
+	full := newOutOfOrderTestClient(oooFloor, oooV1, oooV2, oooV3)
+
+	require.NoError(t, full.UpByOne(db.DB, ""))
+	require.True(t, outOfOrderMarkerExists(t, db, oooV2))
+	require.Equal(t, 1, appliedCount(oooV2))
+	require.Equal(t, 1, appliedCount(oooV3))
+
+	// Nothing is pending anymore; v3 must not be re-applied.
+	require.ErrorIs(t, full.UpByOne(db.DB, ""), goose.ErrNoNextVersion)
+	require.Equal(t, 1, appliedCount(oooV3))
+}
