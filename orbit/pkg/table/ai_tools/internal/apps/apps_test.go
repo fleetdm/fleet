@@ -50,6 +50,7 @@ func TestMatchKnown(t *testing.T) {
 		{[]string{"Granola 7.722.1"}, true, "granola", 0},
 		{[]string{"Grok Bot.app", "Grok Bot", "com.anysphere.sand"}, true, "grok-bot", 0},
 		{[]string{"Grok Bot 0.78.3"}, true, "grok-bot", 0},
+		{[]string{"Sand.app", "Sand", "com.anysphere.sand"}, true, "grok-bot", 0},
 		// Meta Muse matches its bundle id only.
 		{[]string{"Muse.app", "Muse", "com.meta.endo"}, true, "meta-muse", 0},
 
