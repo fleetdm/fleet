@@ -40,3 +40,17 @@ func TestSublimeTextFileVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestEnrichManifestReturnsEnricherError(t *testing.T) {
+	app := &maintained_apps.FMAManifestApp{
+		Slug:         "sublime-text/windows",
+		Version:      "4.0.0.421500",
+		InstallerURL: "https://download.sublimetext.com/latest/windows",
+	}
+	err := EnrichManifest(app)
+	require.ErrorContains(t, err, "sublime-text/windows")
+
+	app.InstallerURL = "https://download.sublimetext.com/sublime_text_build_4215_x64_setup.exe"
+	require.NoError(t, EnrichManifest(app))
+	assert.Equal(t, "4.2.1.5", app.Version)
+}
