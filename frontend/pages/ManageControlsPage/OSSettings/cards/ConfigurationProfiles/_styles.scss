@@ -6,17 +6,12 @@
       .list-item__label-count {
         align-self: center;
       }
-      .list-item__actions {
-        display: none;
+      // keeps a truncated name from butting up against the labels/actions
+      .list-item {
+        gap: $pad-large;
       }
-      :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
-        .list-item__labels {
-          display: none;
-        }
-        .list-item__actions {
-          display: flex;
-          gap: $pad-small;
-        }
+      .list-item__actions {
+        gap: $pad-small;
       }
     }
   }

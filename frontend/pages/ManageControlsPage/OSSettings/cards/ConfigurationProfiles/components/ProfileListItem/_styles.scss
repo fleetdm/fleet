@@ -106,10 +106,4 @@
       font-size: $x-small; // Remove when global default font is implemented
     }
   }
-
-  &:hover {
-    .list-item__labels {
-      display: none;
-    }
-  }
 }
