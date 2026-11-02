@@ -1806,6 +1806,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  selfServiceCategory: (
+    action: "added" | "edited" | "deleted",
+    preposition: "to" | "in" | "from"
+  ) => (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    const fleetName = activity.details?.fleet_name;
+    return (
+      <>
+        {" "}
+        {action} {categoryName ? <b>{categoryName}</b> : "a"} self-service
+        category
+        {fleetName ? (
+          <>
+            {" "}
+            {preposition} the <b>{fleetName}</b> fleet
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -3054,6 +3075,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedAppStoreApp: {
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
+    }
+    case ActivityType.AddedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("added", "to")(activity);
+    }
+    case ActivityType.EditedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("edited", "in")(activity);
+    }
+    case ActivityType.DeletedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("deleted", "from")(activity);
     }
     case ActivityType.InstalledAppStoreApp: {
       return TAGGED_TEMPLATES.installedSoftware(activity);

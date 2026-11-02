@@ -68,6 +68,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
+		{"TestAppleProfileResendResetsRetries", testAppleProfileResendResetsRetries},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
@@ -5039,6 +5040,84 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 
 	// The batched reconciler walks all enrolled Windows hosts each pass, so no
 	// per-host pending signal is needed for the deferred work to be picked up.
+}
+
+func testAppleProfileResendResetsRetries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	ca := newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), "seat", nil)
+	caProf := newDigiCertProfile(t, ds, "ca_prof", "ca", 0)
+	idpProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("idp_prof", "idp_prof", 0),
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+	plainProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("plain_prof", "plain_prof", 0), nil)
+	require.NoError(t, err)
+
+	// failAfterRetries leaves the profile failed on the host with its retries used up.
+	failAfterRetries := func(p *fleet.MDMAppleConfigProfile) {
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET retries = 3 WHERE host_uuid = ? AND profile_uuid = ?`,
+				host.UUID, p.ProfileUUID)
+			return err
+		})
+	}
+	retries := func(p *fleet.MDMAppleConfigProfile) uint {
+		var n uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT retries FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+				host.UUID, p.ProfileUUID)
+		})
+		return n
+	}
+
+	t.Run("manual resend", func(t *testing.T) {
+		failAfterRetries(plainProf)
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, host.UUID, plainProf.ProfileUUID))
+		require.Zero(t, retries(plainProf))
+	})
+
+	t.Run("batch resend", func(t *testing.T) {
+		failAfterRetries(plainProf)
+		n, err := ds.BatchResendMDMProfileToHosts(ctx, plainProf.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, n)
+		require.Zero(t, retries(plainProf))
+	})
+
+	t.Run("IdP user change", func(t *testing.T) {
+		failAfterRetries(idpProf)
+		failAfterRetries(caProf)
+		failAfterRetries(plainProf)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+		})
+		require.Zero(t, retries(idpProf))
+		require.Zero(t, retries(caProf))
+		// not resent, so its retries stay
+		require.EqualValues(t, 3, retries(plainProf))
+	})
+
+	t.Run("custom host vital change", func(t *testing.T) {
+		vitalID := createCustomHostVital(t, ds, "DEPARTMENT")
+		vitalProf, err := ds.NewMDMAppleConfigProfile(ctx,
+			*generateAppleCP("vital_prof", fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID), 0), nil)
+		require.NoError(t, err)
+		failAfterRetries(vitalProf)
+		failAfterRetries(plainProf)
+		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+		require.Zero(t, retries(vitalProf))
+		require.EqualValues(t, 3, retries(plainProf))
+	})
+
+	t.Run("certificate authority edit", func(t *testing.T) {
+		failAfterRetries(caProf)
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeDigiCert), CertificateCommonName: new("new-cn"),
+		}))
+		require.Zero(t, retries(caProf))
+	})
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {

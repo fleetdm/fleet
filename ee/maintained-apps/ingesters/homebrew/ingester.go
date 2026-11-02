@@ -198,6 +198,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	switch input.UninstallScriptPath {
 	case "":
+		if err := validateQuitIDs(&cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "invalid uninstall quit for cask %s", input.Token)
+		}
+
 		if len(input.PreUninstallScripts) != 0 {
 			cask.PreUninstallScripts = input.PreUninstallScripts
 		}
@@ -340,12 +344,22 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		)
 	}
 	switch input.Token {
-	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
-		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
-		// which version_compare sorts below the cask version even for x.y.0 releases;
-		// CFBundleVersion carries the full cask version.
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp":
+		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5",
+		// "0.99" for JASP's "0.99.0.0"), which version_compare sorts below the cask
+		// version even for x.y.0 releases; CFBundleVersion carries the full cask version.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	case "tableau", "tableau-prep":
+		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
+		// Desktop (Apple silicon) 2026.3.app") and the pkg never removes earlier
+		// ones, which users keep to match their Tableau Server version. Treat the
+		// host as patched when any installed copy is current, so an upgrade passes
+		// without deleting those older releases.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s' AND version_compare(bundle_short_version, '%[2]s') >= 0);",
 			out.UniqueIdentifier, out.Version,
 		)
 	}
@@ -361,6 +375,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "mindmanager" {
+		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
+		// .26, ...), so hosts still on an older major never match the current ID. Flag
+		// any major's bundle that's older than the cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.Version,
 		)
 	}
 	if input.Token == "firefox@developer-edition" {
@@ -408,6 +431,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
+	case "mindmanager":
+		// Match every major's bundle ID, like the patched query, so a running older major
+		// defers patching too.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",

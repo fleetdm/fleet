@@ -406,6 +406,67 @@ func (s *integrationMDMTestSuite) TestABMTokenDefault() {
 	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
 }
 
+func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	ctx := t.Context()
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "B"})
+	require.NoError(t, err)
+
+	// patch /config with Org A -> TeamA and Org B -> TeamB
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+				"apple_business_manager": [
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""},
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				]
+			}
+		}`, orgA, teamA.Name, orgB, teamB.Name)),
+		http.StatusOK, &appConfigResponse{})
+
+	// list ab tokens and assert macos_team assignments match the config
+	var resp listABMTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
+	for _, token := range resp.Tokens {
+		if token.OrganizationName == orgA {
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
+		}
+		if token.OrganizationName == orgB {
+			assert.Equal(t, teamB.ID, token.MacOSTeam.ID)
+		}
+	}
+
+	// now patch /config with Org A -> TeamA (removing org b)
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+				"apple_business_manager": [
+					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				]
+			}
+		}`, orgA, teamA.Name)),
+		http.StatusOK, &appConfigResponse{})
+
+	// verify that Org B's token no longer has a macos_team assignment
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &resp)
+	for _, token := range resp.Tokens {
+		if token.OrganizationName == orgA {
+			assert.Equal(t, teamA.ID, token.MacOSTeam.ID)
+		}
+		if token.OrganizationName == orgB {
+			assert.EqualValues(t, 0, token.MacOSTeam.ID)
+		}
+	}
+}
+
 func (s *integrationMDMTestSuite) TestListABMTokensRoles() {
 	t := s.T()
 	ctx := t.Context()
@@ -1923,5 +1984,110 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 			require.NoError(t, err)
 		})
 		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
+	})
+}
+
+// A host's identity is tied to the device enrolled under its UUID. A check-in from another enrollment that reports
+// the same serial must not move that host to the other UUID or drop its pending lock and wipe actions.
+func (s *integrationMDMTestSuite) TestAppleCheckinWithSerialOfHostEnrolledUnderAnotherUUID() {
+	t := s.T()
+	ctx := t.Context()
+
+	type hostIdentity struct {
+		UUID           string `db:"uuid"`
+		HardwareSerial string `db:"hardware_serial"`
+		Platform       string `db:"platform"`
+	}
+	getIdentity := func(hostID uint) hostIdentity {
+		var h hostIdentity
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &h, `SELECT uuid, hardware_serial, platform FROM hosts WHERE id = ?`, hostID)
+		})
+		return h
+	}
+	setPendingLock := func(hostID uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'darwin')`,
+				hostID, uuid.NewString())
+			return err
+		})
+	}
+	pendingLockRef := func(hostID uint) *string {
+		var ref *string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &ref, `SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, hostID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return ref
+	}
+	hostsWithSerial := func(serial string) []hostIdentity {
+		var hosts []hostIdentity
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &hosts, `SELECT uuid, hardware_serial, platform FROM hosts WHERE hardware_serial = ?`, serial)
+		})
+		return hosts
+	}
+
+	t.Run("enrollment whose host was deleted", func(t *testing.T) {
+		hostA, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		setPendingLock(hostA.ID)
+		before := getIdentity(hostA.ID)
+		lockRef := pendingLockRef(hostA.ID)
+		require.NotNil(t, lockRef)
+
+		// The enrollment and its certificate outlive the deleted host.
+		hostB, deviceB := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostB.ID), nil, http.StatusOK, &deleteHostResponse{})
+
+		deviceB.SerialNumber = hostA.HardwareSerial
+		require.ErrorContains(t, deviceB.Authenticate(), "409")
+		// the check-in that follows doesn't change the host either
+		_ = deviceB.TokenUpdate(false)
+
+		assert.Equal(t, before, getIdentity(hostA.ID))
+		assert.Equal(t, lockRef, pendingLockRef(hostA.ID))
+		assert.Equal(t, []hostIdentity{before}, hostsWithSerial(hostA.HardwareSerial))
+	})
+
+	t.Run("account-driven user enrollment", func(t *testing.T) {
+		account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: "serial-check-adue", Email: "serial-check-adue@example.com"}
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+		token, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+		require.NoError(t, err)
+		adueDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", token)
+
+		// The device chooses its enrollment ID, which Fleet uses as its UUID and serial.
+		hostA, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(uuid.NewString()),
+			NodeKey:         new(uuid.NewString()),
+			Hostname:        "serial-check-adue.local",
+			Platform:        "darwin",
+			HardwareModel:   "MacBookPro16,1",
+			UUID:            strings.ToUpper(uuid.NewString()),
+			HardwareSerial:  adueDevice.EnrollmentID(),
+		})
+		require.NoError(t, err)
+		enrollMacOSHostInMDMManually(t, hostA, s.ds, s.server.URL)
+		setPendingLock(hostA.ID)
+		before := getIdentity(hostA.ID)
+		lockRef := pendingLockRef(hostA.ID)
+		require.NotNil(t, lockRef)
+
+		// the device enrolls as a host of its own
+		require.NoError(t, adueDevice.Enroll())
+
+		assert.Equal(t, before, getIdentity(hostA.ID))
+		assert.Equal(t, lockRef, pendingLockRef(hostA.ID))
+		assert.ElementsMatch(t, []hostIdentity{
+			before,
+			{UUID: adueDevice.EnrollmentID(), HardwareSerial: adueDevice.EnrollmentID(), Platform: "ios"},
+		}, hostsWithSerial(hostA.HardwareSerial))
 	})
 }

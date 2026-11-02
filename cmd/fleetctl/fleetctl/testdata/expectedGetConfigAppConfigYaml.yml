@@ -98,6 +98,8 @@ spec:
       enable_release_device_manually: false
       end_user_local_account_type: admin
       lock_end_user_info: false
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
@@ -112,6 +114,8 @@ spec:
       end_user_local_account_type: admin
       lock_end_user_info: false
       apple_setup_assistant:
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
