@@ -4,7 +4,7 @@
       "version": "26.10.05",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service' AND version_compare(bundle_short_version, '26.10.05') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '26.10.05') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.citrixfiles.ens.service' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.sharefile.com/sfmac/ShareFile%20v26.10.05%20(05p1121).dmg",

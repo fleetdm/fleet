@@ -4,7 +4,7 @@
       "version": "1.32.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(bundle_short_version, '1.32.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '1.32.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.linear' AND a.bundle_executable != '');"
       },
       "installer_url": "https://releases.linear.app/Linear-1.32.8-universal.dmg",

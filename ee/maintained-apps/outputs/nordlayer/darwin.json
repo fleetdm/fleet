@@ -4,7 +4,7 @@
       "version": "3.13.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos.teams';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos.teams' AND version_compare(bundle_short_version, '3.13.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos.teams' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '3.13.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nordvpn.macos.teams' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.nordlayer.com/mac/latest/NordLayer_v3.13.1.pkg",

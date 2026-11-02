@@ -313,7 +313,7 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "0.4.26+4", out.Version)
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '+', '.'), '0.4.26.4') < 0);",
 					out.Queries.Patched,
 				)
 			case "tableau", "tableau-prep":
@@ -336,7 +336,7 @@ func TestIngestValidations(t *testing.T) {
 			case "swiftdialog":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "r-app":
@@ -359,13 +359,13 @@ func TestIngestValidations(t *testing.T) {
 				// QGIS and QGIS LTR share a bundle identifier, so each is scoped to its install path.
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "qgis@ltr":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "chatgpt":
@@ -374,7 +374,7 @@ func TestIngestValidations(t *testing.T) {
 				// patched query is generated from the exists query.
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp":
@@ -386,7 +386,7 @@ func TestIngestValidations(t *testing.T) {
 				)
 			default:
 				require.Equal(t,
-					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
 					out.Queries.Patched,
 				)
 			}

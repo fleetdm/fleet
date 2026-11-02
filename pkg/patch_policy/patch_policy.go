@@ -68,10 +68,22 @@ func parenthesizeWhereClause(existsQuery string) string {
 	return existsPrefix + table + " WHERE (" + conditions + ")"
 }
 
+// darwinShortVersion rewrites a parenthesized build suffix in bundle_short_version
+// (Zoom's "7.2.2 (88465)") as a dotted segment ("7.2.2.88465"). osquery's
+// version_compare doesn't split on spaces or parentheses either, so it would compare
+// "2 (88465)" against "5" by length and rank the older build higher.
+const darwinShortVersion = "REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', '')"
+
+// darwinVersionReplacer applies the darwinShortVersion rewrite to the version literal.
+var darwinVersionReplacer = strings.NewReplacer(" (", ".", ")", "")
+
 func versionCompareSuffix(platform, existsQuery, version string) (string, error) {
 	column, err := versionCompareColumn(platform, existsQuery)
 	if err != nil {
 		return "", err
+	}
+	if platform == "darwin" {
+		version = darwinVersionReplacer.Replace(version)
 	}
 	return fmt.Sprintf(" AND %s < 0);", versionCompare(column, version)), nil
 }
@@ -89,7 +101,7 @@ func versionCompare(column, version string) string {
 func versionCompareColumn(platform, existsQuery string) (string, error) {
 	switch platform {
 	case "darwin":
-		return "bundle_short_version", nil
+		return darwinShortVersion, nil
 	case "windows":
 		if tableFromExistsQuery(existsQuery) == "file" {
 			return "file_version", nil
@@ -152,7 +164,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare("bundle_short_version", version))
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare(darwinShortVersion, darwinVersionReplacer.Replace(version)))
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {

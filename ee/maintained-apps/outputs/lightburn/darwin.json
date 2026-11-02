@@ -4,7 +4,7 @@
       "version": "2.2.00",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(bundle_short_version, '2.2.00') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(REPLACE(REPLACE(bundle_short_version, ' (', '.'), ')', ''), '2.2.00') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND a.bundle_executable != '');"
       },
       "installer_url": "https://release.lightburnsoftware.com/LightBurn/Release/LightBurn-v2.2.00/LightBurn.V2.2.00.dmg",
