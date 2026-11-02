@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.20.4",
+      "version": "3.20.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dynamodb.workbench';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dynamodb.workbench' AND version_compare(bundle_short_version, '3.20.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dynamodb.workbench' AND version_compare(bundle_short_version, '3.20.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dynamodb.workbench' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://nosql-workbench.s3.amazonaws.com/NoSQL%20Workbench-mac-arm64-3.20.4.dmg",
+      "installer_url": "https://nosql-workbench.s3.amazonaws.com/NoSQL%20Workbench-mac-arm64-3.20.5.dmg",
       "install_script_ref": "1de6deaa",
       "uninstall_script_ref": "812121bc",
-      "sha256": "99c791508024fb7c289a9833eaaa7398401fe43bb824f6740853ea46c3c908c3",
+      "sha256": "a6ee4fbe834c9ffce48073252357fb975d52f0393f4ec34c6b0a9627e2b4fd3c",
       "default_categories": [
         "Developer tools"
       ]

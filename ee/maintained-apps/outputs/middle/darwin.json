@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.14",
+      "version": "1.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Middle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Middle' AND version_compare(bundle_short_version, '1.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Middle' AND version_compare(bundle_short_version, '1.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.knollsoft.Middle' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://middleclick.app/downloads/Middle1.14.dmg",
+      "installer_url": "https://middleclick.app/downloads/Middle1.15.dmg",
       "install_script_ref": "d5b48201",
       "uninstall_script_ref": "56a35305",
-      "sha256": "28bf5dd6ec0eaabdcf4bee181dd880d077b2f9e312e652e662dbfa7122a59a83",
+      "sha256": "b9b924e909fa7ab953c71ba8e2fc197f958bdd23c445839539271348691436f0",
       "default_categories": [
         "Productivity"
       ]
