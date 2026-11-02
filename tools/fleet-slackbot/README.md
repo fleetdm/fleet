@@ -63,7 +63,7 @@ Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) with:
 
 ### 3. Fleet MCP server
 
-The bot uses the MCP server built into Fleet Premium, at `/api/v1/fleet/mcp` on your Fleet server. Create an API-only user for the bot and give it the API endpoints for the tools it should use (see the [Fleet MCP guide](https://fleetdm.com/guides/fleet-mcp)). Its API token is `FLEET_MCP_AUTH_TOKEN`.
+The bot uses the MCP server built into Fleet Premium, at `/api/v1/fleet/mcp` on your Fleet server. Create an API-only user for the bot. If you limit its API endpoints, grant **Use Fleet's MCP server** (`POST /api/v1/fleet/mcp`) and the endpoints for the tools the bot should use (see the [Fleet MCP guide](https://fleetdm.com/guides/fleet-mcp)). Its API token is `FLEET_MCP_AUTH_TOKEN`.
 
 The [standalone MCP server](https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp) also works: use its `/mcp` URL and its `MCP_AUTH_TOKEN`.
 
