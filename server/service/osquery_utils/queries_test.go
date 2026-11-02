@@ -6536,24 +6536,13 @@ func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
 			}
 
 			// A salt for every LUKS container so the test fails if the wrong one is picked.
-			rows, err := db.Query(`SELECT DISTINCT parent FROM lsblk WHERE key = 'fstype' AND value = 'crypto_LUKS'`)
+			_, err = db.Exec(`INSERT INTO cryptsetup_luks_salt
+				SELECT p.value, '1', 'salt-for-' || p.value
+				FROM lsblk f JOIN lsblk p ON p.parent = f.parent AND p.key = 'path'
+				WHERE f.key = 'fstype' AND f.value = 'crypto_LUKS'`)
 			require.NoError(t, err)
-			var luksParents []string
-			for rows.Next() {
-				var p string
-				require.NoError(t, rows.Scan(&p))
-				luksParents = append(luksParents, p)
-			}
-			require.NoError(t, rows.Err())
-			require.NoError(t, rows.Close())
-			for _, p := range luksParents {
-				var device string
-				require.NoError(t, db.QueryRow(`SELECT value FROM lsblk WHERE parent = ? AND key = 'path'`, p).Scan(&device))
-				_, err = db.Exec(`INSERT INTO cryptsetup_luks_salt VALUES (?, '1', ?)`, device, "salt-for-"+device)
-				require.NoError(t, err)
-			}
 
-			rows, err = db.Query(query)
+			rows, err := db.Query(query)
 			require.NoError(t, err)
 			defer rows.Close()
 			var got []string
