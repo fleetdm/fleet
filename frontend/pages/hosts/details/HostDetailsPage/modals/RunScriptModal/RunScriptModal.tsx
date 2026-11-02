@@ -16,6 +16,7 @@ import { IHostScript } from "interfaces/script";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
+import { OrderDirection } from "services/entities/common";
 import { IHostScriptsResponse } from "services/entities/scripts";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
@@ -33,8 +34,8 @@ interface IRunScriptModalProps {
   onClose: () => void;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
-  sortDirection: "asc" | "desc";
-  setSortDirection: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
+  sortDirection: OrderDirection;
+  setSortDirection: React.Dispatch<React.SetStateAction<OrderDirection>>;
   hostScriptResponse?: IHostScriptsResponse;
   isFetchingHostScripts: boolean;
   isLoadingHostScripts: boolean;

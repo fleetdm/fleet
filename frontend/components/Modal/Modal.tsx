@@ -15,7 +15,7 @@ export interface IModalProps {
   children: React.ReactNode;
   onExit: () => void;
   /** Called when the user presses Enter. Avoid using this on modals that
-   * contain forms, reveal/copy controls, or other elements where Enter has
+   * contain forms or other elements where Enter has
    * its own meaning — it will conflict with keyboard navigation. */
   onEnter?: () => void;
   /**     medium 650px, large 800px, xlarge 850px, auto auto-width
@@ -59,6 +59,7 @@ const Modal = ({
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
@@ -72,27 +73,48 @@ const Modal = ({
   }, [onExit]);
 
   useEffect(() => {
+    // An open dropdown menu takes Escape for itself. Read its state in capture,
+    // before react-select closes the menu, and close in bubble so children
+    // that stop Escape still keep the modal open.
+    let isMenuOpen = false;
+    const readMenuState = (e: KeyboardEvent) => {
+      const { target } = e;
+      isMenuOpen =
+        target instanceof Element &&
+        !!containerRef.current?.contains(target) &&
+        !!target.closest('[aria-expanded="true"]');
+    };
     const closeWithEscapeKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !isMenuOpen) {
         handleClose();
       }
     };
 
-    if (!disableClosingModal) {
+    if (!disableClosingModal && !isHidden) {
+      document.addEventListener("keydown", readMenuState, true);
       document.addEventListener("keydown", closeWithEscapeKey);
     }
 
     return () => {
-      if (!disableClosingModal) {
+      if (!disableClosingModal && !isHidden) {
+        document.removeEventListener("keydown", readMenuState, true);
         document.removeEventListener("keydown", closeWithEscapeKey);
       }
     };
-  }, [disableClosingModal, handleClose]);
+  }, [disableClosingModal, isHidden, handleClose]);
 
   useEffect(() => {
-    if (onEnter) {
+    if (onEnter && !isHidden) {
       const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
         if (event.code === "Enter" || event.code === "NumpadEnter") {
+          // Holding Enter on the opener would otherwise confirm on auto-repeat.
+          // A control such as react-select already handled this Enter.
+          if (event.repeat || event.defaultPrevented) return;
+          // Focus can still sit on the opener outside the modal.
+          const control =
+            event.target instanceof Element &&
+            event.target.closest("button, a, textarea");
+          if (control && containerRef.current?.contains(control)) return;
           event.preventDefault();
           onEnter();
         }
@@ -104,7 +126,7 @@ const Modal = ({
       };
     }
     return undefined;
-  }, [onEnter]);
+  }, [onEnter, isHidden]);
 
   useEffect(() => {
     const onWindowBlur = () => {
@@ -204,6 +226,7 @@ const Modal = ({
       onMouseUp={handleBackgroundMouseUp}
     >
       <div
+        ref={containerRef}
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
         onMouseDown={handleContainerMouseDown}

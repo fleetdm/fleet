@@ -317,6 +317,37 @@ describe("RunScriptModal", () => {
       pushSpy.mockRestore();
     });
 
+    it("sorts Name descending and resets to the first page when the header is clicked", async () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      const { user } = render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          page={1}
+          hostScriptResponse={{
+            scripts: [createMockHostScript({ name: "cleanup.sh" })],
+            meta: { has_next_results: false, has_previous_results: true },
+          }}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: /Name/i }));
+
+      expect(baseProps.setSortDirection).toHaveBeenCalledWith("desc");
+      expect(baseProps.setPage).toHaveBeenCalledWith(0);
+    });
+
     it("hides the 'Add script' button for a global technician", () => {
       const technicianUser = createMockUser({ global_role: "technician" });
       const render = createCustomRenderer({

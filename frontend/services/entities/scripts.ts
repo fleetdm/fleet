@@ -61,7 +61,7 @@ export interface IHostScriptsApiParams {
   page?: number;
   per_page?: number;
   order_key?: string;
-  order_direction?: "asc" | "desc";
+  order_direction?: OrderDirection;
 }
 
 export interface IHostScriptsQueryKey extends IHostScriptsApiParams {

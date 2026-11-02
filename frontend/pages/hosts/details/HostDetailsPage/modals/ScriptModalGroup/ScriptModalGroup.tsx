@@ -9,6 +9,7 @@ import { IUser } from "interfaces/user";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
+import { OrderDirection } from "services/entities/common";
 import scriptsAPI, {
   IHostScriptsQueryKey,
   IHostScriptsResponse,
@@ -47,9 +48,10 @@ const ScriptModalGroup = ({
     ModalGroupOption.Run
   );
   const [runScriptTablePage, setRunScriptTablePage] = useState(0);
-  const [runScriptSortDirection, setRunScriptSortDirection] = useState<
-    "asc" | "desc"
-  >("asc");
+  const [
+    runScriptSortDirection,
+    setRunScriptSortDirection,
+  ] = useState<OrderDirection>("asc");
   const [selectedExecutionId, setSelectedExecutionId] = useState<
     string | undefined
   >(undefined);
@@ -88,6 +90,7 @@ const ScriptModalGroup = ({
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 3000,
+      keepPreviousData: true,
     }
   );
 
@@ -213,7 +216,8 @@ const ScriptModalGroup = ({
         onClose={onCloseScriptModalGroup}
         onCancel={() => {
           setSelectedScript(null);
-          goBack();
+          setCurrentModal(ModalGroupOption.Run);
+          setPreviousModal(null);
         }}
         onDelete={() => {
           setPreviousModal(currentModal);
@@ -231,22 +235,23 @@ const ScriptModalGroup = ({
         showHostScriptActions
         teamIdForApi={teamIdForApi}
       />
-      <DeleteScriptModal
-        scriptId={selectedScript?.script_id || 1}
-        scriptName={selectedScript?.name || ""}
-        onCancel={() => {
-          setCurrentModal(previousModal);
-          setPreviousModal(ModalGroupOption.Run);
-        }}
-        afterDelete={() => {
-          // The delete API call is handled in DeleteScriptModal
-          setCurrentModal(ModalGroupOption.Run);
-          setPreviousModal(null);
-          refetchHostScripts();
-          setSelectedScript(null);
-        }}
-        isHidden={currentModal !== ModalGroupOption.Delete}
-      />
+      {currentModal === ModalGroupOption.Delete && (
+        <DeleteScriptModal
+          scriptId={selectedScript?.script_id || 1}
+          scriptName={selectedScript?.name || ""}
+          onCancel={() => {
+            setCurrentModal(previousModal);
+            setPreviousModal(ModalGroupOption.Run);
+          }}
+          afterDelete={() => {
+            // The delete API call is handled in DeleteScriptModal
+            setCurrentModal(ModalGroupOption.Run);
+            setPreviousModal(null);
+            refetchHostScripts();
+            setSelectedScript(null);
+          }}
+        />
+      )}
       {/* Mounted only while shown: it holds no state worth preserving (the
           scripts table pagination lives in this component), and unmounting
           discards any in-flight close-animation state. */}
