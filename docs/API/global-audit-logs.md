@@ -542,13 +542,13 @@ This activity does not contain any detail fields.
 
 ### added_conditional_access_integration_google
 
-Generated when Fleet is connected to Google for conditional access.
+Generated when Google conditional access is configured.
 
 This activity does not contain any detail fields.
 
 ### deleted_conditional_access_integration_google
 
-Generated when Fleet is disconnected from Google for conditional access.
+Generated when Google conditional access is removed.
 
 This activity does not contain any detail fields.
 
