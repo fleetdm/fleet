@@ -54,6 +54,9 @@
     ),
     fixed AS (
       SELECT name, pkg, v, substr(v, 1, 3) AS branch,
+        -- Ubuntu security updates always carry "ubuntu" in the version; a GA sync build like
+        -- 8.3.6-0maysync1 does not, and version_compare can't order it against the fixed build
+        (platform = 'ubuntu' AND NOT sury AND NOT upstream AND v NOT LIKE '%ubuntu%') AS ga_build,
         CASE
           -- packages.sury.org and ppa:ondrej/php ship upstream version numbers (EOL branches: patched revisions)
           WHEN sury THEN CASE substr(v, 1, 3)
@@ -122,6 +125,7 @@
     )
     SELECT 'php_package' AS finding, name AS item, pkg AS detail,
            CASE WHEN fixed IS NULL THEN 'NO_VENDOR_FIX_KNOWN for this branch; verify with the vendor or move to a supported branch'
+                WHEN ga_build THEN 'UPDATE to ' || fixed
                 WHEN version_compare(replace(replace(v, '+', '.'), '_', '.'), replace(replace(fixed, '+', '.'), '_', '.')) < 0 THEN 'UPDATE to ' || fixed
                 ELSE 'FIXED' END AS status
     FROM fixed
@@ -286,10 +290,18 @@
     WHERE p.name IN ('php.exe', 'php-cgi.exe', 'php-win.exe')
     GROUP BY p.name, p.path
     UNION ALL
-    SELECT 'mitigation_ini', l.path, l.line, 'PRESENT session upload progress disabled (partial mitigation, replace the build)'
+    -- Only the php.ini next to php.exe is read (PHP can also load one from PHPRC or the registry).
+    -- file_lines errors on a missing path, so CASE checks the file exists before reading it.
+    SELECT 'mitigation_ini', replace(c.path, 'php.exe', 'php.ini'),
+           CASE WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = replace(c.path, 'php.exe', 'php.ini')) THEN 'no php.ini next to php.exe'
+                WHEN EXISTS (SELECT 1 FROM file_lines l WHERE l.path = replace(c.path, 'php.exe', 'php.ini')
+                             AND l.line LIKE 'session.upload_progress.enabled%0%') THEN 'session.upload_progress.enabled = 0'
+                ELSE 'session upload progress still enabled' END,
+           CASE WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = replace(c.path, 'php.exe', 'php.ini')) THEN 'ABSENT run mitigate-php2shell-windows.ps1 until the build is replaced'
+                WHEN EXISTS (SELECT 1 FROM file_lines l WHERE l.path = replace(c.path, 'php.exe', 'php.ini')
+                             AND l.line LIKE 'session.upload_progress.enabled%0%') THEN 'PRESENT partial mitigation, replace the build'
+                ELSE 'ABSENT run mitigate-php2shell-windows.ps1 until the build is replaced' END
     FROM candidates c
-    JOIN file_lines l ON l.path = replace(c.path, 'php.exe', 'php.ini')
-    WHERE l.line LIKE 'session.upload_progress.enabled%0%'
     UNION ALL
     SELECT 'web_worker_child', c.name || ' pid ' || c.pid, 'parent ' || p.name || ' pid ' || p.pid || ' cmd=' || substr(c.cmdline, 1, 200),
            'INVESTIGATE a web worker spawned a shell or tool'

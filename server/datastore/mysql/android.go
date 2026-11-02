@@ -2973,12 +2973,8 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	}
 
 	// Track which fleet variables this app config uses so SCIM can trigger resends.
-	found := variables.Find(string(config))
-	fleetVars := make([]fleet.FleetVarName, len(found))
-	for i, v := range found {
-		fleetVars[i] = fleet.FleetVarName(v)
-	}
-	if err := setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, fleetVars); err != nil {
+	err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, config)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting app config variable associations")
 	}
 
@@ -2986,12 +2982,13 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 }
 
 // setAppConfigVariableAssociations replaces the variable associations for an
-// android app configuration in mdm_configuration_profile_variables.
-func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, fleetVars []fleet.FleetVarName) error {
+// App Store app configuration in mdm_configuration_profile_variables.
+func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE vpp_app_team_id = ?`, vppAppTeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting app config variable associations")
 	}
 
+	fleetVars := variables.Find(string(config))
 	if len(fleetVars) == 0 {
 		return nil
 	}
@@ -3009,7 +3006,7 @@ func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, v
 	var values strings.Builder
 	var args []any
 	for _, v := range fleetVars {
-		varWithPrefix := "FLEET_VAR_" + string(v)
+		varWithPrefix := "FLEET_VAR_" + v
 		for _, def := range varDefs {
 			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
 			if match {

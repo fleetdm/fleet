@@ -15,12 +15,14 @@
     flex-wrap: wrap;
     align-items: center;
     gap: $pad-small;
+    max-width: 640px;
     font-size: $x-small;
   }
 
-  // The select fills its container, so give it a width to sit inline.
+  // Fill the rest of the row so the picker ends in line with the fields below.
   &__fleet-dropdown {
-    width: 340px;
+    flex: 1;
+    min-width: 200px;
   }
 
   &__field {

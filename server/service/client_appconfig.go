@@ -8,8 +8,10 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -33,16 +35,21 @@ func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions
 
 // ApplyNoTeamProfiles sends the list of profiles to be applied for the hosts
 // in no team.
-func (c *Client) ApplyNoTeamProfiles(profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplySpecOptions, assumeEnabled bool) error {
+func (c *Client) ApplyNoTeamProfiles(profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplySpecOptions, assumptions *fleet.TeamSpecsDryRunAssumptions) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
-	query := opts.RawQuery()
-	if assumeEnabled {
-		if query != "" {
-			query += "&"
-		}
-		query += "assume_enabled=true"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
 	}
-	err := c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query)
+	if assumptions != nil {
+		if assumptions.WindowsEnabledAndConfigured.Valid && assumptions.WindowsEnabledAndConfigured.Value {
+			query.Add("assume_enabled", "true")
+		}
+		if assumptions.EnableProfileValidation.Valid {
+			query.Add("assume_profile_validation", strconv.FormatBool(assumptions.EnableProfileValidation.Value))
+		}
+	}
+	err = c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query.Encode())
 	return rewrapProfileBatchNameErr(err, profiles)
 }
 

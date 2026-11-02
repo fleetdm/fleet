@@ -365,6 +365,10 @@ export type IVppInstallDetails = {
   /** Whether the install was triggered as a self-service action by the end
    *  user. Renders the actor as "End user". */
   selfService?: boolean;
+  /** Location (organization unit) of the VPP token the license was assigned
+   * from. Set by activity-feed entry points; inventory entry points have no
+   * token source. */
+  vppTokenLocation?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -394,6 +398,7 @@ export const VppInstallDetailsModal = ({
     actorFullName,
     fleetInitiated,
     selfService,
+    vppTokenLocation,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -677,12 +682,29 @@ export const VppInstallDetailsModal = ({
       isIPadOrIPhone(platform || "") &&
       (displayStatus === "installed" || isPendingInstall);
 
+    const showLicenseSentence =
+      showConfigUpdateNote &&
+      !!vppTokenLocation &&
+      !isManuallyInstalled &&
+      !overrideFailedMessageWithInstalledMessage;
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
           iconName={iconName}
-          message={<span>{statusMessage}</span>}
+          message={
+            <span>
+              {statusMessage}
+              {showLicenseSentence && (
+                <>
+                  {" "}
+                  Fleet assigned license from <b>{vppTokenLocation}</b> VPP
+                  token.
+                </>
+              )}
+            </span>
+          }
         />
         {showConfigUpdateNote && (
           <p>

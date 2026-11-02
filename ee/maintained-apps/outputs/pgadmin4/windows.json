@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.18",
+      "version": "9.19",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team' AND version_compare(version, '9.18') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team' AND version_compare(version, '9.19') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'pgadmin4.exe');"
       },
-      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.18/windows/pgadmin4-9.18-x64.exe",
+      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.19/windows/pgadmin4-9.19-x64.exe",
       "install_script_ref": "632aa4d1",
       "uninstall_script_ref": "912990ef",
-      "sha256": "ca82b9a07007308a70a9af55192f5ca826c9ce839fe716cea465e2cfc4529245",
+      "sha256": "8b1a1df434c53244ac1ec691f11a48350bbd3de4781d6661e1e1368d7eaf31fe",
       "default_categories": [
         "Developer tools"
       ]

@@ -40,6 +40,12 @@ locals {
     }
   )
 
+  # Orbit config notifications require the transport, so the two are switched together.
+  websocket_environment_variables = var.enable_websocket_transport ? {
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
+  } : {}
+
   extra_environment_variables = merge(
     {
       CLOUDWATCH_NAMESPACE = "fleet-loadtest-migration"
@@ -77,7 +83,8 @@ locals {
       FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
-    local.mdm_apple_environment_variables
+    local.mdm_apple_environment_variables,
+    local.websocket_environment_variables
   )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn

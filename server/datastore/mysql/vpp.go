@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -21,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -47,8 +47,10 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
+	vat.vpp_token_id,
 	vat.name version_name,
 	vat.created_at added_at,
+	vat.configuration_updated_at,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) AS auto_update_window_start,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) AS auto_update_window_end,
@@ -586,7 +588,6 @@ ORDER BY vat.id
 
 	var toAddApps []fleet.VPPAppTeam
 	var toRemoveVersionIDs []uint
-	removedVersionAppIDs := make(map[fleet.VPPAppID]struct{})
 
 	// Install only the first-added version of each app during setup, the first existing version in the list or else the first new version
 	setupIncomingIndexByApp := make(map[fleet.VPPAppID]int)
@@ -602,25 +603,11 @@ ORDER BY vat.id
 			return false, errDeleteInstallerInstalledDuringSetup
 		}
 		toRemoveVersionIDs = append(toRemoveVersionIDs, existingVersion.AppTeamID)
-		if existingVersion.Platform == fleet.IOSPlatform || existingVersion.Platform == fleet.IPadOSPlatform {
-			removedVersionAppIDs[existingVersion.VPPAppID] = struct{}{}
-		}
 	}
 
-	// Re-send iOS and iPadOS apps whose version configuration changed, or whose version labels changed which version
-	// a host gets, to the hosts that have them
-	resendAppIDs := make(map[fleet.VPPAppID]struct{})
-	configChangedAppTeamIDsByApp := make(map[fleet.VPPAppID][]uint)
-	labelsChangedAppIDs := make(map[fleet.VPPAppID]struct{})
-
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	incomingAppIDs := make(map[fleet.VPPAppID]struct{})
-	var vppTokenRequired, setupExperienceChanged bool
+	var setupExperienceChanged bool
 	for i, incomingApp := range incomingVersions {
-		incomingAppIDs[incomingApp.VPPAppID] = struct{}{}
-		if incomingApp.Platform.IsApplePlatform() {
-			vppTokenRequired = true
-		}
 		if _, ok := setupIncomingIndexByApp[incomingApp.VPPAppID]; !ok {
 			setupIncomingIndexByApp[incomingApp.VPPAppID] = i
 		}
@@ -648,15 +635,6 @@ ORDER BY vat.id
 			setupExperienceChanged = true
 		}
 
-		if isExistingApp && changed.Configuration && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
-			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
-			configChangedAppTeamIDsByApp[incomingApp.VPPAppID] = append(configChangedAppTeamIDsByApp[incomingApp.VPPAppID], incomingApp.AppTeamID)
-		}
-		if changed.Labels && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
-			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
-			labelsChangedAppIDs[incomingApp.VPPAppID] = struct{}{}
-		}
-
 		if changed.Any {
 			toAddApps = append(toAddApps, incomingApp)
 		}
@@ -667,21 +645,9 @@ ORDER BY vat.id
 		return false, ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
 	}
 
-	var vppToken *fleet.VPPTokenDB
-	if len(incomingApps) > 0 && vppTokenRequired {
-		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
-		}
-	}
-
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			var tokenID *uint
-			if vppToken != nil {
-				tokenID = &vppToken.ID
-			}
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID, nil)
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, toAdd.VPPTokenID, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -727,9 +693,13 @@ ORDER BY vat.id
 				} else {
 					// Empty incoming = delete intent. Removing the configuration from
 					// the YAML / API payload clears the stored config.
-					_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID)
+					_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6) WHERE id = ? AND configuration IS NOT NULL`, vppAppTeamID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
+					}
+					err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, nil)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "clearing configuration variable associations for vpp app")
 					}
 				}
 			}
@@ -760,26 +730,6 @@ ORDER BY vat.id
 		for _, toRemoveVersionID := range toRemoveVersionIDs {
 			if err := removeVPPAppTeams(ctx, tx, toRemoveVersionID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app version from team")
-			}
-		}
-
-		for appID := range resendAppIDs {
-			_, versionLabelsChanged := labelsChangedAppIDs[appID]
-			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDsByApp[appID], versionLabelsChanged, nil)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend")
-			}
-		}
-
-		// Re-send iOS and iPadOS apps to hosts whose installed version was removed, when another version of the app is left
-		for appID := range removedVersionAppIDs {
-			_, hasIncomingVersion := incomingAppIDs[appID]
-			if !hasIncomingVersion {
-				continue
-			}
-			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), nil, false, nil)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend for removed versions")
 			}
 		}
 
@@ -824,15 +774,20 @@ WHERE
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 	var vppTokenID *uint
-	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
-	if err != nil {
-		if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
-			return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
-		}
+	if app.Platform != fleet.AndroidPlatform {
+		vppTokenID = app.VPPTokenID
 	}
+	if vppTokenID == nil {
+		vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+		if err != nil {
+			if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
+				return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+			}
+		}
 
-	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
-		vppTokenID = &vppToken.ID
+		if vppToken != nil && app.Platform != fleet.AndroidPlatform {
+			vppTokenID = &vppToken.ID
+		}
 	}
 
 	teamName, err := ds.getTeamName(ctx, teamID)
@@ -914,8 +869,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
 					}
 				} else {
-					if _, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID); err != nil {
+					if _, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6) WHERE id = ? AND configuration IS NOT NULL`, vppAppTeamID); err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
+					}
+					err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, nil)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "clearing configuration variable associations for vpp app")
 					}
 				}
 			}
@@ -951,7 +910,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name
+	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name, vpp_token_id
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -1278,7 +1237,8 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 va.created_at,
 	 vat.created_at added_at,
 	 va.updated_at,
-	 vat.id
+	 vat.id,
+	 vat.vpp_token_id
 	FROM vpp_apps va
 	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
 	WHERE va.adam_id = ? AND va.platform = ?
@@ -1317,6 +1277,7 @@ SELECT
   va.created_at,
   va.updated_at,
   vat.self_service,
+  vat.vpp_token_id,
   vat.name version_name,
   vat.created_at added_at
 FROM vpp_apps va
@@ -1361,9 +1322,9 @@ VALUES
 
 		insertVAUAStmt = `
 INSERT INTO vpp_app_upcoming_activities
-	(upcoming_activity_id, adam_id, platform, policy_id, vpp_app_team_id)
+	(upcoming_activity_id, adam_id, platform, policy_id, vpp_app_team_id, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?)`
+	(?, ?, ?, ?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1408,6 +1369,7 @@ VALUES
 			appID.Platform,
 			opts.PolicyID,
 			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
+			ptr.UintOrNilIfZero(opts.VPPTokenID),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
@@ -1581,10 +1543,14 @@ SELECT
 	hvsi.policy_id AS policy_id,
 	p.name AS policy_name,
 	h.platform AS platform,
-	COALESCE(vat.name, '') AS version_name
+	COALESCE(vat.name, '') AS version_name,
+	vt.id AS vpp_token_id,
+	COALESCE(vt.location, '') AS vpp_token_location,
+	COALESCE(vt.country_code, '') AS vpp_token_country_code
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
+	LEFT OUTER JOIN vpp_tokens vt ON vt.id = hvsi.vpp_token_id
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
@@ -1614,6 +1580,9 @@ WHERE
 		PolicyName          *string `db:"policy_name"`
 		HostPlatform        string  `db:"platform"`
 		VersionName         string  `db:"version_name"`
+		VPPTokenID          *uint   `db:"vpp_token_id"`
+		VPPTokenLocation    string  `db:"vpp_token_location"`
+		VPPTokenCountryCode string  `db:"vpp_token_country_code"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1669,6 +1638,13 @@ WHERE
 		HostPlatform:        res.HostPlatform,
 		VersionName:         res.VersionName,
 	}
+	if res.VPPTokenID != nil {
+		act.VPPToken = &fleet.ActivityVPPToken{
+			ID:          *res.VPPTokenID,
+			Location:    res.VPPTokenLocation,
+			CountryCode: res.VPPTokenCountryCode,
+		}
+	}
 
 	return user, act, nil
 }
@@ -1693,9 +1669,9 @@ func (ds *Datastore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint,
 
 	const insStmt = `
 INSERT INTO host_vpp_software_installs
-	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at, vpp_app_team_id)
+	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at, vpp_app_team_id, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?)`
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?, ?)`
 
 	var (
 		user *fleet.User
@@ -1704,7 +1680,7 @@ VALUES
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, insStmt,
 			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
-			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
+			ptr.UintOrNilIfZero(opts.VPPAppTeamID), ptr.UintOrNilIfZero(opts.VPPTokenID),
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
 		}
@@ -1753,6 +1729,7 @@ func (ds *Datastore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, host
 SELECT
 	hvsi.adam_id,
 	COALESCE(hvsi.associated_event_id, '') AS associated_event_id,
+	COALESCE(hvsi.vpp_token_id, vat.vpp_token_id) AS vpp_token_id,
 	(EXISTS(
 		SELECT 1 FROM host_vpp_software_installs other
 		WHERE other.host_id = hvsi.host_id
@@ -1771,12 +1748,14 @@ SELECT
 		  AND ua.execution_id != hvsi.command_uuid
 	)) AS has_other_active_install
 FROM host_vpp_software_installs hvsi
+LEFT JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
 WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 
 	var row struct {
 		AdamID                string `db:"adam_id"`
 		AssociatedEventID     string `db:"associated_event_id"`
 		HasOtherActiveInstall bool   `db:"has_other_active_install"`
+		VPPTokenID            *uint  `db:"vpp_token_id"`
 	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, activatedStmt, hostID, executionID)
 	if err == nil {
@@ -1784,6 +1763,7 @@ WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 			AdamID:                row.AdamID,
 			AssociatedEventID:     row.AssociatedEventID,
 			HasOtherActiveInstall: row.HasOtherActiveInstall,
+			VPPTokenID:            row.VPPTokenID,
 		}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -1795,6 +1775,7 @@ WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 SELECT
 	vaua.adam_id,
 	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.associated_event_id')), '') AS associated_event_id,
+	COALESCE(vaua.vpp_token_id, vat.vpp_token_id) AS vpp_token_id,
 	(EXISTS(
 		SELECT 1 FROM host_vpp_software_installs hvsi
 		WHERE hvsi.host_id = ua.host_id
@@ -1811,6 +1792,7 @@ SELECT
 	)) AS has_other_active_install
 FROM upcoming_activities ua
 JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+LEFT JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
 WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_install'`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, upcomingStmt, hostID, executionID); err != nil {
@@ -1823,6 +1805,7 @@ WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_ins
 		AdamID:                row.AdamID,
 		AssociatedEventID:     row.AssociatedEventID,
 		HasOtherActiveInstall: row.HasOtherActiveInstall,
+		VPPTokenID:            row.VPPTokenID,
 	}, nil
 }
 
@@ -1887,7 +1870,6 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	var countryCode any
 	if tok.CountryCode != "" {
 		countryCode = tok.CountryCode
-		vppTokenDB.CountryCode = tok.CountryCode
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -1905,9 +1887,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	id, _ := res.LastInsertId()
 
-	vppTokenDB.ID = uint(id) //nolint:gosec // dismiss G115
-
-	return vppTokenDB, nil
+	return ds.GetVPPToken(ctxdb.RequirePrimary(ctx, true), uint(id)) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
@@ -2072,7 +2052,8 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		location,
 		renew_at,
 		token,
-		COALESCE(country_code, '') AS country_code
+		COALESCE(country_code, '') AS country_code,
+		created_at
 	FROM
 		vpp_tokens v
 	WHERE
@@ -2123,6 +2104,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		RenewDate:   tokEnc.RenewDate,
 		Token:       string(tokDec),
 		CountryCode: tokEnc.CountryCode,
+		CreatedAt:   tokEnc.CreatedAt,
 	}
 
 	if tokTeams == nil {
@@ -2159,7 +2141,6 @@ TEAMLOOP:
 }
 
 func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
-	stmtTeamName := `SELECT name FROM teams WHERE id = ?`
 	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
 	stmtInsert := `
 	INSERT INTO
@@ -2175,6 +2156,11 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		SET vpp_apps_teams_id = NULL`
 	stmtDeleteApps := `DELETE vat FROM vpp_apps_teams vat WHERE vat.vpp_token_id = ? %s`
 
+	// Duplicate IDs would hit the unique key, or insert "No fleet" twice since team_id is NULL for it.
+	teams = slices.Clone(teams) // keeps nil (unassigned) distinct from [] (All fleets)
+	slices.Sort(teams)
+	teams = slices.Compact(teams)
+
 	var teamsFilter string
 	if len(teams) > 0 {
 		teamsFilter = "AND vat.global_or_team_id NOT IN (?)"
@@ -2185,9 +2171,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	var values string
 	var args []any
-	// No DB constraint for null_team_type, if no team or all teams
-	// comes up we have to check it in go
-	var nullTeamCheck fleet.NullTeamType
 
 	if len(teams) > 0 {
 		for _, team := range teams {
@@ -2205,7 +2188,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			} else {
 				// NoTeam team
 				nullTeam = fleet.NullTeamNoTeam
-				nullTeamCheck = fleet.NullTeamNoTeam
 			}
 			args = append(args, id, teamptr, nullTeam)
 		}
@@ -2213,19 +2195,11 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		// Empty but not nil, All Teams!
 		values = stmtValues
 		args = append(args, id, nil, fleet.NullTeamAllTeams)
-		nullTeamCheck = fleet.NullTeamAllTeams
 	}
 
 	stmtInsertFull := stmtInsert + values
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// NOTE This is not optimal, and has the potential to
-		// introduce race conditions. Ideally we would insert and
-		// check the constraints in a single query.
-		if err := checkVPPNullTeam(ctx, tx, &id, nullTeamCheck); err != nil {
-			return ctxerr.Wrap(ctx, err, "vpp token null team check")
-		}
-
 		// Skip deleting apps when the token moves to all fleets, every fleet still has access to them
 		if teams == nil || len(teams) > 0 {
 			// Expand into local copies so a retried transaction expands the original statements again
@@ -2270,17 +2244,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		return nil
 	})
 	if err != nil {
-		var mysqlErr *mysql.MySQLError
-		// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_dup_entry
-		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
-			var dupeTeamID uint
-			var dupeTeamName string
-			_, _ = fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &dupeTeamName, stmtTeamName, dupeTeamID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting team name for vpp token conflict error")
-			}
-			return nil, ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: dupeTeamName, ID: &dupeTeamID})
-		}
 		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}
 
@@ -2376,7 +2339,8 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		location,
 		renew_at,
 		token,
-		COALESCE(country_code, '') AS country_code
+		COALESCE(country_code, '') AS country_code,
+		created_at
 	FROM
 		vpp_tokens v
 `
@@ -2427,6 +2391,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			RenewDate:   tokEnc.RenewDate,
 			Token:       string(tokDec),
 			CountryCode: tokEnc.CountryCode,
+			CreatedAt:   tokEnc.CreatedAt,
 		}
 	}
 
@@ -2461,28 +2426,31 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	}
 
 	slices.SortFunc(outTokens, func(a, b *fleet.VPPTokenDB) int {
-		return cmp.Compare(a.OrgName, b.OrgName)
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	return outTokens, nil
 }
 
 func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-	stmtTeam := `
+	const stmt = `
 	SELECT
 		v.id,
 		v.organization_name,
 		v.location,
 		v.renew_at,
 		v.token,
-		COALESCE(v.country_code, '') AS country_code
+		COALESCE(v.country_code, '') AS country_code,
+		v.created_at
 	FROM
 		vpp_token_teams vt
 	INNER JOIN
 		vpp_tokens v
 	ON vt.vpp_token_id = v.id
 	WHERE
-		vt.team_id = ?
+		vt.team_id = ? OR vt.null_team_type IN (?, ?)
+	ORDER BY v.id
+	LIMIT 1
 `
 	stmtTeamNames := `
 	SELECT
@@ -2497,24 +2465,6 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	WHERE
 		vt.vpp_token_id = ?
 `
-	stmtNullTeam := `
-	SELECT
-		v.id,
-		v.organization_name,
-		v.location,
-		v.renew_at,
-		v.token,
-		COALESCE(v.country_code, '') AS country_code
-	FROM
-		vpp_tokens v
-	INNER JOIN
-		vpp_token_teams vt
-	ON v.id = vt.vpp_token_id
-	WHERE
-		vt.team_id IS NULL
-	AND
-		vt.null_team_type = ?
-`
 
 	var tokEnc fleet.VPPTokenDB
 
@@ -2524,23 +2474,20 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		Name     string             `db:"name"`
 	}
 
-	var err error
+	// team_id = NULL never matches, so Unassigned reads only the null-type rows.
+	var tmID *uint
+	nullTeam := fleet.NullTeamAllTeams
 	if teamID != nil && *teamID != 0 {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtTeam, teamID)
+		tmID = teamID
 	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamNoTeam)
+		nullTeam = fleet.NullTeamNoTeam
 	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tmID, nullTeam, fleet.NullTeamAllTeams)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
-				}
-				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
-			}
-		} else {
-			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
 		}
+		return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
 	}
 
 	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
@@ -2559,6 +2506,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		RenewDate:   tokEnc.RenewDate,
 		Token:       string(tokDec),
 		CountryCode: tokEnc.CountryCode,
+		CreatedAt:   tokEnc.CreatedAt,
 	}
 
 	if tokTeams == nil {
@@ -2592,53 +2540,6 @@ TEAMLOOP:
 	}
 
 	return tok, nil
-}
-
-func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
-	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
-	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE (null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL) AND vpp_token_id != ?`
-
-	if nullTeam == fleet.NullTeamAllTeams {
-		var ids []uint
-		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt, *currentID); err != nil {
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-
-		// Only blocks assignment if another token is already assigned to one or more teams.
-		// Allows the current token to switch from teams to "all teams" freely
-		if len(ids) > 0 {
-			return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-		}
-	}
-
-	var id uint
-	allTeamsFound := true
-	if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, fleet.NullTeamAllTeams); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			allTeamsFound = false
-		} else {
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-	}
-
-	if allTeamsFound && currentID != nil && *currentID != id {
-		return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: fleet.ReservedNameAllTeams})
-	}
-
-	if nullTeam != fleet.NullTeamNone {
-		var id uint
-		if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, nullTeam); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-		if currentID == nil || *currentID != id {
-			return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: nullTeam.PrettyName()})
-		}
-	}
-
-	return nil
 }
 
 func (ds *Datastore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
@@ -3742,9 +3643,22 @@ func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.Ex
 		return ctxerr.Wrap(ctx, err, "validating vpp app configuration")
 	}
 
-	_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ? WHERE id = ?`, config, vppAppTeamID)
+	var storedConfig []byte
+	err := sqlx.GetContext(ctx, tx, &storedConfig, `SELECT configuration FROM vpp_apps_teams WHERE id = ?`, vppAppTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get stored vpp app configuration")
+	}
+	if bytes.Equal(storedConfig, config) {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ?, configuration_updated_at = NOW(6) WHERE id = ?`, config, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateVPPAppConfiguration")
+	}
+	err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting vpp app configuration variable associations")
 	}
 	return nil
 }
@@ -3763,7 +3677,7 @@ func (ds *Datastore) GetAppStoreAppVersionCount(ctx context.Context, teamID *uin
 }
 
 // GetDuplicateStringGroupsUnderCollation returns groups of strings from values that are duplicates under the utf8mb4_unicode_ci collation,
-// as the indices of the strings in values, one group per set of duplicates.
+// as the indices of the strings in values, one group per set of duplicates. Strings longer than 255 characters are never in a group.
 func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
 	valuesJSON, err := json.Marshal(values)
 	if err != nil {
@@ -3771,7 +3685,8 @@ func (ds *Datastore) GetDuplicateStringGroupsUnderCollation(ctx context.Context,
 	}
 
 	// Turn the JSON array into one row per string: '$[*]' reads each array element, PATH '$' reads the element itself,
-	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values
+	// and FOR ORDINALITY numbers the rows from 1, so subtract 1 to get the index in values. A string too long for the column is read
+	// as NULL, so skip NULLs, or all such strings would group together.
 	var groupsJSON []string
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groupsJSON, `
 SELECT JSON_ARRAYAGG(jt.value_index - 1)
@@ -3779,6 +3694,7 @@ FROM JSON_TABLE(?, '$[*]' COLUMNS (
 	value_index FOR ORDINALITY,
 	value VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
 )) jt
+WHERE jt.value IS NOT NULL
 GROUP BY jt.value
 HAVING COUNT(*) > 1
 ORDER BY MIN(jt.value_index)`, valuesJSON)
@@ -3820,127 +3736,253 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error) {
-	hostFilter := "TRUE"
-	args := []any{appID.AdamID, appID.Platform, fleetID, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError}
-	if len(hostIDs) > 0 {
-		hostFilter = "hvsi.host_id IN (?)"
-		args = append(args, hostIDs)
+func (ds *Datastore) GetAppStoreAppVersionsByFleetAndTitle(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
+	const stmt = `
+SELECT
+	vat.global_or_team_id,
+	va.title_id,
+	vat.adam_id,
+	vat.platform,
+	vat.id AS vpp_apps_teams_id,
+	vat.vpp_token_id,
+	vat.configuration_updated_at,
+	EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id) AS has_labels
+FROM
+	vpp_apps_teams vat
+	JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+WHERE
+	vat.platform IN (?)
+ORDER BY vat.id
+`
+	query, args, err := sqlx.In(stmt, platforms)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by fleet and title query")
+	}
+	var versions []struct {
+		FleetID uint `db:"global_or_team_id"`
+		TitleID uint `db:"title_id"`
+		fleet.VPPAppStoreApp
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by fleet and title")
+	}
+	versionsByTitleIDByFleetID := make(fleet.AppStoreAppVersionsByFleetAndTitleID)
+	if len(versions) == 0 {
+		return versionsByTitleIDByFleetID, nil
 	}
 
-	// Read the latest install of the app on each host of the fleet that still has the app in its inventory. Filter out failed
-	// installs since the host still has the version from the install before it.
-	stmt := fmt.Sprintf(`
+	versionIDs := make([]uint, 0, len(versions))
+	for _, version := range versions {
+		versionIDs = append(versionIDs, version.VPPAppsTeamsID)
+	}
+	configurationByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app store app version configurations")
+	}
+
+	for i := range versions {
+		version := &versions[i].VPPAppStoreApp
+		version.Configuration = configurationByVersionID[version.VPPAppsTeamsID]
+		fleetID := versions[i].FleetID
+		titleID := versions[i].TitleID
+		if versionsByTitleIDByFleetID[fleetID] == nil {
+			versionsByTitleIDByFleetID[fleetID] = make(map[uint][]*fleet.VPPAppStoreApp)
+		}
+		versionsByTitleIDByFleetID[fleetID][titleID] = append(versionsByTitleIDByFleetID[fleetID][titleID], version)
+	}
+	return versionsByTitleIDByFleetID, nil
+}
+
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
+	if len(hostIDs) == 0 {
+		return installByHostIDByTitleID, nil
+	}
+
+	// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
+	const latestInstallsStmt = `
 SELECT
-	latest.host_id,
-	latest.vpp_app_team_id
-FROM (
-	SELECT
-		hvsi.host_id,
-		hvsi.adam_id,
-		hvsi.platform,
-		hvsi.vpp_app_team_id,
-		ROW_NUMBER() OVER (PARTITION BY hvsi.host_id ORDER BY hvsi.created_at DESC, hvsi.id DESC) AS rn
-	FROM
-		host_vpp_software_installs hvsi
-		JOIN hosts h ON h.id = hvsi.host_id
-		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
-	WHERE
-		hvsi.adam_id = ? AND
-		hvsi.platform = ? AND
-		COALESCE(h.team_id, 0) = ? AND
-		hvsi.removed = 0 AND
-		hvsi.canceled = 0 AND
-		hvsi.verification_failed_at IS NULL AND
-		COALESCE(ncr.status, '') NOT IN (?, ?) AND
-		%s
-) latest
+	app.title_id,
+	h.id AS host_id,
+	latest.vpp_app_team_id,
+	latest.created_at,
+	latest.needs_resend
+FROM
+	hosts h
+	-- iOS and iPadOS apps are separate titles, so pair each host only with the fleet's apps of its own platform
+	JOIN (
+		SELECT DISTINCT va.title_id, va.adam_id, va.platform
+		FROM
+			vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		WHERE vat.global_or_team_id = ? AND vat.platform IN (?)
+	) app ON app.platform = h.platform
+	-- canceled and failed installs didn't change the app on the host, so read the latest install that wasn't either
+	JOIN LATERAL (
+		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
+		FROM host_vpp_software_installs hvsi
+		WHERE
+			hvsi.host_id = h.id AND
+			hvsi.adam_id = app.adam_id AND
+			hvsi.platform = app.platform AND
+			hvsi.canceled = 0 AND
+			hvsi.verification_failed_at IS NULL
+		ORDER BY hvsi.created_at DESC, hvsi.id DESC
+		LIMIT 1
+	) latest ON TRUE
 WHERE
-	latest.rn = 1 AND
+	h.id IN (?) AND
+	h.team_id <=> ? AND
 	EXISTS (
 		SELECT 1
 		FROM
 			host_software hs
 			JOIN software s ON s.id = hs.software_id
-			JOIN vpp_apps va ON va.title_id = s.title_id
 		WHERE
-			hs.host_id = latest.host_id AND
-			va.adam_id = latest.adam_id AND
-			va.platform = latest.platform
+			hs.host_id = h.id AND
+			s.title_id = app.title_id
 	)
-`, hostFilter)
-
-	query, queryArgs, err := sqlx.In(stmt, args...)
+`
+	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(latestInstallsStmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
-	var rows []struct {
-		HostID       uint  `db:"host_id"`
-		VPPAppTeamID *uint `db:"vpp_app_team_id"`
-	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, queryArgs...)
+
+	// Only the newest upcoming install of an app matters, so read them oldest first and let the loop below keep the last one
+	const upcomingInstallsStmt = `
+SELECT
+	va.title_id,
+	ua.host_id,
+	vaua.vpp_app_team_id AS upcoming_vpp_app_team_id
+FROM
+	upcoming_activities ua
+	JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	JOIN vpp_apps va ON va.adam_id = vaua.adam_id AND va.platform = vaua.platform
+WHERE
+	ua.host_id IN (?) AND
+	ua.activated_at IS NULL
+ORDER BY ua.created_at, ua.id
+`
+	upcomingInstallsQuery, upcomingInstallsArgs, err := sqlx.In(upcomingInstallsStmt, hostIDs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
+		return nil, ctxerr.Wrap(ctx, err, "build list host app store app upcoming installs query")
 	}
 
-	installedVersionByHostID := make(map[uint]*uint, len(rows))
-	for _, row := range rows {
-		installedVersionByHostID[row.HostID] = row.VPPAppTeamID
+	var latestInstalls []struct {
+		TitleID uint `db:"title_id"`
+		fleet.HostVPPSoftwareInstall
 	}
-	return installedVersionByHostID, nil
-}
-
-func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
-	// Write the args in the format of the software worker's softwareWorkerArgs
-	args, err := json.Marshal(map[string]any{
-		"task":                        "resend_vpp_app_configuration",
-		"application_id":              appID.AdamID,
-		"platform":                    appID.Platform,
-		"fleet_id":                    fleetID,
-		"config_changed_app_team_ids": configChangedAppTeamIDs,
-		"version_labels_changed":      versionLabelsChanged,
-		"host_ids":                    hostIDs,
+	var upcomingInstalls []struct {
+		TitleID uint `db:"title_id"`
+		fleet.HostVPPInstallWithUpcoming
+	}
+	// An install activated between two separate reads would show up as neither upcoming nor installed and be sent again, so read
+	// both in one read-only transaction that sees a single snapshot
+	err = ds.withReadTx(ctx, func(tx platform_mysql.DBReadTx) error {
+		err := sqlx.SelectContext(ctx, tx, &latestInstalls, latestInstallsQuery, latestInstallsArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host app store app install versions")
+		}
+		err = sqlx.SelectContext(ctx, tx, &upcomingInstalls, upcomingInstallsQuery, upcomingInstallsArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host app store app upcoming installs")
+		}
+		return nil
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshal job args for vpp app configuration resend")
+		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO jobs (name, args, state, error) VALUES ('software_worker', ?, 'queued', '')`, json.RawMessage(args))
+
+	for _, latestInstall := range latestInstalls {
+		if installByHostIDByTitleID[latestInstall.TitleID] == nil {
+			installByHostIDByTitleID[latestInstall.TitleID] = make(map[uint]fleet.HostVPPInstallWithUpcoming)
+		}
+		installByHostIDByTitleID[latestInstall.TitleID][latestInstall.HostID] = fleet.HostVPPInstallWithUpcoming{
+			HostVPPSoftwareInstall: latestInstall.HostVPPSoftwareInstall,
+		}
+	}
+	// Return a queued install from upcoming activities if one exists, to avoid requeuing the same app version
+	for _, upcomingInstall := range upcomingInstalls {
+		latestInstall, hasInstall := installByHostIDByTitleID[upcomingInstall.TitleID][upcomingInstall.HostID]
+		if !hasInstall {
+			continue
+		}
+		latestInstall.UpcomingVPPAppTeamID = upcomingInstall.UpcomingVPPAppTeamID
+		installByHostIDByTitleID[upcomingInstall.TitleID][upcomingInstall.HostID] = latestInstall
+	}
+	return installByHostIDByTitleID, nil
+}
+
+func (ds *Datastore) ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
+	const stmt = `
+SELECT
+	h.id,
+	h.uuid,
+	h.hardware_serial,
+	h.platform,
+	h.team_id
+FROM
+	hosts h
+WHERE
+	h.id > ? AND
+	h.platform IN ('ios', 'ipados') AND
+	EXISTS (
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
+	)
+ORDER BY h.id
+LIMIT ?
+`
+	var hosts []*fleet.Host
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, afterHostID, limit)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert vpp app configuration resend job")
+		return nil, ctxerr.Wrap(ctx, err, "list iOS and iPadOS MDM hosts after id")
 	}
+	return hosts, nil
+}
+
+// GetAppStoreAppConfigurationReconcileCursor returns 0 since the bare mysql.Datastore has no place to keep the cursor, the
+// mysqlredis wrapper keeps it in Redis.
+func (ds *Datastore) GetAppStoreAppConfigurationReconcileCursor(_ context.Context) (uint, error) {
+	return 0, nil
+}
+
+// SetAppStoreAppConfigurationReconcileCursor does nothing since the bare mysql.Datastore has no place to keep the cursor, the
+// mysqlredis wrapper keeps it in Redis.
+func (ds *Datastore) SetAppStoreAppConfigurationReconcileCursor(_ context.Context, _ uint) error {
 	return nil
 }
 
-func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+func (ds *Datastore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
 	if len(hostIDs) == 0 {
 		return map[uint]struct{}{}, nil
 	}
 
 	const stmt = `
 SELECT DISTINCT
-	ua.host_id
+	hvsi.host_id
 FROM
-	upcoming_activities ua
-	JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	host_vpp_software_installs hvsi
 WHERE
-	ua.host_id IN (?) AND
-	ua.activity_type = 'vpp_app_install' AND
-	ua.activated_at IS NULL AND
-	vaua.vpp_app_team_id = ?
+	hvsi.host_id IN (?) AND
+	hvsi.vpp_app_team_id = ? AND
+	hvsi.canceled = 0 AND
+	hvsi.created_at >= ? AND
+	hvsi.verification_failed_at IS NOT NULL
 `
-	query, args, err := sqlx.In(stmt, hostIDs, vppAppTeamID)
+	query, args, err := sqlx.In(stmt, hostIDs, vppAppTeamID, since)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build hosts with unactivated vpp app install query")
+		return nil, ctxerr.Wrap(ctx, err, "build hosts with recent failed vpp app install query")
 	}
-	// Read the primary so a retried batch sees the installs it queued before it failed
-	var queuedHostIDs []uint
-	err = sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &queuedHostIDs, query, args...)
+	var failedHostIDs []uint
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &failedHostIDs, query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get hosts with unactivated vpp app install")
+		return nil, ctxerr.Wrap(ctx, err, "get hosts with recent failed vpp app install")
 	}
 
-	hostIDSet := make(map[uint]struct{}, len(queuedHostIDs))
-	for _, hostID := range queuedHostIDs {
+	hostIDSet := make(map[uint]struct{}, len(failedHostIDs))
+	for _, hostID := range failedHostIDs {
 		hostIDSet[hostID] = struct{}{}
 	}
 	return hostIDSet, nil

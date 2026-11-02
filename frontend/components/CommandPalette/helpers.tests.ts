@@ -54,6 +54,18 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   onViewPolicy: jest.fn(),
 };
 
+const createOktaConfiguredConfig = () =>
+  createMockConfig({
+    conditional_access: {
+      microsoft_entra_tenant_id: "",
+      microsoft_entra_connection_configured: false,
+      okta_idp_id: "okta-idp-123",
+      okta_assertion_consumer_service_url: "https://example.com/acs",
+      okta_audience_uri: "https://example.com",
+      okta_certificate: "cert-data",
+    },
+  });
+
 describe("CommandPalette helpers", () => {
   describe("GROUPS", () => {
     it("contains all expected groups in order", () => {
@@ -318,6 +330,20 @@ describe("CommandPalette helpers", () => {
       const abm = items.find((i) => i.id === "edit-abm");
       expect(abm).toBeDefined();
       expect(abm?.label).toContain("Edit");
+    });
+
+    it("shows 'Edit Okta conditional access' only when Okta is configured", () => {
+      const getIntegrationSubIds = (config = createMockConfig()) =>
+        buildPaletteItems({ ...BASE_CONTEXT, config })
+          .find((i) => i.id === "settings-integrations")
+          ?.subItems?.map((s) => s.id) ?? [];
+
+      expect(getIntegrationSubIds()).not.toContain(
+        "edit-okta-conditional-access"
+      );
+      expect(getIntegrationSubIds(createOktaConfiguredConfig())).toContain(
+        "edit-okta-conditional-access"
+      );
     });
 
     it("shows 'Edit VPP' when VPP is enabled", () => {
@@ -881,6 +907,15 @@ describe("CommandPalette helpers", () => {
       expect(subIds).not.toContain("settings-int-certificate-authorities");
       expect(subIds).not.toContain("add-certificate-authority");
       expect(subIds).not.toContain("settings-int-conditional-access");
+    });
+
+    it("hides 'Edit Okta conditional access' even when Okta is configured", () => {
+      const integrations = buildPaletteItems({
+        ...FREE_CONTEXT,
+        config: createOktaConfiguredConfig(),
+      }).find((i) => i.id === "settings-integrations");
+      const subIds = integrations?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("edit-okta-conditional-access");
     });
 
     it("hides settings-fleets, create-fleet, and view-software-library", () => {
