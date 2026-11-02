@@ -511,6 +511,8 @@ This activity contains the following fields:
 - [deleted_conditional_access_integration_microsoft](#deleted-conditional-access-integration-microsoft)
 - [added_conditional_access_okta](#added-conditional-access-okta)
 - [deleted_conditional_access_okta](#deleted-conditional-access-okta)
+- [added_conditional_access_integration_google](#added-conditional-access-integration-google)
+- [deleted_conditional_access_integration_google](#deleted-conditional-access-integration-google)
 - [enabled_conditional_access_automations](#enabled-conditional-access-automations)
 - [disabled_conditional_access_automations](#disabled-conditional-access-automations)
 
@@ -535,6 +537,18 @@ This activity does not contain any detail fields.
 ### deleted_conditional_access_okta
 
 Generated when Okta conditional access configuration is removed.
+
+This activity does not contain any detail fields.
+
+### added_conditional_access_integration_google
+
+Generated when Fleet is connected to Google for conditional access.
+
+This activity does not contain any detail fields.
+
+### deleted_conditional_access_integration_google
+
+Generated when Fleet is disconnected from Google for conditional access.
 
 This activity does not contain any detail fields.
 
