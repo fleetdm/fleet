@@ -13,13 +13,16 @@
 # the documented silentinstallhq.com Python uninstall.
 #
 # We match on the DisplayName (anchored for the bundle) rather than the Publisher
-# string. Only entries in HKLM and SYSTEM's hive are removed: a user's hive is
-# writable by that user, so its uninstaller or MSI product code would run as
-# SYSTEM. User hives (which osquery's "programs" table also reads) are checked at
-# the end so a per-user install is reported instead of passing silently.
+# string. Only entries in HKLM, SYSTEM's hive and the hive of the account running
+# this script (SYSTEM under Fleet) are removed: another user's hive is writable by
+# that user, so its uninstaller or MSI product code would run as SYSTEM. The bundle
+# registers in the installing account's hive even for an all-users install. Other
+# user hives (which osquery's "programs" table also reads) are checked at the end
+# so a per-user install is reported instead of passing silently.
 
 $pythonNameLike    = "Python 3.13.* (ARM64)"
 $bundleNamePattern = '^Python 3\.13\.\d+ \(ARM64\)$'
+$trustedSids       = @('S-1-5-18', [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value)
 
 # 0 = success, 1605 = not installed, 1614 = already uninstalled, 1641 = reboot
 # initiated, 3010 = reboot required.
@@ -31,10 +34,11 @@ function Get-UninstallRoots {
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
-    # SYSTEM's hive, plus user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID) when asked.
-    $hivePattern = if ($IncludeUserHives) { '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$' } else { '^S-1-5-18$' }
+    # Trusted hives, plus user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID) when asked.
     foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-        if ($hive.PSChildName -notmatch $hivePattern) { continue }
+        $sid = $hive.PSChildName
+        $isUserHive = $IncludeUserHives -and ($sid -match '^S-1-(5-21|12-1)-[\d-]+$')
+        if (($trustedSids -notcontains $sid) -and -not $isUserHive) { continue }
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
     }
@@ -155,7 +159,7 @@ try {
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) Python 3.13 entry(ies) still present after uninstall:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
-        if (@($remaining | Where-Object { $_.KeyPath -match 'HKEY_USERS\\S-1-(5-21|12-1)-' }).Count -gt 0) {
+        if (@($remaining | Where-Object { ($_.KeyPath -match 'HKEY_USERS\\(S-1-(5-21|12-1)-[\d-]+)\\') -and ($trustedSids -notcontains $Matches[1]) }).Count -gt 0) {
             Write-Host "Entries under a user's hive are per-user installs, which must be removed as that user."
         }
         if ($exitCode -eq 0) { $exitCode = 1 }
