@@ -11,7 +11,7 @@ describe("OktaConditionalAccessModal validate", () => {
   it("accepts a valid ACS URL with surrounding whitespace", () => {
     const errors = validate({
       ...data,
-      okta_acs_url: " " + data.okta_acs_url + " ",
+      okta_acs_url: ` ${data.okta_acs_url} `,
     });
 
     expect(errors.okta_acs_url).toBeUndefined();

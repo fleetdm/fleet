@@ -10,7 +10,7 @@ describe("IntegrationForm validateForm", () => {
 
   it("accepts a valid URL and email with surrounding whitespace", () => {
     const errors = validateForm(
-      { ...data, url: " " + data.url + " ", email: " " + data.email + " " },
+      { ...data, url: ` ${data.url} `, email: ` ${data.email} ` },
       "zendesk"
     );
 
