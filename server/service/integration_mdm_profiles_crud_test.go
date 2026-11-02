@@ -1966,9 +1966,11 @@ func (s *integrationMDMTestSuite) TestAppleProfileIdentifierCantHoldSecretValue(
 			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
 				http.StatusUnprocessableEntity, headers))
 
-			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Contents: profile("Identifier secret "+c.name+" batch", c.identifier)},
-			}}, http.StatusUnprocessableEntity))
+			}}
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
 
 			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 				profile("Identifier secret "+c.name+" apple-batch", c.identifier),
@@ -2028,9 +2030,12 @@ func (s *integrationMDMTestSuite) TestAppleDeclarationIdentifierCantHoldSecretVa
 		t.Run(c.name, func(t *testing.T) {
 			decl := declaration("com.example.$FLEET_SECRET_DECL_IDENTIFIER", c.payload)
 			checkRejected(t, uploadProfile(decl, nil))
-			checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-				{Name: "decl-identifier-" + c.name, Contents: decl},
-			}}, http.StatusUnprocessableEntity))
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Name: "decl-identifier-" + c.name, Contents: decl}}}
+			checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			if c.name == "plain" {
+				// the dry run checks it too, unless the raw JSON only parses once its secrets are expanded
+				checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
+			}
 		})
 	}
 

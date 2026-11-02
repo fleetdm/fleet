@@ -2869,6 +2869,10 @@ func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
 
 // isMobileconfigContents reports whether a batch entry is a .mobileconfig
 // (an Apple XML plist) rather than a declaration, Windows or Android profile.
+func isAppleDeclarationContents(contents []byte) bool {
+	return mdm.GetRawProfilePlatform(contents) == "darwin" && mdm.GuessProfileExtension(contents) == "json"
+}
+
 func isMobileconfigContents(contents []byte) bool {
 	return mdm.GetRawProfilePlatform(contents) == "darwin" &&
 		bytes.HasPrefix(bytes.TrimSpace(contents), []byte("<"))
@@ -3006,9 +3010,15 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
-	// Declarations are named by the Name field, not their content, and their identifiers are checked after expansion
-	// below, so only .mobileconfig content is checked here, before the dry run drops profiles with secrets.
+	// Checked before the dry run drops profiles with secrets. Declarations are named by the Name field, not their
+	// content, so only their identifier is checked.
 	for _, p := range profiles {
+		if isAppleDeclarationContents(p.Contents) {
+			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+			continue
+		}
 		if !isMobileconfigContents(p.Contents) {
 			continue
 		}
@@ -3052,9 +3062,9 @@ func (svc *Service) BatchSetMDMProfiles(
 		pCopy.Contents = []byte(expanded)
 		profilesWithSecrets[i] = pCopy
 
-		// Declarations are recognized from the expanded content, since a secret used as a number leaves the raw JSON
-		// invalid. Like the other checks that need secrets, this one doesn't run on a dry run.
-		if mdm.GetRawProfilePlatform(pCopy.Contents) == "darwin" && mdm.GuessProfileExtension(pCopy.Contents) == "json" {
+		// A secret used as a number leaves the raw JSON unrecognizable, so such a declaration is only recognized here,
+		// once expanded. Like the other checks that need secrets, this one doesn't run on a dry run.
+		if !isAppleDeclarationContents(p.Contents) && isAppleDeclarationContents(pCopy.Contents) {
 			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
 			}
