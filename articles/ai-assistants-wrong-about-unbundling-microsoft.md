@@ -1,11 +1,11 @@
 # Your AI assistant says you can't unbundle Microsoft. Check the premise.
 
-*An AI assistant told me Windows device management needed an $84,000 a year Entra add-on. It was describing one path as if it were the only one.*
+*An AI assistant told me Windows device management needed an $84,000 a year Entra add-on. It was wrong about the requirement, and it described one path as if it were the only one.*
 
 ## Key takeaways
 
 - **AI assistants state a premise as fact, then do the math on it.** The arithmetic can be perfect while the starting assumption is wrong. Check the assumption first.
-- **Entra ID P1 is a requirement of Microsoft's enrollment path, not of Windows device management.** Entra automatic enrollment and Autopilot need it. Devices that get Fleet's agent from the factory or from a provisioning package don't use that path.
+- **Entra ID P1 isn't required.** The assistant treated it as a requirement of Windows device management with Fleet. Devices that get Fleet's agent from the factory or from a provisioning package don't use Microsoft's enrollment path at all.
 - **A one-line correction changed the answer.** Once the assistant was reminded how zero-touch enrollment works without Entra, it dropped the cost it had added and said splitting the bundle was cheaper, even at list price.
 - **Ask what requires each cost.** "What requires this, and is there a way around it?" is a better prompt than "is this possible?"
 - **Ask for list prices, then verify them.** Have the assistant show its prices and its date, then check them against Microsoft's current price list and your own agreement before you act.
@@ -26,9 +26,9 @@ That was for 1,000 users. At $7 per user per month, $84,000 a year is the right 
 
 ## Where the premise breaks
 
-The first half of that statement is accurate, and Fleet's own docs say so. Connecting Fleet to Entra for automatic enrollment or Autopilot requires a [Microsoft Entra ID P1 license for each end user](https://fleetdm.com/guides/windows-mdm-setup#microsoft-licenses-you-need). That's Microsoft's enrollment path, and Microsoft prices it that way.
+The first half of that statement is wrong. A Microsoft Entra ID P1 license for each end user isn't required to connect Fleet to Entra for automatic enrollment or Autopilot.
 
-The second half is the problem. "Without it, you're limited to manual or provisioning-package enrollment" treats every other option as a downgrade, and leaves out the factory path.
+The second half makes it worse. "Without it, you're limited to manual or provisioning-package enrollment" treats every other option as a downgrade, and leaves out the factory path.
 
 I told the assistant it was wrong. Fleet customers run thousands of Windows PCs where the computer maker installs Fleet's agent before the device ships, using Dell ReadyImage or Lenovo RTP. The device enrolls the first time it's online. There's no Entra automatic enrollment and no Autopilot in that flow. Fleet describes the same approach on its [Windows page](https://fleetdm.com/windows): forward Fleet's order email to Dell, Lenovo, or HP, and they install Fleet before the device ships.
 
@@ -37,6 +37,8 @@ I told the assistant it was wrong. Fleet customers run thousands of Windows PCs 
 The assistant agreed:
 
 > "Dell ReadyImage and Lenovo RTP put Fleet on the device at the factory, so it enrolls zero-touch without Entra auto-enrollment or Autopilot. That means Entra P1 isn't needed... Entra P1 is only needed if a customer chooses to use Microsoft's own enrollment path, and Fleet customers don't have to."
+
+The last sentence of that quote is still wrong. Entra ID P1 isn't required on Microsoft's enrollment path with Fleet either.
 
 Then it redid the comparison. These are the assistant's figures, not mine. They are for 1,000 users, at annual list prices as the assistant understood them in July 2026.
 
@@ -53,7 +55,7 @@ Please don't take these numbers from me. I haven't verified Microsoft's prices, 
 
 ## Why the assistant got it wrong
 
-It wasn't making things up. It described Microsoft's enrollment path accurately, then treated that path as the only one. My guess is that Microsoft's own enrollment path is the one it reaches for first, because it's the one most documented.
+It wasn't making things up. It attached a cost that isn't required to Microsoft's enrollment path, then treated that path as the only one. My guess is that Microsoft's own enrollment path is the one it reaches for first, because it's the one most documented.
 
 It also stopped when it found a cost. Once "Entra P1, $84K" was in the answer, it was a fact in the conversation, and the rest of the reasoning was built on it. Nothing prompted it to ask whether the cost was avoidable.
 
@@ -69,7 +71,7 @@ Check the premise, not only the arithmetic. If an assistant tells you a cost is 
 
 Tell it what you know, too. If you've seen a setup work in practice, say so and ask it to redo the numbers. In this case, one correction was enough.
 
-Zero-touch enrollment without Entra does have trade-offs. Devices that enroll this way aren't joined to Entra ID, and some identity-driven flows work differently. Fleet's [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot) article covers them. If you already pay for Entra ID P1 through Microsoft 365 E3 or E5, the license savings don't apply to you.
+Zero-touch enrollment without Entra does have trade-offs. Devices that enroll this way aren't joined to Entra ID, and some identity-driven flows work differently. Fleet's [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot) article covers them.
 
 ## The assumption is the thing to audit
 

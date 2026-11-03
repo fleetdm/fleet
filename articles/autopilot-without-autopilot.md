@@ -1,11 +1,11 @@
 # Autopilot without Autopilot: zero-touch Windows deployment with Fleet
 
-*Windows Autopilot ships laptops straight to end users, but it expects you to pay for Microsoft Entra ID P1 for every one of them. A provisioning package and Fleet get new devices enrolled from the first boot without that bill.*
+*Windows Autopilot ships laptops straight to end users, but it depends on Microsoft Entra ID and on registering each device in advance. A provisioning package and Fleet get new devices enrolled from the first boot without either.*
 
 ## Key takeaways
 
 - **Zero touch doesn't have to mean Autopilot.** A Windows provisioning package installs Fleet's agent at the first setup screen, so a new laptop enrolls in Fleet the first time it gets online, before the end user reaches the desktop.
-- **You skip the per-user Entra ID P1 license.** Autopilot and Entra automatic enrollment both need a P1 license for each end user. At Microsoft's list price, that's $84 per person per year that this approach doesn't require.
+- **You don't need Entra ID.** Fleet's agent enrolls the device, so you don't have to connect Fleet to Entra ID or set up Autopilot for this approach.
 - **There's no device registration step.** Any Windows Pro, Enterprise, or Education device straight out of the box can take the package. You don't need your reseller to register hardware with Microsoft first.
 - **A partner can make it true zero touch.** Resellers and OEMs that offer staging services can apply the package in their warehouse, so devices go straight to end users without passing through IT.
 - **Or IT can do it in a few minutes per device.** Apply the package from a USB drive, confirm the host shows up in Fleet, power the device off, and ship it.
@@ -25,15 +25,7 @@ For Fleet, the package carries one thing: Fleet's agent (fleetd), built for the 
 
 You don't give up MDM, either. With [Windows MDM turned on](https://fleetdm.com/guides/windows-mdm-setup), Fleet turns on MDM for hosts that enroll through fleetd, so configuration profiles, disk encryption, and OS updates still work without Entra ID.
 
-## What you stop paying for
-
-### Entra ID P1 for every end user
-
-To connect Fleet to Entra ID for automatic enrollment or Autopilot, [Microsoft requires](https://fleetdm.com/guides/windows-mdm-setup#microsoft-licenses-you-need) a qualifying subscription for your tenant plus a Microsoft Entra ID P1 license for each end user who enrolls a device. Microsoft [lists Entra ID P1](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing) at $7.00 per user per month on an annual commitment.
-
-That adds up. For a 500-person company, it's $42,000 a year, spent so that devices can enroll. A provisioning package doesn't depend on Entra ID at all, so that line item goes away.
-
-To be fair to Autopilot: if your end users already have Microsoft 365 E3 or E5, Entra ID P1 is already included, and the license savings don't apply to you. The rest of this article still might.
+## What you skip
 
 ### Registering devices in advance
 
@@ -70,7 +62,7 @@ This isn't a drop-in replacement for everything Autopilot does, and it's worth b
 
 ## Zero touch is a workflow, not a license
 
-Autopilot is a good fit if you already pay for Entra ID P1 and want Entra-joined devices. For everyone else, a provisioning package, Fleet, and either a partner's warehouse or a few minutes of IT time get you to the same outcome: laptops that ship straight to end users and show up in Fleet the first time they're online.
+Autopilot is a good fit if you want Entra-joined devices. For everyone else, a provisioning package, Fleet, and either a partner's warehouse or a few minutes of IT time get you to the same outcome: laptops that ship straight to end users and show up in Fleet the first time they're online.
 
 ## See it live
 
@@ -82,4 +74,4 @@ Autopilot is a good fit if you already pay for Entra ID P1 and want Entra-joined
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-09-25">
-<meta name="description" value="Get Autopilot-style zero-touch Windows deployment without per-user Entra ID P1 licenses, using a provisioning package and Fleet.">
+<meta name="description" value="Get Autopilot-style zero-touch Windows deployment without Autopilot or Entra ID, using a provisioning package and Fleet.">
