@@ -137,7 +137,6 @@ const TeamDetailsWrapper = ({
     setShowManageEnrollSecretsModal,
   ] = useState(false);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
@@ -209,12 +208,12 @@ const TeamDetailsWrapper = ({
     // open and closes delete modal
     setShowDeleteSecretModal(!showDeleteSecretModal);
     // open and closes main enroll secret modal
-    setShowEnrollSecretModal(!showEnrollSecretModal);
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
   }, [
     setShowDeleteSecretModal,
     showDeleteSecretModal,
-    setShowEnrollSecretModal,
-    showEnrollSecretModal,
+    setShowManageEnrollSecretsModal,
+    showManageEnrollSecretsModal,
   ]);
 
   // this is called when we click add or edit
@@ -222,12 +221,12 @@ const TeamDetailsWrapper = ({
     // open and closes add/edit modal
     setShowSecretEditorModal(!showSecretEditorModal);
     // open and closes main enroll secret modall
-    setShowEnrollSecretModal(!showEnrollSecretModal);
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
   }, [
     setShowSecretEditorModal,
     showSecretEditorModal,
-    setShowEnrollSecretModal,
-    showEnrollSecretModal,
+    setShowManageEnrollSecretsModal,
+    showManageEnrollSecretsModal,
   ]);
 
   const toggleDeleteFleetModal = useCallback(() => {

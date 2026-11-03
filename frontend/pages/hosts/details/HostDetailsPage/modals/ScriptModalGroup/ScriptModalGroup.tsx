@@ -9,6 +9,7 @@ import { IUser } from "interfaces/user";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
+import { OrderDirection } from "services/entities/common";
 import scriptsAPI, {
   IHostScriptsQueryKey,
   IHostScriptsResponse,
@@ -16,6 +17,7 @@ import scriptsAPI, {
 
 import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
 import RunScriptModal from "../RunScriptModal";
+import { RUN_SCRIPT_PAGE_SIZE } from "../RunScriptModal/RunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;
@@ -46,6 +48,10 @@ const ScriptModalGroup = ({
     ModalGroupOption.Run
   );
   const [runScriptTablePage, setRunScriptTablePage] = useState(0);
+  const [
+    runScriptSortDirection,
+    setRunScriptSortDirection,
+  ] = useState<OrderDirection>("asc");
   const [selectedExecutionId, setSelectedExecutionId] = useState<
     string | undefined
   >(undefined);
@@ -74,7 +80,9 @@ const ScriptModalGroup = ({
         scope: "host_scripts",
         host_id: host.id,
         page: runScriptTablePage,
-        per_page: 10,
+        per_page: RUN_SCRIPT_PAGE_SIZE,
+        order_key: "name",
+        order_direction: runScriptSortDirection,
       },
     ],
     ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
@@ -82,6 +90,7 @@ const ScriptModalGroup = ({
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 3000,
+      keepPreviousData: true,
     }
   );
 
@@ -167,12 +176,15 @@ const ScriptModalGroup = ({
       <RunScriptModal
         currentUser={currentUser}
         hostTeamId={host.team_id}
+        hostPlatform={host.platform}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={onClickViewScript}
         onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
+        sortDirection={runScriptSortDirection}
+        setSortDirection={setRunScriptSortDirection}
         hostScriptResponse={runScriptTableResponse}
         isRunningScript={isRunningScript}
         isFetchingHostScripts={isFetchingHostScripts}
@@ -204,7 +216,8 @@ const ScriptModalGroup = ({
         onClose={onCloseScriptModalGroup}
         onCancel={() => {
           setSelectedScript(null);
-          goBack();
+          setCurrentModal(ModalGroupOption.Run);
+          setPreviousModal(null);
         }}
         onDelete={() => {
           setPreviousModal(currentModal);
@@ -222,22 +235,23 @@ const ScriptModalGroup = ({
         showHostScriptActions
         teamIdForApi={teamIdForApi}
       />
-      <DeleteScriptModal
-        scriptId={selectedScript?.script_id || 1}
-        scriptName={selectedScript?.name || ""}
-        onCancel={() => {
-          setCurrentModal(previousModal);
-          setPreviousModal(ModalGroupOption.Run);
-        }}
-        afterDelete={() => {
-          // The delete API call is handled in DeleteScriptModal
-          setCurrentModal(ModalGroupOption.Run);
-          setPreviousModal(null);
-          refetchHostScripts();
-          setSelectedScript(null);
-        }}
-        isHidden={currentModal !== ModalGroupOption.Delete}
-      />
+      {currentModal === ModalGroupOption.Delete && (
+        <DeleteScriptModal
+          scriptId={selectedScript?.script_id || 1}
+          scriptName={selectedScript?.name || ""}
+          onCancel={() => {
+            setCurrentModal(previousModal);
+            setPreviousModal(ModalGroupOption.Run);
+          }}
+          afterDelete={() => {
+            // The delete API call is handled in DeleteScriptModal
+            setCurrentModal(ModalGroupOption.Run);
+            setPreviousModal(null);
+            refetchHostScripts();
+            setSelectedScript(null);
+          }}
+        />
+      )}
       {/* Mounted only while shown: it holds no state worth preserving (the
           scripts table pagination lives in this component), and unmounting
           discards any in-flight close-animation state. */}
