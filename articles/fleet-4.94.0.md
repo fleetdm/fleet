@@ -8,7 +8,7 @@
 
 Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.94.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
-> **Note:** After upgrading, `fleetctl gitops` (including `--dry-run`) fails if any label `name` or `description` is longer than 255 characters, with an error like `label "<name>" description may not exceed 255 characters`. The limit isn't new, but GitOps didn't check it before 4.94.0. To fix, shorten each name and description to 255 characters or fewer (extra detail can go in a YAML comment). Shortening a description doesn't re-create the label or change its membership. Changing a name in GitOps does re-create the label, so [rename it in the UI first](https://fleetdm.com/docs/configuration/yaml-files#labels).
+> **Note:** After upgrading, `fleetctl gitops` fails if a label's `name` or `description` is longer than 255 characters. This includes dry runs. The error looks like this: `label "<name>" description may not exceed 255 characters`. The limit isn't new, but GitOps didn't check it before Fleet 4.94.0. To fix it, shorten each name and description to 255 characters or fewer. Shortening a description doesn't re-create the label or change its hosts. Changing a name in GitOps re-creates the label, so [rename it in the UI first](https://fleetdm.com/docs/configuration/yaml-files#labels). [Reach out to Fleet](https://fleetdm.com/support) if you need help.
 
 ## Highlights
 
@@ -205,7 +205,7 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 - Fixed `fleetctl generate-gitops` not adding any fleets under `volume_purchasing_program` when a VPP token is assigned to all fleets.
 - Fixed GitOps runs failing with a duplicate name error when .mobileconfig profiles trade names, or one takes a name another profile is giving up, in the same run.
 - Fixed GitOps software batch uploads continuing to download remaining packages after one package failed.
-- Fixed `fleetctl gitops --dry-run` passing a label whose name or description is longer than 255 characters, which then failed the real apply with a generic error. Fleet now rejects these labels with a clear message in the dry run, on `fleetctl apply`, and in the labels API. GitOps configurations with labels over this limit now fail until the name or description is shortened.
+- Fixed `fleetctl gitops --dry-run` passing a label whose name or description is longer than 255 characters, which then failed the real apply with a generic error. Fleet now rejects these labels with a clear message in the dry run, on `fleetctl apply`, and in the labels API. GitOps now fails on these labels until their names and descriptions are 255 characters or fewer.
 - Fixed `fleetctl apply` silently dropping incorrectly typed paths and labels in fleet custom profile settings. Invalid values now return a validation error.
 - Fixed a `fleetctl gitops` crash when `controls.enable_disk_encryption`, `controls.enable_recovery_lock_password`, or `controls.windows_require_bitlocker_pin` is set to a non-boolean value; it now returns a validation error.
 - Fixed `fleetctl generate-gitops` so `windows_enabled_and_configured` and `android_enabled_and_configured` are only exported to the global controls file (including on Fleet Free), and no longer leak into fleet YAML files.
