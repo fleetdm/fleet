@@ -461,6 +461,14 @@ const EditQueryForm = ({
     onUpdate(updateQueryData);
   };
 
+  const handleSaveAsNewQuery = () => {
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+    toggleSaveAsNewQueryModal();
+  };
+
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showOpenSchemaActionText) {
       return null;
@@ -903,7 +911,7 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         variant="secondary"
-                        onClick={toggleSaveAsNewQueryModal}
+                        onClick={handleSaveAsNewQuery}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
                         Save as new
