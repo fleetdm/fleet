@@ -1,11 +1,12 @@
 import React from "react";
+
+import CustomLink from "components/CustomLink";
+import IconStatusMessage from "components/IconStatusMessage";
 import { ICommandResult } from "interfaces/command";
 import CommandResultsModal, {
   getIconName,
 } from "pages/hosts/components/CommandDetailsModal";
 import { timeAgo } from "utilities/date_format";
-import IconStatusMessage from "components/IconStatusMessage";
-import CustomLink from "components/CustomLink";
 
 export interface IFailedEnrollmentProfileModalProps {
   command: { command_uuid: string };

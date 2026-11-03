@@ -2,19 +2,19 @@
  software/os/:id > Kernels table (Linux only)
  */
 
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import PATHS from "router/paths";
 
-import { IOperatingSystemKernels } from "interfaces/operating_system";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import { IOperatingSystemKernels } from "interfaces/operating_system";
+import PATHS from "router/paths";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateTableConfig from "./OSKernelsTableConfig";
 

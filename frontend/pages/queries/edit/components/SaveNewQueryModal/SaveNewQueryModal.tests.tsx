@@ -1,14 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import createMockQuery from "__mocks__/queryMock";
-import createMockUser from "__mocks__/userMock";
-import createMockTeam from "__mocks__/teamMock";
-import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import createMockQuery from "__mocks__/queryMock";
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import { QueryablePlatform } from "interfaces/platform";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SaveNewQueryModal from "./SaveNewQueryModal";
 
@@ -140,6 +141,26 @@ describe("SaveNewQueryModal", () => {
     await user.click(screen.getByText("Save"));
 
     expect(screen.getByText("Report name must be present")).toBeInTheDocument();
+  });
+
+  it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
+
+    await user.type(screen.getByLabelText("Name"), "Report{Enter}");
+
+    expect(defaultProps.saveQuery).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch")).not.toBeChecked();
   });
 
   it("should not show the target selector in the free tier", async () => {

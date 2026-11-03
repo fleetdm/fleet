@@ -34,4 +34,18 @@
       white-space: nowrap;
     }
   }
+
+  &__filter {
+    min-width: 230px;
+  }
+
+  // Room for the primary action plus the fixed Uninstall slot.
+  &--self-service .data-table-block .data-table th.actions__header {
+    width: 240px;
+  }
+
+  // My device labels the Actions column, so it gets a divider like the others.
+  &--device-user .data-table-block .data-table th.actions__header {
+    border-left: 1px solid $ui-fleet-black-10;
+  }
 }

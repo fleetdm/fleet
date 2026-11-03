@@ -1,9 +1,13 @@
 /** software/vulnerabilities Vulnerabilities tab */
 
+import { AxiosError } from "axios";
 import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
+
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { IApiError } from "interfaces/errors";
 import softwareVulnAPI, {
   IGetVulnerabilitiesQueryKey,
   IVulnerabilitiesResponse,
@@ -12,13 +16,8 @@ import softwareVulnAPI, {
   getVulnerabilities,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { IApiError } from "interfaces/errors";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { stripQuotes } from "utilities/strings/stringUtils";
-
-import TableDataError from "components/DataError";
-import Spinner from "components/Spinner";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 import { isValidCVEFormat } from "./SoftwareVulnerabilitiesTable/helpers";

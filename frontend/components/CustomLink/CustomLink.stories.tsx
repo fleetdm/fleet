@@ -1,8 +1,9 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
+
 import CustomLink from ".";
 
 const meta: Meta<typeof CustomLink> = {

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -134,6 +133,47 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	// order is guaranteed for manual enrollments to be:
+	// 1. fleetd, unless the bootstrap package replaces it (see below)
+	// 2. bootstrap package if configured for manual enrollments
+	// 3. apps/profiles
+
+	if isMacOS(args.Platform) {
+		var manualAgentInstall, allowBootstrapDuringManualEnrollment bool
+		if args.TeamID == nil {
+			appCfg, err := a.getAppConfig(ctx, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+		} else {
+			team, err := a.getTeamConfig(ctx, nil, *args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving team config")
+			}
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringManualEnrollment = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+		}
+
+		installBootstrap := license.IsPremium(ctx) && allowBootstrapDuringManualEnrollment
+		// Manual agent install only skips fleetd when the bootstrap package (expected to contain
+		// fleetd) is also sent on manual enrollments, so configs that only use it for automatic
+		// enrollment keep getting fleetd here.
+		if !manualAgentInstall || !installBootstrap {
+			if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+		}
+
+		if installBootstrap {
+			if _, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "installing bootstrap package")
+			}
+		}
+
+	}
+
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
 	if err != nil {
 		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
@@ -141,24 +181,19 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-	} else {
+	if !isMacOS(args.Platform) && license.IsPremium(ctx) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
-		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
-			}
-		}
+		//
 		// Refetch is handled by the iphone_ipad_refetcher cron, which now
 		// picks up freshly-enrolled hosts on its next tick (see
 		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
 		// catch-up to the synchronous enrollment path and keeps a single
 		// source of truth for refetch command emission.
+		_, err := a.installSetupExperienceAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "installing setup experience apps on iOS/iPadOS")
+		}
 	}
 
 	return nil
@@ -172,18 +207,26 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		err           error
 	)
 
+	// order is guaranteed for DEP enrollments to be:
+	// 1. fleetd if manual agent install is not enabled
+	// 2. bootstrap package if allowed and not skipped during MDM migration
+	// 3. apps/profiles
+	// 4. managed account/end user settings if configured
+
 	if isMacOS(args.Platform) {
-		var manualAgentInstall bool
+		var manualAgentInstall, allowBootstrapDuringMigrationConfig bool
 		if args.TeamID == nil {
 			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 				return err
 			}
 			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = appCfg.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+			allowBootstrapDuringMigrationConfig = team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 		}
 
 		if !manualAgentInstall {
@@ -194,11 +237,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		allowBootstrapDuringMigration := false
-		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
-		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
-			allowBootstrapDuringMigration = true
-		}
+		// the env var overrides the config value when set to true
+		allowBootstrapDuringMigration := fleet.BootstrapPackageDuringMigrationEnvEnabled() || (allowBootstrapDuringMigrationConfig && license.IsPremium(ctx))
 
 		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			a.Log.InfoContext(ctx, "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
@@ -278,8 +318,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	const fleetAdminFullName = "Fleet Admin"
 
-	// Only send AccountConfiguration for macOS devices.
-	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
+	// Only send AccountConfiguration for macOS devices, that did not come from AB migration
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) && !args.FromMDMMigration {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
@@ -423,7 +463,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		args.ReleaseDeviceStartedAt = &now
 	}
 
-	a.Log.DebugContext(ctx,
+	a.Log.DebugContext(
+		ctx,
 		fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"task", "runPostDEPReleaseDevice",
 		"attempt", args.ReleaseDeviceAttempt,
@@ -438,8 +479,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
 		(args.ReleaseDeviceAttempt >= maxAttempts) {
 		a.Log.InfoContext(ctx, "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
-		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
+		if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "release device after %d attempts", args.ReleaseDeviceAttempt)
 		}
 		return nil
 	}
@@ -489,7 +530,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("command %s has completed", cmdUUID),
 			"task", "runPostDEPReleaseDevice",
 		)
@@ -524,7 +566,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 			"task", "runPostDEPReleaseDevice",
 		)
@@ -571,8 +614,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 	// release the device
 	a.Log.InfoContext(ctx, "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
-	if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
+	if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "release device")
 	}
 	return nil
 }
@@ -649,7 +692,9 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
+					VPPAppID:   *vppAppID,
+					AppTeamID:  ptr.ValOrZero(app.VPPAppTeamID),
+					VPPTokenID: app.VPPAppVPPTokenID,
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -686,16 +731,31 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		}
 		// A *fleet.PreflightInstallFailedError means the service layer already
 		// recorded the failed install and its activity.
+		var softwareDisplayName *string
+		if app.SoftwareTitleID != nil {
+			dn, dnErr := a.Datastore.GetSoftwareTitleDisplayName(ctx, host.TeamID, *app.SoftwareTitleID)
+			if dnErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up software display name for setup experience install failure activity", "err", dnErr)
+			}
+			softwareDisplayName = dn
+		}
 		var failActivity fleet.ActivityDetails
 		if isVPPApp {
+			vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, a.Datastore, app.VPPAppVPPTokenID)
+			if tokErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up VPP token for setup experience install failure activity", "err", tokErr)
+			}
 			failActivity = fleet.ActivityInstalledAppStoreApp{
+				VPPToken:            vppToken,
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
 				FromSetupExperience: true,
+				VersionName:         ptr.ValOrZero(app.VPPAppVersionName),
 			}
 		} else {
 			if _, ok := errors.AsType[*fleet.PreflightInstallFailedError](installErr); ok {
@@ -705,6 +765,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				Source:              app.Source,
 				Status:              string(fleet.SoftwareInstallFailed),
 				FromSetupExperience: true,
@@ -724,12 +785,11 @@ func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host,
 	if a.VPPInstaller == nil {
 		return "", errors.New("VPP installer not configured")
 	}
-	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := a.VPPInstaller.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
 func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) (string, error) {
@@ -742,7 +802,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if errors.As(err, &nfe) {
-			a.Log.InfoContext(ctx, "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
+			a.Log.InfoContext(ctx, "unable to find a bootstrap package for enrolled device, skipping installation", "host_uuid", hostUUID)
 			return "", nil
 		}
 

@@ -31,7 +31,7 @@
 	<key>PayloadDisplayName</key>
 	<string>Fleet self-service</string>
 	<key>PayloadIdentifier</key>
-	<string>7404609C-9F8B-45CF-B5CC-9ADD7962EA72</string>
+	<string>com.fleetdm.self-service</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>

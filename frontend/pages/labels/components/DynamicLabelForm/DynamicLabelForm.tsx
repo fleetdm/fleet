@@ -1,11 +1,10 @@
+import { Ace } from "ace-builds";
 import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { Ace } from "ace-builds";
 
+import Button from "components/buttons/Button";
 import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
-import Button from "components/buttons/Button";
-
 import { LabelPlatform } from "interfaces/label";
 
 import LabelForm from "../LabelForm";

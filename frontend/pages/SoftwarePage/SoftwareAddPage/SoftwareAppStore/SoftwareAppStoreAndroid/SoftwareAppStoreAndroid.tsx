@@ -1,18 +1,21 @@
 import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
-import softwareAPI from "services/entities/software";
-
-import { notify } from "components/ToastNotification";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
-
-import { getPathWithQueryParams } from "utilities/url";
+import EmptyState from "components/EmptyState";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { ILabelSummary } from "interfaces/label";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import PATHS from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-app-store-android";
@@ -58,6 +61,23 @@ const SoftwareAppStoreAndroid = ({
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels", currentTeamId],
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isPremiumTier && !!isAndroidMdmEnabledAndConfigured,
+      staleTime: 10000,
+    }
+  );
 
   const goBackToSoftwareLibrary = () => {
     router.push(
@@ -123,6 +143,9 @@ const SoftwareAppStoreAndroid = ({
     return (
       <div className={`${baseClass}__content`}>
         <SoftwareAndroidForm
+          labels={labels || []}
+          isLoadingLabels={isLoadingLabels}
+          isErrorLabels={isErrorLabels}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareLibrary}
           isLoading={isLoading}

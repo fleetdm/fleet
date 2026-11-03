@@ -2,6 +2,7 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 
 import PageDescription from "components/PageDescription";
+
 import UsersTable from "./components/UsersTable";
 
 const baseClass = "manage-users";

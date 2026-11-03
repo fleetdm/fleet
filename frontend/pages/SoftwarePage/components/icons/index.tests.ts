@@ -1,9 +1,12 @@
-import { getMatchedSoftwareIcon } from "./index";
-
 import AcrobatReader from "./AcrobatReader";
-import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
 import AdobePlugin from "./AdobePlugin";
 import Extension from "./Extension";
+import GoBinary from "./GoBinary";
+import Package from "./Package";
+import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
+import CodexApp from "./png/CodexApp.png";
+
+import { getMatchedSoftwareIcon } from "./index";
 
 describe("getMatchedSoftwareIcon", () => {
   describe("Adobe plugins", () => {
@@ -32,7 +35,40 @@ describe("getMatchedSoftwareIcon", () => {
     });
   });
 
+  describe("Go binaries", () => {
+    it("uses the Go icon for a binary whose name matches an application", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "zoom", source: "go_binaries" })
+      ).toBe(GoBinary);
+    });
+
+    it("uses the Go icon for a binary whose name matches nothing", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "gopls", source: "go_binaries" })
+      ).toBe(GoBinary);
+    });
+  });
+
+  describe("MCP servers and AI skills", () => {
+    it.each([
+      { name: "slack", source: "mcp_servers" },
+      { name: "zoom", source: "mcp_servers" },
+      { name: "git", source: "ai_skills" },
+    ])(
+      "uses the package icon for $source named after an application ($name)",
+      ({ name, source }) => {
+        expect(getMatchedSoftwareIcon({ name, source })).toBe(Package);
+      }
+    );
+  });
+
   describe("other sources keep matching on name first", () => {
+    it("matches an AI CLI tool to its vendor's application", () => {
+      expect(getMatchedSoftwareIcon({ name: "codex", source: "ai_clis" })).toBe(
+        CodexApp
+      );
+    });
+
     it("matches an Adobe application by exact name", () => {
       expect(
         getMatchedSoftwareIcon({

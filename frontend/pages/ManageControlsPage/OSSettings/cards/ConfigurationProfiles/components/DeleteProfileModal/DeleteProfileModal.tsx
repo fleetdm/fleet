@@ -1,13 +1,16 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { ProfilePlatform } from "interfaces/mdm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 interface DeleteProfileModalProps {
   profileName: string;
   profileId: string;
+  platform: ProfilePlatform;
   onCancel: () => void;
   onDelete: (profileId: string) => void;
   isDeleting: boolean;
@@ -25,6 +28,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
 const DeleteProfileModal = ({
   profileName,
   profileId,
+  platform,
   onCancel,
   onDelete,
   isDeleting,
@@ -32,13 +36,16 @@ const DeleteProfileModal = ({
   const { isPremiumTier, currentTeam } = useContext(AppContext);
 
   const messageSuffix = generateMessageSuffix(isPremiumTier, currentTeam?.id);
+  const isWindows = platform === "windows";
 
   return (
     <Modal
       className={baseClass}
       title="Delete configuration profile"
       onExit={onCancel}
-      onEnter={() => onDelete(profileId)}
+      // Modal's Enter handler runs wherever focus is, so it would delete instead
+      // of opening the Windows "Learn more" link.
+      onEnter={isWindows ? undefined : () => onDelete(profileId)}
       width="large"
     >
       <>
@@ -48,6 +55,16 @@ const DeleteProfileModal = ({
             profile from all hosts {messageSuffix}.
           </p>
           <p>Pending profiles will be canceled.</p>
+          {isWindows && (
+            <p>
+              Some Windows settings may not be cleanly removed from hosts.{" "}
+              <CustomLink
+                text="Learn more"
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/removal-behavior`}
+              />
+            </p>
+          )}
         </div>
         <div className="modal-cta-wrap">
           <Button

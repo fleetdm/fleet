@@ -5,13 +5,13 @@ import {
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
   DEPDeviceStatus,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareAggregateStatus } from "interfaces/software";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -40,6 +40,7 @@ interface IMutuallyExclusiveHostParams {
   softwareVersionId?: number;
   softwareTitleId?: number;
   softwareStatus?: string;
+  appStoreAppVersionId?: number;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
@@ -139,6 +140,7 @@ export const reconcileSoftwareParams = ({
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
 }: Pick<
   IMutuallyExclusiveHostParams,
   | "teamId"
@@ -146,6 +148,7 @@ export const reconcileSoftwareParams = ({
   | "softwareVersionId"
   | "softwareTitleId"
   | "softwareStatus"
+  | "appStoreAppVersionId"
 >) => {
   if (
     isValidSoftwareAggregateStatus(softwareStatus) &&
@@ -155,6 +158,7 @@ export const reconcileSoftwareParams = ({
     return {
       software_title_id: softwareTitleId,
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
+      app_store_app_version_id: appStoreAppVersionId,
       fleet_id: teamId,
     };
   }
@@ -216,6 +220,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
   osVersionId,
   osName,
   osVersion,
@@ -232,7 +237,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
-    // (label + mdm enrollment status). all other params are still mutually exclusive.
+    // (label + mdm enrollment status) OR (label + os settings) OR (label +
+    // disk encryption) OR (label + DEP profile status). all other params are
+    // still mutually exclusive.
     if (mdmId) {
       return { mdm_id: mdmId };
     }
@@ -244,6 +251,15 @@ export const reconcileMutuallyExclusiveHostParams = ({
     }
     if (osSettings) {
       return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
+    }
+    if (diskEncryptionStatus) {
+      return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
+    }
+    if (depProfileError) {
+      return { dep_profile_error: true };
+    }
+    if (depAssignProfileResponse) {
+      return { dep_assign_profile_response: depAssignProfileResponse };
     }
     return {};
   }
@@ -267,6 +283,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
+        appStoreAppVersionId,
       });
       // Software version can be combined with os name and os version
       // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)

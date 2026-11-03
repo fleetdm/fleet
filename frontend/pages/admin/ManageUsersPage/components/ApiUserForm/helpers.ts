@@ -1,8 +1,8 @@
+import { isPresent } from "components/forms/validators";
+import { IFormErrors } from "hooks/useFormValidation";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-import { IFormErrors } from "hooks/useFormValidation";
-import validatePresence from "components/forms/validators/validate_presence";
 
 export type ApiUserFormState = {
   name: string;
@@ -19,7 +19,7 @@ export const validateApiUserForm = (
 ): IFormErrors => {
   const errors: IFormErrors = {};
 
-  if (!validatePresence(data.name)) {
+  if (!isPresent(data.name)) {
     errors.name = "Enter a name";
   }
   // The permissions and API-access selectors only render on premium.

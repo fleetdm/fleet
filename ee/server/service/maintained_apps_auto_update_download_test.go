@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 
@@ -39,6 +40,7 @@ type fakeManifestServer struct {
 	install       string // install script ref body (default "echo install")
 	uninstall     string // uninstall script ref body (default "echo uninstall")
 	upgradeCode   string // manifest upgrade_code (default empty)
+	open          string // manifest open query (default empty)
 	installerPath string // path the installer is served from (default "/installer.pkg")
 	manifestHits  int
 	installerHits int
@@ -67,7 +69,7 @@ func newFakeManifestServerWithInstaller(t *testing.T, installerPath string) *fak
 				UpgradeCode:        f.upgradeCode,
 				InstallScriptRef:   "i",
 				UninstallScriptRef: "u",
-				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2"},
+				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2", Open: f.open},
 				DefaultCategories:  []string{"Browsers"},
 			}},
 			Refs: map[string]string{"i": f.install, "u": f.uninstall},
@@ -221,7 +223,7 @@ func TestAutoUpdateAlreadyCachedSkipsInsert(t *testing.T) {
 		return 0, nil
 	}
 
-	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(srv.sha), discardLogger()))
 	require.Equal(t, 0, srv.installerHits)
 	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
 	require.False(t, ds.MarkFleetMaintainedAppVersionCurrentFuncInvoked,
@@ -283,10 +285,92 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 	}
 
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.Equal(t, 1, srv.installerHits, "cached bytes are missing from the store, so they're downloaded")
 	// Without a hash the bytes may turn out to be ones Fleet already had, so the version the
 	// manifest publishes still has to become the newest download.
 	require.Equal(t, uint(7), markedInstallerID)
 	require.Equal(t, uint(7), activatedInstallerID)
+}
+
+func TestAutoUpdateNoCheckHashCachedVersionWithChangedOpenQueryRefreshesTheInstaller(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	downloadedHash := srv.sha
+	srv.sha = noCheckHash
+	srv.open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'new');"
+	ds := baseDownloadStore(t, testFMALatest, 9)
+	// Cache the manifest's version under the bytes the download returns, with an older open query on the active installer.
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, downloadedHash, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: testFMALatest}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:     9,
+			Version:         testFMALatest,
+			InstallScript:   srv.install,
+			UninstallScript: srv.uninstall,
+			PatchQuery:      "SELECT 2",
+			AppOpenQuery:    "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'old');",
+			Extension:       "pkg",
+		}, nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert a version that is already cached")
+		return 0, nil
+	}
+	var gotInstallerID uint
+	var gotVersion string
+	var gotAppOpenQuery string
+	ds.UpdateInstallerScriptsAndQueriesFunc = func(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error {
+		gotInstallerID = installerID
+		gotVersion = version
+		gotAppOpenQuery = appOpenQuery
+		return nil
+	}
+
+	// Run the cron, the active installer should get the manifest's new open query.
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(downloadedHash), discardLogger()))
+	require.Equal(t, 0, srv.installerHits)
+	require.True(t, ds.UpdateInstallerScriptsAndQueriesFuncInvoked)
+	require.Equal(t, uint(9), gotInstallerID)
+	require.Equal(t, testFMALatest, gotVersion)
+	require.Equal(t, srv.open, gotAppOpenQuery)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+func TestAutoUpdateNoCheckHashCachedVersionSkipsDownloadPerTeam(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.sha = noCheckHash
+	ds := baseDownloadStore(t, testFMALatest, 9)
+	teamA, teamB := uint(1), uint(2)
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		return []fleet.FMAAutoUpdateCandidate{
+			{TeamID: &teamA, TitleID: testFMATitleID, FleetMaintainedAppID: testFMAAppID, InstallerID: 9, Version: testFMALatest, Slug: testFMASlug},
+			{TeamID: &teamB, TitleID: testFMATitleID, FleetMaintainedAppID: testFMAAppID, InstallerID: 19, Version: testFMALatest, Slug: testFMASlug},
+		}, nil
+	}
+	// Each team cached the version under different bytes, both still in the store.
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		if *tmID == teamA {
+			return true, "hash-a", nil
+		}
+		return true, "hash-b", nil
+	}
+	var lookedUp []string
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		lookedUp = append(lookedUp, storageID)
+		return fleet.CachedInstallerMetadata{}, nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert a version that is already cached")
+		return 0, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore("hash-a", "hash-b"), discardLogger()))
+	require.Equal(t, 0, srv.installerHits)
+	require.Equal(t, []string{"hash-a", "hash-b"}, lookedUp)
 }
 
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {
@@ -432,7 +516,9 @@ func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
 
 	// Download path: the fake bytes can't be parsed, so no package IDs are recovered
 	// and the $PACKAGE_ID placeholder survives — the candidate must be skipped.
-	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	store := memStore()
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, store, discardLogger()))
+	require.False(t, store.PutFuncInvoked)
 	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
 }
 
@@ -511,4 +597,112 @@ func TestAutoUpdatePicksUpEditsMadeDuringDownload(t *testing.T) {
 	require.Equal(t, "echo JUST EDITED", gotPayload.InstallScript, "an edit made during the download is carried forward")
 	require.True(t, gotPayload.InstallScriptEdited)
 	require.False(t, gotPayload.UninstallScriptEdited)
+}
+
+func testAutoUpdateCachedMissingBytes(t *testing.T, noCheck, latest, unresolvedScript bool) {
+	t.Helper()
+	srv := newFakeManifestServer(t)
+	if latest {
+		var err error
+		srv.bytes, err = os.ReadFile("testdata/dummy_installer.pkg")
+		require.NoError(t, err)
+		sum := sha256.Sum256(srv.bytes)
+		srv.sha = hex.EncodeToString(sum[:])
+		srv.version = "latest"
+	}
+	digest := srv.sha
+	if noCheck {
+		srv.sha = noCheckHash
+	}
+	if unresolvedScript {
+		srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
+	}
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, digest, nil }
+	store := memStore()
+	originalPut := store.PutFunc
+	var stored []byte
+	store.PutFunc = func(ctx context.Context, id string, content io.ReadSeeker) error {
+		require.Equal(t, digest, id)
+		var err error
+		stored, err = io.ReadAll(content)
+		require.NoError(t, err)
+		return originalPut(ctx, id, content)
+	}
+	require.NoError(t, AutoUpdateFleetMaintainedApps(t.Context(), ds, store, discardLogger()))
+	require.Equal(t, 1, srv.installerHits)
+	require.Equal(t, srv.bytes, stored, "downloaded bytes must be stored after hashing and extraction")
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+	exists, err := store.Exists(t.Context(), digest)
+	require.NoError(t, err)
+	require.True(t, exists)
+}
+
+func TestAutoUpdateCachedVersionMissingBytesRestoresThem(t *testing.T) {
+	testAutoUpdateCachedMissingBytes(t, false, false, false)
+}
+
+func TestAutoUpdateNoCheckCachedVersionMissingBytesRestoresThem(t *testing.T) {
+	testAutoUpdateCachedMissingBytes(t, true, false, false)
+}
+
+func TestAutoUpdateLatestCachedMissingBytes(t *testing.T) {
+	testAutoUpdateCachedMissingBytes(t, false, true, false)
+}
+
+func TestAutoUpdateCachedTemplateRepair(t *testing.T) {
+	testAutoUpdateCachedMissingBytes(t, false, false, true)
+}
+
+func TestAutoUpdateCachedMissingPutFailure(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, srv.sha, nil }
+	store := memStore()
+	store.PutFunc = func(context.Context, string, io.ReadSeeker) error { return errors.New("read-only store") }
+	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, discardLogger(),
+		fleet.FMAAutoUpdateCandidate{TeamID: new(uint(1)), FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
+		"", srv.srv.Client(), map[string]*manifestEntry{})
+	require.ErrorContains(t, err, "read-only store")
+	require.Empty(t, version)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+	require.False(t, ds.UpdateInstallerScriptsAndQueriesFuncInvoked)
+}
+
+func TestAutoUpdateCachedExistsError(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, srv.sha, nil }
+	store := memStore()
+	store.ExistsFunc = func(context.Context, string) (bool, error) { return false, errors.New("AccessDenied") }
+	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, discardLogger(),
+		fleet.FMAAutoUpdateCandidate{TeamID: new(uint(1)), FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
+		"", srv.srv.Client(), map[string]*manifestEntry{})
+	require.ErrorContains(t, err, "AccessDenied")
+	require.Empty(t, version)
+	require.Zero(t, srv.installerHits)
+	require.False(t, store.PutFuncInvoked)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+func TestAutoUpdateCachedSharedHashRepair(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		return []fleet.FMAAutoUpdateCandidate{
+			{TeamID: new(uint(1)), InstallerID: 9, FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
+			{TeamID: new(uint(2)), InstallerID: 10, FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
+		}, nil
+	}
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, srv.sha, nil }
+	store := memStore()
+	require.NoError(t, AutoUpdateFleetMaintainedApps(t.Context(), ds, store, discardLogger()))
+	require.Equal(t, 1, srv.manifestHits)
+	require.Equal(t, 1, srv.installerHits, "the second fleet reuses repaired shared bytes")
+	require.True(t, store.PutFuncInvoked)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+func TestAutoUpdateNoCheckLatestCachedMissingBytes(t *testing.T) {
+	testAutoUpdateCachedMissingBytes(t, true, true, false)
 }

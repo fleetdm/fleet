@@ -3,18 +3,70 @@ package nanopush
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 )
+
+// TestPushStalledErrorBody covers an APNs response whose headers arrive but
+// whose error body then stalls: transport-level timeouts don't bound the body
+// read, so only an overall client timeout (production sets one via fleethttp's
+// default) keeps Push from blocking its caller forever.
+func TestPushStalledErrorBody(t *testing.T) {
+	stall := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.(http.Flusher).Flush()
+		<-stall
+	}))
+	defer server.Close()
+	defer close(stall)
+
+	pushInfo := &mdm.Push{PushMagic: "magic", Topic: "com.example.topic"}
+	require.NoError(t, pushInfo.SetTokenString("00aa"))
+
+	prov := &Provider{
+		baseURL: server.URL,
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(500 * time.Millisecond)),
+		workers: 1,
+	}
+
+	done := make(chan struct{})
+	var responses map[string]*push.Response
+	var err error
+	go func() {
+		defer close(done)
+		responses, err = prov.Push(t.Context(), []*mdm.Push{pushInfo})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Push did not return: stalled error body read is unbounded")
+	}
+	require.NoError(t, err)
+	tokenResp := responses["00aa"]
+	require.NotNil(t, tokenResp)
+	require.ErrorContains(t, tokenResp.Err, "push HTTP status: 400")
+	// assert a timeout semantically, not by message: depending on which of
+	// the client's two cancellation paths wins, the read error is either
+	// annotated with "Client.Timeout ..." or the bare context error
+	var netErr net.Error
+	require.ErrorAs(t, tokenResp.Err, &netErr)
+	require.True(t, netErr.Timeout(), "want timeout error, got: %v", tokenResp.Err)
+}
 
 func TestPush(t *testing.T) {
 	// our "raw" push info
@@ -188,6 +240,32 @@ func TestPushHeaders(t *testing.T) {
 		headers := push(t, time.Hour, newPushInfo(""))
 		require.Empty(t, headers.Values("apns-topic"))
 	})
+}
+
+func TestPushMagicEncoding(t *testing.T) {
+	const token = "c2732227a1d8021cfaf781d71fb2f908c61f5861079a00954a5453f1d0281433" // nolint:gosec // test device token
+	const pushMagic = `a"b\c`
+
+	var body []byte
+	var readErr error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr = io.ReadAll(r.Body)
+	}))
+	defer server.Close()
+
+	pushInfo := &mdm.Push{PushMagic: pushMagic}
+	require.NoError(t, pushInfo.SetTokenString(token))
+	prov := &Provider{baseURL: server.URL, client: http.DefaultClient}
+	resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
+	require.NoError(t, err)
+	tokenResp := resp[token]
+	require.NotNil(t, tokenResp)
+	require.NoError(t, tokenResp.Err)
+	require.NoError(t, readErr)
+
+	var payload map[string]string
+	require.NoError(t, json.Unmarshal(body, &payload))
+	require.Equal(t, map[string]string{"mdm": pushMagic}, payload)
 }
 
 type errorDoer struct{}

@@ -3,15 +3,14 @@
 import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import sessionsAPI from "services/entities/sessions";
-import local from "utilities/local";
-import authToken from "utilities/auth_token";
-
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
+import { AppContext } from "context/app";
+import paths from "router/paths";
+import sessionsAPI from "services/entities/sessions";
+import authToken from "utilities/auth_token";
+import local from "utilities/local";
 
 interface ILoginPreviewPageProps {
   router: InjectedRouter; // v3

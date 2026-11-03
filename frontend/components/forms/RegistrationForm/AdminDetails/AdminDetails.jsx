@@ -1,10 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
-import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+
 import helpers from "./helpers";
 
 const formFields = ["name", "password", "password_confirmation", "email"];

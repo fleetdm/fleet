@@ -1,22 +1,22 @@
-import React from "react";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
-import { BootstrapPackageStatus } from "interfaces/mdm";
-import { IHostMaintenanceWindow } from "interfaces/host";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import React from "react";
 
-import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
-
-import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHostMaintenanceWindow } from "interfaces/host";
+import { BootstrapPackageStatus } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
-
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
+import { formatHostLocalDeadline } from "utilities/helpers";
 
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
@@ -31,7 +31,11 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
+  /** Admin-only (not My device). Patch deadline flows through to both
+   * endpoints, so the admin pages must opt in explicitly. */
+  showPatchDeadline?: boolean;
   toggleBootstrapPackageModal?: () => void;
+  toggleOnlineHistoryModal?: () => void;
   className?: string;
 }
 
@@ -39,15 +43,18 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
+  showPatchDeadline,
   toggleBootstrapPackageModal,
+  toggleOnlineHistoryModal,
   className,
-}: IHostSummaryProps): JSX.Element | null => {
+}: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   const { status, platform, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
+  const isMacHost = isMacOS(platform);
 
   const renderIssues = () => (
     <DataSet
@@ -77,6 +84,55 @@ const HostSummary = ({
       }
     />
   );
+
+  const renderStatus = () => {
+    const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
+    const tooltipText = getHostStatusTooltipText(displayedStatus, platform);
+    const indicator = (
+      <StatusIndicator
+        value={displayedStatus}
+        tooltip={tooltipText ? { tooltipText, position: "bottom" } : undefined}
+      />
+    );
+    return (
+      <DataSet
+        title="Status"
+        value={
+          toggleOnlineHistoryModal ? (
+            <Button variant="link" onClick={toggleOnlineHistoryModal}>
+              {indicator}
+            </Button>
+          ) : (
+            indicator
+          )
+        }
+      />
+    );
+  };
+
+  const renderPatchDeadline = () => {
+    const { patch_deadline_at, timezone } = summaryData;
+    const hasDeadline =
+      !!patch_deadline_at && patch_deadline_at !== DEFAULT_EMPTY_CELL_VALUE;
+    const hasHostTimezone = !!timezone && timezone !== DEFAULT_EMPTY_CELL_VALUE;
+    // Deadline loading is independent of timezone collection, so hold the row
+    // at "---" until both land. Otherwise the tooltip ("host's local time")
+    // would be lying while the formatter silently falls back to UTC.
+    const deadline =
+      hasDeadline && hasHostTimezone
+        ? formatHostLocalDeadline(patch_deadline_at, timezone)
+        : null;
+
+    const value = deadline ? (
+      <TooltipWrapper tipContent="The deadline is in the host's local time.">
+        {deadline}
+      </TooltipWrapper>
+    ) : (
+      DEFAULT_EMPTY_CELL_VALUE
+    );
+
+    return <DataSet title="Patch deadline" value={value} />;
+  };
 
   const renderMaintenanceWindow = ({
     starts_at,
@@ -116,7 +172,7 @@ const HostSummary = ({
     );
   };
 
-  const showStatus = !isIosOrIpadosHost && !isAndroidHost;
+  // Status renders for all platforms now that mobile hosts return real online/offline.
   const showTeam = !!isPremiumTier;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
@@ -124,48 +180,20 @@ const HostSummary = ({
     !isAndroidHost;
   const showBootstrapPackage =
     !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+  const showPatchDeadlineTile =
+    !!showPatchDeadline && !!isPremiumTier && isMacHost;
   const showMaintenanceWindow =
     !!isPremiumTier &&
     // TODO - refactor normalizeEmptyValues pattern
     !!summaryData.maintenance_window &&
     summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
-  // Hide the card entirely when nothing inside it would render (e.g. a Free
-  // tier Android host) — otherwise an empty card sits above the Vitals section.
-  if (
-    !showStatus &&
-    !showTeam &&
-    !showIssues &&
-    !showBootstrapPackage &&
-    !showMaintenanceWindow
-  ) {
-    return null;
-  }
-
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
-      {showStatus && (
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={getHostStatus(status, mdm?.enrollment_status)}
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
-                ),
-                position: "bottom",
-              }}
-            />
-          }
-        />
-      )}
+    <Card paddingSize="xlarge" className={classNames}>
+      {renderStatus()}
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}
+      {showPatchDeadlineTile && renderPatchDeadline()}
       {showBootstrapPackage && bootstrapPackageData?.status && (
         <DataSet
           title="Bootstrap package"

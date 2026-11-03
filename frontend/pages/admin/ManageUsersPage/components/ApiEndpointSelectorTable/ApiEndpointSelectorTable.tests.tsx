@@ -1,10 +1,9 @@
+import { screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor, within } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-
-import apiEndpointsAPI from "services/entities/api_endpoints";
 import { IApiEndpoint } from "interfaces/api_endpoint";
+import apiEndpointsAPI from "services/entities/api_endpoints";
+import { createCustomRenderer } from "test/test-utils";
 
 import ApiEndpointSelectorTable from "./ApiEndpointSelectorTable";
 

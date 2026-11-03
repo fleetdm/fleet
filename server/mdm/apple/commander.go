@@ -69,15 +69,15 @@ func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, p
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>InstallProfile</string>
-		<key>Payload</key>
-		<data>%s</data>
-	</dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>InstallProfile</string>
+    <key>Payload</key>
+    <data>%s</data>
+  </dict>
 </dict>
 </plist>`, commandUUID, base64Profile)
 	return raw, nil
@@ -89,15 +89,15 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>RemoveProfile</string>
-		<key>Identifier</key>
-		<string>%s</string>
-	</dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>RemoveProfile</string>
+    <key>Identifier</key>
+    <string>%s</string>
+  </dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
 	cmd, err := mdm.DecodeCommand([]byte(raw))
@@ -128,20 +128,21 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "generating random PIN for DeviceLock")
 	}
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	raw := fmt.Sprintf(
+		`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
   <dict>
-    <key>CommandUUID</key>
+    <key>RequestType</key>
+    <string>DeviceLock</string>
+    <key>PIN</key>
     <string>%s</string>
-    <key>Command</key>
-    <dict>
-      <key>RequestType</key>
-      <string>DeviceLock</string>
-      <key>PIN</key>
-      <string>%s</string>
-    </dict>
   </dict>
+</dict>
 </plist>`, uuid, unlockPIN,
 	)
 
@@ -219,14 +220,14 @@ func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.H
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
   <dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>DisableLostMode</string>
-	</dict>
+    <key>RequestType</key>
+    <string>DisableLostMode</string>
+  </dict>
 </dict>
 </plist>`, commandUUID)
 
@@ -254,19 +255,19 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
   <dict>
-    <key>CommandUUID</key>
+    <key>RequestType</key>
+    <string>EraseDevice</string>
+    <key>PIN</key>
     <string>%s</string>
-    <key>Command</key>
-    <dict>
-      <key>RequestType</key>
-      <string>EraseDevice</string>
-      <key>PIN</key>
-      <string>%s</string>
-      <key>ObliterationBehavior</key>
-      <string>Default</string>
-    </dict>
+    <key>ObliterationBehavior</key>
+    <string>Default</string>
   </dict>
+</dict>
 </plist>`, uuid, pin)
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
@@ -289,18 +290,18 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>Command</key>
   <dict>
-    <key>Command</key>
-    <dict>
-      <key>ManifestURL</key>
-      <string>%s</string>
-      <key>RequestType</key>
-      <string>InstallEnterpriseApplication</string>
-    </dict>
-
-    <key>CommandUUID</key>
+    <key>ManifestURL</key>
     <string>%s</string>
+    <key>RequestType</key>
+    <string>InstallEnterpriseApplication</string>
   </dict>
+
+  <key>CommandUUID</key>
+  <string>%s</string>
+</dict>
 </plist>`, manifestURL, uuid)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
@@ -359,63 +360,74 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 
 	// Send primary account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
 	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
+		fullName, err := mobileconfig.XMLEscapeString(ssoAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account full name")
+		}
+		userName, err := mobileconfig.XMLEscapeString(ssoAccount.UserName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account user name")
+		}
 		payload += fmt.Sprintf(`
-      <key>PrimaryAccountFullName</key>
-      <string>%s</string>
-      <key>PrimaryAccountUserName</key>
-      <string>%s</string>
-      <key>LockPrimaryAccountInfo</key>
-      <%t />
-`, ssoAccount.FullName, ssoAccount.UserName, ssoAccount.LockPrimaryAccountInfo)
+    <key>PrimaryAccountFullName</key>
+    <string>%s</string>
+    <key>PrimaryAccountUserName</key>
+    <string>%s</string>
+    <key>LockPrimaryAccountInfo</key>
+    <%t />`, fullName, userName, ssoAccount.LockPrimaryAccountInfo)
 	}
 
 	if adminAccount != nil {
 		switch adminAccount.PrimaryAccountType {
 		case fleet.PrimaryAccountTypeStandard:
 			payload += `
-      <key>SetPrimarySetupAccountAsRegularUser</key>
-      <true />
-		`
+    <key>SetPrimarySetupAccountAsRegularUser</key>
+    <true />`
 		case fleet.PrimaryAccountTypeNone:
 			payload += `
-      <key>SkipPrimarySetupAccountCreation</key>
-      <true />
-		`
+    <key>SkipPrimarySetupAccountCreation</key>
+    <true />`
 		default:
 			// no-op for admin account type as that is default
 		}
 
+		shortName, err := mobileconfig.XMLEscapeString(adminAccount.ShortName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account short name")
+		}
+		fullName, err := mobileconfig.XMLEscapeString(adminAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account full name")
+		}
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		payload += fmt.Sprintf(`
-      <key>AutoSetupAdminAccounts</key>
-      <array>
-        <dict>
-          <key>hidden</key>
-          <%t />
-          <key>passwordHash</key>
-          <data>%s</data>
-          <key>shortName</key>
-          <string>%s</string>
-          <key>fullName</key>
-          <string>%s</string>
-        </dict>
-      </array>
-`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+    <key>AutoSetupAdminAccounts</key>
+    <array>
+      <dict>
+        <key>hidden</key>
+        <%t />
+        <key>passwordHash</key>
+        <data>%s</data>
+        <key>shortName</key>
+        <string>%s</string>
+        <key>fullName</key>
+        <string>%s</string>
+      </dict>
+    </array>`, adminAccount.Hidden, passwordHashEncoded, shortName, fullName)
 	}
 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
-    <key>Command</key>
-    <dict>%s
-      <key>RequestType</key>
-      <string>AccountConfiguration</string>
-    </dict>
-
-    <key>CommandUUID</key>
-    <string>%s</string>
+<dict>
+  <key>Command</key>
+  <dict>%s
+    <key>RequestType</key>
+    <string>AccountConfiguration</string>
   </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+</dict>
 </plist>`, payload, cmdUUID)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
@@ -427,16 +439,16 @@ func (svc *MDMAppleCommander) DeclarativeManagement(ctx context.Context, hostUUI
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
  <plist version="1.0">
-   <dict>
-     <key>Command</key>
-     <dict>
-       <key>RequestType</key>
-       <string>DeclarativeManagement</string>
-     </dict>
+<dict>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>DeclarativeManagement</string>
+  </dict>
 
-     <key>CommandUUID</key>
-     <string>%s</string>
-   </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+</dict>
  </plist>`, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
@@ -447,13 +459,13 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Command</key>
-    <dict>
-        <key>RequestType</key>
-        <string>DeviceConfigured</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>DeviceConfigured</string>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
 </dict>
 </plist>`, cmdUUID)
 
@@ -521,7 +533,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
 
 	var queries strings.Builder
 	for _, key := range keys {
-		queries.WriteString("            <string>")
+		queries.WriteString("      <string>")
 		queries.WriteString(key)
 		queries.WriteString("</string>\n")
 	}
@@ -530,16 +542,16 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Command</key>
-    <dict>
-        <key>Queries</key>
-        <array>
-%s        </array>
-        <key>RequestType</key>
-        <string>DeviceInformation</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>Queries</key>
+    <array>
+%s    </array>
+    <key>RequestType</key>
+    <string>DeviceInformation</string>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
 </dict>
 </plist>`, queries.String(), cmdUUID)
 
@@ -557,22 +569,22 @@ func deviceNameSettingCommand(deviceName, cmdUUID string) (string, error) {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>Settings</string>
-		<key>Settings</key>
-		<array>
-			<dict>
-				<key>Item</key>
-				<string>DeviceName</string>
-				<key>DeviceName</key>
-				<string>%s</string>
-			</dict>
-		</array>
-	</dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>Settings</string>
+    <key>Settings</key>
+    <array>
+      <dict>
+        <key>Item</key>
+        <string>DeviceName</string>
+        <key>DeviceName</key>
+        <string>%s</string>
+      </dict>
+    </array>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
 </dict>
 </plist>`, escaped, cmdUUID), nil
 }
@@ -612,24 +624,24 @@ func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, host
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-    <dict>
-        <key>Command</key>
-        <dict>
-            <key>ManagedAppsOnly</key>
-            <%t/>
-            <key>RequestType</key>
-            <string>InstalledApplicationList</string>
-            <key>Items</key>
-            <array>
-                <string>Name</string>
-                <string>ShortVersion</string>
-                <string>Identifier</string>
-                <string>Installing</string>
-            </array>
-        </dict>
-        <key>CommandUUID</key>
-        <string>%s</string>
-    </dict>
+<dict>
+  <key>Command</key>
+  <dict>
+    <key>ManagedAppsOnly</key>
+    <%t/>
+    <key>RequestType</key>
+    <string>InstalledApplicationList</string>
+    <key>Items</key>
+    <array>
+      <string>Name</string>
+      <string>ShortVersion</string>
+      <string>Identifier</string>
+      <string>Installing</string>
+    </array>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+</dict>
 </plist>`, managedOnly, cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
@@ -647,17 +659,17 @@ func (svc *MDMAppleCommander) CertificateList(ctx context.Context, hostUUIDs []s
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-	<dict>
-		<key>CommandUUID</key>
-		<string>%s</string>
-		<key>Command</key>
-		<dict>
-			<key>ManagedOnly</key>
-			<false/>
-			<key>RequestType</key>
-			<string>CertificateList</string>
-		</dict>
-	</dict>
+<dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>ManagedOnly</key>
+    <false/>
+    <key>RequestType</key>
+    <string>CertificateList</string>
+  </dict>
+</dict>
 </plist>`, cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
@@ -668,13 +680,13 @@ func (svc *MDMAppleCommander) DeviceLocation(ctx context.Context, hostUUIDs []st
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Command</key>
-    <dict>
-        <key>RequestType</key>
-        <string>DeviceLocation</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>DeviceLocation</string>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
 </dict>
 </plist>
 `, cmdUUID)
@@ -687,15 +699,15 @@ func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, hostUUIDs []str
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>ClearPasscode</string>
-		<key>UnlockToken</key>
-		<data>%s</data>
-	</dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
+  <key>Command</key>
+  <dict>
+    <key>RequestType</key>
+    <string>ClearPasscode</string>
+    <key>UnlockToken</key>
+    <data>%s</data>
+  </dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
 </dict>
 </plist>`, "$"+fleet.HostSecretPrefix+fleet.HostSecretMDMUnlockToken, cmdUUID)
 
@@ -883,24 +895,28 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 //
 // See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
 func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	escapedGUID, err := mobileconfig.XMLEscapeString(guid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping account GUID")
+	}
 	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>Command</key>
   <dict>
-    <key>Command</key>
-    <dict>
-      <key>RequestType</key>
-      <string>SetAutoAdminPassword</string>
-      <key>GUID</key>
-      <string>%s</string>
-      <key>passwordHash</key>
-      <data>%s</data>
-    </dict>
-    <key>CommandUUID</key>
+    <key>RequestType</key>
+    <string>SetAutoAdminPassword</string>
+    <key>GUID</key>
     <string>%s</string>
+    <key>passwordHash</key>
+    <data>%s</data>
   </dict>
-</plist>`, guid, passwordHashEncoded, cmdUUID)
+  <key>CommandUUID</key>
+  <string>%s</string>
+</dict>
+</plist>`, escapedGUID, passwordHashEncoded, cmdUUID)
 
 	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
@@ -929,6 +945,37 @@ func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs 
 
 	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing RotateRecoveryLock command")
+	}
+
+	return nil
+}
+
+// RotateFileVaultKey enqueues a rotation of a macOS host's FileVault personal
+// recovery key. The current key travels as a host secret placeholder expanded at
+// delivery, so the plaintext never lands in nano_commands.
+//
+// replyCertDER must be the Apple MDM CA certificate. Apple documents
+// ReplyEncryptionCertificate as optional, but macOS fails the command without it.
+// The reply is what lets Fleet store the new key as soon as the host acknowledges.
+func (svc *MDMAppleCommander) RotateFileVaultKey(ctx context.Context, hostUUID, cmdUUID string, replyCertDER []byte) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": fleet.RotateFileVaultKeyCmdName,
+			"KeyType":     "personal",
+			"FileVaultUnlock": map[string]any{
+				"Password": fleet.HostSecretPlaceholder(fleet.HostSecretFileVaultKey),
+			},
+			"ReplyEncryptionCertificate": replyCertDER,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling RotateFileVaultKey payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing RotateFileVaultKey command")
 	}
 
 	return nil

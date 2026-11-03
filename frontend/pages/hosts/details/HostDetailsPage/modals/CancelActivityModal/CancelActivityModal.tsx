@@ -1,14 +1,12 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
-import { IHostUpcomingActivity } from "interfaces/activity";
-import activitiesAPI from "services/entities/activities";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import { upcomingActivityComponentMap } from "pages/hosts/details/cards/Activity/ActivityConfig";
+import activitiesAPI from "services/entities/activities";
 
 import { getErrorMessage } from "./helpers";
 

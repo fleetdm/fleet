@@ -1,11 +1,10 @@
 import React, { useContext } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
-
-import SideNav from "pages/admin/components/SideNav";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { AppContext } from "context/app";
+import SideNav from "pages/admin/components/SideNav";
 
 import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
 

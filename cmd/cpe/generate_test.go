@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -52,7 +53,7 @@ func TestCPEDB(t *testing.T) {
 				dir := t.TempDir()
 
 				// Call the function under test
-				dbPath := getCPEs(&client, "API_KEY", dir)
+				dbPath := getCPEs(t.Context(), slog.New(slog.DiscardHandler), &client, "API_KEY", dir)
 
 				// Open up the created DB and get the rows
 				db, err := sqlx.Open("sqlite3", dbPath)

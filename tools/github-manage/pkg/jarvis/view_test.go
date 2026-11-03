@@ -1,6 +1,7 @@
 package jarvis
 
 import (
+	"strings"
 	"testing"
 
 	"fleetdm/gm/pkg/ghapi"
@@ -22,6 +23,47 @@ func TestTruncateTitle(t *testing.T) {
 	}
 	if got[len(got)-3:] != "..." {
 		t.Errorf("expected trailing ..., got %q", got)
+	}
+}
+
+func TestRenderBar(t *testing.T) {
+	bars := func(s string) (fill, empty int) {
+		for _, r := range s {
+			switch r {
+			case '█':
+				fill++
+			case '░':
+				empty++
+			}
+		}
+		return fill, empty
+	}
+	for _, c := range []struct {
+		done, total, wantFill int
+	}{
+		{0, 10, 0},
+		{5, 10, 12},
+		{10, 10, 24},
+		{3, 6, 12},
+		{0, 0, 0},  // no total: empty, not a divide-by-zero
+		{7, 5, 24}, // clamped to full
+		{-1, 5, 0}, // clamped to empty
+	} {
+		fill, empty := bars(renderBar(c.done, c.total, 24))
+		if fill != c.wantFill || fill+empty != 24 {
+			t.Errorf("renderBar(%d, %d, 24): fill=%d empty=%d, want fill=%d width=24",
+				c.done, c.total, fill, empty, c.wantFill)
+		}
+	}
+}
+
+func TestRenderLoadingShowsBothBars(t *testing.T) {
+	m := Model{state: stateLoading, loadProgress: FetchProgress{
+		Phase: 5, Phases: 8, PhaseName: "issue board statuses", Done: 3, Total: 10,
+	}}
+	out := m.renderLoading()
+	if !strings.Contains(out, "step 5/8") || !strings.Contains(out, "issue board statuses") || !strings.Contains(out, "3/10") {
+		t.Errorf("loading view missing progress details:\n%s", out)
 	}
 }
 

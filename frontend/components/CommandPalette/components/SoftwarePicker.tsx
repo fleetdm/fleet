@@ -1,29 +1,29 @@
-import React, { useEffect } from "react";
 import { Command } from "cmdk";
+import React, { useEffect } from "react";
 
+import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
+import {
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwareTitle,
+} from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
   ITeamSummary,
 } from "interfaces/team";
 import {
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-  ISoftwareTitle,
-} from "interfaces/software";
-import softwareAPI, {
-  ISoftwareTitlesResponse,
-} from "services/entities/software";
-import {
   getAutomaticInstallPoliciesCount,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
-import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
+import softwareAPI, {
+  ISoftwareTitlesResponse,
+} from "services/entities/software";
 
-import getFleetSuffix from "./pickerCopy";
-import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import HighlightedLabel from "./HighlightedLabel";
+import getFleetSuffix from "./pickerCopy";
+import usePickerSearch from "./usePickerSearch";
 
 const baseClass = "command-palette";
 
@@ -45,6 +45,10 @@ const getInstallerProps = (title: ISoftwareTitle) => {
     isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
     isAndroidPlayStoreApp:
       !!title.app_store_app && title.source === "android_apps",
+    isAppStoreApp: !!title.app_store_app,
+    autoUpdateEnabled: title.auto_update_enabled,
+    autoUpdateWindowStart: title.auto_update_window_start,
+    autoUpdateWindowEnd: title.auto_update_window_end,
   };
 };
 
@@ -135,7 +139,11 @@ const SoftwarePicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {titles.map((title) => {
-        const label = getDisplayedSoftwareName(title.name, title.display_name);
+        const label = getDisplayedSoftwareName(
+          title.name,
+          title.display_name,
+          title.bundle_identifier
+        );
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
         return (

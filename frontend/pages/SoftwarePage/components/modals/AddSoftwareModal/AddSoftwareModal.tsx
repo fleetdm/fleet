@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 const baseClass = "add-software-modal";
@@ -15,7 +15,7 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
     <>
       <p>
         Please select a fleet first. Software can&apos;t be added when{" "}
-        <b>All teams</b> is selected.
+        <b>All fleets</b> is selected.
       </p>
       <div className="modal-cta-wrap">
         <Button onClick={onExit}>Close</Button>

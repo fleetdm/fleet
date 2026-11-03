@@ -26,13 +26,13 @@
     }
   }
   .header-hidden { // For scrolling the sidebars with the sticky header
-    transform: translateY(-81px);
+    transform: translateY(~'calc(-81px - var(--announcement-banner-height, 0px))');
   }
   [purpose='platform-filters'] {
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
     position: sticky;
-    top: 81px;
+    top: ~'calc(81px + var(--announcement-banner-height, 0px))';
     background: #FFF;
     z-index: 4;
     transition-property: all;
@@ -49,7 +49,6 @@
         height: 20px;
       }
       h1 {
-        scroll-margin-top: 120px;
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -331,7 +330,7 @@
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
-        .hljs-attr { // For table and column names
+        .hljs-attr { // For table names
           .hljs-keyword {
             color: #FFF;
           }
@@ -345,6 +344,9 @@
           vertical-align: baseline;
           span {
             padding: 0;
+          }
+          .hljs-attr-column { // For recognized column names inside of table names.
+            color: #FFF;
           }
         }
         .hljs-number {

@@ -1,12 +1,10 @@
 import PropTypes from "prop-types";
-import hostPolicyInterface, { IHostPolicy } from "./policy";
+
+import hostQueryResult from "./campaign";
+import { ILicense, IDeviceGlobalConfig } from "./config";
+import { IHostCustomVital } from "./custom_host_vitals";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
-import packInterface, { IPack } from "./pack";
-import softwareInterface, { ISoftware } from "./software";
-import hostQueryResult from "./campaign";
-import queryStatsInterface, { IQueryStats } from "./query_stats";
-import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
   IHostMdmProfile,
   MdmEnrollmentStatus,
@@ -14,8 +12,11 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
+import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
-import { IHostCustomVital } from "./custom_host_vitals";
+import hostPolicyInterface, { IHostPolicy } from "./policy";
+import queryStatsInterface, { IQueryStats } from "./query_stats";
+import softwareInterface, { ISoftware } from "./software";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -100,7 +101,10 @@ export interface IMunkiData {
   version: string;
 }
 
-export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
+export type MacDiskEncryptionActionRequired =
+  | "log_out"
+  | "rotate_key"
+  | "turn_on_encryption";
 
 /** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
  * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
@@ -136,13 +140,37 @@ export interface IHostMdmHostNameSetting {
   detail: string;
 }
 
+/** Where an end user's BitLocker PIN submission stands. */
+export type BitLockerPINRequestStatus =
+  | "pending"
+  | "delivered"
+  | "set"
+  | "failed";
+
+export interface IBitLockerPINRequest {
+  status: BitLockerPINRequestStatus;
+  /** The agent's reason for a failure. Empty unless status is failed. */
+  error: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
+export interface IHostDiskEncryptionSetting {
+  status: DiskEncryptionStatus | null;
+  detail: string;
+  action_required?: DiskEncryptionActionRequired | null;
+}
+
+/** What the device endpoint adds for the My device page. */
+export interface IDeviceDiskEncryptionSetting
+  extends IHostDiskEncryptionSetting {
+  /** Only for a Windows host that needs a PIN. False means the host's fleetd is too old to be handed one. */
+  fleetd_can_set_pin?: boolean;
+  /** The end user's most recent PIN submission. */
+  pin_request?: IBitLockerPINRequest;
+}
+
 export interface IOSSettings {
-  disk_encryption: {
-    status: DiskEncryptionStatus | null;
-    detail: string;
-    action_required?: DiskEncryptionActionRequired | null;
-  };
+  disk_encryption: IHostDiskEncryptionSetting;
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
     detail: string;
@@ -157,6 +185,12 @@ export interface IOSSettings {
     pending_rotation?: boolean;
   };
   certificates: IHostAndroidCert[];
+}
+
+/** IOSSettings as the device endpoint sends it. */
+export interface IDeviceOSSettings
+  extends Omit<IOSSettings, "disk_encryption"> {
+  disk_encryption: IDeviceDiskEncryptionSetting;
 }
 
 // Legacy Mac mdm settings. Prefer IOSSettings
@@ -178,6 +212,7 @@ export type HostMdmPendingAction =
   | "wipe"
   | "clear_passcode"
   | "location"
+  | "unenroll"
   | "";
 
 export interface IHostMdmData {
@@ -306,6 +341,7 @@ export interface IHostEncrpytionKeyResponse {
   encryption_key: {
     updated_at: string;
     key: string;
+    rotation_pending: boolean;
   };
 }
 
@@ -333,6 +369,8 @@ export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
+  failing_unhidden_policies_count?: number; // Premium
+  hidden_policies_count?: number; // Premium
 }
 export interface IHostEndUser {
   idp_id?: string;
@@ -463,7 +501,6 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
-  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
@@ -531,6 +568,9 @@ export interface IHost {
   end_users?: IHostEndUser[];
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
+  /** The host's device ID in Google. Only returned for iOS, iPadOS, and
+   * Android hosts, and "" until it's set. */
+  google_device_id?: string;
   mdm_enrollment_hardware_attested?: boolean;
   dep_assigned_to_fleet: boolean;
   /** The OS version this host is required to reach. Null when OS updates
@@ -540,6 +580,10 @@ export interface IHost {
   /** The date by which os_update_minimum_version must be installed, in
    * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
   os_update_deadline?: string | null;
+  /** When Fleet next forces a patch deadline install on this host (ISO 8601).
+   * Only loaded for macOS hosts, and null when no patch policy has `deadline`
+   * enabled or the host has nothing scheduled. */
+  patch_deadline_at?: string | null;
   // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
   // Omitted entirely (not just null) for every other platform.
   udid?: string;
@@ -598,6 +642,11 @@ export interface IHost {
  * IHostDevice is an extension of IHost that is returned by the /devices endpoint. It includes the
  * dep_assigned_to_fleet field, which is not returned by the /hosts endpoint.
  */
-export interface IHostDevice extends IHost {
+export interface IDeviceHostMdmData extends Omit<IHostMdmData, "os_settings"> {
+  os_settings?: IDeviceOSSettings;
+}
+
+export interface IHostDevice extends Omit<IHost, "mdm"> {
+  mdm: IDeviceHostMdmData;
   dep_assigned_to_fleet: boolean;
 }

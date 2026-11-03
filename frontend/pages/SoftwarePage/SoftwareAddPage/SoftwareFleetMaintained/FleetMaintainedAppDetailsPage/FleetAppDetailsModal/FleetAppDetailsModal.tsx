@@ -1,17 +1,13 @@
 import React from "react";
 
-import {
-  LEARN_MORE_ABOUT_BASE_LINK,
-  PLATFORM_DISPLAY_NAMES,
-} from "utilities/constants";
-
-import Modal from "components/Modal";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import Modal from "components/Modal";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { GITOPS_ID_TOOLTIP } from "pages/SoftwarePage/helpers";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 const baseClass = "fleet-app-details-modal";
 
@@ -23,18 +19,6 @@ interface IFleetAppDetailsModalProps {
   url?: string;
   onCancel: () => void;
 }
-
-const SLUG_TOOLTIP_MESSAGE = (
-  <>
-    Used to manage apps in Gitops.{" "}
-    <CustomLink
-      newTab
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
-      text="Learn more"
-      variant="tooltip-link"
-    />
-  </>
-);
 
 const URL_TOOLTIP_MESSAGE = (
   <>
@@ -72,7 +56,7 @@ const FleetAppDetailsModal = ({
         {slug && (
           <DataSet
             title={
-              <TooltipWrapper tipContent={SLUG_TOOLTIP_MESSAGE}>
+              <TooltipWrapper tipContent={GITOPS_ID_TOOLTIP}>
                 Fleet-maintained app slug
               </TooltipWrapper>
             }

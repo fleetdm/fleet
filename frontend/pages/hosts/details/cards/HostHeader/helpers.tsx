@@ -1,7 +1,9 @@
 import React from "react";
-import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
+
 import CustomLink from "components/CustomLink";
+import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
@@ -15,9 +17,15 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it
-type DeviceStatusTagConfig = Record<
+// We exclude "unlocked" as we dont display any device status tag for it, and
+// "unenrolling" because Android BYOD unenroll intentionally shows no badge (#41683).
+type HostMdmDeviceStatusUIStateWithTag = Exclude<
   HostMdmDeviceStatusUIStateNoUnlock,
+  "unenrolling"
+>;
+
+type DeviceStatusTagConfig = Record<
+  HostMdmDeviceStatusUIStateWithTag,
   IDeviceStatusTag
 >;
 
@@ -168,12 +176,17 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       You can&apos;t fetch data from <br /> a host that is clearing passcode.
     </>
   ),
+  unenrolling: (
+    <>
+      You can&apos;t fetch data from <br /> an unenrolling host.
+    </>
+  ),
 } as const;
 
 export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
   <>
-    There&apos;s no manual <b>Refetch</b> button because Android hosts sync data
-    automatically when they change. If changes aren&apos;t appearing,{" "}
+    Refetch is disabled because Android hosts sync data automatically when they
+    change. If changes aren&apos;t appearing,{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
       text="learn how to sync manually."

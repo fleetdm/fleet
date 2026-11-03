@@ -1,10 +1,10 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import SQLEditor from "components/SQLEditor";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
+import Modal from "components/Modal";
+import SQLEditor from "components/SQLEditor";
 
 const baseClass = "advanced-options-modal";
 

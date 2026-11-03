@@ -1,6 +1,5 @@
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
-import valid_url from "components/forms/validators/valid_url";
 
 import { ISmallstepFormData } from "./SmallstepForm";
 
@@ -76,7 +75,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ISmallstepFormData) => {
-            return valid_url({ url: formData.scepURL });
+            return isValidURL({ url: formData.scepURL });
           },
           message: "Must be a valid URL.",
         },
@@ -93,7 +92,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ISmallstepFormData) => {
-            return valid_url({ url: formData.challengeURL });
+            return isValidURL({ url: formData.challengeURL });
           },
           message: "Must be a valid URL.",
         },

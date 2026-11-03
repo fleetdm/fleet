@@ -1,26 +1,24 @@
+import classnames from "classnames";
 import React, { useContext, useState, useEffect } from "react";
 import { Link } from "react-router";
-import classnames from "classnames";
 
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { isDarkMode } from "utilities/theme";
-
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
+// @ts-ignore
+import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import LinkWithContext from "components/LinkWithContext";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-
-import PATHS from "router/paths";
 import { IConfig } from "interfaces/config";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
-
-import LinkWithContext from "components/LinkWithContext";
-// @ts-ignore
-import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
+import PATHS from "router/paths";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { isDarkMode } from "utilities/theme";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import UserMenu from "../UserMenu";
+
 import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {

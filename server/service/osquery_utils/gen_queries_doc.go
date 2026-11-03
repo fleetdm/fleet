@@ -11,12 +11,15 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
 func main() {
-	detailQueriesMap := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{
+	// premium so that premium-only detail queries are documented too
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	detailQueriesMap := osquery_utils.GetDetailQueries(ctx, config.FleetConfig{
 		Vulnerabilities: config.VulnerabilitiesConfig{
 			DisableWinOSVulnerabilities: false,
 		},

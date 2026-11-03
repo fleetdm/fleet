@@ -31,7 +31,7 @@ sequenceDiagram
     note right of server: Creates certificate signed by WSTEP ident key
     server-->>-windows: Signed certificate, management endpoint, enrollment parameters
 
-    loop SYNCML MDM Protocol (mTLS)
+    loop SYNCML MDM Protocol (OMA-DM MD5 digest auth)
         windows->>+server: POST /api/mdm/microsoft/management<br/>DeviceID
         server-->>-windows: Response
     end
@@ -43,7 +43,7 @@ sequenceDiagram
 
 [WSTEP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/ac55b8cc-9ade-4982-b135-991d574ade74) is the protocol Microsoft uses to automate certificate requesting and singing. It is similar to the SCEP process used by macOS.
 
-The certificate created through the WSTEP process is used to authenticate mTLS between the host and management endpoint.
+Fleet does not yet use the WSTEP certificate to authenticate management sessions ([#48771](https://github.com/fleetdm/fleet/issues/48771)); SyncML sessions use OMA-DM MD5 digest credentials. Certificate renewal is not implemented yet ([#52492](https://github.com/fleetdm/fleet/issues/52492)).
 
 ## SyncML
 

@@ -386,3 +386,31 @@ func TestInstalledSoftwareHostOnly(t *testing.T) {
 		assert.False(t, act.HostOnly())
 	})
 }
+
+func TestHostEnrollmentRejectedActivity(t *testing.T) {
+	hostID := uint(42)
+	act := ActivityTypeHostEnrollmentRejected{
+		HostID:          &hostID,
+		HostDisplayName: "Anna's MacBook Pro",
+		HostSerial:      "C02ABC",
+		HostUUID:        "uuid-1",
+		Platform:        "darwin",
+		EnrollmentPlane: "orbit",
+		Reason:          "one_time_secret_spent",
+	}
+
+	assert.Equal(t, "host_enrollment_rejected", act.ActivityName())
+	assert.Equal(t, []uint{42}, act.HostIDs())
+	assert.True(t, act.WasFromAutomation())
+
+	act.HostID = nil
+	assert.Nil(t, act.HostIDs())
+
+	b, err := json.Marshal(act)
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(b, &got))
+	assert.Equal(t, "C02ABC", got["host_serial"])
+	assert.Equal(t, "orbit", got["enrollment_plane"])
+	assert.Equal(t, "one_time_secret_spent", got["reason"])
+}

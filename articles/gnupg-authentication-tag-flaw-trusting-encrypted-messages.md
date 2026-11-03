@@ -52,7 +52,7 @@ Confirming gpgsm's version tells you the flawed check is closed going forward. I
 
 - Ubuntu, [USN-8720-1: GnuPG vulnerability](https://ubuntu.com/security/notices/USN-8720-1).
 
-<meta name="articleTitle" value="What Ubuntu's GnuPG authentication tag flaw means for trusting encrypted messages">
+<meta name="articleTitle" value="Ubuntu's GnuPG Vulnerability: Can You Still Trust Encrypted Messages?">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">

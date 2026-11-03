@@ -2,29 +2,28 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
+import EmptyCellWithTooltip from "pages/SoftwarePage/components/tables/EmptyCellWithTooltip";
+import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
-import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -61,10 +60,14 @@ export const generateSoftwareTableHeaders = ({
           id,
           name,
           display_name,
+          bundle_identifier,
           source,
           app_store_app,
           software_package,
           icon_url,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -80,11 +83,20 @@ export const generateSoftwareTableHeaders = ({
         );
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+
+        // Same gating as HostSoftwareLibraryTableConfig.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
 
         return (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -93,8 +105,13 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },
@@ -107,9 +124,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",
@@ -132,6 +147,7 @@ export const generateSoftwareTableHeaders = ({
                 apps don&apos;t report this information.
               </>
             }
+            fixedPositionStrategy
           >
             Last opened
           </TooltipWrapper>
@@ -197,6 +213,11 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
         if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
+        }
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
         }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;

@@ -1,15 +1,15 @@
+import { isEmpty, pullAllBy } from "lodash";
 import React, { useRef, useEffect, useState } from "react";
 import { Row } from "react-table";
-import { isEmpty, pullAllBy } from "lodash";
-
-import { IHost } from "interfaces/host";
-import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
+import { IHost } from "interfaces/host";
+import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
+
 import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {

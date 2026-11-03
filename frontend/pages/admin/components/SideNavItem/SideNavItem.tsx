@@ -1,6 +1,7 @@
+import classnames from "classnames";
 import React from "react";
 import { Link } from "react-router";
-import classnames from "classnames";
+
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 interface ISideNavItemProps {
@@ -18,7 +19,7 @@ const SideNavItem = ({ title, path, isActive }: ISideNavItemProps) => {
 
   return (
     <li className={wrapperClasses}>
-      <Link to={path}>
+      <Link to={path} aria-current={isActive ? "page" : undefined}>
         <TooltipTruncatedText value={title} tooltipPosition="right" />
       </Link>
     </li>

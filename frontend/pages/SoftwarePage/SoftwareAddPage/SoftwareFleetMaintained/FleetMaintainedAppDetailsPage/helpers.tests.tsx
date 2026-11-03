@@ -1,4 +1,5 @@
 import { REQUEST_TIMEOUT_ERROR_MESSAGE } from "../../helpers";
+
 import { getErrorMessage } from "./helpers";
 
 jest.mock("axios", () => {

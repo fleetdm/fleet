@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -26,20 +27,25 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/agentws"
@@ -51,10 +57,14 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/azure"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
+	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
+	"github.com/fleetdm/fleet/v4/server/datastore/osqueryconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -74,9 +84,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
+	"github.com/fleetdm/fleet/v4/server/notifications"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -86,6 +100,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -111,6 +126,9 @@ import (
 
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
+	// orbitConfigHostsBatchWindow merges the per-host orbit config wake-ups
+	// fired within it into one publish: datastore writers fire one per host.
+	orbitConfigHostsBatchWindow = 100 * time.Millisecond
 )
 
 type initializer interface {
@@ -199,6 +217,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	traceRegistry := tracing.NewRegistry()
 	service.RegisterTracingTiers(traceRegistry)
 	activity_bootstrap.RegisterTracingTiers(traceRegistry)
+	notifications_bootstrap.RegisterTracingTiers(traceRegistry)
 	// Future bounded contexts: each exposes its own RegisterTracingTiers.
 
 	// Init OTEL providers (traces, metrics, logs) and the route aware sampler.
@@ -228,6 +247,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.Osquery.Validate(initFatal)
 
+	config.MDM.ValidateAppleCommandCleanup(initFatal)
+
 	config.ConditionalAccess.Validate(initFatal)
 
 	config.WebSocket.Validate(initFatal)
@@ -254,6 +275,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	config.Server.ValidatePrivateKeyLength(initFatal)
+
+	// The embedded schema is checked by the generator and tests, so a failure here means a broken
+	// build; refuse to start rather than validate profiles against nothing. Tests start serve more
+	// than once per process, so only parse if nothing is loaded yet.
+	if profilevalidation.Current() == nil {
+		if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
+			initFatal(err, "loading profile validation schema")
+		}
+	}
+	pvVersion := profilevalidation.Current().Version
+	logger.InfoContext(cmd.Context(), "profile validation schema loaded",
+		"apple_release", pvVersion.Apple.Release, "windows_release", pvVersion.Windows.Release)
+
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
 		// some infra setups generate keys that are longer than 32 bytes.
@@ -300,6 +334,44 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
+	}
+
+	// Agent WebSocket transport (ADR-0011) wake-ups are published over Redis
+	// pub/sub. Created here so the datastore can notify agents of orbit config
+	// changes (see orbitConfigHostsBatchWindow).
+	var agentNotifier *pubsub.RedisAgentNotifier
+	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
+	if config.WebSocket.TransportEnabled {
+		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// A notified agent calls back within milliseconds, so wake-ups wait for
+		// the in-memory caches its request reads to expire; otherwise it can be
+		// served a snapshot predating the change (see
+		// pubsub.DelayedAgentNotifier).
+		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
+			// The live query store's active-queries cache TTL (1s).
+			LiveQuery: liveQueryMemCacheDuration,
+			// Host orbit config changes are read uncached: the delay only
+			// batches the per-host wake-ups of one write (100ms).
+			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			// The longest TTL of the cached fleet and global orbit config
+			// inputs (1m).
+			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			// A host moved to another fleet reads its packs from a per-host
+			// cache (1m).
+			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
+			// The ETag write fence (3m), which outlasts the cached osquery
+			// config inputs plus the pack config cache built from them. Hosts
+			// nudged inside the fence each do a full config build that can't
+			// be stored as an ETag.
+			OsqueryConfigScope: redis_config_etag.DefaultFenceTTL,
+		}, logger.With("component", "agent-notifier"))
+		if config.WebSocket.OrbitConfigEnabled {
+			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
+			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
+		if config.WebSocket.OsqueryConfigEnabled {
+			ds = osqueryconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "osqueryconfig-notify"))
+		}
 	}
 
 	resultStore := pubsub.NewRedisQueryResults(
@@ -356,6 +428,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if !apple_mdm.MachineInfoVerificationEnabled() {
 		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
 			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
+	}
+
+	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
+		logger.WarnContext(cmd.Context(), "FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is deprecated and will be removed in a future release. "+
+			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -470,6 +547,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+	ejbcaService := ejbca.NewService(ejbca.WithLogger(logger))
 	ctx = ctxerr.NewContext(ctx, eh)
 
 	// Declare svc early so the closure below can capture it.
@@ -489,12 +567,27 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		},
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
+		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
 	}
+	eeAndroidSvc, err := ee_android.NewService(
+		androidSvc,
+		ds,
+		ds,
+		android_service.NewAMAPIClient(ctx, logger, config.License.Key),
+		logger,
+	)
+	if err != nil {
+		initFatal(err, "initializing ee android service")
+	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
+	// Must run before initOrgLogoStore, which picks the object store backend regardless of license tier.
+	config.ValidateSoftwareInstallersBackend(initFatal)
+	softwareInstallersBackend, _ := config.SoftwareInstallersBackend()
+
+	orgLogoStore := initOrgLogoStore(ctx, softwareInstallersBackend, config.S3, config.CloudStorage.Azure, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -524,7 +617,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -535,83 +628,25 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var softwareInstallStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 	var softwareTitleIconStore fleet.SoftwareTitleIconStore
+	var stagedUploadStore fleet.StagedUploadStore
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-		if config.S3.SoftwareInstallersBucket != "" {
-			if config.S3.BucketsAndPrefixesMatch() {
-				logger.WarnContext(ctx,
-					"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
-			}
-			// Extract the CloudFront URL signer before creating the S3 stores.
-			config.S3.ValidateCloudFrontURL(initFatal)
-			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
-			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
-				// Strip newlines from private key
-				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
-				privateKey, err := cryptoutil.ParsePrivateKey([]byte(signingPrivateKey),
-					"CloudFront URL signing private key")
-				if err != nil {
-					initFatal(err, "parsing CloudFront URL signing private key")
-				}
-				var ok bool
-				config.S3.SoftwareInstallersCloudFrontSigner, ok = privateKey.(crypto.Signer)
-				if !ok {
-					initFatal(errors.New("CloudFront URL signing private key is not a crypto.Signer"),
-						"parsing CloudFront URL signing private key")
-				}
-			}
-			store, err := s3.NewSoftwareInstallerStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 software installer store")
-			}
-			softwareInstallStore = store
-			logger.InfoContext(ctx, "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
-
-			bstore, err := s3.NewBootstrapPackageStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 bootstrap package store")
-			}
-			bootstrapPackageStore = bstore
-			logger.InfoContext(ctx, "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
-
-			softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 software title icon store")
-			}
-			logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
-		} else {
-			installerDir := os.TempDir()
-			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
-				installerDir = dir
-			}
-			store, err := filesystem.NewSoftwareInstallerStore(installerDir)
-			if err != nil {
-				logger.ErrorContext(ctx, "failed to configure local filesystem software installer store", "err", err)
-				softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
-			} else {
-				softwareInstallStore = store
-				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
-					installerDir)
-			}
-
-			iconDir := os.TempDir()
-			if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
-				iconDir = dir
-			}
-			iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
-			if err != nil {
-				logger.ErrorContext(ctx, "failed to configure local filesystem software title icon store", "err", err)
-				softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
-			} else {
-				softwareTitleIconStore = iconStore
-				logger.WarnContext(ctx,
-					"using local filesystem software title icon store, this is not suitable for production use", "directory",
-					iconDir)
-			}
+		var stores softwareInstallerStores
+		switch softwareInstallersBackend {
+		case configpkg.StorageBackendAzure:
+			stores = newAzureSoftwareInstallerStores(ctx, config.CloudStorage.Azure, logger)
+		case configpkg.StorageBackendS3:
+			stores = newS3SoftwareInstallerStores(ctx, &config, logger)
+		default:
+			stores = newFilesystemSoftwareInstallerStores(ctx, logger)
 		}
+		softwareInstallStore = stores.installer
+		bootstrapPackageStore = stores.bootstrap
+		softwareTitleIconStore = stores.icon
+		stagedUploadStore = stores.stagedUpload
 
 		distributedLock = redis_lock.NewLock(redisPool)
 		svc, err = eeservice.NewService(
@@ -628,13 +663,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
+			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)
@@ -688,8 +726,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
+	// Bootstrap notifications bounded context
+	notificationsSvc, notificationsRoutes := createNotificationsBoundedContext(svc, ds, dbConns, redisPool, logger)
+	// Inject the notifications bounded context into the main service
+	svc.SetNotificationsService(notificationsSvc)
+	// Register kinds here, and nowhere else.
+	patchNotificationKind := service.NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
+	notificationsSvc.RegisterKind(patchNotificationKind)
+	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
+
 	// Bootstrap ACME service module
-	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
+	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
 	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
@@ -706,14 +753,22 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
 		agentWSHub.InstanceID = instanceID
-		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Delay live query wake-ups by the live query store's in-memory cache
-		// TTL so a notified read can't be served from a cache snapshot
-		// predating the campaign (see pubsub.DelayedAgentNotifier).
-		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
-			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
+
+		if config.WebSocket.ScopedNotificationsEnabled() {
+			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
+		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
-			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+			switch {
+			case n.Scope != "":
+				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig, n.Type == fleet.AgentWSMessageTypeOsqueryConfig:
+				// Paced: a write can target thousands of hosts at once (e.g. a
+				// fleet-wide Windows MDM command, or hosts moved between fleets).
+				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
+			default:
+				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+			}
 		})
 		// Each instance checks only the connections it holds, so this is a
 		// plain per-instance goroutine, not a locked cron job.
@@ -749,6 +804,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		svc:                    svc,
 		carveStore:             carveStore,
 		enrollHostLimiter:      redisWrapperDS,
+		cleanupStateStore:      redisWrapperDS,
 		liveQueryStore:         liveQueryStore,
 		failingPolicySet:       failingPolicySet,
 		redisPool:              redisPool,
@@ -757,8 +813,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		androidSvc:             androidSvc,
 		activitySvc:            activitySvc,
+		notificationsSvc:       notificationsSvc,
+		patchNotificationKind:  patchNotificationKind,
 		acmeSvc:                acmeSvc,
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
@@ -816,7 +875,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
-	var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+	mcpConn := service.NewMCPConn()
+	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
 			"get_frontend",
@@ -836,9 +896,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if agentWSHub != nil {
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
+		extra = append(extra, service.WithMCPConn(mcpConn))
 
-		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
+		if err != nil {
+			initFatal(err, "initializing the API handler")
+		}
 
 		// SCIM endpoints are served by a prefix-mounted handler (see
 		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
@@ -893,6 +957,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			serveCSP,
 		)
+
+		endUserEnrollNextStepsHandler = service.ServeEndUserEnrollNextSteps(
+			config.Server.URLPrefix,
+			logger,
+			serveCSP,
+		)
 	}
 
 	healthCheckers := make(map[string]health.Checker)
@@ -924,6 +994,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		),
 	), healthCheckers)
 
+	// Set below, before the server starts serving.
+	var srv *http.Server
 	rootMux := http.NewServeMux()
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
@@ -937,6 +1009,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
+		mdmStorage.SetNewActivityFunc(svc.NewActivity)
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
 		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)
@@ -950,6 +1023,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
 			config.Activity.FleetInitiatedReleasePerMinute > 0,
+			notificationsSvc,
+			config.MDM.AppleCommandCleanupShortRetention,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
@@ -982,6 +1057,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				logger.WarnContext(ctx,
 					"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 			}
+		}
+		if appCfg.MDM.EnabledAndConfigured {
+			// after the SCEP challenge is stored, since legacy migration profiles are checked against it
+			checkSilentMigrationEnrollmentProfile(ctx, ds, logger)
 		}
 		if err := service.RegisterAppleMDMProtocolServices(
 			rootMux,
@@ -1063,7 +1142,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger, func() time.Duration { return srv.WriteTimeout }))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1071,6 +1150,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 	rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+	// Registered with and without the trailing slash: the design and any link
+	// written as /enroll/next-steps/ would otherwise fall through to the "/"
+	// catch-all and serve the admin UI to an enrolling end user.
+	rootMux.Handle("/enroll/next-steps", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps", config))
+	rootMux.Handle("/enroll/next-steps/", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps/", config))
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
@@ -1125,10 +1209,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		handler = launcher.Handler(rootMux)
 	}
 
-	srv := config.Server.DefaultHTTPServer(ctx, handler)
+	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {
 		srv.WriteTimeout = liveQueryRestPeriod
 	}
+	mcpConn.Start(ctx, handler)
 	srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 	errs := make(chan error, 2)
 	go func() {
@@ -1187,7 +1272,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			if agentWSHub != nil {
 				agentWSHub.Shutdown()
 			}
-			return srv.Shutdown(ctx)
+			err := srv.Shutdown(ctx)
+			if mcpErr := mcpConn.Shutdown(ctx); mcpErr != nil {
+				logger.ErrorContext(ctx, "failed to shut down the embedded MCP connection", "err", mcpErr)
+			}
+			return err
 		}()
 	}()
 
@@ -1200,8 +1289,8 @@ type acmeCSRSigner struct {
 	signer *scepdepot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (s *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
+	return s.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
@@ -1218,7 +1307,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	}
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	chartViewer := chartacl.NewFleetViewerAdapter()
-	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, chartacl.ExpandPlatform, logger)
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
@@ -1234,10 +1323,18 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 }
 
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
-//   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
+//   - the configured object store backend (S3 or Azure Blob) when one is selected for the software installers group
 //   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
-	if s3Config.SoftwareInstallersBucket != "" {
+func initOrgLogoStore(ctx context.Context, backend configpkg.StorageBackend, s3Config configpkg.S3Config, azureConfig configpkg.AzureConfig, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
+	switch backend {
+	case configpkg.StorageBackendAzure:
+		store, err := azure.NewOrgLogoStore(azureConfig)
+		if err != nil {
+			initFatal(err, "initializing Azure Blob org logo store")
+		}
+		logger.InfoContext(ctx, "using Azure Blob org logo store", "container", azureConfig.SoftwareInstallersContainer)
+		return store
+	case configpkg.StorageBackendS3:
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
 			initFatal(err, "initializing S3 org logo store")
@@ -1247,6 +1344,134 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysq
 	}
 	logger.InfoContext(ctx, "using database org logo store")
 	return ds.NewOrgLogoStore()
+}
+
+// softwareInstallerStores groups the stores backing the software installers
+// group for a given storage backend. Stores a backend doesn't support are nil.
+type softwareInstallerStores struct {
+	installer    fleet.SoftwareInstallerStore
+	bootstrap    fleet.MDMBootstrapPackageStore
+	icon         fleet.SoftwareTitleIconStore
+	stagedUpload fleet.StagedUploadStore
+}
+
+func newAzureSoftwareInstallerStores(ctx context.Context, cfg configpkg.AzureConfig, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	installer, err := azure.NewSoftwareInstallerStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob software installer store")
+	}
+	stores.installer = installer
+	logger.InfoContext(ctx, "using Azure Blob software installer store", "container", cfg.SoftwareInstallersContainer)
+
+	bstore, err := azure.NewBootstrapPackageStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob bootstrap package store")
+	}
+	stores.bootstrap = bstore
+	logger.InfoContext(ctx, "using Azure Blob bootstrap package store", "container", cfg.SoftwareInstallersContainer)
+
+	stores.icon, err = azure.NewSoftwareTitleIconStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob software title icon store")
+	}
+	logger.InfoContext(ctx, "using Azure Blob software title icon store", "container", cfg.SoftwareInstallersContainer)
+
+	return stores
+}
+
+// newS3SoftwareInstallerStores also stores the parsed CloudFront URL signer in
+// the provided config, as the service layer reads it from there.
+func newS3SoftwareInstallerStores(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	if config.S3.BucketsAndPrefixesMatch() {
+		logger.WarnContext(ctx,
+			"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+	}
+	// Extract the CloudFront URL signer before creating the S3 stores.
+	config.S3.ValidateCloudFrontURL(initFatal)
+	config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
+	if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
+		// Strip newlines from private key
+		signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
+		privateKey, err := cryptoutil.ParsePrivateKey([]byte(signingPrivateKey),
+			"CloudFront URL signing private key")
+		if err != nil {
+			initFatal(err, "parsing CloudFront URL signing private key")
+		}
+		var ok bool
+		config.S3.SoftwareInstallersCloudFrontSigner, ok = privateKey.(crypto.Signer)
+		if !ok {
+			initFatal(errors.New("CloudFront URL signing private key is not a crypto.Signer"),
+				"parsing CloudFront URL signing private key")
+		}
+	}
+	installer, err := s3.NewSoftwareInstallerStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software installer store")
+	}
+	stores.installer = installer
+	logger.InfoContext(ctx, "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	bstore, err := s3.NewBootstrapPackageStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 bootstrap package store")
+	}
+	stores.bootstrap = bstore
+	logger.InfoContext(ctx, "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	stores.icon, err = s3.NewSoftwareTitleIconStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software title icon store")
+	}
+	logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	stores.stagedUpload, err = s3.NewStagedUploadStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 staged upload store")
+	}
+
+	return stores
+}
+
+// newFilesystemSoftwareInstallerStores is the fallback when no object store is
+// configured. It is not suitable for multi-container deployments.
+func newFilesystemSoftwareInstallerStores(ctx context.Context, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	installerDir := os.TempDir()
+	if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
+		installerDir = dir
+	}
+	store, err := filesystem.NewSoftwareInstallerStore(installerDir)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to configure local filesystem software installer store", "err", err)
+		stores.installer = failing.NewFailingSoftwareInstallerStore()
+	} else {
+		stores.installer = store
+		logger.InfoContext(ctx,
+			"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
+			installerDir)
+	}
+
+	iconDir := os.TempDir()
+	if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+		iconDir = dir
+	}
+	iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to configure local filesystem software title icon store", "err", err)
+		stores.icon = failing.NewFailingSoftwareTitleIconStore()
+	} else {
+		stores.icon = iconStore
+		logger.WarnContext(ctx,
+			"using local filesystem software title icon store, this is not suitable for production use", "directory",
+			iconDir)
+	}
+
+	return stores
 }
 
 func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
@@ -1269,6 +1494,32 @@ func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
 	return activitySvc, activityRoutes
+}
+
+func createNotificationsBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger) (notifications_api.Service, endpointer.HandlerRoutesFunc) {
+	notificationsACLAdapter := notificationsacl.NewFleetServiceAdapter(ds)
+	notificationsSvc, notificationsRoutesFn := notifications_bootstrap.New(
+		dbConns,
+		notificationsACLAdapter,
+		logger,
+	)
+
+	// Bans an IP after repeated device auth failures, same protection as the
+	// other /device/{token}/... endpoints registered in server/service/handler.go.
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
+		service.DeviceIPAllowedConsecutiveFailingRequestsCount,
+		service.DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		service.DeviceIPBanTime,
+	)
+	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+	deviceAuthMiddleware := service.DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
+	notificationsAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return errorLimiter(deviceAuthMiddleware(next))
+	}
+
+	notificationsRoutes := notificationsRoutesFn(notificationsAuthMiddleware)
+	return notificationsSvc, notificationsRoutes
 }
 
 func printDatabaseNotInitializedError() {

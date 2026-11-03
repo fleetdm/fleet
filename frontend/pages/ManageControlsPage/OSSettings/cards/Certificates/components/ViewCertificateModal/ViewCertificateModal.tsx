@@ -1,12 +1,11 @@
 import React from "react";
-import { timeAgo } from "utilities/date_format";
 
-import { ICertificate } from "services/entities/certificates";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { ICertificate } from "services/entities/certificates";
+import { timeAgo } from "utilities/date_format";
 
 const baseClass = "view-certificate-modal";
 

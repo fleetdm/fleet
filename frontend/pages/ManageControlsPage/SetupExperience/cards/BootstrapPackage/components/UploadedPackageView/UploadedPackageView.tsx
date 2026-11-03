@@ -1,9 +1,8 @@
 import React from "react";
 
-import { IBootstrapPackageMetadata } from "interfaces/mdm";
-
 import CustomLink from "components/CustomLink";
 import UploadList from "components/UploadList";
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
 
 import BootstrapPackageListItem from "../BootstrapPackageListItem";
 import BootstrapPackageTable from "../BootstrapPackageTable/BootstrapPackageTable";

@@ -415,11 +415,11 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -480,6 +480,19 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.Equal(t, h2.ID, hosts[0].ID)
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
+
+	// agent sorts by orbit version, falling back to osquery version (same as ListHosts):
+	// h1 9.0.0 (no orbit row), h2 1.0.0 (orbit), h3 5.0.0 (empty orbit version)
+	for id, v := range map[uint]string{h1.ID: "9.0.0", h2.ID: "9.9.9", h3.ID: "5.0.0"} {
+		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
+		require.NoError(t, err)
+	}
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version) VALUES (?, '1.0.0'), (?, '')`, h2.ID, h3.ID)
+	require.NoError(t, err)
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
+	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
+	require.Equal(t, []uint{h1.ID, h3.ID, h2.ID}, hostIDs(hosts))
 
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
@@ -2116,6 +2129,7 @@ func checkLabelHostIssues(
 
 func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	// seed hosts
 	var hosts []*fleet.Host
@@ -2438,7 +2452,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
 		windowsEnroll(t, db, h)
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	}
 	// add disk encryption key for h1
 	_, err = db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true))
@@ -3104,7 +3118,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 		for _, teamID := range []*uint{nil, &team1.ID, &team2.ID} {
 			result, err := q.ExecContext(context.Background(),
 				"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				fmt.Sprintf("test host vitals label %d", teamID), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
+				fmt.Sprintf("test host vitals label %d", ptr.ValOrZero(teamID)), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
 			if err != nil {
 				return err
 			}
@@ -3142,7 +3156,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 			Label: fleet.Label{
 				ID:                  id,
 				TeamID:              teamID,
-				Name:                fmt.Sprintf("Test Host Vitals Label %d", teamID),
+				Name:                fmt.Sprintf("Test Host Vitals Label %d", ptr.ValOrZero(teamID)),
 				LabelType:           fleet.LabelTypeRegular,
 				LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 				HostVitalsCriteria:  ptr.RawMessage(criteria),

@@ -399,7 +399,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "irrelevant_2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -419,7 +419,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "fleet.maintained2",
 	}
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -440,7 +440,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained3",
 	}
 
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -454,7 +454,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, maintained3, gotApp)
 
 	// right vpp app, right team
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -2336,12 +2336,6 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_update_schedules (team_id, title_id, start_time, end_time)
-			VALUES (0, ?, '01:00', '02:00')`, staleTitleID)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
 			INSERT INTO software_title_display_names (team_id, software_title_id, display_name)
 			VALUES (0, ?, 'Granola (custom)')`, staleTitleID)
 		return err
@@ -2372,7 +2366,6 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 		{"host software installs", "host_software_installs", "software_title_id"},
 		{"upcoming install activities", "software_install_upcoming_activities", "software_title_id"},
 		{"patch policies", "policies", "patch_software_title_id"},
-		{"update schedules", "software_update_schedules", "title_id"},
 		{"display names", "software_title_display_names", "software_title_id"},
 		{"icons", "software_title_icons", "software_title_id"},
 		{"team pins", "software_title_team_pins", "title_id"},

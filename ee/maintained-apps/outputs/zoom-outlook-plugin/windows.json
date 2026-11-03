@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.0",
+      "version": "7.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Outlook Plugin' AND publisher = 'Zoom';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Outlook Plugin' AND publisher = 'Zoom' AND version_compare(version, '7.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Outlook Plugin' AND publisher = 'Zoom' AND version_compare(version, '7.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zoom outlook plugin.exe');"
       },
-      "installer_url": "https://zoom.us/client/7.1.0.1261/ZoomOutlookPluginSetup.msi",
+      "installer_url": "https://zoom.us/client/7.2.0.1283/ZoomOutlookPluginSetup.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "1f20149d",
-      "sha256": "92b37132af9a0cc1196cc9e72e4afcf26fa72e9bcdf9170de55b93e32842826a",
+      "sha256": "7b64c4453a8dc1d8173fcbc9224df53f5c51ae420f1bf49d9f1ca1f7ba27f6ea",
       "default_categories": [
         "Communication"
       ],

@@ -1,11 +1,13 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import {
   createMockAppStoreAppAndroid,
   createMockAppStoreAppIos,
   createMockSoftwarePackageIos,
 } from "__mocks__/softwareMock";
+import { createCustomRenderer } from "test/test-utils";
+
 import EditConfigurationModal from "./EditConfigurationModal";
 
 const androidInstaller = createMockAppStoreAppAndroid();
@@ -39,9 +41,56 @@ const IOS_IN_HOUSE_PROPS = {
   refetchSoftwareTitle: jest.fn(),
 };
 
+const renderWithGitOps = (
+  props: React.ComponentProps<typeof EditConfigurationModal>,
+  { gitOpsModeEnabled }: { gitOpsModeEnabled: boolean }
+) => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        isPremiumTier: true,
+        isGlobalAdmin: true,
+        config: { gitops: { gitops_mode_enabled: gitOpsModeEnabled } },
+      },
+    },
+  });
+  return render(<EditConfigurationModal {...props} />);
+};
+
 describe("EditConfigurationModal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("disables Save in GitOps mode", async () => {
+    renderWithGitOps(IOS_VPP_PROPS, { gitOpsModeEnabled: true });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("leaves Save enabled when the software exception is on in GitOps mode", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              exceptions: { software: true },
+            },
+          },
+        },
+      },
+    });
+    render(<EditConfigurationModal {...IOS_VPP_PROPS} />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    });
   });
 
   describe("Android (JSON)", () => {

@@ -1,5 +1,6 @@
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { ISoftwareTitleDetails } from "interfaces/software";
+
 import {
   buildInstallerDownloadUrl,
   buildLibraryVersionRows,
@@ -124,6 +125,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         },
         packages: null,
         app_store_app: null,
+        app_store_apps: null,
         source: "apps",
         hosts_count: 10,
       };
@@ -178,6 +180,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         },
         packages: null,
         app_store_app: null,
+        app_store_apps: null,
         source: "py_packages",
         hosts_count: 0,
       };
@@ -213,6 +216,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           labels_include_any: null,
           labels_include_all: null,
         },
+        app_store_apps: null,
         source: "apps",
         hosts_count: 10,
       };

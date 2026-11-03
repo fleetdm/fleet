@@ -73,7 +73,10 @@ func Analyze(
 
 		for _, hostID := range hostIDs {
 			hostID := hostID
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
+			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
+				HostID:  &hostID,
+				Sources: SupportedSoftwareSources,
+			})
 			if err != nil {
 				return nil, err
 			}

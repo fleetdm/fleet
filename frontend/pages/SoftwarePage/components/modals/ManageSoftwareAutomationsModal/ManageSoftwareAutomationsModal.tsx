@@ -1,19 +1,26 @@
+import { isEmpty, omit } from "lodash";
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { isEmpty, omit } from "lodash";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
+import Slider from "components/forms/fields/Slider";
+import { isValidURL } from "components/forms/validators";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import useGitOpsMode from "hooks/useGitOpsMode";
-
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-
-import configAPI from "services/entities/config";
-
-import { SUPPORT_LINK } from "utilities/constants";
-
+import {
+  IConfig,
+  CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
+} from "interfaces/config";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -21,24 +28,11 @@ import {
   IGlobalIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
-import {
-  IConfig,
-  CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
-} from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import Slider from "components/forms/fields/Slider";
-import Radio from "components/forms/fields/Radio";
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
-import validUrl from "components/forms/validators/valid_url";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -73,7 +67,7 @@ const validateWebhookURL = (url: string) => {
 
   if (!url) {
     errors.url = "Please add a destination URL";
-  } else if (!validUrl({ url })) {
+  } else if (!isValidURL({ url })) {
     errors.url = "Destination URL is not a valid URL";
   } else {
     delete errors.url;

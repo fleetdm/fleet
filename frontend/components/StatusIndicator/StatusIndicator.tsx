@@ -1,8 +1,9 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import TooltipWrapper from "components/TooltipWrapper";
 import { capitalize } from "lodash";
+import React, { ReactNode } from "react";
+
+import TooltipWrapper from "components/TooltipWrapper";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "status-indicator";
 

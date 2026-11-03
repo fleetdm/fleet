@@ -1,11 +1,11 @@
 import React, { useContext, useMemo } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
-import SideNav from "pages/admin/components/SideNav";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import SideNav from "pages/admin/components/SideNav";
 import mdmAPI from "services/entities/mdm";
 
 import getOSSettingsNavItems from "./OSSettingsNavItems";
@@ -59,10 +59,9 @@ const OSSettings = ({
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 
-  // The "assets" route renders the Configuration profiles card's Assets
-  // sub-tab, so it resolves to (and keeps the side nav on) that same section.
-  const isAssetsSubTab = section === "assets";
-  const effectiveSection = isAssetsSubTab ? "configuration-profiles" : section;
+  // Assets used to have their own route; keep old links working.
+  const effectiveSection =
+    section === "assets" ? "configuration-profiles" : section;
 
   const currentFormSection =
     filteredNavItems.find((item) => item.urlSection === effectiveSection) ??
@@ -118,7 +117,6 @@ const OSSettings = ({
             onMutation={refetchAggregateProfileStatus}
             router={router}
             currentPage={currentPage}
-            activeTab={isAssetsSubTab ? "assets" : "profiles"}
             urlPlatformParam={urlPlatformParam}
           />
         }

@@ -1,21 +1,21 @@
-import React, { useCallback, useState, useMemo } from "react";
 import { isEqual } from "lodash";
+import React, { useCallback, useState, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
-import { notify, INotifyBatchItem } from "components/ToastNotification";
-
+import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
+import { buildQueryStringFromParams } from "utilities/url";
 
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import EmptyState from "components/EmptyState";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
+
 import { hasNoSoftwareUploaded } from "./helpers";
 
 const baseClass = "install-software-form";
@@ -284,10 +284,12 @@ const InstallSoftwareForm = ({
         />
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
+            {/* `require_all_software_macos` lives in MDM.MacOSSetup, which is
+                applied unconditionally during gitops regardless of
+                exceptions.software — keep this checkbox globally gated. */}
             <GitOpsModeTooltipWrapper
               tipOffset={6}
               position="left"
-              entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
                   disabled={
@@ -309,10 +311,12 @@ const InstallSoftwareForm = ({
         )}
         {platform === "windows" && (
           <div className={`${baseClass}__windows_options`}>
+            {/* `require_all_software_windows` lives in MDM.MacOSSetup, which is
+                applied unconditionally during gitops regardless of
+                exceptions.software — keep this checkbox globally gated. */}
             <GitOpsModeTooltipWrapper
               tipOffset={6}
               position="left"
-              entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
                   disabled={disableChildren || !isWindowsMdmEnabled}
@@ -336,6 +340,7 @@ const InstallSoftwareForm = ({
         )}
         <GitOpsModeTooltipWrapper
           tipOffset={6}
+          entityType="software"
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               className={"select-software-table__manual-install-tooltip"}

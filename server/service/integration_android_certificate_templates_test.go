@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -125,8 +126,15 @@ func (s *integrationMDMTestSuite) createTestCertificateAuthority(t *testing.T, c
 }
 
 // createEnrolledAndroidHost creates an enrolled Android host in a team and returns the host and orbit node key.
-func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx context.Context, enterpriseID string, teamID *uint, suffix string) (*fleet.Host, string) {
+// createEnrolledAndroidHost creates an enrolled Android host whose device is on its host-specific
+// policy if hostPolicyApplied, or else still on the default policy it enrolled with, waiting for
+// the setup experience.
+func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx context.Context, enterpriseID string, teamID *uint, suffix string, hostPolicyApplied bool) (*fleet.Host, string) {
 	hostUUID := uuid.NewString()
+	appliedPolicyID := "1"
+	if hostPolicyApplied {
+		appliedPolicyID = hostUUID
+	}
 	androidHostInput := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:       t.Name() + "-host-" + suffix,
@@ -142,7 +150,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      &appliedPolicyID,
 		},
 	}
 	androidHostInput.SetNodeKey("android/" + hostUUID)
@@ -165,6 +173,14 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 	})
 
 	return host, orbitNodeKey
+}
+
+// applyHostSpecificPolicy records that the host's device applied the host-specific policy the
+// setup experience assigned it. Until then, the profile cron leaves certificate delivery to the
+// setup experience.
+func (s *integrationMDMTestSuite) applyHostSpecificPolicy(t *testing.T, host *fleet.AndroidHost) {
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, s.ds.UpdateAndroidHost(t.Context(), host, false, false))
 }
 
 // TestCertificateTemplateLifecycle tests the full Android certificate template lifecycle.
@@ -210,7 +226,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      new(hostUUID),
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
@@ -456,6 +472,14 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	require.Equal(t, 1, amapiCallCount, "AMAPI should have been called once by worker")
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
 
+	// Step: Until the device reports its host-specific policy, the cron leaves the certificate pending
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, 1, amapiCallCount, "AMAPI should not be called before the device applies its host policy")
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
+
+	// Step: The worker assigned the host-specific policy, which the device reports applying
+	s.applyHostSpecificPolicy(t, createdAndroidHost)
+
 	// Step: Trigger reconciliation again (second attempt - should succeed)
 	s.awaitTriggerAndroidProfileSchedule(t)
 
@@ -622,8 +646,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 	certificateTemplateID := createResp.ID
 
 	// Enroll an Android host with no team and link it to the IdP account.
-	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san")
-	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san", false)
+	_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID)
+	require.NoError(t, err)
 
 	// Create pending certificate templates for the host (simulating what the pubsub handler does
 	// during enrollment).
@@ -976,7 +1001,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		}
 
 		// Create host in Team E
-		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses")
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses", false)
 
 		// Insert certificate template records with all status/operation combinations
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1052,7 +1077,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		}, http.StatusOK, &teamEnrollSecretsResponse{})
 
 		// Create host in Team D (no certs)
-		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs")
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs", false)
 
 		// Verify no certificate templates for this host
 		statuses := getCertTemplateStatuses(host.UUID)
@@ -1076,7 +1101,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 	t.Run("host with certs transfers to team with different certs", func(t *testing.T) {
 		// Create host in Team A
-		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs")
+		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs", false)
 
 		// Create pending certificate templates for this host (Team A certs)
 		_, err := s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamAID)
@@ -1253,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create an enrolled Android host for this test case
-			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i))
+			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i), true)
 
 			// Create a certificate template
 			certTemplateName := strings.ReplaceAll(t.Name(), "/", "_") + "_CertTemplate"
@@ -1551,7 +1576,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	caID := ca.ID
 
 	// Create an enrolled Android host in the team
-	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1", true)
 
 	// Create a certificate template for the team
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
@@ -1934,7 +1959,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	t := s.T()
 	ctx := t.Context()
-	s.enableAndroidMDM(t)
+	enterpriseID := s.enableAndroidMDM(t)
 	s.setSkipWorkerJobs(t)
 
 	// Create team with enroll secret
@@ -1966,7 +1991,19 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 
 	// Enroll the Android host through the real PubSub enrollment path.
 	// This exercises CreatePendingCertificateTemplatesForNewHost automatically.
-	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+
+	// The device reports the host-specific policy the setup experience assigned it, after which
+	// the profile cron delivers its certificate.
+	reportMsg := statusReportMessageWithSerialNumber(t, androidmanagement.Device{
+		Name:                 deviceInfo.Name,
+		EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
+		AppliedPolicyName:    fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID),
+		AppliedPolicyVersion: 1,
+		LastPolicySyncTime:   time.Now().Format(time.RFC3339Nano),
+	}, host.HardwareSerial)
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *reportMsg},
+		http.StatusOK, "token", string(pubSubToken.Value))
 
 	// Set orbit_node_key so the host can authenticate to the cert status API.
 	// In production, Orbit enrollment sets this; PubSub enrollment only sets node_key.

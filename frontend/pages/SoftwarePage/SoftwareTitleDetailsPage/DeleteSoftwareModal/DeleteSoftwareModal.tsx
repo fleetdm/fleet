@@ -1,13 +1,11 @@
 import React, { useCallback, useState } from "react";
 
-import softwareAPI from "services/entities/software";
-
-import { getErrorReason } from "interfaces/errors";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import softwareAPI from "services/entities/software";
 
 const baseClass = "delete-software-modal";
 
@@ -55,7 +53,7 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
       </p>
       <p>
         Pending installs and uninstalls will be canceled. If they have already
-        started, they won&apos; be canceled, and the results won&apos;t appear
+        started, they won&apos;t be canceled, and the results won&apos;t appear
         in Fleet.
       </p>
     </>
@@ -69,30 +67,44 @@ interface IDeleteSoftwareModalProps {
    * specific package is deleted; otherwise the request deletes the legacy
    * single-package row (or VPP/FMA installer slot). */
   installerId?: number;
+  /** Per-version id on a multi-version App Store app title (iOS/iPadOS/
+   * Android). When set, only this specific version is deleted. */
+  versionId?: number;
+  /** True when the version being deleted is the only remaining version on
+   * the title. Last-version delete also tears down the title's custom icon
+   * and display name, so the modal surfaces that side-effect. */
+  isLastVersion?: boolean;
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
-  /** When true, the modal title reads "Delete package" instead of "Delete
+  /** When true, the modal title reads "Delete version" instead of "Delete
    * software" and the title-level metadata warning is suppressed — we're
    * deleting one specific installer on a title that can hold several, not
    * the title itself. */
   canActivateMultiplePackages?: boolean;
+  /** File name of the package being deleted, shown in the success toast on
+   * multi-package titles. */
+  packageName?: string;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
   installerId,
+  versionId,
+  isLastVersion = false,
   onExit,
   onSuccess,
   gitOpsModeEnabled,
   isAppStoreApp = false,
   isAndroidApp = false,
   canActivateMultiplePackages = false,
+  packageName,
 }: IDeleteSoftwareModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const isVersionDelete = versionId !== undefined;
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
@@ -100,9 +112,18 @@ const DeleteSoftwareModal = ({
       await softwareAPI.deleteSoftwareInstaller(
         softwareId,
         teamId,
-        installerId
+        installerId,
+        versionId
       );
-      notify.success("Successfully deleted software.");
+      notify.success(
+        canActivateMultiplePackages && packageName ? (
+          <>
+            Successfully deleted <b>{packageName}</b> version.
+          </>
+        ) : (
+          "Successfully deleted software."
+        )
+      );
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
@@ -124,12 +145,34 @@ const DeleteSoftwareModal = ({
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, installerId, onSuccess, onExit]);
+  }, [
+    softwareId,
+    teamId,
+    installerId,
+    versionId,
+    canActivateMultiplePackages,
+    packageName,
+    onSuccess,
+    onExit,
+  ]);
+
+  const getModalTitle = (): string => {
+    if (canActivateMultiplePackages) return "Delete version";
+    if (isVersionDelete) return "Delete version";
+    return "Delete software";
+  };
+  const modalTitle = getModalTitle();
+
+  // Side-effect sentence on the title's custom icon and display name shows
+  // when the delete tears down the whole title: full-title delete today (no
+  // version/installer id) OR deleting the last remaining version.
+  const isDeletingCustomMetaData =
+    !canActivateMultiplePackages && (!isVersionDelete || isLastVersion);
 
   return (
     <Modal
       className={baseClass}
-      title={canActivateMultiplePackages ? "Delete package" : "Delete software"}
+      title={modalTitle}
       onExit={onExit}
       isContentDisabled={isDeleting}
     >
@@ -140,7 +183,7 @@ const DeleteSoftwareModal = ({
         </InfoBanner>
       )}
       {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-      {!canActivateMultiplePackages && (
+      {isDeletingCustomMetaData && (
         <p>Custom icon and display name will be deleted.</p>
       )}
       <div className="modal-cta-wrap">

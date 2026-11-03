@@ -1,13 +1,15 @@
-import React from "react";
-import PropTypes from "prop-types";
 import classNames from "classnames";
 import { filter, includes, isEqual, noop } from "lodash";
+import PropTypes from "prop-types";
+import React from "react";
 
-import targetInterface from "interfaces/target";
 import EmptyState from "components/EmptyState";
+import targetInterface from "interfaces/target";
+
 import TargetDetails from "../TargetDetails";
-import { targetFilter } from "./helpers";
 import TargetOption from "../TargetOption";
+
+import { targetFilter } from "./helpers";
 
 const baseClass = "target-list";
 

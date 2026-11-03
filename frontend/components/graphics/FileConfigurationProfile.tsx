@@ -1,6 +1,5 @@
-import React from "react";
-
 import { uniqueId } from "lodash";
+import React from "react";
 
 const FileConfigurationProfile = () => {
   const clipPathIdA = uniqueId("clip-path-");

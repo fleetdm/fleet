@@ -1,11 +1,11 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-
 import { isLinuxLike } from "interfaces/platform";
 import { ISelectTargetsEntity } from "interfaces/target";
+
 import { isTargetLabel, isTargetHost } from "../helpers";
 
 const baseClass = "target-option";

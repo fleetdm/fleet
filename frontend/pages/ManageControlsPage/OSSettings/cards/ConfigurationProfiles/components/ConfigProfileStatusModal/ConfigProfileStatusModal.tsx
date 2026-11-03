@@ -1,23 +1,23 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import {
+  isMDMConfiguredForPlatform,
+  platformToMDMLabel,
+  ProfilePlatform,
+} from "interfaces/mdm";
 import configProfileAPI from "services/entities/config_profiles";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
-import Modal from "components/Modal";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import Button from "components/buttons/Button";
-import { AppContext } from "context/app";
-import CustomLink from "components/CustomLink";
-import {
-  isMDMConfiguredForPlatform,
-  platformToMDMLabel,
-  ProfilePlatform,
-} from "interfaces/mdm";
 import ConfigProfileStatusTable from "../ConfigProfileStatusTable";
 
 const baseClass = "config-profile-status-modal";

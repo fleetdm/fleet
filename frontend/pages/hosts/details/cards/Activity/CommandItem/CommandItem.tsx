@@ -1,8 +1,7 @@
 import React from "react";
 
-import { ICommand } from "interfaces/command";
-
 import FeedListItem from "components/FeedListItem";
+import { ICommand } from "interfaces/command";
 
 const baseClass = "command-item";
 

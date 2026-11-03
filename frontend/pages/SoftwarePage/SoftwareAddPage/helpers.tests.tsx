@@ -1,5 +1,5 @@
-import React from "react";
 import { render } from "@testing-library/react";
+import React from "react";
 
 import {
   ensurePeriod,
@@ -74,12 +74,12 @@ describe("formatAlreadyAvailableInstallMessage", () => {
 
   it("formats the package-limit conflict with bolded title and preserved count", () => {
     const msg =
-      "Fleet osquery already has 10 packages. Before adding, delete one you no longer use.";
+      "Fleet osquery already has 10 versions. Before adding, delete one you no longer use.";
     const { container } = render(
       <>{formatAlreadyAvailableInstallMessage(msg)}</>
     );
     expect(container.textContent).toBe(
-      "Couldn't add. Fleet osquery already has 10 packages. Before adding, delete one you no longer use."
+      "Couldn't add. Fleet osquery already has 10 versions. Before adding, delete one you no longer use."
     );
     const bolds = container.querySelectorAll("b");
     expect(bolds).toHaveLength(1);

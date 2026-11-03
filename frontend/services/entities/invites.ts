@@ -1,14 +1,14 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import helpers from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
 
 import {
   IInvite,
   ICreateInviteFormData,
   IEditInviteFormData,
 } from "interfaces/invite";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import helpers from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ISortOption {
   id: number;

@@ -1,11 +1,10 @@
-import React from "react";
 import { uniqueId } from "lodash";
-
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 const baseClass = "enroll-secrets";
 

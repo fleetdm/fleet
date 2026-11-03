@@ -1,9 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
 import { pick } from "lodash";
 
-import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import { ITeamIntegrations } from "interfaces/integration";
 import {
@@ -13,6 +11,9 @@ import {
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 interface ILoadTeamsParams {
   page?: number;
@@ -91,7 +92,7 @@ export default {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -125,7 +126,7 @@ export default {
     teamId?: number
   ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
-      return Promise.reject("Invalid usage: missing team id");
+      return Promise.reject("Invalid usage: missing fleet id");
     }
 
     const { TEAMS } = endpoints;
@@ -183,7 +184,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -199,7 +200,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

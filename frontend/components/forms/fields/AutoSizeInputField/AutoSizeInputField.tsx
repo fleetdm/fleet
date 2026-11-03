@@ -1,5 +1,5 @@
-import React, { KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
+import React, { KeyboardEvent, useEffect, useRef } from "react";
 
 export interface IAutoSizeInputFieldProps {
   name: string;

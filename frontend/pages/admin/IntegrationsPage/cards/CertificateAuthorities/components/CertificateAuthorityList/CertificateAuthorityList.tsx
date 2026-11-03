@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
 import UploadList from "components/UploadList";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import CertAuthorityListHeader from "../CertAuthorityListHeader";
 import CertAuthorityListItem from "../CertAuthorityListItem";

@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 
-import certAPI, { ICertificate } from "services/entities/certificates";
-import { notify } from "components/ToastNotification";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import certAPI, { ICertificate } from "services/entities/certificates";
 
 const baseClass = "delete-cert-template-modal";
 

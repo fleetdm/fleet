@@ -1,10 +1,11 @@
 import classnames from "classnames";
 import { uniqueId } from "lodash";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+
 import { ITooltipWrapper } from "components/TooltipWrapper/TooltipWrapper";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IGitOpsExceptions } from "interfaces/config";
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 interface IGitOpsModeTooltipWrapper {

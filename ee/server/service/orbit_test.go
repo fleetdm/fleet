@@ -24,6 +24,12 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 		logger:  slog.Default(),
 	}
 
+	// No display-name override in these tests; the activity should carry
+	// a nil SoftwareDisplayName so the raw software_title is what renders.
+	ds.GetSoftwareTitleDisplayNameFunc = func(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+		return nil, nil
+	}
+
 	hostID := uint(42)
 	hostUUID := "host-uuid-1"
 	hostDisplayName := "Test Host"
@@ -61,7 +67,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 		assert.False(t, activityCreated, "no activity should be created for non-cancelled results")
 		assert.False(t, ds.UpdateSetupExperienceStatusResultFuncInvoked, "no update should be called for non-cancelled results")
@@ -105,7 +111,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 
 		// Status should have been changed to failure
@@ -167,7 +173,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 
 		// Status should have been changed to failure
@@ -245,7 +251,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 
 		// Only the two cancelled results should have their status changed
@@ -292,7 +298,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 
 		// Status should still be changed to failure
@@ -302,10 +308,10 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 	})
 
 	t.Run("empty results returns nil", func(t *testing.T) {
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, nil)
 		require.NoError(t, err)
 
-		err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, []*fleet.SetupExperienceStatusResult{})
+		err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, []*fleet.SetupExperienceStatusResult{})
 		require.NoError(t, err)
 	})
 
@@ -337,13 +343,64 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 			},
 		}
 
-		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, results)
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, nil, results)
 		require.NoError(t, err)
 
 		// Should only have the canceled install activity
 		require.Len(t, createdActivities, 1)
 		_, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
 		require.True(t, ok)
+	})
+
+	t.Run("stamps software display name override onto canceled install activities", func(t *testing.T) {
+		ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+			return nil
+		}
+		override := "Firefox (renamed)"
+		var lookedUpTeamID *uint
+		var lookedUpTitleID uint
+		// Override the default nil-returning mock for this subtest.
+		ds.GetSoftwareTitleDisplayNameFunc = func(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+			lookedUpTeamID = teamID
+			lookedUpTitleID = titleID
+			return &override, nil
+		}
+		t.Cleanup(func() {
+			ds.GetSoftwareTitleDisplayNameFunc = func(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+				return nil, nil
+			}
+		})
+
+		var createdActivities []fleet.ActivityDetails
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			createdActivities = append(createdActivities, activity)
+			return nil
+		}
+
+		installerID := uint(50)
+		titleID := uint(500)
+		teamID := new(uint(9))
+		results := []*fleet.SetupExperienceStatusResult{
+			{
+				HostUUID:                        hostUUID,
+				Name:                            "Firefox",
+				Status:                          fleet.SetupExperienceStatusCancelled,
+				SoftwareInstallerID:             &installerID,
+				SoftwareTitleID:                 &titleID,
+				HostSoftwareInstallsExecutionID: new("exec-uuid-display"),
+			},
+		}
+
+		err := svc.recordCanceledSetupExperienceSoftwareActivities(ctx, hostID, hostUUID, hostDisplayName, teamID, results)
+		require.NoError(t, err)
+
+		require.Equal(t, teamID, lookedUpTeamID, "should look up display name using the passed team id")
+		require.Equal(t, titleID, lookedUpTitleID)
+		require.Len(t, createdActivities, 1)
+		act, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
+		require.True(t, ok)
+		require.NotNil(t, act.SoftwareDisplayName)
+		require.Equal(t, override, *act.SoftwareDisplayName)
 	})
 }
 

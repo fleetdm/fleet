@@ -89,9 +89,16 @@ func (w *wsTransport) run() {
 		w.agent.stats.IncrementWebSocketConnects()
 		w.agent.stats.UpdateWebSocketConnected(1)
 		w.connected.Store(true)
+		// Like orbit, fetch the orbit config on connect: changes made before
+		// the server registered the connection were never notified.
+		w.agent.orbitConfigTransportConnected()
 		w.readLoop(conn)
 		w.connected.Store(false)
 		w.agent.stats.UpdateWebSocketConnected(-1)
+		select {
+		case w.agent.orbitConfigDisconnected <- struct{}{}:
+		default:
+		}
 		_ = conn.Close()
 		if w.stopped() {
 			return
@@ -138,9 +145,21 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 		}
 		// Unknown notification types are ignored for forward compatibility,
 		// like orbit.
-		if msg.Type == fleet.AgentWSMessageTypeDistributedRead {
+		switch msg.Type {
+		case fleet.AgentWSMessageTypeDistributedRead:
 			w.agent.stats.IncrementWebSocketNotifications()
 			w.trigger()
+		case fleet.AgentWSMessageTypeOrbitConfig:
+			w.agent.stats.IncrementWebSocketNotifications()
+			w.agent.requestOrbitConfig()
+		case fleet.AgentWSMessageTypeOsqueryConfig:
+			w.agent.stats.IncrementWebSocketNotifications()
+			if w.agent.osqueryConfigViaOrbit() {
+				select {
+				case w.agent.osqueryConfigNudge <- struct{}{}:
+				default:
+				}
+			}
 		}
 	}
 }
@@ -233,6 +252,13 @@ func (w *wsTransport) sleep(d time.Duration) bool {
 // just starts or stops the loop.
 func (a *agent) syncWSTransport(directive *fleet.OrbitWebSocketTransportConfig) {
 	enabled := a.wsSupported && directive != nil && directive.Enabled
+	// Real fleetd restarts to switch osquery's config plugin; the simulator
+	// switches in place.
+	var osqueryConfigPollInterval int64
+	if enabled && directive.OsqueryConfigPollInterval != nil && a.orbitNodeKey != nil {
+		osqueryConfigPollInterval = int64(*directive.OsqueryConfigPollInterval)
+	}
+	a.osqueryConfigPollInterval.Store(osqueryConfigPollInterval)
 	a.wsMu.Lock()
 	defer a.wsMu.Unlock()
 	switch {
@@ -289,4 +315,67 @@ func (a *agent) distributedAPIPrefix() string {
 		return "/api/osquery"
 	}
 	return "/api/v1/osquery"
+}
+
+// osqueryConfigViaOrbit reports whether orbit serves osquery its config.
+func (a *agent) osqueryConfigViaOrbit() bool {
+	return a.osqueryConfigPollInterval.Load() > 0
+}
+
+// osqueryConfigFallbackInterval returns the osquery config poll interval of
+// an agent whose orbit serves osquery its config over a connected WebSocket,
+// and 0 otherwise (the agent polls at its config interval, like orbit while
+// disconnected).
+func (a *agent) osqueryConfigFallbackInterval() time.Duration {
+	poll := a.osqueryConfigPollInterval.Load()
+	if poll == 0 {
+		return 0
+	}
+	a.wsMu.Lock()
+	ws := a.ws
+	a.wsMu.Unlock()
+	if ws == nil || !ws.connected.Load() {
+		return 0
+	}
+	return time.Duration(poll) * time.Second
+}
+
+// orbitConfigDefaultInterval is orbit's default orbit config poll interval.
+const orbitConfigDefaultInterval = 30 * time.Second
+
+// requestOrbitConfig asks for an orbit config fetch now because of a nudge.
+// Like orbit, nudges arriving before the pending one is served are merged into
+// it.
+func (a *agent) requestOrbitConfig() {
+	select {
+	case a.orbitConfigNudge <- time.Now():
+	default:
+	}
+}
+
+// orbitConfigTransportConnected mirrors orbit's TransportConnected.
+func (a *agent) orbitConfigTransportConnected() {
+	select {
+	case a.orbitConfigConnected <- struct{}{}:
+	default:
+	}
+}
+
+// nextOrbitConfigInterval mirrors orbit's client.OrbitClient
+// nextConfigInterval: the server's fallback interval while the WebSocket is
+// connected and the config is quiet, the default interval otherwise. The
+// simulator runs scripts and installs from the notifications themselves, so a
+// quiet config is the only "no local work" signal it needs.
+func (a *agent) nextOrbitConfigInterval(cfg *fleet.OrbitConfig) time.Duration {
+	if cfg.WebSocketTransport == nil || cfg.WebSocketTransport.OrbitConfigPollInterval == nil ||
+		!cfg.Notifications.IsQuiet() {
+		return orbitConfigDefaultInterval
+	}
+	a.wsMu.Lock()
+	ws := a.ws
+	a.wsMu.Unlock()
+	if ws == nil || !ws.connected.Load() {
+		return orbitConfigDefaultInterval
+	}
+	return max(orbitConfigDefaultInterval, time.Duration(*cfg.WebSocketTransport.OrbitConfigPollInterval)*time.Second)
 }

@@ -1,9 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import createMockUser from "__mocks__/userMock";
-import { IInvite } from "interfaces/invite";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { IInvite } from "interfaces/invite";
 
 import {
   combineDataSets,

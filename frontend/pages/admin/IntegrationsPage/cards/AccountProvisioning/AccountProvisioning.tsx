@@ -1,27 +1,25 @@
 import React, { useState } from "react";
-
 import { useQueryClient } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import { isValidURL } from "components/forms/validators";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { splitServerErrors } from "interfaces/errors";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
+import configAPI from "services/entities/config";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
   UNCHANGED_PASSWORD_API_RESPONSE,
 } from "utilities/constants";
-import configAPI from "services/entities/config";
-import { getErrorReason } from "interfaces/errors";
-import { notify } from "components/ToastNotification";
-import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
-import CustomLink from "components/CustomLink";
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import validUrl from "components/forms/validators/valid_url";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import { isPremiumTier } from "utilities/permissions/permissions";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "account-provisioning";
 
@@ -51,7 +49,7 @@ const validate = (rawFormData: IFormData): IFormErrors => {
 
   if (!formData.tokenUrl) {
     errors.tokenUrl = "Token URL is required.";
-  } else if (!validUrl({ url: formData.tokenUrl, protocols: ["https"] })) {
+  } else if (!isValidURL({ url: formData.tokenUrl, protocols: ["https"] })) {
     errors.tokenUrl =
       "Must be a valid https URL (e.g. https://yourdomain.okta.com/oauth2/v1/token)";
   }
@@ -73,19 +71,6 @@ const SERVER_ERROR_NAMES: Record<keyof IFormData, string> = {
   clientSecret: "mdm.apple_account_provisioning.oauth_idp_client_secret",
 };
 
-const getServerFieldErrors = (err: unknown): IFormErrors => {
-  const errors: IFormErrors = {};
-  (Object.keys(SERVER_ERROR_NAMES) as (keyof IFormData)[]).forEach((field) => {
-    const reason = getErrorReason(err, {
-      nameEquals: SERVER_ERROR_NAMES[field],
-    });
-    if (reason) {
-      errors[field] = reason;
-    }
-  });
-  return errors;
-};
-
 const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
   const queryClient = useQueryClient();
@@ -95,11 +80,8 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const {
     formData,
     setField,
-    validateField,
-    getError,
     setFieldError,
-    clearFieldError,
-    clearErrors,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IFormData>({
@@ -116,20 +98,10 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     isSubmitting: isUpdating,
   });
 
-  const onFieldChange = (name: keyof IFormData, value: string) => {
-    setField(name, value);
+  const onTokenUrlChange = (value: string) => {
+    setField("tokenUrl", value);
 
-    // Emptying the last field is how the configuration gets cleared, and an
-    // empty form is valid, so every required-field error stops applying.
-    if (isEmptyFormData({ ...formData, [name]: value })) {
-      clearErrors();
-      return;
-    }
-
-    if (
-      name === "tokenUrl" &&
-      formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
-    ) {
+    if (formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE) {
       // The server rejects a token URL change that reuses the stored secret
       // (the secret would be sent to the new, possibly hostile, URL), so clear
       // the masked secret and have the user re-enter it. Same pattern as
@@ -164,14 +136,20 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
       await queryClient.invalidateQueries(["config"]);
       notify.success("Successfully updated settings.");
     } catch (err) {
-      setServerFormErrors(getServerFieldErrors(err));
-      const reason = getErrorReason(err);
-      notify.error(
-        reason
-          ? `Failed to update settings: ${reason}`
-          : "Failed to update settings.",
-        { response: err }
+      const { fieldErrors, otherReasons } = splitServerErrors(
+        err,
+        SERVER_ERROR_NAMES
       );
+      // useFormValidation shows field errors inline and toasts them, so only
+      // toast here what has no field to show on.
+      setServerFormErrors(fieldErrors);
+      if (otherReasons.length > 0) {
+        notify.error(`Failed to update settings: ${otherReasons.join(" ")}`, {
+          response: err,
+        });
+      } else if (Object.keys(fieldErrors).length === 0) {
+        notify.error("Failed to update settings.", { response: err });
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -206,36 +184,22 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
           >
             <InputField
               label="Token URL"
-              name="tokenUrl"
-              value={formData.tokenUrl}
-              onChange={(val) => onFieldChange("tokenUrl", val)}
-              onBlur={() => validateField("tokenUrl")}
-              onFocus={() => clearFieldError("tokenUrl")}
-              error={getError("tokenUrl")}
+              {...getTextFieldProps("tokenUrl")}
+              onChange={onTokenUrlChange}
               disabled={isSubmitting}
               placeholder="https://yourdomain.okta.com/oauth2/v1/token"
               helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
             />
             <InputField
               label="Client ID"
-              name="clientId"
-              value={formData.clientId}
-              onChange={(val) => onFieldChange("clientId", val)}
-              onBlur={() => validateField("clientId")}
-              onFocus={() => clearFieldError("clientId")}
-              error={getError("clientId")}
+              {...getTextFieldProps("clientId")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />
             <InputField
               type="password"
               label="Client secret"
-              name="clientSecret"
-              value={formData.clientSecret}
-              onChange={(val) => onFieldChange("clientSecret", val)}
-              onBlur={() => validateField("clientSecret")}
-              onFocus={() => clearFieldError("clientSecret")}
-              error={getError("clientSecret")}
+              {...getTextFieldProps("clientSecret")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />

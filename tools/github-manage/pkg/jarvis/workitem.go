@@ -125,14 +125,16 @@ func (w WorkItem) nextAction() Action {
 // (2) a PR's HeadRefName matching a session branch (already attached by
 // linkSessions), (3) a PR body closing-keyword reference to the issue.
 //
-// statuses maps issue number → project Status; projects maps issue number → the
-// board id that Status came from. Both may be empty (best-effort enrichment).
+// statuses maps issue key (ghapi.IssueRefKey; repo qualifies the fallbackRepo
+// dashboard's board items against same-numbered issues from other repos) →
+// project Status; projects maps issue key → the board id that Status came from.
+// Both may be empty (best-effort enrichment).
 //
 // mergedPRs maps issue number → a merged/closed PR discovered by branch. These PRs
 // have dropped off the open-PR list (so they're not in the board), but we still
 // surface them on the issue — labeled merged/closed — so it's clear the work
 // shipped and the issue is ready to advance to QA. May be nil.
-func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int, mergedPRs map[int]*ghapi.PullRequest, role string) []WorkItem {
+func BuildWorkItems(b Board, fallbackRepo string, links *LinkStore, focus *FocusStore, statuses map[string]string, projects map[string]int, mergedPRs map[int]*ghapi.PullRequest, role string) []WorkItem {
 	role = normalizeRole(role)
 	prByNum := map[int]*Item{}
 	prByBranch := map[string]*Item{}
@@ -150,14 +152,18 @@ func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[i
 	}
 
 	// Map PR → issue via closing-keyword references (the GitHub fallback link).
-	issueFromPR := map[int]int{} // issue number → PR number
+	// Bare "#N" closing refs are relative to the PR's own repo, so the key is
+	// repo-qualified — a PR can't capture a same-numbered issue from another repo.
+	issueFromPR := map[string]int{} // issue key → PR number
 	for num, it := range prByNum {
 		if it.PR == nil {
 			continue
 		}
+		prRepo := repoOr(it.URL, fallbackRepo)
 		for _, iss := range it.PR.ClosesIssues() {
-			if _, taken := issueFromPR[iss]; !taken {
-				issueFromPR[iss] = num
+			k := ghapi.IssueRefKey(prRepo, iss)
+			if _, taken := issueFromPR[k]; !taken {
+				issueFromPR[k] = num
 			}
 		}
 	}
@@ -169,13 +175,14 @@ func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[i
 			if it.Kind != KindIssue {
 				continue
 			}
+			key := ghapi.IssueRefKey(repoOr(it.URL, fallbackRepo), it.Number)
 			w := WorkItem{
 				Issue:   it.Issue,
 				Number:  it.Number,
 				Title:   it.Title,
 				URL:     it.URL,
-				Status:  statuses[it.Number],
-				Project: projects[it.Number],
+				Status:  statuses[key],
+				Project: projects[key],
 				Role:    role,
 			}
 			if focus != nil {
@@ -198,7 +205,7 @@ func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[i
 				pr = prByBranch[w.Branch]
 			}
 			if pr == nil {
-				if prNum, ok := issueFromPR[it.Number]; ok {
+				if prNum, ok := issueFromPR[key]; ok {
 					pr = prByNum[prNum]
 				}
 			}

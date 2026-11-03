@@ -1,15 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
 
-import { ILabelSummary } from "interfaces/label";
+import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import PolicyProvider from "context/policy";
+import { ILabelSummary } from "interfaces/label";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import SaveNewPolicyModal from "./SaveNewPolicyModal";
 
 const baseUrl = (path: string) => {
@@ -87,6 +88,33 @@ describe("SaveNewPolicyModal", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
+  it("does not show the Hide from end user checkbox in the free tier", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(
+      <SaveNewPolicyModal
+        {...defaultProps}
+        isGlobalPolicy={false}
+        policyTeamId={1}
+      />
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(
+      screen.queryByRole("checkbox", { name: "hidden-policy" })
+    ).not.toBeInTheDocument();
+  });
+
   it("caps the policy name input at 255 characters", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -155,6 +183,64 @@ describe("SaveNewPolicyModal", () => {
       expect(funButton).not.toBeChecked();
       await userEvent.click(funButton);
       expect(saveButton).toBeEnabled();
+    });
+
+    it("sends hidden when Hide from end user is checked on a fleet policy", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+            isGlobalPolicy={false}
+            policyTeamId={1}
+            fleetName="Workstations"
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      const hiddenCheckbox = screen.getByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).not.toBeChecked();
+      await userEvent.click(hiddenCheckbox);
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
+    });
+
+    it("sends hidden for an All fleets policy too", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+      await userEvent.click(
+        screen.getByRole("checkbox", { name: "hidden-policy" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
     });
 
     it("should send labels when saving a new policy in Custom target mode (include any)", async () => {

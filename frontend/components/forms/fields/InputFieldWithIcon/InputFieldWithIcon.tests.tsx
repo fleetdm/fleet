@@ -1,7 +1,9 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
+
 import InputFieldWithIcon from "./InputFieldWithIcon";
 
 describe("InputFieldWithIcon Component", () => {
@@ -239,6 +241,46 @@ describe("InputFieldWithIcon Component", () => {
     await userEvent.click(screen.getByPlaceholderText(/enter text/i));
 
     expect(mockOnClick).toHaveBeenCalledTimes(1);
+  });
+
+  test("forwards onFocus to the native input", async () => {
+    const mockOnFocus = jest.fn();
+
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        onFocus={mockOnFocus}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+      />
+    );
+
+    await userEvent.click(screen.getByPlaceholderText(/enter text/i));
+
+    expect(mockOnFocus).toHaveBeenCalledTimes(1);
+  });
+
+  test("forwards onBlur to the native input", async () => {
+    const mockOnBlur = jest.fn();
+
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        onBlur={mockOnBlur}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/enter text/i);
+    await userEvent.click(input);
+    await userEvent.tab();
+
+    expect(mockOnBlur).toHaveBeenCalledTimes(1);
   });
 
   test("sets data-1p-ignore attribute by default (1Password ignored)", () => {

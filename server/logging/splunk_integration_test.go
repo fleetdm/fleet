@@ -41,8 +41,7 @@ func TestSplunkIntegration(t *testing.T) {
 	ctx := t.Context()
 
 	// 1. Create writer with insecureSkipVerify for the self-signed cert
-	writer, err := NewSplunkLogWriter(splunkURL, splunkToken, "main", "fleet-integration-test", "fleet:json", true, slog.Default())
-	require.NoError(t, err, "NewSplunkLogWriter should connect to the running Splunk instance")
+	writer := NewSplunkLogWriter(splunkURL, splunkToken, "main", "fleet-integration-test", "fleet:json", true, slog.Default())
 
 	// 2. Send test events
 	marker := fmt.Sprintf("integration-test-%d", time.Now().UnixNano())
@@ -52,7 +51,7 @@ func TestSplunkIntegration(t *testing.T) {
 		json.RawMessage(fmt.Sprintf(`{"marker":"%s","seq":3,"host":"test-host-3","status":"error"}`, marker)),
 	}
 
-	err = writer.Write(ctx, testLogs)
+	err := writer.Write(ctx, testLogs)
 	require.NoError(t, err, "Write should send events to Splunk HEC without error")
 
 	// 3. Query Splunk REST API to verify events landed.
@@ -80,8 +79,7 @@ func TestSplunkIntegrationBatch(t *testing.T) {
 
 	ctx := t.Context()
 
-	writer, err := NewSplunkLogWriter(splunkURL, splunkToken, "main", "fleet-batch-test", "fleet:json", true, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(splunkURL, splunkToken, "main", "fleet-batch-test", "fleet:json", true, slog.Default())
 
 	// Send 100 events to verify batching works
 	marker := fmt.Sprintf("batch-test-%d", time.Now().UnixNano())
@@ -90,7 +88,7 @@ func TestSplunkIntegrationBatch(t *testing.T) {
 		testLogs[i] = json.RawMessage(fmt.Sprintf(`{"marker":"%s","seq":%d,"data":"%s"}`, marker, i, "payload-data-for-batch-test"))
 	}
 
-	err = writer.Write(ctx, testLogs)
+	err := writer.Write(ctx, testLogs)
 	require.NoError(t, err, "Write should handle batch of 100 events")
 
 	time.Sleep(5 * time.Second)
@@ -101,8 +99,6 @@ func TestSplunkIntegrationBatch(t *testing.T) {
 }
 
 // TestSplunkIntegrationBadToken tests that sending with a bad token is rejected by HEC.
-// Note: the HEC /health endpoint returns 200 regardless of token validity (it reports
-// overall HEC health), so token validation only happens on the event endpoint.
 func TestSplunkIntegrationBadToken(t *testing.T) {
 	if os.Getenv("SPLUNK_INTEGRATION_TEST") == "" {
 		t.Skip("set SPLUNK_INTEGRATION_TEST=1 to run this test (requires a running Splunk instance)")
@@ -111,11 +107,9 @@ func TestSplunkIntegrationBadToken(t *testing.T) {
 	splunkURL := "https://localhost:8088"
 	ctx := t.Context()
 
-	// Health check passes (it doesn't validate tokens), but Write should fail.
-	writer, err := NewSplunkLogWriter(splunkURL, "bad-token-12345", "main", "fleet", "fleet:json", true, slog.Default())
-	require.NoError(t, err, "health check passes regardless of token")
+	writer := NewSplunkLogWriter(splunkURL, "bad-token-12345", "main", "fleet", "fleet:json", true, slog.Default())
 
-	err = writer.Write(ctx, []json.RawMessage{json.RawMessage(`{"test":"bad-token"}`)})
+	err := writer.Write(ctx, []json.RawMessage{json.RawMessage(`{"test":"bad-token"}`)})
 	require.Error(t, err, "Write should fail with an invalid token")
 	require.Contains(t, err.Error(), "403")
 }

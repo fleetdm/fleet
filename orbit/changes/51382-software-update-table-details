@@ -1,0 +1,1 @@
+* Added `label`, `title`, `version`, `size_kib`, `recommended`, and `action` columns to the `software_update` table on macOS, so each available Apple software update is reported as its own row. The existing `software_update_required` column is unchanged. Queries that arrive while a scan is running now share it, and successful results are reused for up to 5 minutes.

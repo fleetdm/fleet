@@ -7,17 +7,16 @@ import Select, {
   StylesConfig,
 } from "react-select-5";
 
-import { IUser } from "interfaces/user";
-import { ITeamSummary } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
-import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
-
-import { PADDING } from "styles/var/padding";
-import { COLORS } from "styles/var/colors";
-
 import Icon from "components/Icon";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
+import permissions from "utilities/permissions";
+
 import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
@@ -212,7 +211,12 @@ const UserMenu = ({
     onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
   });
   dropdownItems.push({
-    label: "Documentation",
+    label: (
+      <span className={`${baseClass}__external-option`}>
+        Documentation
+        <Icon name="external-link" color="ui-fleet-black-75" />
+      </span>
+    ),
     value: "documentation",
     onClick: () => {
       window.open("https://fleetdm.com/docs", "_blank");

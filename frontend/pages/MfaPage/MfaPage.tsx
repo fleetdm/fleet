@@ -2,17 +2,16 @@ import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import paths from "router/paths";
-import local from "utilities/local";
-import authToken from "utilities/auth_token";
 import configAPI from "services/entities/config";
 import sessionsAPI from "services/entities/sessions";
-
-import Button from "components/buttons/Button";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import Spinner from "components/Spinner";
+import authToken from "utilities/auth_token";
+import local from "utilities/local";
 
 interface IMfaPage {
   router: InjectedRouter; // v3

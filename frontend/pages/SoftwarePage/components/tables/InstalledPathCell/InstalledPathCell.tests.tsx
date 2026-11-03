@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";

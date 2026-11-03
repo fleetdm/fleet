@@ -50,13 +50,19 @@ func (r ListQueriesResponse) Error() error { return r.Err }
 type GetQueryReportRequest struct {
 	ID     uint  `url:"id"`
 	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	// ListOptions supports page, per_page, order_key, order_direction and query.
+	// Results are paginated only when per_page is set; otherwise all rows are returned.
+	ListOptions ListOptions `url:"list_options"`
 }
 
 type GetQueryReportResponse struct {
 	QueryID       uint                 `json:"query_id" renameto:"report_id"`
 	Results       []HostQueryResultRow `json:"results"`
 	ReportClipped bool                 `json:"report_clipped"`
-	Err           error                `json:"error,omitempty"`
+	// Count is the total number of rows matching the request, across all pages.
+	Count int                 `json:"count"`
+	Meta  *PaginationMetadata `json:"meta,omitempty"`
+	Err   error               `json:"error,omitempty"`
 }
 
 func (r GetQueryReportResponse) Error() error { return r.Err }

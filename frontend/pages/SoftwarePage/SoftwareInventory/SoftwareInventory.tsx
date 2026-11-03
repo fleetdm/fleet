@@ -2,11 +2,15 @@
  software/inventory Software tab
  software/versions Software tab (version toggle on)
  */
-import React from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { omit } from "lodash";
 
+import { omit } from "lodash";
+import React from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { softwareTypesToApiParams } from "interfaces/software";
 import PATHS from "router/paths";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
@@ -15,11 +19,8 @@ import softwareAPI, {
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 
-import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
-
 import SoftwareInventoryTable from "./SoftwareInventoryTable";
-import { ISoftwareVulnFilters } from "./SoftwareInventoryTable/helpers";
+import { ISoftwareFilters } from "./SoftwareInventoryTable/helpers";
 
 const baseClass = "software-inventory";
 
@@ -36,7 +37,7 @@ interface ISoftwareInventoryProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  vulnFilters: ISoftwareVulnFilters;
+  filters: ISoftwareFilters;
   currentPage: number;
   teamId?: number;
   onAddFiltersClick: () => void;
@@ -49,12 +50,19 @@ const SoftwareInventory = ({
   perPage,
   orderDirection,
   orderKey,
-  vulnFilters,
+  filters,
   currentPage,
   teamId,
   onAddFiltersClick,
 }: ISoftwareInventoryProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
+
+  // The API takes source and extension_for, never the UI's type keys.
+  const filterParams = {
+    ...omit(filters, "types"),
+    ...softwareTypesToApiParams(filters.types ?? []),
+    aiTool: filters.aiTool || undefined,
+  };
 
   // for Titles view, request to get software data
   const {
@@ -77,7 +85,7 @@ const SoftwareInventory = ({
         orderDirection,
         orderKey,
         teamId,
-        ...vulnFilters,
+        ...filterParams,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -111,7 +119,7 @@ const SoftwareInventory = ({
         orderDirection,
         orderKey,
         teamId,
-        ...vulnFilters,
+        ...filterParams,
         ...(showVersions ? { without_vulnerability_details: true } : {}),
       },
     ],
@@ -153,7 +161,9 @@ const SoftwareInventory = ({
         orderKey,
         teamId,
         availableForInstall: true,
-        ...vulnFilters,
+        ...filterParams,
+        // The answer only picks empty-state copy, which ai_tool doesn't change.
+        aiTool: undefined,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -195,7 +205,7 @@ const SoftwareInventory = ({
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
         onAddFiltersClick={onAddFiltersClick}
-        vulnFilters={vulnFilters}
+        filters={filters}
       />
     </div>
   );

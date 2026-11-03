@@ -1,0 +1,1 @@
+- Fleet UI: In GitOps mode, "Edit appearance" on any software title and "Edit software" on an Apple VPP (App Store) title now open their modals in a disabled state so admins can see the applied settings. Save remains disabled with the GitOps tooltip.

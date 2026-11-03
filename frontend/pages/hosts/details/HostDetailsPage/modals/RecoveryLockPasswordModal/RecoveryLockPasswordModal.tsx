@@ -1,18 +1,17 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import InfoBanner from "components/InfoBanner";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,

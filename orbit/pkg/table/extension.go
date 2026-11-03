@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_agent_sessions"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -17,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_binaries"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/netskope"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sentinelone"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/yaml_to_json"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
@@ -195,10 +197,21 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// factors. Vendored from github.com/karmine05/agentic-detector.
 		table.NewPlugin("ai_tools", ai_tools.Columns(), ai_tools.Generate),
 
+		// ai_agent_sessions / ai_agent_session_messages: sessions of AI coding
+		// agents (Claude Code, Copilot CLI, Cursor CLI, Codex CLI, Gemini CLI)
+		// and their content, from every user's transcripts. Ported from
+		// github.com/allenhouchins/fleet-extensions.
+		table.NewPlugin("ai_agent_sessions", ai_agent_sessions.SessionsColumns(), ai_agent_sessions.GenerateSessions),
+		table.NewPlugin("ai_agent_session_messages", ai_agent_sessions.MessagesColumns(), ai_agent_sessions.GenerateMessages),
+
 		// netskope: local Netskope client state, from `nsdiag -f`.
 		// Registered on every platform: hosts without the client report a single
 		// row with client_installed = 0.
 		table.NewPlugin("netskope", netskope.Columns(), netskope.Generate),
+
+		// sentinelone: local SentinelOne agent state, from `sentinelctl status`.
+		// Registered on every platform: hosts without the agent report no rows.
+		table.NewPlugin("sentinelone", sentinelone.Columns(), sentinelone.Generate),
 	}
 	return plugins
 }

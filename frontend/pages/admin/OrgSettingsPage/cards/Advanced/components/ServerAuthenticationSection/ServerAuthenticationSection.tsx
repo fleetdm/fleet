@@ -1,8 +1,9 @@
 import React from "react";
-import SettingsSection from "pages/admin/components/SettingsSection";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import InputField from "components/forms/fields/InputField";
+
 import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import { IAdvancedSectionProps } from "../../Advanced";
 

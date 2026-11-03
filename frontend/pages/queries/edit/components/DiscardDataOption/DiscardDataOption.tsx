@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 
-import { QueryLoggingOption } from "interfaces/schedulable_query";
-
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
+import { QueryLoggingOption } from "interfaces/schedulable_query";
 
 const baseClass = "discard-data-option";
 

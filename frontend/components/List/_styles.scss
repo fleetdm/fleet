@@ -31,7 +31,7 @@
     flex-direction: column;
     align-items: flex-start;
     align-self: stretch;
-    border-radius: 4px;
+    border-radius: $border-radius-large;
     border: 1px solid $ui-fleet-black-10;
     padding-left: 0; // negate ul padding
     margin: 0;
@@ -61,12 +61,19 @@
       }
     }
 
+    // Keyboard focus affordance for clickable rows. Matches Fleet's unstyled
+    // button focus mixin (1px solid $core-focused-outline, inset).
+    &.list__row--clickable:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+    }
+
     &:first-child {
-      border-radius: 4px 4px 0 0;
+      border-radius: $border-radius-large $border-radius-large 0 0;
     }
 
     &:last-child {
-      border-radius: 0 0 4px 4px;
+      border-radius: 0 0 $border-radius-large $border-radius-large;
       border-bottom: none;
     }
   }

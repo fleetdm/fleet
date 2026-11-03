@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
 
-import deviceUserAPI from "services/entities/device_user";
-
-import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import { notify } from "components/ToastNotification";
+import deviceUserAPI from "services/entities/device_user";
 
 import InstallAllInCategoryModal from "./InstallAllInCategoryModal";
 

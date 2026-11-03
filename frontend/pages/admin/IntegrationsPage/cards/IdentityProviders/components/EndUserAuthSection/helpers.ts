@@ -1,7 +1,7 @@
-import { IEndUserAuthentication } from "interfaces/config";
-import { IFormErrors } from "hooks/useFormValidation";
-
 import isURL from "validator/lib/isURL";
+
+import { IFormErrors } from "hooks/useFormValidation";
+import { IEndUserAuthentication } from "interfaces/config";
 
 export interface IFormDataIdp {
   idp_name: string;
@@ -36,17 +36,6 @@ const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
   metadata_url: data.metadata_url.trim(),
   metadata: data.metadata.trim(),
 });
-
-/**
- * Either field satisfies the metadata requirement, so they share one error
- * message. Only `metadata_url` can also hold a URL-format error.
- */
-export const METADATA_SIBLING: Partial<
-  Record<keyof IFormDataIdp, keyof IFormDataIdp>
-> = {
-  metadata: "metadata_url",
-  metadata_url: "metadata",
-};
 
 export const validateEndUserAuthForm = (
   formData: IFormDataIdp

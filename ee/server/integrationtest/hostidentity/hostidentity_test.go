@@ -16,6 +16,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	mathrand "math/rand/v2"
@@ -24,7 +25,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
@@ -37,10 +37,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
+	"github.com/jmoiron/sqlx"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
@@ -61,6 +62,7 @@ func TestHostIdentity(t *testing.T) {
 	}{
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
+		{"ReissueForExistingName", testReissueForExistingName},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
 		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
@@ -123,18 +125,6 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	eccPrivateKey, err = ecdsa.GenerateKey(curve, rand.Reader)
 	require.NoError(t, err)
 
-	// Create SCEP client
-	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
-	require.NoError(t, err)
-
-	// Get CA certificate
-	resp, _, err := scepClient.GetCACert(ctx, "")
-	require.NoError(t, err)
-	caCerts, err := x509.ParseCertificates(resp)
-	require.NoError(t, err)
-	require.NotEmpty(t, caCerts)
-
 	// Create CSR using ECC key
 	hostIdentifier := generateRandomString(16)
 	csrTemplate := x509util.CertificateRequest{
@@ -152,41 +142,8 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, hostIdentifier)
-
-	// Create SCEP PKI message
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey, // Use RSA key for SCEP protocol
-		SignerCert:  deviceCert,
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
-	require.NoError(t, err)
-
-	// Send PKI operation request
-	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
-	require.NoError(t, err)
-
-	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
-	require.NoError(t, err)
-
-	// Verify successful response
-	require.Equal(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "SCEP request should succeed")
-
-	// Decrypt PKI envelope using RSA key
-	err = pkiMsgResp.DecryptPKIEnvelope(deviceCert, tempRSAKey)
-	require.NoError(t, err)
-
-	// Verify we got a certificate
-	require.NotNil(t, pkiMsgResp.CertRepMessage)
-	require.NotNil(t, pkiMsgResp.CertRepMessage.Certificate)
-
-	// Verify the certificate was signed by the CA
-	cert = pkiMsgResp.CertRepMessage.Certificate
-	require.NotNil(t, cert)
+	cert, err = enrollHostIdentityCSR(t, s, csr)
+	require.NoError(t, err, "SCEP request should succeed")
 
 	// Verify certificate properties
 	assert.Equal(t, hostIdentifier, cert.Subject.CommonName)
@@ -541,27 +498,19 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	return enrollResp.NodeKey
 }
 
-// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
-func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
-	ctx := t.Context()
-
-	// Get the original certificate's host_id before renewal (it will get revoked)
-	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
-	require.NoError(t, err)
-	require.NotNil(t, originalStoredCert)
-	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
-	originalHostID := *originalStoredCert.HostID
-
-	// Generate a new ECC key pair for the renewed certificate
-	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
-	require.NoError(t, err)
+// renewalCSR builds a renewal request for existingCert, proving possession of existingKey and requesting a cert for newKey.
+// It also returns the renewal data carried in the request, so that callers can replay it.
+func renewalCSR(
+	t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey,
+) (csr *x509.CertificateRequest, renewalDataJSON []byte) {
+	t.Helper()
 
 	// Create the renewal data
 	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
 
 	// Sign the message with the existing private key
 	hash := sha256.Sum256([]byte(serialHex))
-	signature, err := ecdsa.SignASN1(rand.Reader, eccPrivateKey, hash[:])
+	signature, err := ecdsa.SignASN1(rand.Reader, existingKey, hash[:])
 	require.NoError(t, err)
 
 	renewalData := types.RenewalData{
@@ -569,7 +518,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		Signature:    base64.StdEncoding.EncodeToString(signature),
 	}
 
-	renewalDataJSON, err := json.Marshal(renewalData)
+	renewalDataJSON, err = json.Marshal(renewalData)
 	require.NoError(t, err)
 
 	// Create CSR with renewal extension
@@ -589,58 +538,32 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// No challenge password for renewal
 	}
 
-	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newEccPrivateKey)
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
-	csr, err := x509.ParseCertificateRequest(csrDerBytes)
+	csr, err = x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
+	return csr, renewalDataJSON
+}
 
-	// Create SCEP client
-	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
+// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
+func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
+	ctx := t.Context()
+
+	// Get the original certificate's host_id before renewal (it will get revoked)
+	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
 	require.NoError(t, err)
+	require.NotNil(t, originalStoredCert)
+	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+	originalHostID := *originalStoredCert.HostID
 
-	// Get CA certificate
-	resp, _, err := scepClient.GetCACert(ctx, "")
-	require.NoError(t, err)
-	caCerts, err := x509.ParseCertificates(resp)
-	require.NoError(t, err)
-	require.NotEmpty(t, caCerts)
-
-	// Create temporary RSA key for SCEP envelope
-	tempRSAKey, tempRSACert := createTempRSAKeyAndCert(t, existingCert.Subject.CommonName)
-
-	// Create SCEP PKI message for renewal
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey,
-		SignerCert:  tempRSACert,
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
+	// Generate a new ECC key pair for the renewed certificate
+	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 	require.NoError(t, err)
 
-	// Send PKI operation request
-	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
-	require.NoError(t, err)
+	csr, renewalDataJSON := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey)
 
-	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
-	require.NoError(t, err)
-
-	// The renewal should succeed
-	require.Equal(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "Renewal should succeed")
-
-	// Decrypt PKI envelope using RSA key
-	err = pkiMsgResp.DecryptPKIEnvelope(tempRSACert, tempRSAKey)
-	require.NoError(t, err)
-
-	// Verify we got a new certificate
-	require.NotNil(t, pkiMsgResp.CertRepMessage)
-	require.NotNil(t, pkiMsgResp.CertRepMessage.Certificate)
-
-	renewedCert := pkiMsgResp.CertRepMessage.Certificate
-	require.NotNil(t, renewedCert)
+	renewedCert, err := enrollHostIdentityCSR(t, s, csr)
+	require.NoError(t, err, "Renewal should succeed")
 
 	// Verify renewed certificate properties
 	assert.Equal(t, existingCert.Subject.CommonName, renewedCert.Subject.CommonName, "Common name should be preserved")
@@ -759,30 +682,10 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
 		require.NoError(t, err)
 
-		// Create new temp RSA key for SCEP envelope
-		retryTempRSAKey, retryTempRSACert := createTempRSAKeyAndCert(t, existingCert.Subject.CommonName)
-
-		// Create SCEP PKI message for retry
-		retryPkiMsgReq := &scep.PKIMessage{
-			MessageType: scep.PKCSReq,
-			Recipients:  caCerts,
-			SignerKey:   retryTempRSAKey,
-			SignerCert:  retryTempRSACert,
-		}
-
-		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
-		require.NoError(t, err)
-
-		// Send PKI operation request
-		retryRespBytes, err := scepClient.PKIOperation(ctx, retryMsg.Raw)
-		require.NoError(t, err)
-
-		// Parse response
-		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(retryMsg.Recipients))
-		require.NoError(t, err)
-
-		// Should fail - the certificate has already been revoked
-		require.Equal(t, scep.FAILURE, retryPkiMsgResp.PKIStatus, "Renewal retry with same serial should fail")
+		_, err = enrollHostIdentityCSR(t, s, retryCSR)
+		rejected, ok := errors.AsType[enrollment.RejectedError](err)
+		require.True(t, ok, "Renewal retry with same serial should fail, got %v", err)
+		require.Equal(t, scep.FAILURE, rejected.Status)
 	})
 }
 
@@ -868,35 +771,21 @@ func testDeleteHostAndReenrollOsquery(t *testing.T, s *Suite, cert *x509.Certifi
 	require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
 }
 
-func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {
-	// Create temporary RSA key for SCEP envelope (required by SCEP protocol)
-	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
+// enrollHostIdentityCSR sends csr to Fleet's host identity SCEP server.
+func enrollHostIdentityCSR(t *testing.T, s *Suite, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	t.Helper()
+	scepClient, err := scepclient.New(s.Server.URL+"/api/fleet/orbit/host_identity/scep", s.Logger)
 	require.NoError(t, err)
-
-	// Create self-signed certificate for SCEP protocol using RSA key
-	deviceCertTemplate := x509.Certificate{
-		Subject: pkix.Name{
-			CommonName: commonName,
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	deviceCertDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertTemplate,
-		&deviceCertTemplate,
-		&tempRSAKey.PublicKey,
-		tempRSAKey,
-	)
+	caCerts, err := enrollment.FetchCACerts(t.Context(), scepClient)
 	require.NoError(t, err)
-
-	deviceCert, err := x509.ParseCertificate(deviceCertDerBytes)
+	signerKey, signerCert, err := enrollment.NewEphemeralSigner(csr.Subject)
 	require.NoError(t, err)
-	return tempRSAKey, deviceCert
+	return enrollment.Enroll(t.Context(), scepClient, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  signerKey,
+		SignerCert: signerCert,
+		Logger:     s.Logger,
+	})
 }
 
 func testGetCertFailures(t *testing.T, s *Suite) {
@@ -945,6 +834,47 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 	}
 }
 
+// testReissueForExistingName checks that the enroll secret cannot replace a valid certificate with a different key, but can re-issue it
+// for the same key (an agent retrying because the certificate never reached it), and can replace it once it expired.
+func testReissueForExistingName(t *testing.T, s *Suite) {
+	ctx := t.Context()
+	cert, key := testGetCertWithCurve(t, s, elliptic.P256())
+	name := cert.Subject.CommonName
+
+	// Requesting a new certificate for the same name with a different key should fail while the existing one is valid
+	_, err := requestSCEPCertificate(t, s, name)
+	require.Error(t, err)
+	current, err := s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, cert.SerialNumber.Uint64(), current.SerialNumber)
+
+	// The same request signed with the existing key should succeed
+	csrDER, err := x509util.CreateCertificateRequest(rand.Reader, &x509util.CertificateRequest{
+		Subject:            pkix.Name{CommonName: name},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		ChallengePassword:  testEnrollmentSecret,
+	}, key)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDER)
+	require.NoError(t, err)
+	sameKeyCert, err := enrollHostIdentityCSR(t, s, csr)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, sameKeyCert.SerialNumber.Uint64(), current.SerialNumber)
+	require.NotEqual(t, cert.SerialNumber.Uint64(), current.SerialNumber)
+
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`, name)
+		return err
+	})
+	newCert, err := requestSCEPCertificate(t, s, name)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, newCert.SerialNumber.Uint64(), current.SerialNumber)
+}
+
 type SCEPFailureConfig struct {
 	ChallengePassword string
 	CommonName        string
@@ -961,18 +891,6 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 		},
 	})
 	require.NoError(t, err)
-
-	// Create SCEP client
-	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
-	require.NoError(t, err)
-
-	// Get CA certificate
-	resp, _, err := scepClient.GetCACert(ctx, "")
-	require.NoError(t, err)
-	caCerts, err := x509.ParseCertificates(resp)
-	require.NoError(t, err)
-	require.NotEmpty(t, caCerts)
 
 	var privateKey interface{}
 	var sigAlg x509.SignatureAlgorithm
@@ -1007,29 +925,10 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, config.CommonName)
-
-	// Create SCEP PKI message
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey,
-		SignerCert:  deviceCert,
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
-	require.NoError(t, err)
-
-	// Send PKI operation request
-	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
-	require.NoError(t, err)
-
-	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
-	require.NoError(t, err)
-
-	// Verify failure response
-	assert.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail")
+	_, err = enrollHostIdentityCSR(t, s, csr)
+	rejected, ok := errors.AsType[enrollment.RejectedError](err)
+	require.True(t, ok, "SCEP request should fail, got %v", err)
+	assert.Equal(t, scep.FAILURE, rejected.Status)
 }
 
 func testWrongCertAuthentication(t *testing.T, s *Suite) {

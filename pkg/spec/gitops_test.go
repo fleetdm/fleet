@@ -478,6 +478,34 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 	})
 }
 
+func TestGitOpsControlsBooleanKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{"enable_disk_encryption", "enable_recovery_lock_password", "windows_require_bitlocker_pin"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+
+			for name, value := range map[string]string{"string": `"yes-please"`, "number": "1", "map": "\n    foo: bar"} {
+				t.Run(name+" rejected", func(t *testing.T) {
+					config := getTeamConfig([]string{"controls"})
+					config += "controls:\n  " + key + ": " + value + "\n"
+					_, err := gitOpsFromString(t, config)
+					require.ErrorContains(t, err, "'controls."+key+"' must be a boolean")
+				})
+			}
+
+			for name, value := range map[string]string{"bool": "true", "null": ""} {
+				t.Run(name+" accepted", func(t *testing.T) {
+					config := getTeamConfig([]string{"controls"})
+					config += "controls:\n  " + key + ": " + value + "\n"
+					_, err := gitOpsFromString(t, config)
+					require.NoError(t, err)
+				})
+			}
+		})
+	}
+}
+
 func TestDuplicatePolicyNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -751,7 +779,7 @@ reports:
   observer_can_run: false
   automations_enabled: true
   logging: snapshot
-- name: orbit_info
+- name: "Orbit_Info "
   query: SELECT 1;
   interval: 300
   platform: windows
@@ -761,7 +789,22 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate report names")
+	assert.ErrorContains(t, err, "duplicate report names: [orbit_info]")
+}
+
+func TestDuplicateLabelNames(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    hosts: []
+    label_membership_type: manual
+  - name: "testlabel "
+    hosts: []
+    label_membership_type: manual`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "duplicate label names: [TestLabel]")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -1261,13 +1304,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				require.ErrorContains(t, err, "policy name cannot be empty")
 
 				// Policy query missing
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - name: Test Policy\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				require.ErrorContains(t, err, "policy query cannot be empty")
 
 				// Invalid reports
 				config = getConfig([]string{"reports"})
@@ -1516,7 +1559,7 @@ secrets:
 		assert.Equal(t, filepath.Join(tmpDir, "assets/light.png"), orgInfo["org_logo_path_light_mode"])
 	})
 
-	t.Run("end_user_license_agreement resolves relative to nested file", func(t *testing.T) {
+	t.Run("EULA paths resolve relative to nested file", func(t *testing.T) {
 		gitops, tmpDir := setup(t, `
 server_settings:
   server_url: https://fleet.example.com
@@ -1525,10 +1568,12 @@ org_info:
   org_name: Test Org
 mdm:
   end_user_license_agreement: ../docs/eula.pdf
+  windows_eula: ../docs/terms.md
 secrets:
 `)
 		mdm := gitops.OrgSettings["mdm"].(map[string]any)
 		assert.Equal(t, filepath.Join(tmpDir, "docs/eula.pdf"), mdm["end_user_license_agreement"])
+		assert.Equal(t, filepath.Join(tmpDir, "docs/terms.md"), mdm["windows_eula"])
 	})
 
 	t.Run("absolute paths in nested file are untouched", func(t *testing.T) {
@@ -1967,7 +2012,7 @@ policies:
     package_path: ./some_path.yml
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+	assert.ErrorContains(t, err, "install_software can only be set on fleet-level policies")
 }
 
 func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
@@ -1981,7 +2026,7 @@ policies:
     path: ./some_path.sh
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+	assert.ErrorContains(t, err, "run_script can only be set on fleet-level policies")
 }
 
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
@@ -2085,7 +2130,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "not found on team")
+	require.ErrorContains(t, err, "not found on fleet")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -2112,8 +2157,9 @@ software:
 	)
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
-		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
+	require.ErrorContains(
+		t, err,
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on fleet",
 	)
 
 	// Policy references a software installer file that has an invalid yaml.
@@ -2241,7 +2287,8 @@ controls:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	assert.ErrorContains(
+		t, err,
 		"was not defined in controls for TeamName",
 	)
 }
@@ -2311,7 +2358,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	}
 
 	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      setup_experience: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2339,7 +2387,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// self_service and categories set once at the fleet level apply to every package
 	// that omits them.
 	t.Run("fleet-level self_service and categories inherit to all packages", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      self_service: true\n      categories: [\"Productivity\"]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -2421,7 +2470,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// multiple packages. A single package can set setup_experience in the file and
 	// inherit labels from the fleet-level entry.
 	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
   setup_experience: true
@@ -2449,7 +2499,8 @@ labels_include_all: [macOS]
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
 	t.Run("conflict error identifies a hash-only package by its hash", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2464,7 +2515,8 @@ labels_include_all: [macOS]
 	// When a package has neither url nor hash, it is identified by the package file path
 	// rather than an empty string (url/hash are required but validated later).
 	t.Run("conflict error falls back to the file path when url and hash are absent", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- self_service: true
 - hash_sha256: %s
@@ -2478,7 +2530,8 @@ labels_include_all: [macOS]
 	// The fleet-level labels rule is file-scope, so it reports once regardless of how
 	// many packages the file lists.
 	t.Run("labels error is reported once for multiple packages", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -3462,6 +3515,290 @@ reports:
 	})
 }
 
+func TestParseAppStoreAppsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appFile := filepath.Join(dir, "software", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(appFile), 0o755))
+		require.NoError(t, os.WriteFile(appFile, []byte("- app_store_id: \"222222\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - app_store_id: "111111"
+    - path: software/from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.AppStoreApps, 2)
+		assert.Equal(t, "111111", result.Software.AppStoreApps[0].AppStoreID)
+		assert.Equal(t, "222222", result.Software.AppStoreApps[1].AppStoreID)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appsDir := filepath.Join(dir, "software")
+		require.NoError(t, os.MkdirAll(appsDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(appsDir, "a.yml"), []byte("- app_store_id: \"111111\"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(appsDir, "b.yml"), []byte("- app_store_id: \"222222\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - paths: "software/*.yml"
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.AppStoreApps, 2)
+		assert.Equal(t, "111111", result.Software.AppStoreApps[0].AppStoreID)
+		assert.Equal(t, "222222", result.Software.AppStoreApps[1].AppStoreID)
+	})
+
+	t.Run("nested_references_rejected", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		appFile := filepath.Join(dir, "from-file.yml")
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(appFile, []byte("- path: nested.yml\n- app_store_id: \"333333\"\n  paths: \"*.yml\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  app_store_apps:
+    - path: from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.Error(t, multiErr.ErrorOrNil())
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
+	})
+}
+
+func TestParseFleetMaintainedAppsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmaFile := filepath.Join(dir, "software", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(fmaFile), 0o755))
+		require.NoError(t, os.WriteFile(fmaFile, []byte("- slug: file-app/darwin\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - slug: inline-app/darwin
+    - path: software/from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.FleetMaintainedApps, 2)
+		assert.Equal(t, "inline-app/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		assert.Equal(t, "file-app/darwin", result.Software.FleetMaintainedApps[1].Slug)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmasDir := filepath.Join(dir, "software")
+		require.NoError(t, os.MkdirAll(fmasDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(fmasDir, "a.yml"), []byte("- slug: app-a/darwin\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(fmasDir, "b.yml"), []byte("- slug: app-b/darwin\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - paths: "software/*.yml"
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.NoError(t, multiErr.ErrorOrNil())
+		require.Len(t, result.Software.FleetMaintainedApps, 2)
+		assert.Equal(t, "app-a/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		assert.Equal(t, "app-b/darwin", result.Software.FleetMaintainedApps[1].Slug)
+	})
+
+	t.Run("nested_references_rejected", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		fmaFile := filepath.Join(dir, "from-file.yml")
+		// With an identifier set, only the nested-reference check stops this applying with its glob dropped.
+		require.NoError(t, os.WriteFile(fmaFile, []byte("- path: nested.yml\n- slug: nested/darwin\n  paths: \"*.yml\"\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseSoftware(top, result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+		require.Error(t, multiErr.ErrorOrNil())
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
+		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
+	})
+
+}
+
+func TestParseSoftwareFieldsBesideFileReference(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		files    map[string]string
+		software string
+	}{
+		{
+			name:  "app_store_apps beside path",
+			files: map[string]string{"from-file.yml": "- app_store_id: \"222222\"\n"},
+			software: `
+software:
+  app_store_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside paths glob",
+			files: map[string]string{"software/a.yml": "- slug: app-a/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - paths: "software/*.yml"
+      self_service: true
+`,
+		},
+		{
+			// A zero value is still a value the referenced file would otherwise override.
+			name:  "zero-valued field beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n  self_service: true\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: false
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				path := filepath.Join(dir, name)
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+			}
+
+			teamName := "TestTeam"
+			result := &GitOps{TeamName: &teamName}
+			multiErr := parseSoftware(yamlToRawJSON(t, tt.software), result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+			require.Error(t, multiErr.ErrorOrNil())
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "cannot set other fields")
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "self_service", "the error names the offending keys")
+		})
+	}
+}
+
+// TestGitOpsPolicyReferencesPathSourcedSoftware exercises the full GitOpsFromFile
+// pipeline (parseSoftware followed by parsePolicies) to confirm that a policy's
+// install_software.fleet_maintained_app_slug/app_store_id correctly cross-references
+// fleet_maintained_apps/app_store_apps entries that were themselves sourced from a
+// path: reference, not just inline entries.
+func TestGitOpsPolicyReferencesPathSourcedSoftware(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fleet_maintained_app_slug and app_store_id resolve", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+  app_store_apps:
+    - path: software/bear.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: zoom/darwin
+  - name: Install Bear
+    query: SELECT 1;
+    install_software:
+      app_store_id: "1016366447"
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "bear.yml"), []byte("- app_store_id: \"1016366447\"\n"), 0o644))
+
+		result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "zoom/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, "1016366447", result.Software.AppStoreApps[0].AppStoreID)
+
+		require.Len(t, result.Policies, 2)
+		assert.Equal(t, "zoom/darwin", result.Policies[0].InstallSoftware.Other.FleetMaintainedAppSlug)
+		assert.Equal(t, "1016366447", result.Policies[1].InstallSoftware.Other.AppStoreID)
+	})
+
+	t.Run("fleet_maintained_app_slug not found when sourced from path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: not-zoom/darwin
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, `fleet_maintained_app_slug "not-zoom/darwin" not found`)
+	})
+}
+
 func TestGitOpsGlobScripts(t *testing.T) {
 	t.Parallel()
 
@@ -3514,7 +3851,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
   apple_settings:
     configuration_profiles:
       - paths: profiles/*.mobileconfig
+        self_service: true
       - path: profiles/beta.json
+        hidden: true
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
@@ -3529,6 +3868,10 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		assert.Contains(t, macSettings.CustomSettings[0].Path, "alpha.mobileconfig")
 		assert.Contains(t, macSettings.CustomSettings[1].Path, "gamma.mobileconfig")
 		assert.Contains(t, macSettings.CustomSettings[2].Path, "beta.json")
+		assert.True(t, macSettings.CustomSettings[0].SelfService)
+		assert.True(t, macSettings.CustomSettings[1].SelfService)
+		assert.False(t, macSettings.CustomSettings[2].SelfService)
+		assert.True(t, macSettings.CustomSettings[2].Hidden)
 	})
 
 	t.Run("windows_profiles", func(t *testing.T) {
@@ -3586,6 +3929,65 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		// Sorted alphabetically by path
 		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "beta.json")
+	})
+
+	t.Run("name_on_multi_file_glob_is_rejected", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.xml"), []byte("<xml/>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_settings:
+    configuration_profiles:
+      - paths: profiles/*.xml
+        name: Windows Firewall
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `controls.windows_settings.configuration_profiles[]: "name" can't be used with a "paths" glob that matches more than one file`)
+	})
+
+	t.Run("name_on_single_file_glob_and_description_on_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "only.json"), []byte("{}"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+        description: Shared by every matched profile
+      - paths: profiles/only*.json
+        name: The only declaration
+        description: One match is fine
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 3)
+		for _, p := range macSettings.CustomSettings[:2] {
+			assert.Empty(t, p.Name)
+			assert.Equal(t, "Shared by every matched profile", p.Description)
+		}
+		assert.Contains(t, macSettings.CustomSettings[2].Path, "only.json")
+		assert.Equal(t, "The only declaration", macSettings.CustomSettings[2].Name)
+		assert.Equal(t, "One match is fine", macSettings.CustomSettings[2].Description)
 	})
 
 	t.Run("macos_profiles_with_labels", func(t *testing.T) {
@@ -3749,6 +4151,66 @@ controls:
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "apple_account_provisioning can only be configured in the global configuration")
+	})
+}
+
+func TestGitOpsEnableProfileValidation(t *testing.T) {
+	t.Parallel()
+
+	const controls = "controls:\n  enable_profile_validation: false\n"
+
+	t.Run("parsed in global config", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig([]string{"controls"})+controls)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+		assert.True(t, gitops.Controls.Set())
+	})
+
+	t.Run("nil when omitted", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig(nil))
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Nil(t, gitops.Controls.EnableProfileValidation)
+	})
+
+	for file, name := range map[string]string{"no-team.yml": "No team", "unassigned.yml": "Unassigned"} {
+		t.Run("accepted in "+file, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"name", "settings", "controls"}) + "name: " + name + "\n" + controls
+			path, basePath := createNamedFileOnTempDir(t, file, config)
+			gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			require.NoError(t, err)
+			assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+		})
+	}
+
+	t.Run("rejected in a specific team's file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getTeamConfig([]string{"controls"})+controls)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
+	})
+
+	t.Run("rejected in a team's referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getTeamConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "enable_profile_validation can only be configured in the global configuration")
+	})
+
+	t.Run("accepted in a global referenced controls file", func(t *testing.T) {
+		t.Parallel()
+		path, basePath := createTempFile(t, "", getGlobalConfig([]string{"controls"})+"controls:\n  path: ./controls.yml\n")
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "controls.yml"), []byte("enable_profile_validation: false\n"), 0o644))
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
 	})
 }
 
@@ -5166,7 +5628,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on fleet-level policies")
 	})
 
 	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
@@ -5255,7 +5717,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		assert.Equal(t, sha2, policy.InstallSoftware.Other.HashSHA256)
 	})
 
-	t.Run("bare hash_sha256 not found on team errors", func(t *testing.T) {
+	t.Run("bare hash_sha256 not found on fleet errors", func(t *testing.T) {
 		t.Parallel()
 
 		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
@@ -5272,7 +5734,36 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		packages := []*fleet.SoftwarePackageSpec{{URL: url1, SHA256: sha1}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on team", bogusSHA))
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on fleet", bogusSHA))
+	})
+
+	t.Run("software not found on fleet errors say fleet", func(t *testing.T) {
+		t.Parallel()
+
+		bogusSHA := "dddd999999999999999999999999999999999999999999999999999999999999"
+		dir := t.TempDir()
+		shaOnlyPath := filepath.Join(dir, "sha.yml")
+		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("hash_sha256: "+bogusSHA+"\n"), 0o644))
+
+		cases := []struct {
+			name     string
+			software *PolicyInstallSoftware
+			wantErr  string
+		}{
+			{"package_path SHA256", &PolicyInstallSoftware{PackagePath: shaOnlyPath}, fmt.Sprintf("install_software.package_path SHA256 %s not found on fleet: %s", bogusSHA, shaOnlyPath)},
+			{"app_store_id", &PolicyInstallSoftware{AppStoreID: "123"}, fmt.Sprintf("install_software.app_store_id 123 not found on fleet %s", teamName)},
+			{"fleet_maintained_app_slug", &PolicyInstallSoftware{FleetMaintainedAppSlug: "1password/darwin"}, fmt.Sprintf(`install_software.fleet_maintained_app_slug "1password/darwin" not found in software.fleet_maintained_apps for fleet %s`, teamName)},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+				installSoftware.Other = tc.software
+				policy := &Policy{Name: "missing software policy", InstallSoftware: installSoftware}
+				errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+				require.Len(t, errs, 1)
+				assert.Contains(t, errs[0].Error(), tc.wantErr)
+			})
+		}
 	})
 
 	t.Run("package_path pointing at a multi-package file errors with hash_sha256 hint", func(t *testing.T) {
@@ -5679,7 +6170,7 @@ policies:
     fleet_maintained_app_slug: google-chrome/darwin
     install_software: true
 `,
-			wantErrs: []string{"fleet_maintained_app_slug is only supported for patch policies"},
+			wantErrs: []string{`"fleet_maintained_app_slug" is only supported for patch policies`},
 		},
 		{
 			name: "dynamic policy with install_software true and no slug is allowed (does nothing)",
@@ -5712,7 +6203,7 @@ policies:
 	}
 }
 
-func TestGitOpsPatchWhenClosed(t *testing.T) {
+func TestGitOpsPatchPolicyOptions(t *testing.T) {
 	t.Parallel()
 
 	const fmaSoftware = `
@@ -5728,6 +6219,11 @@ software:
       pre_install_query:
         path: ./preinstall.yml
 `
+	const fmaSoftwareWindows = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/windows
+`
 
 	tests := []struct {
 		name     string
@@ -5735,8 +6231,12 @@ software:
 		policies string
 		// wantErrs empty means the config must apply cleanly.
 		wantErrs []string
+		// unwantedErrs are messages the config must not produce alongside wantErrs.
+		unwantedErrs []string
 		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
 		wantCA *bool
+		// wantDeadline, when set, asserts the resulting PatchDeadline on the single policy.
+		wantDeadline *bool
 	}{
 		{
 			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
@@ -5777,7 +6277,7 @@ policies:
     continuous_automations_enabled: false
     patch_when_closed: true
 `,
-			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+			wantErrs: []string{`If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`},
 		},
 		{
 			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
@@ -5803,7 +6303,225 @@ policies:
     platform: darwin
     fleet_maintained_app_slug: google-chrome/darwin
 `,
-			wantCA: new(false),
+			wantCA:       new(false),
+			wantDeadline: new(false),
+		},
+		{
+			name:     "notify_before_patching with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "notify_before_patching with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    notify_before_patching: true
+`,
+			wantErrs: []string{`If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`},
+		},
+		{
+			name:     "notify_before_patching rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "notify_before_patching" is true`},
+		},
+		{
+			// PolicySpec.Verify runs during parsing, so a dry run rejects this too.
+			name:     "notify_before_patching on a dynamic policy is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome installed
+    type: dynamic
+    query: SELECT 1;
+    platform: darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only supported for patch policies`},
+		},
+		{
+			// Caught during parsing so a dry run rejects it, not just a real apply.
+			name:     "notify_before_patching together with patch_when_closed is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+    notify_before_patching: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+		},
+		{
+			// The dry run skips the policy apply, so without this check only a real apply rejects it.
+			name:     "notify_before_patching on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only available for macOS Fleet-maintained apps.`},
+		},
+		{
+			// The slug names no Fleet-maintained app, so there is no platform to judge and the missing app is the only problem worth reporting.
+			name:     "notify_before_patching on a slug missing from software reports only the missing Fleet-maintained app",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`isn't specified under "software.fleet_maintained_apps."`},
+			unwantedErrs: []string{"only available for macOS Fleet-maintained apps"},
+		},
+		{
+			name:     "patch_when_closed on a Windows Fleet-maintained app still applies",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "patch_deadline with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: true
+`,
+			wantCA:       new(true),
+			wantDeadline: new(true),
+		},
+		{
+			name:     "patch_deadline with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    patch_deadline: true
+`,
+			wantErrs: []string{`If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`},
+		},
+		{
+			name:     "patch_deadline rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "patch_deadline" is true`},
+		},
+		{
+			name:     "patch_deadline on a dynamic policy is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome installed
+    type: dynamic
+    query: SELECT 1;
+    platform: darwin
+    patch_deadline: true
+`,
+			wantErrs: []string{`"patch_deadline" is only supported for patch policies`},
+		},
+		{
+			name:     "patch_deadline together with patch_when_closed is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+    patch_deadline: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+		},
+		{
+			name:     "patch_deadline together with notify_before_patching is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+    patch_deadline: true
+`,
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+		},
+		{
+			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_deadline: true
+`,
+			wantErrs:     []string{`"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`},
+			unwantedErrs: []string{"notify_before_patching"},
+		},
+		{
+			name:     "patch_deadline false applies and leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_deadline: false
+`,
+			wantCA:       new(false),
+			wantDeadline: new(false),
 		},
 	}
 
@@ -5817,12 +6535,18 @@ policies:
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
 				}
+				for _, unwanted := range tc.unwantedErrs {
+					require.NotContains(t, err.Error(), unwanted)
+				}
 				return
 			}
 			require.NoError(t, err)
 			require.Len(t, g.Policies, 1)
 			if tc.wantCA != nil {
 				assert.Equal(t, *tc.wantCA, g.Policies[0].ContinuousAutomationsEnabled)
+			}
+			if tc.wantDeadline != nil {
+				assert.Equal(t, *tc.wantDeadline, g.Policies[0].PatchDeadline)
 			}
 		})
 	}
@@ -5922,8 +6646,6 @@ controls:
 }
 
 func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
-	t.Parallel()
-
 	//nolint:gosec // G101: test fixture, not a real credential.
 	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5945,13 +6667,51 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 </plist>
 `
 
+	// certProfile substitutes base64 data through an env var and a Fleet secret,
+	// neither of which is expanded on disk.
+	const certProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Cert profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.cert</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.pkcs12</string>
+			<key>PayloadContent</key>
+			<data>$CERT_B64</data>
+			<key>Password</key>
+			<string>$FLEET_SECRET_CERT_PASSWORD</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+`
+
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		// t.Setenv restores the previous value on cleanup, but it rules out t.Parallel.
+		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
+			t.Setenv(k, v)
+		}
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "cert.mobileconfig"), []byte(certProfile), 0o644))
 
 		exclude := []string{"controls", "policies"}
 		config := getTeamConfig(exclude)
@@ -5963,6 +6723,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ./lib/password.MOBILECoNFIG
+      - path: ./lib/cert.mobileconfig
   windows_settings:
     custom_settings:
       - path: ./lib/screenlock.XmL
@@ -5993,6 +6754,18 @@ policies:
 		require.Empty(t, got.Policies[2].ResendConfigurationProfile)
 	})
 
+	t.Run("resolves a profile with variables substituted into a data payload", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Cert profile
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 1)
+		require.Equal(t, "Cert profile", got.Policies[0].ResendConfigurationProfile)
+	})
+
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
 		_, err := writeConfig(t, false, `
 policies:
@@ -6010,7 +6783,7 @@ policies:
   query: SELECT 1;
   resend_configuration_profile: Password policy
 `)
-		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on fleet-level policies")
 	})
 }
 
@@ -6026,3 +6799,344 @@ const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
 	<string>Configuration</string>
 </dict>
 </plist>`
+
+func TestAppStoreAppVersions(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("app_with_two_versions_parses_both_versions_in_order", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+      setup_experience: true
+      display_name: VPN
+      versions:
+        - name: Production
+          self_service: true
+          categories:
+            - Security
+          labels_exclude_any:
+            - IT team
+          auto_update_enabled: true
+          auto_update_window_start: "00:00"
+          auto_update_window_end: "04:00"
+          configuration:
+            path: ./production.xml
+        - name: Test
+          labels_include_any:
+            - IT team
+          configuration:
+            path: ./test.xml
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		app := result.Software.AppStoreApps[0]
+		assert.Equal(t, "VPN", app.DisplayName)
+		assert.True(t, app.InstallDuringSetup.Value)
+
+		// list the versions of the app, the app's own fields should not add a third
+		versions := app.ListVersions()
+		require.Len(t, versions, 2)
+		assert.Equal(t, "Production", versions[0].Name)
+		assert.True(t, versions[0].SelfService)
+		assert.Equal(t, []string{"Security"}, versions[0].Categories)
+		assert.Equal(t, []string{"IT team"}, versions[0].LabelsExcludeAny)
+		assert.True(t, *versions[0].AutoUpdateEnabled)
+		assert.Equal(t, "00:00", *versions[0].AutoUpdateStartTime)
+		assert.Equal(t, "04:00", *versions[0].AutoUpdateEndTime)
+		assert.Equal(t, filepath.Join(basePath, "production.xml"), versions[0].Configuration.Path)
+		assert.Equal(t, "Test", versions[1].Name)
+		assert.False(t, versions[1].SelfService)
+		assert.Equal(t, []string{"IT team"}, versions[1].LabelsIncludeAny)
+		assert.Equal(t, filepath.Join(basePath, "test.xml"), versions[1].Configuration.Path)
+	})
+
+	t.Run("app_without_versions_parses_as_one_version_with_no_name", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+      self_service: true
+      labels_include_any:
+        - IT team
+      configuration:
+        path: ./config.xml
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.AppStoreApps, 1)
+
+		versions := result.Software.AppStoreApps[0].ListVersions()
+		require.Len(t, versions, 1)
+		assert.Empty(t, versions[0].Name)
+		assert.True(t, versions[0].SelfService)
+		assert.Equal(t, []string{"IT team"}, versions[0].LabelsIncludeAny)
+		assert.Equal(t, filepath.Join(basePath, "config.xml"), versions[0].Configuration.Path)
+	})
+
+	var elevenVersions string
+	for i := range 11 {
+		elevenVersions += fmt.Sprintf("        - name: Version %d\n", i)
+	}
+
+	invalidCases := []struct {
+		name          string
+		versionsYAML  string
+		expectedError string
+	}{
+		{
+			name: "version_without_name_fails",
+			versionsYAML: `      versions:
+        - name: Production
+        - self_service: true
+`,
+			expectedError: `Couldn't add software ("12345"). Version 2 is missing a name.`,
+		},
+		{
+			name: "two_versions_with_the_same_name_in_different_case_fail",
+			versionsYAML: `      versions:
+        - name: Production
+        - name: production
+`,
+			expectedError: `Couldn't add software ("12345"). More than one version is named "production".`,
+		},
+		{
+			name: "version_fields_set_on_the_app_next_to_versions_fail",
+			versionsYAML: `      self_service: true
+      versions:
+        - name: Production
+`,
+			expectedError: `Couldn't add software ("12345"). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.`,
+		},
+		{
+			name:          "eleven_versions_fail",
+			versionsYAML:  "      versions:\n" + elevenVersions,
+			expectedError: `Couldn't add software ("12345"). An app can have at most 10 versions.`,
+		},
+		{
+			name: "version_with_two_label_sets_fails",
+			versionsYAML: `      versions:
+        - name: Production
+          labels_include_any:
+            - IT team
+          labels_exclude_any:
+            - Sales
+`,
+			expectedError: `only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app "12345" version "Production"`,
+		},
+	}
+	for _, c := range invalidCases {
+		t.Run(c.name, func(t *testing.T) {
+			config := getTeamConfig([]string{"name", "software"})
+			config += `name: Test Team
+software:
+  app_store_apps:
+    - app_store_id: "12345"
+      platform: ios
+` + c.versionsYAML
+			path, basePath := createTempFile(t, "", config)
+			_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+			require.ErrorContains(t, err, c.expectedError)
+		})
+	}
+}
+
+func TestGitOpsPolicyWithResendConfigurationProfileNamedInYAML(t *testing.T) {
+	const profile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Payload name</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.renamed</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0B1D4B6E-0F0B-4B0E-9E7B-1F2D3C4B5A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "renamed.mobileconfig"), []byte(profile), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.xml"), []byte("<Replace></Replace>"), 0o644))
+
+	config := getTeamConfig([]string{"controls", "policies"})
+	config += `
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/renamed.mobileconfig
+        name: YAML name
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/screenlock.xml
+        name: Lock the screen
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: YAML name
+- name: Windows policy
+  query: SELECT 1;
+  resend_configuration_profile: Lock the screen
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	// the YAML name is what the server stores, so it is what the policy
+	// must reference; the PayloadDisplayName and file name no longer resolve
+	got, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, got.Policies, 2)
+	require.Equal(t, "YAML name", got.Policies[0].ResendConfigurationProfile)
+	require.Equal(t, "Lock the screen", got.Policies[1].ResendConfigurationProfile)
+
+	config = strings.Replace(config, "resend_configuration_profile: YAML name", "resend_configuration_profile: Payload name", 1)
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+	_, err = GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Payload name")
+}
+
+func TestLabelFieldLengths(t *testing.T) {
+	t.Parallel()
+
+	labelYAML := func(name, description string) string {
+		return getGlobalConfig([]string{}) + fmt.Sprintf(`
+labels:
+  - name: %q
+    description: %q
+    query: SELECT 1
+    label_membership_type: dynamic`, name, description)
+	}
+
+	// 255 two-byte characters fit varchar(255), which counts characters, not bytes.
+	_, err := gitOpsFromString(t, labelYAML("ok", strings.Repeat("é", 255)))
+	require.NoError(t, err)
+
+	_, err = gitOpsFromString(t, labelYAML("long description", strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, `label "long description" description may not exceed 255 characters`)
+
+	_, err = gitOpsFromString(t, labelYAML(strings.Repeat("a", 256), "ok"))
+	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
+}
+
+func TestGitOpsPatchDeadlineSettings(t *testing.T) {
+	t.Parallel()
+
+	const prefix = `Couldn't edit patch deadline settings. `
+	const daysRequired = prefix + `"days" must include at least one day.`
+	const timeFormat = prefix + `"time" must be in HH:MM (24-hour) format, for example "17:00".`
+
+	parse := func(t *testing.T, fileName, software string) (*GitOps, error) {
+		exclude := []string{"name"}
+		name := "name: TeamName\n"
+		if fileName == "unassigned.yml" {
+			exclude = append(exclude, "settings")
+			name = "name: Unassigned\n"
+		}
+		config := getTeamConfig(exclude) + name + software
+		path, base := createNamedFileOnTempDir(t, fileName, config)
+		return GitOpsFromFile(path, base, premiumAppConfig(), nopLogf)
+	}
+
+	tests := []struct {
+		name     string
+		block    string
+		wantErr  string
+		wantDays []string
+		wantTime string
+	}{
+		{name: "days missing", block: "time: \"17:00\"", wantErr: daysRequired},
+		{name: "days empty list", block: "days: []\n    time: \"17:00\"", wantErr: daysRequired},
+		{name: "days empty object", block: "days: {}\n    time: \"17:00\"", wantErr: prefix + `"days" must be a list of days, for example ["monday", "wednesday"].`},
+		{name: "days not a list", block: "days: monday\n    time: \"17:00\"", wantErr: prefix + `"days" must be a list of days, for example ["monday", "wednesday"].`},
+		{
+			name:    "days invalid value",
+			block:   "days: [\"Mon\"]\n    time: \"17:00\"",
+			wantErr: prefix + `"days" includes an invalid value "Mon". Options are "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", and "sunday".`,
+		},
+		{name: "days duplicate", block: "days: [monday, monday]\n    time: \"17:00\"", wantErr: prefix + `"days" includes "monday" more than once.`},
+		{name: "time missing", block: "days: [monday]", wantErr: prefix + `"time" is required.`},
+		{name: "time empty", block: "days: [monday]\n    time: \"\"", wantErr: prefix + `"time" is required.`},
+		{name: "time 5pm", block: "days: [monday]\n    time: \"5pm\"", wantErr: timeFormat},
+		{name: "time 24:00", block: "days: [monday]\n    time: \"24:00\"", wantErr: timeFormat},
+		{name: "time 11:60", block: "days: [monday]\n    time: \"11:60\"", wantErr: timeFormat},
+		{name: "time number 1700", block: "days: [monday]\n    time: 1700", wantErr: prefix + `"time" must be wrapped in quotes, for example "17:00".`},
+		{name: "time number 17", block: "days: [monday]\n    time: 17", wantErr: prefix + `"time" must be wrapped in quotes, for example "17:00".`},
+		{name: "unknown key", block: "day: [monday]\n    days: [monday]\n    time: \"17:00\"", wantErr: `unknown key "software.patch_deadline_settings.day"`},
+		{name: "time without a leading zero is normalized", block: "days: [monday]\n    time: \"9:00\"", wantDays: []string{"monday"}, wantTime: "09:00"},
+		{name: "unquoted time is a string", block: "days: [monday]\n    time: 17:00", wantDays: []string{"monday"}, wantTime: "17:00"},
+		{
+			name:     "days come back in week order",
+			block:    "days: [sunday, wednesday, monday]\n    time: \"17:00\"",
+			wantDays: []string{"monday", "wednesday", "sunday"},
+			wantTime: "17:00",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g, err := parse(t, "team.yml", "software:\n  patch_deadline_settings:\n    "+tc.block+"\n")
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, g.Software.PatchDeadlineSettings)
+			assert.Equal(t, tc.wantDays, g.Software.PatchDeadlineSettings.Days)
+			assert.Equal(t, tc.wantTime, g.Software.PatchDeadlineSettings.Time)
+		})
+	}
+
+	t.Run("empty block reports the missing days", func(t *testing.T) {
+		t.Parallel()
+		_, err := parse(t, "team.yml", "software:\n  patch_deadline_settings: {}\n")
+		require.ErrorContains(t, err, daysRequired)
+	})
+
+	t.Run("null behaves like an omitted key", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "team.yml", "software:\n  patch_deadline_settings: null\n")
+		require.NoError(t, err)
+		assert.Nil(t, g.Software.PatchDeadlineSettings)
+	})
+
+	t.Run("omitted key leaves settings nil", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "team.yml", "software:\n")
+		require.NoError(t, err)
+		assert.Nil(t, g.Software.PatchDeadlineSettings)
+	})
+
+	t.Run("unassigned file accepts the settings", func(t *testing.T) {
+		t.Parallel()
+		g, err := parse(t, "unassigned.yml", "software:\n  patch_deadline_settings:\n    days: [friday]\n    time: \"08:30\"\n")
+		require.NoError(t, err)
+		require.NotNil(t, g.Software.PatchDeadlineSettings)
+		assert.Equal(t, []string{"friday"}, g.Software.PatchDeadlineSettings.Days)
+		assert.Equal(t, "08:30", g.Software.PatchDeadlineSettings.Time)
+	})
+
+	t.Run("global file rejects the settings", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig(nil) + "software:\n  patch_deadline_settings:\n    days: [monday]\n    time: \"17:00\"\n"
+		path, base := createNamedFileOnTempDir(t, "default.yml", config)
+		_, err := GitOpsFromFile(path, base, premiumAppConfig(), nopLogf)
+		require.ErrorContains(t, err, "'software' cannot be set on global file")
+	})
+}

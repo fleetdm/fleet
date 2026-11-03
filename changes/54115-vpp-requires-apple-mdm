@@ -1,0 +1,1 @@
+- Fixed App Store (VPP) apps being listed and added, including via GitOps, while Apple MDM is turned off.

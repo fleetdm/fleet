@@ -1,6 +1,7 @@
+import React from "react";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import React from "react";
 
 interface IBypassModal {
   onCancel: () => void;

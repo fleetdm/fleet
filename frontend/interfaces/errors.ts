@@ -193,6 +193,55 @@ export const getErrorReason = (
   return "";
 };
 
+// getFleetApiErrors returns the Fleet API errors in a payload of any shape
+// getErrorReason accepts.
+const getFleetApiErrors = (payload: unknown): IFleetApiError[] => {
+  let errors: unknown[] = [];
+  if (isAxiosError(payload)) {
+    errors = isRecordWithDataErrors(payload.response)
+      ? payload.response.data.errors
+      : [];
+  } else if (isRecordWithResponseDataErrors(payload)) {
+    errors = payload.response.data.errors;
+  } else if (isRecordWithDataErrors(payload)) {
+    errors = payload.data.errors;
+  } else if (isRecordWithErrors(payload)) {
+    errors = payload.errors;
+  }
+  return errors.filter(isFleetApiError);
+};
+
+/**
+ * splitServerErrors sorts the Fleet API errors in a payload into the ones that
+ * belong to a form field and the reasons of the rest. `nameMap` maps each
+ * field key to the API error `name` reported for it. A field takes the first
+ * matching error; errors with an empty reason are ignored.
+ */
+export const splitServerErrors = <K extends string>(
+  payload: unknown,
+  nameMap: Record<K, string>
+): { fieldErrors: Partial<Record<K, string>>; otherReasons: string[] } => {
+  const fieldByName = new Map<string, K>();
+  (Object.keys(nameMap) as K[]).forEach((field) => {
+    fieldByName.set(nameMap[field], field);
+  });
+
+  const fieldErrors: Partial<Record<K, string>> = {};
+  const otherReasons: string[] = [];
+  getFleetApiErrors(payload).forEach(({ name, reason }) => {
+    if (!reason) {
+      return;
+    }
+    const field = fieldByName.get(name);
+    if (field === undefined) {
+      otherReasons.push(reason);
+    } else if (fieldErrors[field] === undefined) {
+      fieldErrors[field] = reason;
+    }
+  });
+  return { fieldErrors, otherReasons };
+};
+
 export const hasStatusKey = (value: unknown): value is { status: number } => {
   return (
     typeof value === "object" &&

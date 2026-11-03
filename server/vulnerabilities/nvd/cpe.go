@@ -631,6 +631,13 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 		return "", nil
 	}
 
+	// The Android OS reports itself as package "android". Its vulnerabilities come from the Android
+	// OSV artifacts by security patch level; with target_sw=android it would match every unversioned
+	// Android OS CVE in NVD.
+	if software.Source == "android_apps" && software.ApplicationID != nil && *software.ApplicationID == "android" {
+		return "", nil
+	}
+
 	mutateSoftware(ctx, software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)
@@ -868,7 +875,11 @@ func TranslateSoftwareToCPE(
 			// and Adobe plugins, for which no vulnerability data source exists: CVEs for Adobe
 			// CEP/UXP extensions are only ever filed against the host Adobe application, so any
 			// match here would be a false positive pinned to the wrong version.
-			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins"),
+			// Go binaries are matched by module path against the Go vulnerability database
+			// instead. MCP servers and AI skills have no vulnerability data source, and AI CLIs
+			// installed by a package manager are matched under that package's own source.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins", "go_binaries",
+				"ai_clis", "mcp_servers", "ai_skills"),
 		},
 	)
 	if err != nil {

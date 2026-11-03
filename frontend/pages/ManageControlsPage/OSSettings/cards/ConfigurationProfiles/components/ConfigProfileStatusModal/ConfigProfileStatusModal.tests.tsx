@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { defaultConfigProfileStatusHandler } from "test/handlers/config-profiles";
 import { IMdmConfig } from "interfaces/config";
 import { platformToMDMLabel, ProfilePlatform } from "interfaces/mdm";
+import { defaultConfigProfileStatusHandler } from "test/handlers/config-profiles";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import ConfigProfileStatusModal from "./ConfigProfileStatusModal";
 

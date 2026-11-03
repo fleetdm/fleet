@@ -5,15 +5,15 @@ import React, {
   useState,
 } from "react";
 
-import { AppContext } from "context/app";
-import { syntaxHighlight } from "utilities/helpers";
-import validURL from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
-import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
-import paths from "router/paths";
+import Slider from "components/forms/fields/Slider";
+import { isValidURL } from "components/forms/validators";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import { AppContext } from "context/app";
+import paths from "router/paths";
+import { syntaxHighlight } from "utilities/helpers";
 
 import { IAutomationFormHandle } from "../../types";
 
@@ -61,7 +61,7 @@ const CalendarEventsModal = forwardRef<
       const { url: newUrl } = newFormData;
       if (
         newFormData.enabled &&
-        !validURL({ url: newUrl || "", protocols: ["http", "https"] })
+        !isValidURL({ url: newUrl || "", protocols: ["http", "https"] })
       ) {
         const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
         errors.url = `${errorPrefix} a valid resolution webhook URL`;

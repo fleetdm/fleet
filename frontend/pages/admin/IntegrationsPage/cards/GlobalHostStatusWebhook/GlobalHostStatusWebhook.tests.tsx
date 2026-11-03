@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import GlobalHostStatusWebhook from "./GlobalHostStatusWebhook";
 
@@ -42,6 +42,23 @@ const renderCard = (handleSubmit = jest.fn()) => {
 describe("GlobalHostStatusWebhook - Destination URL validation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("disables the webhook detail fields until the webhook is enabled", async () => {
+    const { user } = renderCard();
+
+    expect(screen.getByPlaceholderText(URL_PLACEHOLDER)).toBeDisabled();
+    // react-select dropdowns signal disabled via aria-disabled, not the native attribute.
+    screen.getAllByRole("combobox").forEach((dropdown) => {
+      expect(dropdown).toHaveAttribute("aria-disabled", "true");
+    });
+
+    await user.click(screen.getByText(ENABLE_LABEL));
+
+    expect(screen.getByPlaceholderText(URL_PLACEHOLDER)).toBeEnabled();
+    screen.getAllByRole("combobox").forEach((dropdown) => {
+      expect(dropdown).not.toHaveAttribute("aria-disabled", "true");
+    });
   });
 
   it("does not show an error when the webhook is first enabled (#40410)", async () => {

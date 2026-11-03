@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/santa"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sshd_config"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
@@ -42,6 +43,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/networkquality"
+	"github.com/macadmins/osquery-extension/tables/privileges"
 	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
@@ -86,6 +88,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
 		table.NewPlugin("homebrew_outdated", homebrew_outdated.Columns(), homebrew_outdated.Generate),
+		table.NewPlugin("sshd_config", sshd_config.Columns(), sshd_config.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
@@ -101,7 +104,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
-		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedLogGenerate),
+		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -125,6 +128,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
 		table.NewPlugin("touchid_system_config", touchid.TouchIDSystemConfigColumns(), touchid.TouchIDSystemConfigGenerate),
 		table.NewPlugin("touchid_user_config", touchid.TouchIDUserConfigColumns(), touchid.TouchIDUserConfigGenerate),
+		table.NewPlugin("privileges_events", privileges.PrivilegesEventsColumns(), privileges.PrivilegesEventsGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

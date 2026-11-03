@@ -1275,6 +1275,21 @@ func TestProfileTargetsReservedLocURI(t *testing.T) {
 			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
 			want:   false,
 		},
+		{
+			name:   "OS update LocURI with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Updat&#101;/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "OS update LocURI with a hex character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/&#x55;pdate/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "non-OS-update profile with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target><Data>&#49;</Data></Item></Replace>`,
+			want:   false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1297,6 +1312,32 @@ func TestIsFleetInternalCmdID(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, IsFleetInternalCmdID(tc.in))
+		})
+	}
+}
+
+func TestValidateWindowsMDMCommandID(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		cmdID   string
+		wantErr bool
+	}{
+		{"random UUID", "550e8400-e29b-41d4-a716-446655440000", false},
+		{"short ID", "1", false},
+		{"reserved prefix in the middle", "my-" + WindowsSCEPStatusProbeCmdUUIDPrefix + "1", false},
+		{"Fleet internal", FleetInternalCmdIDPrefix + "devdetail-smbios-serial", true},
+		{"SCEP status probe", WindowsSCEPStatusProbeCmdUUIDPrefix + "550e8400-e29b-41d4-a716-446655440000-1", true},
+		{"ESP release", WindowsESPReleaseCmdIDPrefix + "550e8400-e29b-41d4-a716-446655440000", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateWindowsMDMCommandID(tc.cmdID)
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, "is reserved for commands Fleet sends")
+			var invalidArgErr *InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
 		})
 	}
 }

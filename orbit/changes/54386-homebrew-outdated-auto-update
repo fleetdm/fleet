@@ -1,0 +1,2 @@
+- Fixed the `homebrew_outdated` table timing out or failing on Macs where Homebrew's auto-update is slow: the table no longer runs Homebrew's auto-update, and only refreshes Homebrew's package data, at most once a day. Errors now include Homebrew's own error message instead of only "exit status 1".
+  Results are cached for 5 minutes so policies that each query the table share one Homebrew run.

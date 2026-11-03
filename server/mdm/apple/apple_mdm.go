@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -29,6 +31,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -718,7 +722,8 @@ func (d *DEPService) processDeviceResponse(
 			deadline = device.MDMMigrationDeadline.String()
 		}
 		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
-		d.logger.InfoContext(ctx, "process device response",
+		d.logger.InfoContext(
+			ctx, "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
@@ -742,7 +747,8 @@ func (d *DEPService) processDeviceResponse(
 		case "deleted":
 			keepRecent(device, deletedDevices)
 		default:
-			d.logger.WarnContext(ctx, "unrecognized op_type",
+			d.logger.WarnContext(
+				ctx, "unrecognized op_type",
 				"op_type", device.OpType,
 				"serial_number", device.SerialNumber,
 			)
@@ -845,7 +851,8 @@ func (d *DEPService) processDeviceResponse(
 		d.logger.DebugContext(ctx, "no DEP hosts to add")
 	}
 
-	d.logger.InfoContext(ctx, "devices to assign DEP profiles",
+	d.logger.InfoContext(
+		ctx, "devices to assign DEP profiles",
 		"to_add", strings.Join(addedSerials, ", "),
 		"to_remove", strings.Join(deletedSerials, ", "),
 		"to_modify", strings.Join(modifiedSerials, ", "),
@@ -990,7 +997,8 @@ func (d *DEPService) processDeviceResponse(
 				// only log the error so the failure can be recorded
 				// below in UpdateHostDEPAssignProfileResponses and
 				// the proper cooldowns are applied
-				logger.ErrorContext(ctx, "assign profile",
+				logger.ErrorContext(
+					ctx, "assign profile",
 					"devices", len(serials),
 					"err", err,
 				)
@@ -1011,7 +1019,8 @@ func (d *DEPService) processDeviceResponse(
 			}
 			// We don't expect to see this but log here just in case
 			if err != nil && implicitlyFailedAssignments > 0 {
-				logger.ErrorContext(ctx,
+				logger.ErrorContext(
+					ctx,
 					"assign profile: no error was returned but some devices were not assigned a status in the response",
 					"devices", implicitlyFailedAssignments,
 				)
@@ -1086,7 +1095,7 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // changes, and flag the ABM token's token_invalid field whenever Apple
 // rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
-	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	httpClient := fleethttp.NewClient()
 	return godep.NewClient(storage, httpClient, godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
 		// name and NOT a raw ABM token in the context (as the presence of a raw
@@ -1754,12 +1763,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	// enqueue is a single transaction, so on enqueue failure nothing was
 	// queued and the rows are removed again; if only the notification failed
 	// the command is durably queued and the rows must stay.
-	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+	trackAndSend := func(commandType, commandUUID string, group deviceGroup, wrapMsg string, enqueue func() error) error {
 		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
 		for _, hostID := range group.hostIDs {
 			rows = append(rows, fleet.HostMDMCommand{
 				HostID:      hostID,
 				CommandType: commandType,
+				CommandUUID: commandUUID,
 			})
 		}
 		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
@@ -1768,7 +1778,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err := enqueue()
 		if err != nil {
 			if _, isNotifErr := errors.AsType[*NotificationFailedError](err); !isNotifErr {
-				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType, commandUUID); rmErr != nil {
 					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
 						"err", rmErr, "command_type", commandType)
 				}
@@ -1825,10 +1835,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, commandUUID, group,
 			"send InstalledApplicationList commands to ios and ipados devices", func() error {
-				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+				return commander.InstalledApplicationList(ctx, group.uuids, commandUUID, managedOnly)
 			})
 		if err != nil {
 			return err
@@ -1837,10 +1847,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
 	if len(certs.uuids) > 0 {
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+		commandUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, commandUUID, certs,
 			"send CertificateList commands to ios and ipados devices", func() error {
-				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+				return commander.CertificateList(ctx, certs.uuids, commandUUID)
 			})
 		if err != nil {
 			return err
@@ -1857,10 +1867,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, commandUUID, group,
 			"send DeviceInformation commands to ios and ipados devices", func() error {
-				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+				return commander.DeviceInformation(ctx, group.uuids, commandUUID, isPersonalEnrollment)
 			})
 		if err != nil {
 			return err
@@ -2041,6 +2051,8 @@ type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
+	VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -2048,6 +2060,7 @@ type RecoveryLockCommander interface {
 //
 // Note: SetRecoveryLock command results are handled in the MDM results handler
 // (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
+// sendRecoveryLockVerifyCommands covers acknowledgments that handler never matched.
 func SendRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -2087,6 +2100,10 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
 	}
 
+	if err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
 	// Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
@@ -2102,6 +2119,47 @@ func sendRecoveryLockCommandsWithCommander(
 		result = multierror.Append(result, err)
 	}
 
+	return result.ErrorOrNil()
+}
+
+// sendRecoveryLockVerifyCommands sends the verify step for hosts whose SetRecoveryLock was
+// acknowledged without the result handler sending it, which the upgrade repair in migration
+// 20261029055700 leaves behind.
+func sendRecoveryLockVerifyCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "claim hosts for recovery lock verify")
+	}
+
+	var result *multierror.Error
+	for _, c := range claims {
+		send := commander.VerifyRecoveryLock
+		if c.OperationType == fleet.MDMOperationTypeRemove {
+			send = commander.VerifyClearRecoveryLock
+		}
+		err := send(ctx, c.HostUUID, c.VerifyCommandUUID)
+		if err == nil {
+			logger.InfoContext(ctx, "sent VerifyRecoveryLock for acknowledged SetRecoveryLock",
+				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID)
+			continue
+		}
+		if notifErr, ok := errors.AsType[*NotificationFailedError](err); ok {
+			logger.WarnContext(ctx, "VerifyRecoveryLock enqueued but APNs push failed",
+				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", notifErr)
+			continue
+		}
+		logger.ErrorContext(ctx, "failed to enqueue VerifyRecoveryLock",
+			"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", err)
+		if err := ds.UnclaimHostForRecoveryLockVerify(ctx, c.HostUUID, c.VerifyCommandUUID); err != nil {
+			result = multierror.Append(result, ctxerr.Wrap(ctx, err, "unclaim host for recovery lock verify"))
+		}
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "send VerifyRecoveryLock"))
+	}
 	return result.ErrorOrNil()
 }
 
@@ -2166,7 +2224,8 @@ func sendSetRecoveryLockCommands(
 
 		err := send(ctx, hostUUIDs, cmdUUID)
 		if err == nil {
-			logger.InfoContext(ctx, "sent SetRecoveryLock commands",
+			logger.InfoContext(
+				ctx, "sent SetRecoveryLock commands",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
 			)
@@ -2177,7 +2236,8 @@ func sendSetRecoveryLockCommands(
 		// In this case, the command is already queued and will be delivered when the device
 		// checks in, so we should NOT clear the pending status (which would cause duplicates).
 		if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
-			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
+			logger.WarnContext(
+				ctx, "SetRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
 				"error", apnsErr,
@@ -2187,12 +2247,14 @@ func sendSetRecoveryLockCommands(
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again on next cron run.
 		// The password is already stored, but a new one will be generated on retry (overwrites old).
-		logger.ErrorContext(ctx, "failed to enqueue SetRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue SetRecoveryLock commands",
 			"host_count", len(hostUUIDs),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
@@ -2202,7 +2264,8 @@ func sendSetRecoveryLockCommands(
 	}
 
 	var result *multierror.Error
-	result = multierror.Append(result,
+	result = multierror.Append(
+		result,
 		enqueue(commander.SetRecoveryLock, freshSetHostUUIDs, setCmdUUID),
 		enqueue(commander.RotateRecoveryLock, rotateHostUUIDs, rotateCmdUUID),
 	)
@@ -2237,7 +2300,8 @@ func sendClearRecoveryLockCommands(
 		var apnsErr *APNSDeliveryError
 		if errors.As(err, &apnsErr) {
 			// Command was persisted but push notification failed - log warning but don't fail.
-			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+			logger.WarnContext(
+				ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hosts),
 				"command_uuid", cmdUUID,
 				"error", err,
@@ -2246,12 +2310,14 @@ func sendClearRecoveryLockCommands(
 		}
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again.
-		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue ClearRecoveryLock commands",
 			"host_count", len(hosts),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hosts),
 				"error", clearErr,
 			)
@@ -2260,7 +2326,8 @@ func sendClearRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
 	}
 
-	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+	logger.InfoContext(
+		ctx, "sent ClearRecoveryLock commands",
 		"host_count", len(hosts),
 		"command_uuid", cmdUUID,
 	)
@@ -2300,14 +2367,16 @@ func sendAutoRotationCommands(
 			if fleet.IsNotFound(err) ||
 				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
 				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
-				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+				logger.DebugContext(
+					ctx, "host lost eligibility for auto-rotation",
 					"host_uuid", host.HostUUID,
 					"error", err,
 				)
 				continue
 			}
 
-			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+			logger.ErrorContext(
+				ctx, "failed to initiate auto-rotation",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
@@ -2321,7 +2390,8 @@ func sendAutoRotationCommands(
 				// Command was persisted but push notification failed - log activity and continue.
 				// The command will be retried when the device checks in.
 				logAutoRotationActivity(ctx, logger, newActivityFn, host)
-				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+				logger.WarnContext(
+					ctx, "auto-rotation command enqueued but APNs push failed",
 					"host_uuid", host.HostUUID,
 					"command_uuid", setCmdUUID,
 					"error", apnsErr,
@@ -2330,12 +2400,14 @@ func sendAutoRotationCommands(
 			}
 
 			// Persistence failed - clear pending rotation so host can be retried
-			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+			logger.ErrorContext(
+				ctx, "failed to enqueue auto-rotation command",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
 			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
-				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+				logger.ErrorContext(
+					ctx, "failed to clear pending rotation after enqueue failure",
 					"host_uuid", host.HostUUID,
 					"error", clearErr,
 				)
@@ -2348,7 +2420,8 @@ func sendAutoRotationCommands(
 		// Log activity for auto-rotation (Fleet-initiated)
 		logAutoRotationActivity(ctx, logger, newActivityFn, host)
 
-		logger.DebugContext(ctx, "sent auto-rotation command",
+		logger.DebugContext(
+			ctx, "sent auto-rotation command",
 			"host_uuid", host.HostUUID,
 			"command_uuid", setCmdUUID,
 		)
@@ -2374,7 +2447,8 @@ func logAutoRotationActivity(
 		HostDisplayName: host.DisplayName,
 		FleetInitiated:  true,
 	}); err != nil {
-		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+		logger.WarnContext(
+			ctx, "auto-rotation: failed to create activity",
 			"host_uuid", host.HostUUID,
 			"err", err,
 		)
@@ -2817,4 +2891,140 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 	}
 
 	return computedHosts
+}
+
+var AppleMDMCertificateBindingExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 2}
+
+type AppleMDMCertificateBindingExtension struct {
+	Version int                       `json:"v"`
+	Purpose fleet.AppleMDMCertPurpose `json:"purpose"`
+	// UDID is only used for "ade" and "ota_phase*"
+	UDID *string `json:"udid,omitempty"`
+	// Serial is only used for "ade", "ota_phase*", "acme", and "acme_renewal"
+	Serial *string `json:"serial,omitempty"`
+	// IDPAccountUUID is only used for "adue"
+	IDPAccountUUID *string `json:"idp_account_uuid,omitempty"`
+	// EnrollmentID is only used for "renewal" and "acme_renewal" and is the device channel ID.
+	EnrollmentID *string `json:"enrollment_id,omitempty"`
+}
+
+func BuildAppleMDMCertificateBindingExtension(extension AppleMDMCertificateBindingExtension) (pkix.Extension, error) {
+	extension.Version = 1 // For now we force version 1
+
+	value, err := json.Marshal(extension)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	asn1Value, err := asn1.Marshal(asn1.RawValue{Class: asn1.ClassUniversal, Tag: asn1.TagUTF8String, Bytes: value})
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	return pkix.Extension{
+		Id:    AppleMDMCertificateBindingExtensionOID,
+		Value: asn1Value,
+	}, nil
+}
+
+// ParseAppleMDMCertificateBindingExtension returns the certificate's binding extension, or nil if it has none. It
+// errors on a malformed or duplicated extension, or an unsupported version.
+func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDMCertificateBindingExtension, error) {
+	var found *pkix.Extension
+	for i := range cert.Extensions {
+		if !cert.Extensions[i].Id.Equal(AppleMDMCertificateBindingExtensionOID) {
+			continue
+		}
+		if found != nil {
+			return nil, errors.New("duplicate certificate binding extension")
+		}
+		found = &cert.Extensions[i]
+	}
+	if found == nil {
+		return nil, nil
+	}
+
+	var raw string
+	rest, err := asn1.UnmarshalWithParams(found.Value, &raw, "utf8")
+	if err != nil {
+		return nil, fmt.Errorf("decoding certificate binding extension: %w", err)
+	}
+	if len(rest) > 0 {
+		return nil, errors.New("trailing data after certificate binding extension")
+	}
+	var binding AppleMDMCertificateBindingExtension
+	if err := json.Unmarshal([]byte(raw), &binding); err != nil {
+		return nil, fmt.Errorf("unmarshaling certificate binding extension: %w", err)
+	}
+	if binding.Version != 1 {
+		return nil, fmt.Errorf("unsupported certificate binding version %d", binding.Version)
+	}
+	return &binding, nil
+}
+
+// SilentMigrationRenewalProfile prepares the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE env profile for a renewal: it
+// unwraps a signed profile, since Fleet signs it at delivery, and sets the Challenge of its SCEP payload to the
+// per-host challenge placeholder. That Challenge must be $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles
+// set up before that variable existed, the static challenge. The profile is returned as an XML plist.
+func SilentMigrationRenewalProfile(profile []byte, staticChallenge string) ([]byte, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+
+	var root map[string]any
+	if err := plist.Unmarshal(profile, &root); err != nil {
+		return nil, fmt.Errorf("parsing silent migration enrollment profile: %w", err)
+	}
+	payloads, _ := root["PayloadContent"].([]any)
+	var replaced bool
+	for _, p := range payloads {
+		payload, _ := p.(map[string]any)
+		if payload["PayloadType"] != "com.apple.security.scep" {
+			continue
+		}
+		content, _ := payload["PayloadContent"].(map[string]any)
+		switch challenge, _ := content["Challenge"].(string); {
+		case challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+			challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
+			staticChallenge != "" && challenge == staticChallenge:
+			content["Challenge"] = fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+			replaced = true
+		}
+	}
+	if !replaced {
+		return nil, fmt.Errorf("silent migration enrollment profile has no SCEP payload whose Challenge is %s or the static SCEP challenge",
+			fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
+	}
+
+	out, err := plist.Marshal(root)
+	if err != nil {
+		return nil, fmt.Errorf("encoding silent migration enrollment profile: %w", err)
+	}
+	return out, nil
+}
+
+func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		Organization: []string{"Fleet"},
+		CommonName:   "Fleet Identity",
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
+}
+
+func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		CommonName:         "Fleet Identity",
+		OrganizationalUnit: []string{"fleet"},
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
 }

@@ -1,13 +1,11 @@
 import React from "react";
 
-import { IVariable } from "interfaces/variables";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import Icon from "components/Icon";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import { IVariable } from "interfaces/variables";
 
 export const getTokenFromVariableName = (variableName: string): string =>
   `$FLEET_SECRET_${variableName.toUpperCase()}`;
@@ -55,22 +53,24 @@ const generateTableHeaders = ({
       disableSortBy: false,
       sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          className="w250"
+        />
+      ),
     },
     {
-      title: "Variable name",
-      Header: "Variable name",
+      title: "Variable",
+      Header: "Variable",
       disableSortBy: true,
       accessor: "id",
-      Cell: (cellProps) => {
-        const token = getTokenFromVariableName(cellProps.row.original.name);
-        return (
-          <div className="global-variables__token">
-            <TextCell value={token} />
-            <CopyButton copyText={token} variant="subdued" size="small" />
-          </div>
-        );
-      },
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell
+          value={getTokenFromVariableName(cellProps.row.original.name)}
+          className="w400"
+        />
+      ),
     },
     {
       title: "Created",
@@ -81,12 +81,7 @@ const generateTableHeaders = ({
         <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
       ),
     },
-  ];
-
-  // Non-write roles don't get row actions. Global variables support delete
-  // only (no edit). Delete is allowed in GitOps mode, matching prior behavior.
-  if (canEdit) {
-    columns.push({
+    {
       title: "Actions",
       Header: "",
       disableSortBy: true,
@@ -95,19 +90,29 @@ const generateTableHeaders = ({
         const variable = cellProps.row.original;
         return (
           <div className="global-variables__actions">
-            <Button
+            <CopyButton
+              copyText={getTokenFromVariableName(variable.name)}
               variant="secondary"
               size="small"
-              onClick={() => onDelete(variable)}
-              ariaLabel={`Delete ${variable.name}`}
-            >
-              <Icon name="trash" size="small" />
-            </Button>
+              ariaLabel={`Copy ${variable.name}`}
+              tooltip="Copy the variable"
+            />
+            {/* Global variables support delete only (no edit); delete stays
+                enabled in GitOps mode. */}
+            {canEdit && (
+              <Button
+                variant="secondary"
+                size="small"
+                icon="trash"
+                onClick={() => onDelete(variable)}
+                ariaLabel={`Delete ${variable.name}`}
+              />
+            )}
           </div>
         );
       },
-    });
-  }
+    },
+  ];
 
   return columns;
 };

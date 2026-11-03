@@ -1,11 +1,14 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
-import { internationalTimeFormat } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import HostHeader from "./HostHeader";
+import { internationalTimeFormat } from "utilities/helpers";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { DEVICE_STATUS_TAGS } from "./helpers";
+import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
 
@@ -71,7 +74,9 @@ describe("HostHeader", () => {
 
     await user.hover(screen.getByText("Refetch"));
 
-    expect(await screen.findByText(/there's no manual/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/refetch is disabled because/i)
+    ).toBeInTheDocument();
   });
 
   it("disables refetch button when host is offline", () => {
@@ -232,6 +237,22 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
+  });
+
+  it("renders no badge for a pending Android BYOD unenroll", () => {
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"unenrolling" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus="On (personal)"
+      />
+    );
+    Object.values(DEVICE_STATUS_TAGS).forEach(({ title }) => {
+      expect(screen.queryByText(title)).not.toBeInTheDocument();
+    });
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {

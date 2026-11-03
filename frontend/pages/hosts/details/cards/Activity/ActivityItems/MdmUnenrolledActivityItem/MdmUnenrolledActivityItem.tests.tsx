@@ -1,7 +1,7 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { createMockHostPastActivity } from "__mocks__/activityMock";
+import React from "react";
 
+import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";
 import { Platform } from "interfaces/platform";
 

@@ -74,7 +74,8 @@ jobs:
         if [[ "${{ inputs.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
-          echo "DOCKER_COMMAND=${{ env.DOCKER_COMMAND }} localstack" >> $GITHUB_ENV
+          echo "DOCKER_COMMAND=${{ env.DOCKER_COMMAND }} localstack azurite" >> $GITHUB_ENV
+          echo "AZURE_STORAGE_TEST=1" >> $GITHUB_ENV
         elif [[ "${{ inputs.suite }}" == "fast" ]]; then
           # DO NOT add any dependencies in this test suite.
           echo "CI_TEST_PKG=${{ inputs.suite }}" >> $GITHUB_ENV
@@ -254,6 +255,14 @@ jobs:
         echo "Waiting for LocalStack..."
         timeout 60 bash -c 'until curl -sf http://localhost:4566/_localstack/health; do sleep 2; done'
         echo "LocalStack is ready"
+
+    - name: Wait for Azurite
+      if: ${{ env.NEED_DOCKER && contains(env.DOCKER_COMMAND, 'azurite') }}
+      run: |
+        echo "Waiting for Azurite..."
+        # Azurite has no health endpoint; omitting -f means any HTTP response (even 400) counts as "up".
+        timeout 60 bash -c 'until curl -s -o /dev/null http://127.0.0.1:10000/devstoreaccount1; do sleep 2; done'
+        echo "Azurite is ready"
         
     - name: Generate test schema
       if: ${{ env.GENERATE_TEST_SCHEMA }}
@@ -308,11 +317,13 @@ jobs:
       if: failure()
       run: |
         c1grep() { grep "$@" || test $? = 1; }
-        c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
-        c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
+        # gotestsum forces ANSI colors on in GitHub Actions, which splits "FAIL:" into "FAIL\e[0m:".
+        sed 's/\x1b\[[0-9;]*m//g' /tmp/gotest.log > /tmp/gotest-nocolor.log
+        c1grep -oP 'FAIL: .*$' /tmp/gotest-nocolor.log > /tmp/summary.txt
+        c1grep 'test timed out after' /tmp/gotest-nocolor.log >> /tmp/summary.txt
+        c1grep 'fatal error:' /tmp/gotest-nocolor.log >> /tmp/summary.txt
+        c1grep -A 10 'panic: runtime error: ' /tmp/gotest-nocolor.log >> /tmp/summary.txt
+        c1grep $' FAIL\t' /tmp/gotest-nocolor.log >> /tmp/summary.txt
         GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
         echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
         if [[ -z "$GO_FAIL_SUMMARY" ]]; then

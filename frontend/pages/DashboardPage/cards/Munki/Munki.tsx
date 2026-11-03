@@ -1,21 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import {
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-
-import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 import generateMunkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
+import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 
 interface IMunkiCardProps {
   errorMacAdmins: Error | null;

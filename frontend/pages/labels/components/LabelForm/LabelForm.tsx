@@ -1,11 +1,12 @@
 import React, { ReactNode, useState } from "react";
 
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TeamNameField from "../TeamNameField/TeamNameField";
+
 import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
 export interface ILabelFormData {

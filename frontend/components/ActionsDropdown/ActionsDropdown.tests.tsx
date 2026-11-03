@@ -1,8 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import TableLayoutContext from "components/TableContainer/TableLayoutContext";
+import { renderWithSetup } from "test/test-utils";
+
 import ActionsDropdown from "./ActionsDropdown";
 
 const DROPDOWN_OPTIONS = [

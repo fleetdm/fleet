@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -68,7 +70,7 @@ func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, apnsPushExpiratio
 		// keep the fleethttp client: it preserves proxy support and sane
 		// timeouts that nanopush's default bare transport does not have
 		nanopush.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-			return fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 				Certificates: []tls.Certificate{*cert},
 				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 			})), nil
@@ -108,6 +110,32 @@ func checkMDMAssetsExist(ctx context.Context, ds fleet.Datastore, names []fleet.
 		return false, err
 	}
 	return true, nil
+}
+
+// checkSilentMigrationEnrollmentProfile logs an error when FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is set but the
+// renewal cron can't place a per-host SCEP challenge in it, so the misconfiguration shows up before renewals are due.
+func checkSilentMigrationEnrollmentProfile(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	encoded := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	if encoded == "" {
+		return
+	}
+	profile, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		logger.ErrorContext(ctx, "decoding FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", "err", err)
+		return
+	}
+	var staticChallenge string
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil) // nolint:nilaway // serve exits before this when initRedis returns a nil ds
+	switch {
+	case err == nil:
+		staticChallenge = string(assets[fleet.MDMAssetSCEPChallenge].Value)
+	case !fleet.IsNotFound(err):
+		logger.ErrorContext(ctx, "loading SCEP challenge to check FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", "err", err)
+		return
+	}
+	if _, err := apple_mdm.SilentMigrationRenewalProfile(profile, staticChallenge); err != nil {
+		logger.ErrorContext(ctx, "FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE can't be used for SCEP renewals", "err", err)
+	}
 }
 
 // reconcileAppleMDMAPNsAndSCEPAssets reconciles APNs and SCEP cert/key

@@ -54,6 +54,8 @@ export const generateWinDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -78,6 +80,8 @@ export const generateLinuxDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -96,6 +100,8 @@ export const generateRecoveryLockPasswordSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -119,6 +125,8 @@ const generateHostNameSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
 
@@ -155,7 +163,8 @@ export type HostMdmDeviceStatusUIState =
   | "wiped"
   | "wiping"
   | "clearing_passcode"
-  | "locating";
+  | "locating"
+  | "unenrolling";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -174,6 +183,8 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
    * device_status is "unlocked" and pending_action is "location" is still "locking"
    */
   location: "locating",
+  /** Android BYOD only: the work-profile wipe behind Unenroll is pending. */
+  unenroll: "unenrolling",
 };
 
 const deviceUpdatingStates = [
@@ -181,6 +192,7 @@ const deviceUpdatingStates = [
   "locking",
   "wiping",
   "clearing_passcode",
+  "unenrolling",
 ] as const;
 
 /**

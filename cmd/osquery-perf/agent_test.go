@@ -7,7 +7,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"math/big"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,4 +228,114 @@ func TestDelayCancelableMDMAck(t *testing.T) {
 
 	// cancelable commands wait out the delay
 	assert.GreaterOrEqual(t, elapsed(20*time.Millisecond, mkCmd("DeviceLock")), 20*time.Millisecond)
+}
+
+func TestHomebrewExecutableHashes(t *testing.T) {
+	software := []map[string]string{
+		// A cask reports no keg path, and an app is not a Homebrew package at all.
+		{"name": "figma", "version": "1.2.3", "source": "homebrew_packages"},
+		{"name": "Slack", "version": "4.0", "source": "apps", "installed_path": "/Applications/Slack.app"},
+	}
+	for i := range 200 {
+		name := fmt.Sprintf("formula-%d", i)
+		software = append(software, map[string]string{
+			"name": name, "version": "1.0", "source": "homebrew_packages",
+			"installed_path": "/opt/homebrew/Cellar/" + name,
+		})
+	}
+
+	newAgentWithPercents := func(keg, large int) *agent {
+		return &agent{softwareCount: softwareEntityCount{
+			homebrewKegPercent:      keg,
+			homebrewLargeKegPercent: large,
+		}}
+	}
+
+	kegCounts := func(results []map[string]string) map[string]int {
+		byKeg := make(map[string]int)
+		for _, r := range results {
+			byKeg[r["keg_path"]]++
+		}
+		return byKeg
+	}
+
+	t.Run("one row per executable, only for formulae with a keg", func(t *testing.T) {
+		a := newAgentWithPercents(100, 0)
+		results := a.homebrewExecutableHashes(software)
+
+		hashes := make(map[string]string)
+		for _, r := range results {
+			require.Equal(t, "1.0", r["version"])
+			require.Equal(t, "hashed", r["hash_state"])
+			require.True(t, strings.HasPrefix(r["executable_path"], r["keg_path"]+"/"))
+			hashes[r["executable_path"]] = r["executable_sha256"]
+		}
+		require.Len(t, hashes, len(results))
+		require.Len(t, kegCounts(results), 200)
+
+		// A keg reports the same set on every run, like a real host does.
+		require.Equal(t, results, a.homebrewExecutableHashes(software))
+	})
+
+	t.Run("keg percent selects how many packages report hashes", func(t *testing.T) {
+		require.Empty(t, newAgentWithPercents(0, 0).homebrewExecutableHashes(software))
+
+		half := kegCounts(newAgentWithPercents(50, 0).homebrewExecutableHashes(software))
+		require.InDelta(t, 100, len(half), 20)
+	})
+
+	t.Run("large keg percent selects how many kegs install hundreds", func(t *testing.T) {
+		for kegPath, count := range kegCounts(newAgentWithPercents(100, 0).homebrewExecutableHashes(software)) {
+			require.LessOrEqual(t, count, 3, kegPath)
+		}
+
+		large := kegCounts(newAgentWithPercents(100, 100).homebrewExecutableHashes(software))
+		require.Len(t, large, 200)
+		for kegPath, count := range large {
+			require.GreaterOrEqual(t, count, minLargeKegExecutables, kegPath)
+			require.Less(t, count, maxLargeKegExecutables, kegPath)
+		}
+	})
+}
+
+func TestSoftwareAITools(t *testing.T) {
+	newAgent := func(os string, c softwareAIToolsCount) *agent {
+		return &agent{os: os, softwareAIToolsCount: c, strings: map[string]string{}, softwareVersionMap: map[rune]int{}}
+	}
+
+	require.Nil(t, newAgent("darwin", softwareAIToolsCount{}).softwareAITools())
+
+	rows := newAgent("darwin", softwareAIToolsCount{common: 2, unique: 1, markedApps: 2}).softwareAITools()
+	bySource := make(map[string][]map[string]string)
+	for _, r := range rows {
+		// The rows have the shape of the software_ai_tools detail query.
+		require.ElementsMatch(t, []string{
+			"name", "version", "bundle_identifier", "extension_id", "extension_for", "source", "vendor",
+			"last_opened_at", "installed_path", "ai_type", "ai_install_method",
+		}, slices.Collect(maps.Keys(r)))
+		bySource[r["source"]] = append(bySource[r["source"]], r)
+	}
+	// 2 common servers, one also declared in a second client, and 1 unique.
+	require.Len(t, bySource["mcp_servers"], 4)
+	// 2 common CLIs and Claude Code.
+	require.Len(t, bySource["ai_clis"], 3)
+	require.Len(t, bySource["ai_skills"], 3)
+	for _, r := range bySource["ai_skills"] {
+		require.Equal(t, "CLAUDE.md", r["name"])
+	}
+
+	// Marker rows point at template apps the host reports.
+	require.Len(t, bySource["ai_tools"], 2)
+	templatePaths := make(map[string]struct{})
+	for _, app := range macOSSoftware {
+		templatePaths[app["installed_path"]] = struct{}{}
+	}
+	for _, r := range bySource["ai_tools"] {
+		require.Contains(t, templatePaths, r["installed_path"])
+	}
+
+	// Only Macs report template apps.
+	for _, r := range newAgent("windows", softwareAIToolsCount{markedApps: 2}).softwareAITools() {
+		require.NotEqual(t, "ai_tools", r["source"])
+	}
 }

@@ -47,9 +47,8 @@ You can deploy Fleet anywhere, (even your [homelab](https://fleetdm.com/guides/d
     </div>
 </div>
 
-Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
+Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
 
-Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 
 

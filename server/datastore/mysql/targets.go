@@ -10,6 +10,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// mobilePlatformsSQLList lists the platforms that don't run osquery and so
+// can't be targeted by live reports.
+const mobilePlatformsSQLList = "('ios','ipados','android')"
+
 func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
@@ -22,7 +26,9 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "h")
 
-	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts
+	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
+	// Mobile hosts are excluded because they don't run osquery and can't respond
+	// to a live report; kept in lockstep with HostIDsInTargets.
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
@@ -32,12 +38,12 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 			COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`+hostMDMSeenTimeJoin+`
-		WHERE %s AND %s`,
+		WHERE h.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s`,
 		fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query, args, err := sqlx.In(sql, append([]interface{}{now, now, now, now}, queryTargetArgs...)...)
+	query, args, err := sqlx.In(sql, append([]any{now, now, now, now}, queryTargetArgs...)...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
@@ -132,10 +138,12 @@ func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilt
 
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "hosts")
 
+	// Mobile hosts don't run osquery, so a mobile-only target must hit the
+	// "no hosts targeted" gate in NewDistributedQueryCampaign.
 	sql := fmt.Sprintf(`
 			SELECT DISTINCT id
 			FROM hosts
-			WHERE %s AND %s
+			WHERE hosts.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s
 			ORDER BY id ASC
 		`,
 		queryTargetLogicCondition,

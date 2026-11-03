@@ -21,7 +21,8 @@
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
-      "ai_features_disabled": false
+      "ai_features_disabled": false,
+      "mcp_disabled": false
     },
     "smtp_settings": {
       "enable_smtp": false,
@@ -112,6 +113,7 @@
       "enable_turn_on_windows_mdm_manually": false,
       "apple_require_hardware_attestation": false,
       "only_allow_apple_business_enrollment": false,
+      "enable_profile_validation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -134,6 +136,8 @@
         "enable_release_device_manually": false,
         "end_user_local_account_type": "admin",
         "lock_end_user_info": false,
+        "macos_enable_bootstrap_package_during_manual_enrollment": false,
+        "macos_enable_bootstrap_package_during_migration": false,
         "macos_setup_assistant": null,
         "manual_agent_install": null,
         "require_all_software_macos": false,
@@ -149,6 +153,8 @@
         "end_user_local_account_type": "admin",
         "lock_end_user_info": false,
         "macos_bootstrap_package": null,
+        "macos_enable_bootstrap_package_during_manual_enrollment": false,
+        "macos_enable_bootstrap_package_during_migration": false,
         "macos_manual_agent_install": null,
         "macos_script": null,
         "require_all_software_macos": false,
@@ -229,6 +235,9 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
+      "certificates_idp_introspection_urls": null,
+      "certificates_idp_client_ids": null,
+      "certificates_disable_host_end_user_binding": null,
       "conditional_access_enabled": null
     },
     "update_interval": {
@@ -295,6 +304,7 @@
       }
     },
     "max_software_package_size": 537919488,
+    "staged_upload_available": false,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

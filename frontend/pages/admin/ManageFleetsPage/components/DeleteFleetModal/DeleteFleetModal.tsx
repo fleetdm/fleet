@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "delete-fleet-modal";
 
@@ -22,7 +22,7 @@ const DeleteFleetModal = ({
     <Modal
       title="Delete fleet"
       onExit={onCancel}
-      onEnter={onSubmit}
+      onEnter={isUpdatingFleets ? undefined : onSubmit}
       className={baseClass}
     >
       <p>
@@ -40,6 +40,7 @@ const DeleteFleetModal = ({
           variant="alert"
           className="delete-loading"
           isLoading={isUpdatingFleets}
+          disabled={isUpdatingFleets}
         >
           Delete
         </Button>

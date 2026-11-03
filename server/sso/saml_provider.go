@@ -124,6 +124,6 @@ func SAMLProviderFromSessionOrConfiguredMetadata(
 		ValidateAudienceRestriction: func(assertion *saml.Assertion) error {
 			return validateAudiences(assertion, expectedAudiences)
 		},
-		AllowIDPInitiated: settings.EnableSSOIdPLogin,
+		AllowIDPInitiated: settings.EnableSSOIdPLogin && idpInitiated,
 	}, requestID, redirectURL, nil
 }

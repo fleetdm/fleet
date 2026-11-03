@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
 import { createMockLabel } from "__mocks__/labelsMock";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { renderWithSetup } from "test/test-utils";
 
 import LabelFilterSelect from "./LabelFilterSelect";
 

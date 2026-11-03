@@ -50,6 +50,13 @@ func (s *Script) ValidateNewScript() error {
 		return errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 	}
 
+	// PowerShell scripts don't support any shebang, so catch this before
+	// ValidateHostScriptContents / shebangInfo error on an unrecognized
+	// interpreter like pwsh.
+	if ext == ".ps1" && strings.HasPrefix(s.ScriptContents, "#!") {
+		return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
+	}
+
 	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
@@ -69,11 +76,6 @@ func (s *Script) ValidateNewScript() error {
 		// python scripts must be directly executable (via a python shebang).
 		if !directExecute || kind != shebangPython {
 			return errors.New(`Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`)
-		}
-	case ".ps1":
-		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
-		if directExecute {
-			return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
 		}
 	}
 
@@ -259,6 +261,8 @@ type HostScriptResult struct {
 	ExecutionID string `json:"execution_id" db:"execution_id"`
 	// BatchExecutionID is an identifier that links this execution to a larger batch job
 	BatchExecutionID *string `json:"batch_execution_id" db:"batch_execution_id"`
+	// ScriptContentID is the identifier of the script contents to execute.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 	// ScriptContents is the content of the script to execute.
 	ScriptContents string `json:"script_contents" db:"script_contents"`
 	// Output is the combined stdout/stderr output of the script. It is empty
@@ -292,6 +296,10 @@ type HostScriptResult struct {
 	// the request was synchronous or asynchronous. It is otherwise not returned
 	// as part of any API endpoint.
 	SyncRequest bool `json:"-" db:"sync_request"`
+
+	// IsInternal is true for scripts Fleet queued for itself rather than for a
+	// user-requested run. Not returned as part of any API endpoint.
+	IsInternal bool `json:"-" db:"is_internal"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
@@ -771,7 +779,10 @@ const (
 	PendingActionWipe          PendingDeviceAction = "wipe"
 	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
 	PendingActionLocation      PendingDeviceAction = "location"
-	PendingActionNone          PendingDeviceAction = ""
+	// PendingActionUnenroll is never derived from HostLockWipeStatus. It replaces "wipe" for Android BYOD hosts, where the
+	// pending WIPE only removes the work profile (see suppressAndroidBYODWipeStatus).
+	PendingActionUnenroll PendingDeviceAction = "unenroll"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {

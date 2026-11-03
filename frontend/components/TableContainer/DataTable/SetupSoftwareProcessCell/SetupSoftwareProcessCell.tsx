@@ -1,5 +1,6 @@
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import React from "react";
+
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 const baseClass = "setup-software-process-cell";
 

@@ -16,16 +16,30 @@ fi
 /usr/sbin/chown root:wheel "$PLIST_PATH"
 /bin/chmod 644 "$PLIST_PATH"
 
-echo "Loading LaunchAgent: $PLIST_PATH"
+# Find the logged-in user. If no one is logged in, launchd loads the LaunchAgent at the next login.
+CONSOLE_USER=$(/usr/bin/stat -f '%Su' /dev/console)
+case "$CONSOLE_USER" in
+    ""|root|loginwindow|_mbsetupuser)
+        echo "No user logged in. LaunchAgent will load at the next login."
+        exit 0
+        ;;
+esac
 
-# Check if already loaded and unload first if necessary
-if /bin/launchctl list | /usr/bin/grep -q "$LABEL"; then
+if ! USER_UID=$(/usr/bin/id -u "$CONSOLE_USER"); then
+    echo "Failed to get UID for $CONSOLE_USER"
+    exit 1
+fi
+
+echo "Loading LaunchAgent for $CONSOLE_USER: $PLIST_PATH"
+
+# Unload first if already loaded
+if /bin/launchctl print "gui/$USER_UID/$LABEL" &>/dev/null; then
     echo "LaunchAgent already loaded, unloading first..."
-    /bin/launchctl unload "$PLIST_PATH" 2>/dev/null
+    /bin/launchctl bootout "gui/$USER_UID/$LABEL" 2>/dev/null
 fi
 
 # Load the LaunchAgent
-if /bin/launchctl load "$PLIST_PATH"; then
+if /bin/launchctl bootstrap "gui/$USER_UID" "$PLIST_PATH"; then
     echo "Successfully loaded LaunchAgent"
 else
     echo "Failed to load LaunchAgent"
@@ -33,7 +47,7 @@ else
 fi
 
 # Verify it's loaded
-if /bin/launchctl list | /usr/bin/grep -q "$LABEL"; then
+if /bin/launchctl print "gui/$USER_UID/$LABEL" &>/dev/null; then
     echo "LaunchAgent is now active"
 else
     echo "Warning: LaunchAgent may not be properly loaded"

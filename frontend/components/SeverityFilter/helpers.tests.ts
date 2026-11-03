@@ -1,5 +1,7 @@
 import {
   ANY_SEVERITY_VALUE,
+  parseSeverityScore,
+  SEVERITY_DROPDOWN_OPTIONS,
   SEVERITY_RANGE_INVALID_MSG,
   SEVERITY_SCORE_RANGE_ERROR,
   severityFilters,
@@ -8,6 +10,14 @@ import {
   SeverityValue,
   validateSeverityScores,
 } from "./helpers";
+
+describe("SEVERITY_DROPDOWN_OPTIONS", () => {
+  it("never lists Custom severity as a selectable option", () => {
+    expect(
+      SEVERITY_DROPDOWN_OPTIONS.some((option) => option.value === "custom")
+    ).toBe(false);
+  });
+});
 
 describe("severityForRange", () => {
   it("treats an unset range as Any severity", () => {
@@ -28,6 +38,21 @@ describe("severityForRange", () => {
     expect(severityForRange(undefined, 0)).toBe("custom");
     expect(severityForRange(0, 6.5)).toBe("custom");
     expect(severityForRange(2.5, 6)).toBe("custom");
+  });
+});
+
+describe("parseSeverityScore", () => {
+  it("reads a number", () => {
+    expect(parseSeverityScore("7")).toBe(7);
+    expect(parseSeverityScore("0")).toBe(0);
+    expect(parseSeverityScore("8.9")).toBe(8.9);
+  });
+
+  it("reads empty, whitespace-only, and non-numeric text as unset", () => {
+    expect(parseSeverityScore("")).toBeUndefined();
+    expect(parseSeverityScore("   ")).toBeUndefined();
+    expect(parseSeverityScore("abc")).toBeUndefined();
+    expect(parseSeverityScore("Infinity")).toBeUndefined();
   });
 });
 
@@ -58,6 +83,13 @@ describe("severityFilters", () => {
     });
     expect(severityFilters({ minScore: "", maxScore: "10" })).toStrictEqual({
       max: 10,
+    });
+  });
+
+  it("ignores whitespace-only and non-numeric bounds, leaving that end open", () => {
+    expect(severityFilters({ minScore: "  ", maxScore: "" })).toStrictEqual({});
+    expect(severityFilters({ minScore: "abc", maxScore: "6" })).toStrictEqual({
+      max: 6,
     });
   });
 

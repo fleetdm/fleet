@@ -1,9 +1,10 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
 import { userTeamStub } from "test/stubs";
+import { renderWithSetup } from "test/test-utils";
+
 import SelectedTeamsForm from "./SelectedTeamsForm";
 
 describe("SelectedTeamsForm - component", () => {

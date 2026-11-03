@@ -30,7 +30,7 @@ jobs:
       - name: Update Osquery versions in UI
         run: python .github/scripts/update_osquery_versions.py
       - name: PR changes
-        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5.0.3
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           commit-message: Update MIN_OSQUERY_VERSION_OPTIONS
           title: "Fleet UI: Update osquery version options"

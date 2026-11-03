@@ -26,7 +26,7 @@
 	<array>
 		<dict>
 			<key>PayloadDisplayName</key>
-			<string>6.1.3 - Ensure Guest Account Is Disabled</string>
+			<string>2.4.2 - Ensure Internet Sharing Is Disabled</string>
 			<key>PayloadIdentifier</key>
 			<string>CIS.macOS.internetsharing</string>
 			<key>PayloadType</key>

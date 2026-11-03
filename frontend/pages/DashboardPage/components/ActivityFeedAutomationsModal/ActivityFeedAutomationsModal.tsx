@@ -1,17 +1,15 @@
 import React, { useState } from "react";
 
-import { IWebhookActivities } from "interfaces/webhook";
-
-import Modal from "components/Modal";
-import validURL from "components/forms/validators/valid_url";
-import Slider from "components/forms/fields/Slider";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { syntaxHighlight } from "utilities/helpers";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import { isValidURL } from "components/forms/validators";
+import Modal from "components/Modal";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IWebhookActivities } from "interfaces/webhook";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "activity-feed-automations-modal";
 
@@ -52,7 +50,7 @@ const ActivityFeedAutomationsModal = ({
     const { url: newUrl } = newFormData;
     if (
       formData.enabled &&
-      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
+      !isValidURL({ url: newUrl || "", protocols: ["http", "https"] })
     ) {
       const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
       errors.url = `${errorPrefix} a valid destination URL`;

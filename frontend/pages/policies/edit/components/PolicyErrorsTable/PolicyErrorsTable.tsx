@@ -1,9 +1,10 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
-import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
 import { ICampaignError } from "interfaces/campaign";
+
 import {
   generateTableHeaders,
   generateDataSet,

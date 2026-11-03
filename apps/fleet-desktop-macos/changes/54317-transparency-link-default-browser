@@ -1,0 +1,1 @@
+- Fixed "Read about transparency" and "About Fleet" links opening inside Fleet Desktop with no way to navigate back. They now open in the default web browser.

@@ -3,6 +3,7 @@
   "slug": "sqlectron/windows",
   "package_identifier": "sqlectron.sqlectron-gui",
   "unique_identifier": "sqlectron",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

@@ -9,31 +9,30 @@
  * Keeping these components and its tests separate improves maintainability and clarity
  */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
 import {
   IHostSoftware,
   ISoftwareScriptResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   SCRIPT_DETAILS_STATUS_ICONS,
@@ -74,10 +73,15 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
     updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -97,7 +101,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getScriptDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getScriptDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 

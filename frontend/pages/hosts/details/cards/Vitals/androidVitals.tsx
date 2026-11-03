@@ -1,5 +1,9 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHost,
   IHostMdmAndroidTelephonyInfo,
@@ -11,11 +15,6 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import { readableDate } from "utilities/helpers";
-
-import CustomLink from "components/CustomLink";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import type { VitalForSort } from "./Vitals";
 
@@ -65,6 +64,13 @@ const displayBoolean = (value?: boolean | null) => {
     return DEFAULT_EMPTY_CELL_VALUE;
   }
   return value ? "True" : "False";
+};
+
+const displayEnabledDisabled = (value?: boolean | null) => {
+  if (value === undefined || value === null) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+  return value ? "Enabled" : "Disabled";
 };
 
 const displayText = (value?: string | null) =>
@@ -238,9 +244,9 @@ const buildAndroidHostVitals = (
       value: displayEnum(encryptionType, ENCRYPTION_STATUS_LABELS),
     },
     {
-      sortKey: "Play Protect enabled",
-      title: "Play Protect enabled",
-      value: displayBoolean(playProtectEnabled),
+      sortKey: "Play Protect",
+      title: "Play Protect",
+      value: displayEnabledDisabled(playProtectEnabled),
     },
     {
       sortKey: "Kernel version",
@@ -281,9 +287,9 @@ const buildAndroidHostVitals = (
       value: displayEnum(systemUpdateStatus, SYSTEM_UPDATE_STATUS_LABELS),
     },
     {
-      sortKey: "USB debugging enabled",
-      title: "USB debugging enabled",
-      value: displayBoolean(adbEnabled),
+      sortKey: "USB debugging",
+      title: "USB debugging",
+      value: displayEnabledDisabled(adbEnabled),
     },
   ];
 

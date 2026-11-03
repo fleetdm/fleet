@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.2.2412.0",
+      "version": "12.3.5011.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'DisplayLink Graphics' AND publisher = 'DisplayLink Corp.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DisplayLink Graphics' AND publisher = 'DisplayLink Corp.' AND version_compare(version, '12.2.2412.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DisplayLink Graphics' AND publisher = 'DisplayLink Corp.' AND version_compare(version, '12.3.5011.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'displaylink usb graphics software.exe');"
       },
-      "installer_url": "https://www.synaptics.com/sites/default/files/msi_files/2026-07/DisplayLink%20USB%20Graphics%20Software%20for%20Windows12.2%20M2-MSI.zip",
+      "installer_url": "https://www.synaptics.com/sites/default/files/msi_files/2026-09/DisplayLink%20USB%20Graphics%20Software%20for%20Windows12.3-MSI.zip",
       "install_script_ref": "89ce2e8f",
       "uninstall_script_ref": "44957a48",
-      "sha256": "4628de09eb122ee8170db79dc0c7d03036f9ac77733c5ad2798faf5fea6c0a76",
+      "sha256": "0e23c088130643e21c040cbcd71246b1cbc040d8b9a729b4a689160ae152eba7",
       "default_categories": [
         "Productivity"
       ]

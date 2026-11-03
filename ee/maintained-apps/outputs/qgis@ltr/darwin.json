@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "3.44.15",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(bundle_short_version, '3.44.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');"
+      },
+      "installer_url": "https://download.qgis.org/downloads/macos/ltr/qgis_ltr_final-3_44_15.dmg",
+      "install_script_ref": "739271d0",
+      "uninstall_script_ref": "e0ff26e6",
+      "sha256": "302547ebee16d4d38ddfd509469cc86e337b23c545307cdbe13c2c2d233ab7cb",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "739271d0": "#!/bin/bash\n\n# QGIS LTR is closed if it's running, and unsaved project changes are lost. It\n# installs as QGIS-LTR.app so it can sit alongside QGIS, which is left alone.\n\nAPPDIR=\"/Applications\"\nTMPDIR=$(dirname \"$(realpath \"$INSTALLER_PATH\")\")\nAPP_PATH=\"$APPDIR/QGIS-LTR.app\"\n\n# QGIS and QGIS LTR share a bundle identifier, so match processes by path.\nquit_app_at_path() {\n  local app_path=\"$1\"\n  local pattern=\"^${app_path}/Contents/MacOS/\"\n  pgrep -f \"$pattern\" >/dev/null || return 0\n  echo \"Closing $app_path...\"\n  pkill -TERM -f \"$pattern\"\n  for _ in {1..10}; do\n    pgrep -f \"$pattern\" >/dev/null || return 0\n    sleep 1\n  done\n  echo \"$app_path did not close; forcing it to quit.\"\n  pkill -KILL -f \"$pattern\"\n}\n\nMOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\nyes | hdiutil attach -plist -nobrowse -readonly -mountpoint \"$MOUNT_POINT\" \"$INSTALLER_PATH\" >/dev/null || exit 1\ntrap 'hdiutil detach \"$MOUNT_POINT\" >/dev/null 2>&1 || true' EXIT\n\nif [[ ! -d \"$MOUNT_POINT/QGIS.app\" ]]; then\n  echo \"No QGIS.app found in the disk image.\"\n  exit 1\nfi\n\nquit_app_at_path \"$APP_PATH\"\n\nsudo rm -rf \"$TMPDIR/QGIS-LTR.app.bkp\"\nif [[ -d \"$APP_PATH\" ]]; then\n  sudo mv \"$APP_PATH\" \"$TMPDIR/QGIS-LTR.app.bkp\" || exit $?\nfi\nif ! sudo cp -R \"$MOUNT_POINT/QGIS.app\" \"$APP_PATH\"; then\n  # remove the partial copy so a failed install isn't inventoried as the new\n  # version, then restore the previous version if there was one\n  sudo rm -rf \"$APP_PATH\"\n  if [[ -d \"$TMPDIR/QGIS-LTR.app.bkp\" ]]; then\n    sudo mv \"$TMPDIR/QGIS-LTR.app.bkp\" \"$APP_PATH\"\n  fi\n  exit 1\nfi\nsudo rm -rf \"$TMPDIR/QGIS-LTR.app.bkp\"\n\necho \"Installed $APP_PATH\"\n",
+    "e0ff26e6": "#!/bin/bash\n\n# Removes QGIS-LTR.app and closes it if it's running. QGIS and per-user QGIS\n# data (profiles, plugins, caches), which QGIS also uses, are left in place.\n\nAPP_PATH=\"/Applications/QGIS-LTR.app\"\n\n# QGIS and QGIS LTR share a bundle identifier, so match processes by path.\nquit_app_at_path() {\n  local app_path=\"$1\"\n  local pattern=\"^${app_path}/Contents/MacOS/\"\n  pgrep -f \"$pattern\" >/dev/null || return 0\n  echo \"Closing $app_path...\"\n  pkill -TERM -f \"$pattern\"\n  for _ in {1..10}; do\n    pgrep -f \"$pattern\" >/dev/null || return 0\n    sleep 1\n  done\n  echo \"$app_path did not close; forcing it to quit.\"\n  pkill -KILL -f \"$pattern\"\n}\n\nquit_app_at_path \"$APP_PATH\"\nsudo rm -rf \"$APP_PATH\"\n"
+  }
+}
