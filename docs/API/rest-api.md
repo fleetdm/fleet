@@ -16728,6 +16728,11 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [List vulnerability dismissals](#list-vulnerability-dismissals)
+- [Create vulnerability dismissals](#create-vulnerability-dismissals)
+- [Update vulnerability dismissal](#update-vulnerability-dismissal)
+- [Delete vulnerability dismissal](#delete-vulnerability-dismissal)
+- [Delete vulnerability dismissals](#delete-vulnerability-dismissals)
 
 ### List vulnerabilities
 
@@ -16746,6 +16751,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+| status | string | query | _Available in Fleet Premium_. Filters by [dismissal](#create-vulnerability-dismissals). Options are `"active"`, `"dismissed"`, and `"all"`. Default is `"all"`. With `fleet_id`, a vulnerability is dismissed if it's dismissed for that fleet or for all fleets. Without `fleet_id`, `"active"` includes vulnerabilities still active in any fleet, and `"dismissed"` includes only vulnerabilities dismissed for all fleets. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
@@ -16766,11 +16772,61 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "dismissal": null // Available in Fleet Premium
     }
   ],
   "count": 123,
   "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+`dismissal` is `null` unless the vulnerability is dismissed. Its fields match the response of [Create vulnerability dismissals](#create-vulnerability-dismissals).
+
+#### Example (dismissed vulnerabilities)
+
+`GET /api/v1/fleet/vulnerabilities?fleet_id=12&status=dismissed`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-40898",
+      "created_at": "2026-10-31T09:12:00Z",
+      "hosts_count": 35,
+      "hosts_count_updated_at": "2026-11-02T15:23:57Z",
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-40898",
+      "cvss_score": 7.5,
+      "epss_probability": 0.005,
+      "cisa_known_exploit": false,
+      "cve_published": "2022-12-23T00:15:00Z",
+      "cve_description": "Wheel 0.37.1 and earlier allows remote attackers to cause a denial of service via attacker-controlled input to the wheel CLI.",
+      "dismissal": {
+        "id": 81,
+        "cve": "CVE-2022-40898",
+        "fleet_id": 12,
+        "reason": "false_positive",
+        "comment": "Scanner matched the wrong package.",
+        "expires_at": null,
+        "source": "ui",
+        "author_id": 4,
+        "author_name": "Alex Rivera",
+        "author_email": "arivera@example.com",
+        "created_at": "2026-11-01T15:04:05Z",
+        "updated_at": "2026-11-01T15:04:05Z"
+      }
+    }
+  ],
+  "count": 1,
+  "counts_updated_at": "2026-11-02T15:23:57Z",
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
@@ -16814,7 +16870,8 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "epss_probability": 0.9729,// Available in Fleet Premium
     "cisa_known_exploit": false,// Available in Fleet Premium
     "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability."// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "dismissal": null// Available in Fleet Premium
   },
   "os_versions": [
     {
@@ -16847,6 +16904,266 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 Each entry in `software` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD. For Go standard library vulnerabilities, `resolved_in_version` is empty because the fix is a rebuild with a newer Go toolchain.
+
+Dismissed vulnerabilities are still returned. With `fleet_id`, `dismissal` is the [dismissal](#create-vulnerability-dismissals) that applies to that fleet, either the fleet's own or one for all fleets. Without `fleet_id`, it's the dismissal for all fleets. It's `null` if the vulnerability isn't dismissed.
+
+### List vulnerability dismissals
+
+_Available in Fleet Premium._
+
+Lists vulnerability dismissals, including dismissals for CVEs that Fleet doesn't currently detect on any host.
+
+`GET /api/v1/fleet/vulnerability_dismissals`
+
+#### Parameters
+
+| Name            | Type    | In    | Description |
+| --------------- | ------- | ----- | ----------- |
+| fleet_id        | integer | query | Filters to dismissals for the specified fleet. Use `0` for "Unassigned" hosts. If not specified, lists dismissals for all fleets. |
+| reason          | string  | query | Filters by reason. Options are `"false_positive"`, `"accepted_risk"`, `"compensating_control"`, `"no_patch_available"`, and `"not_applicable"`. |
+| query           | string  | query | Search query keywords. Searchable fields include `cve`. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+| order_key       | string  | query | What to order results by. Allowed fields are `cve`, `created_at`, and `expires_at`. Default is `created_at` (descending). |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/vulnerability_dismissals?fleet_id=12`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_dismissals": [
+    {
+      "id": 83,
+      "cve": "CVE-2022-30190",
+      "fleet_id": 12,
+      "reason": "compensating_control",
+      "comment": "Mitigated by network rule. Review each quarter.",
+      "expires_at": "2027-01-30T00:00:00Z",
+      "source": "ui",
+      "author_id": 4,
+      "author_name": "Alex Rivera",
+      "author_email": "arivera@example.com",
+      "created_at": "2026-11-01T15:10:22Z",
+      "updated_at": "2026-11-01T15:10:22Z"
+    },
+    {
+      "id": 81,
+      "cve": "CVE-2022-40898",
+      "fleet_id": 12,
+      "reason": "false_positive",
+      "comment": "Scanner matched the wrong package.",
+      "expires_at": null,
+      "source": "ui",
+      "author_id": 4,
+      "author_name": "Alex Rivera",
+      "author_email": "arivera@example.com",
+      "created_at": "2026-11-01T15:04:05Z",
+      "updated_at": "2026-11-01T15:04:05Z"
+    }
+  ],
+  "count": 2,
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Create vulnerability dismissals
+
+_Available in Fleet Premium._
+
+Dismisses one or more vulnerabilities for a fleet or for all fleets, creating one dismissal per CVE. Fleet keeps detecting dismissed vulnerabilities, but hides them from the vulnerability lists and counts in the Fleet UI, and from [List vulnerabilities](#list-vulnerabilities) when `status` is `"active"`. Vulnerability automations (the vulnerabilities webhook, Jira, and Zendesk) leave out hosts in fleets where the vulnerability is dismissed, and skip the vulnerability if no affected hosts remain. Those hosts don't count as detections, so automations can still trigger later for hosts in other fleets.
+
+A dismissal ends when it expires or is deleted. Fleet also ends it if CISA reports the CVE as actively exploited after it was dismissed, unless `reason` is `"false_positive"`.
+
+`POST /api/v1/fleet/vulnerability_dismissals`
+
+#### Parameters
+
+| Name       | Type    | In   | Description |
+| ---------- | ------- | ---- | ----------- |
+| fleet_id   | integer | body | The ID of the fleet to dismiss the vulnerabilities for. Use `0` for "Unassigned" hosts. If not specified, the vulnerabilities are dismissed for all fleets. |
+| cves       | array   | body | **Required**. The CVEs to dismiss. Each must use the format `CVE-YYYY-<4 or more digits>` (case-insensitive). CVEs that Fleet hasn't detected are accepted, so you can dismiss a vulnerability ahead of time. |
+| reason     | string  | body | **Required**. Why the vulnerabilities don't need action. Options are `"false_positive"`, `"accepted_risk"`, `"compensating_control"`, `"no_patch_available"`, and `"not_applicable"`. Applies to every CVE in `cves`. |
+| comment    | string  | body | A note explaining the dismissal. Applies to every CVE in `cves`. |
+| expires_at | string  | body | When the dismissals end, as an RFC 3339 timestamp. Must be in the future. If not specified, the dismissals don't expire. Applies to every CVE in `cves`. |
+
+The request is all or nothing. If any CVE in `cves` is malformed, it fails with a `422` and nothing is dismissed. CVEs that are already dismissed for the same fleet are left unchanged and aren't included in the response.
+
+#### Example
+
+`POST /api/v1/fleet/vulnerability_dismissals`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 12,
+  "cves": ["CVE-2022-40898", "CVE-2024-8385"],
+  "reason": "false_positive",
+  "comment": "Scanner matched the wrong package."
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_dismissals": [
+    {
+      "id": 81,
+      "cve": "CVE-2022-40898",
+      "fleet_id": 12,
+      "reason": "false_positive",
+      "comment": "Scanner matched the wrong package.",
+      "expires_at": null,
+      "source": "ui",
+      "author_id": 4,
+      "author_name": "Alex Rivera",
+      "author_email": "arivera@example.com",
+      "created_at": "2026-11-01T15:04:05Z",
+      "updated_at": "2026-11-01T15:04:05Z"
+    },
+    {
+      "id": 82,
+      "cve": "CVE-2024-8385",
+      "fleet_id": 12,
+      "reason": "false_positive",
+      "comment": "Scanner matched the wrong package.",
+      "expires_at": null,
+      "source": "ui",
+      "author_id": 4,
+      "author_name": "Alex Rivera",
+      "author_email": "arivera@example.com",
+      "created_at": "2026-11-01T15:04:05Z",
+      "updated_at": "2026-11-01T15:04:05Z"
+    }
+  ]
+}
+```
+
+`fleet_id` is `null` for a dismissal that applies to all fleets. `source` is `"gitops"` for dismissals applied by `fleetctl gitops`, and `"ui"` otherwise.
+
+### Update vulnerability dismissal
+
+_Available in Fleet Premium._
+
+Updates a dismissal's reason, comment, or expiry. A dismissal's `cve` and `fleet_id` can't change.
+
+`PATCH /api/v1/fleet/vulnerability_dismissals/:id`
+
+#### Parameters
+
+| Name       | Type    | In   | Description |
+| ---------- | ------- | ---- | ----------- |
+| id         | integer | path | **Required**. The dismissal's ID. |
+| reason     | string  | body | Why the vulnerability doesn't need action. Options are `"false_positive"`, `"accepted_risk"`, `"compensating_control"`, `"no_patch_available"`, and `"not_applicable"`. |
+| comment    | string  | body | A note explaining the dismissal. |
+| expires_at | string  | body | When the dismissal ends, as an RFC 3339 timestamp. Must be in the future. Set to `null` so the dismissal doesn't expire. |
+
+#### Example
+
+`PATCH /api/v1/fleet/vulnerability_dismissals/83`
+
+##### Request body
+
+```json
+{
+  "comment": "Mitigated by network rule. Reviewed Jan 2027, next review in April.",
+  "expires_at": "2027-04-30T00:00:00Z"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_dismissal": {
+    "id": 83,
+    "cve": "CVE-2022-30190",
+    "fleet_id": 12,
+    "reason": "compensating_control",
+    "comment": "Mitigated by network rule. Reviewed Jan 2027, next review in April.",
+    "expires_at": "2027-04-30T00:00:00Z",
+    "source": "ui",
+    "author_id": 4,
+    "author_name": "Alex Rivera",
+    "author_email": "arivera@example.com",
+    "created_at": "2026-11-01T15:10:22Z",
+    "updated_at": "2027-01-28T10:02:47Z"
+  }
+}
+```
+
+### Delete vulnerability dismissal
+
+_Available in Fleet Premium._
+
+Deletes a dismissal, which returns the vulnerability to the vulnerability lists and counts in the Fleet UI. In the Fleet UI, this is **Restore**.
+
+`DELETE /api/v1/fleet/vulnerability_dismissals/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description |
+| ---- | ------- | ---- | ----------- |
+| id   | integer | path | **Required**. The dismissal's ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/vulnerability_dismissals/83`
+
+##### Default response
+
+`Status: 204`
+
+### Delete vulnerability dismissals
+
+_Available in Fleet Premium._
+
+Deletes the dismissals specified by ID, which returns the vulnerabilities to the vulnerability lists and counts in the Fleet UI. Returns the count of dismissals deleted.
+
+`POST /api/v1/fleet/vulnerability_dismissals/delete`
+
+#### Parameters
+
+| Name | Type  | In   | Description |
+| ---- | ----- | ---- | ----------- |
+| ids  | array | body | **Required**. The IDs of the dismissals. |
+
+#### Example
+
+`POST /api/v1/fleet/vulnerability_dismissals/delete`
+
+##### Request body
+
+```json
+{
+  "ids": [81, 82]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "deleted": 2
+}
+```
 
 ---
 
