@@ -1,5 +1,3 @@
-// Package removednames is the single source of truth for the "team" names that Fleet 5 removed, and for the error message that
-// tells users what to use instead. The server, fleetctl, and GitOps reject removed names with that message once they use this package.
 package removednames
 
 import (
@@ -10,11 +8,14 @@ import (
 // GuideURL is the Fleet 5 migration guide that every removal message links to.
 const GuideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
+// pathPrefix is the start of every KindPath entry. Entries keep it so they are full paths, and messages for removed endpoints drop it.
+const pathPrefix = "/api/_version_/fleet"
+
 // Kind is the kind of thing a removed name was.
 type Kind string
 
 const (
-	KindPath         Kind = "path"          // URL path template, e.g. /api/_version_/fleet/teams
+	KindPath         Kind = "path"          // URL path template, starting with /api/_version_/fleet
 	KindQueryParam   Kind = "query_param"   // URL query parameter
 	KindJSONKey      Kind = "json_key"      // key in a JSON request or response body
 	KindFormField    Kind = "form_field"    // multipart form field
@@ -42,31 +43,34 @@ const (
 	ScopeActivityDetails
 )
 
-// Entry is one removed name and its replacement.
+// Entry is one removed name and, when there is one, its replacement.
 type Entry struct {
 	Kind  Kind
 	Scope Scope
 	Old   string
-	New   string
-	// Context narrows the entry to one fleetctl command (for example "fleetctl get hosts"). Empty means it applies everywhere.
+	// New is the replacement. It is empty for a name that was removed without one.
+	New string
+	// Context narrows the entry to one fleetctl command (for example "fleetctl get hosts") or, for a path, to one HTTP method.
+	// Empty means it applies everywhere.
 	Context string
+	// Format builds the error message. Nil means ReplacedFormat.
+	Format Format
 }
 
 // Message returns the error message for the removed name, for example
 // "team_id was removed in Fleet 5. Use fleet_id instead. See https://fleetdm.com/learn-more-about/fleet-5-migration".
 func (e Entry) Message() string {
-	return Message(e.display(e.Old), e.display(e.New))
-}
-
-func (e Entry) display(name string) string {
-	if e.Kind == KindFlag {
-		return "--" + name
+	if e.Format == nil {
+		return ReplacedFormat{}.Message(e)
 	}
-	return name
+	return e.Format.Message(e)
 }
 
-// Message formats the removal message for an arbitrary old and new name.
+// Message formats the removal message for an arbitrary old name and its replacement, which may be empty.
 func Message(oldName, newName string) string {
+	if newName == "" {
+		return fmt.Sprintf("%s was removed in Fleet 5. See %s", oldName, GuideURL)
+	}
 	return fmt.Sprintf("%s was removed in Fleet 5. Use %s instead. See %s", oldName, newName, GuideURL)
 }
 
@@ -88,7 +92,11 @@ func Filter(kind Kind, scope Scope) []Entry {
 
 // Find returns the entry for a removed name. An entry with an empty Context matches every context; otherwise the context must match.
 func Find(kind Kind, oldName, context string) (Entry, bool) {
-	for _, e := range entries {
+	return findIn(entries, kind, oldName, context)
+}
+
+func findIn(list []Entry, kind Kind, oldName, context string) (Entry, bool) {
+	for _, e := range list {
 		if e.Kind == kind && e.Old == oldName && (e.Context == "" || e.Context == context) {
 			return e, true
 		}

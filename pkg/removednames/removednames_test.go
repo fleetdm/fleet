@@ -38,6 +38,42 @@ func TestMessage(t *testing.T) {
 	}
 
 	assert.Equal(t, "a was removed in Fleet 5. Use b instead. See "+GuideURL, Message("a", "b"))
+	assert.Equal(t, "a was removed in Fleet 5."+suffix, Message("a", ""))
+}
+
+func TestEntryMessageFormats(t *testing.T) {
+	t.Parallel()
+
+	const suffix = " See " + GuideURL
+	for _, c := range []struct {
+		name  string
+		entry Entry
+		want  string
+	}{
+		{"nil format is ReplacedFormat", Entry{Kind: KindJSONKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
+		{"replaced without a replacement", Entry{Kind: KindJSONKey, Old: "a", Format: ReplacedFormat{}}, "a was removed in Fleet 5." + suffix},
+		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "a"}, "--a was removed in Fleet 5." + suffix},
+		{
+			"endpoint without a method",
+			Entry{Kind: KindPath, Old: pathPrefix + "/x/{id}", Format: EndpointFormat{}},
+			`The "/x/{id}" endpoint is not available anymore. What to use instead: ` + GuideURL,
+		},
+		{
+			"endpoint with a method",
+			Entry{Kind: KindPath, Old: pathPrefix + "/x", Context: "POST", Format: EndpointFormat{}},
+			`The "POST /x" endpoint is not available anymore. What to use instead: ` + GuideURL,
+		},
+		{
+			"endpoint that a setting can turn back on",
+			Entry{Kind: KindPath, Old: pathPrefix + "/x", Context: "GET", Format: EndpointFormat{ByDefault: true}},
+			`The "GET /x" endpoint is not available anymore by default. What to use instead: ` + GuideURL,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, c.want, c.entry.Message())
+		})
+	}
 }
 
 func TestFindAndFilter(t *testing.T) {
@@ -63,8 +99,20 @@ func TestFindAndFilter(t *testing.T) {
 	assert.Greater(t, len(Filter(KindJSONKey, 0)), len(Filter(KindJSONKey, ScopeActivityDetails)))
 }
 
+func TestFindByContext(t *testing.T) {
+	t.Parallel()
+
+	list := []Entry{{Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/x", Context: "GET"}}
+	_, ok := findIn(list, KindPath, pathPrefix+"/x", "GET")
+	assert.True(t, ok)
+	_, ok = findIn(list, KindPath, pathPrefix+"/x", "POST")
+	assert.False(t, ok)
+}
+
 func TestEntriesWellFormed(t *testing.T) {
 	t.Parallel()
+
+	assert.NotEmpty(t, entries)
 
 	type id struct {
 		kind    Kind
@@ -76,14 +124,29 @@ func TestEntriesWellFormed(t *testing.T) {
 	for _, e := range entries {
 		assert.NotEmpty(t, e.Kind)
 		assert.NotZero(t, e.Scope, e.Old)
-		assert.NotEmpty(t, e.New, e.Old)
 		assert.NotEqual(t, e.Old, e.New)
-		assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
+		assert.Contains(t, e.Message(), GuideURL, e.Old)
+		switch e.Format.(type) {
+		case nil, ReplacedFormat:
+		case EndpointFormat:
+			assert.Equal(t, KindPath, e.Kind, "an endpoint message is for a path: %s", e.Old)
+		default:
+			assert.Fail(t, "unknown format", e.Old)
+		}
+		if e.Kind == KindPath {
+			assert.True(t, strings.HasPrefix(e.Old, pathPrefix), "path should start with %s: %s", pathPrefix, e.Old)
+		}
 
 		key := id{e.Kind, e.Scope, e.Old, e.Context}
 		_, dup := seen[key]
 		assert.False(t, dup, "duplicate entry for %v", key)
 		seen[key] = struct{}{}
+	}
+
+	// Renaming teams always has a replacement, and every old name is team-related.
+	for _, e := range teamEntries {
+		assert.NotEmpty(t, e.New, e.Old)
+		assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
 	}
 }
 
@@ -94,7 +157,7 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..")
-	hasEntry := func(match func(Entry) bool) bool { return slices.ContainsFunc(entries, match) }
+	hasEntry := func(match func(Entry) bool) bool { return slices.ContainsFunc(teamEntries, match) }
 	has := func(kind Kind, scope Scope, oldName, newName string) bool {
 		return hasEntry(func(e Entry) bool {
 			return e.Kind == kind && e.Scope&scope != 0 && e.Old == oldName && (newName == "" || e.New == newName)
