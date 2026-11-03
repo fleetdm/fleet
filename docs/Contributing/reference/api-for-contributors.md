@@ -1033,7 +1033,7 @@ Content-Type: application/octet-stream
 "vpp_token": {
   "id": 1,
   "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
+  "organization_unit": "Fleet Device Management Inc.",
   "renew_date": "2025-10-20T00:00:00Z",
   "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
@@ -3439,9 +3439,7 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
-for a device. A user may be required to complete SSO authenticaton if configured on the fleet before being presented
-with the download option.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile for a device. A user may be required to complete SSO authenticaton if configured on the fleet before being presented with the download option.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 

@@ -1383,7 +1383,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 		case vppID != nil:
 			// found a VPP app
-			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, nil, *opt.SoftwareStatusFilter)
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, nil, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 			}

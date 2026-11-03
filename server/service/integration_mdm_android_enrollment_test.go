@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -596,6 +597,70 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.Equal(t, "On (automatic)", *host3.MDM.EnrollmentStatus)
 	require.NotNil(t, host4.MDM.EnrollmentStatus)
 	require.Equal(t, fleet.MDMEnrollmentStatusPersonal, *host4.MDM.EnrollmentStatus)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidReenrollKeepsDiskSpace() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.enableAndroidMDM(t)
+
+	// The enrollment helper's payload carries MEASURED memory events: 35 GB free of 128 GB.
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "android-disk-reenroll", nil, false)
+
+	// AMAPI omits memory events from enrollment payloads and from status reports sent before
+	// the device has measured storage, but still reports the 64 GB internal total.
+	withoutMemoryEvents := func(msg *android.PubSubMessage) *android.PubSubMessage {
+		data, err := base64.StdEncoding.DecodeString(msg.Data)
+		require.NoError(t, err)
+		var device androidmanagement.Device
+		require.NoError(t, json.Unmarshal(data, &device))
+		device.MemoryEvents = nil
+		data, err = json.Marshal(device)
+		require.NoError(t, err)
+		msg.Data = base64.StdEncoding.EncodeToString(data)
+		return msg
+	}
+	push := func(msg *android.PubSubMessage) {
+		req := android_service.PubSubPushRequest{PubSubMessage: *msg}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+	}
+	requireDisk := func(hostID uint, available, percent, total float64) {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		assert.InDelta(t, available, hostResp.Host.GigsDiskSpaceAvailable, 0.01)
+		assert.InDelta(t, percent, hostResp.Host.PercentDiskSpaceAvailable, 0.01)
+		assert.InDelta(t, total, hostResp.Host.GigsTotalDiskSpace, 0.01)
+	}
+
+	requireDisk(host.ID, 35, 27.34, 128)
+
+	// Re-enroll, then a status report, neither carrying a measurement.
+	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
+	requireDisk(host.ID, 35, 27.34, 128)
+	push(withoutMemoryEvents(statusReportMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
+	requireDisk(host.ID, 35, 27.34, 128)
+
+	// A device new to Fleet that has never measured storage still reads as not supported.
+	newDeviceID := strings.ToUpper(uuid.New().String())
+	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+		Name:                createAndroidDeviceID("android-disk-unmeasured"),
+		EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
+	}, newDeviceID)))
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", newDeviceID)
+	require.Len(t, hosts.Hosts, 1)
+	requireDisk(hosts.Hosts[0].ID, -1, -1, 64)
+
+	// Re-enrolling it without a measurement leaves it not supported.
+	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+		Name:                createAndroidDeviceID("android-disk-unmeasured"),
+		EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
+	}, newDeviceID)))
+	requireDisk(hosts.Hosts[0].ID, -1, -1, 64)
+
+	// The first host is unaffected by the other host's writes.
+	requireDisk(host.ID, 35, 27.34, 128)
 }
 
 // TestAndroidCustomCommandsListAndResults exercises the full API flow for Android custom commands:

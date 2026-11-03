@@ -408,6 +408,7 @@ const ConfigurationProfiles = ({
         <DeleteProfileModal
           profileName={selectedProfile.current.name}
           profileId={selectedProfile.current.profile_uuid}
+          platform={selectedProfile.current.platform}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
           isDeleting={isDeleting}

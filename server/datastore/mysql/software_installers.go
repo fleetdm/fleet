@@ -2535,26 +2535,47 @@ FROM upcoming
 }
 
 // vppAppJoin builds the status-join for a VPP app title. When vppAppTeamID is
-// non-nil, every scanned source (upcoming activities, the Android pending
-// branch, the ranked history) is also scoped to that specific vpp_apps_teams
-// row so the status + version composition picks the latest row FOR THAT
-// VERSION and the pending branch only matches queued installs of that version.
-func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+// non-nil, it matches the hosts counted in that version's status summary.
+func (ds *Datastore) vppAppJoin(ctx context.Context, appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+	if vppAppTeamID != nil {
+		// TODO: Update this when VPP supports uninstall, for now we map the generic and uninstall statuses to the install statuses
+		switch status {
+		case fleet.SoftwarePending, fleet.SoftwareUninstallPending:
+			status = fleet.SoftwareInstallPending
+		case fleet.SoftwareFailed:
+			status = fleet.SoftwareInstallFailed
+		}
+
+		versionIDs, err := ds.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, *vppAppTeamID)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "vpp app join: version ids")
+		}
+		// Match no hosts for a version that doesn't exist
+		if len(versionIDs) == 0 {
+			versionIDs = []uint{*vppAppTeamID}
+		}
+
+		stmt := fmt.Sprintf(`JOIN (%s) hss ON hss.host_id = h.id AND hss.vpp_app_team_id = :vpp_app_team_id AND hss.status = :status`, vppAppVersionHostStatusesQuery)
+		query, args, err := sqlx.Named(stmt, map[string]any{
+			"status":                    status,
+			"vpp_app_team_id":           *vppAppTeamID,
+			"version_ids":               versionIDs,
+			"software_status_pending":   fleet.SoftwareInstallPending,
+			"software_status_failed":    fleet.SoftwareInstallFailed,
+			"software_status_installed": fleet.SoftwareInstalled,
+		})
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "vpp app join: named query")
+		}
+		return sqlx.In(query, args...)
+	}
+
 	// for pending status, we'll join through upcoming_activities
 	// EXCEPT for android VPP apps, which currently bypass upcoming activities
 	// NOTE: this should change when standard VPP app installs are supported for Android
 	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
-		// upcoming-activity branch scopes vpp_app_upcoming_activities on vpp_app_team_id;
-		// android pending branch scopes host_vpp_software_installs on vpp_app_team_id.
-		vppuaScope := ""
-		androidHvsiScope := ""
-		if vppAppTeamID != nil {
-			vppuaScope = " AND vppua.vpp_app_team_id = ?"
-			androidHvsiScope = "hvsi.vpp_app_team_id = ? AND "
-		}
-
-		stmt := fmt.Sprintf(`JOIN (
+		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
 FROM (
@@ -2562,22 +2583,22 @@ FROM (
 	FROM upcoming_activities ua
 		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
 	WHERE
-		%%s
+		%s
 
 	UNION
 
 	SELECT host_id
 	FROM host_vpp_software_installs hvsi
 	WHERE
-		%shvsi.adam_id = ? AND
+		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
 		hvsi.platform = 'android' AND
 		hvsi.verification_at IS NULL AND
 		hvsi.verification_failed_at IS NULL
 	) combined_pending
-) hss ON hss.host_id = h.id`, androidHvsiScope)
+) hss ON hss.host_id = h.id`
 
-		filter := "vppua.adam_id = ? AND vppua.platform = ?" + vppuaScope
+		filter := "vppua.adam_id = ? AND vppua.platform = ?"
 		switch status {
 		case fleet.SoftwareInstallPending:
 			filter += " AND ua.activity_type = 'vpp_app_install'"
@@ -2589,16 +2610,7 @@ FROM (
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		// Arg order: upcoming-branch filter args, then android-pending-branch args.
-		args := []any{appID.AdamID, appID.Platform}
-		if vppAppTeamID != nil {
-			args = append(args, *vppAppTeamID)
-		}
-		if vppAppTeamID != nil {
-			args = append(args, *vppAppTeamID)
-		}
-		args = append(args, appID.AdamID, appID.Platform)
-		return fmt.Sprintf(stmt, filter), args, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -2612,14 +2624,6 @@ FROM (
 	// Rank once over the app rather than looking the latest row up per host:
 	// host_vpp_software_installs has no host_id-leading index, so a correlated
 	// per-host lookup rescans the app's whole history for every candidate host.
-	// When scoped to a specific vpp_apps_teams row (version), rank only that
-	// version's history so the "latest row per host" check is per-version.
-	versionScope := ""
-	pendingVersionScope := ""
-	if vppAppTeamID != nil {
-		versionScope = "AND hvsi.vpp_app_team_id = :vpp_app_team_id"
-		pendingVersionScope = "AND vaua.vpp_app_team_id = :vpp_app_team_id"
-	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	ranked.host_id
@@ -2638,7 +2642,6 @@ FROM (
 	WHERE
 		hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
-		%s
 		AND hvsi.canceled = 0
 ) ranked
 LEFT JOIN
@@ -2650,7 +2653,7 @@ WHERE
 	-- with verification_failed_at set, no MDM command. See same comment in
 	-- vpp.go GetSummaryHostVPPAppInstalls. Checked after ranking, so a host whose
 	-- most recent row lacks a command result is dropped rather than falling back.
-	AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	AND (ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND ranked.host_id NOT IN (
 		SELECT
@@ -2661,13 +2664,12 @@ WHERE
 		WHERE
 			vaua.adam_id = :adam_id
 			AND vaua.platform = :platform
-			%s
 			AND ua.activity_type = 'vpp_app_install'
 	)
 ) hss ON hss.host_id = h.id
-`, versionScope, vppAppHostStatusNamedQuery("ranked", "ncr", ""), pendingVersionScope)
+`, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
 
-	named := map[string]any{
+	return sqlx.Named(stmt, map[string]any{
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
@@ -2677,11 +2679,7 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-	}
-	if vppAppTeamID != nil {
-		named["vpp_app_team_id"] = *vppAppTeamID
-	}
-	return sqlx.Named(stmt, named)
+	})
 }
 
 // softwareInstallerJoin builds the status-join for a software-installer title.

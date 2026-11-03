@@ -7,6 +7,6 @@
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/zed_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "exe",
-  "installer_scope": "machine",
+  "installer_scope": "user",
   "default_categories": ["Developer tools"]
 }

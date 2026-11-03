@@ -138,6 +138,8 @@ type VPPAppStoreApp struct {
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
 	// LabelsIncludeAll is the list of "include all" labels for this app store app (if not nil).
 	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
+	// HasLabels is whether this app store app has any labels, only filled by GetAppStoreAppVersionsByFleetAndTitle.
+	HasLabels bool `json:"-" db:"has_labels"`
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 	// AddedAt is when the VPP app was added to the team
@@ -149,6 +151,8 @@ type VPPAppStoreApp struct {
 	// Configuration is the managed app configuration payload.
 	// JSON for Android, XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
+	// ConfigurationUpdatedAt is when the configuration last changed.
+	ConfigurationUpdatedAt *time.Time `db:"configuration_updated_at" json:"-"`
 }
 
 const (
@@ -233,6 +237,15 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 	RetryCount           int        `db:"retry_count"`
 	ExpectedVersion      string     `db:"expected_version"`
+	PolicyID             *uint      `db:"policy_id"`
+	VPPAppTeamID         *uint      `db:"vpp_app_team_id"`
+	CreatedAt            time.Time  `db:"created_at"`
+	NeedsResend          bool       `db:"needs_resend"`
+}
+
+type HostVPPInstallWithUpcoming struct {
+	HostVPPSoftwareInstall
+	UpcomingVPPAppTeamID *uint `db:"upcoming_vpp_app_team_id"`
 }
 
 type HostVPPSoftwareInstallLite struct {
@@ -261,6 +274,11 @@ type HostAndroidVPPSoftwareInstall struct {
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second
+	// Time to wait between auto-update or configuration resend attempts (1 hour)
+	VPPAutomaticInstallWaitSeconds = 3600
+	MaxVPPAutomaticInstallRetries  = 2
+	// Time to wait after reaching maximum failed attempts
+	VPPAutomaticInstallRetryTimeout = 24 * time.Hour
 )
 
 type AppStoreAppUpdatePayload struct {
@@ -416,3 +434,6 @@ type HostAppStoreAppVersion struct {
 	InScope      bool   `db:"in_scope"`
 	VersionCount int    `db:"-"`
 }
+
+// AppStoreAppVersionsByFleetAndTitleID holds App Store app versions indexed by fleet id and then software title id, first-added first.
+type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp

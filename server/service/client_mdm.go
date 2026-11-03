@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
@@ -218,7 +219,7 @@ func (c *Client) stagedUpload(target fleet.StagedUploadTarget, teamID uint, cont
 	// No Fleet Authorization header: the URL is presigned for the object store.
 	resp, err := fleethttp.NewClient(fleethttp.WithTimeout(fleet.StagedUploadURLExpiry)).Do(req)
 	if err != nil {
-		return "", fmt.Errorf("uploading to staged upload URL: %w", err)
+		return "", fmt.Errorf("uploading to staged upload URL: %w", platform_http.MaskURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -246,21 +247,13 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		}
 	}
 
-	// Stage before deleting, so a failed upload leaves the old package in place.
+	// The server replaces an existing package only once the new one is saved, so a failed upload
+	// leaves the old one in place.
 	bp.TeamID = teamID
 	uploadID, err := c.stageBootstrapPackage(bp)
 	if err != nil {
 		return err
 	}
-
-	if !isFirstTime {
-		// similar to the expected UI experience, delete the bootstrap package first
-		err = c.DeleteBootstrapPackage(teamID, dryRun)
-		if err != nil {
-			return fmt.Errorf("deleting old bootstrap package: %w", err)
-		}
-	}
-
 	return c.registerBootstrapPackage(bp, uploadID, dryRun)
 }
 

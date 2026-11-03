@@ -338,6 +338,7 @@ const canUnlock = ({
 
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
+    isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalTechnician,
@@ -348,10 +349,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   return (
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    isGlobalTechnician ||
     isTeamAdmin ||
     isTeamMaintainer ||
-    isTeamTechnician
+    // Technician is a Premium-only role, but its sessions outlive a downgrade to Free.
+    (isPremiumTier && (isGlobalTechnician || isTeamTechnician))
   );
 };
 

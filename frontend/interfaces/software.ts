@@ -51,6 +51,8 @@ export interface ISoftware {
   vendor?: string;
   release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -271,6 +273,8 @@ export interface ISoftwareTitle {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -306,6 +310,8 @@ export interface ISoftwareTitleDetails {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -339,6 +345,8 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -362,250 +370,271 @@ export const MACOS_APP_SOFTWARE_TYPE = "macos_app";
 const SOFTWARE_TYPE_VARIANTS = [
   {
     key: "adobe_plugin",
-    displayName: "Adobe plugin",
+    displayName: "Plugin (Adobe)",
     source: "adobe_plugins",
     platforms: ["darwin", "windows"],
   },
   {
+    key: "ai_cli_tool",
+    displayName: "AI CLI tool",
+    source: "ai_clis",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "ai_skill",
+    displayName: "AI skill",
+    source: "ai_skills",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
     key: "android_app",
-    displayName: "Android app",
+    displayName: "App (Android)",
     source: "android_apps",
     platforms: ["android"],
   },
   {
     key: "brave_extension",
-    displayName: "Brave extension",
+    displayName: "Browser extension (Brave)",
     source: "chrome_extensions",
     extensionFor: "brave",
     platforms: DESKTOP,
   },
   {
     key: "chocolatey_package",
-    displayName: "Chocolatey package",
+    displayName: "Package (Chocolatey)",
     source: "chocolatey_packages",
     platforms: ["windows"],
   },
   {
     key: "chrome_extension",
-    displayName: "Chrome extension",
+    displayName: "Browser extension (Chrome)",
     source: "chrome_extensions",
     extensionFor: "chrome",
     platforms: [...DESKTOP, "chrome"],
   },
   {
     key: "chromium_extension",
-    displayName: "Chromium extension",
+    displayName: "Browser extension (Chromium)",
     source: "chrome_extensions",
     extensionFor: "chromium",
     platforms: DESKTOP,
   },
   {
     key: "clion_extension",
-    displayName: "CLion extension",
+    displayName: "IDE extension (CLion)",
     source: "jetbrains_plugins",
     extensionFor: "clion",
     platforms: DESKTOP,
   },
   {
     key: "cursor_extension",
-    displayName: "Cursor extension",
+    displayName: "IDE extension (Cursor)",
     source: "vscode_extensions",
     extensionFor: "cursor",
     platforms: DESKTOP,
   },
   {
     key: "datagrip_extension",
-    displayName: "DataGrip extension",
+    displayName: "IDE extension (DataGrip)",
     source: "jetbrains_plugins",
     extensionFor: "datagrip",
     platforms: DESKTOP,
   },
   {
     key: "deb_package",
-    displayName: "deb package",
+    displayName: "Package (deb)",
     source: "deb_packages",
     platforms: ["linux"],
   },
   {
     key: "edge_beta_extension",
-    displayName: "Edge Beta extension",
+    displayName: "Browser extension (Edge Beta)",
     source: "chrome_extensions",
     extensionFor: "edge_beta",
     platforms: DESKTOP,
   },
   {
     key: "edge_extension",
-    displayName: "Edge extension",
+    displayName: "Browser extension (Edge)",
     source: "chrome_extensions",
     extensionFor: "edge",
     platforms: DESKTOP,
   },
   {
     key: "firefox_extension",
-    displayName: "Firefox extension",
+    displayName: "Browser extension (Firefox)",
     source: "firefox_addons",
     extensionFor: "firefox",
     platforms: DESKTOP,
   },
   {
     key: "go_binary",
-    displayName: "Go binary",
+    displayName: "Binary (Go)",
     source: "go_binaries",
     platforms: DESKTOP,
   },
   {
     key: "goland_extension",
-    displayName: "GoLand extension",
+    displayName: "IDE extension (GoLand)",
     source: "jetbrains_plugins",
     extensionFor: "goland",
     platforms: DESKTOP,
   },
   {
     key: "homebrew_package",
-    displayName: "Homebrew package",
+    displayName: "Package (Homebrew)",
     source: "homebrew_packages",
     platforms: ["darwin"],
   },
   {
     key: "intellij_idea_community_edition_extension",
-    displayName: "IntelliJ IDEA Community Edition extension",
+    displayName: "IDE extension (IntelliJ IDEA Community Edition)",
     source: "jetbrains_plugins",
     extensionFor: "intellij_idea_community_edition",
     platforms: DESKTOP,
   },
   {
     key: "intellij_idea_extension",
-    displayName: "IntelliJ IDEA extension",
+    displayName: "IDE extension (IntelliJ IDEA)",
     source: "jetbrains_plugins",
     extensionFor: "intellij_idea",
     platforms: DESKTOP,
   },
   {
     key: "internet_explorer_extension",
-    displayName: "Internet Explorer extension",
+    displayName: "Browser extension (Internet Explorer)",
     source: "ie_extensions",
     platforms: ["windows"],
   },
   {
     key: "ios_app",
-    displayName: "iOS app",
+    displayName: "App (iOS)",
     source: "ios_apps",
     platforms: ["ios"],
   },
   {
     key: "ipados_app",
-    displayName: "iPadOS app",
+    displayName: "App (iPadOS)",
     source: "ipados_apps",
     platforms: ["ipados"],
   },
   {
     key: MACOS_APP_SOFTWARE_TYPE,
-    displayName: "macOS app",
+    displayName: "App (macOS)",
     source: "apps",
     platforms: ["darwin"],
   },
   {
     key: "macos_package_pkg",
-    displayName: "macOS package (.pkg)",
+    displayName: "Package (.pkg)",
     source: "pkg_packages",
     platforms: ["darwin"],
     installerOnly: true,
   },
   {
+    key: "mcp_server",
+    displayName: "MCP server",
+    source: "mcp_servers",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
     key: "nix_package",
-    displayName: "Nix package",
+    displayName: "Package (Nix)",
     source: "nix_packages",
     platforms: ["linux"],
   },
   {
     key: "npm_package",
-    displayName: "npm package",
+    displayName: "Package (npm)",
     source: "npm_packages",
     platforms: ["darwin", "linux"],
   },
   {
     key: "opera_extension",
-    displayName: "Opera extension",
+    displayName: "Browser extension (Opera)",
     source: "chrome_extensions",
     extensionFor: "opera",
     platforms: DESKTOP,
   },
   {
     key: "pacman_package",
-    displayName: "pacman package",
+    displayName: "Package (pacman)",
     source: "pacman_packages",
     platforms: ["linux"],
   },
   {
     key: "phpstorm_extension",
-    displayName: "PhpStorm extension",
+    displayName: "IDE extension (PhpStorm)",
     source: "jetbrains_plugins",
     extensionFor: "phpstorm",
     platforms: DESKTOP,
   },
   {
     key: "portage_package",
-    displayName: "Portage package",
+    displayName: "Package (Portage)",
     source: "portage_packages",
     platforms: ["linux"],
   },
   {
     key: "pycharm_extension",
-    displayName: "PyCharm extension",
+    displayName: "IDE extension (PyCharm)",
     source: "jetbrains_plugins",
     extensionFor: "pycharm",
     platforms: DESKTOP,
   },
   {
     key: "pycharm_community_edition_extension",
-    displayName: "PyCharm Community Edition extension",
+    displayName: "IDE extension (PyCharm Community Edition)",
     source: "jetbrains_plugins",
     extensionFor: "pycharm_community_edition",
     platforms: DESKTOP,
   },
   {
     key: "python_package",
-    displayName: "Python package",
+    displayName: "Package (Python)",
     source: "python_packages",
     platforms: DESKTOP,
   },
   {
     key: "resharper_extension",
-    displayName: "ReSharper extension",
+    displayName: "IDE extension (ReSharper)",
     source: "jetbrains_plugins",
     extensionFor: "resharper",
     platforms: DESKTOP,
   },
   {
     key: "rider_extension",
-    displayName: "Rider extension",
+    displayName: "IDE extension (Rider)",
     source: "jetbrains_plugins",
     extensionFor: "rider",
     platforms: DESKTOP,
   },
   {
     key: "rpm_package",
-    displayName: "RPM package",
+    displayName: "Package (RPM)",
     source: "rpm_packages",
     platforms: ["linux"],
   },
   {
     key: "rubymine_extension",
-    displayName: "RubyMine extension",
+    displayName: "IDE extension (RubyMine)",
     source: "jetbrains_plugins",
     extensionFor: "rubymine",
     platforms: DESKTOP,
   },
   {
     key: "rustrover_extension",
-    displayName: "RustRover extension",
+    displayName: "IDE extension (RustRover)",
     source: "jetbrains_plugins",
     extensionFor: "rust_rov",
     platforms: DESKTOP,
   },
   {
     key: "safari_extension",
-    displayName: "Safari extension",
+    displayName: "Browser extension (Safari)",
     source: "safari_extensions",
     platforms: ["darwin"],
   },
@@ -632,69 +661,69 @@ const SOFTWARE_TYPE_VARIANTS = [
   },
   {
     key: "tarball_tar_gz",
-    displayName: "Tarball (.tar.gz)",
+    displayName: "Package (.tar.gz)",
     source: "tgz_packages",
     platforms: ["linux"],
     installerOnly: true,
   },
   {
     key: "trae_extension",
-    displayName: "Trae extension",
+    displayName: "IDE extension (Trae)",
     source: "vscode_extensions",
     extensionFor: "trae",
     platforms: DESKTOP,
   },
   {
     key: "vs_code_extension",
-    displayName: "VS Code extension",
+    displayName: "IDE extension (VS Code)",
     source: "vscode_extensions",
     extensionFor: "vscode",
     platforms: DESKTOP,
   },
   {
     key: "vs_code_insiders_extension",
-    displayName: "VS Code Insiders extension",
+    displayName: "IDE extension (VS Code Insiders)",
     source: "vscode_extensions",
     extensionFor: "vscode_insiders",
     platforms: DESKTOP,
   },
   {
     key: "vscodium_extension",
-    displayName: "VSCodium extension",
+    displayName: "IDE extension (VSCodium)",
     source: "vscode_extensions",
     extensionFor: "vscodium",
     platforms: DESKTOP,
   },
   {
     key: "vscodium_insiders_extension",
-    displayName: "VSCodium Insiders extension",
+    displayName: "IDE extension (VSCodium Insiders)",
     source: "vscode_extensions",
     extensionFor: "vscodium_insiders",
     platforms: DESKTOP,
   },
   {
     key: "webstorm_extension",
-    displayName: "WebStorm extension",
+    displayName: "IDE extension (WebStorm)",
     source: "jetbrains_plugins",
     extensionFor: "webstorm",
     platforms: DESKTOP,
   },
   {
     key: "windows_app",
-    displayName: "Windows app",
+    displayName: "App (Windows)",
     source: "programs",
     platforms: ["windows"],
   },
   {
     key: "windsurf_extension",
-    displayName: "Windsurf extension",
+    displayName: "IDE extension (Windsurf)",
     source: "vscode_extensions",
     extensionFor: "windsurf",
     platforms: DESKTOP,
   },
   {
     key: "yandex_extension",
-    displayName: "Yandex extension",
+    displayName: "Browser extension (Yandex)",
     source: "chrome_extensions",
     extensionFor: "yandex",
     platforms: DESKTOP,
@@ -703,9 +732,9 @@ const SOFTWARE_TYPE_VARIANTS = [
 
 // Sources Fleet no longer collects; their labels are kept for historical rows.
 const LEGACY_SOURCE_TYPES = {
-  apt_sources: "APT package",
-  yum_sources: "YUM package",
-  atom_packages: "Atom package",
+  apt_sources: "Package (APT)",
+  yum_sources: "Package (YUM)",
+  atom_packages: "Package (Atom)",
 } as const;
 
 export type SoftwareSource =
@@ -728,6 +757,8 @@ export interface ISoftwareType {
   platforms: readonly SoftwareTypePlatform[];
   /** Installer-only sources never appear in a host's inventory. */
   installerOnly?: boolean;
+  /** Hidden on Fleet Free, where the API rejects the source. */
+  premiumOnly?: boolean;
 }
 
 const compareDisplayNames = (a: ISoftwareType, b: ISoftwareType) =>
@@ -777,15 +808,21 @@ const getSoftwareTypePlatform = (
   }
 };
 
+/** Software types available on the license tier, sorted by display name. */
+export const getSoftwareTypes = (opts?: {
+  premium?: boolean;
+}): ISoftwareType[] =>
+  SOFTWARE_TYPES.filter((t) => opts?.premium || !t.premiumOnly);
+
 /** Software types that apply to a host platform, sorted by display name.
  * Host pages hide installer-only types because hosts never report them. */
 export const getSoftwareTypesForPlatform = (
   platform: string,
-  opts?: { hostPage?: boolean }
+  opts?: { hostPage?: boolean; premium?: boolean }
 ): ISoftwareType[] => {
   const typePlatform = getSoftwareTypePlatform(platform);
   if (!typePlatform) return [];
-  return SOFTWARE_TYPES.filter(
+  return getSoftwareTypes(opts).filter(
     (t) =>
       t.platforms.includes(typePlatform) && !(opts?.hostPage && t.installerOnly)
   );
@@ -854,6 +891,9 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   jetbrains_plugins: null,
   go_binaries: null,
   adobe_plugins: null,
+  ai_clis: null,
+  ai_skills: null,
+  mcp_servers: null,
 } as const;
 
 /** Look up an installable source's platform, normalizing the mapping's
@@ -894,6 +934,25 @@ export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   ...SCRIPT_PACKAGE_SOURCES,
 ];
 
+/** Sources that never report a version, with the reason shown on the "---" cell. */
+export const NO_VERSION_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
+  ai_skills: "AI skills are markdown files, so they don't have versions.",
+};
+
+/** Sources Fleet never scans for vulnerabilities, with the reason shown on the "---" cell. */
+export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Currently, Fleet doesn't detect vulnerabilities for MCP servers.",
+  ai_skills:
+    "AI skills are markdown files, so they don't have vulnerabilities.",
+};
+
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
 /** For go_binaries the toolchain version is part of the row's identity, so it's shown
@@ -924,7 +983,9 @@ export const formatSoftwareType = ({
   );
   if (match) return match.displayName;
   if (extensionFallback) {
-    return extension_for ? `${extension_for} extension` : extensionFallback;
+    return extension_for
+      ? `${extensionFallback} (${extension_for})`
+      : extensionFallback;
   }
   return (
     LEGACY_SOURCE_TYPES[source as keyof typeof LEGACY_SOURCE_TYPES] ?? "Unknown"
@@ -1165,6 +1226,8 @@ export interface IHostSoftware {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 /**

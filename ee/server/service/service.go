@@ -49,8 +49,10 @@ type Service struct {
 	scepConfigService      fleet.SCEPConfigService
 	scepEnrollmentClient   fleet.SCEPEnrollmentClient
 	digiCertService        fleet.DigiCertService
+	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	googleCASService       fleet.GoogleCASService
 	msGraphClientFactory   msgraph.ClientFactory
 }
 
@@ -74,8 +76,10 @@ func NewService(
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	googleCASService fleet.GoogleCASService,
 	pssoNonceStore fleet.PSSONonceStore,
 	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
@@ -111,8 +115,10 @@ func NewService(
 		scepConfigService:      scepConfigService,
 		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
+		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
+		googleCASService:       googleCASService,
 		pssoNonceStore:         pssoNonceStore,
 		msGraphClientFactory:   msGraphClientFactory,
 	}

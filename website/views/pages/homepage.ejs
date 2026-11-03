@@ -1,11 +1,4 @@
 <div id="homepage" v-cloak>
-  <div purpose="announcement-banner">
-    <% if (showEuropeBanner) { %>
-    <animated-arrow-button arrow-color="white" text-color="white" href="/europe">Keep your device data in Europe</animated-arrow-button>
-    <% } else { %>
-    <animated-arrow-button arrow-color="white" text-color="white" href="/announcements/fleet-virtual-summit-2026">Join the Fleet Virtual Summit on November 10</animated-arrow-button>
-    <% } %>
-  </div>
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="homepage-hero" class="mx-auto">
@@ -53,6 +46,9 @@
               <span purpose="hero-ticker-option">DDM &amp; .mobileconfig</span>
               <span purpose="hero-ticker-option">CSP &amp; .admx</span>
               <span purpose="hero-ticker-option">MDM, UEM, DEX</span>
+              <span purpose="hero-ticker-option">fewer IT tickets</span>
+              <span purpose="hero-ticker-option">faster onboarding</span>
+              <span purpose="hero-ticker-option">less maintenance</span>
             </div>
           </div>
         </h1>
@@ -226,10 +222,10 @@
           */ %>
         <div purpose="desktop-comparison-table" class="d-none d-sm-block">
           <div purpose="comparison-table-tabs">
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'intune' ? 'active' : '']" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')"><strong>Intune</strong></div>
             <div purpose="comparison-tab" :class="[comparisonModeForIt === 'jamf' ? 'active' : '']" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')"><strong>Jamf Pro</strong></div>
             <div purpose="comparison-tab" :class="[comparisonModeForIt === 'omnissa' ? 'active' : '']" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')"><strong>Workspace ONE</strong></div>
-            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'sccm' ? 'active' : '']" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')"><strong>SCCM</strong></div>
-            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'intune' ? 'active' : '']" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')"><strong>Intune</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'ivanti' ? 'active' : '']" data-compare-with="ivanti" @click="clickSwitchComparisonTableColumn('ivanti')"><strong>Ivanti</strong></div>
             <div purpose="comparison-tab" :class="[comparisonModeForIt === 'patchmypc' ? 'active' : '']" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')"><strong>PatchMyPC</strong></div>
           </div>
           <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
@@ -258,8 +254,8 @@
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'ivanti'">
+                <p>Windows-focused</p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
                 <p>Apple only</p>
@@ -280,8 +276,8 @@
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'ivanti'">
+                <p>Windows-focused</p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
                 <p>Apple only</p>
@@ -326,10 +322,7 @@
             <div purpose="table-row">
               <div purpose="feature-name"><p>Single API</p></div>
               <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'intune'">
                 <p>Microsoft Graph API</p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'patchmypc'">
@@ -365,9 +358,6 @@
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
                 <p>Cloud-only</p>
               </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>On-prem only</p>
-              </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
@@ -385,10 +375,10 @@
             {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
-            <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-            <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
-            <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
             <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+            <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+            <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+            <div class="dropdown-item" data-compare-with="ivanti" @click="clickSwitchComparisonTableColumn('ivanti')">Ivanti</div>
             <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
           </div>
 
@@ -429,8 +419,8 @@
               <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
                 <p>Apple only</p>
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'ivanti'">
+                <p>Windows-focused</p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
                 <p>Mobile not supported</p>
@@ -456,8 +446,8 @@
               <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
                 <p>Apple only</p>
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'ivanti'">
+                <p>Windows-focused</p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'patchmypc'">
                 <p>Windows only scription for app installs</p>
@@ -512,9 +502,6 @@
               <div purpose="feature-status" v-if="comparisonModeForIt === 'intune'">
                 <p>Microsoft Graph API</p>
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'patchmypc'">
                 <p>Intune or SCCM integration</p>
               </div>
@@ -561,9 +548,6 @@
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'intune'">
                 <p>Cloud-only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>On-prem only</p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
@@ -654,6 +638,9 @@
               <span purpose="bottom-cta-ticker-option">DDM &amp; .mobileconfig</span>
               <span purpose="bottom-cta-ticker-option">CSP &amp; .admx</span>
               <span purpose="bottom-cta-ticker-option">MDM, UEM, DEX</span>
+              <span purpose="bottom-cta-ticker-option">fewer IT tickets</span>
+              <span purpose="bottom-cta-ticker-option">faster onboarding</span>
+              <span purpose="bottom-cta-ticker-option">less maintenance</span>
               <!-- FUTURE: Consider ticker per-landing page.  so much good stuff in here, but kinda too much for any one place on the website.  Too many concepts rapidly switching in front of my eyes makes me feel like an overstimulated pig in the middle of pep rally -->
             </div>
           </div>

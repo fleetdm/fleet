@@ -408,6 +408,11 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return nil, &fleet.PaginationMetadata{}, nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}

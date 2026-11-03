@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Column } from "react-table";
@@ -145,6 +145,90 @@ describe("getPrimaryDeviceUser", () => {
     ]);
     expect(primaryEmail).toBe("bob@acmecorp.com");
     expect(suffixCount).toBe(1);
+  });
+});
+
+describe("HostTableConfig - Host column", () => {
+  const LONG_HOST_NAME = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+
+  const renderHostCell = (displayName: string) => {
+    const hostColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find(
+      (h) => (h as Column<IHost>).id === "display_name"
+    ) as IColumnWithCell;
+    const Cell = hostColumn.Cell as React.ElementType;
+    return render(
+      <Cell
+        cell={{ value: displayName }}
+        row={{
+          original: {
+            id: 1,
+            status: "online",
+            seen_time: "2026-01-01T00:00:00Z",
+            platform: "windows",
+          },
+        }}
+      />
+    );
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("renders the host name through the truncation wrapper and keeps the last seen title", () => {
+    renderHostCell("DESKTOP-U3RE7T8");
+
+    const link = screen.getByTitle("Online");
+    expect(
+      within(link).getByText("DESKTOP-U3RE7T8", {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    ).toBeVisible();
+  });
+
+  it("shows the full host name in a tooltip when it is truncated", async () => {
+    // jsdom has no layout, so report a text box narrower than its content.
+    jest
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockReturnValue(352);
+    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+
+    const { container } = renderHostCell(LONG_HOST_NAME);
+
+    expect(
+      container.querySelector(".data-table__tooltip-truncated-text-container")
+    ).toHaveAttribute("data-tip-disable", "false");
+    await userEvent.hover(
+      screen.getByText(LONG_HOST_NAME, {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    );
+    expect(
+      await screen.findByText(LONG_HOST_NAME, {
+        selector: ".truncated-tooltip.show",
+      })
+    ).toBeVisible();
+  });
+
+  it("does not show a tooltip when the host name fits", async () => {
+    const { container } = renderHostCell("DESKTOP-U3RE7T8");
+
+    expect(
+      container.querySelector(".data-table__tooltip-truncated-text-container")
+    ).toHaveAttribute("data-tip-disable", "true");
+    await userEvent.hover(
+      screen.getByText("DESKTOP-U3RE7T8", {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    );
+    expect(
+      screen.queryByText("DESKTOP-U3RE7T8", {
+        selector: ".truncated-tooltip.show",
+      })
+    ).not.toBeInTheDocument();
   });
 });
 

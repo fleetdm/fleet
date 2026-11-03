@@ -9,6 +9,8 @@
 			<string>test</string>
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis.check-cis-on-device-dictation-enabled</string>
 			<key>PayloadUUID</key>

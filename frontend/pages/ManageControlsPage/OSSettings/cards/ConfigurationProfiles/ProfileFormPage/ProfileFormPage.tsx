@@ -9,7 +9,7 @@ import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IMdmProfile } from "interfaces/mdm";
+import { IMdmProfile, isAnyMDMConfigured } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import PATHS from "router/paths";
 import configProfileAPI from "services/entities/config_profiles";
@@ -39,6 +39,7 @@ const ProfileFormPage = ({
 }: IProfileFormPageProps) => {
   const profileUUID = routeParams.profile_uuid;
   const {
+    config,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -124,7 +125,27 @@ const ProfileFormPage = ({
   const canEditProfiles =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
+  // Only adding is sent away; viewing an existing profile is still useful in
+  // GitOps mode or with its MDM off.
+  const shouldLeaveAddPage =
+    !profileUUID &&
+    !!config &&
+    (gitOpsModeEnabled || !canEditProfiles || !isAnyMDMConfigured(config.mdm));
+  // A user with no fleet to manage has no fleet ID yet, so keep the URL's.
+  const leaveAddPagePath = getPathWithQueryParams(
+    PATHS.CONTROLS_CUSTOM_SETTINGS,
+    { fleet_id: isPremiumTier ? teamId ?? location.query.fleet_id : undefined }
+  );
+  useEffect(() => {
+    if (shouldLeaveAddPage) {
+      router.replace(leaveAddPagePath);
+    }
+  }, [shouldLeaveAddPage, leaveAddPagePath, router]);
+
   const renderContent = () => {
+    if (shouldLeaveAddPage) {
+      return <Spinner />;
+    }
     if (!canEditProfiles) {
       return (
         <DataError description="You don't have permission to edit profiles." />
@@ -167,7 +188,8 @@ const ProfileFormPage = ({
       <div className={`${baseClass}__header-links`}>
         <BackButton text="Back to profiles" path={listPath} />
       </div>
-      <h1>{profileUUID ? "Edit profile" : "Add profile"}</h1>
+      {/* The add page goes straight into the profile, per the design. */}
+      {profileUUID && <h1>Edit profile</h1>}
       {renderContent()}
     </MainContent>
   );

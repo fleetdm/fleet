@@ -618,7 +618,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Nil(t, packages[0].TeamID)
 
 	var softwareTitleResponse getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &softwareTitleResponse, "teamId", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &softwareTitleResponse, "fleet_id", "0")
 	require.Equal(t, "echo 'Hello world'", softwareTitleResponse.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Contains(t, softwareTitleResponse.SoftwareTitle.SoftwarePackage.UninstallScript, "LOGGED_IN_USER") // should pass through FMA script
 

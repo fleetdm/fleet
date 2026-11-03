@@ -120,6 +120,90 @@ func TestHandlePolicyActionStoresPendingCertificates(t *testing.T) {
 	}
 }
 
+// TestPolicyActionRequiresExistingPolicy covers --require-policies: AMAPI answers a policy
+// action on a policy that was never created with 404, which is how Fleet's certificate
+// delivery failed for hosts whose host-specific policy didn't exist yet.
+func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
+	testCases := []struct {
+		name            string
+		requirePolicies bool
+		setup           func(t *testing.T, mux *http.ServeMux)
+		policyID        string
+		wantStatus      int
+	}{
+		{
+			name:            "missing policy is not found",
+			requirePolicies: true,
+			policyID:        testESID,
+			wantStatus:      http.StatusNotFound,
+		},
+		{
+			name:            "patched policy exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "policy restored by a device registering again exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				req := defaultRegisterRequest()
+				req.PolicyName = testPolicyName(testESID)
+				req.PolicyVersion = 5
+				registerTestDevice(t, mux, req, http.StatusOK)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "another host's policy does not make this one exist",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, "other-host").Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:            "a policy for a device the mock doesn't simulate is not checked",
+			requirePolicies: true,
+			policyID:        "real-device",
+			wantStatus:      http.StatusOK,
+		},
+		{
+			name:       "missing policy is accepted by default",
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newDeviceStore()
+			store.requirePolicies = tc.requirePolicies
+			mux := newMux(store, nil, 0, 0)
+			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+			if tc.setup != nil {
+				tc.setup(t, mux)
+			}
+			versionBefore := store.getPolicyVersion(testPolicyName(tc.policyID))
+
+			body := certChangesBody(t, certConfig(certTemplate(7, fleet.MDMOperationTypeInstall)))
+			rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, tc.policyID), body)
+			require.Equal(t, tc.wantStatus, rr.Code, "policy action response: %s", rr.Body.String())
+
+			if tc.wantStatus == http.StatusNotFound {
+				assert.Equal(t, "Not Found\n", rr.Body.String())
+				assert.Empty(t, store.getByESID(testESID).PendingCertificates, "a rejected action must not deliver certificates")
+				assert.Equal(t, versionBefore, store.getPolicyVersion(testPolicyName(tc.policyID)), "a rejected action must not issue a version")
+				assert.False(t, store.policyExists(testPolicyName(tc.policyID)), "a rejected action must not create the policy")
+			}
+		})
+	}
+}
+
 func TestExtractAndStoreCertTemplateIDs(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -322,7 +406,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 
 		d := store.getByESID(testESID)
 		require.NotNil(t, d)
-		assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName)
+		assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName)
 		assert.Zero(t, d.PolicyVersion)
 	})
 
@@ -340,7 +424,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 			d := store.getByESID(testESID)
 			require.NotNil(t, d)
 			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
-			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+			assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName,
 				"the device falls back to a fresh registration")
 
 			// And it must not be reported to Fleet either.

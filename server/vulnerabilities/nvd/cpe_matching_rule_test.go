@@ -294,6 +294,26 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, rule.CPEMatches(pythonAnyTargetSW), "CVE-2024-3219 should not match Python with target_sw=*")
 
+	// Test that the VLC for Android CVEs only match on Android.
+	for _, cve := range []string{"CVE-2026-26227", "CVE-2026-26228"} {
+		rule, ok = cpeMatchingRules.FindMatch(cve)
+		require.True(t, ok)
+
+		vlcAndroid, err := wfn.Parse("cpe:2.3:a:videolan:vlc:3.6.5:*:*:*:*:android:*:*")
+		require.NoError(t, err)
+		require.True(t, rule.CPEMatches(vlcAndroid), "%s should match VLC on Android", cve)
+
+		for _, desktop := range []string{
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:macos:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:windows:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:*:*:*",
+		} {
+			vlcDesktop, err := wfn.Parse(desktop)
+			require.NoError(t, err)
+			require.False(t, rule.CPEMatches(vlcDesktop), "%s should not match %s", cve, desktop)
+		}
+	}
+
 	// Test that gitk CVEs don't match the base git package
 	gitCPEMeta, err := wfn.Parse("cpe:2.3:a:git:git:2.47.1:*:*:*:*:*:*:*")
 	require.NoError(t, err)

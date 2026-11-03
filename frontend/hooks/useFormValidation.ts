@@ -166,7 +166,7 @@ const pruneErrors = (
  * ```tsx
  * const validate = (data: IFormData): IFormErrors => {
  *   const errors: IFormErrors = {};
- *   if (!validatePresence(data.name)) errors.name = "Enter a name";
+ *   if (!isPresent(data.name)) errors.name = "Enter a name";
  *   return errors;
  * };
  *

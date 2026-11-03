@@ -23,7 +23,7 @@ How to require end users to authenticate with a custom web application:
 </dict>
 ```
 
-You can use Fleet's API to [get the manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
+You can use Fleet's API to [get the manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile). This requires setting `mdm.apple_scep_static_challenge_enabled` to `true` in the Fleet server configuration (it's `false` by default).
 
 6. Update the custom web application to wait until the fleetd agent is installed on the new Mac and then do the following steps.
 

@@ -100,6 +100,11 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return nil, &fleet.PaginationMetadata{}, nil
+	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) (fleet.MDMProfilesUpdates, error) {

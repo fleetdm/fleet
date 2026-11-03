@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validateEmail from "components/forms/validators/valid_email";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidEmail, isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Spinner from "components/Spinner";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
@@ -46,7 +45,7 @@ const validateForm = (
 
   if (!data.url) {
     errors.url = "Enter a URL";
-  } else if (!validUrl({ url: data.url, protocols: ["https"] })) {
+  } else if (!isValidURL({ url: data.url, protocols: ["https"] })) {
     errors.url = "Enter a valid HTTPS URL";
   }
 
@@ -64,7 +63,7 @@ const validateForm = (
   } else {
     if (!data.email) {
       errors.email = "Enter an email";
-    } else if (!validateEmail(data.email)) {
+    } else if (!isValidEmail(data.email)) {
       errors.email = "Enter a valid email";
     }
     if (!data.groupId) {

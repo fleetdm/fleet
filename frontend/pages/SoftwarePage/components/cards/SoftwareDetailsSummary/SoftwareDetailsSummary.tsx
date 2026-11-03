@@ -11,13 +11,11 @@ import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
@@ -27,7 +25,6 @@ import {
   isSafeImagePreviewUrl,
 } from "pages/SoftwarePage/helpers";
 import paths from "router/paths";
-import { getGitOpsModeTipContent } from "utilities/helpers";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import OSIcon from "../../icons/OSIcon";
@@ -42,15 +39,6 @@ export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
 
 export interface BuildActionOptionsArgs {
-  gitOpsModeEnabled?: boolean;
-  repoURL?: string;
-  /** Apple VPP titles (App Store / iOS / iPadOS, not Android Play Store). VPP
-   * apps are GitOps-managed, so Edit software is locked behind the gitops
-   * tooltip when `gitOpsModeEnabled`. Compute as
-   * `installerType === "app-store" && !isAndroidPlayStoreApp` at the call
-   * site — `source` strings alone don't disambiguate, since both Apple VPP
-   * and Android Play Store use `apps`-family sources. */
-  isAppleVpp?: boolean;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
   canDeploySoftware: boolean;
@@ -58,62 +46,39 @@ export interface BuildActionOptionsArgs {
   canConfigureAutoUpdate: boolean;
 }
 
+// Edit options stay clickable in gitops mode; each modal self-disables and
+// gates Save.
 export const buildActionOptions = ({
-  gitOpsModeEnabled,
-  repoURL,
-  isAppleVpp = false,
   canEditSoftware,
   canEditConfiguration,
   canDeploySoftware,
   canManageVersions,
   canConfigureAutoUpdate,
 }: BuildActionOptionsArgs): IDropdownOption[] => {
-  let disableEditAppearanceTooltipContent: TooltipContent | undefined;
-  let disableEditSoftwareTooltipContent: TooltipContent | undefined;
-  let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
-
-  // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
-  // below); the tooltip is only populated when `repoURL` is also available,
-  // since the copy depends on it. Without that split, an empty `repoURL`
-  // would leave the options clickable in gitops mode.
-  if (gitOpsModeEnabled) {
-    const gitOpsModeTooltipContent =
-      repoURL && getGitOpsModeTipContent(repoURL);
-
-    disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
-    disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
-
-    if (isAppleVpp) {
-      disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
-    }
-  }
-
   const options: IDropdownOption[] = [
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      disabled: gitOpsModeEnabled,
-      tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
 
-  // Hides edit software option only for Android installers (Playstore and Web apps), as they are currently non-editable
+  // Hides edit software option only for Android installers (Playstore and Web apps), as they are currently non-editable.
+  // Stays clickable in gitops mode so admins can open the modal to view
+  // applied settings; the modal disables its own fields and Save button.
   if (canEditSoftware) {
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      disabled: !!gitOpsModeEnabled && isAppleVpp,
-      tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
 
-  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
+  // Show edit configuration option for Android installers (not web apps) and
+  // iOS/iPadOS apps. Stays clickable in gitops mode — the modal itself
+  // disables Save with the gitops tooltip, matching the Versions option.
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: gitOpsModeEnabled,
-      tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
 
@@ -187,9 +152,6 @@ interface ISoftwareDetailsSummaryProps {
   /** Optional pill row rendered between the title and the Actions dropdown
    * (e.g. Fleet-maintained, Self-service, Auto install). */
   headerPills?: React.ReactNode;
-  /** Apple VPP — gates Edit software behind the gitops tooltip. See
-   * `BuildActionOptionsArgs.isAppleVpp` for the canonical computation. */
-  isAppleVpp?: boolean;
   /** Custom non-FMA packages collapse the Actions dropdown into a single
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
    * Per-installer Edit lives on the Library accordion row. */
@@ -220,7 +182,6 @@ const SoftwareDetailsSummary = ({
   iconPreviewUrl,
   iconUploadedAt,
   headerPills,
-  isAppleVpp = false,
   useSingleEditAppearanceButton = false,
   fleetMaintainedAppSlug,
   appStoreId,
@@ -228,7 +189,6 @@ const SoftwareDetailsSummary = ({
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
-  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
   const onSelectSoftwareAction = (value: string) => {
@@ -298,9 +258,6 @@ const SoftwareDetailsSummary = ({
     );
 
   const actionOptions = buildActionOptions({
-    gitOpsModeEnabled,
-    repoURL,
-    isAppleVpp,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
     canDeploySoftware: !!onClickDeploy,
@@ -340,24 +297,18 @@ const SoftwareDetailsSummary = ({
           {canManageSoftware && (
             <div className={`${baseClass}__actions-wrapper`}>
               {useSingleEditAppearanceButton ? (
-                // GitOps mode wraps the button so hover surfaces the
-                // "Managed by GitOps" tooltip + repo link, mirroring how the
-                // Actions dropdown's items are disabled with the same tip.
-                <GitOpsModeTooltipWrapper
-                  entityType="software"
-                  position="top"
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      onClick={onClickEditAppearance}
-                      disabled={disableChildren || !onClickEditAppearance}
-                      icon="pencil"
-                    >
-                      Edit
-                    </Button>
-                  )}
-                />
+                // Clickable in gitops mode so admins can open the modal to
+                // view the applied icon and display name; the modal disables
+                // its own fields and Save button.
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={onClickEditAppearance}
+                  disabled={!onClickEditAppearance}
+                  icon="pencil"
+                >
+                  Edit
+                </Button>
               ) : (
                 <ActionsDropdown
                   className={`${baseClass}__actions-dropdown`}

@@ -442,7 +442,7 @@ Follow the [steps above](#turn-on-windows-mdm) to turn on Windows MDM in Fleet.
 
 3. On the **Manage Windows MDM** page, select **Automatically migrate hosts connected to another MDM solution**. Click **Save** to save the change.
 
-### Step 4: Monitor your hosts as they migrate to Fleet MDM
+### Step 4: Monitor your hosts as they migrate to Fleet
 
 Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 

@@ -1,0 +1,1 @@
+- Fixed a bug where sessions for other users were incorrectly marked as accessed/active when listing or getting sessions via the API. This could cause the `status` or `last_activity_at` for a user to be incorrect and result in sessions being valid indefinitely if sessions are listed more frequently than the configured `session_duration` (default: 5d).

@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -366,16 +367,63 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPProxyURL,
 }
 
-// subjectNameHasRenewalIDMarker reports whether a SubjectName data string
-// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
-// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
-func subjectNameHasRenewalIDMarker(data string) bool {
-	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
-		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
-			return true
+var (
+	subjectNameMissingRenewalIDMsg = "SubjectName item must contain the " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
+		" variable in the OU field. In some use cases, it can go in the CN field instead."
+	subjectNameRenewalIDInOneOfManyCNsMsg = "SubjectName item can only have one CN field when the CN contains the " +
+		fleet.FleetVarCertificateRenewalID.WithPrefix() + " variable."
+	subjectNameEntityQuotedVariableMsg = `SubjectName values with Fleet variables can't use escaped quotes (&quot;). ` +
+		`Remove them, or use a literal " instead.`
+)
+
+// validateSubjectNameRenewalID checks that a SubjectName <Data> has the renewal-ID variable in an OU or CN attribute, the
+// two fields host certificate ingestion searches for the marker. OU is the norm, but some CAs (Okta) drop the OU from
+// issued certificates. The legacy SCEP_RENEWAL_ID name is accepted for back-compat. The error carries the message for
+// the admin.
+func validateSubjectNameRenewalID(rawData string) error {
+	if microsoft_mdm.HasEntityQuotedSubstitution(rawData) {
+		return errors.New(subjectNameEntityQuotedVariableMsg)
+	}
+	var data strings.Builder
+	// Only character data is read, from a profile the validators above already parsed; encoding/xml resolves no external entities.
+	dec := xml.NewDecoder(strings.NewReader(rawData)) //nolint:gosec // G709: see above
+	for {
+		token, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return errors.New(subjectNameMissingRenewalIDMsg)
+		}
+		if text, ok := token.(xml.CharData); ok {
+			data.Write(text)
 		}
 	}
-	return false
+	var commonNames int
+	var inOU, inCN bool
+	for _, attribute := range microsoft_mdm.SubjectNameAttributes(data.String()) {
+		key, value, ok := strings.Cut(attribute, "=")
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "OU":
+			inOU = inOU || fleet.FleetVarRenewalIDRegexp.MatchString(value)
+		case "CN":
+			commonNames++
+			inCN = inCN || fleet.FleetVarRenewalIDRegexp.MatchString(value)
+		}
+	}
+	switch {
+	case inOU:
+		return nil
+	case !inCN:
+		return errors.New(subjectNameMissingRenewalIDMsg)
+	case commonNames > 1:
+		// Ingestion keeps only one CN per certificate, so the one with the marker might not be it.
+		return errors.New(subjectNameRenewalIDInOneOfManyCNsMsg)
+	}
+	return nil
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -512,9 +560,9 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 					),
 				}
 			}
-			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
-				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
+			if isSubjectName {
+				if err := validateSubjectNameRenewalID(dataContent); err != nil {
+					return &fleet.BadRequestError{Message: err.Error()}
 				}
 			}
 		}
@@ -554,8 +602,8 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 					return errors.New("SubjectName item is missing data")
 				}
 
-				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
+				if err := validateSubjectNameRenewalID(cmd.Data.Content); err != nil {
+					return err
 				}
 			}
 		}
