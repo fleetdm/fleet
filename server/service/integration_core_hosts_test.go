@@ -445,11 +445,6 @@ func (s *integrationTestSuite) TestListHosts() {
 		require.NoError(t, err)
 		fleetA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-a"})
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID, hosts[1].ID})))
-			require.NoError(t, s.ds.DeleteTeam(ctx, fleetA.ID))
-			require.NoError(t, s.ds.DeleteTeam(ctx, fleetB.ID))
-		})
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetB.ID, []uint{hosts[0].ID})))
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetA.ID, []uint{hosts[1].ID})))
 
