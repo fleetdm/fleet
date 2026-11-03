@@ -2,17 +2,19 @@
 
 ![Windows MDM setup](../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png)
 
+To set up zero-touch enrollment on Windows, we recommend an OEM service like Dell ReadyImage or Lenovo RTP, described [below](#zero-touch-enrollment-with-an-oem-service).
+
 To control OS settings, updates, and more on Windows hosts, follow the manual enrollment instructions.
 
-To use automatic enrollment (aka zero-touch) features on Windows, we recommend an OEM service, described [below](#autopilot-and-entra-id-arent-required). If you'd rather enroll hosts through Microsoft Entra ID, follow the instructions to connect Fleet to Microsoft Entra ID. You can further customize that with Windows Autopilot.
+If you'd rather enroll hosts through Microsoft Entra ID, follow the instructions to connect Fleet to Microsoft Entra ID. You can further customize that with Windows Autopilot.
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the [Automatic Windows MDM migration](#automatic-windows-mdm-migration) instructions.
 
 > Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
 
-## Autopilot and Entra ID aren't required
+## Zero-touch enrollment with an OEM service
 
-**You don't need Microsoft Entra ID or Windows Autopilot to manage Windows hosts with Fleet.** The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. This works at any scale, and works best for customers with at least 500 PCs, since you can get a better deal from your hardware provider. Fleet is designed to make this easy:
+**You don't need Windows Autopilot, Microsoft Entra ID P1, or Intune to manage Windows hosts with Fleet.** The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. This works at any scale, and works best for customers with at least 500 PCs, since you can get a better deal from your hardware provider. Fleet is designed to make this easy:
 
 1. [Turn on Windows MDM](#turn-on-windows-mdm) in Fleet.
 
@@ -102,7 +104,7 @@ Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-
 
 _Available in Fleet Premium_
 
-Connecting Fleet to Microsoft Entra ID is optional. The recommended way to automatically enroll Windows workstations is an [OEM service](#autopilot-and-entra-id-arent-required), which doesn't use Entra. Follow the steps in this section only if you want to enroll hosts through Entra ID. Each end user needs a Microsoft Entra ID P1 license.
+Connecting Fleet to Microsoft Entra ID is optional. The recommended way to automatically enroll Windows workstations is an [OEM service](#zero-touch-enrollment-with-an-oem-service), which doesn't use Entra. Follow the steps in this section only if you want to enroll hosts through Entra ID. Each end user needs a Microsoft Entra ID P1 license.
 
 To automatically enroll Windows workstations through Entra ID when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
@@ -284,7 +286,7 @@ If you created and licensed a test user in Step 1b, skip to step 6.
 
 ## Windows Autopilot
 
-Windows Autopilot requires Microsoft Entra ID P1. See [Microsoft licenses you need](#microsoft-licenses-you-need) for the subscriptions that qualify.
+Windows Autopilot requires Microsoft Entra ID P1, and isn't required to enroll Windows hosts. For the recommended path, see [Zero-touch enrollment with an OEM service](#zero-touch-enrollment-with-an-oem-service). See [Microsoft licenses you need](#microsoft-licenses-you-need) for the subscriptions that qualify.
 
 ### Step 1: Create an Autopilot profile
 

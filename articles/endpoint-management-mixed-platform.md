@@ -66,7 +66,7 @@ Effective endpoint management isn't only about deploying a solution. The pattern
 Start with zero-touch provisioning. Each platform has its own enrollment path:
 
 - macOS, iOS, and iPadOS: Apple Business Manager with Automated Device Enrollment (ADE)
-- Windows: Autopilot with Microsoft Entra ID, or an OEM service that preinstalls your management agent
+- Windows: an OEM service that preinstalls your management agent, or Autopilot with Microsoft Entra ID
 - Android: Zero-touch enrollment for fully managed corporate devices through Android Enterprise
 - ChromeOS: Domain binding through Chrome Enterprise
 
@@ -114,7 +114,7 @@ Fleet is an open-source device management platform. It supports macOS, Windows, 
 
 The unified reporting and change-control workflows discussed above are where a single-console approach pays off most. Fleet provides [device management](https://fleetdm.com/device-management) that ties intended configuration, the action sent to the device, and the device state reported afterward into one operational thread. That connection holds across macOS, Windows, Linux, iOS, iPadOS, and Android, with ChromeOS covered through the fleetd Chrome extension for visibility.
 
-Fleet supports zero-touch enrollment through Apple Business Manager and, for Windows, Windows Autopilot or an OEM service that installs Fleet's agent, and supports Android Enterprise enrollment for both BYOD work profiles and fully managed devices. Fleet also enforces OS updates across the major platforms: a minimum version and deadline on macOS, iOS, and iPadOS through DDM, a deadline and grace period on Windows, and systemUpdate configuration on fully managed Android devices.
+Fleet supports zero-touch enrollment through Apple Business Manager and, for Windows, an OEM service that installs Fleet's agent or Windows Autopilot, and supports Android Enterprise enrollment for both BYOD work profiles and fully managed devices. Fleet also enforces OS updates across the major platforms: a minimum version and deadline on macOS, iOS, and iPadOS through DDM, a deadline and grace period on Windows, and systemUpdate configuration on fully managed Android devices.
 
 Configuration management happens through fleetctl gitops, a built-in CLI that applies version-controlled YAML as part of a CI/CD pipeline. The YAML covers OS update deadlines, software packages, configuration profiles, policies, and scripts, and every change moves through pull-request review with an audit trail.
 
