@@ -104,9 +104,20 @@ func Find(kind Kind, oldName, context string) (Entry, bool) {
 	return findIn(entries, kind, oldName, context)
 }
 
+// sameName reports whether name is the old name of e. A KindYAMLValue entry is written "key: value": its value is compared without
+// regard to case and its key exactly, because YAML keys are case-sensitive.
+func sameName(e Entry, name string) bool {
+	if e.Kind != KindYAMLValue {
+		return e.Old == name
+	}
+	key, value, ok := strings.Cut(e.Old, ": ")
+	nameKey, nameValue, nameOk := strings.Cut(name, ": ")
+	return ok && nameOk && key == nameKey && strings.EqualFold(value, nameValue)
+}
+
 func findIn(list []Entry, kind Kind, oldName, context string) (Entry, bool) {
 	for _, e := range list {
-		if e.Kind == kind && e.Old == oldName && (e.Context == "" || e.Context == context) {
+		if e.Kind == kind && sameName(e, oldName) && (e.Context == "" || e.Context == context) {
 			return e, true
 		}
 	}

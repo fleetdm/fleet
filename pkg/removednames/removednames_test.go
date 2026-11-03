@@ -105,6 +105,14 @@ func TestFindAndFilter(t *testing.T) {
 	_, ok = Find(KindJSONKey, "team_id", "anything")
 	assert.True(t, ok)
 
+	// A YAML value ignores case, but its key does not.
+	for name, want := range map[string]bool{
+		"name: No team": true, "name: no team": true, "name: NO TEAM": true, "NAME: No team": false, "name: Unassigned": false, "No team": false,
+	} {
+		_, ok = Find(KindYAMLValue, name, "")
+		assert.Equal(t, want, ok, name)
+	}
+
 	// Filter matches on scope bits, and a zero scope matches every scope.
 	for _, scope := range []Scope{ScopeRequest, ScopeResponse, ScopeActivityDetails} {
 		entries := Filter(KindJSONKey, scope)
@@ -143,6 +151,10 @@ func TestEntriesWellFormed(t *testing.T) {
 		assert.NotEmpty(t, e.Kind)
 		assert.NotZero(t, e.Scope, e.Old)
 		assert.NotEqual(t, e.Old, e.New)
+		if e.Kind == KindYAMLValue {
+			assert.Contains(t, e.Old, ": ", "a YAML value is written key: value")
+			assert.Contains(t, e.New, ": ", "a YAML value is written key: value")
+		}
 		assert.Contains(t, e.Message(), GuideURL, e.Old)
 		switch e.Format.(type) {
 		case nil, ReplacedFormat:
