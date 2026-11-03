@@ -1,0 +1,5 @@
+- name: macOS 15 and older hosts
+  description: macOS hosts running macOS 15 or older
+  query: SELECT 1 FROM os_version WHERE major <= 15;
+  label_membership_type: dynamic
+  platform: darwin

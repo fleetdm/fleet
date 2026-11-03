@@ -547,9 +547,9 @@ The "Packs" section of the UI has been removed, but [access to query packs via t
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
-To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
+To enforce macOS settings, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
 ### What does "package root files: heat failed" mean?
 

@@ -98,6 +98,7 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  APP_STORE_APP_VERSION_ID: "app_store_app_version_id",
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
@@ -135,6 +136,7 @@ export interface ILoadHostsOptions {
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -172,6 +174,7 @@ export interface IExportHostsOptions {
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -263,6 +266,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   macos_applications?: boolean;
   source?: string;
   extension_for?: string;
+  ai_tool?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -406,6 +410,7 @@ export default {
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
+    const appStoreAppVersionId = options?.appStoreAppVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -453,6 +458,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         osName,
         osVersionId,
         osVersion,
@@ -493,6 +499,7 @@ export default {
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
+    appStoreAppVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -544,6 +551,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         lowDiskSpaceHosts,
         osVersionId,
         osName,

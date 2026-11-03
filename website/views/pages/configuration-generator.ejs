@@ -27,7 +27,8 @@
           <div class="form-group">
             <label for="profile">Instructions</label>
             <textarea class="form-control" type="textarea" id="profile" placeholder="Disable camera access in Firefox" :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
-            <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
+            <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions === 'maxLength'" focus-first>Instructions must be 2,000 characters or fewer.</div>
+            <div class="invalid-feedback" v-else-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
           </div>
           <p v-if="cloudError && cloudErrorExplanation" class="text-danger">Your request could not be processed. {{cloudErrorExplanation}}</p>
           <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>

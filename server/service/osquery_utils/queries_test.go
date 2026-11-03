@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -20,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	_ "github.com/mattn/go-sqlite3"
@@ -429,6 +432,33 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), rAppNoMatch, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "4.6.1", rAppNoMatch.Version)
+
+	// AI CLIs reported by catalog slug are stored under their product name
+	aiCLI := &fleet.Software{Name: "claude-code", Source: "ai_clis", Version: "2.0.14"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLI, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Claude Code", aiCLI.Name)
+
+	aiCLIUnknownSlug := &fleet.Software{Name: "brand-new-agent", Source: "ai_clis"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLIUnknownSlug, slog.New(slog.DiscardHandler))
+	require.Equal(t, "brand-new-agent", aiCLIUnknownSlug.Name)
+
+	// The same name under another source is the package's own name
+	homebrewCodex := &fleet.Software{Name: "codex", Source: "homebrew_packages"}
+	MutateSoftwareOnIngestion(t.Context(), homebrewCodex, slog.New(slog.DiscardHandler))
+	require.Equal(t, "codex", homebrewCodex.Name)
+
+	// Cursor rule files are named by the developer, so they share one title
+	cursorRule := &fleet.Software{Name: "acme-billing-api.mdc", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRule, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRule.Name)
+
+	cursorRuleUpper := &fleet.Software{Name: "Testing.MDC", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRuleUpper, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRuleUpper.Name)
+
+	instructionFile := &fleet.Software{Name: "CLAUDE.md", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), instructionFile, slog.New(slog.DiscardHandler))
+	require.Equal(t, "CLAUDE.md", instructionFile.Name)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -668,6 +698,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"network_interface_unix",
 		"network_interface_windows",
 		"network_interface_chrome",
+		"timezone_unix",
+		"timezone_windows",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -719,6 +751,12 @@ func TestGetDetailQueries(t *testing.T) {
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
+
+	// AI tools inventory is premium only
+	queriesPremiumWithSoftware := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, &fleet.Features{EnableSoftwareInventory: true}, Integrations{}, nil)
+	require.Contains(t, queriesPremiumWithSoftware, "software_ai_tools")
+	require.NotContains(t, queriesPremium, "software_ai_tools")
+	require.NotContains(t, queriesWithUsersAndSoftware, "software_ai_tools")
 
 	// test that appropriate mdm queries are added based on app config
 	var mdmQueriesBase, mdmQueriesWindows []string
@@ -1072,6 +1110,39 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
+}
+
+func TestDetailQueriesSystemInfoUUID(t *testing.T) {
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["system_info"].IngestFunc
+
+	const storedUUID = "5B1D3C1E-0A5A-4E0B-9E1B-1D2C3B4A5F6E"
+	cases := []struct {
+		name        string
+		stored      string
+		reported    string
+		wantUUID    string
+		wantWarnLog bool
+	}{
+		{"first report sets the UUID", "", storedUUID, storedUUID, false},
+		{"same UUID", storedUUID, storedUUID, storedUUID, false},
+		{"case-only difference keeps the stored UUID", storedUUID, strings.ToLower(storedUUID), storedUUID, false},
+		{"different UUID is ignored", storedUUID, "11111111-2222-3333-4444-555555555555", storedUUID, true},
+		{"empty UUID is ignored", storedUUID, "", storedUUID, true},
+		{"empty UUID on a host without one", "", "", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+			host := fleet.Host{UUID: c.stored, Hostname: "old-hostname"}
+
+			err := ingest(t.Context(), logger, &host, []map[string]string{{"uuid": c.reported, "hostname": "new-hostname"}})
+			require.NoError(t, err)
+			require.Equal(t, c.wantUUID, host.UUID)
+			require.Equal(t, "new-hostname", host.Hostname)
+			require.Equal(t, c.wantWarnLog, logs.Len() > 0, logs.String())
+		})
+	}
 }
 
 func TestDetailQueriesUptimeChrome(t *testing.T) {
@@ -2178,6 +2249,72 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 	})
 
+	t.Run("ai_tool marker", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "Claude", "version": "1.2.4", "source": "apps", "bundle_identifier": "com.anthropic.claudefordesktop", "ai_tool": "1"},
+			{"name": "Safari", "version": "18.0", "source": "apps", "bundle_identifier": "com.apple.Safari"},
+			{"name": "github", "version": "", "source": "mcp_servers", "ai_tool": "1"},
+		}
+		var ingested []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			ingested = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+		var marked []fleet.Software
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			marked = software
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.Len(t, ingested, 3)
+		require.True(t, ptr.ValOrZero(ingested[0].AITool))
+		require.False(t, ptr.ValOrZero(ingested[1].AITool))
+		require.True(t, ptr.ValOrZero(ingested[2].AITool))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{ingested[0], ingested[2]}, marked)
+		first := ingested
+
+		// No flagged rows, no call.
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data[1:2]))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		// Software the host already reports flagged needs no lookup.
+		flaggedClaude, unflaggedGithub := first[0], first[2]
+		unflaggedGithub.AITool = nil
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{first[2]}, marked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], first[2]}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			return errors.New("mark failed")
+		}
+		require.ErrorContains(t, directIngestSoftware(ctx, logger, &host, ds, data), "mark failed")
+		ds.MarkSoftwareAsAIToolFunc = nil
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.UpdateHostSoftwareFuncInvoked = false
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
 	t.Run("vendor gets truncated", func(t *testing.T) {
 		for _, tc := range []struct {
 			data     []map[string]string
@@ -2808,8 +2945,8 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, _ []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
 			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: caCertPEM}}, nil
 		}
-		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
-			return nil
+		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+			return true, nil
 		}
 		ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, h *fleet.Host, key, clientError string, decryptable *bool) (bool, error) {
 			return true, nil
@@ -2838,10 +2975,10 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
 				incoming := encrypt("AAAA-BBBB")
 				var replaced string
-				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
+				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
 					require.Equal(t, storedBlob, currentBase64Encrypted, "the swap is conditional on the compared blob")
 					replaced = newBase64Encrypted
-					return nil
+					return true, nil
 				}
 				h := newHost()
 				require.NoError(t, tc.ingest(ctx, logger, h, ds, tc.rows(incoming)))
@@ -6082,4 +6219,463 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
 		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
 	}, got)
+}
+
+func TestTimezoneQueryPlatforms(t *testing.T) {
+	unix := hostDetailQueries["timezone_unix"]
+	win := hostDetailQueries["timezone_windows"]
+	for _, p := range []string{"darwin", "ubuntu", "rhel", "linux"} {
+		assert.True(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	for _, p := range []string{"ios", "ipados", "chrome", "android"} {
+		assert.False(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	assert.False(t, unix.RunsForPlatform("windows"))
+	assert.True(t, win.RunsForPlatform("windows"))
+}
+
+func TestIngestTimezone(t *testing.T) {
+	row := func(k, v string) []map[string]string { return []map[string]string{{k: v}} }
+	const key, wkey = "symlink_target_path", "data"
+
+	cases := []struct {
+		name   string
+		ingest func(context.Context, *slog.Logger, *fleet.Host, []map[string]string) error
+		rows   []map[string]string
+		want   string // "" means unchanged
+	}{
+		{"unix macOS", ingestTimezoneUnix, row(key, "/var/db/timezone/zoneinfo/America/New_York"), "America/New_York"},
+		{"unix linux", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Europe/Sarajevo"), "Europe/Sarajevo"},
+		{"unix relative", ingestTimezoneUnix, row(key, "../usr/share/zoneinfo/Asia/Tokyo"), "Asia/Tokyo"},
+		{"unix posix", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/posix/America/Chicago"), "America/Chicago"},
+		{"unix right", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/right/UTC"), "UTC"},
+		{"unix invalid name", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Not/AZone"), ""},
+		{"unix Local", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Local"), ""},
+		{"unix Factory", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Factory"), ""},
+		{"unix garbage", ingestTimezoneUnix, row(key, "garbage"), ""},
+		{"unix empty", ingestTimezoneUnix, row(key, ""), ""},
+		{"unix missing key", ingestTimezoneUnix, row("other", "/usr/share/zoneinfo/Asia/Tokyo"), ""},
+		{"unix zero rows", ingestTimezoneUnix, nil, ""},
+		{"unix two rows", ingestTimezoneUnix, []map[string]string{{key: "/usr/share/zoneinfo/Asia/Tokyo"}, {key: "/usr/share/zoneinfo/Asia/Tokyo"}}, ""},
+		{"windows known", ingestTimezoneWindows, row(wkey, "Eastern Standard Time"), "America/New_York"},
+		{"windows padded", ingestTimezoneWindows, row(wkey, " Pacific Standard Time\n"), "America/Los_Angeles"},
+		{"windows unknown", ingestTimezoneWindows, row(wkey, "Mars Standard Time"), ""},
+		{"windows empty", ingestTimezoneWindows, row(wkey, ""), ""},
+		{"windows missing key", ingestTimezoneWindows, row("other", "Eastern Standard Time"), ""},
+		{"windows zero rows", ingestTimezoneWindows, nil, ""},
+		{"windows two rows", ingestTimezoneWindows, []map[string]string{{wkey: "Eastern Standard Time"}, {wkey: "Eastern Standard Time"}}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			host := &fleet.Host{TimeZone: new("Europe/Berlin")}
+			require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+			want := c.want
+			if want == "" {
+				want = "Europe/Berlin"
+			}
+			require.NotNil(t, host.TimeZone)
+			assert.Equal(t, want, *host.TimeZone)
+
+			// An unknown stored value stays unknown on invalid input and is set on valid input.
+			for _, initial := range []*string{nil, new("")} {
+				host := &fleet.Host{TimeZone: initial}
+				require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+				if c.want == "" {
+					assert.Equal(t, initial, host.TimeZone)
+				} else {
+					require.NotNil(t, host.TimeZone)
+					assert.Equal(t, c.want, *host.TimeZone)
+				}
+			}
+		})
+	}
+}
+
+func TestWindowsTimezonesMap(t *testing.T) {
+	require.Len(t, windowsTimezones, 142)
+	for k, v := range windowsTimezones {
+		_, err := time.LoadLocation(v)
+		require.NoError(t, err, k)
+		assert.NotEmpty(t, v, k)
+		assert.NotEqual(t, "Local", v, k)
+		assert.NotEqual(t, "Factory", v, k)
+	}
+}
+
+// TestSoftwareAIToolsQuery runs the software_ai_tools query against sqlite, which osquery embeds,
+// to check which ai_tools rows it keeps and how it maps them onto software sources.
+func TestSoftwareAIToolsQuery(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE ai_tools (type TEXT, name TEXT, version TEXT, path TEXT, evidence TEXT, source TEXT, category TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO ai_tools VALUES
+		('agents', 'claude-code', '2.0.14', '/Users/a/.local/bin/claude', 'catalog,running', 'native', 'coding-assistant'),
+		('agents', 'claude-code', '', '/opt/homebrew/bin/claude', 'binary,catalog,tool_home', 'homebrew', 'coding-assistant'),
+		('agents', 'my-project', '', '/Users/a/src/my-project', 'framework:crewai', 'evidence', 'agent-runtime'),
+		('mcp_server', 'github', '', '/Users/a/.cursor/mcp.json', '', 'cursor', ''),
+		('mcp_server', 'node server.js', '', '', '', 'process', ''),
+		('agent_instruction', 'CLAUDE.md', '', '/Users/a/src/x/CLAUDE.md', '', 'claude', 'skill'),
+		('skill', 'pdf', '1.0', '/Users/a/.claude/skills/pdf/SKILL.md', '', 'claude', 'skill'),
+		('apps', 'Claude', '1.2.4', '/Applications/Claude.app', '', 'apps', ''),
+		('ide_plugins', 'GitHub Copilot', '1.0.0', '/Users/a/.vscode/extensions/github.copilot-1.0.0', '', 'vscode', ''),
+		('browser_extension', 'ChatGPT', '1.0', '/Users/a/Library/x/manifest.json', '', 'chrome', ''),
+		('sockets', 'api.openai.com', '', '', '', 'egress', ''),
+		('some_future_type', 'x', '1.0', '/Users/a/x', '', 'x', '')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareAITools.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+	cols, err := rows.Columns()
+	require.NoError(t, err)
+	// directIngestSoftware and AIToolsProcessResults read rows by these keys, so a renamed alias
+	// would ingest empty fields instead of failing.
+	require.Equal(t, []string{
+		"name", "version", "bundle_identifier", "extension_id", "extension_for", "source", "vendor",
+		"last_opened_at", "installed_path", "ai_type", "ai_install_method",
+	}, cols)
+
+	type aiRow struct{ name, version, source, path, aiType string }
+	var got []aiRow
+	for rows.Next() {
+		var r aiRow
+		var bundleID, extensionID, extensionFor, vendor, lastOpenedAt, installMethod string
+		require.NoError(t, rows.Scan(&r.name, &r.version, &bundleID, &extensionID, &extensionFor, &r.source, &vendor, &lastOpenedAt, &r.path, &r.aiType, &installMethod))
+		// A value in either column puts the title on a key a real app can own, and the title
+		// insert silently drops it.
+		require.Empty(t, bundleID)
+		require.Empty(t, extensionFor)
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []aiRow{
+		{"claude-code", "2.0.14", "ai_clis", "/Users/a/.local/bin/claude", "agents"},
+		{"claude-code", "", "ai_clis", "/opt/homebrew/bin/claude", "agents"},
+		{"github", "", "mcp_servers", "/Users/a/.cursor/mcp.json", "mcp_server"},
+		{"CLAUDE.md", "", "ai_skills", "/Users/a/src/x/CLAUDE.md", "agent_instruction"},
+		{"pdf", "1.0", "ai_skills", "/Users/a/.claude/skills/pdf/SKILL.md", "skill"},
+		{"Claude", "1.2.4", "ai_tools", "/Applications/Claude.app", "apps"},
+		{"GitHub Copilot", "1.0.0", "ai_tools", "/Users/a/.vscode/extensions/github.copilot-1.0.0", "ide_plugins"},
+		{"ChatGPT", "1.0", "ai_tools", "/Users/a/Library/x/manifest.json", "browser_extension"},
+	}, got)
+}
+
+func TestAIToolsProcessResults(t *testing.T) {
+	sw := func(name, source, path string) map[string]string {
+		return map[string]string{"name": name, "version": "1.0", "source": source, "installed_path": path}
+	}
+	brew := func(name, version, path string) map[string]string {
+		return map[string]string{"name": name, "version": version, "source": "homebrew_packages", "installed_path": path}
+	}
+	ai := func(aiType, name, path string) map[string]string {
+		source := "ai_tools"
+		switch aiType {
+		case "agents":
+			source = "ai_clis"
+		case "mcp_server":
+			source = "mcp_servers"
+		case "agent_instruction":
+			source = "ai_skills"
+		}
+		return map[string]string{"name": name, "version": "", "source": source, "installed_path": path, "ai_type": aiType}
+	}
+	type result struct{ name, source, path, aiTool string }
+	summarize := func(rows []map[string]string) []result {
+		out := make([]result, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, result{r["name"], r["source"], r["installed_path"], r["ai_tool"]})
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name     string
+		platform string
+		main     []map[string]string
+		ai       []map[string]string
+		want     []result
+	}{
+		{
+			name:     "app marker flags the app at the same path and is not stored",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), sw("Safari", "apps", "/Applications/Safari.app")},
+			ai:       []map[string]string{ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"Safari", "apps", "/Applications/Safari.app", ""}},
+		},
+		{
+			name:     "browser extension manifest flags the extension directory",
+			platform: "darwin",
+			main: []map[string]string{
+				sw("ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0"),
+				sw("Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/"),
+			},
+			ai: []map[string]string{
+				ai("browser_extension", "ChatGPT", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0/manifest.json"),
+				ai("browser_extension", "Claude", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/manifest.json"),
+			},
+			want: []result{
+				{"ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0", "1"},
+				{"Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/", "1"},
+			},
+		},
+		{
+			name:     "Windows browser extension manifest flags the extension directory",
+			platform: "windows",
+			main:     []map[string]string{sw("ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`)},
+			ai:       []map[string]string{ai("browser_extension", "ChatGPT", `C:\Users\A\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0\Manifest.json`)},
+			want:     []result{{"ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`, "1"}},
+		},
+		{
+			name:     "Windows paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `c:\users\a\appdata\local\programs\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `C:\Users\A\AppData\Local\Programs\Foo`)},
+			want:     []result{{"Foo", "programs", `c:\users\a\appdata\local\programs\foo\`, "1"}},
+		},
+		{
+			name:     "Windows network paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `\\fileserver\apps\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `\\FileServer\Apps\Foo`)},
+			want:     []result{{"Foo", "programs", `\\fileserver\apps\foo\`, "1"}},
+		},
+		{
+			name:     "macOS paths stay case-sensitive",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", "/Applications/foo.app")},
+			ai:       []map[string]string{ai("agents", "foo", "/Applications/Foo.app")},
+			want:     []result{{"Foo", "apps", "/Applications/foo.app", ""}, {"foo", "ai_clis", "/Applications/Foo.app", "1"}},
+		},
+		{
+			name:     "agent matching the npm package at the same path flags it and is not stored",
+			platform: "darwin",
+			// npm_packages reports the package's package.json; fleetd reports its directory.
+			main: []map[string]string{sw("@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json")},
+			ai:   []map[string]string{ai("agents", "codex", "/usr/local/lib/node_modules/@openai/codex")},
+			want: []result{{"@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json", "1"}},
+		},
+		{
+			// The slug differs from the formula name, so only the path can match.
+			name:     "agent inside an installed Homebrew version flags that version and is not stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli"),
+				brew("block-goose-cli", "1.2.0", "/opt/homebrew/Cellar/block-goose-cli"),
+			},
+			ai: []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", "1"},
+			},
+		},
+		{
+			name:     "agent inside a Homebrew version the host doesn't report is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli")},
+			ai:       []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"goose", "ai_clis", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose", "1"},
+			},
+		},
+		{
+			// Until fleetd reports the resolved path, a symlinked CLI only matches by path.
+			name:     "agent linked from a Homebrew bin dir is stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("claude-code", "2.0.14", "/opt/homebrew/Caskroom/claude-code"),
+				brew("jq", "1.7.1", "/usr/local/Cellar/jq"),
+			},
+			ai: []map[string]string{
+				ai("agents", "claude-code", "/opt/homebrew/bin/claude"),
+				ai("agents", "goose", "/usr/local/bin/goose"),
+			},
+			want: []result{
+				{"claude-code", "homebrew_packages", "/opt/homebrew/Caskroom/claude-code", ""},
+				{"jq", "homebrew_packages", "/usr/local/Cellar/jq", ""},
+				{"claude-code", "ai_clis", "/opt/homebrew/bin/claude", "1"},
+				{"goose", "ai_clis", "/usr/local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "agent named like an unrelated Homebrew package is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("goose", "3.24.0", "/opt/homebrew/Cellar/goose")},
+			ai:       []map[string]string{ai("agents", "goose", "/Users/a/.local/bin/goose")},
+			want: []result{
+				{"goose", "homebrew_packages", "/opt/homebrew/Cellar/goose", ""},
+				{"goose", "ai_clis", "/Users/a/.local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "unmatched native agent is stored",
+			platform: "darwin",
+			ai:       []map[string]string{ai("agents", "claude-code", "/Users/a/.local/bin/claude")},
+			want:     []result{{"claude-code", "ai_clis", "/Users/a/.local/bin/claude", "1"}},
+		},
+		{
+			name:     "MCP servers and instruction files are stored",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("mcp_server", "github", "/Users/a/.cursor/mcp.json"),
+				ai("mcp_server", "github", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json"),
+				ai("agent_instruction", "CLAUDE.md", "/Users/a/src/x/CLAUDE.md"),
+			},
+			want: []result{
+				{"github", "mcp_servers", "/Users/a/.cursor/mcp.json", "1"},
+				{"github", "mcp_servers", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json", "1"},
+				{"CLAUDE.md", "ai_skills", "/Users/a/src/x/CLAUDE.md", "1"},
+			},
+		},
+		{
+			name:     "unmatched marker rows are dropped",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("apps", "ChatGPT", "/Applications/ChatGPT.app"),
+				ai("ide_plugins", "GitHub Copilot Chat", "/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/copilot"),
+				ai("browser_extension", "Claude", "/Users/a/Extensions/x/manifest.json"),
+			},
+			want: []result{},
+		},
+		{
+			name:     "no ai_tools rows leaves the software rows unchanged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", ""}},
+		},
+		{
+			name:     "null rows are skipped",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), nil},
+			ai:       []map[string]string{nil, ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"", "", "", ""}},
+		},
+		{
+			name:     "main rows without a path are never flagged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", ""), sw("Bar", "deb_packages", "")},
+			ai:       []map[string]string{ai("apps", "Foo", "")},
+			want:     []result{{"Foo", "apps", "", ""}, {"Bar", "deb_packages", "", ""}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := AIToolsProcessResults(tc.platform, tc.main, tc.ai)
+			require.Equal(t, tc.want, summarize(got))
+		})
+	}
+}
+
+// TestLuksVerifyQuerySelectsRootLUKSDevice runs the LUKS verification SQL against sqlite,
+// which osquery embeds, over lsblk output flattened the way orbit's lsblk table does it.
+func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
+	// Captured from an Omarchy 4 VM (util-linux 2.42): the btrfs root device lists
+	// "/home" as its mountpoint and "/" only under "mountpoints".
+	omarchy, err := os.ReadFile("testdata/lsblk-omarchy.json")
+	require.NoError(t, err)
+
+	// "/" is the regular mountpoint, two hops below the LUKS container.
+	lvmOnLUKS := `{"blockdevices": [
+		{"path": "/dev/nvme0n1", "kname": "nvme0n1", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/nvme0n1p1", "kname": "nvme0n1p1", "pkname": "nvme0n1", "fstype": "vfat", "mountpoint": "/boot", "mountpoints": ["/boot"]},
+			{"path": "/dev/nvme0n1p2", "kname": "nvme0n1p2", "pkname": "nvme0n1", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/cryptlvm", "kname": "dm-0", "pkname": "nvme0n1p2", "fstype": "LVM2_member", "mountpoint": null, "mountpoints": [null],
+				 "children": [
+					{"path": "/dev/mapper/vg-swap", "kname": "dm-1", "pkname": "dm-0", "fstype": "swap", "mountpoint": "[SWAP]", "mountpoints": ["[SWAP]"]},
+					{"path": "/dev/mapper/vg-root", "kname": "dm-2", "pkname": "dm-0", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]}
+				 ]}
+			 ]}
+		 ]}
+	]}`
+
+	// util-linux before 2.37 has no "mountpoints" column.
+	legacy := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null,
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "vfat", "mountpoint": "/boot/efi"},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null,
+			 "children": [
+				{"path": "/dev/mapper/root", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/"}
+			 ]}
+		 ]}
+	]}`
+
+	// LUKS exists but holds /home, not the root filesystem.
+	unencryptedRoot := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/home", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/home", "mountpoints": ["/home"]}
+			 ]}
+		 ]}
+	]}`
+
+	ds := new(mock.Store)
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return &fleet.HostDiskEncryptionKey{HostID: hostID}, nil
+	}
+	host := &fleet.Host{ID: 1, Platform: "omarchy", OrbitNodeKey: new("node-key")}
+	query, ok := luksVerifyQuery.QueryFunc(t.Context(), slog.New(slog.DiscardHandler), host, ds)
+	require.True(t, ok)
+
+	for _, tc := range []struct {
+		name  string
+		lsblk []byte
+		want  string // LUKS device whose salt the query must return, empty for no rows
+	}{
+		{"btrfs root with subvolumes (Omarchy)", omarchy, "/dev/vda2"},
+		{"LVM on LUKS", []byte(lvmOnLUKS), "/dev/nvme0n1p2"},
+		{"legacy lsblk without mountpoints", []byte(legacy), "/dev/sda2"},
+		{"unencrypted root", []byte(unencryptedRoot), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			_, err = db.Exec(`CREATE TABLE lsblk (fullkey TEXT, parent TEXT, key TEXT, value TEXT, query TEXT)`)
+			require.NoError(t, err)
+			_, err = db.Exec(`CREATE TABLE cryptsetup_luks_salt (device TEXT, key_slot TEXT, salt TEXT)`)
+			require.NoError(t, err)
+
+			flattened, err := dataflatten.Json(tc.lsblk, dataflatten.WithQuery([]string{"*"}))
+			require.NoError(t, err)
+			for _, row := range dataflattentable.ToMap(flattened, "*", nil) {
+				_, err = db.Exec(`INSERT INTO lsblk VALUES (?, ?, ?, ?, ?)`,
+					row["fullkey"], row["parent"], row["key"], row["value"], row["query"])
+				require.NoError(t, err)
+			}
+
+			// A salt for every LUKS container so the test fails if the wrong one is picked.
+			_, err = db.Exec(`INSERT INTO cryptsetup_luks_salt
+				SELECT p.value, '1', 'salt-for-' || p.value
+				FROM lsblk f JOIN lsblk p ON p.parent = f.parent AND p.key = 'path'
+				WHERE f.key = 'fstype' AND f.value = 'crypto_LUKS'`)
+			require.NoError(t, err)
+
+			rows, err := db.Query(query)
+			require.NoError(t, err)
+			defer rows.Close()
+			var got []string
+			for rows.Next() {
+				var salt, keySlot string
+				require.NoError(t, rows.Scan(&salt, &keySlot))
+				got = append(got, salt)
+			}
+			require.NoError(t, rows.Err())
+
+			if tc.want == "" {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, []string{"salt-for-" + tc.want}, got)
+		})
+	}
 }

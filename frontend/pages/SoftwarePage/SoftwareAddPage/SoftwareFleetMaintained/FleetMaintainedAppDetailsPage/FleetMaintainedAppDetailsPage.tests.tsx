@@ -4,6 +4,8 @@ import React from "react";
 import { createMockFleetMaintainedAppDetails } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
+import { getPatchDeadlineSettingsHandler } from "test/handlers/patch-deadline-settings-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import FleetMaintainedAppDetailsPage from "./FleetMaintainedAppDetailsPage";
@@ -54,6 +56,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
         software_title_id: 99,
         patch_when_closed: true,
         notify_before_patching: false,
+        patch_deadline: false,
         continuous_automations_enabled: true,
       });
     });
@@ -64,6 +67,48 @@ describe("FleetMaintainedAppDetailsPage", () => {
     ).toBeLessThan(
       (teamPoliciesAPI.create as jest.Mock).mock.invocationCallOrder[0]
     );
+  });
+
+  it("creates a deadline patch policy when Force patch is selected on macOS", async () => {
+    mockServer.use(getPatchDeadlineSettingsHandler());
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isPremiumTier: true } },
+    });
+    const { user } = render(
+      <FleetMaintainedAppDetailsPage
+        location={
+          ({ query: { fleet_id: "3" } } as unknown) as React.ComponentProps<
+            typeof FleetMaintainedAppDetailsPage
+          >["location"]
+        }
+        router={createMockRouter()}
+        routeParams={{ id: "1" }}
+      />
+    );
+
+    await user.click(await screen.findByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    // Force patch on macOS preselects Deadline.
+    expect(
+      await screen.findByText(
+        /Patch is done silently when app is closed or forced on/i
+      )
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add software" }));
+
+    await waitFor(() => {
+      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+        team_id: 3,
+        type: "patch",
+        patch_software_title_id: 99,
+        software_title_id: 99,
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
+      });
+    });
   });
 
   it("navigates to the added software when patch policy creation fails", async () => {

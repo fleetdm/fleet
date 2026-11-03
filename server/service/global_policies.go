@@ -261,6 +261,7 @@ const (
 	errPolicyAllFleetsForScripts                         = "\"All fleets\" policy cannot have script_id set"
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
+	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -521,12 +522,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			return fleet.ErrMissingLicense
 		}
 
-		if policy.Hidden && !license.IsPremium(ctx) {
-			return fleet.ErrMissingLicense
-		}
-
-		// NotifyBeforePatching is premium-only.
-		if policy.NotifyBeforePatching && !license.IsPremium(ctx) {
+		// NotifyBeforePatching and PatchDeadline are premium-only.
+		if (policy.NotifyBeforePatching || policy.PatchDeadline) && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 
@@ -567,6 +564,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	if !license.IsPremium(ctx) {
 		for i := range policies {
 			policies[i].Critical = false
+			policies[i].Hidden = false
 		}
 	}
 

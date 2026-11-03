@@ -181,6 +181,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       return (
         <LinkCell
+          className="w400"
+          tooltipTruncate
           value={cellProps.cell.value}
           path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(

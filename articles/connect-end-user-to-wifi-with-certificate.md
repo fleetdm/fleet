@@ -928,6 +928,8 @@ If something goes wrong, errors will appear on each host's **Host details > OS s
 
 How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
+When the host is on Wi-Fi with enough battery, certificates install right after the "Fleet" Android app is installed. When the battery is low or the host is in power saving mode, Android delays the app's check. If an end user can't connect to Wi-Fi or VPN because their certificate hasn't arrived, ask them to open the Fleet app. Opening the app tells Android to run the delayed check.
+
 > For additional data on the device itself, open the Fleet Android app, and select **App version** 8 times. The first time a toast will appear saying, "Fleet Agent version copied", but after the eighth time it's selected, a debug information screen will appear. Here you can see information about the certificates and their states, the last error, and logs. To view logs, select the menu icon near the copy icon in the upper right. On the Logs screen, select "Info" in the upper right to change the log level that's displayed.
 
 ## Any EST (Enrollment over Secure Transport) CA
@@ -1012,6 +1014,8 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 > The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
 > Please confirm your CA supports the OU value in the certificate it issues.
+>
+> On Windows, put the certificate (SCEP) settings in their own profile. Fleet resends the whole profile when it renews a certificate, so other settings in the same profile, like Wi-Fi or VPN, are resent too and can cause the renewal to fail.
 >
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >

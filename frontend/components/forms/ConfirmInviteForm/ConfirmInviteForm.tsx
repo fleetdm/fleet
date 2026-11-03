@@ -2,8 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validateEquality from "components/forms/validators/validate_equality";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isEqual, isPresent } from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "confirm-invite-page__form";
@@ -23,17 +22,17 @@ const validate = (formData: IConfirmInviteFormData): IFormErrors => {
   const errors: IFormErrors = {};
   const { name, password, password_confirmation: confirmation } = formData;
 
-  if (!validatePresence(name)) {
+  if (!isPresent(name)) {
     errors.name = "Enter your full name";
   }
 
-  if (!validatePresence(password)) {
+  if (!isPresent(password)) {
     errors.password = "Enter a password";
   }
 
-  if (!validatePresence(confirmation)) {
+  if (!isPresent(confirmation)) {
     errors.password_confirmation = "Confirm your password";
-  } else if (password && !validateEquality(password, confirmation)) {
+  } else if (password && !isEqual(password, confirmation)) {
     errors.password_confirmation = "Match the password above";
   }
 

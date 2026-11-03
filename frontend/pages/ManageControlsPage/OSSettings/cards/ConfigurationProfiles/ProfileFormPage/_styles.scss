@@ -1,12 +1,24 @@
 .profile-form-page {
   @include vertical-page-layout;
-  // Fill the viewport below the 50px top nav so the footer sits at the bottom
-  // even when the form is short; once the form is taller it sticks there.
+  // Fill the viewport below the 50px top nav so the bottom bar sits at the
+  // bottom even when the form is short; once the form is taller it sticks
+  // there.
   min-height: calc(100vh - 50px - 2 * $pad-page);
 
   // Keeps the back button at its own width; stretched by the column, its
   // text would center.
   &__header-links {
     display: flex;
+  }
+
+  // Narrower and further in than other pages, per the design: a 1280px
+  // column starting about where the Controls tab does, its side padding
+  // shrinking with the window. Phones keep the standard padding.
+  @media (min-width: $break-xs) {
+    &.main-content {
+      max-width: 1280px;
+      padding-left: clamp(#{$pad-page}, 10vw, 160px);
+      padding-right: clamp(#{$pad-page}, 10vw, 160px);
+    }
   }
 }

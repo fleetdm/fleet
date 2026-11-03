@@ -45,8 +45,8 @@ try {
     # enter and leave between polls.
     Start-Sleep -Seconds 2
     while ($true) {
-        $info = Get-ScheduledTaskInfo -TaskName $taskName
-        $state = (Get-ScheduledTask -TaskName $taskName).State
+        $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+        $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
         if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
             $exitCode = $info.LastTaskResult
             break

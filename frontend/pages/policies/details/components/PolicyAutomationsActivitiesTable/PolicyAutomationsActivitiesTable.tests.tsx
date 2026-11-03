@@ -5,7 +5,10 @@ import {
   PRE_INSTALL_QUERY_FAIL_OUTPUT,
   SKIPPED_INSTALL_DETAILS,
 } from "components/ActivityDetails/InstallDetails/constants";
-import { SKIPPED_INSTALL_NOTIFY_EXPLANATION } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
@@ -410,6 +413,46 @@ describe("getDetailOutputText", () => {
   });
 
   it("explains a notify-before-patching skip with the notification sentence", () => {
+    // pre_install_output is empty on this endpoint — the booleans discriminate.
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            notify_before_patching: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("explains a deadline skip with the deadline sentence", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            patch_deadline: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
+  });
+
+  // Legacy fallback: on activity rows written before the booleans landed,
+  // patch_when_closed === false still implies notify (deadline didn't exist
+  // yet in that window).
+  it("falls back to notify copy when only patch_when_closed:false is present", () => {
     expect(
       getDetailOutputText(
         mockActivity({

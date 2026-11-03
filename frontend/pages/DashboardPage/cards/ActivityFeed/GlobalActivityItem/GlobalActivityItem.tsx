@@ -15,6 +15,7 @@ import {
   HISTORICAL_DATA_CONFIG_KEYS,
   HistoricalDataConfigKey,
 } from "interfaces/charts";
+import { formatWeekdayList } from "interfaces/patch_deadline_settings";
 import {
   AppleDisplayPlatform,
   isAndroid,
@@ -684,6 +685,24 @@ const TAGGED_TEMPLATES = {
         {" "}
         set a Recovery Lock password for{" "}
         <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  setHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        marked <b>{activity.details?.host_display_name}</b> as company-owned in
+        Google.
+      </>
+    );
+  },
+  deletedHostGoogleDeviceId: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        unmarked <b>{activity.details?.host_display_name}</b> as company-owned
+        in Google.
       </>
     );
   },
@@ -1788,6 +1807,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  selfServiceCategory: (
+    action: "added" | "edited" | "deleted",
+    preposition: "to" | "in" | "from"
+  ) => (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    const fleetName = activity.details?.fleet_name;
+    return (
+      <>
+        {" "}
+        {action} {categoryName ? <b>{categoryName}</b> : "a"} self-service
+        category
+        {fleetName ? (
+          <>
+            {" "}
+            {preposition} the <b>{fleetName}</b> fleet
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -2537,7 +2577,7 @@ const TAGGED_TEMPLATES = {
   editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
     let { team_name } = activity.details || {};
     if (isPremiumTier && !team_name) {
-      team_name = "No Team";
+      team_name = "Unassigned";
     }
     const postFix = team_name ? (
       <>
@@ -2646,6 +2686,28 @@ const TAGGED_TEMPLATES = {
   disabledOnlyAppleBusinessEnrollment: () => {
     return <>disabled Apple Business only enrollment for Apple hosts.</>;
   },
+  editedPatchDeadlineSettings: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const daysLabel = formatWeekdayList(details.days ?? []);
+    const time = details.time || "";
+    return (
+      <>
+        {" "}
+        edited patch deadline for{" "}
+        {details.fleet_name ? (
+          <>
+            <b>{details.fleet_name}</b> fleet
+          </>
+        ) : (
+          <b>Unassigned</b>
+        )}{" "}
+        to <b>{daysLabel}</b> at <b>{time}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2743,6 +2805,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.SetHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
     }
+    case ActivityType.SetHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.setHostGoogleDeviceId(activity);
+    }
+    case ActivityType.DeletedHostGoogleDeviceId: {
+      return TAGGED_TEMPLATES.deletedHostGoogleDeviceId(activity);
+    }
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
     }
@@ -2807,25 +2875,31 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
+    case ActivityType.AddedEJBCA:
     case ActivityType.AddedHydrant:
     case ActivityType.AddedCustomESTProxy:
-    case ActivityType.AddedSmallstep: {
+    case ActivityType.AddedSmallstep:
+    case ActivityType.AddedGoogleCAS: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedEJBCA:
     case ActivityType.DeletedHydrant:
     case ActivityType.DeletedCustomESTProxy:
-    case ActivityType.DeletedSmallstep: {
+    case ActivityType.DeletedSmallstep:
+    case ActivityType.DeletedGoogleCAS: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
+    case ActivityType.EditedEJBCA:
     case ActivityType.EditedHydrant:
     case ActivityType.EditedCustomESTProxy:
-    case ActivityType.EditedSmallstep: {
+    case ActivityType.EditedSmallstep:
+    case ActivityType.EditedGoogleCAS: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -3025,6 +3099,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedAppStoreApp: {
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
     }
+    case ActivityType.AddedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("added", "to")(activity);
+    }
+    case ActivityType.EditedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("edited", "in")(activity);
+    }
+    case ActivityType.DeletedSelfServiceCategory: {
+      return TAGGED_TEMPLATES.selfServiceCategory("deleted", "from")(activity);
+    }
     case ActivityType.InstalledAppStoreApp: {
       return TAGGED_TEMPLATES.installedSoftware(activity);
     }
@@ -3217,6 +3300,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.NotifiedEndUserBeforePatching: {
       return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
+    case ActivityType.EditedPatchDeadlineSettings: {
+      return TAGGED_TEMPLATES.editedPatchDeadlineSettings(activity);
     }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();

@@ -21,12 +21,12 @@
   &__logo.org-logo-icon {
     margin-right: auto;
     flex-shrink: 0;
-    width: 28px;
+    width: auto;
+    object-fit: contain;
     height: 28px;
     min-height: 28px;
     max-height: 28px;
     padding: 0;
-    object-fit: contain;
 
     &.default-fleet-logo {
       transform: none;

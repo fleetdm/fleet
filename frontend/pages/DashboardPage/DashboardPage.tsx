@@ -246,13 +246,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
 
   // Separate query to get the total host count per platform regardless of platform filter.
-  // Used by the "hosts enrolled" chart.
+  // Used by the "hosts enrolled" chart. Shares the "all" platforms key with the query above so
+  // the slow host summary request is sent once, not twice, when no platform is selected.
   const { data: hostSummaryTotals } = useQuery<
     IHostSummary,
     Error,
     IHostSummary
   >(
-    ["host summary totals", teamIdForApi, isPremiumTier],
+    ["host summary", teamIdForApi, isPremiumTier, "all"],
     () =>
       hostSummaryAPI.getSummary({
         teamId: teamIdForApi,

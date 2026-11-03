@@ -1,0 +1,59 @@
+- name: macOS - eMudhra compromised CA roots not trusted
+  query: |
+    SELECT 1 FROM os_version WHERE NOT EXISTS (
+      SELECT 1 FROM certificates
+      WHERE path IN ('/etc/ssl/cert.pem', '/opt/orbit/certs.pem')
+        AND sha1 IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1', 'd1eb23a46d17d68fd92564c2f1f1601764d8e349'));
+  critical: false
+  description: |
+    Passes when neither compromised root (emSign ECC Root CA - G3, AAA Certificate Services)
+    is trusted by /etc/ssl/cert.pem or the fleetd CA bundle at /opt/orbit/certs.pem.
+  resolution: |
+    Run remediate-emudhra-ca-compromise-macos.sh. It removes both roots from /etc/ssl/cert.pem and
+    the fleetd CA bundle, and keeps a *.pre-emudhra backup of each file. If the host
+    stays failing, read the script output: the script refuses to edit the fleetd
+    bundle when it cannot prove the Fleet server still verifies.
+  platform: darwin
+  run_script:
+    path: ../../macos/scripts/remediate-emudhra-ca-compromise-macos.sh
+
+- name: Linux - eMudhra compromised CA roots not trusted
+  query: |
+    SELECT 1 FROM os_version WHERE NOT EXISTS (
+      SELECT 1 FROM certificates
+      WHERE sha1 IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1', 'd1eb23a46d17d68fd92564c2f1f1601764d8e349'))
+    AND NOT EXISTS (
+      SELECT 1 FROM certificates
+      WHERE path = '/opt/orbit/certs.pem'
+        AND sha1 IN ('3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1', 'd1eb23a46d17d68fd92564c2f1f1601764d8e349'));
+  critical: false
+  description: |
+    Passes when neither compromised root (emSign ECC Root CA - G3, AAA Certificate Services)
+    is trusted by the system CA bundle or the fleetd CA bundle at /opt/orbit/certs.pem.
+  resolution: |
+    Run remediate-emudhra-ca-compromise-linux.sh. It upgrades ca-certificates, distrusts the roots
+    the native way where the distro has no fix yet, and cleans the fleetd bundle.
+    Restart long-running services afterwards, since most programs read the bundle
+    only at start.
+  platform: linux
+  run_script:
+    path: ../../linux/scripts/remediate-emudhra-ca-compromise-linux.sh
+
+- name: Windows - eMudhra compromised CA roots not trusted
+  query: |
+    SELECT 1 FROM os_version WHERE NOT EXISTS (
+      SELECT 1 FROM file f JOIN file_lines l ON l.path = f.path
+      WHERE f.path = 'C:\Program Files\Orbit\certs.pem'
+        AND l.line IN ('CBeQyh+KTOgNG3qxrdWBCUfvO6wIBHxcmbHtRwfSAjEAnbpV/KlK6O3t5nYBQnvI+GDZjVGLVTv7',
+                       '8VlIMCFlA2zs6SFz7JsDoeA3raAVGI/6ugLOpyypEBMs1OUIJqsil2D4kF501KKaU73yqWjgom7C'));
+  critical: false
+  description: |
+    Passes when the fleetd CA bundle at C:\Program Files\Orbit\certs.pem no longer trusts
+    either compromised root. osqueryd uses this bundle, not the Windows store, for TLS
+    to Fleet.
+  resolution: |
+    Run remediate-emudhra-ca-compromise-windows.ps1. It adds all 16 compromised intermediates to
+    the Untrusted Certificates store and cleans the fleetd bundle.
+  platform: windows
+  run_script:
+    path: ../../windows/scripts/remediate-emudhra-ca-compromise-windows.ps1

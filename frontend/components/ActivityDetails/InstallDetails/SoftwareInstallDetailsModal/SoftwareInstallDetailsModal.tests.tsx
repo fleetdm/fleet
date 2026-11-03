@@ -198,6 +198,36 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("renders the deadline-variant sentence when pre-install output carries the deadline marker", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet will notify the end user 1 hour before the patch deadline\./
+        )
+      ).toBeInTheDocument();
+      // Notify-forced copy mentions "patch is forced"; deadline mustn't leak
+      // into that wording.
+      expect(
+        screen.queryByText(/1 hour before the patch is forced/)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/It will update once the user closes it/)
+      ).not.toBeInTheDocument();
+    });
+
     it("renders app-open skipped copy with a policy-automations link on the admin activity feed", () => {
       render(
         <StatusMessage
