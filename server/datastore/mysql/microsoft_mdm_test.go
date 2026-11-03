@@ -838,6 +838,11 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				require.Nil(t, bls)
 			}
 
+			// no host_mdm row yet
+			_, err := ds.GetHostMDM(ctx, h.ID)
+			require.True(t, fleet.IsNotFound(err))
+			requireNoStatus()
+
 			// enrolled in a third-party MDM, so there is no Fleet enrollment row
 			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
 				fleet.PersonalEnrollmentTypeNone))

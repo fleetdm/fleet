@@ -2303,9 +2303,11 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	t := s.T()
 	ctx := context.Background()
 
-	// create a server host that is not enrolled in MDM
+	// create a server host that is enrolled in Fleet MDM, so that only the server check can omit its status
 	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
+	enrollWindowsHostInMDMViaOrbit(t, host, s.ds, s.server.URL)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, true, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+		fleet.PersonalEnrollmentTypeNone))
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
