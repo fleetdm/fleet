@@ -88,7 +88,7 @@ const ReportPicker = ({
   }
 
   // "Inherited" applies only when viewing a specific team and the report
-  // lives at a different scope (typically global, fleet_id null/different).
+  // lives at a different scope (typically global, team_id null/different).
   const isViewingSpecificTeam =
     !!currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID;
 
@@ -97,7 +97,7 @@ const ReportPicker = ({
       {reports.map((report) => {
         const showObserverIcon = !isViewerObserver && report.observer_can_run;
         const showInheritedBadge =
-          isViewingSpecificTeam && report.fleet_id !== currentTeam?.id;
+          isViewingSpecificTeam && report.team_id !== currentTeam?.id;
 
         return (
           <Command.Item

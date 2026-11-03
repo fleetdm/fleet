@@ -192,7 +192,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
-      queryTeamId: storedQuery?.fleet_id ?? null,
+      queryTeamId: storedQuery?.team_id ?? null,
     };
 
     const step2Props = {

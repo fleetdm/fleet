@@ -189,7 +189,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   saved: false,
   author_id: 0,
   packs: [],
-  fleet_id: 0,
+  team_id: 0,
   author_email: "",
   stats: {},
   editingExistingQuery: false,
