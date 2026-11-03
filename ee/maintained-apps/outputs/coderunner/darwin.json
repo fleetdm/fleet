@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5",
+      "version": "4.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.krill.CodeRunner';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.krill.CodeRunner' AND version_compare(bundle_short_version, '4.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.krill.CodeRunner' AND version_compare(bundle_short_version, '4.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.krill.CodeRunner' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://coderunnerapp.com/download/update/CodeRunner-4.5.zip",
+      "installer_url": "https://coderunnerapp.com/download/update/CodeRunner-4.6.zip",
       "install_script_ref": "bd85f7b6",
       "uninstall_script_ref": "b44ae467",
-      "sha256": "d41c09e7d11226c0e0709ad55c04d4500adce9345568f4ef3da6c8e8190e4651",
+      "sha256": "2a4ff87a8811dc6d67979495d1d2a7380a5f7cd477ce2856ad594629e2ae5be4",
       "default_categories": [
         "Productivity"
       ]
