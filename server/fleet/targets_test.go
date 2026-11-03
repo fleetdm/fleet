@@ -33,4 +33,11 @@ func TestTargetTypeJSON(t *testing.T) {
 			}
 		})
 	}
+
+	// "fleet" is the new name of the "team" target type.
+	for _, name := range []string{`"team"`, `"fleet"`} {
+		var target fleet.TargetType
+		require.NoError(t, json.Unmarshal([]byte(name), &target), name)
+		assert.Equal(t, fleet.TargetTeam, target, name)
+	}
 }

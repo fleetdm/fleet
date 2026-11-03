@@ -92,7 +92,7 @@ func ParseTargetType(s string) (TargetType, error) {
 		return TargetLabel, nil
 	case "host":
 		return TargetHost, nil
-	case "team":
+	case "team", "fleet":
 		return TargetTeam, nil
 	default:
 		return 0, fmt.Errorf("invalid TargetType: %s", s)
