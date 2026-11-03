@@ -9518,7 +9518,7 @@
       "name": "Webex",
       "slug": "webex/windows",
       "platform": "windows",
-      "unique_identifier": "Cisco Webex",
+      "unique_identifier": "Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
