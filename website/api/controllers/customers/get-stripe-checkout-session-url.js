@@ -75,7 +75,7 @@ module.exports = {
         enabled: true,
         required: 'if_supported'
       },
-      automatic_tax: { enabled: true },
+      automatic_tax: { enabled: true },// eslint-disable-line camelcase
     });
 
     // Return the url of the Stripe checkout session.
