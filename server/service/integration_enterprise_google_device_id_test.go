@@ -15,6 +15,7 @@ import (
 func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	t := s.T()
 	hosts := s.createHosts(t, "ios", "android", "darwin")
+	require.Len(t, hosts, 3)
 	iosHost, androidHost, macHost := hosts[0], hosts[1], hosts[2]
 
 	idPath := func(h *fleet.Host) string { return fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", h.ID) }
