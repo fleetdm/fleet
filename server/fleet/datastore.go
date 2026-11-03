@@ -3306,6 +3306,10 @@ type Datastore interface {
 	// batch execution ID.
 	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
 
+	// NewBatchScriptExecution creates a batch script execution for a set of hosts without running
+	// it and returns the batch execution ID. Run it with RunScheduledBatchActivity.
+	NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
 

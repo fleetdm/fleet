@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -13,6 +14,41 @@ import (
 // The single-host NewInternalHostScriptExecutionRequest is a better fit for
 // anything user-facing.
 func (ds *Datastore) BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	var executionIDByHost map[uint]string
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		contentsRes, err := insertScriptContents(ctx, tx, contents)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := contentsRes.LastInsertId()
+
+		executionIDByHost, err = ds.insertHostScriptExecutionsForHosts(ctx, tx, hostIDs, nil, nil, uint(scriptContentID), true) //nolint:gosec // dismiss G115
+		if err != nil {
+			return err
+		}
+
+		// activating in the same transaction as the inserts makes the batch all or
+		// nothing, so it can't leave hosts holding a queued script that never
+		// activated
+		err = ds.activateNextScriptActivitiesForHosts(ctx, tx, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "activate batch of queued scripts")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return executionIDByHost, nil
+}
+
+func (ds *Datastore) insertHostScriptExecutionsForHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, userID *uint, scriptID *uint,
+	scriptContentID uint, isInternal bool,
+) (map[uint]string, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
@@ -30,67 +66,60 @@ func (ds *Datastore) BatchNewInternalHostScriptExecutionRequests(ctx context.Con
 		executionIDs = append(executionIDs, executionID)
 	}
 
-	// fleet_initiated is always set: everything queued here is internal, so
-	// there's no user to attribute it to and the activity feed shows "Fleet"
-	// rather than a blank actor.
+	// Set fleet_initiated for internal scripts, there's no user to attribute them to and the
+	// activity feed shows "Fleet" rather than a blank actor.
 	const insertActivitiesStmt = `
 INSERT INTO upcoming_activities
-	(host_id, priority, fleet_initiated, activity_type, execution_id, payload)
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
 VALUES
-	(:host_id, 0, 1, 'script', :execution_id,
-		JSON_OBJECT('sync_request', :sync_request, 'is_internal', :is_internal)
+	(:host_id, :priority, :user_id, :is_internal, 'script', :execution_id,
+		JSON_OBJECT(
+			'sync_request', :sync_request,
+			'is_internal', :is_internal,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = :user_id)
+		)
 	)`
 
 	// the child rows join back on execution_id rather than on the ids the insert
 	// above generated, which MySQL does not guarantee to be contiguous
 	const insertScriptActivitiesStmt = `
 INSERT INTO script_upcoming_activities
-	(upcoming_activity_id, script_content_id)
+	(upcoming_activity_id, script_id, script_content_id)
 SELECT
-	ua.id, ?
+	ua.id, ?, ?
 FROM
 	upcoming_activities ua
 WHERE
 	ua.execution_id IN (?)`
 
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		contentsRes, err := insertScriptContents(ctx, tx, contents)
-		if err != nil {
-			return err
-		}
-		scriptContentID, _ := contentsRes.LastInsertId()
+	priority := fleet.UserInitiatedActivityPriority
+	if isInternal {
+		priority = 0
+	}
 
-		activityArgs := make([]map[string]any, 0, len(hostIDs))
-		for _, hostID := range hostIDs {
-			activityArgs = append(activityArgs, map[string]any{
-				"host_id":      hostID,
-				"execution_id": executionIDByHost[hostID],
-				"sync_request": false,
-				"is_internal":  true,
-			})
-		}
-		if _, err := sqlx.NamedExecContext(ctx, tx, insertActivitiesStmt, activityArgs); err != nil {
-			return ctxerr.Wrap(ctx, err, "batch insert script upcoming activities")
-		}
+	activityArgs := make([]map[string]any, 0, len(hostIDs))
+	for _, hostID := range hostIDs {
+		activityArgs = append(activityArgs, map[string]any{
+			"host_id":      hostID,
+			"priority":     priority,
+			"user_id":      userID,
+			"execution_id": executionIDByHost[hostID],
+			"sync_request": false,
+			"is_internal":  isInternal,
+		})
+	}
+	_, err := sqlx.NamedExecContext(ctx, tx, insertActivitiesStmt, activityArgs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch insert script upcoming activities")
+	}
 
-		stmt, args, err := sqlx.In(insertScriptActivitiesStmt, scriptContentID, executionIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build batch script upcoming activities insert")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "batch insert script upcoming activity details")
-		}
-
-		// activating in the same transaction as the inserts makes the batch all or
-		// nothing, so it can't leave hosts holding a queued script that never
-		// activated
-		if err := ds.activateNextScriptActivitiesForHosts(ctx, tx, hostIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate batch of queued scripts")
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
+	stmt, args, err := sqlx.In(insertScriptActivitiesStmt, scriptID, scriptContentID, executionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build batch script upcoming activities insert")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch insert script upcoming activity details")
 	}
 
 	return executionIDByHost, nil

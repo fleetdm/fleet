@@ -2805,10 +2805,19 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 	// The execution results to be stored in the database
 	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
 
+	hosts, err := ds.listHostsForScriptExecution(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load hosts for batch script execution")
+	}
+	hostsByID := make(map[uint]*fleet.Host, len(hosts))
+	for _, host := range hosts {
+		hostsByID[host.ID] = host
+	}
+
 	// Check that all hosts exist before attempting to process them
 	for _, hostID := range hostIDs {
-		host, err := ds.Host(ctx, hostID)
-		if err != nil {
+		host, ok := hostsByID[hostID]
+		if !ok {
 			fullHosts = append(fullHosts, &fleet.Host{
 				ID:       hostID,
 				Platform: invalidHostIDPlatform,
@@ -2819,7 +2828,9 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 		fullHosts = append(fullHosts, host)
 	}
 
+	var hostIDsToRun []uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		hostIDsToRun = make([]uint, 0, len(fullHosts))
 		for _, host := range fullHosts {
 			// Host doesn't exist anymore
 			if host.Platform == invalidHostIDPlatform {
@@ -2861,23 +2872,21 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				continue
 			}
 
-			executionID, _, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
-				HostID:          host.ID,
-				UserID:          userID,
-				ScriptID:        &script.ID,
-				ScriptContentID: script.ScriptContentID,
-			}, false)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queueing script for bulk execution")
-			}
+			hostIDsToRun = append(hostIDsToRun, host.ID)
+		}
 
+		executionIDByHost, err := ds.insertHostScriptExecutionsForHosts(ctx, tx, hostIDsToRun, userID, &script.ID, script.ScriptContentID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "queueing script for bulk execution")
+		}
+		for hostID, executionID := range executionIDByHost {
 			executions = append(executions, fleet.BatchExecutionHost{
-				HostID:      host.ID,
+				HostID:      hostID,
 				ExecutionID: &executionID,
 			})
 		}
 
-		_, err := tx.ExecContext(
+		_, err = tx.ExecContext(
 			ctx,
 			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
 				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
@@ -2923,7 +2932,8 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 		return fmt.Errorf("creating bulk execution order: %w", err)
 	}
 
-	return nil
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, hostIDsToRun)
+	return err
 }
 
 func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
@@ -3007,6 +3017,49 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 		return nil
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating scheduled script execution")
+	}
+
+	return batchExecID, nil
+}
+
+func (ds *Datastore) NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			scriptID,
+			userID,
+			fleet.ScheduledBatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		_, err = sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating batch script execution")
 	}
 
 	return batchExecID, nil
