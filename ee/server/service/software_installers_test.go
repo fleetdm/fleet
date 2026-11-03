@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -1571,6 +1572,37 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, "sh", ext)
 		require.Equal(t, "sh_packages", payload.Source)
 		require.Equal(t, "linux", payload.Platform)
+	})
+
+	t.Run("ipa with oversized Info.plist is a bad request", func(t *testing.T) {
+		// Valid plist padded past the Info.plist cap; it compresses to a few
+		// hundred bytes, which is what the upload size limit sees.
+		plist := `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
+			`<key>CFBundleIdentifier</key><string>com.example.big</string>` +
+			`<key>LSRequiresIPhoneOS</key><true/></dict></plist><!-- ` + strings.Repeat("x", 300<<10) + ` -->`
+		var ipa bytes.Buffer
+		zw := zip.NewWriter(&ipa)
+		w, err := zw.Create("Payload/Big.app/Info.plist")
+		require.NoError(t, err)
+		_, err = w.Write([]byte(plist))
+		require.NoError(t, err)
+		require.NoError(t, zw.Close())
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ipa")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.Write(ipa.Bytes())
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{InstallerFile: tfr, Filename: "big.ipa"}
+		_, err = svc.addMetadataToSoftwarePayload(ctx, payload, false)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.ErrorIs(t, err, file.ErrInvalidInstaller)
 	})
 
 	t.Run("valid powershell script", func(t *testing.T) {
