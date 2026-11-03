@@ -2395,8 +2395,8 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 		otherFleetID      = uint(2)
 		numericIdentifier = "123"
 	)
-	hostFoundByID := &fleet.Host{ID: numericHostID, Hostname: "found-by-id", TeamID: new(uint(1))}
-	hostFoundByIdentifier := &fleet.Host{ID: 456, Hostname: "found-by-identifier", TeamID: new(uint(1))}
+	hostFoundByID := &fleet.HostLite{ID: numericHostID, TeamID: new(uint(1))}
+	hostFoundByIdentifier := &fleet.HostLite{ID: 456, TeamID: new(uint(1))}
 
 	globalAdmin := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
 	globalGitOps := &fleet.User{ID: 2, GlobalRole: new(fleet.RoleGitOps)}
@@ -2457,21 +2457,18 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 			svc, ctx := newTestService(t, ds, nil, nil)
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tc.user})
 
-			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
 				if tc.idExists && id == numericHostID {
 					return hostFoundByID, nil
 				}
 				return nil, newNotFoundError()
 			}
-			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 				require.Equal(t, tc.identifier, identifier)
 				return hostFoundByIdentifier, nil
 			}
 			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-				if id == numericHostID {
-					return hostFoundByID, nil
-				}
-				return hostFoundByIdentifier, nil
+				return &fleet.Host{ID: id, TeamID: new(uint(1))}, nil
 			}
 			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 				return time.Now(), nil
@@ -2529,8 +2526,8 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 			// and that Fleet didn't even load the details it isn't allowed to see.
 
 			host, err := svc.GetHostByIDOrIdentifier(ctx, tc.identifier, fleet.HostDetailOptions{})
-			require.Equal(t, tc.wantIDLookup, ds.HostLiteFuncInvoked, "id lookup")
-			require.Equal(t, tc.wantOtherLookup, ds.HostByIdentifierFuncInvoked, "identifier lookup")
+			require.Equal(t, tc.wantIDLookup, ds.HostLiteByIDFuncInvoked, "id lookup")
+			require.Equal(t, tc.wantOtherLookup, ds.HostLiteByIdentifierFuncInvoked, "identifier lookup")
 			if tc.wantForbidden {
 				checkAuthErr(t, true, err)
 				return

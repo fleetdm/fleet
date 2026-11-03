@@ -1559,7 +1559,7 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 
 func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
 		host := &fleet.Host{
@@ -1579,7 +1579,9 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	}
 	target := newHost("target", nil)
 	// Another host whose serial is the target's ID: the ID has to win.
-	numericSerial := newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
+	newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
+	// A blank identifier must not match this host's empty serial.
+	newHost("empty-serial", func(h *fleet.Host) { h.HardwareSerial = "" })
 	// A numeric hostname that no host ID uses resolves as a hostname.
 	const unusedHostID = "4294967295"
 	numericHostname := newHost("numeric-hostname", func(h *fleet.Host) { h.Hostname = unusedHostID })
@@ -1594,7 +1596,7 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		identifier string
 		wantHostID uint
 	}{
-		{name: "id", identifier: fmt.Sprint(target.ID), wantHostID: target.ID},
+		{name: "id beats a matching serial", identifier: fmt.Sprint(target.ID), wantHostID: target.ID},
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
@@ -1612,15 +1614,10 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		})
 	}
 
-	t.Run("id beats a matching serial", func(t *testing.T) {
-		var resp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", numericSerial.HardwareSerial), nil, http.StatusOK, &resp)
-		require.Equal(t, target.ID, resp.Host.ID)
-	})
-
 	t.Run("not found", func(t *testing.T) {
 		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
 	})
 
 	t.Run("response does not depend on how the host was found", func(t *testing.T) {

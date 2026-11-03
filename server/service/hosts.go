@@ -1234,23 +1234,23 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 		return nil, err
 	}
 
-	var host *fleet.Host
-	if id, parseErr := strconv.ParseUint(identifier, 10, 64); parseErr == nil {
+	var host *fleet.HostLite
+	if id, parseErr := strconv.ParseUint(identifier, 10, 0); parseErr == nil {
 		var err error
-		host, err = svc.ds.HostLite(ctx, uint(id))
+		host, err = svc.ds.HostLiteByID(ctx, uint(id))
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get host by id")
 		}
 	}
 	if host == nil {
 		var err error
-		host, err = svc.ds.HostByIdentifier(ctx, identifier)
+		host, err = svc.ds.HostLiteByIdentifier(ctx, identifier)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 		}
 	}
 
-	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, host)
+	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID})
 	if err != nil {
 		return nil, err
 	}
@@ -1258,7 +1258,7 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
 	}
 
-	// GetHost loads what the identifier lookup doesn't, such as host issues, so the response is the same however the host was found.
+	// The lookups above only load what authorization needs. GetHost builds the response, so it is the same however the host was found.
 	return svc.GetHost(ctx, host.ID, opts)
 }
 

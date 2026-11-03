@@ -3975,7 +3975,39 @@ WHERE id IN (?)`
 	return hosts, nil
 }
 
+// hostByIdentifierWhere picks the host matching an identifier using one index per column. `? IN (columns)` can't use an index,
+// so ranking over it would scan and sort the whole table. Bind it with hostByIdentifierArgs.
+const hostByIdentifierWhere = `
+    WHERE h.id = (
+      SELECT candidates.id FROM (
+        (SELECT id, 0 AS priority FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 1 FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 2 FROM hosts WHERE hostname = ? ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ?)
+        UNION ALL
+        (SELECT id, 4 FROM hosts WHERE node_key = ?)
+      ) candidates
+      ORDER BY candidates.priority
+      LIMIT 1
+    )`
+
+func hostByIdentifierArgs(identifier string) []any {
+	return []any{identifier, identifier, identifier, identifier, identifier}
+}
+
+// isBlankHostIdentifier reports an identifier that must not reach hostByIdentifierWhere: PAD SPACE collations ignore trailing
+// spaces, so it would match any host with an empty value in one of those columns.
+func isBlankHostIdentifier(identifier string) bool {
+	return strings.TrimSpace(identifier) == ""
+}
+
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
+	if isBlankHostIdentifier(identifier) {
+		return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+	}
 	stmt := `
     SELECT
       h.id,
@@ -4032,24 +4064,10 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     ` + hostMDMJoin + `
-    WHERE h.id = (
-      SELECT candidates.id FROM (
-        (SELECT id, 0 AS priority FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1)
-        UNION ALL
-        (SELECT id, 1 FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)
-        UNION ALL
-        (SELECT id, 2 FROM hosts WHERE hostname = ? ORDER BY id LIMIT 1)
-        UNION ALL
-        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ?)
-        UNION ALL
-        (SELECT id, 4 FROM hosts WHERE node_key = ?)
-      ) candidates
-      ORDER BY candidates.priority
-      LIMIT 1
-    )
+    ` + hostByIdentifierWhere + `
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), host, stmt, identifier, identifier, identifier, identifier, identifier)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), host, stmt, hostByIdentifierArgs(identifier)...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
@@ -7547,18 +7565,21 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     LIMIT 1
 	`
 	var (
-		arg         interface{}
+		args        []any
 		whereClause string
 	)
 	if identifier != nil {
-		whereClause = "WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
-		arg = identifier
+		if isBlankHostIdentifier(*identifier) {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(*identifier))
+		}
+		whereClause = hostByIdentifierWhere
+		args = hostByIdentifierArgs(*identifier)
 	} else {
 		whereClause = "WHERE id = ?"
-		arg = id
+		args = []any{id}
 	}
 	host := &fleet.HostLite{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), host, fmt.Sprintf(stmt, whereClause), arg)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), host, fmt.Sprintf(stmt, whereClause), args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			if identifier != nil {
