@@ -248,7 +248,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in `GET /api/v1/fleet/hosts` and `GET /api/v1/fleet/hosts/report` | Separate `os_name` and `os_version` keys in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
+| `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in `GET /api/v1/fleet/hosts` and `GET /api/v1/fleet/hosts/report` | Separate `os_name` and `os_version` keys in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) and [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). For example, `"os_name": "macOS"` and `"os_version": "15.2"`, or `"os_name": "Microsoft Windows 11 Home Single Language 23H2"` and `"os_version": "10.0.22631.5335"`. |
 
 What to do: Update code that splits the OS name out of `os_version`. Read the name from `os_name` and the version from `os_version`.
 
