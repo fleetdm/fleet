@@ -79,7 +79,7 @@ jobs:
       - run: rm -f .eslintrc.js
 
       # Get dependencies (including dev deps)
-      - run: cd website/ && npm install
+      - run: cd website/ && npm ci
 
       # Run the configuration profile generator tests
       - run: cd website/ && npm run test-profile-generator

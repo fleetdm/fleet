@@ -5,6 +5,8 @@ package http
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -370,6 +372,9 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	}
 	// Note: req.Identifier is set from the mux path variable by the framework
 	// (via the `url:"identifier"` struct tag), so we don't set it here.
+	if err := precheckJWSBody(jwsBytes); err != nil {
+		return ctxerr.Wrap(ctx, types.MalformedError("Failed to parse JWS body"))
+	}
 	jws, err := jose.ParseJWS(string(jwsBytes))
 	if err != nil {
 		err = types.MalformedError("Failed to parse JWS body")
@@ -413,6 +418,45 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	}
 	req.JWSHeaderURL = headerURL
 
+	return nil
+}
+
+// precheckJWSBody validates the flattened JWS with encoding/json before go.step.sm/crypto/jose parses it. That
+// package uses go-jose v3, which has no nesting limit and validates embedded RSA private keys at a cost cubic in the
+// key size. Only EC public keys are accepted (see acceptableSignatureAlgorithms), so anything else is rejected here.
+// Maps are used instead of structs because encoding/json matches struct fields case-insensitively and go-jose doesn't.
+func precheckJWSBody(body []byte) error {
+	var flattened map[string]json.RawMessage
+	if err := json.Unmarshal(body, &flattened); err != nil {
+		return err
+	}
+	var protected string
+	if err := json.Unmarshal(flattened["protected"], &protected); err != nil {
+		return err
+	}
+	headerJSON, err := base64.RawURLEncoding.DecodeString(protected)
+	if err != nil {
+		return err
+	}
+	var header map[string]json.RawMessage
+	if err := json.Unmarshal(headerJSON, &header); err != nil {
+		return err
+	}
+	rawJWK, ok := header["jwk"]
+	if !ok {
+		return nil
+	}
+	var jwk map[string]json.RawMessage
+	if err := json.Unmarshal(rawJWK, &jwk); err != nil {
+		return err
+	}
+	var kty string
+	if err := json.Unmarshal(jwk["kty"], &kty); err != nil || kty != "EC" {
+		return errors.New("jwk must be an EC key")
+	}
+	if _, ok := jwk["d"]; ok {
+		return errors.New("jwk must be a public key")
+	}
 	return nil
 }
 

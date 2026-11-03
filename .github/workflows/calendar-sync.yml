@@ -48,7 +48,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: tools/release/calendar-sync
-        run: pip install -r requirements.txt
+        run: pip install --require-hashes -r requirements.txt
 
       - name: Run sync
         working-directory: tools/release/calendar-sync

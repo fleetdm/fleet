@@ -1,0 +1,2 @@
+- Updated Go dependencies: `go-jose` to v4 for Apple Platform SSO and `golang.org/x/net` to v0.62.0.
+- ACME endpoints now reject requests whose embedded JWK is not an EC public key before parsing the JWS.
