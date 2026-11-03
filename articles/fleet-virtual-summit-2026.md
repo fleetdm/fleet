@@ -47,7 +47,7 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### Open source in enterprise device management
