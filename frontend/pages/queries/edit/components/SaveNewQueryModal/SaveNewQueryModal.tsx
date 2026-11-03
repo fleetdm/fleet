@@ -116,8 +116,11 @@ const SaveNewQueryModal = ({
   const hasSelectedLabel = Object.entries(selectedLabels).some(
     ([, v]) => v === true
   );
-  const labelsRequired =
-    isPremiumTier && selectedTargetType === "Custom" && !hasSelectedLabel;
+  const labelsRequired = !!(
+    isPremiumTier &&
+    selectedTargetType === "Custom" &&
+    !hasSelectedLabel
+  );
   const labelsError =
     showLabelsError && labelsRequired
       ? getLabelsRequiredError(selectedCustomTarget)
