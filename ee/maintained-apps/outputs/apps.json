@@ -4399,13 +4399,6 @@
     },
     {
       "name": "ImHex",
-      "slug": "imhex/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.WerWolv.ImHex",
-      "description": "ImHex is a hex editor for reverse engineers."
-    },
-    {
-      "name": "ImHex",
       "slug": "imhex/windows",
       "platform": "windows",
       "unique_identifier": "ImHex",
