@@ -2034,14 +2034,13 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 // delivery the host acknowledged and is still verifying is charged.
 func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string,
 	onlyIfVerifying bool,
-) (bool, error) {
-	var retried bool
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
+) (changed bool, retried bool, err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		c, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
 		if err != nil {
 			return err
 		}
-		retried = r
+		changed, retried = c, r
 		if !changed {
 			return nil
 		}
@@ -2052,9 +2051,9 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	return retried, nil
+	return changed, retried, nil
 }
 
 // failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
@@ -2067,7 +2066,7 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
 	loadStmt := `
-		SELECT status, retries
+		SELECT status, retries, COALESCE(detail, '') AS detail
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
@@ -2094,6 +2093,7 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 	var row struct {
 		Status  *fleet.MDMDeliveryStatus `db:"status"`
 		Retries uint                     `db:"retries"`
+		Detail  string                   `db:"detail"`
 	}
 	switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, loadArgs...); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -2113,6 +2113,8 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 			return false, false, ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
 		}
 		return true, true, nil
+	case *row.Status == fleet.MDMDeliveryFailed && row.Detail == truncateMDMWindowsProfileDetail(detail):
+		return false, false, nil
 	default:
 		if _, err := tx.ExecContext(
 			ctx, failStmt,
