@@ -16982,7 +16982,7 @@ _Available in Fleet Premium._
 
 Dismisses one or more vulnerabilities for a fleet or for all fleets, creating one dismissal per CVE. Fleet keeps detecting dismissed vulnerabilities, but hides them from the vulnerability lists and counts in the Fleet UI, and from [List vulnerabilities](#list-vulnerabilities) when `status` is `"active"`. Vulnerability automations (the vulnerabilities webhook, Jira, and Zendesk) leave out hosts in fleets where the vulnerability is dismissed, and skip the vulnerability if no affected hosts remain. Those hosts don't count as detections, so automations can still trigger later for hosts in other fleets.
 
-A dismissal ends when it expires or is deleted. Fleet also ends it if CISA reports the CVE as actively exploited, unless `reason` is `"false_positive"`.
+A dismissal ends when it expires or is deleted. Fleet also ends it if CISA reports the CVE as actively exploited after it was dismissed, unless `reason` is `"false_positive"`.
 
 `POST /api/v1/fleet/vulnerability_dismissals`
 

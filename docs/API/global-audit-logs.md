@@ -4064,7 +4064,7 @@ This activity contains the following fields:
 
 ### ended_vulnerability_dismissal
 
-Generated when Fleet ends a vulnerability dismissal automatically, because it expired or because CISA reports the vulnerability as actively exploited. Dismissals with the reason `"false_positive"` don't end when CISA reports the vulnerability as actively exploited.
+Generated when Fleet ends a vulnerability dismissal automatically, because it expired or because CISA reported the vulnerability as actively exploited after it was dismissed. Dismissals with the reason `"false_positive"` don't end because of CISA.
 
 This activity contains the following fields:
 - "cve": The CVE whose dismissal ended.
