@@ -13,6 +13,8 @@ $timeoutSeconds = 300
 $exitCode = 0
 
 function Get-AppEntries {
+    param([switch]$AnyName)
+
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
@@ -32,7 +34,7 @@ function Get-AppEntries {
             if (-not $key.DisplayName) { continue }
             # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
             $name = ($key.DisplayName -replace "`0", "").Trim()
-            if ($name -notmatch $displayNamePattern) { continue }
+            if (-not $AnyName -and $name -notmatch $displayNamePattern) { continue }
             if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
             # Only a real user's entry needs the uninstaller run for them; HKLM and
@@ -195,6 +197,7 @@ function Remove-Shortcuts {
             foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
                 if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
                     Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                    if (Test-Path -LiteralPath $lnk.FullName) { Write-Host "  Could not remove shortcut $($lnk.FullName)." }
                     break
                 }
             }
@@ -208,8 +211,9 @@ try {
     foreach ($entry in $entries) {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
         $uninstaller = Resolve-Uninstaller $entry.Command
-        if ($entry.Command -and -not $uninstaller.ExePath) {
-            Write-Host "  Could not parse uninstall string: $($entry.Command)"
+        # Only a user's entry has a default folder to fall back on below.
+        if (-not $uninstaller.ExePath -and ($entry.Command -or -not $entry.Sid)) {
+            Write-Host "  Could not find an uninstaller in uninstall string '$($entry.Command)'."
             if ($exitCode -eq 0) { $exitCode = 1 }
             continue
         }
@@ -305,6 +309,14 @@ try {
         }
         # A copy that's still registered is reported below.
         if (@($remaining | Where-Object { $_.Sid -eq $copy.Sid }).Count) { continue }
+        # Checked again by publisher alone, so a copy registered under another name,
+        # or by an install that finished after the snapshot above, keeps its folder.
+        $registered = @(Get-AppEntries -AnyName | Where-Object { $_.Sid -eq $copy.Sid })
+        if ($registered.Count) {
+            Write-Host "Leaving $($copy.Dir) because it's registered as '$($registered[0].DisplayName)'."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
 
         $found = $true
         Write-Host "Removing unregistered Ollama files at $($copy.Dir)"
