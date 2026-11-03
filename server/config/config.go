@@ -248,11 +248,12 @@ func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
 
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost                  int           `yaml:"bcrypt_cost"`
-	SaltKeySize                 int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
-	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
-	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
+	BcryptCost                           int           `yaml:"bcrypt_cost"`
+	SaltKeySize                          int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod             time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature          bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute                int           `yaml:"sso_rate_limit_per_minute"`
+	RequireHostIdentityRenewalKeyBinding bool          `yaml:"require_host_identity_renewal_key_binding"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1922,6 +1923,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigBool("auth.require_host_identity_renewal_key_binding", false,
+		"Reject host identity certificate renewals from fleetd that doesn't sign over the new key (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 
@@ -2506,11 +2509,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
-			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
-			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
-			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			BcryptCost:                           man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                          man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:             man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature:          man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:                man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			RequireHostIdentityRenewalKeyBinding: man.getConfigBool("auth.require_host_identity_renewal_key_binding"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),

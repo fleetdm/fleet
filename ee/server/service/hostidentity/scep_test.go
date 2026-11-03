@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"testing"
@@ -64,7 +65,7 @@ func TestRenewalMiddleware_CNMismatchRejected(t *testing.T) {
 	})
 
 	logger := slog.Default()
-	middleware := renewalMiddleware(ds, logger, nextSigner)
+	middleware := renewalMiddleware(ds, logger, false, nextSigner)
 
 	// Build renewal data signed by the old key
 	serialHex := "0xc"
@@ -140,6 +141,90 @@ func TestRenewalMiddleware_CNMismatchRejected(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, nextSignerCalled, "next signer should be called when CN matches")
 	})
+}
+
+func TestRenewalMiddleware_ProofBoundToCSRKey(t *testing.T) {
+	const originalCN = "original-host-identity"
+	const serialHex = "0xc"
+
+	oldKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	oldPubKeyRaw, err := types.CreateECDSAPublicKeyRaw(&oldKey.PublicKey)
+	require.NoError(t, err)
+
+	ds := new(mock.Store)
+	ds.GetHostIdentityCertBySerialNumberFunc = func(_ context.Context, _ uint64) (*types.HostIdentityCertificate, error) {
+		return &types.HostIdentityCertificate{
+			SerialNumber:  12,
+			CommonName:    originalCN,
+			HostID:        new(uint),
+			NotValidAfter: time.Now().Add(24 * time.Hour),
+			PublicKeyRaw:  oldPubKeyRaw,
+		}, nil
+	}
+	ds.UpdateHostIdentityCertHostIDBySerialFunc = func(_ context.Context, _ uint64, _ uint) error { return nil }
+	nextSigner := scepserver.CSRSignerContextFunc(func(_ context.Context, _ *scep.CSRReqMessage) (*x509.Certificate, error) {
+		return &x509.Certificate{SerialNumber: big.NewInt(99999)}, nil
+	})
+
+	boundProof := func(key *ecdsa.PrivateKey) []byte {
+		pubDER, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+		require.NoError(t, err)
+		return types.RenewalChallenge(serialHex, pubDER)
+	}
+	legacyProof := []byte(serialHex)
+
+	renew := func(t *testing.T, requireKeyBinding bool, signedMsg []byte, csrKey *ecdsa.PrivateKey, badCSRSignature bool) (string, error) {
+		hash := sha256.Sum256(signedMsg)
+		sig, err := ecdsa.SignASN1(rand.Reader, oldKey, hash[:])
+		require.NoError(t, err)
+		renewalJSON, err := json.Marshal(types.RenewalData{SerialNumber: serialHex, Signature: base64.StdEncoding.EncodeToString(sig)})
+		require.NoError(t, err)
+		csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+			Subject:            pkix.Name{CommonName: originalCN},
+			SignatureAlgorithm: x509.ECDSAWithSHA256,
+			ExtraExtensions:    []pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalJSON}},
+		}, csrKey)
+		require.NoError(t, err)
+		if badCSRSignature {
+			csrDER[len(csrDER)-1] ^= 0xff // the signature is the last field of the CSR
+		}
+		csr, err := x509.ParseCertificateRequest(csrDER)
+		require.NoError(t, err)
+
+		var logs bytes.Buffer
+		middleware := renewalMiddleware(ds, slog.New(slog.NewTextHandler(&logs, nil)), requireKeyBinding, nextSigner)
+		_, err = middleware.SignCSRContext(t.Context(), &scep.CSRReqMessage{CSR: csr})
+		return logs.String(), err
+	}
+
+	newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	attackerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	for _, requireKeyBinding := range []bool{false, true} {
+		t.Run(fmt.Sprintf("requireKeyBinding=%t", requireKeyBinding), func(t *testing.T) {
+			logs, err := renew(t, requireKeyBinding, boundProof(newKey), newKey, false)
+			require.NoError(t, err, "bound proof for the CSR key is accepted")
+			assert.NotContains(t, logs, "not bound")
+
+			_, err = renew(t, requireKeyBinding, boundProof(newKey), newKey, true)
+			require.ErrorContains(t, err, "invalid renewal CSR signature", "bound proof in a CSR that doesn't prove possession of its key is rejected")
+
+			_, err = renew(t, requireKeyBinding, boundProof(newKey), attackerKey, false)
+			require.ErrorContains(t, err, "invalid renewal signature", "bound proof replayed onto another key is rejected")
+
+			logs, err = renew(t, requireKeyBinding, legacyProof, attackerKey, false)
+			if requireKeyBinding {
+				require.ErrorContains(t, err, "renewal proof is not bound to the CSR key", "legacy proof is rejected when key binding is required")
+				assert.Contains(t, logs, "legacy renewal proof rejected, upgrade fleetd")
+			} else {
+				require.NoError(t, err, "legacy proof is accepted until key binding is required")
+				assert.Contains(t, logs, "renewal proof is not bound to the CSR key")
+			}
+		})
+	}
 }
 
 func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
