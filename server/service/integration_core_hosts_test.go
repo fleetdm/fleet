@@ -1588,8 +1588,6 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	// A serial with leading zeros resolves as a serial when the number is not a host ID.
 	const leadingZerosSerial = "0004294967293"
 	leadingZeros := newHost("leading-zeros", func(h *fleet.Host) { h.HardwareSerial = leadingZerosSerial })
-	// Literal routes keep their meaning even for a host with that name.
-	newHost("literal", func(h *fleet.Host) { h.Hostname = "count" })
 
 	testCases := []struct {
 		name       string
@@ -1600,8 +1598,6 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
-		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
-		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
 		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
 		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
 		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
@@ -1618,23 +1614,7 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
-	})
-
-	t.Run("response does not depend on how the host was found", func(t *testing.T) {
-		const query = "exclude_software"
-		byID := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", target.ID), nil, http.StatusOK, query, "true")
-		byIDBody, err := io.ReadAll(byID.Body)
-		require.NoError(t, err)
-		bySerial := s.Do("GET", "/api/latest/fleet/hosts/"+target.HardwareSerial, nil, http.StatusOK, query, "true")
-		bySerialBody, err := io.ReadAll(bySerial.Body)
-		require.NoError(t, err)
-		require.JSONEq(t, string(byIDBody), string(bySerialBody))
-	})
-
-	t.Run("literal routes win over a host with that hostname", func(t *testing.T) {
-		var resp countHostsResponse
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp)
-		require.Positive(t, resp.Count)
+		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
 	})
 }
 

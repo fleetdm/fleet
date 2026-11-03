@@ -4733,6 +4733,7 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
 			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
 			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
+			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
 		}
 		for i, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {

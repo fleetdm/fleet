@@ -1212,8 +1212,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 // GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
-// priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial
-// rather than a reason to keep looking, so the same value can't resolve to different hosts depending on who is asking.
+// priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial.
 func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {

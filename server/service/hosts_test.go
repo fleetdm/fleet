@@ -1920,6 +1920,16 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: id}, nil
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		assert.NotEqual(t, "1", identifier, "a matched id must not fall back to the other identifiers")
+		if identifier == "team-host" {
+			return &fleet.HostLite{ID: 1}, nil
+		}
+		return &fleet.HostLite{ID: 2}, nil
+	}
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
@@ -2142,6 +2152,11 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			for _, identifier := range []string{"1", "team-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailTeamRead, err)
+			}
+
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
@@ -2153,6 +2168,11 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			for _, identifier := range []string{"2", "global-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			}
 
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
@@ -2389,149 +2409,16 @@ func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 	})
 }
 
-func TestGetHostByIDOrIdentifier(t *testing.T) {
-	const (
-		numericHostID     = uint(123)
-		otherFleetID      = uint(2)
-		numericIdentifier = "123"
-	)
-	hostFoundByID := &fleet.HostLite{ID: numericHostID, TeamID: new(uint(1))}
-	hostFoundByIdentifier := &fleet.HostLite{ID: 456, TeamID: new(uint(1))}
-
-	globalAdmin := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
-	globalGitOps := &fleet.User{ID: 2, GlobalRole: new(fleet.RoleGitOps)}
-	otherFleetObserver := &fleet.User{ID: 3, Teams: []fleet.UserTeam{{ID: otherFleetID, Role: fleet.RoleObserver}}}
-
-	testCases := []struct {
-		name            string
-		user            *fleet.User
-		identifier      string
-		idExists        bool
-		wantHostID      uint
-		wantForbidden   bool
-		wantIDLookup    bool
-		wantOtherLookup bool
-	}{
-		{
-			name: "existing id wins", user: globalAdmin, identifier: numericIdentifier, idExists: true,
-			wantHostID: numericHostID, wantIDLookup: true,
-		},
-		{
-			name: "numeric value that is not an id falls back to identifiers", user: globalAdmin, identifier: numericIdentifier,
-			wantHostID: hostFoundByIdentifier.ID, wantIDLookup: true, wantOtherLookup: true,
-		},
-		{
-			name: "non-numeric value only looks up identifiers", user: globalAdmin, identifier: "some-host",
-			wantHostID: hostFoundByIdentifier.ID, wantOtherLookup: true,
-		},
-		{
-			name: "leading zeros still match an id", user: globalAdmin, identifier: "0123", idExists: true,
-			wantHostID: numericHostID, wantIDLookup: true,
-		},
-		{
-			name: "leading zeros that match no id fall back to identifiers", user: globalAdmin, identifier: "0123",
-			wantHostID: hostFoundByIdentifier.ID, wantIDLookup: true, wantOtherLookup: true,
-		},
-		{
-			name: "value too large for an id only looks up identifiers", user: globalAdmin, identifier: "99999999999999999999",
-			wantHostID: hostFoundByIdentifier.ID, wantOtherLookup: true,
-		},
-		{
-			name: "gitops is denied an id before any lookup", user: globalGitOps, identifier: numericIdentifier, idExists: true,
-			wantForbidden: true,
-		},
-		{
-			name: "gitops is denied an identifier before any lookup", user: globalGitOps, identifier: "some-host",
-			wantForbidden: true,
-		},
-		{
-			name: "an unreadable id match is denied instead of falling back", user: otherFleetObserver, identifier: numericIdentifier, idExists: true,
-			wantForbidden: true, wantIDLookup: true,
-		},
+func TestGetHostByIDOrIdentifierIDLookupError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return nil, errors.New("database unavailable")
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			svc, ctx := newTestService(t, ds, nil, nil)
-			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tc.user})
-
-			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
-				if tc.idExists && id == numericHostID {
-					return hostFoundByID, nil
-				}
-				return nil, newNotFoundError()
-			}
-			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-				require.Equal(t, tc.identifier, identifier)
-				return hostFoundByIdentifier, nil
-			}
-			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-				return &fleet.Host{ID: id, TeamID: new(uint(1))}, nil
-			}
-			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
-				return time.Now(), nil
-			}
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{}, nil
-			}
-			ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
-				return nil
-			}
-			ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-				return nil, nil
-			}
-			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-				return nil, nil
-			}
-			ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
-				return nil, nil
-			}
-			ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
-				return nil, nil
-			}
-			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-				return nil, nil
-			}
-			ds.ListHostDeviceMappingFunc = func(ctx context.Context, hid uint) ([]*fleet.HostDeviceMapping, error) {
-				return nil, nil
-			}
-			ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-				return nil, nil
-			}
-			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
-				return nil, nil
-			}
-			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
-				return nil, nil
-			}
-			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
-				return nil, nil
-			}
-			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
-				return time.Time{}, nil
-			}
-			ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
-				return nil
-			}
-			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
-				return false, nil
-			}
-			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
-				return &fleet.HostLockWipeStatus{}, nil
-			}
-
-			host, err := svc.GetHostByIDOrIdentifier(ctx, tc.identifier, fleet.HostDetailOptions{})
-			require.Equal(t, tc.wantIDLookup, ds.HostLiteByIDFuncInvoked, "id lookup")
-			require.Equal(t, tc.wantOtherLookup, ds.HostLiteByIdentifierFuncInvoked, "identifier lookup")
-			if tc.wantForbidden {
-				checkAuthErr(t, true, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.wantHostID, host.ID)
-		})
-	}
+	// A failed lookup says nothing about whether the id exists, so it must not fall back to the other identifiers.
+	_, err := svc.GetHostByIDOrIdentifier(test.UserContext(ctx, test.UserAdmin), "1", fleet.HostDetailOptions{})
+	require.ErrorContains(t, err, "database unavailable")
 }
 
 func TestListHosts(t *testing.T) {

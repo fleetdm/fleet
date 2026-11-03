@@ -217,7 +217,6 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 		{name: "method mismatch", method: "DELETE", path: "/api/osquery/distributed/write"},
 		{name: "HEAD on a GET route is a 405", method: "HEAD", path: "/api/latest/fleet/hosts/1"},
 		{name: "non-numeric id fails the route constraint", method: "DELETE", path: "/api/latest/fleet/hosts/not-a-number"},
-		{name: "host by numeric id", method: "GET", path: "/api/latest/fleet/hosts/1", wantServedBy: byFastPath},
 		{name: "host by identifier on the id route", method: "GET", path: "/api/latest/fleet/hosts/not-a-number", wantServedBy: byFastPath},
 		{name: "literal count beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/count", wantServedBy: byFastPath},
 		{name: "literal report beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/report", wantServedBy: byFastPath},

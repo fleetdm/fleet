@@ -329,8 +329,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, err)
 	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
-	// GET /hosts/:id is denied for an identifier and for an id.
-	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID)} {
+	// GET /hosts/:id is denied for an identifier and for an id, and doesn't reveal which values match a host.
+	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID), "no-such-host"} {
 		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
 	}
 
