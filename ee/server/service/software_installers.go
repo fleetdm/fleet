@@ -3912,7 +3912,7 @@ func (svc *Service) softwareBatchUpload(
 						return fmt.Errorf("maintained app %s: mismatch in maintained app SHA256 hash", p.MaintainedApp.UniqueIdentifier)
 					}
 				}
-				extension := extensionFromFilename(installer.Filename)
+				extension := maintainedAppExtensionFromFilename(installer.Filename)
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
@@ -4716,6 +4716,28 @@ func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, require
 func extensionFromFilename(filename string) string {
 	// a .tar.gz filename returns "gz"
 	return strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
+}
+
+var maintainedAppInstallerExtensions = map[string]struct{}{
+	"dmg": {}, "pkg": {}, "zip": {}, "exe": {}, "msi": {}, "msix": {},
+}
+
+// maintainedAppExtensionFromFilename is extensionFromFilename for Fleet-maintained
+// app installers, whose filename often comes from the download URL. Some URLs put
+// a suffix after the real extension (Steam's appdmg_osx.zip.<sha1>), so when the
+// last extension isn't an installer type, use the last one in the name that is.
+func maintainedAppExtensionFromFilename(filename string) string {
+	ext := extensionFromFilename(filename)
+	if _, ok := maintainedAppInstallerExtensions[ext]; ok {
+		return ext
+	}
+	parts := strings.Split(strings.ToLower(filepath.Base(filename)), ".")
+	for i := len(parts) - 2; i > 0; i-- {
+		if _, ok := maintainedAppInstallerExtensions[parts[i]]; ok {
+			return parts[i]
+		}
+	}
+	return ext
 }
 
 // humanReadableRequiredPlatforms returns the platform(s) named in the

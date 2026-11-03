@@ -196,6 +196,22 @@ func TestAutoUpdateDownloadsAndPromotes(t *testing.T) {
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 }
 
+func TestAutoUpdateHashSuffixedInstallerURL(t *testing.T) {
+	newFakeManifestServerWithInstaller(t, "/appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c")
+	ds := baseDownloadStore(t, "149.0.0", 9)
+
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.Equal(t, "appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c", gotPayload.Filename)
+	require.Equal(t, "zip", gotPayload.Extension)
+}
+
 func TestAutoUpdateByteDedupSkipsDownload(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "149.0.0", 9)

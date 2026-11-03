@@ -2076,6 +2076,32 @@ func TestExtensionFromFilename(t *testing.T) {
 	}
 }
 
+func TestMaintainedAppExtensionFromFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{"plain dmg", "Joplin-3.6.15-arm64.dmg", "dmg"},
+		{"uppercase exe", "BANDIVIEW-SETUP-X64.EXE", "exe"},
+		{"version dots before extension", "Dell-Command-Update_5.7.0_A00.msi", "msi"},
+		{"hash after extension", "appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c", "zip"},
+		{"uppercase hash after extension", "APP.PKG.ABCDEF", "pkg"},
+		{"rightmost installer extension wins", "app.zip.dmg.download", "dmg"},
+		{"no installer extension keeps the last one", "2026.8.2115.0", "0"},
+		{"bare name that looks like an extension", "zip", ""},
+		{"name before the only extension is ignored", "zip.download", "download"},
+		{"no extension", "installer", ""},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, maintainedAppExtensionFromFilename(tt.filename))
+		})
+	}
+}
+
 // TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
 // stored platform (windows or darwin) rather than inferring darwin from the extension.
 func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
