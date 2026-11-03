@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 
 	// Root context cancelled on SIGINT/SIGTERM, so the startup checks and the
-	// serving loop shut down gracefully (e.g. on a Render redeploy's SIGTERM)
+	// serving loop shut down gracefully (e.g. on a redeploy's SIGTERM)
 	// rather than being hard-killed mid-request.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
