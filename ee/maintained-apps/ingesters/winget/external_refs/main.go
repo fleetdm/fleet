@@ -9,8 +9,13 @@ import (
 // Funcs is a registry of enrichment functions keyed by app slug.
 // Each slug can have multiple enricher functions that run sequentially.
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
-	"1password/windows":    {OnePasswordVersionShortener},
-	"sublime-text/windows": {SublimeTextFileVersion},
+	"1password/windows":                {OnePasswordVersionShortener},
+	"aomei-backupper-standard/windows": {AOMEIBackupperVersionShortener},
+	"firefox@esr/windows":              {FirefoxESRVersionShortener},
+	"geany/windows":                    {GeanyVersionShortener},
+	"megasync/windows":                 {MEGAsyncVersionShortener},
+	"sublime-text/windows":             {SublimeTextFileVersion},
+	"telegram/windows":                 {TelegramVersionShortener},
 }
 
 // EnrichManifest applies all registered enrichment functions for the given app.
