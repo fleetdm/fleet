@@ -2940,8 +2940,6 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 | windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-enrollment). |
 
-> `windows_enabled_and_configured` and `windows_migration_enabled` are deprecated as of Fleet 5.0. They're maintained for backwards compatibility. Please use `enable_windows_mdm` and `enable_windows_mdm_migration` instead.
-
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 > Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
