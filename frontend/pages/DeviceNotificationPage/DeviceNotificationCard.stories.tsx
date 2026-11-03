@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React, { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import { INotificationView } from "interfaces/device_notification";
@@ -141,11 +141,8 @@ export const WideLogoWithError: ErrorStory = {
 // Update now clears the error and shows the button's loading spinner for
 // 5 seconds, then the error reappears — matching the "retry failed again"
 // flow.
-const ErrorAfterDelay = ({
-  itemCount,
-  view,
-  ...rest
-}: ErrorStoryArgs) => {
+// eslint-disable-next-line react/prop-types
+const ErrorAfterDelay = ({ itemCount, view, ...rest }: ErrorStoryArgs) => {
   const [isPostError, setIsPostError] = useState(false);
   // Start posting so the story opens on the loading state (mirrors a user
   // who clicked Update now right before the story mounted).

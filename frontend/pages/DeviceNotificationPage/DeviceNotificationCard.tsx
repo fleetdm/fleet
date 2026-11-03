@@ -111,11 +111,7 @@ const DeviceNotificationCard = ({
 
   return (
     <div className={baseClass}>
-      <div
-        className={`${baseClass}__card`}
-        ref={cardRef}
-        style={cardStyle}
-      >
+      <div className={`${baseClass}__card`} ref={cardRef} style={cardStyle}>
         <div className={`${baseClass}__header`}>
           <p className={`${baseClass}__title`}>
             {renderBoldMarkup(view.title)}
