@@ -265,8 +265,35 @@ describe('configuration profile generation pipeline', function() {
       let result = await generateWindows(homepageLocation +
         chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>') +
         chromeStartupPolicy('ShowHomeButton', '<enabled/>') +
-        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>'));
-      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage|ShowHomeButton/);
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>') +
+        chromeStartupPolicy('RestoreOnStartupURLs', '<enabled/><data id="RestoreOnStartupURLsDesc" value="1&#xF000;https://fleetdm.com"/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage|ShowHomeButton|RestoreOnStartup/);
+    });
+
+    it('when startup does not open the URLs', async function() {
+      let homeButtonShown = homepageLocation + chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>') + chromeStartupPolicy('ShowHomeButton', '<enabled/>');
+      for (let startup of [
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="1"/>') + chromeStartupPolicy('RestoreOnStartupURLs', '<enabled/><data id="RestoreOnStartupURLsDesc" value="1&#xF000;https://fleetdm.com"/>'),
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>'),
+      ]) {
+        let result = await generateWindows(homeButtonShown + startup);
+        assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+        assert.doesNotMatch(result.generatedProfile.deliveryNotes, /ShowHomeButton/);
+      }
+    });
+
+    it('going by the mandatory policy when its recommended twin differs, in either order', async function() {
+      let mandatoryOn = chromeStartupPolicy('HomepageIsNewTabPage', '<enabled/>');
+      let recommendedOff = chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>', true);
+      for (let pair of [mandatoryOn + recommendedOff, recommendedOff + mandatoryOn]) {
+        let result = await generateWindows(homepageLocation + pair);
+        assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+      }
+    });
+
+    it('even when the model mentions the New Tab page for something else', async function() {
+      let result = await generateWindows(homepageLocation, 'Startup opens the New Tab page unless RestoreOnStartup is set.');
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
     });
 
     it('but not when the model already explained it', async function() {

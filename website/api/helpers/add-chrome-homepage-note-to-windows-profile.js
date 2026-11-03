@@ -43,29 +43,36 @@ HomepageLocation alone, which is delivered and shows in chrome://policy but chan
 
   fn: async function ({profile, deliveryNotes}) {
 
-    // The Data of each Chrome Startup policy the profile sets, by policy name, mandatory and recommended alike.
-    let chromeStartupPolicies = {};
+    // The Data of each Chrome Startup policy the profile sets, by level and policy name.  A mandatory policy wins
+    // over its recommended twin.
+    let chromeStartupPolicies = { mandatory: {}, recommended: {} };
     let itemRegExp = /<Item>[\s\S]*?<\/Item>/g;
     let itemMatch;
     while ((itemMatch = itemRegExp.exec(profile)) !== null) {
       let item = itemMatch[0];
       let locUri = ((item.match(/<LocURI>\s*([\s\S]*?)\s*<\/LocURI>/) || [])[1] || '').trim();
-      let policyMatch = locUri.match(/\/GoogleChrome~Policy~googlechrome(?:_recommended)?~Startup(?:_recommended)?\/([^/]+?)(?:_recommended)?$/i);
+      let policyMatch = locUri.match(/\/GoogleChrome~Policy~googlechrome(_recommended)?~Startup(?:_recommended)?\/([^/]+?)(?:_recommended)?$/i);
       if(policyMatch) {
-        chromeStartupPolicies[policyMatch[1].toLowerCase()] = ((item.match(/<Data>([\s\S]*?)<\/Data>/) || [])[1] || '');
+        let level = policyMatch[1] ? 'recommended' : 'mandatory';
+        chromeStartupPolicies[level][policyMatch[2].toLowerCase()] = ((item.match(/<Data>([\s\S]*?)<\/Data>/) || [])[1] || '');
       }
     }
+    let dataOf = (name)=>{
+      return chromeStartupPolicies.mandatory[name] !== undefined ? chromeStartupPolicies.mandatory[name] : chromeStartupPolicies.recommended[name];
+    };
+    let isEnabled = (name)=>{ return /<enabled\s*\/>/i.test(dataOf(name) || ''); };
+    let isDisabled = (name)=>{ return /<disabled\s*\/>/i.test(dataOf(name) || ''); };
 
-    let homepageLocation = chromeStartupPolicies.homepagelocation;
-    if(homepageLocation === undefined || /<disabled\s*\/>/i.test(homepageLocation)) {
+    if(!isEnabled('homepagelocation')) {
       return deliveryNotes;
     }
-    if(/HomepageIsNewTabPage|New Tab page/i.test(deliveryNotes)) {
+    if(/HomepageIsNewTabPage/i.test(deliveryNotes)) {
       return deliveryNotes;
     }
 
-    let isEnabled = (name)=>{ return chromeStartupPolicies[name] !== undefined && /<enabled\s*\/>/i.test(chromeStartupPolicies[name]); };
-    let isDisabled = (name)=>{ return chromeStartupPolicies[name] !== undefined && /<disabled\s*\/>/i.test(chromeStartupPolicies[name]); };
+    // Startup opens specific pages only in modes 4 and 6, and only the ones in RestoreOnStartupURLs.
+    let startupMode = ((dataOf('restoreonstartup') || '').match(/<data\s+id="RestoreOnStartup"\s+value="(\d+)"/i) || [])[1];
+    let opensPagesOnStartup = isEnabled('restoreonstartup') && _.contains(['4', '6'], startupMode) && isEnabled('restoreonstartupurls');
 
     let notes = [];
     if(!isDisabled('homepageisnewtabpage')) {
@@ -75,7 +82,7 @@ HomepageLocation alone, which is delivered and shows in chrome://policy but chan
     if(!isEnabled('showhomebutton')) {
       missing.push('enable ShowHomeButton to show the Home button');
     }
-    if(!isEnabled('restoreonstartup')) {
+    if(!opensPagesOnStartup) {
       missing.push('set RestoreOnStartup and RestoreOnStartupURLs to open the page when Chrome starts');
     }
     if(missing.length > 0) {
