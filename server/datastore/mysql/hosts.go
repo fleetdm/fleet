@@ -3973,37 +3973,6 @@ WHERE id IN (?)`
 	return hosts, nil
 }
 
-func (ds *Datastore) listHostsForScriptExecution(ctx context.Context, hostIDs []uint) ([]*fleet.Host, error) {
-	if len(hostIDs) == 0 {
-		return nil, nil
-	}
-
-	const stmt = `
-SELECT
-	h.id,
-	h.team_id,
-	h.platform,
-	h.orbit_node_key,
-	hoi.scripts_enabled
-FROM
-	hosts h
-	LEFT JOIN host_orbit_info hoi
-		ON hoi.host_id = h.id
-WHERE
-	h.id IN (?)`
-
-	inStmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts for script execution")
-	}
-	var hosts []*fleet.Host
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, inStmt, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts for script execution")
-	}
-	return hosts, nil
-}
-
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
     SELECT
