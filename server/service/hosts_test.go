@@ -570,6 +570,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "", nil
+	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -776,6 +779,9 @@ func mockHostDetailsDatastore(ds *mock.Store) {
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
+	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "", nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
@@ -1459,6 +1465,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -1594,6 +1601,7 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -5711,8 +5719,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 }
 
-// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is hidden only for the unenroll-driven
-// work-profile wipe on Android BYOD (personal) hosts.
+// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is reported as a pending unenroll only for
+// the unenroll-driven work-profile wipe on Android BYOD (personal) hosts.
 func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	newHost := func(platform string, enrollment *string, deviceStatus fleet.DeviceStatus, pending fleet.PendingDeviceAction) *fleet.Host {
 		return &fleet.Host{
@@ -5746,7 +5754,7 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 			suppressAndroidBYODWipeStatus(host)
 			if tt.wantSuppress {
 				require.Equal(t, string(fleet.DeviceStatusUnlocked), *host.MDM.DeviceStatus)
-				require.Equal(t, string(fleet.PendingActionNone), *host.MDM.PendingAction)
+				require.Equal(t, string(fleet.PendingActionUnenroll), *host.MDM.PendingAction)
 			} else {
 				require.Equal(t, string(tt.deviceStatus), *host.MDM.DeviceStatus)
 				require.Equal(t, string(tt.pending), *host.MDM.PendingAction)

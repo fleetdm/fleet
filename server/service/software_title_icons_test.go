@@ -418,6 +418,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						SoftwareInstallerID: nil,
 						AdamID:              ptr.String("1"),
 						VPPAppTeamID:        ptr.Uint(1),
+						VPPTokenID:          new(uint(7)),
 						VPPIconUrl:          ptr.String("fleetdm.com/icon.png"),
 						SoftwareTitle:       "foo",
 						Filename:            nil,
@@ -431,6 +432,9 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						LabelsIncludeAll:    nil,
 					}, nil
 				}
+				ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+					return &fleet.VPPTokenDB{ID: tokenID, Location: "Acme Japan", CountryCode: "jp"}, nil
+				}
 				ds.DeleteSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) error {
 					return nil
 				}
@@ -443,6 +447,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 				capturedActivity := capturedActivities[0]
 
 				expectedActivity := fleet.ActivityEditedAppStoreApp{
+					VPPToken:         &fleet.ActivityVPPToken{ID: 7, Location: "Acme Japan", CountryCode: "jp"},
 					SoftwareTitle:    "foo",
 					SoftwareTitleID:  1,
 					AppStoreID:       "1",

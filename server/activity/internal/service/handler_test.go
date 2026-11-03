@@ -142,6 +142,10 @@ func (m *mockService) NewActivity(_ context.Context, _ *api.User, _ api.Activity
 	panic("mockService.NewActivity should not be called in validation tests")
 }
 
+func (m *mockService) NewActivities(_ context.Context, _ *api.User, _ []api.ActivityDetails) error {
+	panic("mockService.NewActivities should not be called in validation tests")
+}
+
 func (m *mockService) CleanupExpiredActivities(_ context.Context, _ int, _ int) error {
 	panic("mockService.CleanupExpiredActivities should not be called in validation tests")
 }

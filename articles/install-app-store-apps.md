@@ -12,11 +12,17 @@ You can also manage which Google Play Store apps are available for self-service 
 
 > Before using Fleet to manage VPP apps, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp). Once you've completed that setup, you can follow the directions below for each app.
 
-1. Purchase the relevant app through Apple Business (AB). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
+1. Sign in to [Apple Business](https://business.apple.com), select **Apps & Services > App Store**, and find the app. For a custom app you own, select **Custom Apps** instead.
 
-2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+2. Add the app to your library:
+   - **Free apps**: Select **Add**. Under **Organizational Units**, choose the units whose content token you uploaded to Fleet, select **Review**, and then select **Add to Library**. Free apps don't have a license limit.
+   - **Paid apps**: Select the app's price. Under **Licence Type**, choose **Managed Licences**. Under **Organizational Units**, choose the unit whose content token you uploaded to Fleet, and enter the number of licenses to buy. Then select **Review** and complete the purchase. Learn more in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
 
-3. Select **Add software > App store**, then select the app you just purchased.
+3. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+4. Select **Add software > App store**, then select the app you just added.
+
+> To see which organizational units can use an app and how many licenses are in use, in Apple Business, select **Apps & Services > Library** and select the app.
 
 > If the developer drops support for a platform (e.g., removes the iPad version), Fleet still shows that platform on fleets where the app was already added, but other fleets can only add the currently supported platforms. To match what Apple currently supports, delete the app from the fleet and add it again.
 >
@@ -56,11 +62,11 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app icon and display name, select **Actions > Edit appearance**.
+3. To edit the app icon and display name, click **Edit**.
 
-4. To configure the app's self-service categories or change which hosts can install the app, select **Actions > Edit software**.
+4. To configure the app's self-service categories or change which hosts can install the app, expand the app's version and click the pencil (edit) icon.
 
-5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
+5. To remove the app, expand the app's version and click the trash can (delete) icon. If the app has more than one version, delete each version.
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
 
@@ -68,11 +74,96 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
-2. Search for the app you want to configure and select the app to head to its **Software details** page.
+2. Search for the app you want to configure and select the app to head to its **Software details** page, then find the version you want to configure.
 
-3. Click the **Actions** button and select **Schedule auto updates**.
+3. Expand the version and click the pencil (edit) icon.
 
-4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the **Target** option (this configuration will also affect which end users can install the app themselves via the self-service feature).
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour.
+
+## Managed configuration
+
+### Apple (VPP)
+
+Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+
+Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+New or updated configuration isn't applied until the end user fully quits and reopens the app.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+
+```xml
+<dict>
+  <key>ForceLoginWithSSO</key>
+  <true />
+  <key>SetSSOURL</key>
+  <string>example</string>
+</dict>
+```
+
+### Google Play (Android)
+
+All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
+
+`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+#### Example (GlobalProtect)
+
+This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
+
+```json
+{
+  "managedConfiguration": {
+    "portal": "example.portal.com",
+    "connect_method": "on-demand"
+  }  
+}
+
+```
+
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+#### Example (Google Calendar)
+
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
+```json
+{
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
+
+#### Example (1Password)
+
+On Android 14 and above, third-party credential providers are blocked in the work profile unless the app is explicitly allowed. This configuration allows end users to select 1Password as their autofill and passkey (credential) provider in the work profile.
+
+```json
+{
+  "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
+}
+```
+
+## Multiple app instances
+
+Fleet supports adding multiple instances of each app, so that each can have its own configuration, automatic update schedule, label scoping, categories and self-service flag. 
+
+Hosts that install the app or already have it installed will get the configuration of the version they're scoped to by labels. If a host is scoped to multiple versions, Fleet installs the version that was added first.
+
+### Add a version
+
+1. In Fleet, head to the **Software** page, select a fleet in the fleets dropdown, then search for the app and select it to head to its **Software title** page. The first version of the app is named "Default version".
+
+2. Click **Add version** and enter a **Name**. The name must be unique for the app in the fleet.
+
+3. Add a **Configuration**, set the version's other options, select which hosts the version targets, and click **Add**.
+
+### Edit or delete a version
+
+1. Find the version that you want to edit or delete, and click on it to expand it.
+
+2. To edit the version, click on the pencil (edit) icon to the right. Alternatively, click on the self-service or the label icon.
+
+3. To delete the version, click on the trash (delete) icon to the right.
 
 ## Install an app
 
@@ -92,7 +183,7 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 #### Convert unmanaged iOS and iPadOS apps to managed
 
-If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#ios-and-ipados-managed-configuration) and makes sure the app is removed when the host is unenrolled.
+If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#managed-configuration) and makes sure the app is removed when the host is unenrolled.
 
 On company-owned hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On BYOD hosts and hosts that are manually enrolled, the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
 
@@ -116,71 +207,11 @@ Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, t
 
 #### iOS and iPadOS managed configuration
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
-
-Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
-
-New or updated configuration isn't applied until the end user fully quits and reopens the app.
-
 If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
-
-This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
-
-```xml
-<dict>
-  <key>ForceLoginWithSSO</key>
-  <true />
-  <key>SetSSOURL</key>
-  <string>example</string>
-</dict>
-```
 
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
-
-
-#### Managed configuration
-
-All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
-
-`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
-
-##### Example (GlobalProtect)
-
-This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
-
-```json
-{
-  "managedConfiguration": {
-    "portal": "example.portal.com",
-    "connect_method": "on-demand"
-  }  
-}
-
-```
-
-Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
-
-##### Example (Google Calendar)
-
-This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
-
-```json
-{
-  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
-}
-```
-
-##### Example (1Password)
-
-On Android 14 and above, third-party credential providers are blocked in the work profile unless the app is explicitly allowed. This configuration allows end users to select 1Password as their autofill and passkey (credential) provider in the work profile.
-
-```json
-{
-  "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
-}
-```
 
 ## API and GitOps
 

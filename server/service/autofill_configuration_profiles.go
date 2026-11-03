@@ -218,10 +218,12 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 	if pvErr, ok := errors.AsType[*profileValidationError](err); ok {
 		// "base" like an AI service failure: the model wrote the bad profile, so the
 		// decline banner under natural_language_instructions would blame the admin.
+		reasons := pvErr.sentences()
 		return nil, ctxerr.Wrap(ctx, &fleet.AutofillConfigProfileError{
-			Message: fleet.AutofillConfigProfileContentErrorMessage,
-			Field:   "base",
-			Reason:  pvErr.Error(),
+			Message:     fleet.AutofillConfigProfileContentErrorMessage,
+			Field:       "base",
+			Reason:      reasons[0],
+			MoreReasons: reasons[1:],
 		}, "generated profile failed schema validation")
 	}
 	if err != nil {

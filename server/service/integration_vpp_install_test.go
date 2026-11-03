@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
+func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) *fleet.VPPTokenDB {
 	t := s.T()
 	// Valid token
 	orgName := "Fleet Device Management Inc."
@@ -52,6 +54,21 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
+	return resPatchVPP.Token
+}
+
+// withVPPToken adds the vpp_token snapshot of tok to the expected details JSON
+// of an App Store app activity. A nil tok is the null of Google Play apps.
+func withVPPToken(t *testing.T, details string, tok *fleet.VPPTokenDB) string {
+	m := map[string]any{}
+	require.NoError(t, json.Unmarshal([]byte(details), &m))
+	m["vpp_token"] = nil
+	if tok != nil {
+		m["vpp_token"] = map[string]any{"id": tok.ID, "location": tok.Location, "country_code": tok.CountryCode}
+	}
+	b, err := json.Marshal(m)
+	require.NoError(t, err)
+	return string(b)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
@@ -67,7 +84,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	s.setVPPTokenForTeam(team.ID)
+	tok := s.setVPPTokenForTeam(team.ID)
 
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
@@ -122,24 +139,24 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
-			macOSApp.Name, getSoftwareTitleIDFromApp(macOSApp), macOSApp.AdamID, team.ID, team.ID, macOSApp.Platform), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
+			macOSApp.Name, getSoftwareTitleIDFromApp(macOSApp), macOSApp.AdamID, team.ID, team.ID, macOSApp.Platform), tok), 0)
 
 	// Add iOS app to team
 	addAppResp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, team.ID, iOSApp.Platform), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, team.ID, iOSApp.Platform), tok), 0)
 
 	// Add iPadOS app to team
 	addAppResp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iPadOSApp.AdamID, SelfService: false, Platform: iPadOSApp.Platform}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-			iPadOSApp.Name, getSoftwareTitleIDFromApp(iPadOSApp), iPadOSApp.AdamID, team.ID, team.ID, iPadOSApp.Platform), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+			iPadOSApp.Name, getSoftwareTitleIDFromApp(iPadOSApp), iPadOSApp.AdamID, team.ID, team.ID, iPadOSApp.Platform), tok), 0)
 
 	// Create hosts for testing
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
@@ -203,8 +220,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		http.StatusOK, &addAppResp)
 	s.lastActivityMatches(
 		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-			errApp.Name, getSoftwareTitleIDFromApp(errApp), errApp.AdamID, team.ID, team.ID, errApp.Platform),
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+			errApp.Name, getSoftwareTitleIDFromApp(errApp), errApp.AdamID, team.ID, team.ID, errApp.Platform), tok),
 		0,
 	)
 
@@ -438,7 +455,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -447,7 +464,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			failedCmdUUID,
 			fleet.SoftwareInstallFailed,
 			mdmHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -486,7 +503,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -495,7 +512,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			installCmdUUID,
 			fleet.SoftwareInstalled,
 			mdmHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -603,7 +620,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -612,7 +629,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			installCmdUUID,
 			fleet.SoftwareInstalled,
 			mdmHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -653,7 +670,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -662,7 +679,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			installCmdUUID,
 			fleet.SoftwareInstallFailed,
 			mdmHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -917,7 +934,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Verify activity log entry
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			iosHost.ID,
 			iosHost.DisplayName(),
@@ -926,7 +943,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			installCmdUUID,
 			fleet.SoftwareInstalled,
 			iosHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -1028,7 +1045,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Verify activity log entry
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "from_configuration_resend": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 			ipodHost.ID,
 			ipodHost.DisplayName(),
@@ -1037,7 +1054,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			installCmdUUID,
 			fleet.SoftwareInstalled,
 			ipodHost.Platform,
-		),
+		), tok),
 		0,
 	)
 
@@ -1174,7 +1191,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// Verify activity log entry
 		s.lastActivityMatches(
 			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(
+			withVPPToken(t, fmt.Sprintf(
 				`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": true, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 				data.host.ID,
 				data.host.DisplayName(),
@@ -1183,7 +1200,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 				installCmdUUID,
 				fleet.SoftwareInstalled,
 				data.host.Platform,
-			),
+			), tok),
 			0,
 		)
 	}
@@ -2159,6 +2176,9 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	// Reset the VPP proxy data to what it was before this test
 	s.registerResetVPPProxyData(t)
 
+	// Set by the setVPPTokenForTeam calls below, before any subtest runs.
+	var tok *fleet.VPPTokenDB
+
 	vppAutoUpdateTest := func(t *testing.T, team *fleet.Team, host *fleet.Host, deviceClient *mdmtest.TestAppleMDMClient) {
 		// Set an iOS and iPadOS app on the VPP response.
 		s.appleVPPProxySrvData = map[string]string{
@@ -2265,7 +2285,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		// Check activity is generated for the installation.
 		s.lastActivityMatches(
 			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(
+			withVPPToken(t, fmt.Sprintf(
 				`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "from_auto_update": false, "from_configuration_resend": false, "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 				host.ID,
 				host.DisplayName(),
@@ -2274,7 +2294,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 				installApplicationCommandUUID,
 				fleet.SoftwareInstalled,
 				host.Platform,
-			),
+			), tok),
 			0,
 		)
 
@@ -2539,7 +2559,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		// Check activity is generated for the installation.
 		lastActivityID = s.lastActivityMatches(
 			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(
+			withVPPToken(t, fmt.Sprintf(
 				// See `"from_auto_update": true`.
 				`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "from_auto_update": true, "from_configuration_resend": false, "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false}`,
 				host.ID,
@@ -2549,7 +2569,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 				installApplicationCommandUUID,
 				fleet.SoftwareInstalled,
 				host.Platform,
-			),
+			), tok),
 			0,
 		)
 
@@ -2701,7 +2721,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
-	s.setVPPTokenForTeam(team.ID)
+	tok = s.setVPPTokenForTeam(team.ID)
 
 	// Enroll iOS device, and add serial number to fake Apple server (for VPP APIs).
 	iosHost, iosClientDevice := s.createAppleMobileHostThenEnrollMDM("ios")
@@ -2734,7 +2754,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
-	s.setVPPTokenForTeam(0)
+	tok = s.setVPPTokenForTeam(0)
 
 	t.Run("iphone-on-no-team", func(t *testing.T) {
 		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, iosHostNoTeam, iosClientDeviceNoTeam)
@@ -3194,4 +3214,341 @@ func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDe
 			}
 		})
 	}
+}
+
+// uploadVPPToken uploads a VPP token and returns it with the bearer Fleet sends
+// to Apple for it, which is the uploaded file's base64 content. vpp_tokens.location
+// is unique, so each upload needs its own location.
+func (s *integrationMDMTestSuite) uploadVPPToken(secret, location, orgName string) (tok *fleet.VPPTokenDB, bearer string) {
+	s.appleVPPConfigSrvConfig.Location = location
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, secret, orgName)
+	bearer = base64.StdEncoding.EncodeToString([]byte(tokenJSON))
+	var res uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(bearer), http.StatusAccepted, "", &res)
+	return res.Token, bearer
+}
+
+func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Two tokens fleet")}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	origLocation := s.appleVPPConfigSrvConfig.Location
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Location = origLocation })
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	uploadToken := func(secret, location string) (id uint, bearer string) {
+		tok, bearer := s.uploadVPPToken(secret, location, "Fleet Device Management Inc.")
+		return tok.ID, bearer
+	}
+	tokenAID, bearerA := uploadToken("token-a-secret", "Location A")
+	tokenBID, bearerB := uploadToken("token-b-secret", "Location B")
+
+	// Both tokens go to the same fleet.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// App 2 is an iOS app and app 3 an iPadOS app. App X is added from token A and app Y from token B.
+	const adamX, adamY = "2", "3"
+	platformByAdamID := map[string]fleet.InstallableDevicePlatform{adamX: fleet.IOSPlatform, adamY: fleet.IPadOSPlatform}
+	tokenIDByAdamID := map[string]uint{adamX: tokenAID, adamY: tokenBID}
+	for adamID, platform := range platformByAdamID {
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: adamID, Platform: platform, VPPTokenID: new(tokenIDByAdamID[adamID])}, http.StatusOK, &addAppStoreAppResponse{})
+	}
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	titleIDByAdamID := make(map[string]uint)
+	for _, sw := range listSw.SoftwareTitles {
+		require.NotNil(t, sw.AppStoreApp)
+		titleIDByAdamID[sw.AppStoreApp.AppStoreID] = sw.ID
+	}
+	require.Len(t, titleIDByAdamID, 2)
+
+	// A host with an install in flight queues later installs behind it, so each step uses its own host.
+	newHost := func(platform fleet.InstallableDevicePlatform) *fleet.Host {
+		host, device := s.createAppleMobileHostThenEnrollMDM(string(platform))
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+		return host
+	}
+	installApp := func(host *fleet.Host, adamID string, wantStatus int) []byte {
+		r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleIDByAdamID[adamID]), &installSoftwareRequest{}, wantStatus)
+		defer r.Body.Close()
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		return b
+	}
+	snapshot := func() int { return len(s.appleVPPConfigSrvConfig.AuthCalls) }
+	// requireNewAuthCall asserts the one call the mock server received since the
+	// snapshot used the given token.
+	requireNewAuthCall := func(since int, suffix, bearer string) {
+		t.Helper()
+		calls := s.appleVPPConfigSrvConfig.AuthCalls[since:]
+		require.Len(t, calls, 1)
+		require.True(t, strings.HasSuffix(calls[0].Path, suffix), calls[0].Path)
+		require.Equal(t, "Bearer "+bearer, calls[0].Authorization)
+	}
+	installRowToken := func(host *fleet.Host, adamID string) (cmdUUID string, tokenID *uint) {
+		var row struct {
+			CommandUUID string `db:"command_uuid"`
+			TokenID     *uint  `db:"vpp_token_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT command_uuid, vpp_token_id FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, host.ID, adamID)
+		})
+		return row.CommandUUID, row.TokenID
+	}
+
+	// Installing each app associates a seat with its own token, and the install row records it.
+	hostX := newHost(fleet.IOSPlatform)
+	before := snapshot()
+	installApp(hostX, adamX, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerA)
+	_, gotTokenID := installRowToken(hostX, adamX)
+	require.NotNil(t, gotTokenID)
+	require.Equal(t, tokenAID, *gotTokenID)
+
+	hostY := newHost(fleet.IPadOSPlatform)
+	before = snapshot()
+	installApp(hostY, adamY, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerB)
+	cmdUUIDY, gotTokenID := installRowToken(hostY, adamY)
+	require.NotNil(t, gotTokenID)
+	require.Equal(t, tokenBID, *gotTokenID)
+
+	// Canceling the Y install releases its seat on token B, not on the fleet's first token.
+	before = snapshot()
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", hostY.ID, cmdUUIDY), nil, http.StatusNoContent)
+	requireNewAuthCall(before, "/disassociate", bearerB)
+
+	// An expired token only blocks the apps bound to it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_tokens SET renew_at = ? WHERE id = ?`, time.Now().Add(-time.Hour), tokenBID)
+		return err
+	})
+	before = snapshot()
+	body := installApp(newHost(fleet.IPadOSPlatform), adamY, http.StatusUnprocessableEntity)
+	require.Contains(t, string(body), "Couldn't install. VPP token expired.")
+	require.Equal(t, before, snapshot(), "no Apple call may happen for an expired token")
+
+	before = snapshot()
+	installApp(newHost(fleet.IOSPlatform), adamX, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerA)
+}
+
+func (s *integrationMDMTestSuite) TestAppStoreAppsManyTokens() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Many tokens fleet")}, http.StatusOK, &teamResp)
+	team := teamResp.Team
+	teamResp = teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("One token fleet")}, http.StatusOK, &teamResp)
+	oneTokenTeam := teamResp.Team
+
+	origLocation := s.appleVPPConfigSrvConfig.Location
+	t.Cleanup(func() {
+		s.appleVPPConfigSrvConfig.Location = origLocation
+		s.appleVPPConfigSrvConfig.AssetsByBearer = nil
+	})
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	// App 8801 is an iOS app, in addition to the mock's macOS app 1, iOS/iPadOS/macOS app 2 and iPadOS app 3.
+	s.registerResetVPPProxyData(t)
+	s.appleVPPProxySrvData = maps.Clone(s.appleVPPProxySrvData)
+	s.appleVPPProxySrvData["8801"] = `{"id": "8801", "attributes": {"name": "Canva", "platformAttributes": {"ios": {"bundleId": "canva-8801", "artwork": {"url": "https://example.com/images/8801/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`
+
+	// Org names sort in the opposite order of the token ids, so id order differs from org name order.
+	usTok, bearerUS := s.uploadVPPToken("token-us-secret", "Acme US", "Zeta Corp")
+	jpTok, bearerJP := s.uploadVPPToken("token-jp-secret", "Acme Japan", "Alpha KK")
+	asset := func(adamID string) vpp.Asset {
+		return vpp.Asset{AdamID: adamID, PricingParam: "STDQ", AvailableCount: 5}
+	}
+	s.appleVPPConfigSrvConfig.AssetsByBearer = map[string][]vpp.Asset{
+		bearerUS: {asset("1"), asset("2")},
+		bearerJP: {asset("2"), asset("3"), asset("8801")},
+	}
+
+	// Token responses carry created_at, and the list is in id order.
+	require.NotNil(t, usTok.CreatedAt)
+	require.NotNil(t, jpTok.CreatedAt)
+	s.appleVPPConfigSrvConfig.Location = usTok.Location
+	var renewResp uploadVPPTokenResponse
+	s.uploadDataViaFormWithVerb(fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/renew", usTok.ID), "PATCH", "token", "token.vpptoken",
+		[]byte(bearerUS), http.StatusAccepted, "", &renewResp)
+	require.NotNil(t, renewResp.Token.CreatedAt)
+	require.True(t, usTok.CreatedAt.Equal(*renewResp.Token.CreatedAt))
+
+	// The one token fleet only has the JP token.
+	for tokenID, fleetIDs := range map[uint][]uint{usTok.ID: {team.ID}, jpTok.ID: {team.ID, oneTokenTeam.ID}} {
+		var patchResp patchVPPTokensTeamsResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenID), map[string]any{"fleets": fleetIDs}, http.StatusOK, &patchResp)
+		require.NotNil(t, patchResp.Token.CreatedAt)
+	}
+	var listTokens getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", nil, http.StatusOK, &listTokens)
+	require.Len(t, listTokens.Tokens, 2)
+	require.Equal(t, usTok.ID, listTokens.Tokens[0].ID)
+	require.Equal(t, jpTok.ID, listTokens.Tokens[1].ID)
+	require.NotNil(t, listTokens.Tokens[0].CreatedAt)
+	require.NotNil(t, listTokens.Tokens[1].CreatedAt)
+
+	// Updating the fleets of a missing token or to a missing fleet is a 404.
+	for _, tc := range []struct {
+		path    string
+		fleets  []uint
+		wantErr string
+	}{
+		{"/api/latest/fleet/vpp_tokens/99/fleets", []uint{team.ID}, "Couldn't edit. VPP token with ID 99 doesn't exist."},
+		{"/api/latest/fleet/vpp_tokens/99/fleets", nil, "Couldn't edit. VPP token with ID 99 doesn't exist."},
+		{fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", jpTok.ID), []uint{team.ID, 99999}, "Couldn't edit. Fleet with ID 99999 doesn't exist."},
+	} {
+		r := s.Do("PATCH", tc.path, map[string]any{"fleets": tc.fleets}, http.StatusNotFound)
+		require.Contains(t, extractServerErrorText(r.Body), tc.wantErr)
+	}
+
+	const (
+		appsPath  = "/api/latest/fleet/software/app_store_apps"
+		listCopy  = "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id."
+		addCopy   = "Couldn't add software. This fleet has more than one VPP token. Please specify vpp_token_id."
+		macApp    = "1"
+		bothApp   = "2"
+		iPadApp   = "3"
+		iPhoneApp = "8801"
+	)
+	listApps := func(fleetID, tokenID uint) []string {
+		t.Helper()
+		var res getAppStoreAppsResponse
+		s.DoJSON("GET", appsPath, nil, http.StatusOK, &res, "fleet_id", fmt.Sprint(fleetID), "vpp_token_id", fmt.Sprint(tokenID))
+		var got []string
+		for _, a := range res.AppStoreApps {
+			got = append(got, fmt.Sprintf("%s/%s", a.AdamID, a.Platform))
+		}
+		slices.Sort(got)
+		return got
+	}
+	addApp := func(adamID string, platform fleet.InstallableDevicePlatform, tokenID *uint, name string) addAppStoreAppResponse {
+		t.Helper()
+		var res addAppStoreAppResponse
+		s.DoJSON("POST", appsPath, &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: adamID, Platform: platform, VPPTokenID: tokenID, Name: name}, http.StatusOK, &res)
+		return res
+	}
+	requireAddError := func(adamID string, platform fleet.InstallableDevicePlatform, tokenID *uint, name string, wantStatus int, wantErr string) {
+		t.Helper()
+		r := s.Do("POST", appsPath, &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: adamID, Platform: platform, VPPTokenID: tokenID, Name: name}, wantStatus)
+		require.Contains(t, extractServerErrorText(r.Body), wantErr)
+	}
+	boundTokenIDs := func(adamID string, platform fleet.InstallableDevicePlatform) []uint {
+		t.Helper()
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT vpp_token_id FROM vpp_apps_teams WHERE team_id = ? AND adam_id = ? AND platform = ?`, team.ID, adamID, platform)
+		})
+		return ids
+	}
+
+	// Listing needs a token on a fleet with two, and returns the assets of the chosen token.
+	r := s.Do("GET", appsPath, nil, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(team.ID))
+	require.Contains(t, extractServerErrorText(r.Body), listCopy)
+	require.Equal(t, []string{"1/darwin", "2/darwin", "2/ios", "2/ipados"}, listApps(team.ID, usTok.ID))
+	require.Equal(t, []string{"2/darwin", "2/ios", "2/ipados", "3/ipados", "8801/ios"}, listApps(team.ID, jpTok.ID))
+
+	// A fleet with one token lists with and without the token id.
+	var res getAppStoreAppsResponse
+	s.DoJSON("GET", appsPath, nil, http.StatusOK, &res, "fleet_id", fmt.Sprint(oneTokenTeam.ID))
+	require.Len(t, res.AppStoreApps, 5)
+	require.Len(t, listApps(oneTokenTeam.ID, jpTok.ID), 5)
+	r = s.Do("GET", appsPath, nil, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(oneTokenTeam.ID), "vpp_token_id", fmt.Sprint(usTok.ID))
+	require.Contains(t, extractServerErrorText(r.Body), `Couldn't list apps. VPP token "Acme US" isn't assigned to this fleet.`)
+
+	// Adding needs a token on a fleet with two, and binds the app to the chosen token.
+	requireAddError(iPadApp, fleet.IPadOSPlatform, nil, "", http.StatusUnprocessableEntity, addCopy)
+	addApp(iPadApp, fleet.IPadOSPlatform, &jpTok.ID, "")
+	require.Equal(t, []uint{jpTok.ID}, boundTokenIDs(iPadApp, fleet.IPadOSPlatform))
+
+	// An iOS app added from US is hidden from JP's list for iOS only.
+	addApp(bothApp, fleet.IOSPlatform, &usTok.ID, "")
+	require.Equal(t, []uint{usTok.ID}, boundTokenIDs(bothApp, fleet.IOSPlatform))
+	require.Equal(t, []string{"2/darwin", "2/ipados", "8801/ios"}, listApps(team.ID, jpTok.ID))
+	require.Equal(t, []string{"1/darwin", "2/darwin", "2/ipados"}, listApps(team.ID, usTok.ID))
+
+	// A new version of an app inherits its token, and can't name another one.
+	canva := addApp(iPhoneApp, fleet.IOSPlatform, &jpTok.ID, "")
+	addApp(iPhoneApp, fleet.IOSPlatform, nil, "Test")
+	require.Equal(t, []uint{jpTok.ID, jpTok.ID}, boundTokenIDs(iPhoneApp, fleet.IOSPlatform))
+	requireAddError(iPhoneApp, fleet.IOSPlatform, &usTok.ID, "Staging", http.StatusConflict,
+		`Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+
+	// The software title carries the token only when a fleet is given.
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", canva.TitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Equal(t, &fleet.VPPTokenSummary{ID: jpTok.ID, OrgName: "Alpha KK", Location: "Acme Japan", CountryCode: jpTok.CountryCode},
+		titleResp.SoftwareTitle.AppStoreApp.VPPToken)
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", canva.TitleID), nil, http.StatusOK, &titleResp)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
+
+	// Installing the JP app associates the license with the JP token, and the activities carry it.
+	wantToken := &fleet.ActivityVPPToken{ID: jpTok.ID, Location: "Acme Japan", CountryCode: jpTok.CountryCode}
+	requireActivityToken := func(details *json.RawMessage) {
+		t.Helper()
+		require.NotNil(t, details)
+		var d struct {
+			VPPToken *fleet.ActivityVPPToken `json:"vpp_token"`
+		}
+		require.NoError(t, json.Unmarshal(*details, &d))
+		require.Equal(t, wantToken, d.VPPToken)
+	}
+	var ipadTitles listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &ipadTitles, "team_id", fmt.Sprint(team.ID), "query", "App 3")
+	require.Len(t, ipadTitles.SoftwareTitles, 1)
+
+	host, device := s.createAppleMobileHostThenEnrollMDM(string(fleet.IPadOSPlatform))
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+	before := len(s.appleVPPConfigSrvConfig.AuthCalls)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, ipadTitles.SoftwareTitles[0].ID), &installSoftwareRequest{}, http.StatusAccepted)
+	calls := s.appleVPPConfigSrvConfig.AuthCalls[before:]
+	require.Len(t, calls, 1)
+	require.True(t, strings.HasSuffix(calls[0].Path, "/associate"), calls[0].Path)
+	require.Equal(t, "Bearer "+bearerJP, calls[0].Authorization)
+
+	var upcoming listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
+	require.Len(t, upcoming.Activities, 1)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), upcoming.Activities[0].Type)
+	requireActivityToken(upcoming.Activities[0].Details)
+
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+	cmd, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	s.runWorker()
+	cmd, err = device.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	_, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID,
+		[]fleet.Software{{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Installed: true}})
+	require.NoError(t, err)
+
+	var activities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "id", "order_direction", "desc", "per_page", "1")
+	require.Len(t, activities.Activities, 1)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), activities.Activities[0].Type)
+	requireActivityToken(activities.Activities[0].Details)
 }

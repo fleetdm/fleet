@@ -2,8 +2,10 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -31,6 +33,7 @@ func TestVPP(t *testing.T) {
 	}{
 		{"VPPInstallPushesViaDirectActivation", testVPPInstallPushesViaDirectActivation},
 		{"SetTeamVPPApps", testSetTeamVPPApps},
+		{"SetTeamVPPAppsKeepsExistingToken", testSetTeamVPPAppsKeepsExistingToken},
 		{"SetTeamVPPAppsWithLabels", testSetTeamVPPAppsWithLabels},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
@@ -71,6 +74,8 @@ func TestVPP(t *testing.T) {
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
+		{"VPPInstallRecordsToken", testVPPInstallRecordsToken},
+		{"VPPTokenChoice", testVPPTokenChoice},
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 		{"AppStoreAppVersionsStatusCountsOneVersionPerStatus", testAppStoreAppVersionsStatusCountsOneVersionPerStatus},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
@@ -100,7 +105,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, team2)
 
-	test.CreateInsertGlobalVPPToken(t, ds)
+	vppTok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, vppTok)
 
 	// get for non-existing title
 	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, 1)
@@ -123,7 +129,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	meta.VPPAppsTeamsID = 0    // we don't care about the VPP app team PK for comparison purposes
 	meta.AddedAt = time.Time{} // we don't care about AddedAt here
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1", SelfService: true}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1", SelfService: true, VPPTokenID: &vppTok.ID}, meta)
 
 	// Check that getting metadata in team context works for no team
 	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, nil)
@@ -153,7 +159,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID1, title.SoftwareTitleID)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{} // we don't care about AddedAt here
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp1", VPPAppID: vpp1, SelfService: true, BundleIdentifier: "com.app.vpp1"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp1", VPPAppID: vpp1, SelfService: true, BundleIdentifier: "com.app.vpp1"}, meta)
 
 	// get nonexistent title
 	_, err = ds.GetTitleInfoFromVPPAppsTeamsID(ctx, 0)
@@ -172,14 +178,14 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for all teams
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// try to add the same app again, fails
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -193,7 +199,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for team 2, does not exist
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
@@ -213,12 +219,12 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// create another no-team app
 	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -239,7 +245,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp1
 	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1, nil)
@@ -253,7 +259,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp2 for team1
 	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vpp2, nil)
@@ -268,7 +274,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	expectedVPPAppsTeamsID := meta.VPPAppsTeamsID
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	meta.AddedAt = time.Time{}
-	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{VersionName: fleet.DefaultAppStoreAppVersionName, VPPTokenID: &vppTok.ID, Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// Check that getting metadata in team context works
 	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, &team2.ID)
@@ -669,7 +675,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
-	test.CreateInsertGlobalVPPToken(t, ds)
+	globalTok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, globalTok)
 
 	t.Run("vpp apps with labels", func(t *testing.T) {
 		teamWithLabels, err := ds.NewTeam(ctx, &fleet.Team{Name: "labels" + t.Name()})
@@ -833,7 +840,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"self_service":false,
 		"software_display_name":null,
 		"software_title":"foo",
-		"status":"pending_install"
+		"status":"pending_install",
+		"vpp_token":null
 	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
 
 	acts, _, err = ds.ListHostUpcomingActivities(ctx, h2.ID, fleet.ListOptions{})
@@ -850,7 +858,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"self_service":true,
 		"software_display_name":null,
 		"software_title":"vpp_app_2",
-		"status":"pending_install"
+		"status":"pending_install",
+		"vpp_token":null
 	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))
 
 	// Check that getting the assigned apps works
@@ -863,8 +872,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	appTeamID2 := meta.AppTeamID
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID1, AddedAt: appSet[app1.VPPAppID].AddedAt},
-		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID2, AddedAt: appSet[app2.VPPAppID].AddedAt},
+		app1.VPPAppID: {VPPAppID: app1.VPPAppID, VPPTokenID: &globalTok.ID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID1, AddedAt: appSet[app1.VPPAppID].AddedAt},
+		app2.VPPAppID: {VPPAppID: app2.VPPAppID, VPPTokenID: &globalTok.ID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID2, AddedAt: appSet[app2.VPPAppID].AddedAt},
 	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
@@ -877,8 +886,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	appTeamID2 = meta.AppTeamID
 	require.NoError(t, err)
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID1, AddedAt: appSet[appNoTeam1.VPPAppID].AddedAt},
-		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID2, AddedAt: appSet[appNoTeam2.VPPAppID].AddedAt},
+		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, VPPTokenID: &globalTok.ID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID1, AddedAt: appSet[appNoTeam1.VPPAppID].AddedAt},
+		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, VPPTokenID: &globalTok.ID, InstallDuringSetup: new(false), VersionName: fleet.DefaultAppStoreAppVersionName, AppTeamID: appTeamID2, AddedAt: appSet[appNoTeam2.VPPAppID].AddedAt},
 	}, appSet)
 
 	var appTitles []fleet.SoftwareTitle
@@ -1148,6 +1157,13 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
 	assert.Nil(t, tok.Teams) // No team assigned
+	require.NotNil(t, tok.CreatedAt)
+	createdAt := *tok.CreatedAt
+	requireCreatedAt := func(got *fleet.VPPTokenDB) {
+		t.Helper()
+		require.NotNil(t, got.CreatedAt)
+		require.True(t, createdAt.Equal(*got.CreatedAt))
+	}
 
 	tok, err = ds.GetVPPToken(ctx, tokID)
 	assert.NoError(t, err)
@@ -1157,6 +1173,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, orgName, tok.OrgName)
 	assert.Equal(t, location, tok.Location)
 	assert.Nil(t, tok.Teams)
+	requireCreatedAt(tok)
 
 	toks, err := ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -1167,6 +1184,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, orgName, toks[0].OrgName)
 	assert.Equal(t, location, toks[0].Location)
 	assert.Nil(t, toks[0].Teams)
+	requireCreatedAt(toks[0])
 
 	teamTok, err := ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.Error(t, err)
@@ -1188,6 +1206,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, upTok.Location)
 	assert.NotNil(t, upTok.Teams) // "All Teams" team array is non-nil but empty
 	assert.Len(t, upTok.Teams, 0)
+	requireCreatedAt(upTok)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -1218,6 +1237,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, teamTok.Location)
 	assert.NotNil(t, teamTok.Teams)
 	assert.Len(t, teamTok.Teams, 0)
+	requireCreatedAt(teamTok)
 
 	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.NoError(t, err)
@@ -1320,6 +1340,11 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Renew flow
+	createdAt = time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_tokens SET created_at = ? WHERE id = ?`, createdAt, tokID)
+		return err
+	})
 	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)
 	assert.NoError(t, err)
 	assert.Equal(t, tokID, upTok.ID)
@@ -1331,6 +1356,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, team.ID, upTok.Teams[0].ID)
 	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+	requireCreatedAt(upTok) // renew updates the row in place
 
 	t1Policy, err = ds.Policy(ctx, t1Policy.ID)
 	require.NoError(t, err)
@@ -1406,21 +1432,26 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
-	assert.Error(t, err)
+	// duplicate IDs are stored once
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}}, upTok.Teams)
 
-	// Cannot move tokAll to all teams now
+	// All fleets stacks with fleet and Unassigned tokens
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{0})
 	assert.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	require.NoError(t, err)
 
 	///
 
@@ -1431,8 +1462,9 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	tokTeams, err := ds.InsertVPPToken(ctx, dataToken4)
 	assert.NoError(t, err)
 
+	// a fleet can hold several tokens
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
 	assert.NoError(t, err)
 
@@ -1452,16 +1484,14 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// adding a fleet to the token keeps the automation on the fleet it stays on
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
-	// errored update shouldn't have cleared anything
 	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
 	assert.NoError(t, err)
 	assert.Equal(t, t2meta.VPPAppsTeamsID, *t2Policy.VPPAppsTeamsID)
 
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
-	assert.Error(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	assert.NoError(t, err)
 
@@ -1518,20 +1548,59 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	require.NoError(t, err)
 
-	tokBadConstraint, err := ds.InsertVPPToken(ctx, dataToken5)
+	tokExtra, err := ds.InsertVPPToken(ctx, dataToken5)
 	assert.NoError(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{})
-	assert.Error(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "\"Kritters\" team already has a VPP token.")
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "\"No team\" team already has a VPP token.")
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, toks, 5)
+
+	// Fleets, Unassigned and All fleets can each hold several tokens, and GetVPPTokenByTeamID
+	// returns the lowest token id among the matches. tokAll < tokTeam < tokTeams < tokExtra.
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, []uint{team.ID, 0})
+	require.NoError(t, err)
+	tokByTeam, err := ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeam.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, new(uint(0)))
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+
+	// All fleets with the highest id loses to the fleet token, with the lowest id it wins
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, []uint{})
+	require.NoError(t, err)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeam.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+
+	// Unassigned with only an All fleets token next to it, which has the highest id
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokExtra.ID, tokByTeam.ID)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	require.NoError(t, err)
+	for _, tid := range []*uint{nil, &team.ID, &team2.ID} {
+		tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, tid)
+		require.NoError(t, err)
+		assert.Equal(t, tokAll.ID, tokByTeam.ID)
+	}
+
+	// restore the assignments the checks below expect
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, nil)
+	require.NoError(t, err)
 
 	///
 	tokNil, err := ds.GetVPPTokenByTeamID(ctx, nil)
@@ -1621,6 +1690,19 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 
 	////
+	// duplicate IDs are stored once, including repeated "No fleet"
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{team.ID, team.ID, 0, 0})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}, {ID: 0, Name: fleet.TeamNameNoTeam}}, upTok.Teams)
+	var rows int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rows, `SELECT COUNT(*) FROM vpp_token_teams WHERE vpp_token_id = ?`, tokNone.ID))
+	assert.Equal(t, 2, rows)
+
+	// a fleet that doesn't exist is still rejected
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{team.ID, 99999})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err), "got %v", err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
 	assert.NoError(t, err)
 
@@ -1711,17 +1793,17 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	/// Try to move team 1 token to team 2
+	/// Move team 1 token to team 2, which already has a token
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
-	// team1: token 1, app1, app2
-	// team2: token 2, app 1
+	// team1: no token, no apps
+	// team2: token 1, token 2, app 1 (token 2's)
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	assert.NoError(t, err)
-	assert.Len(t, apps, 2)
+	assert.Empty(t, apps)
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
 	assert.NoError(t, err)
@@ -1803,6 +1885,18 @@ func testVPPTokenReassignTeamsToAllTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, upTok.Teams, 1)
 	require.Equal(t, team1.ID, upTok.Teams[0].ID)
+
+	// A second token on team1 doesn't block moving the first one to All fleets
+	tokenData2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Second Org For Reassign", "Second Loc For Reassign")
+	require.NoError(t, err)
+	tok2, err := ds.InsertVPPToken(ctx, tokenData2)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{})
+	require.NoError(t, err)
+	require.NotNil(t, upTok.Teams)
+	require.Empty(t, upTok.Teams)
 }
 
 func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
@@ -1997,8 +2091,8 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 
 	// assign app1 and app2 to team1
 	_, err = ds.SetTeamVPPApps(ctx, &team1.ID, []fleet.VPPAppTeam{
-		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
-		{VPPAppID: app2.VPPAppID, SelfService: true},
+		{VPPAppID: app1.VPPAppID, VPPTokenID: &tok1.ID, InstallDuringSetup: new(true)},
+		{VPPAppID: app2.VPPAppID, VPPTokenID: &tok1.ID, SelfService: true},
 	}, nil)
 	require.NoError(t, err)
 
@@ -2030,6 +2124,87 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.Empty(t, assigned)
+
+	// a second token on team2 leaves the first token's apps alone, in both directions
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "vpp_org2"+t.Name(), "vpp location2"+t.Name())
+	require.NoError(t, err)
+	tok2, err := ds.InsertVPPToken(ctx, dataToken2)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
+	require.NoError(t, err)
+
+	// the app binds to the token on the incoming app
+	_, err = ds.SetTeamVPPApps(ctx, &team2.ID, []fleet.VPPAppTeam{{VPPAppID: app3.VPPAppID, VPPTokenID: &tok1.ID}}, nil)
+	require.NoError(t, err)
+	var boundTokenID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &boundTokenID,
+		`SELECT vpp_token_id FROM vpp_apps_teams WHERE team_id = ? AND adam_id = ?`, team2.ID, app3.AdamID))
+	require.Equal(t, tok1.ID, boundTokenID)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, nil)
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Contains(t, assigned, app3.VPPAppID)
+
+	// removing the second token from a fleet it holds with the first token keeps the first token's apps
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Contains(t, assigned, app3.VPPAppID)
+
+	// removing the first token from the fleet deletes the apps bound to it
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+}
+
+func testSetTeamVPPAppsKeepsExistingToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "keeps-token" + t.Name()})
+	require.NoError(t, err)
+
+	insertToken := func(org, location string) *fleet.VPPTokenDB {
+		data, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), org, location)
+		require.NoError(t, err)
+		tok, err := ds.InsertVPPToken(ctx, data)
+		require.NoError(t, err)
+		tok, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+		require.NoError(t, err)
+		return tok
+	}
+	tok1 := insertToken("org1"+t.Name(), "location1"+t.Name())
+	tok2 := insertToken("org2"+t.Name(), "location2"+t.Name())
+
+	app := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", Platform: fleet.IOSPlatform, BundleIdentifier: "b1"}
+	require.NoError(t, ds.BatchInsertVPPApps(ctx, []*fleet.VPPApp{app}))
+
+	boundToken := func() uint {
+		var id uint
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &id,
+			`SELECT vpp_token_id FROM vpp_apps_teams WHERE team_id = ? AND adam_id = ?`, team.ID, app.AdamID))
+		return id
+	}
+
+	// a new row takes the token of the incoming app, not the first-added token of the fleet
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{{VPPAppID: app.VPPAppID, VPPTokenID: &tok2.ID}}, map[string]uint{})
+	require.NoError(t, err)
+	require.Equal(t, tok2.ID, boundToken())
+
+	// an existing row keeps its token when the incoming app carries another one, and still takes the other changes
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{{VPPAppID: app.VPPAppID, VPPTokenID: &tok1.ID, SelfService: true}}, map[string]uint{})
+	require.NoError(t, err)
+	require.Equal(t, tok2.ID, boundToken())
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.True(t, assigned[app.VPPAppID].SelfService)
+	require.Equal(t, tok2.ID, *assigned[app.VPPAppID].VPPTokenID)
 }
 
 func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
@@ -4741,6 +4916,255 @@ func testVPPInstallLinksAppStoreAppInstance(t *testing.T, ds *Datastore) {
 	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
 }
 
+func testVPPInstallRecordsToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	tok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, tok)
+
+	const adamID1, adamID2 = "55550001", "55550002"
+	setupTestVPPApp(t, ds, adamID1, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID2, fleet.IOSPlatform)
+	app1, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID1, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	app2, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID2, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{Hostname: "token-host", UUID: "vpp-record-token", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-TOKEN"})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	selectToken := func(query, cmd string) *uint {
+		var id *uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &id, query, cmd)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return id
+	}
+	const (
+		selectQueued  = `SELECT vaua.vpp_token_id FROM vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id WHERE ua.execution_id = ?`
+		selectInstall = `SELECT vpp_token_id FROM host_vpp_software_installs WHERE command_uuid = ?`
+	)
+
+	// the first install activates right away, the token follows it from the queue row to the install row
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, app1.VPPAppID, "token-cmd-1", "evt-1",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID, VPPTokenID: tok.ID}))
+	require.Equal(t, &tok.ID, selectToken(selectQueued, "token-cmd-1"))
+	require.Equal(t, &tok.ID, selectToken(selectInstall, "token-cmd-1"))
+
+	info, err := ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// the second install stays queued behind the first
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, app2.VPPAppID, "token-cmd-2", "evt-2",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app2.AppTeamID, VPPTokenID: tok.ID}))
+	require.Equal(t, &tok.ID, selectToken(selectQueued, "token-cmd-2"))
+	require.Nil(t, selectToken(selectInstall, "token-cmd-2"))
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-2")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// a queued install without a recorded token falls back to the app's token
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id
+			SET vaua.vpp_token_id = NULL WHERE ua.execution_id = 'token-cmd-2'`)
+		return err
+	})
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-2")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// an activated install without a recorded token falls back to the app's token too
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_token_id = NULL WHERE command_uuid = 'token-cmd-1'`)
+		return err
+	})
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// neither the install nor the app row knows the token
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET vpp_token_id = NULL WHERE id IN (?, ?)`, app1.AppTeamID, app2.AppTeamID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id
+			SET vaua.vpp_token_id = NULL WHERE ua.execution_id = 'token-cmd-2'`)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-1", "token-cmd-2"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, cmd)
+		require.NoError(t, err)
+		require.Nil(t, info.VPPTokenID, cmd)
+	}
+
+	// a failed install records the token, and none when unknown
+	_, act, err := ds.RecordFailedVPPAppInstall(ctx, host.ID, app1.VPPAppID, "token-failed-cmd", "failed",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID, VPPTokenID: tok.ID})
+	require.NoError(t, err)
+	require.NotNil(t, act)
+	require.Equal(t, &tok.ID, selectToken(selectInstall, "token-failed-cmd"))
+	require.Equal(t, &fleet.ActivityVPPToken{ID: tok.ID, Location: tok.Location, CountryCode: tok.CountryCode}, act.VPPToken)
+	_, act, err = ds.RecordFailedVPPAppInstall(ctx, host.ID, app1.VPPAppID, "token-failed-cmd-2", "failed",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID})
+	require.NoError(t, err)
+	require.NotNil(t, act)
+	require.Nil(t, selectToken(selectInstall, "token-failed-cmd-2"))
+	require.Nil(t, act.VPPToken)
+
+	// the recorded token wins over the app row's token, for queued and activated installs,
+	// and survives the app row being deleted
+	otherData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Diddy Kong", "Treehouse")
+	require.NoError(t, err)
+	otherTok, err := ds.InsertVPPToken(ctx, otherData)
+	require.NoError(t, err)
+
+	const adamID3, adamID4 = "55550003", "55550004"
+	setupTestVPPApp(t, ds, adamID3, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID4, fleet.IOSPlatform)
+	app3, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID3, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	app4, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID4, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{Hostname: "token-host-2", UUID: "vpp-record-token-2", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-TOKEN-2"})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host2, false)
+
+	// activated install and queued install, both recording otherTok while the app rows hold tok
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host2.ID, app3.VPPAppID, "token-cmd-3", "evt-3",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app3.AppTeamID, VPPTokenID: otherTok.ID}))
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host2.ID, app4.VPPAppID, "token-cmd-4", "evt-4",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app4.AppTeamID, VPPTokenID: otherTok.ID}))
+	require.NotNil(t, selectToken(selectInstall, "token-cmd-3"))
+	require.Nil(t, selectToken(selectInstall, "token-cmd-4"))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET vpp_token_id = ? WHERE id IN (?, ?)`, tok.ID, app3.AppTeamID, app4.AppTeamID)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-3", "token-cmd-4"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host2.ID, cmd)
+		require.NoError(t, err)
+		require.Equal(t, &otherTok.ID, info.VPPTokenID, cmd)
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE id IN (?, ?)`, app3.AppTeamID, app4.AppTeamID)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-3", "token-cmd-4"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host2.ID, cmd)
+		require.NoError(t, err)
+		require.Equal(t, &otherTok.ID, info.VPPTokenID, cmd)
+	}
+
+	// the MDM result activity carries the install's own token, and nil once that token is deleted
+	cmdResult := &mdm.CommandResults{CommandUUID: "token-cmd-3", Status: fleet.MDMAppleStatusAcknowledged}
+	_, act, err = ds.GetPastActivityDataForVPPAppInstall(ctx, cmdResult)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.ActivityVPPToken{ID: otherTok.ID, Location: otherTok.Location, CountryCode: otherTok.CountryCode}, act.VPPToken)
+
+	require.NoError(t, ds.DeleteVPPToken(ctx, otherTok.ID))
+	require.Nil(t, selectToken(selectInstall, "token-cmd-3"))
+	_, act, err = ds.GetPastActivityDataForVPPAppInstall(ctx, cmdResult)
+	require.NoError(t, err)
+	require.Nil(t, act.VPPToken)
+}
+
+func testVPPTokenChoice(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "token-choice"})
+	require.NoError(t, err)
+
+	// the first token added sorts last by org name
+	dataZ, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Zed Org", "Zed Location")
+	require.NoError(t, err)
+	dataA, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Alpha Org", "Alpha Location")
+	require.NoError(t, err)
+	tokZ, err := ds.InsertVPPToken(ctx, dataZ)
+	require.NoError(t, err)
+	tokA, err := ds.InsertVPPToken(ctx, dataA)
+	require.NoError(t, err)
+	require.Less(t, tokZ.ID, tokA.ID)
+	for _, id := range []uint{tokZ.ID, tokA.ID} {
+		_, err = ds.UpdateVPPTokenTeams(ctx, id, []uint{team.ID})
+		require.NoError(t, err)
+	}
+
+	toks, err := ds.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	require.Len(t, toks, 2)
+	require.Equal(t, tokZ.ID, toks[0].ID)
+	require.Equal(t, tokA.ID, toks[1].ID)
+
+	// a NULL created_at reads back as nil
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_tokens SET created_at = NULL WHERE id = ?`, tokZ.ID)
+		return err
+	})
+	got, err := ds.GetVPPToken(ctx, tokZ.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.CreatedAt)
+	got, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Equal(t, tokZ.ID, got.ID)
+	require.Nil(t, got.CreatedAt)
+	toks, err = ds.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	require.Len(t, toks, 2)
+	require.Nil(t, toks[0].CreatedAt)
+	require.NotNil(t, toks[1].CreatedAt)
+
+	newApp := func(adamID string, platform fleet.InstallableDevicePlatform, tokenID *uint) *fleet.VPPApp {
+		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           adamID,
+			Platform:         platform,
+			VPPTokenID:       tokenID,
+			BundleIdentifier: "com.example." + adamID,
+			Name:             "App " + adamID,
+			LatestVersion:    "1.0",
+		}, &team.ID, nil)
+		require.NoError(t, err)
+		return app
+	}
+	boundToken := func(app *fleet.VPPApp) *uint {
+		var id *uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT vpp_token_id FROM vpp_apps_teams WHERE id = ?`, app.AppTeamID)
+		})
+		return id
+	}
+
+	// an explicit token is bound even when it isn't the lowest id
+	chosen := newApp("66660001", fleet.IOSPlatform, &tokA.ID)
+	require.Equal(t, &tokA.ID, boundToken(chosen))
+
+	meta, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "66660001", fleet.IOSPlatform, &team.ID)
+	require.NoError(t, err)
+	require.Equal(t, &tokA.ID, meta.VPPTokenID)
+
+	versions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, team.ID, chosen.TitleID)
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	require.Equal(t, &tokA.ID, versions[0].VPPTokenID)
+
+	// no token falls back to the fleet's lowest id
+	fallback := newApp("66660002", fleet.IOSPlatform, nil)
+	require.Equal(t, &tokZ.ID, boundToken(fallback))
+
+	// adding the same app again keeps the bound token
+	again := newApp("66660001", fleet.IOSPlatform, &tokZ.ID)
+	require.Equal(t, chosen.AppTeamID, again.AppTeamID)
+	require.Equal(t, &tokA.ID, boundToken(again))
+
+	// Android apps never bind a token
+	android := newApp("com.example.android", fleet.AndroidPlatform, &tokA.ID)
+	require.Nil(t, boundToken(android))
+}
+
 func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -5439,7 +5863,8 @@ func testListHostSoftwareAppStoreAppHostVersion(t *testing.T, ds *Datastore) {
 
 func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	test.CreateInsertGlobalVPPToken(t, ds)
+	globalToken := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, globalToken)
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "resend-hosts-team"})
 	require.NoError(t, err)
@@ -5558,6 +5983,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.Equal(t, app.VPPAppID, versions[0].VPPAppID)
 		require.False(t, versions[0].HasLabels)
 		require.Empty(t, versions[0].Configuration)
+		require.Equal(t, new(globalToken.ID), versions[0].VPPTokenID)
 		require.Equal(t, otherVersion.AppTeamID, versions[1].VPPAppsTeamsID)
 		require.True(t, versions[1].HasLabels)
 		require.Equal(t, `<dict/>`, string(versions[1].Configuration))

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -749,6 +750,81 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 			require.NotEmpty(t, idpURL)
 		})
 	}
+}
+
+// The relay URL is where the browser lands after the IdP callback, so only a
+// path on the Fleet origin is acceptable; anything carrying a host would turn
+// the login flow into a redirect off-site.
+func TestInitiateSSORelayURLMustBeRelativePath(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	accepted := []string{"", "/", "/dashboard", "/hosts/manage?order_key=hostname#top"}
+	for _, relayURL := range accepted {
+		t.Run("accepts "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.NoError(t, err)
+		})
+	}
+
+	rejected := []string{
+		"https://evil.example/login",
+		"http://fleet.example.com/dashboard", // absolute even when same host: the API documents a relative URL
+		"//evil.example/login",
+		`/\evil.example/login`,
+		"javascript:alert(1)",
+		"dashboard",
+		"\\\\evil.example",
+	}
+	for _, relayURL := range rejected {
+		t.Run("rejects "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.Error(t, err)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+		})
+	}
+}
+
+// An accepted relay URL must survive into the stored SSO session unchanged,
+// since that is the value the callback redirects to.
+func TestInitiateSSOStoresRelayURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	const relayURL = "/hosts/manage?order_key=hostname#top"
+	sessionID, _, _, err := svc.InitiateSSO(ctx, relayURL)
+	require.NoError(t, err)
+
+	// Read the session back through a store on the same pool, which is what the
+	// test service was built with (see newTestServiceWithConfig).
+	session, err := sso.NewSessionStore(pool).Fullfill(sessionID)
+	require.NoError(t, err)
+	require.Equal(t, relayURL, session.OriginalURL)
 }
 
 func TestInitiateSSOWithInvalidURL(t *testing.T) {

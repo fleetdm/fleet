@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
@@ -52,6 +53,8 @@ export enum ActivityType {
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  SetHostGoogleDeviceId = "set_host_google_device_id",
+  DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
   RotatedDiskEncryptionKey = "rotated_disk_encryption_key",
   FailedToRotateDiskEncryptionKey = "failed_to_rotate_disk_encryption_key",
@@ -158,6 +161,9 @@ export enum ActivityType {
   AddedAppStoreApp = "added_app_store_app",
   EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
+  AddedSelfServiceCategory = "added_self_service_category",
+  EditedSelfServiceCategory = "edited_self_service_category",
+  DeletedSelfServiceCategory = "deleted_self_service_category",
   InstalledAppStoreApp = "installed_app_store_app",
   EnabledActivityAutomations = "enabled_activity_automations",
   EditedActivityAutomations = "edited_activity_automations",
@@ -246,7 +252,8 @@ export type EnrollmentRejectedReason =
   | "one_time_secret_identifier_mismatch"
   | "shared_secret_for_mdm_managed_host"
   | "host_identity_cert_required"
-  | "end_user_authentication_required";
+  | "end_user_authentication_required"
+  | "uuid_of_another_mdm_host";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
@@ -260,6 +267,8 @@ export type IHostPastActivityType =
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.SetHostGoogleDeviceId
+  | ActivityType.DeletedHostGoogleDeviceId
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.RotatedDiskEncryptionKey
   | ActivityType.FailedToRotateDiskEncryptionKey
@@ -352,6 +361,8 @@ export interface INotifySoftwareTitle {
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
+  /** Snapshot of the VPP token on App Store app activities. Null for Google Play apps. */
+  vpp_token?: Omit<IVppTokenSummary, "org_name"> | null;
   app_store_id?: number;
   bootstrap_package_name?: string;
   batch_execution_id?: string;
@@ -473,6 +484,7 @@ export interface IActivityDetails {
   custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
+  google_device_id?: string;
   idp_full_name?: string;
   idp_email?: string;
   replaced_idp_email?: string;
@@ -515,6 +527,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_microsoft_graph_credential: "Added Microsoft Graph credential",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
+  added_self_service_category: "Added self-service category",
   added_software: "Added software",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
@@ -560,6 +573,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_policy: "Deleted policy",
   deleted_saved_query: "Deleted report",
   deleted_script: "Deleted script",
+  deleted_self_service_category: "Deleted self-service category",
   deleted_software: "Deleted software",
   deleted_team: "Deleted fleet",
   deleted_user: "Deleted user",
@@ -599,6 +613,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_policy: "Edited policy",
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
+  edited_self_service_category: "Edited self-service category",
   edited_software: "Edited software",
   edited_windows_enrollment_default_fleet:
     "Edited enrollment default fleet: Windows",
@@ -637,6 +652,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
+  set_host_google_device_id: "Marked as company-owned in Google",
+  deleted_host_google_device_id: "Unmarked as company-owned in Google",
   rotated_host_recovery_lock_password:
     "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",

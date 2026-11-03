@@ -1362,6 +1362,48 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	}
 }
 
+func TestGetCACert(t *testing.T) {
+	caCert := sceptest.CACertificate(t)
+	var gotQuery url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+		_, _ = w.Write(caCert.Raw)
+	}))
+	t.Cleanup(srv.Close)
+
+	ds := new(mock.DataStore)
+	ds.GetGroupedCertificateAuthoritiesFunc = func(context.Context, bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "ca", URL: srv.URL + "/scep"}},
+		}, nil
+	}
+	certProfile := func(_ context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+		return &fleet.HostMDMCertificateProfile{
+			HostUUID:    hostUUID,
+			ProfileUUID: profileUUID,
+			Status:      new(fleet.MDMDeliveryPending),
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      caName,
+		}, nil
+	}
+	ds.GetAppleHostMDMCertificateProfileFunc = certProfile
+	ds.GetWindowsHostMDMCertificateProfileFunc = certProfile
+	svc := &scepProxyService{ds: ds, debugLogger: slog.New(slog.DiscardHandler)}
+
+	t.Run("Windows drops its hard-coded message", func(t *testing.T) {
+		_, _, err := svc.GetCACert(t.Context(), "default", "host-uuid,w-profile-uuid,ca")
+		require.NoError(t, err)
+		assert.NotContains(t, gotQuery, "message")
+	})
+
+	t.Run("Apple forwards the message", func(t *testing.T) {
+		_, _, err := svc.GetCACert(t.Context(), "MyCA", "host-uuid,a-profile-uuid,ca")
+		require.NoError(t, err)
+		assert.Equal(t, "MyCA", gotQuery.Get("message"))
+	})
+}
+
 // The three classified failures need someone to act before Fleet could succeed, so they fail the profile against the
 // host. Everything else is an unclassified failure talking to the admin URL, which clears on its own, so callers leave
 // the profile queued instead. Keep this in step with TestNDESChallengeErrorToDetail below: they classify the same set.

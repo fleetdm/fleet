@@ -58,7 +58,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when BitLocker protection is off and Fleet couldn't turn it back on. The host's disk encryption details give the reason. If the end user can resolve it, they'll be asked to on their **My device** page, either to restart the host or to create a BitLocker PIN.
 
-* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted.
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted, and while Fleet waits for a host to escrow a new key because it can't read the stored one. [Learn more](#unreadable-recovery-keys-on-windows).
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
@@ -125,6 +125,35 @@ How to view the disk encryption key:
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
 > The disk encryption key is deleted if a host is assigned to a fleet with disk encryption turned off. To re-escrow they key, transfer the host back to a fleet with disk encryption on.
+
+## Rotate disk encryption key
+
+> Available in Fleet Premium. macOS hosts only.
+
+You can rotate a host's FileVault recovery key on demand. Fleet sends an MDM command to the host and escrows the new key as soon as the host acknowledges it. The host doesn't need a user logged in.
+
+Requirements:
+- The host is enrolled in Fleet MDM.
+- Key escrow is turned on for the host's fleet.
+- The host's current key is escrowed and decryptable by Fleet.
+
+#### Fleet UI:
+
+1. Select a host on the **Hosts** page.
+
+2. On the **Host details** page, select **Actions > Show disk encryption key**.
+
+3. In the disk encryption key modal, select **Rotate key**.
+
+The button shows **Rotating...** until the host acknowledges the command. Until then, Fleet still returns the current key. A second rotation attempt while one is pending returns an error.
+
+#### Fleet API:
+
+Use the [Rotate host's disk encryption key API endpoint](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-disk-encryption-key):
+
+`POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
+
+> If the host reports that the rotation failed, Fleet logs a "Failed to rotate disk encryption key" activity and the host's disk encryption status becomes **Action required**. At the next login, the end user is prompted for their password so Fleet can escrow a new key (see [Escrow Buddy](#escrow-buddy)). No rotation is left pending.
 
 ## Use disk encryption key to login
 
@@ -198,7 +227,7 @@ If a host is already encrypted with both a TPM and a startup key, Fleet leaves t
 
 ### Escrow Buddy
 
-Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced or escrow recovery key turned on. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
+Fleet also uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to recover from a failed disk encryption key rotation. If a rotation fails (for example, because Fleet's stored key is stale), Escrow Buddy generates a new key the next time the end user logs out and logs back in. Fleet collects the new key and the host's status returns to **Verified**.
 
 ### Encryption key changes
 
@@ -209,6 +238,13 @@ On macOS hosts, if an end user with local admin permissions changes the key usin
 For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#escrow-disk-encryption-key-on-linux).
 
 On Linux, adding, changing, or removing a passphrase doesn't change the disk's encryption key or the data on the disk. The other passphrases keep working. Only re-encrypting or reformatting the disk creates a new encryption key.
+
+### Unreadable recovery keys on Windows
+
+Fleet encrypts Windows recovery keys with the [Fleet server's private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key), so replacing or renewing the Windows MDM (WSTEP) certificate doesn't affect them. Before Fleet 4.95.0, Fleet encrypted them with the WSTEP certificate, and Fleet re-encrypts those keys automatically when you upgrade.
+
+If Fleet can't read a host's stored key, the host shows "Enforcing" and its disk encryption details explain why. The next time the host comes online, it replaces its recovery key and escrows the new one, so the key Fleet couldn't read no longer unlocks the disk.
+
 
 ### BitLocker protection (Windows)
 
