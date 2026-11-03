@@ -435,6 +435,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchRes.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
+
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
@@ -528,6 +534,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes2)
 	require.NotEmpty(t, batchRes2.BatchExecutionID)
 
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchRes2.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
+
 	// Check with the list endpoint
 	var batchListResp fleet.BatchScriptExecutionListResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
@@ -560,6 +572,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		NotBefore: &scheduledPast,
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
+
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchResUpcoming.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
@@ -615,6 +633,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
+
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchResUpcoming.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Queue again this time using a filter
 	filters := map[string]any{
