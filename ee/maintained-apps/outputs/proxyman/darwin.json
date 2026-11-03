@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.3.0",
+      "version": "26.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy' AND version_compare(bundle_short_version, '26.3.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy' AND version_compare(bundle_short_version, '26.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.proxyman.NSProxy' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.proxyman.com/260300/Proxyman_26.3.0.dmg",
+      "installer_url": "https://download.proxyman.com/260400/Proxyman_26.4.0.dmg",
       "install_script_ref": "9c148f8e",
       "uninstall_script_ref": "e53e81cc",
-      "sha256": "24033f6028ba17de34dd4d641de0dd04c6bad7845ad555e3cee1357291c90ff5",
+      "sha256": "a1bcaa9f34ece64eb4b45fdd8437e50af899cd7de91f5683765dc78d8e7a06bb",
       "default_categories": [
         "Developer tools"
       ]
