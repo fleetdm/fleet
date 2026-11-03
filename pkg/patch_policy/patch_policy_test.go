@@ -154,6 +154,10 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
 
+	// the Snagit MSI ships no snagit.exe; capture and editor run as separate processes
+	got = patch_policy.GenerateOpenQuery("windows", "", "Snagit")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('snagitcapture.exe','snagiteditor.exe'));", got)
+
 	// Unknown platform yields no query.
 	// every Firefox channel and architecture ships firefox.exe
 	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {
