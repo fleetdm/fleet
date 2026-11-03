@@ -50,7 +50,7 @@ What to do:
    ```
 2. Replace each match with its Fleet 5 name. The `/fleets` endpoints and `fleet_id` already work in Fleet 4.95, so you can do this before you upgrade.
 
-Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### Policy endpoints merged
 
@@ -71,7 +71,7 @@ What to do:
 2. Use `/api/v1/fleet/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
 3. Move the IDs in `failing_policies_webhook.policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
-Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
+GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 ### One automation per policy
 
@@ -81,7 +81,7 @@ Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 What to do: Before you upgrade, find policies with more than one automation and move the extra automations to new policies.
 
-Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
+GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 ### Schedule endpoints replaced by reports
 
@@ -99,7 +99,7 @@ What to do:
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
 2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
 
-Issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
+GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
 ### Built-in labels can't target reports
 
@@ -109,7 +109,7 @@ Issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
 What to do: Target the report by `platform` instead.
 
-Issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
+GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 ### MDM endpoints moved out of /mdm
 
@@ -149,7 +149,7 @@ Issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
 
-Issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
+GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
 ### List MDM commands requires a host
 
@@ -159,7 +159,7 @@ Issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
 What to do: Pass `host_identifier` on every call.
 
-Issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
+GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 ### Other endpoints moved
 
@@ -171,7 +171,7 @@ Issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
 
-Issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
+GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 ### Apple Business Manager endpoints and keys renamed
 
@@ -189,7 +189,7 @@ Issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 What to do: Search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name.
 
-Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
+GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 ### mdm.macos_setup renamed to mdm.setup_experience
 
@@ -199,7 +199,7 @@ Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 What to do: Search for `macos_setup` and rename it to `setup_experience`.
 
-Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
+GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 ### Setup experience and Recovery Lock keys renamed
 
@@ -210,7 +210,7 @@ Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 What to do: Search for these keys and rename them.
 
-Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
+GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 ### Windows MDM keys renamed
 
@@ -221,7 +221,7 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 What to do: Search for these keys and rename them.
 
-Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
+GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 ### Organization logo keys renamed
 
@@ -232,7 +232,7 @@ Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 What to do: Rename both keys. Fleet 4.95 already accepts the new names.
 
-Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 ### all_linux_count removed
 
@@ -242,7 +242,7 @@ Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 What to do: Get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary response, then call Count hosts with it.
 
-Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
+GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 ### os_name and os_version are separate
 
@@ -252,7 +252,7 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 What to do: Update code that splits the OS name out of `os_version`. Read the name from `os_name` and the version from `os_version`.
 
-Issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
+GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 ### Windows wipe options moved
 
@@ -262,7 +262,7 @@ Issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 What to do: Use `POST /api/v1/fleet/hosts/:id/reset` instead.
 
-Issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
+GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
 ### YAML-only lists removed from configuration responses
 
@@ -272,7 +272,7 @@ Issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
 What to do: These lists only included settings applied with YAML. Call the list endpoint for each feature instead.
 
-Issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 ### features.detail_query_overrides removed from the API
 
@@ -282,7 +282,7 @@ Issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 What to do: Remove `detail_query_overrides` from your API calls.
 
-Issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
+GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 ### Software endpoints and keys changed
 
@@ -297,7 +297,7 @@ Issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 What to do: Search for `/fleet/software`, `software_id`, `software_package`, `app_store_app`, and `browser`, and update each request and the code that reads responses.
 
-Issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410](https://github.com/fleetdm/fleet/issues/54410), [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
+GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410](https://github.com/fleetdm/fleet/issues/54410), [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
 
 ### Labels: platform and manual label changes
 
@@ -308,7 +308,7 @@ Issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410](https:
 
 What to do: Change `centos` and `ubuntu` label platforms to `linux`. Identify hosts in manual labels by something other than `hostname`.
 
-Issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
+GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
 ### Android Lock resets the PIN
 
@@ -318,7 +318,7 @@ Issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https:
 
 What to do: To get the PIN, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host).
 
-Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
+GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 ### SCIM user delete requires an admin
 
@@ -328,7 +328,7 @@ Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 What to do: Use an admin's API token for your SCIM integration.
 
-Issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
+GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
 ### GitOps users can't run MDM commands
 
@@ -338,7 +338,7 @@ Issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
 What to do: Run MDM commands, or lock, unlock, and wipe hosts, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
-Issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
+GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 ### Certificate authority names must be unique
 
@@ -348,7 +348,7 @@ Issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 What to do: Before you upgrade, call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name`, and rename them. Update the configuration profiles that reference them.
 
-Issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
+GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 ### Fleet names must be unique
 
@@ -358,7 +358,7 @@ Issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 What to do: Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), find names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`), and rename one in each pair.
 
-Issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
+GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
 ### Packs endpoints removed
 
@@ -368,7 +368,7 @@ Issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
 What to do: Before you upgrade, convert 2017 packs into reports. See [fleetctl upgrade-packs](#packs-commands-removed). 2017 packs stop running on hosts after the upgrade.
 
-Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 ### Manual enrollment profile off by default
 
@@ -378,7 +378,7 @@ Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 What to do: See [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
 
-Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
+GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 
 ## YAML (GitOps)
@@ -392,7 +392,7 @@ Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 What to do: Rename these keys. Fleet 4.95 already accepts the new names.
 
-Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### Apple Business keys renamed
 
@@ -403,7 +403,7 @@ Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 What to do: Rename these keys. Fleet 4.95 already accepts the new names.
 
-Issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795](https://github.com/fleetdm/fleet/issues/52795)
+GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### controls.macos_setup renamed to controls.setup_experience
 
@@ -413,7 +413,7 @@ Issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795](https:
 
 What to do: Rename `macos_setup` to `setup_experience`.
 
-Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
+GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 ### Setup experience and Recovery Lock keys renamed in YAML
 
@@ -424,7 +424,7 @@ Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 What to do: Rename these keys.
 
-Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
+GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 ### Windows MDM keys renamed in YAML
 
@@ -435,7 +435,7 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 What to do: Rename these keys.
 
-Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
+GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 ### Organization logo keys renamed in YAML
 
@@ -446,7 +446,7 @@ Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 What to do: Rename both keys. Fleet 4.95 already accepts the new names.
 
-Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 ### Failing policies webhook moved to each policy
 
@@ -456,7 +456,7 @@ Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 What to do: Move the IDs in `policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
-Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
+GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 ### One automation per policy in YAML
 
@@ -466,7 +466,7 @@ Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 What to do: Before you upgrade, move extra automations to new policies.
 
-Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
+GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 ### features.detail_query_overrides removed
 
@@ -476,7 +476,7 @@ Issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 What to do: Remove `detail_query_overrides` from your YAML.
 
-Issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
+GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 ### Labels: platform and manual label changes in YAML
 
@@ -487,7 +487,7 @@ Issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 What to do: Change `centos` and `ubuntu` label platforms to `linux`. Identify hosts in manual labels by something other than `hostname`.
 
-Issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
+GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
 ### Omitted settings reset to defaults
 
@@ -497,7 +497,7 @@ Issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https:
 
 What to do: Before you upgrade, add these settings to your YAML with the values you use today. To get the current values, run `fleetctl generate-gitops`.
 
-Issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
+GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
 ### server_settings.scripts_disabled removed
 
@@ -507,7 +507,7 @@ Issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
 What to do: Remove `scripts_disabled` from your YAML. To keep scripts off, deploy fleetd without `--enable-scripts`.
 
-Issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
+GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 ### Package YAML files must be lists
 
@@ -517,7 +517,7 @@ Issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 What to do: In each package YAML file, put packages in a list, even if there's only one.
 
-Issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
+GitHub issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
 
 ### Certificate authority names must be unique in YAML
 
@@ -527,7 +527,7 @@ Issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
 
 What to do: Before you upgrade, rename CAs that share a name, and update the configuration profiles that reference them.
 
-Issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
+GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 
 ## fleetctl
@@ -544,7 +544,7 @@ Issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 What to do: Search your scripts and CI for `--team`, `--policies-team`, `--delete-other-teams`, `no-team`, and `get teams`, and replace each match. The new flags already work in Fleet 4.95.
 
-Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### get mdm-commands requires --host
 
@@ -554,7 +554,7 @@ Issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 What to do: Pass `--host` on every call.
 
-Issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
+GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 ### mdm-apple-bm is now mdm-ab
 
@@ -565,7 +565,7 @@ Issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 What to do: Replace `mdm-apple-bm` with `mdm-ab`. It already works in Fleet 4.95.
 
-Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
+GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 ### get config prints setup_experience
 
@@ -575,7 +575,7 @@ Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 What to do: Update scripts that read `macos_setup` from `fleetctl get config` output.
 
-Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
+GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 ### get software output changed
 
@@ -585,7 +585,7 @@ Issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 What to do: Update scripts that read these keys.
 
-Issues: [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
+GitHub issues: [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
 
 ### mdm unlock returns the Android PIN
 
@@ -595,7 +595,7 @@ Issues: [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https:
 
 What to do: Use `fleetctl mdm unlock` to get the PIN after you lock an Android host.
 
-Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
+GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 ### Packs commands removed
 
@@ -606,7 +606,7 @@ Issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 What to do: Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.95, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`. 2017 packs stop running on hosts after the upgrade.
 
-Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 ### package file names changed
 
@@ -616,7 +616,7 @@ Issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 What to do: Update scripts and CI that use the file names. `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
 
-Issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
+GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
 
 ## Fleet server configuration
@@ -632,7 +632,7 @@ Issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
 What to do: Rename the options and environment variables in the same deploy that upgrades to Fleet 5. Fleet 5 doesn't start if an old one is still set.
 
-Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
+GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 ### Static SCEP challenge off by default
 
@@ -642,7 +642,7 @@ Issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 What to do: If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`. That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host. Previously downloaded profiles stop working. Hosts that already have MDM on aren't affected.
 
-Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
+GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 ### Async host processing removed
 
@@ -653,7 +653,7 @@ Issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 What to do: Remove these options from your server configuration. Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
-Issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
+GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
 
 ### osquery_min_software_last_opened_at_diff removed
 
@@ -663,7 +663,7 @@ Issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
 
 What to do: Remove it from your server configuration.
 
-Issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
+GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
 
 ## Single sign-on (SSO)
@@ -676,7 +676,7 @@ Issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
 What to do: Rename the attribute in your IdP before you upgrade. Fleet 4.95 already accepts the new name. Fleet 5 ignores the old one, so new users who log in with SSO get the global Observer role, and existing users keep the roles they have now.
 
-Issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
+GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 
 
 ## Activities
@@ -693,7 +693,7 @@ See the [activity types reference](https://fleetdm.com/docs/api/global-audit-log
 
 What to do: Update anything that filters or parses activities, like SIEM rules and log pipelines, to use the new types.
 
-Issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 
 ## fleetd
@@ -708,7 +708,7 @@ Issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https:
 
 What to do: Add the new names to EDR, monitoring, and firewall rules, and update scripts that call `launchctl` or `systemctl` with the old names. Keep the old names until every host runs the new fleetd.
 
-Issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
+GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
 ### Older fleetd can't find the organization logo
 
@@ -718,7 +718,7 @@ Issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
 What to do: Update fleetd to 1.56.0 or later before you upgrade to Fleet 5.
 
-Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 
 ## Fleet UI
@@ -730,7 +730,7 @@ Issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 | **Run script** tab in **Controls > Setup experience** | Removed. Add a script-only package to setup experience software instead. |
 | **Disable scripts** checkbox in **Settings > Organization settings > Advanced options** | Removed. To keep scripts off, deploy fleetd without `--enable-scripts`. |
 
-Issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
+GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 
 <meta name="articleTitle" value="Migrate from Fleet 4 to Fleet 5">
