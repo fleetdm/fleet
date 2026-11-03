@@ -5312,6 +5312,144 @@ See the [Google documentation for enterprises.delete](https://developers.google.
 
 ---
 
+## Configuration profile generator fleetdm.com API
+
+The Fleet server calls these endpoints on fleetdm.com to generate configuration profiles with AI. They back [Autofill configuration profile name and description](https://fleetdm.com/docs/rest-api/rest-api#autofill-configuration-profile-name-and-description) and [Autofill configuration profile content](https://fleetdm.com/docs/rest-api/rest-api#autofill-configuration-profile-content).
+
+The public generator at https://fleetdm.com/configuration-generator uses separate, CSRF-protected endpoints. Fleet doesn't call them.
+
+### Authentication
+
+Every generation request authenticates in one of two ways:
+
+- **Fleet Premium:** send the Fleet license key as `fleetLicenseKey` in the body. fleetdm.com verifies the key's signature. A valid, unexpired key with tier `premium`, `trial`, or the deprecated `basic` has no generation limit.
+- **Fleet Free, or an expired license:** send `Authorization: Bearer <fleetServerSecret>`. Get the secret once from [Register Fleet instance](#register-fleet-instance). Each registration has its own monthly limit.
+
+### Register Fleet instance
+
+`POST https://fleetdm.com/api/profile-generator/v1/register`
+
+Registers a Fleet instance and returns the secret it uses to authenticate generation requests. Fleet calls this once, the first time a Fleet Free instance generates a profile, and stores the secret. The same `fleetServerUrl` can register more than once. Each registration gets its own secret and its own limit.
+
+#### Parameters
+
+| Name           | Type   | In   | Description                                                        |
+|----------------|--------|------|--------------------------------------------------------------------|
+| fleetServerUrl | string | body | **Required.** The Fleet server URL (`server_settings.server_url`). |
+
+#### Example
+
+`POST https://fleetdm.com/api/profile-generator/v1/register`
+
+```json
+{
+  "fleetServerUrl": "https://fleet.example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "fleetServerSecret": "9b37a4e5efa314b76199987994ba02"
+}
+```
+
+##### Invalid URL
+
+`Status: 400`
+
+Returned when `fleetServerUrl` isn't a URL.
+
+### Generate configuration profile name and description
+
+`POST https://fleetdm.com/api/profile-generator/v1/name-and-description`
+
+Doesn't count toward the monthly profile limit, but has its own monthly cap. Returns `429` once either is reached.
+
+#### Parameters
+
+| Name                        | Type   | In   | Description                                                               |
+|-----------------------------|--------|------|---------------------------------------------------------------------------|
+| naturalLanguageInstructions | string | body | **Required.** What the profile should enforce. 2,000 characters or fewer. |
+| platform                    | string | body | **Required.** One of `apple` or `windows`.                                |
+| fleetLicenseKey             | string | body | The Fleet license key. See [Authentication](#authentication).             |
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "name": "Disable AirDrop (macOS)",
+  "description": "Sets `allowAirDrop` to `false` under the `com.apple.applicationaccess` restrictions payload."
+}
+```
+
+### Generate configuration profile
+
+`POST https://fleetdm.com/api/profile-generator/v1/profile`
+
+Each request that reaches the AI service counts toward the monthly limit, including declines. Requests rejected before that, like invalid input or failed authentication, don't count. Requests the AI service fails to answer, like during an outage, don't count.
+
+#### Parameters
+
+| Name                        | Type   | In   | Description                                                               |
+|-----------------------------|--------|------|---------------------------------------------------------------------------|
+| naturalLanguageInstructions | string | body | **Required.** What the profile should enforce. 2,000 characters or fewer. |
+| platform                    | string | body | **Required.** One of `apple` or `windows`.                                |
+| fleetLicenseKey             | string | body | The Fleet license key. See [Authentication](#authentication).             |
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "profileType": "mobileconfig",
+  "profile": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...",
+  "deliveryNotes": ""
+}
+```
+
+##### Declined
+
+`Status: 400`
+```json
+{
+  "error": "couldNotGenerateProfile",
+  "reason": "AirDrop is a macOS/iOS feature controlled via the Apple com.apple.applicationaccess payload; there is no corresponding Windows CSP node."
+}
+```
+
+### Errors for both generation endpoints
+
+##### Unauthorized
+
+`Status: 401`
+
+Returned when the request has neither a valid license key nor a valid `fleetServerSecret`.
+
+##### Generation limit reached
+
+`Status: 429`
+
+Returned when this registration has used its monthly limit. `resetsAt` is the start of the next month (UTC).
+
+```json
+{
+  "error": "generationLimitReached",
+  "resetsAt": "2026-12-01T00:00:00.000Z"
+}
+```
+
+##### Invalid input
+
+`Status: 400`
+
+Returned when the instructions are missing, longer than 2,000 characters, or `platform` isn't valid. Unchanged from the public generator routes.
+
+---
+
 ## Host identity
 
 ### SCEP
