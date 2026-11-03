@@ -438,6 +438,35 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusUnprocessableEntity, &resp, "order_key", "invalid_column")
 
+	t.Run("order by fleet_name", func(t *testing.T) {
+		ctx := t.Context()
+		// created in reverse name order, so that sorting by fleet_id or by name gives different results
+		fleetB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
+		require.NoError(t, err)
+		fleetA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-a"})
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID, hosts[1].ID})))
+			require.NoError(t, s.ds.DeleteTeam(ctx, fleetA.ID))
+			require.NoError(t, s.ds.DeleteTeam(ctx, fleetB.ID))
+		})
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetB.ID, []uint{hosts[0].ID})))
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetA.ID, []uint{hosts[1].ID})))
+
+		// hosts[2] has no fleet, which sorts first
+		for direction, want := range map[string][]uint{
+			"asc":  {hosts[2].ID, hosts[1].ID, hosts[0].ID},
+			"desc": {hosts[0].ID, hosts[1].ID, hosts[2].ID},
+		} {
+			var sorted listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &sorted, "order_key", "fleet_name", "order_direction", direction)
+			require.Len(t, sorted.Hosts, len(hosts))
+			for i, h := range sorted.Hosts {
+				assert.Equal(t, want[i], h.ID, "order_direction=%s, position %d", direction, i)
+			}
+		}
+	})
+
 	time.Sleep(1 * time.Second)
 
 	// create some software for various hosts
