@@ -2996,8 +2996,6 @@ _Available in Fleet Premium._
 | enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
 | end_user_local_account_type            | string  | The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
-> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
-
 <br/>
 
 ##### mdm.windows_settings
@@ -16793,8 +16791,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | end_user_local_account_type            | string  | The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
-
-> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
 
 <br/>
 
