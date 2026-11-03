@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -10,17 +9,16 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // TestRemovedPaths covers every removed path in one place, so removing a path only means adding it to removedPathTemplates.
 func TestRemovedPaths(t *testing.T) {
-	// Not parallel, like the other tests that build the whole router.
+	t.Parallel()
+
 	require.NotEmpty(t, removedPathTemplates)
 	// removedPaths panics when a path has no removednames entry.
 	require.Len(t, removedPaths(), len(removedPathTemplates))
@@ -31,12 +29,10 @@ func TestRemovedPaths(t *testing.T) {
 		}
 	}
 
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
-	require.NoError(t, err)
-	router := h.(interface{ Router() *mux.Router }).Router()
+	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
+	// asserts exactly. TestAPIRoutesConflicts checks these routes against the real router.
+	router := mux.NewRouter()
+	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
@@ -48,7 +44,6 @@ func TestRemovedPaths(t *testing.T) {
 			for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete,
 				http.MethodHead, http.MethodOptions} {
 				t.Run(method+" "+path, func(t *testing.T) {
-					// No authentication: the path is gone for everyone.
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
 					require.Equal(t, http.StatusGone, rec.Code)
