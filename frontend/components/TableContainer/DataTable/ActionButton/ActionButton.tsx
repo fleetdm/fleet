@@ -81,6 +81,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         onClick={() => onButtonClick(targetIds)}
         variant={variant}
         size="small"
+        disabled={isDisabled}
       >
         <>
           {iconPosition === "left" && iconSvg && (

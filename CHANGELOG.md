@@ -1,3 +1,23 @@
+## Fleet 4.93.2 (Oct 21, 2026)
+
+### Bug fixes
+
+- Removed the emSign ECC Root CA - G3, emSign Root CA - C1, and emSign ECC Root CA - C3 root certificates from accepted certificates on the server matching curl's CA bundle, following the eMudhra intermediate CA key compromise.
+
+## Fleet 4.93.1 (Oct 19, 2026)
+
+### Bug fixes
+
+- Fixed GitOps reusing an MSI by hash or ETag dropping its upgrade code, which listed the package as deleted in dry runs and replaced its default uninstall script.
+- Fixed GitOps runs that don't change a fleet's custom packages holding up the installs and scripts that policy automations queue for those packages until the run finished.
+- Fixed GitOps and the Fleet-maintained app auto-update job keeping a cached installer after its file went missing from the installer store, which made installs fail. Fleet now downloads the installer again. GitOps checks the download against the app's SHA256 hash when the app has one.
+- Fixed an issue on MDM renewals that would override any manual host user mapping set with the initial SSO user during ADE.
+- Fixed GitOps runs that replace or remove a software package deadlocking with the installs that policy automations queue for it, which also skipped the host's other policy automations.
+- Fixed policy automation script retries delaying script execution on other hosts due to database lock contention.
+- Fixed the Fleet-maintained app auto-update job re-downloading apps without a published hash every hour for every fleet.
+- Fixed the hourly policy stats refresh blocking policy result ingestion for its entire run on large deployments, which caused write latency spikes and lock wait timeout errors.
+- Fixed GitOps runs that don't change a fleet's Fleet-maintained apps holding up installs queued for those apps, in that fleet and in other fleets with the same app, until the run finished.
+
 ## Fleet 4.93.0 (Oct 08, 2026)
 
 ### IT Admins

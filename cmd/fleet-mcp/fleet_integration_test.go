@@ -631,7 +631,7 @@ func TestListSoftwareTitles_PaginatesUntilShortPage(t *testing.T) {
 
 	fc := newTestClient(srv.URL)
 	// perPage 0 means "no client-side cap" — paginate until the short page.
-	out, truncated, err := fc.ListSoftwareTitles(context.Background(), "", "", "", "", "", "", 0)
+	out, truncated, err := fc.ListSoftwareTitles(context.Background(), "", "", "", "", "", "", "", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -671,7 +671,7 @@ func TestListSoftwareTitles_PassesSourceToServer(t *testing.T) {
 	fc := newTestClient(srv.URL)
 	for _, source := range []string{"npm_packages", "NPM_Packages"} {
 		gotSources = nil
-		out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", source, "", 0)
+		out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", source, "", 0)
 		if err != nil {
 			t.Fatalf("source %q: unexpected error: %v", source, err)
 		}
@@ -684,7 +684,7 @@ func TestListSoftwareTitles_PassesSourceToServer(t *testing.T) {
 	}
 
 	gotSources = nil
-	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "", 0)
+	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "", "", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -708,14 +708,14 @@ func TestListSoftwareTitles_PassesExtensionForToServer(t *testing.T) {
 
 	fc := newTestClient(srv.URL)
 	// Both args are lowercased so they match case-insensitively, like the per-host filter.
-	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "JetBrains_Plugins", " GoLand ", 0); err != nil {
+	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "JetBrains_Plugins", " GoLand ", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got.Get("source") != "jetbrains_plugins" || got.Get("extension_for") != "goland" {
 		t.Fatalf("server got source=%q extension_for=%q, want jetbrains_plugins/goland", got.Get("source"), got.Get("extension_for"))
 	}
 
-	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "chrome_extensions", "", 0); err != nil {
+	if _, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "chrome_extensions", "", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got.Has("extension_for") {
@@ -735,7 +735,7 @@ func TestListSoftwareTitles_ReturnsFleetValidationReason(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	_, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "apps", "cursor", 0)
+	_, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "apps", "cursor", 0)
 	if err == nil {
 		t.Fatal("expected an error for a 422 response")
 	}
@@ -760,7 +760,7 @@ func TestListSoftwareTitles_FiltersWhenServerIgnoresSource(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "vscode_extensions", "", 0)
+	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "vscode_extensions", "", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -768,7 +768,7 @@ func TestListSoftwareTitles_FiltersWhenServerIgnoresSource(t *testing.T) {
 		t.Fatalf("source only: got %+v, want rows 1, 2 and 4", out)
 	}
 
-	out, _, err = fc.ListSoftwareTitles(t.Context(), "", "", "", "", "vscode_extensions", "cursor", 0)
+	out, _, err = fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "vscode_extensions", "cursor", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -792,12 +792,123 @@ func TestGetHostSoftware_ExtensionForFilter(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	out, _, err := fc.GetHostSoftware(t.Context(), 42, "", "", "chrome_extensions", "brave", 0)
+	out, _, err := fc.GetHostSoftware(t.Context(), 42, "", "", "", "chrome_extensions", "brave", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 4 {
 		t.Fatalf("got %+v, want rows 1 and 4", out)
+	}
+}
+
+func TestListSoftwareTitles_AIToolFilter(t *testing.T) {
+	var got url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		// Ignores ai_tool like a Fleet server that predates it.
+		_, _ = w.Write([]byte(`{"software_titles": [
+			{"id": 1, "name": "Claude", "source": "apps", "ai_tool": true},
+			{"id": 2, "name": "Slack", "source": "apps", "ai_tool": false},
+			{"id": 3, "name": "github", "source": "mcp_servers", "ai_tool": true}
+		]}`))
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	out, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "true", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Get("ai_tool") != "true" {
+		t.Fatalf("server got ai_tool=%q, want true", got.Get("ai_tool"))
+	}
+	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !isAITool(out[0].AITool) || !isAITool(out[1].AITool) {
+		t.Fatalf("ai_tool=true: got %+v, want rows 1 and 3 flagged", out)
+	}
+
+	for _, aiTool := range []string{"", "false"} {
+		out, _, err = fc.ListSoftwareTitles(t.Context(), "", "", "", "", aiTool, "", "", 0)
+		if err != nil {
+			t.Fatalf("ai_tool=%q: unexpected error: %v", aiTool, err)
+		}
+		if got.Get("ai_tool") != aiTool {
+			t.Fatalf("ai_tool=%q: server got ai_tool=%q", aiTool, got.Get("ai_tool"))
+		}
+		if len(out) != 3 || isAITool(out[1].AITool) {
+			t.Fatalf("ai_tool=%q: got %+v, want all 3 rows with Slack unflagged", aiTool, out)
+		}
+	}
+}
+
+func TestGetHostSoftware_AIToolFilter(t *testing.T) {
+	var got url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		// Ignores ai_tool like a Fleet server that predates it.
+		_, _ = w.Write([]byte(`{"software": [
+			{"id": 1, "name": "Claude", "source": "apps", "ai_tool": true},
+			{"id": 2, "name": "Slack", "source": "apps", "ai_tool": false},
+			{"id": 3, "name": "codex", "source": "ai_clis", "ai_tool": true}
+		]}`))
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	out, _, err := fc.GetHostSoftware(t.Context(), 42, "", "", "true", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Get("ai_tool") != "true" {
+		t.Fatalf("server got ai_tool=%q, want true", got.Get("ai_tool"))
+	}
+	if len(out) != 2 || out[0].ID != 1 || out[1].ID != 3 || !isAITool(out[0].AITool) || !isAITool(out[1].AITool) {
+		t.Fatalf("ai_tool=true: got %+v, want rows 1 and 3 flagged", out)
+	}
+
+	out, _, err = fc.GetHostSoftware(t.Context(), 42, "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Has("ai_tool") {
+		t.Fatalf("server got ai_tool=%q, want it omitted", got.Get("ai_tool"))
+	}
+	if len(out) != 3 {
+		t.Fatalf("got %+v, want all 3 rows", out)
+	}
+}
+
+func isAITool(aiTool *bool) bool {
+	return aiTool != nil && *aiTool
+}
+
+// Fleet Free omits ai_tool; the tool output must omit it too rather than report false.
+func TestSoftware_AIToolOmittedWhenServerOmitsIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/fleet/hosts/") {
+			_, _ = w.Write([]byte(`{"software": [{"id": 1, "name": "Slack", "source": "apps"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"software_titles": [{"id": 1, "name": "Slack", "source": "apps"}]}`))
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	titles, _, err := fc.ListSoftwareTitles(t.Context(), "", "", "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	hostSoftware, _, err := fc.GetHostSoftware(t.Context(), 42, "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for name, v := range map[string]any{"titles": titles, "host software": hostSoftware} {
+		b, err := json.Marshal(v)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", name, err)
+		}
+		if strings.Contains(string(b), "ai_tool") {
+			t.Errorf("%s: got %s, want ai_tool omitted", name, b)
+		}
 	}
 }
 
@@ -827,7 +938,7 @@ func TestGetHostSoftware_PropagatesTruncated(t *testing.T) {
 	fc := newTestClient(srv.URL)
 	// perPage 0 — don't short-circuit on client-side cap. Force the hard-cap
 	// path to fire instead. source="" matches everything.
-	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "", "", 0)
+	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "", "", "", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -942,27 +1053,32 @@ func TestValidateGetSoftwareArgs(t *testing.T) {
 		name                        string
 		perHost                     bool
 		fleet, platform, vulnerable string
+		aiTool                      string
 		source, extensionFor        string
 		wantErr                     bool
 	}{
-		{"per-host alone ok", true, "", "", "", "", "", false},
-		{"per-host + fleet rejected", true, "Workstations", "", "", "", "", true},
-		{"per-host + platform rejected", true, "", "macos", "", "", "", true},
-		{"cross-host none ok (full inventory)", false, "", "", "", "", "", false},
-		{"cross-host fleet alone ok", false, "Workstations", "", "", "", "", false},
-		{"cross-host platform alone rejected", false, "", "macos", "", "", "", true},
-		{"cross-host platform + fleet ok", false, "Workstations", "macos", "", "", "", false},
-		{"vulnerable=true ok", false, "", "", "true", "", "", false},
-		{"vulnerable=false ok", false, "", "", "false", "", "", false},
-		{"vulnerable bad value rejected", false, "", "", "maybe", "", "", true},
-		{"cross-host extension_for + source ok", false, "", "", "", "chrome_extensions", "brave", false},
-		{"per-host extension_for + source ok", true, "", "", "", "chrome_extensions", "brave", false},
-		{"cross-host extension_for without source rejected", false, "", "", "", "", "brave", true},
-		{"per-host extension_for without source rejected", true, "", "", "", "", "brave", true},
+		{"per-host alone ok", true, "", "", "", "", "", "", false},
+		{"per-host + fleet rejected", true, "Workstations", "", "", "", "", "", true},
+		{"per-host + platform rejected", true, "", "macos", "", "", "", "", true},
+		{"cross-host none ok (full inventory)", false, "", "", "", "", "", "", false},
+		{"cross-host fleet alone ok", false, "Workstations", "", "", "", "", "", false},
+		{"cross-host platform alone rejected", false, "", "macos", "", "", "", "", true},
+		{"cross-host platform + fleet ok", false, "Workstations", "macos", "", "", "", "", false},
+		{"vulnerable=true ok", false, "", "", "true", "", "", "", false},
+		{"vulnerable=false ok", false, "", "", "false", "", "", "", false},
+		{"vulnerable bad value rejected", false, "", "", "maybe", "", "", "", true},
+		{"cross-host extension_for + source ok", false, "", "", "", "", "chrome_extensions", "brave", false},
+		{"per-host extension_for + source ok", true, "", "", "", "", "chrome_extensions", "brave", false},
+		{"cross-host extension_for without source rejected", false, "", "", "", "", "", "brave", true},
+		{"per-host extension_for without source rejected", true, "", "", "", "", "", "brave", true},
+		{"ai_tool=true ok", false, "", "", "", "true", "", "", false},
+		{"ai_tool=false ok", false, "", "", "", "false", "", "", false},
+		{"per-host ai_tool=true ok", true, "", "", "", "true", "", "", false},
+		{"ai_tool bad value rejected", false, "", "", "", "yes", "", "", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateGetSoftwareArgs(tc.perHost, tc.fleet, tc.platform, tc.vulnerable, tc.source, tc.extensionFor)
+			err := validateGetSoftwareArgs(tc.perHost, tc.fleet, tc.platform, tc.vulnerable, tc.aiTool, tc.source, tc.extensionFor)
 			if tc.wantErr && err == nil {
 				t.Errorf("expected error, got nil")
 			}
@@ -1125,7 +1241,7 @@ func TestGetHostSoftware_DecodesNestedInstalledVersions(t *testing.T) {
 	defer srv.Close()
 	fc := newTestClient(srv.URL)
 
-	out, _, err := fc.GetHostSoftware(context.Background(), 1, "", "", "", "", 10)
+	out, _, err := fc.GetHostSoftware(context.Background(), 1, "", "", "", "", "", 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1159,7 +1275,7 @@ func TestGetHostSoftware_SourceFilterAndPerPage(t *testing.T) {
 	fc := newTestClient(srv.URL)
 
 	// source=apps keeps only apps rows; perPage=2 caps the merged result early
-	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "apps", "", 2)
+	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "", "apps", "", 2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

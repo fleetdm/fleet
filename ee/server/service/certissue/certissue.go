@@ -1,5 +1,5 @@
 // Package certissue has the pieces the certificate authority clients share: building a CSR with a new key, bundling the issued
-// certificate and key for Apple profiles, and reading and writing Microsoft UPNs in a subjectAltName.
+// certificate and key for Apple profiles, reading and writing Microsoft UPNs in a subjectAltName, and telling which failures are worth retrying.
 package certissue
 
 import (

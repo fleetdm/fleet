@@ -419,8 +419,8 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		return map[uint]*fleet.VPPAppStatusSummary{1: {}}, nil
 	}
 
 	// The VPP app is part of the setup experience; this is the source of truth

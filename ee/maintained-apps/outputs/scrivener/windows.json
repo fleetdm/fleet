@@ -10,7 +10,7 @@
       "installer_url": "https://www.literatureandlatte.com/downloads/win-legacy/Scrivener-3160-installer.exe",
       "install_script_ref": "d73c982c",
       "uninstall_script_ref": "8a046db0",
-      "sha256": "b87bc507be913c712276fc736824a7f3f15ade4735f8d64b8681813d0aaf8a77",
+      "sha256": "6ee2045ba216f5d88d951e159fd40b9f966962d362d640d8eac1288d6866122d",
       "default_categories": [
         "Productivity"
       ]

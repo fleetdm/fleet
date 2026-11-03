@@ -133,6 +133,44 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.DoJSON("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
 }
 
+func (s *integrationMDMTestSuite) TestBootstrapPackageReplace() {
+	t := s.T()
+	ctx := t.Context()
+
+	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
+	require.NoError(t, err)
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	tmDetails := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
+	getMeta := func() fleet.MDMAppleBootstrapPackage {
+		var resp bootstrapPackageMetadataResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/%d/metadata", tm.ID), nil, http.StatusOK, &resp)
+		return *resp.MDMAppleBootstrapPackage
+	}
+
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "old.pkg", TeamID: tm.ID}, http.StatusOK, "", false)
+	oldMeta := getMeta()
+	require.Equal(t, "old.pkg", oldMeta.Name)
+
+	// uploading over an existing package replaces it without a delete first
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "new.pkg", TeamID: tm.ID}, http.StatusOK, "", false)
+	newMeta := getMeta()
+	require.Equal(t, "new.pkg", newMeta.Name)
+	require.NotEqual(t, oldMeta.Token, newMeta.Token)
+
+	// the audit log reads as it did when the old package was deleted before the upload
+	addedID := s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
+		`{"bootstrap_package_name": "new.pkg", `+tmDetails[1:], 0)
+	deletedID := s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedBootstrapPackage{}.ActivityName(),
+		`{"bootstrap_package_name": "old.pkg", `+tmDetails[1:], 0)
+	require.Less(t, deletedID, addedID)
+
+	// a dry run doesn't replace anything
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "dry.pkg", TeamID: tm.ID}, http.StatusOK, "", true)
+	require.Equal(t, newMeta.Token, getMeta().Token)
+}
+
 func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	t := s.T()
 

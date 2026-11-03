@@ -1,0 +1,1 @@
+* Fixed the Linux setup experience opening Firefox instead of the user's default browser; `xdg-open` is now preferred and Firefox is only used when `xdg-open` is unavailable.

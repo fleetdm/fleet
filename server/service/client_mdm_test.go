@@ -126,7 +126,7 @@ func TestUploadBootstrapPackageStaged(t *testing.T) {
 	}
 }
 
-func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
+func TestUploadBootstrapPackageIfNeededReplacesWithoutDelete(t *testing.T) {
 	for _, putStatus := range []int{http.StatusOK, http.StatusForbidden} {
 		var calls []string
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,6 @@ func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
 				"GET /api/latest/fleet/config",
 				"POST /api/latest/fleet/staged_upload",
 				"PUT /object-store",
-				"DELETE /api/latest/fleet/mdm/bootstrap/3",
 				"POST /api/latest/fleet/bootstrap",
 			}, calls)
 		} else {
@@ -166,6 +165,34 @@ func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
 			require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
 		}
 	}
+}
+
+func TestUploadBootstrapPackageIfNeededFailedRegisterKeepsExisting(t *testing.T) {
+	var calls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		switch r.URL.Path {
+		case "/api/latest/fleet/mdm/bootstrap/3/metadata":
+			_ = json.NewEncoder(w).Encode(map[string]any{"name": "old.pkg", "sha256": []byte("old")})
+		case "/api/latest/fleet/config":
+			_ = json.NewEncoder(w).Encode(map[string]any{"staged_upload_available": false})
+		case "/api/latest/fleet/bootstrap":
+			// a proxy in front of Fleet rejecting a large upload
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			_, _ = w.Write([]byte("<html><head><title>413 Payload Too Large</title></head></html>"))
+		default:
+			_, _ = w.Write([]byte("{}"))
+		}
+	}))
+	defer srv.Close()
+	client, err := NewClient(srv.URL, true, "", "")
+	require.NoError(t, err)
+	client.SetToken("test-token")
+
+	err = client.UploadBootstrapPackageIfNeeded(&fleet.MDMAppleBootstrapPackage{Name: "b.pkg", Bytes: []byte("pkg"), Sha256: []byte("new")}, 3, false)
+	require.Error(t, err)
+	require.Contains(t, calls, "POST /api/latest/fleet/bootstrap")
+	require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
 }
 
 func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {

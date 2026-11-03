@@ -12,6 +12,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	_ "embed"
 	"encoding/base64"
@@ -868,6 +870,19 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
+	// Without an enrollment row the server can't ask the host for a new key, so the error wouldn't promise one.
+	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "disk-encryption-key-" + host.UUID,
+		MDMHardwareID:          "disk-encryption-key-hw-" + host.UUID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          host.Hostname,
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.26100",
+		MDMNotInOOBE:           true,
+		HostUUID:               host.UUID,
+	}))
 
 	// request encryption key with no auth token
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
@@ -881,11 +896,9 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID+999), nil, http.StatusNotFound, &resp)
 
-	// add an encryption key for the host
-	cert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
-	require.NoError(t, err)
+	// add an encryption key for the host, the way the escrow endpoint stores it
 	recoveryKey := "AAA-BBB-CCC"
-	encryptedKey, err := microsoft_mdm.Encrypt(recoveryKey, cert.Leaf)
+	encryptedKey, err := servermdm.EncryptAndEncode(recoveryKey, s.fleetCfg.Server.PrivateKey)
 	require.NoError(t, err)
 
 	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedKey, "", new(true))
@@ -912,6 +925,90 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.True(t, detailsResp.Host.MDM.EncryptionKeyAvailable, "an error report must not take the key away")
 	require.NotNil(t, detailsResp.Host.MDM.EncryptionKeyArchived)
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
+
+	// A legacy key is encrypted to the WSTEP certificate and marked as such by the migration. It stays readable until the
+	// hourly job moves it to the server private key.
+	cert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	legacyRecoveryKey := "DDD-EEE-FFF"
+	legacyKey, err := microsoft_mdm.Encrypt(legacyRecoveryKey, cert.Leaf)
+	require.NoError(t, err)
+	backdate := time.Now().Add(-2 * time.Hour).UTC().Truncate(time.Second)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET base64_encrypted = ?, wstep_encrypted = 1, updated_at = ? WHERE host_id = ?`,
+			legacyKey, backdate, host.ID)
+		return err
+	})
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+	require.Equal(t, legacyRecoveryKey, resp.EncryptionKey.DecryptedValue)
+
+	require.NoError(t, ReencryptWSTEPDiskEncryptionKeys(ctx, s.logger, s.ds, &s.fleetCfg))
+	stored, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, stored.WSTEPEncrypted)
+	require.NotEqual(t, legacyKey, stored.Base64Encrypted)
+	require.True(t, backdate.Equal(stored.UpdatedAt), "re-encrypting must not look like a new key")
+	plain, err := servermdm.DecodeAndDecrypt(stored.Base64Encrypted, s.fleetCfg.Server.PrivateKey)
+	require.NoError(t, err)
+	require.Equal(t, legacyRecoveryKey, plain)
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+	require.Equal(t, legacyRecoveryKey, resp.EncryptionKey.DecryptedValue)
+
+	// A legacy key the configured certificate cannot read, as after the WSTEP pair was replaced: the job marks it, the
+	// error no longer blames MDM, and the host is told to escrow a new key. The archive is cleared first, because the
+	// read falls back to the newest readable archived key and would return the first one escrowed above.
+	otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	deadKey, err := microsoft_mdm.Encrypt("GGG-HHH-III", selfSignedCertForKey(t, otherKey, 7))
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `DELETE FROM host_disk_encryption_keys_archive WHERE host_id = ?`, host.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET base64_encrypted = ?, wstep_encrypted = 1, decryptable = 1 WHERE host_id = ?`,
+			deadKey, host.ID)
+		return err
+	})
+	require.NoError(t, ReencryptWSTEPDiskEncryptionKeys(ctx, s.logger, s.ds, &s.fleetCfg))
+	stored, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, new(false), stored.Decryptable)
+	require.False(t, stored.WSTEPEncrypted, "an undecryptable key leaves the queue")
+	// The host is only told a new key is coming while its fleet enforces Windows disk encryption.
+	errResp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnprocessableEntity)
+	errBody, err := io.ReadAll(errResp.Body)
+	require.NoError(t, err)
+	errResp.Body.Close()
+	require.Contains(t, string(errBody), "Couldn't decrypt the disk encryption key.")
+	require.NotContains(t, string(errBody), "The host will escrow a new one")
+	require.NotContains(t, string(errBody), "MDM has been turned off")
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_settings": { "enable_disk_encryption": false } } }`), http.StatusOK, &appConfigResponse{})
+	})
+	errResp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnprocessableEntity)
+	errBody, err = io.ReadAll(errResp.Body)
+	require.NoError(t, err)
+	errResp.Body.Close()
+	require.Contains(t, string(errBody), "The host will escrow a new one when it comes online.")
+
+	// The host escrows a new key, stored the way the orbit endpoint stores it (TestHostDiskEncryptionKey covers the
+	// endpoint itself), which clears the marker and makes the key readable again.
+	newRecoveryKey := "JJJ-KKK-LLL"
+	newKey, err := servermdm.EncryptAndEncode(newRecoveryKey, s.fleetCfg.Server.PrivateKey)
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, newKey, "", new(true))
+	require.NoError(t, err)
+	stored, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, stored.WSTEPEncrypted)
+	require.Equal(t, new(true), stored.Decryptable)
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+	require.Equal(t, newRecoveryKey, resp.EncryptionKey.DecryptedValue)
 }
 
 // TestBitLockerPINRequiresWindowsDiskEncryption covers the fleet write paths
@@ -1966,13 +2063,11 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status) // still pending because disk encryption status is not set
 	require.Empty(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
-	// the key is encrypted the same way as the macOS keys (except with the WSTEP
-	// certificate), so it can be decrypted using the same decryption function.
-	wstepCert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
+	// the key is encrypted with the server private key, like Linux keys, never to the WSTEP certificate.
+	require.False(t, hdek.WSTEPEncrypted)
+	decrypted, err := servermdm.DecodeAndDecrypt(hdek.Base64Encrypted, s.fleetCfg.Server.PrivateKey)
 	require.NoError(t, err)
-	decrypted, err := servermdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
-	require.NoError(t, err)
-	require.Equal(t, "ABC", string(decrypted))
+	require.Equal(t, "ABC", decrypted)
 
 	// set it with a client error
 	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", fleet.OrbitPostDiskEncryptionKeyRequest{
@@ -2030,9 +2125,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status) // still pending because disk encryption status is not set
 	require.Empty(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
-	decrypted, err = servermdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+	decrypted, err = servermdm.DecodeAndDecrypt(hdek.Base64Encrypted, s.fleetCfg.Server.PrivateKey)
 	require.NoError(t, err)
-	require.Equal(t, "DEF", string(decrypted))
+	require.Equal(t, "DEF", decrypted)
 
 	// report host disks as encrypted
 	err = s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, nil)
@@ -2070,9 +2165,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		// Key shouldn't be archived
 		hdekAfter, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 		require.NoError(t, err)
-		decryptedAfter, err := servermdm.DecryptBase64CMS(hdekAfter.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+		decryptedAfter, err := servermdm.DecodeAndDecrypt(hdekAfter.Base64Encrypted, s.fleetCfg.Server.PrivateKey)
 		require.NoError(t, err)
-		require.Equal(t, "DEF", string(decryptedAfter))
+		require.Equal(t, "DEF", decryptedAfter)
 
 		// No activity
 		activities = s.listActivities()
@@ -2096,9 +2191,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		// Key should be archived
 		hdekFinal, err := s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 		require.NoError(t, err)
-		decryptedFinal, err := servermdm.DecryptBase64CMS(hdekFinal.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
+		decryptedFinal, err := servermdm.DecodeAndDecrypt(hdekFinal.Base64Encrypted, s.fleetCfg.Server.PrivateKey)
 		require.NoError(t, err)
-		require.Equal(t, "NEW-KEY-2", string(decryptedFinal))
+		require.Equal(t, "NEW-KEY-2", decryptedFinal)
 
 		// New escrow activity
 		activities = s.listActivities()
@@ -2712,8 +2807,10 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 	t.Run("stored key changes before delivery", func(t *testing.T) {
 		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
-		require.NoError(t, s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
-			base64.StdEncoding.EncodeToString([]byte("not cms"))))
+		replaced, err := s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
+			base64.StdEncoding.EncodeToString([]byte("not cms")))
+		require.NoError(t, err)
+		require.True(t, replaced)
 
 		require.Nil(t, nextRotateCommand(t, mdmClient), "a command that can't be expanded is not delivered")
 		key := storedKey(host.ID)

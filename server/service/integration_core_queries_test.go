@@ -885,6 +885,15 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// names that differ by case and accent are the same name to the database, fail
+	res := s.Do("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{Specs: []*fleet.QuerySpec{
+		{Name: q1 + "_Bêta", Query: "SELECT 1"},
+		{Name: q1 + "_beta", Query: "SELECT 2"},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf("More than one report has the same name: %q", q1+"_beta"))
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
+	require.Len(t, listQryResp.Queries, 3)
+
 	// try to create a query with invalid platform, fail
 	q4 := q1 + "_4"
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{

@@ -19,7 +19,9 @@ type AppCommander struct {
 	Name             string
 	Slug             string
 	UniqueIdentifier string
+	ExistsQuery      string
 	Version          string
+	PatchVersion     string
 	AppPath          string
 	UninstallScript  string
 	InstallScript    string
@@ -94,7 +96,7 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 	}
 	ac.appLogger.DebugContext(ctx, fmt.Sprintf("Output: %s", output))
 
-	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
 	if err != nil {
 		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists after uninstall: %v", err))
 		return false

@@ -6,5 +6,6 @@
   "slug": "mobirise/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

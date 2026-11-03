@@ -16,6 +16,8 @@ body.dark-mode .ace-fleet {
   border-radius: 4px;
   border: solid 1px var(--ui-blue-gray);
   line-height: 24px;
+  /* Horizontal swipes Ace can't scroll would otherwise reach the page and trigger browser back navigation. */
+  overscroll-behavior-x: contain;
 }
 
 .ace_editor.ace-fleet:hover {

@@ -177,8 +177,16 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 ###### Up to 300 hosts
 
-See https://fleetdm.com/docs/deploy/deploy-fleet#render
+| Fleet instances | CPU   | RAM |
+| --------------- | ----- | --- |
+| 1 Pro           | 2 CPU | 4GB |
 
+| Dependencies | Version                      | Instance type    | Nodes |
+| ------------ | ---------------------------- | ---------------- | ----- |
+| Redis        | Render Key Value             | Starter (256 MB) | 1     |
+| MySQL        | MySQL 8.0 (private service)  | Standard (2GB)   | 1     |
+
+To deploy this configuration, see [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render).
 
 
 #### AWS
@@ -395,73 +403,7 @@ Coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 #### Render
 
-Using [Render's IAC](https://render.com/docs/infrastructure-as-code) see [the repository](https://github.com/edwardsb/fleet-on-render) for full details.
-```yaml
-services:
-  - name: fleet
-    plan: standard
-    type: web
-    env: docker
-    healthCheckPath: /healthz
-    envVars:
-      - key: FLEET_MYSQL_ADDRESS
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          property: hostport
-      - key: FLEET_MYSQL_DATABASE
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_DATABASE
-      - key: FLEET_MYSQL_PASSWORD
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_PASSWORD
-      - key: FLEET_MYSQL_USERNAME
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_USER
-      - key: FLEET_REDIS_ADDRESS
-        fromService:
-          name: fleet-redis
-          type: pserv
-          property: hostport
-      - key: FLEET_SERVER_TLS
-        value: false
-      - key: PORT
-        value: 8080
-
-  - name: fleet-mysql
-    type: pserv
-    env: docker
-    repo: https://github.com/render-examples/mysql
-    branch: mysql-5
-    disk:
-      name: mysql
-      mountPath: /var/lib/mysql
-      sizeGB: 10
-    envVars:
-      - key: MYSQL_DATABASE
-        value: fleet
-      - key: MYSQL_PASSWORD
-        generateValue: true
-      - key: MYSQL_ROOT_PASSWORD
-        generateValue: true
-      - key: MYSQL_USER
-        value: fleet
-
-  - name: fleet-redis
-    type: pserv
-    env: docker
-    repo: https://github.com/render-examples/redis
-    disk:
-      name: redis
-      mountPath: /var/lib/redis
-      sizeGB: 10
-```
+Fleet's [Render Blueprint](https://github.com/fleetdm/fleet/blob/main/render.yaml) uses [Render's infrastructure as code](https://render.com/docs/infrastructure-as-code) to provision the Fleet server, MySQL, and Redis. For instructions, see [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render).
 
 ##### Digital Ocean
 

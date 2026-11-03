@@ -5,7 +5,7 @@ import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 
-import configureAppleBusinessServices from "../../../../../../../../../assets/images/default-for-sign-in-modal.png";
+import configureAppleBusinessServices from "../../../../../../../../assets/images/default-for-sign-in-modal.png";
 
 const baseClass = "set-default-token-modal";
 

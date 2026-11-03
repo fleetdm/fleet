@@ -3,10 +3,12 @@ import {
   ICertificateAuthority,
   ICertificatesCustomSCEP,
   ICertificatesDigicert,
+  ICertificatesEJBCA,
   ICertificatesHydrant,
   ICertificatesNDES,
   ICertificatesSmallstep,
   ICertificatesCustomEST,
+  ICertificatesGoogleCAS,
 } from "interfaces/certificates";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import sendRequest from "services";
@@ -36,7 +38,9 @@ export type IAddCertAuthorityFormData =
   | { custom_scep_proxy: ICertificatesCustomSCEP }
   | { hydrant: ICertificatesHydrant }
   | { smallstep: ICertificatesSmallstep }
-  | { custom_est_proxy: ICertificatesCustomEST };
+  | { custom_est_proxy: ICertificatesCustomEST }
+  | { ejbca: ICertificatesEJBCA }
+  | { google_cas: ICertificatesGoogleCAS };
 
 export type IEditCertAuthorityFormData =
   | { digicert: Partial<ICertificatesDigicert> }
@@ -44,7 +48,9 @@ export type IEditCertAuthorityFormData =
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
   | { hydrant: Partial<ICertificatesHydrant> }
   | { smallstep: Partial<ICertificatesSmallstep> }
-  | { custom_est_proxy: Partial<ICertificatesCustomEST> };
+  | { custom_est_proxy: Partial<ICertificatesCustomEST> }
+  | { ejbca: Partial<ICertificatesEJBCA> }
+  | { google_cas: Partial<ICertificatesGoogleCAS> };
 
 interface IGetCertsParams extends PaginationParams {
   // not supported: after, order key, order direction, match query, meta (always included)

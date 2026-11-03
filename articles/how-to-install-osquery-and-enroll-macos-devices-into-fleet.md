@@ -44,13 +44,13 @@ Head to the Fleet UI **Hosts** page and click the **"Add hosts"** button. From t
 
 Head over to your command line, paste the copied command, and then hit enter.
 
-Once `fleetctl` has finished creating your osquery installer, it will produce an installer file called `fleet-osquery.pkg` in your current directory, and display instructions on how to proceed.
+Once `fleetctl` has finished creating your osquery installer, it will produce an installer file called `fleet-macos.pkg` in your current directory, and display instructions on how to proceed.
 
 ## Running the installer
 
 Double-click the installer and follow the guided steps to successfully install osquery on your macOS device and enrol it onFleet!
 
-Alternatively, you can run open `fleet-osquery.pkg` from your command line to launch the installer.
+Alternatively, you can run open `fleet-macos.pkg` from your command line to launch the installer.
 
 ## Deploying at scale?
 Fleet makes it easy to install osquery and enrol macOS devices with fleetctl. If you’re managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro] (https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts. You can distribute your osquery installer and add all your devices to Fleet using your software management tool of choice.

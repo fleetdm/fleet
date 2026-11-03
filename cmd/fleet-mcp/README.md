@@ -274,7 +274,7 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 - **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
 - **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (Render's edge; or a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
-- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user).
+- **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). To limit the user to the endpoints the MCP calls, see [Required API endpoints](#required-api-endpoints).
 - **Read vs run = the token's Fleet role.** The MCP acts with exactly the role of `FLEET_API_KEY` (it has no mode of its own), and Fleet enforces it. The read-only tools work with an **observer** token; the one mutating tool, `run_live_query`, needs **observer_plus** (or admin / maintainer / technician) per Fleet's RBAC — an observer token gets a `403`. **No maintainer or admin role is required.** Recommended: an API-only user with the **lowest role** your tools need — **observer** for a read-only deployment, **observer_plus** if you use `run_live_query`. The MCP doesn't infer or log these rights — it only enforces the API-only requirement above.
 - **Live queries run arbitrary osquery (scope the token).** `run_live_query` dispatches arbitrary osquery to devices — exactly like Fleet's own UI / `fleetctl` / live-query REST API, which the MCP proxies. Tables such as `curl` / `curl_certificate` / `carves` can make outbound requests or exfiltrate file content from a managed device (e.g. cloud-metadata credentials). **This is a Fleet/osquery capability, not specific to the MCP** — the MCP does not (and should not) special-case it. The MCP-layer control is a **least-privilege `FLEET_API_KEY`** (an observer token → Fleet rejects live queries entirely). To remove the capability everywhere (UI, `fleetctl`, scheduled, MCP), disable the tables on the osquery agent: `--disable_tables=curl,curl_certificate,carves,yara,yara_events` via fleetd/orbit agent options.
 - **Body size cap on SSE transport.** `http.MaxBytesReader` caps every incoming request body at 1 MiB. Hostile clients cannot OOM the MCP via oversized JSON-RPC payloads.
@@ -283,6 +283,40 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 - **PII-safe debug logs.** The Fleet API call log was changed to log only the route shape (path before any `?` query string) — host serials, user emails passed via `?query=`, and CVE IDs no longer leak to debug logs.
 - **CVE / policy / per_page input validation at the MCP layer.** `cve_id` must match `^CVE-\d{4}-\d{4,}$`, `policy_id` must be a positive integer, `per_page` is clamped to 200. Malformed inputs get a usable error message before any Fleet API call.
 - **Context propagation end-to-end.** Every FleetClient method takes `ctx context.Context`; MCP handler cancellation propagates through to in-flight Fleet API calls, including between iterations of fan-out paths (CVE compose, label intersection). A cancelled MCP request stops the whole fan-out instead of running every remaining HTTP call to completion.
+
+### Required API endpoints
+
+In Fleet Premium, you can limit an API-only user to specific endpoints. When you create the user, select **Specific API endpoints** (`api_endpoints` in [Create API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user)), then select the endpoints below. Names match what Fleet shows in the endpoint picker.
+
+Always required (the MCP calls it at startup and won't start without it):
+
+- [Get current user](https://fleetdm.com/docs/rest-api/rest-api#me)
+
+Read-only tools:
+
+- [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts)
+- [Count hosts](https://fleetdm.com/docs/rest-api/rest-api#count-hosts)
+- [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary)
+- [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host)
+- [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier)
+- [List host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software)
+- [List software titles](https://fleetdm.com/docs/rest-api/rest-api#list-software)
+- [Get software title](https://fleetdm.com/docs/rest-api/rest-api#get-software)
+- [List policies](https://fleetdm.com/docs/rest-api/rest-api#list-policies)
+- [Get policy](https://fleetdm.com/docs/rest-api/rest-api#get-policy)
+- [List fleet-level policies](https://fleetdm.com/docs/rest-api/rest-api#list-fleet-level-policies)
+- [Get fleet-level policy](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-policy)
+- [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports)
+- [List labels](https://fleetdm.com/docs/rest-api/rest-api#list-labels)
+- [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts)
+- [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets)
+
+`run_live_query` (also needs the read-only endpoints above to resolve targets):
+
+- [Run live query on host (ad hoc)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-on-host-ad-hoc)
+- [Run live report (async)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-ad-hoc)
+
+Live report results stream over a WebSocket, which isn't subject to endpoint restrictions, so there's nothing else to select. The `-seed` flag also needs [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report).
 
 ## Deploying to Render
 

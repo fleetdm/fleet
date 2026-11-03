@@ -29,7 +29,7 @@ import {
 } from "../HostSoftwareLibrary/helpers";
 
 /** Written as `types` on a macOS host when nothing is selected, since an absent
- * `types` re-applies the "macOS app" default. parseSoftwareTypesParam drops it
+ * `types` re-applies the "App (macOS)" default. parseSoftwareTypesParam drops it
  * as an unknown key, leaving an empty selection. */
 export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
 
@@ -82,6 +82,7 @@ export const isDefaultTypeSelection = (
 ) =>
   isMacOS(platform) &&
   !filters.vulnerable &&
+  !filters.aiTool &&
   isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams

@@ -7,7 +7,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore Dropdown is still a JS component
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-import validEmail from "components/forms/validators/valid_email";
+import { isValidEmail } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
@@ -49,7 +49,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
   if (enableSMTP) {
     if (!smtpSenderAddress) {
       errors.smtpSenderAddress = "Enter a sender address";
-    } else if (!validEmail(smtpSenderAddress)) {
+    } else if (!isValidEmail(smtpSenderAddress)) {
       errors.smtpSenderAddress = "Enter a valid sender address";
     }
 
@@ -68,7 +68,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
         errors.smtpPassword = "Enter an SMTP password";
       }
     }
-  } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
+  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress)) {
     // Even when SMTP is disabled, a filled-in sender address must be a valid
     // email so the value is ready when SMTP flips on.
     errors.smtpSenderAddress = "Enter a valid sender address";

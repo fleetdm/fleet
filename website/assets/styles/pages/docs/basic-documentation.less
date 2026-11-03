@@ -232,6 +232,14 @@
   }
   [purpose='docs-template'] {
 
+    [purpose='content-column'] {
+      display: flex;
+      flex-direction: column;
+      // Fill the row even when the page has only short lines (e.g. lists of links); otherwise it shrinks to fit.
+      flex: 1 1 0%;
+      min-width: 0;
+    }
+
     h3 {
       code {
         color: @core-fleet-black;
@@ -364,7 +372,7 @@
       color: @core-fleet-black;
       width: 200px;
       position: sticky;
-      top: 104px;
+      top: ~'calc(104px + var(--announcement-banner-height, 0px))';
       a {
         text-decoration: none;
         color: @core-fleet-black;
@@ -967,8 +975,9 @@
         }
       }
 
-      .header-hidden { // For scrolling the sidebars with the sticky header
-        transform: translateY(-80px);
+      // When the page header slides away, the sticky sidebars move up to sit just below the top of the window.
+      [purpose='swag-cta'].header-hidden {
+        top: 24px;
       }
       [purpose='left-sidebar'] {
         height: fit-content;
@@ -985,17 +994,21 @@
         transition-duration: 500ms;
 
       }
+      // The right sidebar sticks below the header (and the announcement banner, when there is one).  Its list of links scrolls
+      // within whatever height is left on screen, leaving room at the bottom for the "Back to top" button.
+      @right-sidebar-top: ~'104px + var(--announcement-banner-height, 0px)';
+      @right-sidebar-heading-height: 45px;
+      @right-sidebar-bottom-room: 72px;
       [purpose='right-sidebar'] {
         p {
           line-height: 21px;
         }
         min-width: 220px;
         position: sticky;
-        top: 104px;
+        top: ~'calc(104px + var(--announcement-banner-height, 0px))';
         margin-left: 24px;
         height: fit-content;
-        overflow-y: auto;
-        transition-property: all;
+        transition-property: top;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 500ms;
 
@@ -1009,10 +1022,10 @@
         [purpose='subtopics'] {
           scrollbar-width: none;
           overflow-y: auto;
+          overscroll-behavior: contain;
           color: @core-fleet-black;
-
-          max-height: calc(~'100vh - 60px');
-          dispaly: flex;
+          max-height: calc(~'100vh - (' @right-sidebar-top ~') - ' @right-sidebar-heading-height ~' - ' @right-sidebar-bottom-room);
+          display: flex;
           flex-direction: column;
           transition-property: max-height;
           transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -1020,6 +1033,7 @@
           [purpose='swag-cta'] {
             width: 190px;
             position: static;
+            flex-shrink: 0;
             a {
               &:hover {
                 background: none;
@@ -1028,6 +1042,7 @@
           }
           a {
             display: block;
+            flex-shrink: 0;
             color: #515774;
             text-decoration: none;
             padding: 4px 8px;
@@ -1038,9 +1053,10 @@
             }
           }
         }
-        &:not(.header-hidden) {
+        &.header-hidden {
+          top: 24px;
           [purpose='subtopics'] {
-            max-height: calc(~'100vh - 140px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+            max-height: calc(~'100vh - 24px - ' @right-sidebar-heading-height ~' - ' @right-sidebar-bottom-room);
           }
         }
       }
@@ -1051,7 +1067,7 @@
     }
     [purpose='back-to-top-button-container'] {
       position: sticky;
-      bottom: 200px;
+      bottom: 24px;
       right: 0px;
       overflow-x: hidden;
       pointer-events: none;
@@ -1090,6 +1106,29 @@
     }
   }
 
+  // Between the desktop and tablet layouts: the left sidebar stays, and the right sidebar's links open from a menu under the
+  // page title instead, so the content keeps a readable width.
+  @media (min-width: 992px) and (max-width: 1199px) {
+    [purpose='docs-template'] {
+      [purpose='edit-button'], [purpose='faq-edit-button'] {
+        right: 0px;
+      }
+      [purpose='content'] {
+        display: contents !important;//lesshint-disable-line importantRule
+      }
+      [purpose='content'] > h1:first-of-type {
+        order: -2;
+        margin-right: 100px;
+      }
+      [purpose='mid-width-subtopics'] {
+        order: -1;
+        [purpose='mobile-custom-select'] {
+          margin-top: 0;
+        }
+      }
+    }
+  }
+
   // for smaller screens
   @media (max-width: 991px) {
     [purpose='page-container'] {
@@ -1108,6 +1147,9 @@
       [purpose='edit-button'], [purpose='faq-edit-button'] {
         top: -55px;
         right: 0px;
+      }
+      [purpose='page-title'] {
+        padding-right: 110px;// Room for the Edit page button beside the title.
       }
       [purpose='right-sidebar'] {
         width: 100%;
@@ -1145,13 +1187,6 @@
         margin-right: 100px;
       }
     }
-    [purpose='docs-template'] {
-      [purpose='edit-button'] {
-        top: -20px;
-        right: 0px;
-      }
-    }
-
   }
 
   // for mobile

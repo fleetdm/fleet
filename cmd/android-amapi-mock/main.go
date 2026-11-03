@@ -12,6 +12,7 @@
 //
 //	android-amapi-mock --listen :9999
 //	android-amapi-mock --listen :9999 --google-credentials "$(cat service-account.json)"
+//	android-amapi-mock --listen 127.0.0.1:9999 --require-policies --latency 0 --error-rate 0
 package main
 
 import (
@@ -26,6 +27,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // fakeDevice holds the in-memory state for a single fake Android device.
@@ -80,6 +83,14 @@ type deviceStore struct {
 	policyMu       sync.RWMutex
 	policyVersions map[string]int64
 	policyVersion  int64
+	// restoredPolicies holds policies a device reported when it registered again after this
+	// process lost its state. They exist in AMAPI even though this process never patched them.
+	restoredPolicies map[string]struct{}
+
+	// requirePolicies makes policy actions fail with 404 on a policy that was never created,
+	// as AMAPI does. Off by default: after a restart every policy would look missing until its
+	// device registers again or Fleet patches it.
+	requirePolicies bool
 }
 
 func newDeviceStore() *deviceStore {
@@ -91,6 +102,8 @@ func newDeviceStore() *deviceStore {
 		enterprises:    make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
 		policyVersion:  1,
+
+		restoredPolicies: make(map[string]struct{}),
 	}
 }
 
@@ -160,6 +173,25 @@ func (ds *deviceStore) getPolicyVersion(policyName string) int64 {
 	return ds.policyVersions[policyName]
 }
 
+// notePolicyRestored records that a policy exists without issuing it a version.
+func (ds *deviceStore) notePolicyRestored(policyName string) {
+	ds.policyMu.Lock()
+	defer ds.policyMu.Unlock()
+	ds.restoredPolicies[policyName] = struct{}{}
+}
+
+// policyExists reports whether policyName would be found in AMAPI: a policy this process
+// issued a version for (a patch creates a policy), or one a device restored.
+func (ds *deviceStore) policyExists(policyName string) bool {
+	ds.policyMu.RLock()
+	defer ds.policyMu.RUnlock()
+	if _, ok := ds.policyVersions[policyName]; ok {
+		return true
+	}
+	_, ok := ds.restoredPolicies[policyName]
+	return ok
+}
+
 // raisePolicyVersionCounter pulls the counter up to a version a device reports when it
 // registers again after this process lost its state, so versions issued from here on stay
 // above the version the device already told Fleet about.
@@ -224,7 +256,10 @@ func (ds *deviceStore) register(d *fakeDevice) bool {
 	}
 
 	if d.PolicyName == "" && d.EnterpriseID != "" {
-		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		// A real device enrolls on the policy Fleet's enrollment token names, its default
+		// policy. Fleet only moves devices off that policy by ID, so any other name strands
+		// them there.
+		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/%d", d.EnterpriseID, android.DefaultAndroidPolicyID)
 		d.PolicyVersion = 0
 	}
 	ds.byESID[d.EnterpriseSpecificID] = d
@@ -288,6 +323,7 @@ func main() {
 	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\" or set GOOGLE_CREDENTIALS env var")
 	latencyMean := flag.Duration("latency", 200*time.Millisecond, "Mean latency added to AMAPI responses (simulates Google API latency)")
 	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
+	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -297,6 +333,7 @@ func main() {
 	}
 
 	store := newDeviceStore()
+	store.requirePolicies = *requirePolicies
 
 	// Set up authenticated Google API client for real device forwarding
 	var google *googleForwarder

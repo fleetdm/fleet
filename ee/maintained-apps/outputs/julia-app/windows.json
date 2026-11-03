@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.13.2",
+      "version": "1.13.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language' AND version_compare(version, '1.13.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language' AND version_compare(version, '1.13.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'julia.exe');"
       },
-      "installer_url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.13/julia-1.13.2-win64.exe",
+      "installer_url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.13/julia-1.13.3-win64.exe",
       "install_script_ref": "8e29c74d",
       "uninstall_script_ref": "69908c21",
-      "sha256": "9de7f1e34839e053cc1c8f44c89c1235506e5fbd4adcdcce88b88bf1647d8f50",
+      "sha256": "3928c7d1a908eb4797f9ca064cf62757fc49198360ee8251f4a6df9f35c6f9ad",
       "default_categories": [
         "Productivity"
       ]

@@ -10,7 +10,7 @@ The orbit `SetupExperiencer` config receiver runs every 30s and requests the cur
 
 ## End user authentication gate (Linux and Windows)
 
-When a team requires end user authentication, `EnrollOrbit` refuses a first-time Linux or Windows enrollment whose hardware UUID has no IdP account linked in `host_mdm_idp_accounts`, answering `401 END_USER_AUTH_REQUIRED`. orbit opens the browser to `/mdm/sso?initiator=setup_experience&host_uuid=<hardware UUID>` and retries the enroll request every 30 seconds until it succeeds.
+When a fleet requires end user authentication, `EnrollOrbit` refuses a first-time Linux or Windows enrollment whose hardware UUID has no IdP account linked in `host_mdm_idp_accounts`, answering `401 END_USER_AUTH_REQUIRED`. orbit opens the browser to `/mdm/sso?initiator=setup_experience&host_uuid=<hardware UUID>` and retries the enroll request every 30 seconds until it succeeds.
 
 The `POST /api/v1/fleet/mdm/sso` endpoint is unauthenticated, so it must not accept any host UUID a caller names. Each `401 END_USER_AUTH_REQUIRED` answer also writes a pending marker for that hardware UUID to the Redis key-value store (`eua_pending:<hardware UUID>`, 24h TTL, refreshed on every retry). Initiating the setup experience SSO flow requires that marker; any other host UUID gets the same generic 401 so the endpoint does not reveal which hosts are waiting. A store error also refuses the request. A successful enrollment clears the marker.
 

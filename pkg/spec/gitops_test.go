@@ -779,7 +779,7 @@ reports:
   observer_can_run: false
   automations_enabled: true
   logging: snapshot
-- name: orbit_info
+- name: "Orbit_Info "
   query: SELECT 1;
   interval: 300
   platform: windows
@@ -789,7 +789,22 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate report names")
+	assert.ErrorContains(t, err, "duplicate report names: [orbit_info]")
+}
+
+func TestDuplicateLabelNames(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    hosts: []
+    label_membership_type: manual
+  - name: "testlabel "
+    hosts: []
+    label_membership_type: manual`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "duplicate label names: [TestLabel]")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {

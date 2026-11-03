@@ -637,6 +637,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, fleet.AutofillPoliciesRequest{})
+	ue.POST("/api/_version_/fleet/autofill/configuration_profile/name_description", autofillConfigProfileNameDescriptionEndpoint, autofillConfigProfileNameDescriptionRequest{})
+	ue.POST("/api/_version_/fleet/autofill/configuration_profile/content", autofillConfigProfileContentEndpoint, autofillConfigProfileContentRequest{})
 
 	// Secret variables
 	ue.PUT("/api/_version_/fleet/spec/secret_variables", createSecretVariablesEndpoint, fleet.CreateSecretVariablesRequest{})

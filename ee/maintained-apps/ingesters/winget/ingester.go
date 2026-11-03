@@ -290,11 +290,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	for _, installer := range m.Installers {
 		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
-		if installerType == "" || isVendorType(installerType) {
+		if !isResolvedType(installerType) {
 			installerType = installer.InstallerType
 		}
 
-		if installerType == "" || isVendorType(installerType) {
+		if !isResolvedType(installerType) {
 			// try to get it from the URL
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
@@ -381,6 +381,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 					break
 				}
 			}
+		}
+		if input.IgnoreUpgradeCode {
+			upgradeCode = ""
 		}
 		if uninstallScript == "" && upgradeCode != "" {
 			var err error
@@ -545,6 +548,13 @@ func isVendorType(installerType string) bool {
 	return ok
 }
 
+// isResolvedType reports whether a manifest InstallerType says what kind of file the
+// installer is. Vendor types and "portable" (which manifests sometimes mislabel an exe
+// as) don't, so the caller falls back to the URL extension.
+func isResolvedType(installerType string) bool {
+	return installerType != "" && !isVendorType(installerType) && installerType != installerTypePortable
+}
+
 var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
@@ -657,7 +667,11 @@ type inputApp struct {
 	// (e.g. python.org installers report "3.14.5150.0" for version "3.14.5").
 	UseDisplayVersionForPatch bool `json:"use_display_version_for_patch"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
-	IgnoreHash        bool     `json:"ignore_hash"`
+	IgnoreHash bool `json:"ignore_hash"`
+	// IgnoreUpgradeCode leaves the MSI UpgradeCode out of the manifest, for apps that mint
+	// a new one every build (e.g. QGIS). Fleet resolves a Windows FMA's software title by
+	// its upgrade code, so a per-build code would move the app to a new title on each update.
+	IgnoreUpgradeCode bool     `json:"ignore_upgrade_code"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
@@ -737,6 +751,7 @@ const (
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
 	installerTypeBurn     = "burn"
+	installerTypePortable = "portable"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )
