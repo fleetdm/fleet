@@ -756,6 +756,6 @@ GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897]
 <meta name="articleTitle" value="Migrate from Fleet 4 to Fleet 5">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
-<meta name="publishedOn" value="2026-10-30">
+<meta name="publishedOn" value="2026-11-09">
 <meta name="category" value="guides">
 <meta name="description" value="Prepare for the upgrade to Fleet 5.">
