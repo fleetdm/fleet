@@ -1378,10 +1378,7 @@ type HostDetail struct {
 	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
 	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
 
-	// IDOnly marks a result where the caller was allowed to resolve the host but
-	// not to read it, so only ID is populated. Handlers must render it as an
-	// id-only response rather than a full one with everything zeroed out, which
-	// would advertise fields the caller never had access to.
+	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
 	IDOnly bool `json:"-"`
 }
 

@@ -3975,8 +3975,7 @@ WHERE id IN (?)`
 	return hosts, nil
 }
 
-// hostByIdentifierWhere picks the host matching an identifier using one index per column. `? IN (columns)` can't use an index,
-// so ranking over it would scan and sort the whole table. Bind it with hostByIdentifierArgs.
+// hostByIdentifierWhere picks the host matching an identifier using one index per column.
 const hostByIdentifierWhere = `
     WHERE h.id = (
       SELECT candidates.id FROM (
