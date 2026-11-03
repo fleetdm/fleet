@@ -206,7 +206,7 @@ func TestAutoUpdateHashSuffixedInstallerURL(t *testing.T) {
 		return 13, nil
 	}
 
-	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.NoError(t, AutoUpdateFleetMaintainedApps(t.Context(), ds, memStore(), discardLogger()))
 	require.NotNil(t, gotPayload)
 	require.Equal(t, "appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c", gotPayload.Filename)
 	require.Equal(t, "zip", gotPayload.Extension)

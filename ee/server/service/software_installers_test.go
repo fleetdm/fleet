@@ -4275,10 +4275,10 @@ func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T)
 }
 
 type fmaRecoveryBatchOptions struct {
-	pin, hash, version, platform string
-	body                         []byte
-	dryRun, present, cached      bool
-	existsErr                    error
+	pin, hash, version, platform, filename string
+	body                                   []byte
+	dryRun, present, cached                bool
+	existsErr                              error
 }
 
 type fmaRecoveryBatchResult struct {
@@ -4314,6 +4314,9 @@ func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecover
 	filename := "app.exe"
 	if opts.platform == "darwin" {
 		filename = "app.pkg"
+	}
+	if opts.filename != "" {
+		filename = opts.filename
 	}
 	url := installer.URL + "/" + filename
 	manifest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -4449,4 +4452,25 @@ func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
 	require.Len(t, r.applied, 1)
 	require.Equal(t, "1.0.0", r.applied[0].Version)
 	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(body)), r.applied[0].StorageID)
+}
+
+func TestSoftwareBatchUploadFMAHashSuffixedInstallerURL(t *testing.T) {
+	const filename = "appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c"
+	for _, tc := range []struct {
+		name            string
+		cached, present bool
+		wantDownloads   int32
+	}{
+		{name: "downloaded", wantDownloads: 1},
+		{name: "cached", cached: true, present: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{platform: "darwin", filename: filename, cached: tc.cached, present: tc.present})
+			require.Equal(t, batchSetCompleted, r.status)
+			require.Equal(t, tc.wantDownloads, r.downloads)
+			require.Len(t, r.applied, 1)
+			require.Equal(t, filename, r.applied[0].Filename)
+			require.Equal(t, "zip", r.applied[0].Extension)
+		})
+	}
 }
