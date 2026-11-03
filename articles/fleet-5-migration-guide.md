@@ -380,6 +380,16 @@ What to do: Before you upgrade, convert 2017 packs into reports. See [fleetctl u
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
+### Puppet module removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Fleet's Puppet module (`fleetdm-fleetdm` on the Puppet Forge), and the `POST /api/v1/fleet/mdm/apple/profiles/preassign` and `POST /api/v1/fleet/mdm/apple/profiles/match` endpoints it calls | Removed. |
+
+What to do: If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way. Fleets the module created stay as regular fleets.
+
+Issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
+
 ### Manual enrollment profile off by default
 
 | Fleet 4 | Fleet 5 |
