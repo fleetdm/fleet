@@ -453,8 +453,8 @@ const PolicyForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
-      setErrors({ ...errors, name: "Policy name must be present" });
+    if (isEditMode && !lastEditedQueryName.trim()) {
+      setErrors({ ...errors, name: "Enter a policy name" });
       return;
     }
 
@@ -610,6 +610,18 @@ const PolicyForm = ({
           value={lastEditedQueryName}
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onFocus={() => {
+            if (errors.name) {
+              setErrors({ ...errors, name: undefined });
+            }
+          }}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
           disabled={gitOpsModeEnabled}
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
@@ -758,12 +770,12 @@ const PolicyForm = ({
   };
 
   const renderPolicyForm = () => {
-    // Save disabled for no platforms selected, policy name blank on existing policy,
-    // invalid target selection, or empty query. Syntax errors do not disable Save.
+    // Save stays enabled when name is blank — click reveals the inline name
+    // error via promptSavePolicy, matching Fleet's form validation pattern.
+    // Syntax errors do not disable Save either.
     const disableSaveFormErrors =
       isAddingAutomation ||
       (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
-      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (selectedTargetType === "Custom" && !hasCustomLabels) ||
       errors.query === EMPTY_QUERY_ERR;
 

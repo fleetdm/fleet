@@ -60,7 +60,7 @@ const validateQueryName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Report name must be present";
+    errors.name = "Enter a report name";
   }
 
   const valid = !size(errors);

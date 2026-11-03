@@ -113,7 +113,7 @@ describe("EditQueryForm - component", () => {
     }
   );
 
-  it("disables save button for missing query name", async () => {
+  it("surfaces an inline name error on Save click when the name is blank", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -151,7 +151,7 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    render(
+    const { user } = render(
       <EditQueryForm
         router={mockRouter}
         location={mockLocation}
@@ -173,7 +173,10 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
+    expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
   it("does not show a syntax error on mount for an invalid-SQL stored query", async () => {

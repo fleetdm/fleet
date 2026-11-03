@@ -73,7 +73,7 @@ const validatePolicyName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Policy name must be present";
+    errors.name = "Enter a policy name";
   }
 
   const valid = !size(errors);

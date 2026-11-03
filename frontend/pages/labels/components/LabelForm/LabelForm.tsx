@@ -154,11 +154,7 @@ const LabelForm = ({
     );
 
   const renderSaveButton = (disabled?: boolean) => (
-    <Button
-      type="submit"
-      isLoading={isUpdatingLabel}
-      disabled={disabled}
-    >
+    <Button type="submit" isLoading={isUpdatingLabel} disabled={disabled}>
       Save
     </Button>
   );

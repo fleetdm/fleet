@@ -401,10 +401,10 @@ const EditQueryForm = ({
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isExistingQuery && !lastEditedQueryName) {
+    if (isExistingQuery && !lastEditedQueryName.trim()) {
       return setErrors({
         ...errors,
-        name: "Report name must be present",
+        name: "Enter a report name",
       });
     }
 
@@ -460,8 +460,17 @@ const EditQueryForm = ({
           value={lastEditedQueryName}
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onFocus={() => {
+            if (errors.name) {
+              setErrors({ ...errors, name: undefined });
+            }
+          }}
           onBlur={() => {
-            setLastEditedQueryName(lastEditedQueryName.trim());
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a report name" });
+            }
           }}
           disabled={gitOpsModeEnabled}
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
@@ -634,9 +643,9 @@ const EditQueryForm = ({
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
-    // Save and save as new disabled for query name blank on existing query or sql errors
+    // Save stays enabled when name is blank — click reveals the inline name
+    // error via handleSaveQuery, matching Fleet's form validation pattern.
     const disableSaveFormErrors =
-      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (isExistingQuery && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&

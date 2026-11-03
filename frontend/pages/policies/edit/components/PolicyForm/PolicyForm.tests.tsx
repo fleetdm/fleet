@@ -262,7 +262,7 @@ describe("PolicyForm - component", () => {
       expect(hiddenCheckbox).toBeChecked();
     });
 
-    it("disables save button for missing policy name", async () => {
+    it("surfaces an inline name error on Save click when the name is blank", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -299,7 +299,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      render(
+      const { user } = render(
         <PolicyForm
           router={createMockRouter()}
           teamIdForApi={3}
@@ -324,7 +324,10 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+      expect(screen.getByText("Enter a policy name")).toBeInTheDocument();
     });
 
     // Regression test for #38348: clicking Save with an empty query body must

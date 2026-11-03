@@ -140,7 +140,7 @@ describe("SaveNewQueryModal", () => {
 
     await user.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Report name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
   it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {

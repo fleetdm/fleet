@@ -37,9 +37,7 @@ describe("LabelForm", () => {
     expect(screen.getByText("Enter a label name")).toBeInTheDocument();
 
     await user.type(nameInput, "Label name");
-    expect(
-      screen.queryByText("Enter a label name")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter a label name")).not.toBeInTheDocument();
   });
 
   it("should render any additional field the user provides", () => {
