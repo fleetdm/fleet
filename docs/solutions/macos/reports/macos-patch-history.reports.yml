@@ -1,0 +1,25 @@
+# macOS patch history for measuring time-to-patch. See https://fleetdm.com/guides/measure-macos-time-to-patch
+- name: Get macOS patch history
+  automations_enabled: false
+  description: |
+    One row per Mac with the columns current_version, history_start, and os_installs.
+    current_version is the running macOS version. history_start is the oldest entry in the
+    Mac's install log (/Library/Receipts/InstallHistory.plist) as a Unix timestamp; releases
+    before it can't be measured, for example after the Mac was erased. os_installs lists every
+    macOS update the Mac installed, as version@timestamp, separated by commas. Background
+    updates (XProtect, Gatekeeper data, Rosetta) are excluded.
+    Use with macos_time_to_patch.py to compare install times with Apple's release dates.
+  discard_data: false
+  interval: 86400
+  logging: snapshot
+  observer_can_run: true
+  platform: darwin
+  query: |
+    SELECT
+      (SELECT version FROM os_version) AS current_version,
+      (SELECT MIN(time) FROM package_install_history) AS history_start,
+      (SELECT group_concat(version || '@' || time, ',')
+         FROM package_install_history
+         WHERE source = 'softwareupdated'
+           AND name LIKE 'macOS %'
+           AND package_id = '') AS os_installs;
