@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -32,7 +33,7 @@ func TestRemovedPaths(t *testing.T) {
 	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
 	// asserts exactly. TestAPIRoutesConflicts checks these routes against the real router.
 	router := mux.NewRouter()
-	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, removedPaths())
+	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
