@@ -1092,6 +1092,7 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           } else {
             setPackageInstallDetails({
@@ -1101,6 +1102,7 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           }
           break;

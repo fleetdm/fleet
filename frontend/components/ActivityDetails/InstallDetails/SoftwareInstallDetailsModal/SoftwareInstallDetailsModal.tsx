@@ -24,6 +24,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner/Spinner";
 import Textarea from "components/Textarea";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
@@ -60,6 +61,7 @@ export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
   skipped_install?: boolean;
+  activity_created_at?: string;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -85,6 +87,7 @@ interface IInstallStatusMessage {
    Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
   skippedInstall?: boolean;
+  activityCreatedAt?: string;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -96,6 +99,7 @@ export const StatusMessage = ({
   contactUrl,
   canOverrideFailureWithInstalled = false,
   skippedInstall = false,
+  activityCreatedAt,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -131,13 +135,31 @@ export const StatusMessage = ({
     "the host"
   );
 
-  const displayTimeStamp =
-    created_at && ["failed_install", "installed"].includes(status || "")
-      ? ` (${timeAgo(new Date(created_at), {
-          includeSeconds: true,
-          addSuffix: true,
-        })})`
-      : "";
+  const timeAgoText = timeAgo(new Date(activityCreatedAt || created_at), {
+    includeSeconds: true,
+    addSuffix: true,
+  });
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  ) ? (
+    <>
+      {" ("}
+      {activityCreatedAt ? (
+        timeAgoText
+      ) : (
+        <TooltipWrapper
+          tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
+          position="top"
+          showArrow
+        >
+          {timeAgoText}
+        </TooltipWrapper>
+      )}
+      {")"}
+    </>
+  ) : (
+    ""
+  );
 
   // A patch-when-closed skip must render its own message even when the host
   // currently reports the app as installed. The skip is the load-bearing state
@@ -552,6 +574,7 @@ export const SoftwareInstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
+          activityCreatedAt={detailsFromProps.activity_created_at}
           skippedInstall={detailsFromProps.skipped_install}
         />
 

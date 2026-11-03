@@ -23,6 +23,7 @@ import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner/Spinner";
 import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHostSoftware,
   ISoftwareScriptResult,
@@ -44,6 +45,7 @@ const baseClass = "software-script-details-modal";
 export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
+  activity_created_at?: string;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -62,12 +64,14 @@ interface IInstallStatusMessage {
   installResult: ISoftwareScriptResult;
   isMyDevicePage: boolean;
   contactUrl?: string;
+  activityCreatedAt?: string;
 }
 
 export const StatusMessage = ({
   installResult,
   isMyDevicePage,
   contactUrl,
+  activityCreatedAt,
 }: IInstallStatusMessage) => {
   const {
     host_display_name,
@@ -88,13 +92,31 @@ export const StatusMessage = ({
     "the host"
   );
 
-  const displayTimeStamp =
-    created_at && ["failed_install", "installed"].includes(status || "")
-      ? ` (${timeAgo(new Date(created_at), {
-          includeSeconds: true,
-          addSuffix: true,
-        })})`
-      : "";
+  const timeAgoText = timeAgo(new Date(activityCreatedAt || created_at), {
+    includeSeconds: true,
+    addSuffix: true,
+  });
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    status || ""
+  ) ? (
+    <>
+      {" ("}
+      {activityCreatedAt ? (
+        timeAgoText
+      ) : (
+        <TooltipWrapper
+          tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
+          position="top"
+          showArrow
+        >
+          {timeAgoText}
+        </TooltipWrapper>
+      )}
+      {")"}
+    </>
+  ) : (
+    ""
+  );
 
   const renderStatusCopy = () => {
     const prefix = (
@@ -316,6 +338,7 @@ export const SoftwareScriptDetailsModal = ({
           installResult={installResultWithHostDisplayName}
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
+          activityCreatedAt={detailsFromProps.activity_created_at}
         />
         {renderScriptDetailsSection()}
       </div>

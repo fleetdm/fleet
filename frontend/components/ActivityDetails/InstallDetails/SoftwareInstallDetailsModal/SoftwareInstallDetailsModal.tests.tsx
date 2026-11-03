@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
@@ -302,6 +302,49 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+    });
+
+    it("on activity feed, renders installed message with the activity's timestamp instead of the install's", () => {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+          })}
+          isMyDevicePage={false}
+          activityCreatedAt={fiveMinutesAgo}
+        />
+      );
+
+      expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+    });
+
+    it("on host software page, renders installed message with the install's created_at instead of a newer updated_at", async () => {
+      const threeDaysAgo = new Date(
+        Date.now() - 3 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const { user } = renderWithSetup(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+            created_at: threeDaysAgo,
+            updated_at: oneMinuteAgo,
+          })}
+          isMyDevicePage={false}
+        />
+      );
+
+      expect(screen.getByText(/3 days ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/3 days ago/));
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Time when Fleet sent install command/)
+        ).toBeInTheDocument();
+      });
     });
   });
 

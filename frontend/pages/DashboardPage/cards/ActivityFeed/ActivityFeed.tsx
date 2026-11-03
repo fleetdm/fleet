@@ -3,7 +3,10 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
 import SoftwareUninstallDetailsModal, {
@@ -123,11 +126,11 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
+  ] = useState<IPackageInstallDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IPackageInstallDetails | null>(null);
   const [
     ipaPackageInstallDetails,
     setIpaPackageInstallDetails,
@@ -293,7 +296,10 @@ const ActivityFeed = ({
         break;
       case ActivityType.InstalledSoftware:
         if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
-          setScriptPackageDetails({ ...details });
+          setScriptPackageDetails({
+            ...details,
+            activity_created_at: created_at,
+          });
         } else {
           details?.command_uuid
             ? setIpaPackageInstallDetails({
@@ -301,7 +307,10 @@ const ActivityFeed = ({
                 actor_full_name,
                 fleet_initiated,
               })
-            : setPackageInstallDetails({ ...details });
+            : setPackageInstallDetails({
+                ...details,
+                activity_created_at: created_at,
+              });
         }
         break;
       case ActivityType.UninstalledSoftware:
