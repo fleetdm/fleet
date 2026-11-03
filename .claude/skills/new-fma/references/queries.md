@@ -56,7 +56,7 @@ SELECT name, publisher, version FROM programs WHERE name LIKE '%<name>%';
 
 The validator doesn't catch any of this: on macOS it accepts a match on either `CFBundleShortVersionString` or `CFBundleVersion`. Fix each case at the app, never in the shared generator:
 - **macOS**: add a per-token branch in `ee/maintained-apps/ingesters/homebrew/ingester.go` that sets `out.Queries.Patched` to compare `bundle_version` (Sonos, i1Profiler, Steam), or `COALESCE(regex_match(...))` for descriptive version strings (R.app). Version-string mismatches in punctuation (`0.56-3` vs `0.56.3`) are fixed with a version transformer in `ingesters/homebrew/external_refs` instead (Pd, Sublime Text).
-- **Windows**: `use_display_version_for_patch` in the input, or shape `exists_query`. When the manifest has no `AppsAndFeaturesEntries` DisplayVersion, add a per-slug enricher in `ee/maintained-apps/ingesters/winget/external_refs` that rewrites the version (AnyBurn registers `6.9` for winget `6.9.0.0`; 1Password drops the 4th part).
+- **Windows**: `use_display_version_for_patch` in the input, or shape `exists_query`.
 - JetBrains on Windows: the registry version is a build number (`261.24374.185`), but `MutateSoftwareOnIngestion` rewrites inventory to the marketing version parsed from the name (`PhpStorm 2026.1.2` → `2026.1.2`), which requires the publisher to contain "jetbrains". The Windows validator selects `publisher` and sets `Software.Vendor` so this fires in CI too (`cmd/maintained-apps/validate/windows.go`).
 
 Then rerun the four cases against the override. `patch_policy_path` in the input structs is dead code: the patched query can only be changed by shaping `exists_query` or by an ingester branch (Docker Desktop precedent).
