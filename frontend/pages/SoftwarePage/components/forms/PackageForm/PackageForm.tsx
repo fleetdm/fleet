@@ -321,6 +321,9 @@ const PackageForm = ({
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
+    setShowLabelsError(labelsRequired);
+    if (labelsRequired) return;
+
     // The server caps the whole request body, and not just the file.
     if (
       maxSoftwarePackageSize !== undefined &&
@@ -425,10 +428,20 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.values(formData.labelTargets).some(
+    (v) => v === true
+  );
+  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value === "All hosts") setShowLabelsError(false);
   };
 
   const onSelectCustomTarget = (value: string) => {
@@ -444,6 +457,7 @@ const PackageForm = ({
     };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value) setShowLabelsError(false);
   };
 
   const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
@@ -562,6 +576,7 @@ const PackageForm = ({
           formData.targetType === "Custom" &&
           generateHelpText(formData.automaticInstall, formData.customTarget)
         }
+        labelsError={labelsError}
       />
     </>
   );

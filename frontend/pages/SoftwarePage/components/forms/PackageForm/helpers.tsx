@@ -149,15 +149,9 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "requiredLabelTargets",
-        isValid: (formData) => {
-          if (formData.targetType === "All hosts") return true;
-          // there must be at least one label target selected
-          return (
-            Object.keys(formData.labelTargets).find(
-              (key) => formData.labelTargets[key]
-            ) !== undefined
-          );
-        },
+        // Advisory only — the form surfaces an inline labels error on submit
+        // instead of disabling the submit button.
+        isValid: () => true,
       },
     ],
   },

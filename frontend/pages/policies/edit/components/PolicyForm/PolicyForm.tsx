@@ -564,7 +564,11 @@ const PolicyForm = ({
     ) as CommaSeparatedPlatformString;
 
     if (!defaultPolicy) {
-      setLastEditedQueryPlatform(newPlatformString);
+      // Empty string in platformContext is a legacy "no restriction → check
+      // all four" signal in usePlatformSelector. Persist null so clicking Save
+      // with zero platforms doesn't flip to "all platforms" when the modal
+      // opens.
+      setLastEditedQueryPlatform(newPlatformString || null);
     }
 
     if (!isEditMode) {

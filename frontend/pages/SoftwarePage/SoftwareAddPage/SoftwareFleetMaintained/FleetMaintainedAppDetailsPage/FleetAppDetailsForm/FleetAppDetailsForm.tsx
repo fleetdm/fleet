@@ -131,6 +131,14 @@ const FleetAppDetailsForm = ({
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
   });
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.values(formData.labelTargets).some(
+    (v) => v === true
+  );
+  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
 
   // Fetch labels for DropdownTargetLabelSelector
   const {
@@ -160,6 +168,7 @@ const FleetAppDetailsForm = ({
     const newData = { ...formData, targetType: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value === "All hosts") setShowLabelsError(false);
   };
 
   const onSelectCustomTarget = (value: string) => {
@@ -175,6 +184,7 @@ const FleetAppDetailsForm = ({
     };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value) setShowLabelsError(false);
   };
 
   const onChangeInstallScript = (value: string) => {
@@ -221,11 +231,16 @@ const FleetAppDetailsForm = ({
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+    setShowLabelsError(labelsRequired);
+    if (labelsRequired) return;
     onSubmit(formData);
   };
 
   const isSoftwareAlreadyAdded = !!softwareTitleId;
-  const isSubmitDisabled = isSoftwareAlreadyAdded || !formValidation.isValid;
+  // Save stays enabled when Custom labels are missing — the submit handler
+  // surfaces the inline labels error instead. Pre-install query syntax
+  // errors are advisory and never block submission either.
+  const isSubmitDisabled = isSoftwareAlreadyAdded;
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
@@ -289,6 +304,7 @@ const FleetAppDetailsForm = ({
               formData.customTarget
             )}
             disableOptions={disableChildren}
+            labelsError={labelsError}
           />
         )}
       />

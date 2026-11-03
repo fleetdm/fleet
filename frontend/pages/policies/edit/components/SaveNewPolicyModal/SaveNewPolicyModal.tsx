@@ -188,7 +188,11 @@ const SaveNewPolicyModal = ({
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString;
-    setLastEditedQueryPlatform(newPlatformString);
+    // Empty string in platformContext is a legacy "no restriction → check
+    // all four" signal in usePlatformSelector. Persist null so clicking Save
+    // with zero platforms doesn't flip to "all platforms" instead of
+    // surfacing the inline error.
+    setLastEditedQueryPlatform(newPlatformString || null);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(
       lastEditedQueryName

@@ -147,7 +147,11 @@ const LabelChooser = ({
             ? getHelpText(selectedCustomTarget)
             : customHelpText)}
       </div>
-      <div className={`${baseClass}__checkboxes`}>
+      <div
+        className={classnames(`${baseClass}__checkboxes`, {
+          [`${baseClass}__checkboxes--error`]: !!labelsError,
+        })}
+      >
         {labels.map((label) => {
           return (
             <div className={`${baseClass}__label`} key={label.name}>
