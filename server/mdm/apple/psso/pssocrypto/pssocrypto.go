@@ -38,8 +38,8 @@ import (
 	"strings"
 	"time"
 
-	jose "github.com/go-jose/go-jose/v4"
-	josecipher "github.com/go-jose/go-jose/v4/cipher"
+	jose "github.com/go-jose/go-jose/v3"
+	josecipher "github.com/go-jose/go-jose/v3/cipher"
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
@@ -442,7 +442,7 @@ func DecryptPartyInfoJWE(compact []byte, recipientPriv *ecdsa.PrivateKey, expect
 		return nil, fmt.Errorf("pssocrypto: unexpected typ %q", hdr.Typ)
 	}
 
-	obj, err := jose.ParseEncryptedCompact(string(compact), []jose.KeyAlgorithm{jose.ECDH_ES}, []jose.ContentEncryption{jose.A256GCM})
+	obj, err := jose.ParseEncrypted(string(compact))
 	if err != nil {
 		return nil, fmt.Errorf("pssocrypto: parse jwe: %w", err)
 	}

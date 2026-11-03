@@ -28,7 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
-	jose "github.com/go-jose/go-jose/v4"
+	jose "github.com/go-jose/go-jose/v3"
 )
 
 // pssoServiceState caches the PSSO signing key, CA certificate, and password
