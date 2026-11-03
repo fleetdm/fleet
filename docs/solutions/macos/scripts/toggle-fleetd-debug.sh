@@ -16,8 +16,8 @@ function change_state {
   /usr/libexec/PlistBuddy -c "set EnvironmentVariables: ORBIT_DEBUG ${target_state}" "$plist_path"
 
   # Stop Orbit, wait for stop to complete, and then restart.
-  launchctl bootout system/com.fleetdm.orbit
-  while pgrep orbit > /dev/null; do sleep 1 ; done
+  launchctl bootout system/com.fleetdm.fleet
+  while pgrep -x Fleet > /dev/null; do sleep 1 ; done
   launchctl bootstrap system $plist_path
 
   exit
@@ -26,7 +26,7 @@ function change_state {
 default_action="toggle"
 action=${1:-$default_action}
 
-plist_path=/Library/LaunchDaemons/com.fleetdm.orbit.plist
+plist_path=/Library/LaunchDaemons/com.fleetdm.fleet.plist
 
 debug_enabled=$(/usr/libexec/PlistBuddy -c 'print EnvironmentVariables:ORBIT_DEBUG' "$plist_path")
 

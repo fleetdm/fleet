@@ -47,11 +47,11 @@ function Resolve-Error-Detailed($ErrorRecord = $Error[0]) {
 #Stops Orbit service and related processes
 function Stop-Orbit {
   # Stop Service
-  Stop-Service -Name "Fleet osquery" -ErrorAction "Continue"
+  Stop-Service -Name "Fleet" -ErrorAction "Continue"
   Start-Sleep -Milliseconds 1000
 
   # Ensure that no process left running
-  Get-Process -Name "orbit" -ErrorAction "SilentlyContinue" | Stop-Process -Force
+  Get-Process -Name "Fleet" -ErrorAction "SilentlyContinue" | Stop-Process -Force
   Get-Process -Name "osqueryd" -ErrorAction "SilentlyContinue" | Stop-Process -Force
   Get-Process -Name "fleet-desktop" -ErrorAction "SilentlyContinue" | Stop-Process -Force
   Start-Sleep -Milliseconds 1000
@@ -64,7 +64,7 @@ function Force-Remove-Orbit {
     Stop-Orbit
 
     #Remove Service
-    $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet osquery'"
+    $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet'"
     if ($service) {
       $service.delete() | Out-Null
     }
@@ -76,7 +76,7 @@ function Force-Remove-Orbit {
     #Remove HKLM registry entries
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
       # Filter for osquery entries
-      $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
+      $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet")}
       if ($properties) {
         #Remove Registry Entries
         $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
@@ -89,7 +89,7 @@ function Force-Remove-Orbit {
     #when the original install source (e.g. a network share) is no longer available.
     $packedGuids = @()
     Get-ChildItem "HKLM:\SOFTWARE\Classes\Installer\Products" -ErrorAction "SilentlyContinue" | ForEach-Object {
-      if ($_.GetValue("ProductName") -eq "Fleet osquery") {
+      if ($_.GetValue("ProductName") -eq "Fleet") {
         $packedGuids += $_.PSChildName
         Remove-Item $_.PSPath -Recurse -Force -ErrorAction "SilentlyContinue"
       }
@@ -100,7 +100,7 @@ function Force-Remove-Orbit {
       if (Test-Path $productsPath) {
         Get-ChildItem $productsPath -ErrorAction "SilentlyContinue" | ForEach-Object {
           $instProps = Join-Path $_.PSPath "InstallProperties"
-          if ((Test-Path $instProps) -and ((Get-ItemProperty $instProps -ErrorAction "SilentlyContinue").DisplayName -eq "Fleet osquery")) {
+          if ((Test-Path $instProps) -and ((Get-ItemProperty $instProps -ErrorAction "SilentlyContinue").DisplayName -eq "Fleet")) {
             $packedGuids += $_.PSChildName
           }
           if ($packedGuids -contains $_.PSChildName) {

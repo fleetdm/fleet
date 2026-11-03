@@ -43,7 +43,7 @@ $ProgramFiles64 = $env:ProgramW6432
 if (-not $ProgramFiles64) { $ProgramFiles64 = $env:ProgramFiles }
 if (-not $ProgramFiles64) { $ProgramFiles64 = 'C:\Program Files' }
 $OrbitBundle = [IO.Path]::Combine($ProgramFiles64, 'Orbit', 'certs.pem')
-$OrbitSvcKey = 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet osquery'
+$OrbitSvcKey = 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet'
 $script:ExitCode = 0
 
 function Write-Log([string]$Message) { Write-Output $Message }

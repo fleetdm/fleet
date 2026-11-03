@@ -20,7 +20,7 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 BLOCKED_SHA1="3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1 d1eb23a46d17d68fd92564c2f1f1601764d8e349"
 SYSTEM_PEM="/etc/ssl/cert.pem"
 ORBIT_BUNDLE="/opt/orbit/certs.pem"
-ORBIT_PLIST="/Library/LaunchDaemons/com.fleetdm.orbit.plist"
+ORBIT_PLIST="/Library/LaunchDaemons/com.fleetdm.fleet.plist"
 OPENSSL="/usr/bin/openssl"
 EXIT=0
 
