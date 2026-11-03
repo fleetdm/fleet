@@ -3,7 +3,6 @@ package fleetctl
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -36,7 +35,7 @@ func TestFleetNameForPackage(t *testing.T) {
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		switch key {
 		case "expired-token":
-			return nil, errors.New("invalid session")
+			return nil, &notFoundError{}
 		case "observer-token":
 			return &fleet.Session{CreatedAt: time.Now(), AccessedAt: time.Now(), UserID: observer.ID, Key: key}, nil
 		}
