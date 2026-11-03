@@ -226,6 +226,14 @@ const PackageForm = ({
     software: { isValid: false },
   });
   const [uploaderError, setUploaderError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.values(formData.labelTargets).some(
+    (v) => v === true
+  );
+  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
 
   // GitOps mode hides the target selector, so a "Custom" target with no labels
   // can never be satisfied: the picker that would fix it isn't rendered, and
@@ -427,15 +435,6 @@ const PackageForm = ({
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
-
-  const [showLabelsError, setShowLabelsError] = useState(false);
-
-  const hasSelectedLabel = Object.values(formData.labelTargets).some(
-    (v) => v === true
-  );
-  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
-  const labelsError =
-    showLabelsError && labelsRequired ? "Select at least one label" : null;
 
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
