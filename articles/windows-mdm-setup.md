@@ -4,15 +4,17 @@
 
 To control OS settings, updates, and more on Windows hosts, follow the manual enrollment instructions.
 
-To use automatic enrollment (aka zero-touch) features on Windows, follow the instructions to connect Fleet to Microsoft Entra ID. You can further customize zero-touch with Windows Autopilot.
+To use automatic enrollment (aka zero-touch) features on Windows, we recommend an OEM service, described [below](#autopilot-and-entra-id-p1-arent-required). If you'd rather enroll hosts through Microsoft Entra ID, follow the instructions to connect Fleet to Microsoft Entra ID. You can further customize that with Windows Autopilot.
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the [Automatic Windows MDM migration](#automatic-windows-mdm-migration) instructions.
 
 > Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
 
-## Autopilot isn't required
+## Autopilot and Entra ID P1 aren't required
 
-Windows Autopilot isn't required to manage Windows hosts with Fleet. The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. Fleet is designed to make this easy. Learn more on the [Windows page](https://fleetdm.com/windows), or see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot).
+**You don't need Microsoft Entra ID P1 to manage Windows hosts with Fleet. Windows Autopilot is the only path that needs it, and Autopilot isn't required.** Microsoft Entra ID is optional too.
+
+The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. Fleet's agent enrolls the device, so you don't connect Fleet to Entra. Fleet is designed to make this easy. Learn more on the [Windows page](https://fleetdm.com/windows), or see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot).
 
 For Fleet customers moving from Intune with more than 500 devices who have negotiated a discounted price for these OEM services, Fleet will cover that one-time cost for new PCs during the term of the Fleet Premium subscription.
 
@@ -90,7 +92,9 @@ Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-
 
 _Available in Fleet Premium_
 
-To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
+Connecting Fleet to Microsoft Entra ID is optional. You don't need it if you use an OEM service or another way to install Fleet's agent.
+
+To automatically enroll Windows workstations through Entra ID when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
 Connecting Fleet to Entra also enables end users to manually turn on MDM via the [Settings > Access work or school workflow](https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973#:~:text=If%20you%27ve%20had%20your%20device%20for%20a%20while%20and%20it%27s%20already%20been%20set%20up%2C%20you%20can%20follow%20these%20steps%20to%20join%20your%20device%20to%20the%20network.). Fleet will collect the email and store it as the IdP [username](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
 
