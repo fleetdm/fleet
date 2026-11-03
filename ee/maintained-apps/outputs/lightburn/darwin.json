@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.00",
+      "version": "2.2.01",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(bundle_short_version, '2.2.00') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(bundle_short_version, '2.2.01') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://release.lightburnsoftware.com/LightBurn/Release/LightBurn-v2.2.00/LightBurn.V2.2.00.dmg",
+      "installer_url": "https://release.lightburnsoftware.com/LightBurn/Release/LightBurn-v2.2.01/LightBurn.V2.2.01.dmg",
       "install_script_ref": "87ac0cb3",
       "uninstall_script_ref": "8c79c000",
-      "sha256": "de599bdbbcc3ca510250616bf2a37f7550e161df7499245d389860292537757f",
+      "sha256": "62cea610010c0bc34b7a78269f3da7aacdd3c214da7f46b3ad0c94fb58436412",
       "default_categories": [
         "Productivity"
       ]
