@@ -223,6 +223,17 @@ What to do: Search for these keys and rename them.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
+### Managed local account keys moved to apple_settings
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `enable_managed_local_account` and `enable_create_local_admin_account` under `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.apple_settings.enable_managed_local_account` |
+| `end_user_local_account_type` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.end_user_local_account_type` |
+
+What to do: Search for these keys and move them to `mdm.apple_settings`.
+
+GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
+
 ### Organization logo keys renamed
 
 | Fleet 4 | Fleet 5 |
@@ -457,6 +468,17 @@ What to do: Rename these keys.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
+### Managed local account keys moved to apple_settings in YAML
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.enable_managed_local_account` |
+| `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.end_user_local_account_type` |
+
+What to do: Move these keys to `controls.apple_settings`.
+
+GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
+
 ### Organization logo keys renamed in YAML
 
 | Fleet 4 | Fleet 5 |
@@ -596,6 +618,16 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 What to do: Update scripts that read `macos_setup` from `fleetctl get config` output.
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
+
+### get config prints managed local account keys under apple_settings
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get config` and `fleetctl get fleets` print `enable_create_local_admin_account` under `macos_setup` | `fleetctl get config` and `fleetctl get fleets` print `enable_managed_local_account` and `end_user_local_account_type` under `apple_settings` |
+
+What to do: Update scripts that read `enable_create_local_admin_account` from `fleetctl get config` or `fleetctl get fleets` output.
+
+GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
 ### get software output changed
 
