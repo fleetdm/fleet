@@ -2303,9 +2303,11 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	t := s.T()
 	ctx := context.Background()
 
-	// create a server host that is not enrolled in MDM
+	// create a server host that is enrolled in Fleet MDM, so that only the server check can omit its status
 	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
+	enrollWindowsHostInMDMViaOrbit(t, host, s.ds, s.server.URL)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, true, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+		fleet.PersonalEnrollmentTypeNone))
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -2317,9 +2319,9 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
 	require.Nil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 
-	// create a non-server host that is enrolled in MDM
+	// create a non-server host that is enrolled in Fleet MDM
 	host2 := createOrbitEnrolledHost(t, "windows", "non-server-host", s.ds)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host2.ID, false, true, "http://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
+	enrollWindowsHostInMDMViaOrbit(t, host2, s.ds, s.server.URL)
 
 	hr = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
@@ -2413,6 +2415,11 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	// filters should NOT return this host
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+
+	// the host details agree with the stats: winHost2 has no disk encryption status
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", winHost2.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 }
 
 // Test for #24266

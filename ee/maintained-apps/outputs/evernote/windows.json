@@ -3,8 +3,8 @@
     {
       "version": "11.40.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Evernote Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Evernote Corporation' AND version_compare(version, '11.40.3') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Bending Spoons US Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Bending Spoons US Inc.' AND version_compare(version, '11.40.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'evernote.exe');"
       },
       "installer_url": "https://win.desktop.evernote.com/builds/Evernote-11.40.3-win-ddl-stage-20261028150328-72813fc90b1fb765821ba48623647d59cd0e0af6-setup.exe",
