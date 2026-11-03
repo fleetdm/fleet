@@ -51,21 +51,35 @@ function Get-AppEntries {
     return $entries
 }
 
-# Registry hives of users who aren't signed in aren't loaded, so find their
-# copies by the app folder in their profiles instead.
-function Get-SignedOutInstalls {
+# Copies in each user profile's default folder. Registry hives of users who
+# aren't signed in aren't loaded, so their copies can only be found this way. A
+# signed-in user's copy with no registration is what an earlier uninstall
+# couldn't delete.
+function Get-ProfileCopies {
     foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
         $sid = $profileKey.PSChildName
-        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$') { continue }
         $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
         if (-not $profilePath) { continue }
-        if (-not (Test-Path -LiteralPath (Join-Path $profilePath "AppData\Local\Programs\Ollama\ollama.exe"))) { continue }
-        try {
-            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
-        } catch {
-            $sid
+        $dir = Join-Path $profilePath "AppData\Local\Programs\Ollama"
+        if (-not (Test-Path -LiteralPath (Join-Path $dir "ollama.exe"))) { continue }
+        [PSCustomObject]@{
+            Sid         = $sid
+            ProfilePath = $profilePath
+            Dir         = $dir
+            SignedIn    = (Test-Path "Registry::HKEY_USERS\$sid")
         }
     }
+}
+
+# Anything running out of an install folder blocks its removal. Matching on the
+# folder rather than a process name keeps another user's copy running.
+function Stop-AppProcesses {
+    param([string]$Dir)
+
+    Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
 function Resolve-Uninstaller {
@@ -194,6 +208,11 @@ try {
     foreach ($entry in $entries) {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
         $uninstaller = Resolve-Uninstaller $entry.Command
+        if ($entry.Command -and -not $uninstaller.ExePath) {
+            Write-Host "  Could not parse uninstall string: $($entry.Command)"
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
         $hasUninstaller = $uninstaller.ExePath -and (Test-Path -LiteralPath $uninstaller.ExePath)
 
         # A user's uninstall string comes from a hive that user can write to, so only
@@ -209,14 +228,7 @@ try {
             $isAppDir = $userAppDir -and $installDir -eq $userAppDir
         }
 
-        if ($isAppDir) {
-            # Anything running out of this install directory blocks removal. Matching on the
-            # directory rather than a process name keeps another install of the same app,
-            # in another user's profile, running.
-            Get-Process -ErrorAction SilentlyContinue |
-                Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
-                Stop-Process -Force -ErrorAction SilentlyContinue
-        }
+        if ($isAppDir) { Stop-AppProcesses $installDir }
 
         if (-not $hasUninstaller) {
             Write-Host "  Uninstaller is missing; removing what's left of this copy."
@@ -278,8 +290,32 @@ try {
         }
     }
 
+    $found = $entries.Count -gt 0
     $remaining = @(Get-AppEntries)
-    $signedOut = @(Get-SignedOutInstalls)
+    $signedOut = [System.Collections.Generic.List[string]]::new()
+    foreach ($copy in @(Get-ProfileCopies)) {
+        if (-not $copy.SignedIn) {
+            try {
+                $signedOut.Add((New-Object System.Security.Principal.SecurityIdentifier($copy.Sid)).Translate(
+                    [System.Security.Principal.NTAccount]).Value)
+            } catch {
+                $signedOut.Add($copy.Sid)
+            }
+            continue
+        }
+        # A copy that's still registered is reported below.
+        if (@($remaining | Where-Object { $_.Sid -eq $copy.Sid }).Count) { continue }
+
+        $found = $true
+        Write-Host "Removing unregistered Ollama files at $($copy.Dir)"
+        Stop-AppProcesses $copy.Dir
+        if (Remove-AppDir $copy.Dir $copy.Sid) {
+            Remove-Shortcuts $copy.Dir $copy.ProfilePath
+        } elseif ($exitCode -eq 0) {
+            $exitCode = 1
+        }
+    }
+
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) Ollama registration(s) still present:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
@@ -290,7 +326,7 @@ try {
         if ($exitCode -eq 0) { $exitCode = 1 }
     }
     if ($exitCode -eq 0) {
-        if ($entries.Count) { Write-Host "Ollama removed." } else { Write-Host "Ollama is not installed." }
+        if ($found) { Write-Host "Ollama removed." } else { Write-Host "Ollama is not installed." }
     }
 
 } catch {
