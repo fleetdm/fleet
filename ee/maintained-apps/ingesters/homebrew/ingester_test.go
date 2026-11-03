@@ -713,6 +713,42 @@ func TestFirefoxNightlyMacBundleVersion(t *testing.T) {
 	}
 }
 
+func TestWeChatPatchedQueryBuild(t *testing.T) {
+	const fallback = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_short_version, '4.2.0.16') < 0);"
+	cases := []struct {
+		caskVersion string
+		want        string
+	}{
+		{"4.2.0.16,270352", "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_version, '270352') < 0);"},
+		{"4.2.0.16", fallback},
+		{"4.2.0.16,", fallback},
+		{"4.2.0.16,270352') OR ('1", fallback},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		caskJSON, err := json.Marshal(brewCask{
+			Token:   "wechat",
+			Name:    []string{"WeChat"},
+			URL:     "https://example.com/wechat.dmg",
+			Version: c.caskVersion,
+		})
+		require.NoError(t, err)
+		caskPath := path.Join(tempDir, "wechat.json")
+		require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+		out, err := i.ingestOne(t.Context(), inputApp{
+			Token:            "wechat",
+			UniqueIdentifier: "com.tencent.xinWeChat",
+			InstallerFormat:  "dmg",
+			Name:             "WeChat for Mac",
+			CaskPath:         caskPath,
+		})
+		require.NoError(t, err, "caskVersion %q", c.caskVersion)
+		require.Equal(t, c.want, out.Queries.Patched, "caskVersion %q", c.caskVersion)
+	}
+}
+
 // TestFirefoxDevEditionBuildhubFallback verifies that a buildhub failure falls
 // back to a base-version patch comparison instead of failing ingestion.
 func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
