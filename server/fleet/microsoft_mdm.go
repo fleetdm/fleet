@@ -2317,7 +2317,8 @@ func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bo
 	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
 	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
 	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
-	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+	// XML references (e.g. "&#101;") only decode to the node name when parsed, so any "&" takes the slow path.
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) && !bytes.Contains(profileBytes, []byte("&")) {
 		return false
 	}
 	// Confirm a real Add/Replace Target LocURI targets the node
