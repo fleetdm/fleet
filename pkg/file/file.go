@@ -27,6 +27,8 @@ import (
 var (
 	ErrUnsupportedType = errors.New("unsupported file type")
 	ErrInvalidTarball  = errors.New("not a valid .tar.gz archive")
+	// ErrInvalidInstaller marks malformed installer content so callers can report a bad upload.
+	ErrInvalidInstaller = errors.New("invalid installer")
 )
 
 type InstallerMetadata struct {

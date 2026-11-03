@@ -49,3 +49,54 @@ func TestDecodeStringsMemoryAmplification(t *testing.T) {
 	require.Less(t, allocated, uint64(maxAllowed),
 		"decodeStrings allocated %d bytes; expected less than %d (memory amplification detected)", allocated, maxAllowed)
 }
+
+func TestDecodeMSITablesRejectOutOfRangeStringIDs(t *testing.T) {
+	le := func(vals ...uint16) *bytes.Reader {
+		var b bytes.Buffer
+		require.NoError(t, binary.Write(&b, binary.LittleEndian, vals))
+		return bytes.NewReader(b.Bytes())
+	}
+	strs := []string{"Property", "Name", "Value", "ProductName", "App"}
+
+	t.Run("columns", func(t *testing.T) {
+		// column-major rows: table id, column number, column name id, attributes
+		tbl, err := decodePropertyTableColumns(le(1, 1, 2, 3, 1, 2, 0xD00, 0xF00), strs)
+		require.NoError(t, err)
+		require.Len(t, tbl.Cols, 2)
+
+		for _, tc := range []struct {
+			name string
+			data []uint16
+		}{
+			{"table id zero", []uint16{0, 0, 1, 2, 2, 3, 0xD00, 0xF00}},
+			{"table id past end", []uint16{1, 6, 1, 2, 2, 3, 0xD00, 0xF00}},
+			{"column name id zero", []uint16{1, 1, 1, 2, 0, 3, 0xD00, 0xF00}},
+			{"column name id past end", []uint16{1, 1, 1, 2, 2, 600, 0xD00, 0xF00}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := decodePropertyTableColumns(le(tc.data...), strs)
+				require.ErrorIs(t, err, ErrInvalidInstaller)
+			})
+		}
+	})
+
+	t.Run("property", func(t *testing.T) {
+		tbl := &msiTable{Cols: []msiColumn{{Number: 1, Attributes: 0xD00}, {Number: 2, Attributes: 0xF00}}}
+
+		kv, err := decodePropertyTable(le(4, 5), tbl, strs)
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{"ProductName": "App"}, kv)
+
+		for name, data := range map[string][]uint16{
+			"key id zero":       {0, 5},
+			"key id past end":   {6, 5},
+			"value id zero":     {4, 0},
+			"value id past end": {4, 65535},
+		} {
+			t.Run(name, func(t *testing.T) {
+				_, err := decodePropertyTable(le(data...), tbl, strs)
+				require.ErrorIs(t, err, ErrInvalidInstaller)
+			})
+		}
+	})
+}
