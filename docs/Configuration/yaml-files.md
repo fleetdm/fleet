@@ -967,7 +967,7 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
 
 _Available in Fleet Premium_
 
-Vulnerability dismissals hide CVEs that don't need action from the vulnerability lists and counts in the Fleet UI. Fleet keeps detecting them. Learn more in [Create vulnerability dismissals](https://fleetdm.com/docs/rest-api/rest-api#create-vulnerability-dismissals).
+Vulnerability dismissals hide CVEs that don't need action from the vulnerability lists and counts in the Fleet UI. Fleet keeps detecting them. Vulnerability automations (the vulnerabilities webhook, Jira, and Zendesk) leave out hosts in fleets where the CVE is dismissed. Learn more in [Create vulnerability dismissals](https://fleetdm.com/docs/rest-api/rest-api#create-vulnerability-dismissals).
 
 Dismissals can be specified in your `default.yml` file, which dismisses them for all fleets, and in `fleets/fleet-name.yml` and `fleets/unassigned.yml` files. They can be inline or in separate files in your `lib/` folder.
 
@@ -1582,6 +1582,8 @@ org_settings:
 - `enable_vulnerabilities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
+
+The webhook leaves out hosts in fleets where the vulnerability is [dismissed](#vulnerability-dismissals), and skips the vulnerability if no affected hosts remain. Those hosts don't count as detections, so the webhook can still trigger later for hosts in other fleets.
 
 Can only be configured for "All fleets" (`org_settings`).
 
