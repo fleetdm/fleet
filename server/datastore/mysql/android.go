@@ -768,7 +768,10 @@ UPDATE android_devices
 	SET last_pubsub_message_id = IF(? = '', last_pubsub_message_id, ?),
 		last_pubsub_event_time = CASE
 			WHEN ? IS NULL THEN last_pubsub_event_time
-			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time THEN ?
+			-- A recorded time this far ahead cannot be a real event time; replace it so the host
+			-- regains staleness protection. Matches maxPubSubEventSkew in the Android service.
+			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time
+				OR last_pubsub_event_time > NOW(6) + INTERVAL 5 MINUTE THEN ?
 			ELSE last_pubsub_event_time
 		END
 	WHERE host_id = ?`,

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -159,7 +160,9 @@ func (svc *Service) rejectPubSub(ctx context.Context, device *androidmanagement.
 // device. Acknowledged commands survive a re-enrollment, so a redelivered notification for one
 // issued to an earlier enrollment must not act on the re-enrolled host.
 func (svc *Service) isCommandForCurrentDevice(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
-	host, err := svc.fleetDS.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
+	// Read from the primary: a replica that hasn't caught up with a re-enrollment would still
+	// return the previous device ID.
+	host, err := svc.fleetDS.AndroidHostLiteByHostUUID(ctxdb.RequirePrimary(ctx, true), cmd.HostUUID)
 	switch {
 	case fleet.IsNotFound(err):
 		return false, nil
