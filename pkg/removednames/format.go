@@ -43,10 +43,15 @@ func (f EndpointFormat) Message(e Entry) string {
 	return fmt.Sprintf(`The "%s" endpoint is not available anymore%s. What to use instead: %s`, endpoint, byDefault, GuideURL)
 }
 
-// displayName is how a name appears in a message. Only flags are displayed differently: they get their leading dashes.
+// displayName is how a name appears in a message. Only flags are displayed differently: they get their leading dashes, one for a
+// single-letter flag such as -t and two for the rest.
 func displayName(kind Kind, name string) string {
-	if kind == KindFlag && name != "" {
+	switch {
+	case kind != KindFlag || name == "":
+		return name
+	case len(name) == 1:
+		return "-" + name
+	default:
 		return "--" + name
 	}
-	return name
 }

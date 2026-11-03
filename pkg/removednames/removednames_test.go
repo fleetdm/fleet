@@ -31,6 +31,7 @@ func TestMessage(t *testing.T) {
 		{KindJSONKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
 		// Only flags are displayed differently: they get their leading dashes.
 		{KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
+		{KindFlag, "t", "fleetctl user create", "-t was removed in Fleet 5. Use --fleet instead." + suffix},
 	} {
 		e, ok := Find(c.kind, c.old, c.context)
 		require.True(t, ok)
@@ -52,7 +53,8 @@ func TestEntryMessageFormats(t *testing.T) {
 	}{
 		{"nil format is ReplacedFormat", Entry{Kind: KindJSONKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
 		{"replaced without a replacement", Entry{Kind: KindJSONKey, Old: "a", Format: ReplacedFormat{}}, "a was removed in Fleet 5." + suffix},
-		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "a"}, "--a was removed in Fleet 5." + suffix},
+		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "abc"}, "--abc was removed in Fleet 5." + suffix},
+		{"single-letter flag", Entry{Kind: KindFlag, Old: "a"}, "-a was removed in Fleet 5." + suffix},
 		{
 			"endpoint without a method",
 			Entry{Kind: KindPath, Old: pathPrefix + "/x/{id}", Format: EndpointFormat{}},
@@ -162,8 +164,8 @@ func TestEntriesWellFormed(t *testing.T) {
 	// Renaming teams always has a replacement, and every old name is team-related.
 	for _, e := range teamEntries {
 		assert.NotEmpty(t, e.New, e.Old)
-		// The one exception is the short command alias "t" of the team commands.
-		if e.Kind != KindCommand {
+		// The exceptions are the single-letter aliases of team commands and flags, such as -t.
+		if e.Kind != KindCommand && len(e.Old) > 1 {
 			assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
 		}
 	}
@@ -236,7 +238,6 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				}
 				found++
 				oldPath, newPath := paramRegex.ReplaceAllString(deprecated, "{$1}"), paramRegex.ReplaceAllString(primary[0], "{$1}")
-				// Entries hold paths relative to /api/_version_/fleet.
 				assert.True(t, hasEntry(func(e Entry) bool { return e.Kind == KindPath && e.Old == oldPath && e.New == newPath }),
 					"deprecated path %s -> %s is missing from entries", oldPath, newPath)
 			}
@@ -430,7 +431,12 @@ func collectCLIAliases(file *ast.File, match func(string) bool) []cliAlias {
 			if names := literalsOf(lit, "Name"); len(names) == 1 {
 				flagName = names[0]
 			}
-			add(cliFlagAlias, literalsOf(lit, "Aliases"), command, flagName)
+			// A flag is deprecated as a whole when one of its aliases names a team, so its other aliases, such as -t, are too.
+			if aliases := literalsOf(lit, "Aliases"); slices.ContainsFunc(aliases, match) {
+				for _, alias := range aliases {
+					out = append(out, cliAlias{kind: cliFlagAlias, name: alias, command: command, flagName: flagName})
+				}
+			}
 			add(cliEnvVar, literalsOf(lit, "EnvVars"), command, "")
 			return true
 		})
