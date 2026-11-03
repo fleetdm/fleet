@@ -283,7 +283,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"PyCharm Professional":                      "IN ('pycharm.exe','pycharm64.exe')",
 	"QGIS":                                      "= 'qgis-bin.exe'",
 	"QGIS LTR":                                  "= 'qgis-ltr-bin.exe'",
-	"R for Windows":                             "= 'rgui.exe'",
+	"R for Windows":                             "IN ('rgui.exe','rterm.exe')",
 	"Raspberry Pi Imager":                       "= 'rpi-imager.exe'",
 	"RealVNC Connect Viewer":                    "IN ('rvncconnect.exe','vncviewer.exe')",
 	"Rider":                                     "IN ('rider.exe','rider64.exe')",
