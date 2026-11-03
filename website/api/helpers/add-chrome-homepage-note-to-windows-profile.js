@@ -66,16 +66,14 @@ HomepageLocation alone, which is delivered and shows in chrome://policy but chan
     if(!isEnabled('homepagelocation')) {
       return deliveryNotes;
     }
-    if(/HomepageIsNewTabPage/i.test(deliveryNotes)) {
-      return deliveryNotes;
-    }
+    let newTabPageExplained = /HomepageIsNewTabPage/i.test(deliveryNotes);
 
     // Startup opens specific pages only in modes 4 and 6, and only the ones in RestoreOnStartupURLs.
     let startupMode = ((dataOf('restoreonstartup') || '').match(/<data\s+id="RestoreOnStartup"\s+value="(\d+)"/i) || [])[1];
     let opensPagesOnStartup = isEnabled('restoreonstartup') && _.contains(['4', '6'], startupMode) && isEnabled('restoreonstartupurls');
 
     let notes = [];
-    if(!isDisabled('homepageisnewtabpage')) {
+    if(!isDisabled('homepageisnewtabpage') && !newTabPageExplained) {
       notes.push('Chrome ignores HomepageLocation while the homepage is the New Tab page, which is its default, so disable HomepageIsNewTabPage too.');
     }
     let missing = [];
@@ -83,7 +81,7 @@ HomepageLocation alone, which is delivered and shows in chrome://policy but chan
       missing.push('enable ShowHomeButton to show the Home button');
     }
     if(!opensPagesOnStartup) {
-      missing.push('set RestoreOnStartup and RestoreOnStartupURLs to open the page when Chrome starts');
+      missing.push('set RestoreOnStartup to 4 (Open a list of URLs) and RestoreOnStartupURLs to open the page when Chrome starts');
     }
     if(missing.length > 0) {
       notes.push(`The homepage only opens from the Home button, which is hidden by default: ${missing.join(', and ')}.`);

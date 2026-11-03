@@ -278,6 +278,7 @@ describe('configuration profile generation pipeline', function() {
       ]) {
         let result = await generateWindows(homeButtonShown + startup);
         assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+        assert.match(result.generatedProfile.deliveryNotes, /\bRestoreOnStartup to 4\b/);
         assert.doesNotMatch(result.generatedProfile.deliveryNotes, /ShowHomeButton/);
       }
     });
@@ -300,6 +301,9 @@ describe('configuration profile generation pipeline', function() {
       let modelNote = 'Chrome uses the New Tab page as the homepage unless HomepageIsNewTabPage is disabled.';
       let result = await generateWindows(homepageLocation, modelNote);
       assert.strictEqual(result.generatedProfile.deliveryNotes.split('HomepageIsNewTabPage').length - 1, 1);
+      // The rest still applies.
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+      assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
     });
 
     it('but not when the homepage policy is disabled', async function() {
