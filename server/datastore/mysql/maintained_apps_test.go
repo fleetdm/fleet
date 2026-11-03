@@ -43,6 +43,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp", testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp},
 		{"WindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling", testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling},
 		{"WindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe", testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe},
+		{"WindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode", testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode},
+		{"WindowsFMAUpgradeCodeProgramOutsideVersionSeries", testWindowsFMAUpgradeCodeProgramOutsideVersionSeries},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
 		{"WindowsFMAReconcileMovesTitleReferences", testWindowsFMAReconcileMovesTitleReferences},
@@ -2859,10 +2861,7 @@ func testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe(t *testing.T, ds *D
 		URL: "https://example.test/bitwig-studio.msi", InstallScript: "echo i", UninstallScript: "echo u",
 	})
 	require.NoError(t, err)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = (id = ?) WHERE title_id = ?`, msiInstallerID, canonicalID)
-		return err
-	})
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: canonicalID}, msiInstallerID))
 
 	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, versionedName))
@@ -2874,6 +2873,102 @@ func testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe(t *testing.T, ds *D
 	require.NoError(t, err)
 	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, laterName))
 	require.Equal(t, 1, countTitlesNamed(t, ds, "Bitwig Studio"))
+}
+
+// testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode: a program renamed to an FMA
+// title must land on that title, not on another title with the same name and a different
+// upgrade code. Each wrong title is created after the right one, which places it last
+// among same-named rows.
+func testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	insertTitle := func(name string, upgradeCode *string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, 'programs', '', ?)`,
+				name, upgradeCode)
+			return err
+		})
+	}
+
+	// The FMA title has no upgrade code; the other one has.
+	azulID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+	insertTitle("Azul Zulu JRE", new("{11111111-1111-1111-1111-111111111111}"))
+
+	// The FMA title has an upgrade code; the other one, such as a duplicate left by an
+	// earlier ingestion, has none.
+	const granolaCode = "{22222222-2222-2222-2222-222222222222}"
+	granolaID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Granola", "Granola", "granola/windows", "msi")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`, granolaCode, granolaID)
+		return err
+	})
+	insertTitle("Granola", nil)
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit", Version: "25.0.5.0.3", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs", UpgradeCode: new("")},
+	})
+	require.NoError(t, err)
+
+	titleIDForSoftware := func(name string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE name = ?`, name)
+		})
+		return id
+	}
+	require.Equal(t, azulID, titleIDForSoftware("Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"))
+	require.Equal(t, granolaID, titleIDForSoftware("Granola 7.373.3"))
+}
+
+// testWindowsFMAUpgradeCodeProgramOutsideVersionSeries: "Azul Zulu JRE 25" is one FMA per
+// Java major, but every major's MSI reports "Azul Zulu JRE <major>.…" and prefix-matches
+// its identifier, "Azul Zulu JRE". Only the 25 program joins the title, at ingestion and
+// in the reconcile pass.
+func testWindowsFMAUpgradeCodeProgramOutsideVersionSeries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		jre21      = "Azul Zulu JRE 21.40.17 (21.0.8.0.1), 64-bit"
+		jre25      = "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"
+		laterJRE21 = "Azul Zulu JRE 21.42.19 (21.0.9.0.1), 64-bit"
+		laterJRE25 = "Azul Zulu JRE 25.40.12 (25.0.6.0.1), 64-bit"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: jre21, Version: "21.0.8.0.1", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+		{Name: jre25, Version: "25.0.5.0.3", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE 25", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, "Azul Zulu JRE 25", titleNameForSoftware(t, ds, jre25))
+	require.Equal(t, jre21, titleNameForSoftware(t, ds, jre21))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterJRE21, Version: "21.0.9.0.1", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+		{Name: laterJRE25, Version: "25.0.6.0.1", Source: "programs", UpgradeCode: new("{44444444-4444-4444-4444-444444444444}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Azul Zulu JRE 25", titleNameForSoftware(t, ds, laterJRE25))
+	require.Equal(t, laterJRE21, titleNameForSoftware(t, ds, laterJRE21))
+
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software WHERE name = ?`, laterJRE25)
+	})
+	require.Equal(t, canonicalID, titleID)
 }
 
 // testWindowsFMANoCollapseWithoutInstaller: with no publisher available to scope the

@@ -13276,36 +13276,45 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	}
 }
 
-func TestWindowsFMAPrefixAcceptsUpgradeCode(t *testing.T) {
-	prefixFor := func(titleUpgradeCode string, msi, channelSibling bool) windowsFMAPrefix {
+func TestWindowsFMAPrefixAcceptsProgram(t *testing.T) {
+	prefixFor := func(catalogName, titleUpgradeCode string, msi, channelSibling bool) windowsFMAPrefix {
 		prefixes := windowsFMAPrefixes([]fleet.MaintainedApp{{
-			Name: "Azul Zulu JRE", UniqueIdentifier: "Azul Zulu JRE", Platform: "windows",
+			Name: catalogName, UniqueIdentifier: "Azul Zulu JRE", Platform: "windows",
 			TitleID: new(uint(1)), TitleName: "Azul Zulu JRE",
 			TitleUpgradeCode: titleUpgradeCode, HasMSIInstaller: msi, HasChannelSibling: channelSibling,
 		}})
-		require.Len(t, prefixes, 1)
-		return prefixes[0]
+		require.NotEmpty(t, prefixes)
+		return prefixes[len(prefixes)-1]
 	}
 	const (
 		code      = "{C519F0B9-88B8-4FCD-91FA-A5F673AC4B47}"
 		otherCode = "{D6E1E4B2-1F0A-4C2B-9F3E-8A7B6C5D4E3F}"
+		jre25     = "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"
+		jre21     = "Azul Zulu JRE 21.40.17 (21.0.8.0.1), 64-bit"
 	)
 
-	msiNoCode := prefixFor("", true, false)
-	require.True(t, msiNoCode.acceptsUpgradeCode(""))
-	require.True(t, msiNoCode.acceptsUpgradeCode(code), "nothing else can join an MSI app's program to a title without an upgrade code")
+	msiNoCode := prefixFor("Azul Zulu JRE", "", true, false)
+	require.True(t, msiNoCode.acceptsProgram(jre25, ""))
+	require.True(t, msiNoCode.acceptsProgram(jre25, code), "nothing else can join an MSI app's program to a title without an upgrade code")
 
-	msiWithCode := prefixFor(code, true, false)
-	require.True(t, msiWithCode.acceptsUpgradeCode(""))
-	require.False(t, msiWithCode.acceptsUpgradeCode(otherCode), "a title with an upgrade code is joined through it, not by name")
+	msiWithCode := prefixFor("Azul Zulu JRE", code, true, false)
+	require.True(t, msiWithCode.acceptsProgram(jre25, ""))
+	require.False(t, msiWithCode.acceptsProgram(jre25, otherCode), "a title with an upgrade code is joined through it, not by name")
 
-	exeNoCode := prefixFor("", false, false)
-	require.True(t, exeNoCode.acceptsUpgradeCode(""))
-	require.False(t, exeNoCode.acceptsUpgradeCode(code), "an exe app's program reports no upgrade code, so one that does is another product")
+	exeNoCode := prefixFor("Azul Zulu JRE", "", false, false)
+	require.True(t, exeNoCode.acceptsProgram(jre25, ""))
+	require.False(t, exeNoCode.acceptsProgram(jre25, code), "an exe app's program reports no upgrade code, so one that does is another product")
 
-	msiChannelSibling := prefixFor("", true, true)
-	require.True(t, msiChannelSibling.acceptsUpgradeCode(""))
-	require.False(t, msiChannelSibling.acceptsUpgradeCode(code), "a sibling channel's program reports the same name, so the name can't tell them apart")
+	msiChannelSibling := prefixFor("Azul Zulu JRE", "", true, true)
+	require.True(t, msiChannelSibling.acceptsProgram(jre25, ""))
+	require.False(t, msiChannelSibling.acceptsProgram(jre25, code), "a sibling channel's program reports the same name, so the name can't tell them apart")
+
+	series := prefixFor("Azul Zulu JRE 25", "", true, false)
+	require.Equal(t, "azul zulu jre", series.prefix)
+	require.True(t, series.acceptsProgram(jre25, code))
+	require.False(t, series.acceptsProgram(jre21, code), "another major version is another app")
+	require.False(t, series.acceptsProgram("Azul Zulu JRE 250.1.2", code))
+	require.True(t, series.acceptsProgram(jre21, ""), "the series only narrows the upgrade-code fallback")
 }
 
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {

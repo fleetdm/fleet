@@ -339,7 +339,7 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	var unmatched []string
 	for _, c := range candidates {
 		match, ok := matchWindowsFMATitle(c.Name, allPrefixes)
-		ok = ok && match.acceptsUpgradeCode(c.UpgradeCode)
+		ok = ok && match.acceptsProgram(c.Name, c.UpgradeCode)
 		if !ok || match.titleID == c.ID {
 			if !ok {
 				unmatched = append(unmatched, c.Name)
