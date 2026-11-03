@@ -165,11 +165,11 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/hosts/identifier/:identifier` | [`GET /api/v1/fleet/hosts_identifier/:identifier`](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) |
+| `GET /api/v1/fleet/hosts/identifier/:identifier` | [`GET /api/v1/fleet/hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host). `:id` also accepts a host identifier (`hostname`, `uuid`, or `hardware_serial`). |
 | `GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id` | [`GET /api/v1/fleet/scripts/batch/:batch_execution_id`](https://fleetdm.com/docs/rest-api/rest-api#get-batch-script) |
 | `POST /api/v1/fleet/hosts/:host_id/configuration_profiles/resend/:profile_uuid` | [`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) |
 
-What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
+What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /api/v1/fleet/hosts/:id`. `POST /api/v1/fleet/hosts/identifier/:identifier/query` doesn't change.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
@@ -344,7 +344,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can get a host's `id` from `GET /api/v1/fleet/hosts/identifier/:identifier` | GitOps users get a 403 from [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) |
+| GitOps users can get a host's `id` from `GET /api/v1/fleet/hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier |
 
 What to do: If an integration uses a GitOps user's API token to look up hosts by identifier, switch it to a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) that can view hosts.
 
@@ -388,7 +388,7 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 What to do: If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way. Fleets the module created stay as regular fleets.
 
-Issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
+GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
 ### Manual enrollment profile off by default
 
