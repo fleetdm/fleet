@@ -475,7 +475,7 @@ func validateVPPBatchPayloadPlatform(platform fleet.InstallableDevicePlatform, a
 
 func (svc *Service) getAndroidAppsFromPlayStore(ctx context.Context, enterpriseName string, apps []fleet.VPPAppTeam, teamID *uint) ([]*fleet.VPPApp, error) {
 	var androidApps []*fleet.VPPApp
-	seenWebAppNames := make(map[string]bool)
+	seenWebAppNames := make(map[string]struct{})
 	addedAndroidAdamIDs := make(map[string]struct{})
 	for _, a := range apps {
 		if _, ok := addedAndroidAdamIDs[a.AdamID]; ok {
@@ -493,12 +493,12 @@ func (svc *Service) getAndroidAppsFromPlayStore(ctx context.Context, enterpriseN
 
 		if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
 			lowerTitle := strings.ToLower(androidApp.Title)
-			if seenWebAppNames[lowerTitle] {
+			if _, ok := seenWebAppNames[lowerTitle]; ok {
 				return nil, fleet.ConflictError{
 					Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
 				}
 			}
-			seenWebAppNames[lowerTitle] = true
+			seenWebAppNames[lowerTitle] = struct{}{}
 		}
 
 		androidApps = append(androidApps, &fleet.VPPApp{
@@ -553,9 +553,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 				VersionName: payload.VersionName,
 			})
 			if platform == fleet.AndroidPlatform {
-				androidApps = append(androidApps, fleet.VPPAppTeam{
-					VPPAppID: fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: platform},
-				})
+				androidApps = append(androidApps, fleet.VPPAppTeam{AdamID: payload.AppStoreID, Platform: platform})
 				continue
 			}
 			if payload.Location != "" {
