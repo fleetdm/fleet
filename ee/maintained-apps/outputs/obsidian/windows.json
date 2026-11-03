@@ -3,8 +3,8 @@
     {
       "version": "1.15.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian' AND version_compare(version, '1.15.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE (name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian') AND version_compare(version, '1.15.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'obsidian.exe');"
       },
       "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.0/Obsidian-1.15.0.exe",
