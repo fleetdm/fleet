@@ -4011,10 +4011,11 @@ type Datastore interface {
 	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
 	// added as an installer, populated with just what name matching needs: the catalog
 	// name, unique identifier, platform, the id, name and upgrade code of the software
-	// title the installer owns, and the installer's extension. Used during software
-	// ingestion to collapse versioned program names (e.g. "Granola 7.373.2") onto that
-	// title. See MaintainedApp.WinMatchPrefixes for how a reported name is matched
-	// against them.
+	// title the installer owns, whether any cached installer version is an MSI, and
+	// whether the catalog has another Windows release channel of the app. Used during
+	// software ingestion to collapse versioned program names (e.g. "Granola 7.373.2")
+	// onto that title. See MaintainedApp.WinMatchPrefixes for how a reported name is
+	// matched against them.
 	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////

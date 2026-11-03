@@ -30,11 +30,14 @@ type MaintainedApp struct {
 	// only renames when an upgrade code is present). Windows software ingestion merges
 	// onto TitleID, and this is that title's name.
 	TitleName string `json:"-" db:"title_name"`
-	// TitleUpgradeCode and InstallerExtension describe the title TitleID names and the
-	// installer that owns it. Windows name matching uses them to decide whether a program
-	// reporting an upgrade code may join the title by name.
-	TitleUpgradeCode   string `json:"-" db:"title_upgrade_code"`
-	InstallerExtension string `json:"-" db:"installer_extension"`
+	// TitleUpgradeCode is the upgrade code of the title TitleID names, HasMSIInstaller
+	// whether any cached version of its installer is an MSI, and HasChannelSibling
+	// whether the catalog has another Windows release channel of this app (QGIS and
+	// QGIS LTR). Windows name matching uses them to decide whether a program reporting
+	// an upgrade code may join the title by name.
+	TitleUpgradeCode  string `json:"-" db:"title_upgrade_code"`
+	HasMSIInstaller   bool   `json:"-" db:"has_msi_installer"`
+	HasChannelSibling bool   `json:"-" db:"has_channel_sibling"`
 }
 
 // WinMatchPrefixes returns the candidate program-name prefixes for matching a reported

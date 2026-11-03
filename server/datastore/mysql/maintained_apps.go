@@ -718,16 +718,30 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	//
 	// platform is selected even though it is also filtered on, because WinMatchPrefixes
 	// checks it and would otherwise return nothing for every row.
+	//
+	// has_msi_installer considers every cached version, active or not: a host may still
+	// run a version installed from an earlier installer.
+	//
+	// has_channel_sibling looks at the whole catalog, not just added apps, since a
+	// sibling's programs reach hosts whether or not Fleet installed them. Channels share
+	// a slug base: "qgis/windows" and "qgis@ltr/windows".
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
 			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name,
-			COALESCE(MIN(st.upgrade_code), '') AS title_upgrade_code, MIN(si.extension) AS installer_extension
+			COALESCE(MIN(st.upgrade_code), '') AS title_upgrade_code,
+			MAX(si.extension = 'msi') AS has_msi_installer,
+			EXISTS (
+				SELECT 1 FROM fleet_maintained_apps sib
+				WHERE sib.platform = 'windows' AND sib.id != fma.id
+					AND SUBSTRING_INDEX(SUBSTRING_INDEX(sib.slug, '/', 1), '@', 1) =
+						SUBSTRING_INDEX(SUBSTRING_INDEX(fma.slug, '/', 1), '@', 1)
+			) AS has_channel_sibling
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
 		JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
-		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform
+		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform, fma.slug
 		HAVING COUNT(DISTINCT si.title_id) = 1`
 
 	var apps []fleet.MaintainedApp

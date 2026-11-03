@@ -41,6 +41,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMatchWithUpgradeCodeWhenTitleHasNone", testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone},
 		{"WindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone", testWindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone},
 		{"WindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp", testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp},
+		{"WindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling", testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling},
+		{"WindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe", testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
 		{"WindowsFMAReconcileMovesTitleReferences", testWindowsFMAReconcileMovesTitleReferences},
@@ -1708,7 +1710,8 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	granola, ok := byName["Granola"]
 	require.True(t, ok)
 	require.Empty(t, granola.TitleUpgradeCode)
-	require.Equal(t, "exe", granola.InstallerExtension)
+	require.False(t, granola.HasMSIInstaller)
+	require.False(t, granola.HasChannelSibling)
 
 	// All name fields are offered as match candidates, longest first.
 	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].WinMatchPrefixes())
@@ -2660,7 +2663,7 @@ func testWindowsFMANotRenamedWithUpgradeCode(t *testing.T, ds *Datastore) {
 // testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone: an MSI FMA whose manifest carries
 // no upgrade code owns a title without one, so the name match is the only link to the
 // installed program. Every version lands on that title, including one reporting a
-// different upgrade code (QGIS mints one per build).
+// different upgrade code (some apps mint one per build).
 func testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2786,6 +2789,91 @@ func testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp(t *testing.T, ds *Dat
 	})
 	require.NoError(t, err)
 	require.Equal(t, addIn+" 2", titleNameForSoftware(t, ds, addIn+" 2"))
+}
+
+// testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling: QGIS LTR's MSI reports
+// "QGIS <version>", which prefix-matches the regular QGIS app, so with only regular QGIS
+// added the LTR program must keep its own title, at ingestion and in the reconcile pass.
+func testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		ltrName      = "QGIS 3.44.14 'Solothurn'"
+		laterLTRName = "QGIS 3.44.15 'Solothurn'"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: ltrName, Version: "3.44.14", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+	})
+	require.NoError(t, err)
+
+	// QGIS LTR is in the catalog but not added.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "QGIS LTR", Slug: "qgis@ltr/windows", Platform: "windows", UniqueIdentifier: "QGIS LTR",
+	})
+	require.NoError(t, err)
+	addWindowsFMAWithInstallerExtension(t, ds, user.ID, "QGIS", "QGIS", "qgis/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, ltrName, titleNameForSoftware(t, ds, ltrName))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterLTRName, Version: "3.44.15", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, laterLTRName, titleNameForSoftware(t, ds, laterLTRName))
+}
+
+// testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe: an app that moved from an exe
+// to an MSI installer can keep the exe as an inactive cached version. The active MSI
+// still makes its programs eligible, at ingestion and in the reconcile pass.
+func testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		versionedName = "Bitwig Studio 5.3.2"
+		laterName     = "Bitwig Studio 5.3.3"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: versionedName, Version: "5.3.2", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Bitwig Studio", "Bitwig Studio", "bitwig-studio/windows", "exe")
+	var exeInstallerID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &exeInstallerID, `SELECT id FROM software_installers WHERE title_id = ?`, canonicalID)
+	})
+	msiInstallerID, err := ds.InsertFleetMaintainedAppVersion(ctx, exeInstallerID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0.0", Filename: "bitwig-studio.msi", Extension: "msi", StorageID: "storageid-bitwig-studio-msi",
+		URL: "https://example.test/bitwig-studio.msi", InstallScript: "echo i", UninstallScript: "echo u",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = (id = ?) WHERE title_id = ?`, msiInstallerID, canonicalID)
+		return err
+	})
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, versionedName))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterName, Version: "5.3.3", Source: "programs", UpgradeCode: new("{44444444-4444-4444-4444-444444444444}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, laterName))
+	require.Equal(t, 1, countTitlesNamed(t, ds, "Bitwig Studio"))
 }
 
 // testWindowsFMANoCollapseWithoutInstaller: with no publisher available to scope the

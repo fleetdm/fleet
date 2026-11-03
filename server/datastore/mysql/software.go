@@ -1311,6 +1311,7 @@ type windowsFMAPrefix struct {
 	titleID          uint
 	titleUpgradeCode string
 	msiInstaller     bool
+	channelSibling   bool
 }
 
 // acceptsUpgradeCode reports whether a program reporting upgradeCode may join this
@@ -1320,8 +1321,12 @@ type windowsFMAPrefix struct {
 // program reports an upgrade code, and the title has none to join through because the
 // FMA manifest carries none. Requiring the MSI keeps an unrelated MSI product that
 // shares a prefix, such as an add-in named after an exe-installed app, off its title.
+//
+// An app with a release-channel sibling is excluded: both channels' MSIs report the
+// same name and differ only by version ("QGIS 3.44.15" is QGIS LTR, yet prefix-matches
+// QGIS), which a name match can't see.
 func (p windowsFMAPrefix) acceptsUpgradeCode(upgradeCode string) bool {
-	return upgradeCode == "" || (p.titleUpgradeCode == "" && p.msiInstaller)
+	return upgradeCode == "" || (p.titleUpgradeCode == "" && p.msiInstaller && !p.channelSibling)
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
@@ -1338,7 +1343,8 @@ func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 				titleName:        f.TitleName,
 				titleID:          *f.TitleID,
 				titleUpgradeCode: f.TitleUpgradeCode,
-				msiInstaller:     f.InstallerExtension == "msi",
+				msiInstaller:     f.HasMSIInstaller,
+				channelSibling:   f.HasChannelSibling,
 			})
 		}
 	}

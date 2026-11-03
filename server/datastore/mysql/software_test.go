@@ -13277,11 +13277,11 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 }
 
 func TestWindowsFMAPrefixAcceptsUpgradeCode(t *testing.T) {
-	prefixFor := func(titleUpgradeCode, installerExtension string) windowsFMAPrefix {
+	prefixFor := func(titleUpgradeCode string, msi, channelSibling bool) windowsFMAPrefix {
 		prefixes := windowsFMAPrefixes([]fleet.MaintainedApp{{
 			Name: "Azul Zulu JRE", UniqueIdentifier: "Azul Zulu JRE", Platform: "windows",
 			TitleID: new(uint(1)), TitleName: "Azul Zulu JRE",
-			TitleUpgradeCode: titleUpgradeCode, InstallerExtension: installerExtension,
+			TitleUpgradeCode: titleUpgradeCode, HasMSIInstaller: msi, HasChannelSibling: channelSibling,
 		}})
 		require.Len(t, prefixes, 1)
 		return prefixes[0]
@@ -13291,17 +13291,21 @@ func TestWindowsFMAPrefixAcceptsUpgradeCode(t *testing.T) {
 		otherCode = "{D6E1E4B2-1F0A-4C2B-9F3E-8A7B6C5D4E3F}"
 	)
 
-	msiNoCode := prefixFor("", "msi")
+	msiNoCode := prefixFor("", true, false)
 	require.True(t, msiNoCode.acceptsUpgradeCode(""))
 	require.True(t, msiNoCode.acceptsUpgradeCode(code), "nothing else can join an MSI app's program to a title without an upgrade code")
 
-	msiWithCode := prefixFor(code, "msi")
+	msiWithCode := prefixFor(code, true, false)
 	require.True(t, msiWithCode.acceptsUpgradeCode(""))
 	require.False(t, msiWithCode.acceptsUpgradeCode(otherCode), "a title with an upgrade code is joined through it, not by name")
 
-	exeNoCode := prefixFor("", "exe")
+	exeNoCode := prefixFor("", false, false)
 	require.True(t, exeNoCode.acceptsUpgradeCode(""))
 	require.False(t, exeNoCode.acceptsUpgradeCode(code), "an exe app's program reports no upgrade code, so one that does is another product")
+
+	msiChannelSibling := prefixFor("", true, true)
+	require.True(t, msiChannelSibling.acceptsUpgradeCode(""))
+	require.False(t, msiChannelSibling.acceptsUpgradeCode(code), "a sibling channel's program reports the same name, so the name can't tell them apart")
 }
 
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
