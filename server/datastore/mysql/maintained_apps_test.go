@@ -45,6 +45,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe", testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe},
 		{"WindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode", testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode},
 		{"WindowsFMAUpgradeCodeProgramOutsideVersionSeries", testWindowsFMAUpgradeCodeProgramOutsideVersionSeries},
+		{"WindowsFMAIngestWithStaleTitleUpgradeCode", testWindowsFMAIngestWithStaleTitleUpgradeCode},
+		{"WindowsFMAMergeRollsBackWhenTitleGainsOwner", testWindowsFMAMergeRollsBackWhenTitleGainsOwner},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
 		{"WindowsFMAReconcileMovesTitleReferences", testWindowsFMAReconcileMovesTitleReferences},
@@ -2969,6 +2971,96 @@ func testWindowsFMAUpgradeCodeProgramOutsideVersionSeries(t *testing.T, ds *Data
 		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software WHERE name = ?`, laterJRE25)
 	})
 	require.Equal(t, canonicalID, titleID)
+}
+
+// testWindowsFMAIngestWithStaleTitleUpgradeCode: ingestion matches against a cached FMA
+// set, so a title whose upgrade code changed within the TTL is matched with its old one.
+// The program must still land on the FMA title, not on a row its insert creates under
+// the old code.
+func testWindowsFMAIngestWithStaleTitleUpgradeCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	setUpgradeCode := func(titleID uint, code string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`, code, titleID)
+			return err
+		})
+	}
+
+	bitwigID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Bitwig Studio", "Bitwig Studio", "bitwig-studio/windows", "msi")
+	granolaID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Granola", "Granola", "granola/windows", "msi")
+	setUpgradeCode(granolaID, "{11111111-1111-1111-1111-111111111111}")
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err := ds.getWindowsFMAMatchesCached(ctx)
+	require.NoError(t, err)
+
+	// Within the TTL, one title gains an upgrade code and the other changes it.
+	setUpgradeCode(bitwigID, "{22222222-2222-2222-2222-222222222222}")
+	setUpgradeCode(granolaID, "{33333333-3333-3333-3333-333333333333}")
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Bitwig Studio 5.3.3", Version: "5.3.3", Source: "programs", UpgradeCode: new("")},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs", UpgradeCode: new("")},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, bitwigID, titleIDForSoftware(t, ds, "Bitwig Studio 5.3.3"))
+	require.Equal(t, granolaID, titleIDForSoftware(t, ds, "Granola 7.373.3"))
+}
+
+// testWindowsFMAMergeRollsBackWhenTitleGainsOwner: the scan that picks stale titles
+// doesn't lock them, so one can gain an installer before the merge runs. The guarded
+// delete then keeps that title, and the merge must roll back rather than move its
+// software away from it.
+func testWindowsFMAMergeRollsBackWhenTitleGainsOwner(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so versioned titles exist for the installer to merge.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs"},
+	})
+	require.NoError(t, err)
+	ownedID := titleIDForTitleNamed(t, ds, "Granola 7.373.2")
+	otherID := titleIDForTitleNamed(t, ds, "Granola 7.373.3")
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	fmaMatches, err := ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	stale, err := ds.staleWindowsTitlesByDestination(ctx, fmaMatches, windowsFMAPrefixes(fmaMatches))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{ownedID, otherID}, stale[canonicalID])
+
+	// A custom package attaches to one of them after the scan.
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "Granola 7.373.2",
+		Source:          "programs",
+		StorageID:       "storageid-granola-custom",
+		Filename:        "granola.exe",
+		Extension:       "exe",
+		Platform:        "windows",
+		Version:         "7.373.2",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, ownedID, titleID)
+
+	require.NoError(t, ds.mergeWindowsFMATitle(ctx, canonicalID, stale[canonicalID]))
+	require.Equal(t, ownedID, titleIDForSoftware(t, ds, "Granola 7.373.2"), "the merge should roll back")
+	require.Equal(t, otherID, titleIDForSoftware(t, ds, "Granola 7.373.3"), "the merge should roll back")
+
+	// The next pass leaves the owned title out and merges the other.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, ownedID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
+	require.Equal(t, canonicalID, titleIDForSoftware(t, ds, "Granola 7.373.3"))
 }
 
 // testWindowsFMANoCollapseWithoutInstaller: with no publisher available to scope the

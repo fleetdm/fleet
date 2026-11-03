@@ -358,6 +358,9 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	return staleByDestination, nil
 }
 
+// errStaleWindowsTitleKept rolls back a merge whose guarded delete kept a stale title.
+var errStaleWindowsTitleKept = errors.New("stale windows software title was not deleted")
+
 // mergeWindowsFMATitle moves every reference to staleIDs onto destinationID and deletes
 // the emptied titles, in one transaction so a title is never deleted before its
 // references have moved. One transaction per destination keeps the locks short; the
@@ -416,6 +419,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		// choosing it and deleting it. Those links are ON DELETE SET NULL, so deleting
 		// such a title would leave the new owner pointing at nothing. Repeating the
 		// checks here keeps that invariant on the statement that would do the damage.
+		// A title it keeps must keep its references too, so the whole merge rolls back.
 		titlesStmt, titlesArgs, err := sqlx.In(`
 			DELETE FROM software_titles
 			WHERE id IN (?)
@@ -426,12 +430,30 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
 		}
-		if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+		res, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete stale windows titles")
+		}
+		deleted, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count deleted stale windows titles")
+		}
+		if deleted != int64(len(staleIDs)) {
+			return errStaleWindowsTitleKept
 		}
 
 		return nil
 	}); err != nil {
+		if errors.Is(err, errStaleWindowsTitleKept) {
+			// The next pass rescans, and leaves out any title that now has an owner.
+			if ds.logger != nil {
+				ds.logger.InfoContext(ctx, "skipped merging Windows software titles, one gained an owner during the merge",
+					"destination_title_id", destinationID,
+					"stale_title_ids", staleIDs,
+				)
+			}
+			return nil
+		}
 		return err
 	}
 

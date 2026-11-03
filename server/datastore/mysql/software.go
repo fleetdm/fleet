@@ -1321,10 +1321,10 @@ type windowsFMAPrefix struct {
 // matched this prefix, may join the title by name. A program with an upgrade code
 // normally joins through it instead (software_titles.unique_identifier resolves to
 // upgrade_code ahead of name), so it is accepted only when nothing else can link it:
-// the app installs from an MSI, whose program reports an upgrade code, and the title
-// has none to join through because the FMA manifest carries none. Requiring the MSI
-// keeps an unrelated MSI product that shares a prefix, such as an add-in named after an
-// exe-installed app, off its title.
+// a cached version of the app's installer is an MSI, whose program reports an upgrade
+// code, and the title has none to join through because the FMA manifest carries none.
+// Requiring an MSI keeps an unrelated MSI product that shares a prefix, such as an
+// add-in named after an app that has never shipped an MSI, off its title.
 //
 // Other versions of the product report the same name, so two more cases are excluded.
 // An app with a release-channel sibling: "QGIS 3.44.15" is QGIS LTR, yet prefix-matches
@@ -1525,10 +1525,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		// Compute which software titles need to be created.
 		// This is done outside the transaction because the computation is pure (no DB access).
 		newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
-		// The upgrade code of the FMA title each renamed program belongs on. The name
-		// lookup below also returns any other title with that name, which can only differ
-		// from it by upgrade code.
-		fmaTitleUpgradeCodes := make(map[string]string)
+		// The FMA title each renamed program belongs on. The name lookup below also
+		// returns any other title with that name, which can only differ from it by
+		// upgrade code.
+		fmaTitleMatches := make(map[string]windowsFMAPrefix)
 		for checksum, sw := range batchSoftware {
 			if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
 				// there is not an existing software title corresponding to this incoming software version
@@ -1558,7 +1558,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok && match.acceptsProgram(sw.Name, ptr.ValOrZero(sw.UpgradeCode)) {
 						newTitleName = match.titleName
 						newTitleUpgradeCode = new(match.titleUpgradeCode)
-						fmaTitleUpgradeCodes[checksum] = match.titleUpgradeCode
+						fmaTitleMatches[checksum] = match
 					}
 				}
 
@@ -1690,7 +1690,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						titleSummaryUpgradeCode = *titleSummary.UpgradeCode
 					}
 					for checksum, title := range newTitlesNeeded {
-						if code, ok := fmaTitleUpgradeCodes[checksum]; ok && titleSummaryUpgradeCode != code {
+						if match, ok := fmaTitleMatches[checksum]; ok && titleSummaryUpgradeCode != match.titleUpgradeCode {
 							continue
 						}
 						var titleBundleID string
@@ -1724,6 +1724,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
+						}
+					}
+				}
+
+				// The upgrade code a renamed program carried comes from the cached match. If
+				// the FMA title's code has changed since, the insert made a separate row under
+				// the old code, and the reconcile pass won't merge one that has a code. So a
+				// renamed program maps to the FMA title itself whenever the lookup returned it.
+				if len(fmaTitleMatches) > 0 {
+					retrievedIDs := make(map[uint]struct{}, len(retrievedTitleSummaries))
+					for _, titleSummary := range retrievedTitleSummaries {
+						retrievedIDs[titleSummary.ID] = struct{}{}
+					}
+					for checksum, match := range fmaTitleMatches {
+						if _, ok := retrievedIDs[match.titleID]; ok {
+							titleIDsByChecksum[checksum] = match.titleID
 						}
 					}
 				}
