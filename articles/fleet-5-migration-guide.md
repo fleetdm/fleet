@@ -219,7 +219,7 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.enable_windows_mdm` |
 | `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.enable_windows_mdm_migration` |
 
-What to do: Search for these keys and rename them. The old names still work in Fleet 5, but they're deprecated.
+What to do: Search for these keys and rename them.
 
 Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -433,7 +433,7 @@ Issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | `controls.windows_enabled_and_configured` | `controls.enable_windows_mdm` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 | `controls.windows_migration_enabled` | `controls.enable_windows_mdm_migration` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 
-What to do: Rename these keys. The old names still work in Fleet 5, but they're deprecated.
+What to do: Rename these keys.
 
 Issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
