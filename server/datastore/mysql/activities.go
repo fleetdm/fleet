@@ -251,7 +251,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install',
-				'host_platform', h.platform
+				'host_platform', h.platform,
+				'vpp_token', IF(vt.id IS NULL, NULL, JSON_OBJECT(
+					'id', vt.id,
+					'location', vt.location,
+					'country_code', COALESCE(vt.country_code, '')
+				))
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -260,6 +265,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			upcoming_activities ua
 		INNER JOIN
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		LEFT JOIN
+			vpp_tokens vt ON vt.id = vaua.vpp_token_id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN
@@ -1632,7 +1639,7 @@ SELECT
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	-- Activities queued before the payload carried this key fall back to the
 	-- policy flags so an in-flight patch install keeps its app-open gate.
-	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching, 0),
+	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching OR p.patch_deadline, 0),
 	-- Compute the attempt number for this activation. Each retry creates a
 	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
 	-- new activity activates, COUNT(*) of previous completed attempts gives
@@ -1768,7 +1775,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id)
+	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id, vpp_token_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1778,7 +1785,8 @@ SELECT
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
 	vaua.policy_id,
-	vaua.vpp_app_team_id
+	vaua.vpp_app_team_id,
+	vaua.vpp_token_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua

@@ -17,7 +17,7 @@ describe("formatSoftwareType", () => {
         source: "jetbrains_plugins",
         extension_for: "intellij_idea",
       })
-    ).toBe("IntelliJ IDEA extension");
+    ).toBe("IDE extension (IntelliJ IDEA)");
   });
 
   it("falls back to a generic label when extension_for is empty", () => {
@@ -41,7 +41,7 @@ describe("formatSoftwareType", () => {
         source: "apps",
         extension_for: "chrome",
       })
-    ).toBe("macOS app");
+    ).toBe("App (macOS)");
   });
 
   it("names unknown browsers and IDEs after their extension_for value", () => {
@@ -50,11 +50,11 @@ describe("formatSoftwareType", () => {
         source: "chrome_extensions",
         extension_for: "arc" as SoftwareExtensionFor,
       })
-    ).toBe("arc extension");
+    ).toBe("Browser extension (arc)");
   });
 
   it("keeps labels for legacy sources", () => {
-    expect(formatSoftwareType({ source: "apt_sources" })).toBe("APT package");
+    expect(formatSoftwareType({ source: "apt_sources" })).toBe("Package (APT)");
   });
 
   it("returns Unknown for unknown sources", () => {
@@ -87,25 +87,18 @@ describe("getSoftwareTypesForPlatform", () => {
     }
   );
 
-  // A case-sensitive sort would push "deb package", "macOS app" and
-  // "npm package" below every capitalized name, and "Adobe plugin" below
-  // "AI CLI tool".
+  // A case-sensitive sort would push "Package (deb)" and "Package (npm)" below
+  // every capitalized package name.
   it("sorts types case-insensitively by display name", () => {
     const names = (platform: string) =>
       getSoftwareTypesForPlatform(platform, { premium: true }).map(
         (t) => t.displayName
       );
-    expect(names("ubuntu").indexOf("deb package")).toBeLessThan(
-      names("ubuntu").indexOf("Edge extension")
+    expect(names("ubuntu").indexOf("Package (deb)")).toBeLessThan(
+      names("ubuntu").indexOf("Package (RPM)")
     );
-    expect(names("darwin").indexOf("macOS app")).toBeLessThan(
-      names("darwin").indexOf("Opera extension")
-    );
-    expect(names("darwin").indexOf("npm package")).toBeLessThan(
-      names("darwin").indexOf("Opera extension")
-    );
-    expect(names("darwin").indexOf("Adobe plugin")).toBeLessThan(
-      names("darwin").indexOf("AI CLI tool")
+    expect(names("darwin").indexOf("Package (npm)")).toBeLessThan(
+      names("darwin").indexOf("Package (Python)")
     );
   });
 

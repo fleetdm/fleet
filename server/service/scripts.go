@@ -1017,7 +1017,11 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	// Get the batch activity.
 	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
 	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
+		if !fleet.IsNotFound(err) {
+			svc.authz.SkipAuthorization(ctx)
+		} else if authErr := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); authErr != nil {
+			return nil, nil, 0, authErr
+		}
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting batch activity")
 	}
 	if batchActivity.ScriptID == nil {

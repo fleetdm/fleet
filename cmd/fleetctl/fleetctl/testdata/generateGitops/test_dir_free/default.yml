@@ -30,6 +30,7 @@ controls:
       - Label C
       name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
+  enable_profile_validation: true
   windows_enabled_and_configured: true
   windows_settings:
     configuration_profiles:
@@ -194,6 +195,7 @@ org_settings:
     discard_reports_data: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_disabled: false
     report_cap: 1
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com

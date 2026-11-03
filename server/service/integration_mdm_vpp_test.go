@@ -16,12 +16,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"google.golang.org/api/androidmanagement/v1"
 
@@ -31,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -229,6 +230,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	}
 
 	actual := assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}]
+	require.NotNil(t, meta.VPPTokenID)
 	// Only macOS version should be self-service
 	assert.Equal(t, fleet.VPPAppTeam{
 		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform,
@@ -236,6 +238,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	require.GreaterOrEqual(t, actual.AddedAt, beforeAssociation)
@@ -267,6 +270,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IOSPlatform, &tmGood.ID)
@@ -277,6 +281,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IPadOSPlatform, &tmGood.ID)
@@ -287,6 +292,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.MacOSPlatform, &tmGood.ID)
@@ -297,6 +303,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 
@@ -466,6 +473,31 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.runWorker()
 	time.Sleep(time.Second)
 
+	// sorted packages of the app list last sent to each host's policy, by host UUID
+	sentAppLists := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.ExcludeApps {
+			packages := make([]string, 0, len(policy.Applications))
+			for _, app := range policy.Applications {
+				packages = append(packages, app.PackageName)
+			}
+			slices.Sort(packages)
+			sentAppLists[policyName[strings.LastIndex(policyName, "/")+1:]] = packages
+		}
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// set the device's applied policy to its own policy, so the app reconciler sends to it
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE enterprise_specific_id = ?`,
+			enterpriseSpecificID1)
+		return err
+	})
+
+	// run the Android profile schedule to send the host's first app list, then clear it
+	s.awaitTriggerAndroidProfileSchedule(t)
+	clear(sentAppLists)
+
 	chromeAppID := "com.google.chrome"
 	driveAppID := "com.google.drive"
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -487,32 +519,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
-
-	checkJobs := func(expectedAppIDs []string) {
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			w := &worker.SoftwareWorker{}
-			var j fleet.Job
-
-			err := sqlx.GetContext(ctx, q, &j, "SELECT * FROM jobs WHERE name = ? ORDER BY updated_at DESC LIMIT 1", w.Name())
-			s.Require().NoError(err)
-
-			var args map[string]any
-			s.Require().NoError(json.Unmarshal(*j.Args, &args))
-			s.Equal("bulk_set_android_apps_available_for_host", args["task"])
-			s.Equal(fleet.JobStateSuccess, j.State)
-			s.ElementsMatch(expectedAppIDs, args["application_ids"])
-
-			return nil
-		})
-	}
-
-	// Run worker to set apps available to device
-	time.Sleep(time.Second)
-	s.runWorker()
-	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
-	checkJobs([]string{chromeAppID, driveAppID})
+	// run the Android profile schedule, the host should get both apps
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", chromeAppID, driveAppID}}, sentAppLists)
+	clear(sentAppLists)
 
 	// Remove an app
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -532,10 +542,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	time.Sleep(time.Second)
-	s.runWorker()
-	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-	checkJobs([]string{driveAppID})
+	// run the Android profile schedule, the host should get an app list without Chrome
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", driveAppID}}, sentAppLists)
+	clear(sentAppLists)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
@@ -581,10 +591,9 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			assert.Contains(t, displayNameToAppStoreID, key(a))
 		}
 
-		time.Sleep(time.Second)
-		s.runWorker()
-		s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-		checkJobs([]string{driveAppID})
+		// run the Android profile schedule, the host's Android apps are unchanged, so it should get no request
+		s.awaitTriggerAndroidProfileSchedule(t)
+		require.Empty(t, sentAppLists)
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
@@ -753,8 +762,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, titleID, addAppResp.TitleID, "addAppResp should contain the correct software title ID")
 		activityData := `{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name, team.Name,
-				includeAnyApp.Name, titleID, includeAnyApp.AdamID, team.ID, team.ID, includeAnyApp.Platform, l1.ID, l1.Name), 0)
+			withVPPToken(t, fmt.Sprintf(activityData, team.Name, team.Name,
+				includeAnyApp.Name, titleID, includeAnyApp.AdamID, team.ID, team.ID, includeAnyApp.Platform, l1.ID, l1.Name), validToken.Token), 0)
 
 		var getSWTitle getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
@@ -784,8 +793,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		titleID = getSoftwareTitleIDFromApp(&excludeAnyApp)
 		activityData = `{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name, team.Name,
-				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+			withVPPToken(t, fmt.Sprintf(activityData, team.Name, team.Name,
+				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), validToken.Token), 0)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
@@ -851,8 +860,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		activityData = `{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "fleet_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
 		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name, team.Name,
-				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+			withVPPToken(t, fmt.Sprintf(activityData, team.Name, team.Name,
+				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), validToken.Token), 0)
 
 		// double check that our updates worked
 		getSWTitle = getSoftwareTitleResponse{}
@@ -1112,8 +1121,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
-			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
+			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), validToken.Token), 0)
 
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
@@ -1182,8 +1191,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform},
 		http.StatusOK, &addAppResp)
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), validToken.Token), 0)
 
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
@@ -1279,8 +1288,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusOK, &addAppResp)
 	s.lastActivityMatches(
 		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
-			appSelfService.Name, getSoftwareTitleIDFromApp(appSelfService), appSelfService.AdamID, team.ID, team.ID, appSelfService.Platform),
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
+			appSelfService.Name, getSoftwareTitleIDFromApp(appSelfService), appSelfService.AdamID, team.ID, team.ID, appSelfService.Platform), validToken.Token),
 		0,
 	)
 	listSw = listSoftwareTitlesResponse{}
@@ -1294,8 +1303,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform),
+			withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform), validToken.Token),
 			0,
 		)
 		listSw = listSoftwareTitlesResponse{}
@@ -1337,7 +1346,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusUnprocessableEntity, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusNotFound, &resPatchVPP)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
@@ -1415,7 +1424,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -1424,7 +1433,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			failedCmdUUID,
 			fleet.SoftwareInstallFailed,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		0,
 	)
 
@@ -1501,7 +1510,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -1510,7 +1519,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			failedCmdUUID,
 			fleet.SoftwareInstallFailed,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		0,
 	)
 
@@ -1577,7 +1586,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -1586,7 +1595,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			installCmdUUID,
 			fleet.SoftwareInstalled,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		0,
 	)
 
@@ -1778,7 +1787,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.EqualValues(t, 1, hostActivitiesResp.Count)
 			require.JSONEq(
 				t,
-				fmt.Sprintf(
+				withVPPToken(t, fmt.Sprintf(
 					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
@@ -1788,7 +1797,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					fleet.SoftwareInstallPending,
 					install.deviceToken != "",
 					installHost.Platform,
-				),
+				), validToken.Token),
 				string(*hostActivitiesResp.Activities[0].Details),
 			)
 
@@ -1836,7 +1845,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-				fmt.Sprintf(
+				withVPPToken(t, fmt.Sprintf(
 					`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 					installHost.ID,
 					installHost.DisplayName(),
@@ -1846,7 +1855,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					fleet.SoftwareInstalled,
 					install.deviceToken != "",
 					installHost.Platform,
-				),
+				), validToken.Token),
 				0,
 			)
 

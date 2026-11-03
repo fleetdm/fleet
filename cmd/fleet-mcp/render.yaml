@@ -3,8 +3,19 @@ services:
     name: fleet-mcp
     runtime: go
     plan: standard
-    rootDir: cmd/fleet-mcp
-    buildCommand: go build -o fleet-mcp .
+    # No rootDir: fleet-mcp builds from the root module (it embeds
+    # /schema/osquery_fleet_schema.json), and Render hides files outside
+    # rootDir. buildFilter keeps unrelated monorepo pushes from redeploying.
+    buildFilter:
+      paths:
+        - cmd/fleet-mcp/**
+        - server/fleetmcp/**
+        - pkg/fleethttp/**
+        - schema/osquery_fleet_schema.json
+        - schema/schema.go
+        - go.mod
+        - go.sum
+    buildCommand: go build -o fleet-mcp ./cmd/fleet-mcp
     startCommand: ./fleet-mcp
     healthCheckPath: /healthz
     envVars:

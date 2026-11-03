@@ -953,6 +953,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		// about them.
 		if policy != nil && *policy == host.UUID {
 			svc.verifyDevicePolicy(ctx, host.UUID, device)
+			err = svc.fleetDS.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, device.AppliedPolicyVersion)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to verify android software installs", "host_uuid", host.UUID, "err", err)
+			}
 		}
 		svc.verifyDeviceSoftware(ctx, host.Host, device, fromEnroll)
 	} else if fromEnroll {
@@ -1058,7 +1062,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.UUID, host.Device.AppliedPolicyID)
+		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.ID, host.Host.UUID, host.Device.AppliedPolicyID)
 
 		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 			host.Host.UUID, host.Host.TeamID, enterprise.Name())
@@ -1076,13 +1080,21 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 // previous enrollment, and the profile reconciler may move the device to it before the setup
 // experience replaces them. On failure the setup experience still replaces them before it
 // moves the device, so this only logs.
-func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName, hostUUID string, appliedPolicyID *string) {
+func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName string, hostID uint, hostUUID string, appliedPolicyID *string) {
 	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
 		return
 	}
 	// Don't hold the Pub/Sub push on quota errors, this is best-effort.
-	if err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+	_, err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID})
+	if err != nil {
 		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
+		return
+	}
+	// Delete the host's install rows too, because the policy no longer has those apps. Otherwise, if the Android
+	// app reconciler checks the host before setup experience runs, it would see the apps as sent and send nothing.
+	err = svc.fleetDS.ReplaceHostAndroidSoftwareInstalls(ctx, hostID, nil)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to delete the android software installs of the previous enrollment", "host_uuid", hostUUID, "err", err)
 	}
 }
 
@@ -1402,7 +1414,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.UUID, host.Device.AppliedPolicyID)
+	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.ID, fleetHost.Host.UUID, host.Device.AppliedPolicyID)
 
 	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())
@@ -1511,8 +1523,12 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	svc.logger.DebugContext(ctx, "pending install profiles for verification", "host_uuid", hostUUID,
 		"pending_count", len(pendingInstallProfiles), "applied_policy_version", appliedPolicyVersion)
 
-	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
-	if len(device.NonComplianceDetails) == 0 {
+	switch {
+	case len(pendingInstallProfiles) == 0:
+		// Nothing to verify. Non-compliance can still be reported for settings that are not
+		// profiles, such as apps added by certificate delivery or app installs.
+	case len(device.NonComplianceDetails) == 0:
+		// If nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
@@ -1537,7 +1553,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			svc.logger.ErrorContext(ctx, "error verifying pending install profiles", "err", err)
 		}
 
-	} else {
+	default:
 		// Find the policy request UUID from the most recent profile PATCH
 		// that the device has applied. We use <= instead of == because
 		// non-profile PATCHes (e.g. cert delivery, app installs) can bump
@@ -1569,6 +1585,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				"pending_profiles", len(pendingInstallProfiles),
 				"nil_policy_request_uuid", nilPolicyReqCount, "nil_included_in_policy_version", nilVersionCount,
 				"non_compliance_count", len(device.NonComplianceDetails))
+			break
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.

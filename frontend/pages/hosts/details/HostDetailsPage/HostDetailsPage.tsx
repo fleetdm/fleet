@@ -1135,6 +1135,7 @@ const HostDetailsPage = ({
             actorFullName: actor_full_name,
             fleetInitiated: fleet_initiated,
             selfService: details?.self_service,
+            vppTokenLocation: details?.vpp_token?.location,
           });
           break;
         case "installed_certificate":
@@ -1875,6 +1876,7 @@ const HostDetailsPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
+                  showPatchDeadline
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
                   toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}

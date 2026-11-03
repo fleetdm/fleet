@@ -1,6 +1,6 @@
 cask "druva-insync" do
-  version "8.1.4,110973"
-  sha256 "c705eeea0ceb7b3022fed577da7dc4725751dd3c383efbb3850e049b5abc137a"
+  version "8.1.8,110997"
+  sha256 "331ee50a9bd81fe4ece58c567bb08ca646720531cf030173ee59447ba0ad276c"
 
   url "https://downloads.druva.com/downloads/inSync/MAC/#{version.csv.first}/inSync-#{version.csv.first}-r#{version.csv.second}.dmg"
   name "Druva inSync"

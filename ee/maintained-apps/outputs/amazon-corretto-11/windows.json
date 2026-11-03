@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '11.%' AND version_compare(version, '11.0.33.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon corretto 11.exe');"
       },
-      "installer_url": "https://corretto.aws/downloads/resources/11.0.33.0.9/amazon-corretto-11.0.33.0.9-windows-x64.msi",
+      "installer_url": "https://corretto.aws/downloads/resources/11.0.33.0.10/amazon-corretto-11.0.33.0.10-windows-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "ea6e5144",
-      "sha256": "9759ed7ce0698f971cc04dc9c2d3a717b4f03182eff7121ca3586729fe2ecafa",
+      "sha256": "bc45e70bee0c553ce47dd8987e93fc130eaa39fb00f5e40ede7d252aeda8a17e",
       "default_categories": [
         "Developer tools"
       ],

@@ -169,6 +169,114 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		assert.Nil(t, winResp.Name)
 	})
 
+	autofillMobileconfig := func(payloadType, keys string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadIdentifier</key>
+			<string>com.example.ai.payload</string>
+			<key>PayloadType</key>
+			<string>%s</string>
+			<key>PayloadUUID</key>
+			<string>3F2504E0-4F89-41D3-9A0C-0305E82C3301</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			%s
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>AI generated</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.ai</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>3F2504E0-4F89-41D3-9A0C-0305E82C3302</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, payloadType, keys)
+	}
+	setProfileValidation := func(on bool) {
+		appCfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.MDM.EnableProfileValidation = on
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	}
+
+	t.Run("strict schema findings fail under base regardless of the setting", func(t *testing.T) {
+		cases := []struct {
+			name, profileType, profile, platform string
+			reasons                              []string
+		}{
+			{
+				"wrong type", "mobileconfig",
+				autofillMobileconfig("com.apple.applicationaccess", `<key>allowAirDrop</key><string>no</string><key>allowCamera</key><string>no</string>`),
+				"apple", []string{`"allowAirDrop" expects a boolean.`, `"allowCamera" expects a boolean.`},
+			},
+			{
+				"unknown key", "mobileconfig",
+				autofillMobileconfig("com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
+				"apple", []string{`"allowSomethingMadeUp" isn't valid for the "com.apple.applicationaccess" profile type.`},
+			},
+			{
+				"unknown payload type", "mobileconfig",
+				autofillMobileconfig("com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
+				"apple", []string{`"com.example.not.a.real.type" isn't a valid profile type.`},
+			},
+			{
+				"unknown LocURI", "csp",
+				`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>1</Data></Item></Replace>`,
+				"windows", []string{`"./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting" isn't a valid Windows setting.`},
+			},
+		}
+		for _, on := range []bool{true, false} {
+			setProfileValidation(on)
+			for _, c := range cases {
+				t.Run(fmt.Sprintf("%s setting %t", c.name, on), func(t *testing.T) {
+					generate(c.profileType, c.profile)
+					resp := s.Do("POST", "/api/latest/fleet/autofill/configuration_profile/content", map[string]any{
+						"natural_language_instructions": "Make a profile", "platform": c.platform,
+					}, http.StatusUnprocessableEntity)
+					var body autofillErrorBody
+					require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+					require.Equal(t, fleet.AutofillConfigProfileContentErrorMessage, body.Message)
+					var reasons []string
+					for _, e := range body.Errors {
+						assert.Equal(t, "base", e["name"])
+						reasons = append(reasons, e["reason"])
+					}
+					assert.Equal(t, c.reasons, reasons)
+				})
+			}
+		}
+		setProfileValidation(true)
+	})
+
+	t.Run("profiles that pass strict validation are returned", func(t *testing.T) {
+		setProfileValidation(true)
+		chrome := autofillMobileconfig("com.google.Chrome", `<key>HomepageLocation</key><string>https://fleetdm.com</string>`)
+		generate("mobileconfig", chrome)
+		var resp autofillConfigProfileContentResponse
+		s.DoJSON("POST", "/api/latest/fleet/autofill/configuration_profile/content", map[string]any{
+			"natural_language_instructions": "Set the Chrome homepage", "platform": "apple",
+		}, http.StatusOK, &resp)
+		assert.Equal(t, chrome, resp.Content)
+
+		// built from Chrome's ADMX template, using the generator's AppName
+		winChrome := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation</LocURI></Target><Meta><Format xmlns="syncml:metinf">chr</Format></Meta><Data><![CDATA[<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>]]></Data></Item></Replace>`
+		generate("csp", winChrome)
+		var winResp autofillConfigProfileContentResponse
+		s.DoJSON("POST", "/api/latest/fleet/autofill/configuration_profile/content", map[string]any{
+			"natural_language_instructions": "Set the Chrome homepage", "platform": "windows",
+		}, http.StatusOK, &winResp)
+		assert.Equal(t, winChrome, winResp.Content)
+	})
+
 	t.Run("name and description", func(t *testing.T) {
 		var resp autofillConfigProfileNameDescriptionResponse
 		s.DoJSON("POST", "/api/latest/fleet/autofill/configuration_profile/name_description", map[string]any{

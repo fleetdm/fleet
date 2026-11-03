@@ -208,6 +208,7 @@ policies:
   - path: ../lib/macos/policies/remote-login-disabled.yml
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
+  - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml

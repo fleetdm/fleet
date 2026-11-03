@@ -298,8 +298,7 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 		user *fleet.User
 		// canReadInstaller is whether the role holds installable_entity read.
 		canReadInstaller bool
-		// installersWithoutTeam is whether omitting the fleet still returns
-		// installer data, which needs read on the "no team" scope it resolves to.
+		// installersWithoutTeam is whether the role can read the "no team" scope.
 		installersWithoutTeam bool
 	}{
 		{
@@ -418,20 +417,14 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			}
 			require.Equal(t, "Bar", title.AppStoreApp.Name)
 
-			// Omitting the fleet must not fail, or a title's existence becomes
-			// guessable; the "no team" installer data is what gets withheld.
+			// get the title without a fleet, the request should succeed without any installer data
 			ds.TeamExistsFuncInvoked = false
 			noTeamTitle, err := svc.SoftwareTitleByID(ctx, 1, nil)
 			require.NoError(t, err)
 			require.False(t, ds.TeamExistsFuncInvoked)
-			if tc.installersWithoutTeam {
-				require.NotNil(t, noTeamTitle.SoftwarePackage)
-				require.Len(t, noTeamTitle.Packages, 1)
-			} else {
-				require.Nil(t, noTeamTitle.SoftwarePackage)
-				require.Empty(t, noTeamTitle.Packages)
-				require.Nil(t, noTeamTitle.AppStoreApp)
-			}
+			require.Nil(t, noTeamTitle.SoftwarePackage)
+			require.Empty(t, noTeamTitle.Packages)
+			require.Nil(t, noTeamTitle.AppStoreApp)
 
 			// An explicit "no team" is authorized up front, so it still fails.
 			_, err = svc.SoftwareTitleByID(ctx, 1, new(uint(0)))
@@ -542,4 +535,66 @@ func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
 	// never with a global-role filter standing in for the real caller.
 	require.Len(t, filtersUsed, 1)
 	require.Equal(t, teamUser, filtersUsed[0].User)
+}
+
+func TestSoftwareTitleByIDVPPToken(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{ID: id, Name: "Foo", VPPAppsCount: 1}, nil
+	}
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		summaries := make(map[uint]*fleet.VPPAppStatusSummary, len(versions))
+		for _, v := range versions {
+			summaries[v.VPPAppsTeamsID] = &fleet.VPPAppStatusSummary{}
+		}
+		return summaries, nil
+	}
+	var versionTokenID *uint
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+		return []*fleet.VPPAppStoreApp{{Name: "Bar", VPPTokenID: versionTokenID}}, nil
+	}
+	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+		if tokenID != 2 {
+			return nil, &notFoundError{}
+		}
+		return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	t.Run("fleet with a token", func(t *testing.T) {
+		versionTokenID = new(uint(2))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("app without a token", func(t *testing.T) {
+		versionTokenID = nil
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Nil(t, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("deleted token", func(t *testing.T) {
+		versionTokenID = new(uint(3))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Nil(t, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("no fleet", func(t *testing.T) {
+		versionTokenID = new(uint(2))
+		ds.GetVPPTokenFuncInvoked = false
+		title, err := svc.SoftwareTitleByID(ctx, 1, nil)
+		require.NoError(t, err)
+		require.Nil(t, title.AppStoreApp)
+		require.False(t, ds.GetVPPTokenFuncInvoked)
+	})
 }

@@ -2115,17 +2115,24 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 	setupPusher(s, t, mdmDevice)
 	s.awaitTriggerProfileSchedule(t)
 	s.awaitRunAppleMDMWorkerSchedule()
-	// Receive the enrollment profiles, which this test doesn't check.
-	for {
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		if cmd == nil {
-			break
+	drainCommands := func() {
+		for {
+			cmd, err := mdmDevice.Idle()
+			require.NoError(t, err)
+			if cmd == nil {
+				return
+			}
+			_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
 		}
-		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
 	}
+	// Receive the enrollment profiles, which this test doesn't check.
+	drainCommands()
+	// The reconciler skips a host that is still being set up, so Fleet's own profiles (fleetd config and root CA) are only queued
+	// on the first tick after the flag is cleared. Deliver them now so they can't arrive in the middle of the test.
 	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	s.awaitTriggerProfileSchedule(t)
+	drainCommands()
 
 	// installedCertificate receives the next profile the host is sent, and returns the certificate in its PKCS#12 payload.
 	installedCertificate := func() *x509.Certificate {

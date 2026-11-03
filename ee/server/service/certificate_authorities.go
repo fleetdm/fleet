@@ -571,7 +571,7 @@ func deletesFreeingEJBCANames(ops *fleet.CertificateAuthoritiesBatchOperations) 
 	upserts := slices.Concat(ops.Add, ops.Update)
 	return slices.DeleteFunc(slices.Clone(ops.Delete), func(deleted *fleet.CertificateAuthority) bool {
 		return !slices.ContainsFunc(upserts, func(upserted *fleet.CertificateAuthority) bool {
-			return deleted.Name != nil && upserted.Name != nil && strings.EqualFold(*deleted.Name, *upserted.Name) &&
+			return deleted.Name != nil && upserted.Name != nil && caNameKey(*deleted.Name) == caNameKey(*upserted.Name) &&
 				(deleted.Type == string(fleet.CATypeEJBCA)) != (upserted.Type == string(fleet.CATypeEJBCA))
 		})
 	})
@@ -591,11 +591,19 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
+	ejbcaNames := make(map[string]string)
 	checkAllNames := func(name, caType, displayCAType string) error {
 		key := caNameKey(name)
-		for i := 0; i < len(allNames[key]); i++ {
-			if allNames[key][i] == caType {
+		if caType == "ejbca" {
+			ejbcaNames[key] = name
+		}
+		for _, seenType := range allNames[key] {
+			if seenType == caType {
 				return fmtDuplicateCANameError(name, caType, displayCAType)
+			}
+			// the name of an EJBCA CA can't be shared with a CA of another type
+			if (seenType == "ejbca") != (caType == "ejbca") {
+				return &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ejbcaNames[key]}.Error()}
 			}
 		}
 		allNames[key] = append(allNames[key], caType)
@@ -603,18 +611,18 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	}
 
 	// preprocess digicert
-	for _, ca := range incoming.DigiCert {
+	for i := range incoming.DigiCert {
+		ca := &incoming.DigiCert[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
 			return nil, err
 		}
 	}
 	// preprocess ejbca, in place so the trimmed names are the ones that get stored
-	ejbcaNames := make(map[string]struct{}, len(incoming.EJBCA))
 	for i := range incoming.EJBCA {
 		ca := &incoming.EJBCA[i]
 		ca.Preprocess()
@@ -622,53 +630,53 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.ejbca: CA name cannot be empty.")
 		}
 
-		// The database compares names without regard to case, so names that differ only by case are the same CA.
-		if _, ok := ejbcaNames[caNameKey(ca.Name)]; ok {
-			return nil, fmtDuplicateCANameError(ca.Name, "ejbca", "EJBCA")
-		}
-		ejbcaNames[caNameKey(ca.Name)] = struct{}{}
 		if err := checkAllNames(ca.Name, "ejbca", "EJBCA"); err != nil {
 			return nil, err
 		}
 	}
 	// preprocess custom scep proxy
-	for _, ca := range incoming.CustomScepProxy {
+	for i := range incoming.CustomScepProxy {
+		ca := &incoming.CustomScepProxy[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "custom_scep_proxy", "Custom SCEP Proxy"); err != nil {
 			return nil, err
 		}
 	}
 	// preprocess hydrant
-	for _, ca := range incoming.Hydrant {
+	for i := range incoming.Hydrant {
+		ca := &incoming.Hydrant[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.hydrant: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "hydrant", "Hydrant"); err != nil {
 			return nil, err
 		}
 	}
-	for _, ca := range incoming.EST {
-		if strings.TrimSpace(ca.Name) == "" {
+	// preprocess custom est proxy
+	for i := range incoming.EST {
+		ca := &incoming.EST[i]
+		ca.Preprocess()
+		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "custom_est_proxy", "Custom EST Proxy"); err != nil {
 			return nil, err
 		}
 	}
 	// preprocess smallstep
-	for _, ca := range incoming.Smallstep {
+	for i := range incoming.Smallstep {
+		ca := &incoming.Smallstep[i]
+		ca.Preprocess()
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
 		}
-		ca.Preprocess()
 
 		if err := checkAllNames(ca.Name, "smallstep", "Smallstep"); err != nil {
 			return nil, err
@@ -684,18 +692,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 
 		if err := checkAllNames(ca.Name, "google_cas", "Google CAS"); err != nil {
 			return nil, err
-		}
-	}
-	// the name of an EJBCA CA can't be shared with a CA of another type
-	otherNames := make(map[string]struct{})
-	for name, caTypes := range allNames {
-		if slices.ContainsFunc(caTypes, func(caType string) bool { return caType != "ejbca" }) {
-			otherNames[caNameKey(name)] = struct{}{}
-		}
-	}
-	for _, ca := range incoming.EJBCA {
-		if _, shared := otherNames[caNameKey(ca.Name)]; shared {
-			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
 		}
 	}
 	// preprocess ndes
@@ -941,11 +937,16 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone. A masked secret is not allowed and will be rejected later in validation.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateCustomSCEPProxy(ctx, incoming, "certificate_authorities.custom_scep_proxy: "); err != nil {
 			return err
 		}
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
@@ -991,12 +992,17 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateHydrant(ctx, incoming, "certificate_authorities.hydrant: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
@@ -1044,12 +1050,17 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateEST(ctx, incoming, "certificate_authorities.custom_est_proxy: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeCustomESTProxy),
@@ -1098,12 +1109,17 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	}
 
 	for name, incoming := range incomingByName {
+		existing, ok := existingByName[name]
+		// An unchanged CA is left alone.
+		if ok && incoming.Equals(existing) {
+			continue
+		}
 		if err := svc.validateSmallstepSCEPProxy(ctx, incoming, "certificate_authorities.smallstep: "); err != nil {
 			return err
 		}
 
 		// create the payload to be added or updated
-		if _, ok := existingByName[name]; ok {
+		if ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeSmallstep),
@@ -1471,6 +1487,12 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 			return err
 		}
 	}
+	// The GET endpoint returns secrets masked, so the mask is rejected like the empty string, and before it reaches DigiCert below.
+	if digicert.APIToken != nil && (*digicert.APIToken == "" || *digicert.APIToken == fleet.MaskedPassword) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid DigiCert API token. Please correct and try again.", errPrefix),
+		}
+	}
 	if digicert.URL != nil {
 		if err := validateURL(*digicert.URL, "DigiCert", errPrefix); err != nil {
 			return err
@@ -1494,11 +1516,6 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 		if err := svc.digiCertService.VerifyProfileID(ctx, digicertCA); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate DigiCert URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert URL: %s. Please correct and try again.", errPrefix, err.Error())}
-		}
-	}
-	if digicert.APIToken != nil && *digicert.APIToken == "" {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("%sInvalid DigiCert API token. Please correct and try again.", errPrefix),
 		}
 	}
 	if digicert.ProfileID != nil {
@@ -1569,7 +1586,7 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 			Message: fmt.Sprintf("%sInvalid Hydrant Client ID. Please correct and try again.", errPrefix),
 		}
 	}
-	if hydrant.ClientSecret != nil && *hydrant.ClientSecret == "" {
+	if hydrant.ClientSecret != nil && (*hydrant.ClientSecret == "" || *hydrant.ClientSecret == fleet.MaskedPassword) {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix),
 		}
@@ -1601,7 +1618,7 @@ func (svc *Service) validateCustomESTUpdate(ctx context.Context, estUpdate *flee
 			Message: fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix),
 		}
 	}
-	if estUpdate.Password != nil && *estUpdate.Password == "" {
+	if estUpdate.Password != nil && (*estUpdate.Password == "" || *estUpdate.Password == fleet.MaskedPassword) {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sInvalid EST Password. Please correct and try again.", errPrefix),
 		}
@@ -1697,7 +1714,7 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sFleet couldn't find the CA at the specified URL. Please correct and try again.", errPrefix)}
 		}
 	}
-	if customSCEP.Challenge != nil && *customSCEP.Challenge == "" {
+	if customSCEP.Challenge != nil && (*customSCEP.Challenge == "" || *customSCEP.Challenge == fleet.MaskedPassword) {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix),
 		}
@@ -1754,7 +1771,7 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		}
 
 		if smallstep.Password != nil {
-			if *smallstep.Password == "" {
+			if *smallstep.Password == "" || *smallstep.Password == fleet.MaskedPassword {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf("%sSmallstep SCEP Proxy password cannot be empty", errPrefix),
 				}

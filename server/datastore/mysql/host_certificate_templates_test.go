@@ -3,10 +3,12 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -124,17 +126,31 @@ func createNoTeamCertTemplateTestSetup(t *testing.T, ctx context.Context, ds *Da
 	}
 }
 
-// createEnrolledAndroidHost creates an enrolled Android host in the given team.
+// createEnrolledAndroidHost creates an enrolled Android host in the given team, whose device
+// has applied its host-specific policy.
 func createEnrolledAndroidHost(t *testing.T, ctx context.Context, ds *Datastore, hostUUID string, teamID *uint) *fleet.Host {
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		UUID:     hostUUID,
-		TeamID:   teamID,
-		Platform: "android",
-	})
+	return createEnrolledAndroidHostOnPolicy(t, ctx, ds, hostUUID, teamID, &hostUUID)
+}
+
+// createEnrolledAndroidHostOnPolicy creates an enrolled Android host whose device reports
+// appliedPolicyID as its applied policy.
+func createEnrolledAndroidHostOnPolicy(t *testing.T, ctx context.Context, ds *Datastore, hostUUID string, teamID *uint, appliedPolicyID *string) *fleet.Host {
+	androidHost := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			UUID:     hostUUID,
+			TeamID:   teamID,
+			Platform: "android",
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: &hostUUID,
+			AppliedPolicyID:      appliedPolicyID,
+		},
+	}
+	androidHost.SetNodeKey(hostUUID)
+	androidHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
-	require.NoError(t, err)
-	return host
+	return androidHost.Host
 }
 
 func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, ds *Datastore) {
@@ -750,11 +766,30 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 		_, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
 		require.NoError(t, err)
 
-		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 10)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		require.Contains(t, results, "host-1")
 		require.Contains(t, results, "host-2")
+	})
+
+	t.Run("does not return hosts whose device has not applied its host-specific policy", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		createEnrolledAndroidHostOnPolicy(t, ctx, ds, "host-default-policy", &setup.team.ID, new("1"))
+		createEnrolledAndroidHostOnPolicy(t, ctx, ds, "host-no-policy", &setup.team.ID, nil)
+		// a host row with no Android device behind it
+		_, err := ds.NewHost(ctx, &fleet.Host{UUID: "host-no-device", TeamID: &setup.team.ID, Platform: "android"})
+		require.NoError(t, err)
+		createEnrolledAndroidHost(t, ctx, ds, "host-own-policy", &setup.team.ID)
+
+		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
+		require.NoError(t, err)
+
+		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 10)
+		require.NoError(t, err)
+		require.Equal(t, []string{"host-own-policy"}, results)
 	})
 
 	t.Run("does not return hosts with non-pending status", func(t *testing.T) {
@@ -770,7 +805,7 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 		)
 		require.NoError(t, err)
 
-		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 10)
 		require.NoError(t, err)
 		require.Len(t, results, 0)
 	})
@@ -781,27 +816,37 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 
 		// Insert pending records for 5 hosts
 		for i := range 5 {
+			hostUUID := fmt.Sprintf("host-%d", i)
+			createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
 			_, err := ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
-				fmt.Sprintf("host-%d", i), setup.template.ID, "pending", "install", setup.template.Name,
+				hostUUID, setup.template.ID, "pending", "install", setup.template.Name,
 			)
 			require.NoError(t, err)
 		}
 
-		// First page
-		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 2)
+		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 2)
 		require.NoError(t, err)
-		require.Len(t, results, 2)
+		require.Equal(t, []string{"host-0", "host-1"}, results)
 
-		// Second page
-		results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 2, 2)
-		require.NoError(t, err)
-		require.Len(t, results, 2)
+		// The first page's hosts leave 'pending' as they are processed, which must not shift
+		// the next page past hosts that are still pending.
+		for _, hostUUID := range results {
+			_, err := ds.GetAndTransitionCertificateTemplatesToDelivering(ctx, hostUUID)
+			require.NoError(t, err)
+		}
 
-		// Third page
-		results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 4, 2)
+		results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "host-1", 2)
 		require.NoError(t, err)
-		require.Len(t, results, 1)
+		require.Equal(t, []string{"host-2", "host-3"}, results)
+
+		results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "host-3", 2)
+		require.NoError(t, err)
+		require.Equal(t, []string{"host-4"}, results)
+
+		results, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "host-4", 2)
+		require.NoError(t, err)
+		require.Empty(t, results)
 	})
 }
 
@@ -834,7 +879,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(1), rowsAffected)
 
 	// Step 2: List hosts with pending templates
-	hostUUIDs, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+	hostUUIDs, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 10)
 	require.NoError(t, err)
 	require.Len(t, hostUUIDs, 1)
 	require.Equal(t, "android-host", hostUUIDs[0])
@@ -847,7 +892,7 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.Len(t, certTemplates.Templates, 2)
 
 	// Verify host is no longer in pending list
-	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+	hostUUIDs, err = ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 10)
 	require.NoError(t, err)
 	require.Len(t, hostUUIDs, 0)
 
@@ -1491,7 +1536,7 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval(t *t
 	require.NoError(t, err)
 
 	// Act: List hosts with pending templates
-	results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 100)
+	results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, "", 100)
 	require.NoError(t, err)
 
 	require.Len(t, results, 1, "should include host with pending removal")

@@ -582,8 +582,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			logger,
 		)
 		svc.SetNotificationsService(notificationsSvc)
-		patchNotificationKind := NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+		patchNotificationKind := NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
 		notificationsSvc.RegisterKind(patchNotificationKind)
+		notificationsSvc.RegisterKind(NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
 		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
 		opts[0].NotificationsSvc = notificationsSvc
@@ -736,6 +737,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+	mcpConn := NewMCPConn()
+	extra = append(extra, WithMCPConn(mcpConn))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
@@ -769,6 +772,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
+	rootMux.Handle("/enroll/next-steps", ServeEndUserEnrollNextSteps("", logger, false))
+	rootMux.Handle("/enroll/next-steps/", ServeEndUserEnrollNextSteps("", logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -788,11 +793,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		server.Config.Handler = rootMux
 	}
 	server.Start()
+	mcpConn.Start(ctx, rootMux)
+	testMCPConns.Store(server, mcpConn)
 	t.Cleanup(func() {
+		testMCPConns.Delete(server)
 		server.Close()
+		_ = mcpConn.Shutdown(context.Background())
 	})
 	return users, server
 }
+
+// testMCPConns maps each test server to the internal connection its embedded
+// MCP calls the API through, for tests that send requests over it directly.
+var testMCPConns sync.Map
 
 func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	var rs fleet.QueryResultStore

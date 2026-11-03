@@ -43,6 +43,9 @@ var (
 	OneDriveVersionShortener            = makeVersionShortener(3) // "26.139.0720.0007" → "26.139.0720"
 	HarmonySASEVersionShortener         = makeVersionShortener(3) // "12.11.0.12314" → "12.11.0"
 	OutsetVersionShortener              = makeVersionShortener(3) // "4.2.0.21973" → "4.2.0"
+	ExpressVPNVersionShortener          = makeVersionShortener(3) // "14.3.1.15429" → "14.3.1"
+	CmuxVersionShortener                = makeVersionShortener(3) // hotfix tag "0.65.2.2" → "0.65.2"
+	MEGAsyncVersionShortener            = makeVersionShortener(3) // "6.7.0.3" → "6.7.0"
 )
 
 // SublimeVersionTransformer prepends "Build " to match what macOS reports as

@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -387,11 +388,8 @@ func errorMessage(body []byte) string {
 		return errResp.ErrorMessage
 	}
 	// A proxy in front of EJBCA answers with an HTML page, so keep its text and drop the markup.
-	text := strings.Join(strings.Fields(htmlTag.ReplaceAllString(string(body), " ")), " ")
-	if len(text) > 200 {
-		text = text[:200]
-	}
-	return text
+	text := strings.Join(strings.Fields(htmlTag.ReplaceAllString(strings.ToValidUTF8(string(body), ""), " ")), " ")
+	return str.TruncateBytes(text, 200, "")
 }
 
 var htmlTag = regexp.MustCompile(`<[^>]*>`)

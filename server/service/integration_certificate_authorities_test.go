@@ -1697,6 +1697,11 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			fleet.ActivityEditedSmallstep{}.ActivityName(), fleet.ActivityEditedGoogleCAS{}.ActivityName(),
 		}, newTypes)
 
+		// Applying the same CAs again changes nothing, so no activity is recorded.
+		lastID = s.lastActivityMatches("", "", 0)
+		apply(named("case_x"), http.StatusOK)
+		s.lastActivityMatches("", "", lastID)
+
 		duplicates := named("DUP_X", "dup_x")
 		for _, tc := range []struct {
 			caType, displayType string
@@ -2362,8 +2367,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])
 
-	// manually resend the profile installation, which ignores retry limit
-	// FIXME: manual resend doesn't change retries, but maybe it should reset to 0
+	// manually resend the profile installation, which ignores retry limit and starts a new retry budget
 	_ = s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profUUID), nil, http.StatusAccepted)
 	require.Equal(t, expectedChallengeCount, challengeCounter.Load()) // challenge endpoint not called until reconcilation runs
 
@@ -2373,9 +2377,9 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Nil(t, cmd) // no new command should be issued yet
 
 	// update expectations for host profile DB state after manual resend
-	expectHostProf.Status = nil                               // status should be cleared to allow retry
-	expectHostProf.Retries = servermdm.MaxAppleProfileRetries // unchanged for manual resend
-	expectHostProf.CommandUUID = prevCommandUUID              // unchanged until reconcilation runs
+	expectHostProf.Status = nil                  // status should be cleared to allow retry
+	expectHostProf.Retries = 0                   // reset for manual resend
+	expectHostProf.CommandUUID = prevCommandUUID // unchanged until reconcilation runs
 
 	// check DB state after manual resend request
 	gotHostProfs = listHostProfilesDB(host.UUID)
@@ -2398,9 +2402,9 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd)) // challenge value should be updated
 
 	// update expectations for host profile DB state
-	expectHostProf.CommandUUID = cmd.CommandUUID              // should be updated to new command UUID
-	expectHostProf.Status = ptr.String("pending")             // should now be pending again
-	expectHostProf.Retries = servermdm.MaxAppleProfileRetries // unchanged for manual resend
+	expectHostProf.CommandUUID = cmd.CommandUUID // should be updated to new command UUID
+	expectHostProf.Status = new("pending")       // should now be pending again
+	expectHostProf.Retries = 0                   // reset by the manual resend
 
 	// check DB state
 	gotHostProfs = listHostProfilesDB(host.UUID)
@@ -2697,7 +2701,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])
 
-	// manually resend the profile (ignores retry limit). This brings status
+	// manually resend the profile (ignores retry limit and resets retries). This brings status
 	// back to pending so the host has a live, in-flight SCEP command we can
 	// then expire — matching the real-world setup for the expiry bug.
 	_ = s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profUUID), nil, http.StatusAccepted)
@@ -2712,7 +2716,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 
 	expectHostProf.CommandUUID = cmd.CommandUUID
 	expectHostProf.Status = new("pending")
-	expectHostProf.Retries = servermdm.MaxAppleProfileRetries // manual resend doesn't reset retries
+	expectHostProf.Retries = 0 // manual resend resets retries
 	gotHostProfs = listHostProfilesDB(host.UUID)
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])
@@ -3000,7 +3004,7 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 
 	// Editing a template doesn't contact EJBCA and keeps the stored credential.
 	editURL := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
-	requests := len(fake.Requests())
+	requests := fake.RequestCount()
 	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}, http.StatusOK)
 	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 	require.Len(t, fake.Requests(), requests)
@@ -3080,7 +3084,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 
 	fake := ejbcatest.New(t, nil)
 	scepServer := scep_server.StartTestSCEPServer(t)
-	t.Cleanup(scepServer.Close)
 	const p12Password = "p12-password"
 	expiry := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
 	ejbcaSpec := func(name, p12 string) fleet.EJBCA {
@@ -3139,7 +3142,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	added := s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 
 	// The same spec changes nothing and doesn't contact EJBCA.
-	requests := len(fake.Requests())
+	requests := fake.RequestCount()
 	apply(false, http.StatusOK, wifi)
 	require.Len(t, fake.Requests(), requests)
 	s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), "", added)
@@ -3147,7 +3150,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	// A changed field is validated again and stored.
 	wifi.CertificateCommonName = "new-common-name"
 	apply(false, http.StatusOK, wifi)
-	require.Greater(t, len(fake.Requests()), requests)
+	require.Greater(t, fake.RequestCount(), requests)
 	require.Equal(t, "new-common-name", stored()[0].CertificateCommonName)
 	edited := s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 

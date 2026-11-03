@@ -212,6 +212,7 @@ export type HostMdmPendingAction =
   | "wipe"
   | "clear_passcode"
   | "location"
+  | "unenroll"
   | "";
 
 export interface IHostMdmData {
@@ -567,6 +568,9 @@ export interface IHost {
   end_users?: IHostEndUser[];
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
+  /** The host's device ID in Google. Only returned for iOS, iPadOS, and
+   * Android hosts, and "" until it's set. */
+  google_device_id?: string;
   mdm_enrollment_hardware_attested?: boolean;
   dep_assigned_to_fleet: boolean;
   /** The OS version this host is required to reach. Null when OS updates
@@ -576,6 +580,10 @@ export interface IHost {
   /** The date by which os_update_minimum_version must be installed, in
    * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
   os_update_deadline?: string | null;
+  /** When Fleet next forces a patch deadline install on this host (ISO 8601).
+   * Only loaded for macOS hosts, and null when no patch policy has `deadline`
+   * enabled or the host has nothing scheduled. */
+  patch_deadline_at?: string | null;
   // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
   // Omitted entirely (not just null) for every other platform.
   udid?: string;
