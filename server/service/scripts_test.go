@@ -968,7 +968,7 @@ func TestBatchScriptExecute(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		var requestedHostIds []uint
-		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+		ds.NewBatchScriptExecutionFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
 			requestedHostIds = hostIDs
 			return "", errors.New("ok")
 		}
@@ -1026,7 +1026,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		}
 		// Return a non-authorization error so an authorized caller gets past the
 		// authz checks; checkAuthErr only cares whether the error is Forbidden.
-		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+		ds.NewBatchScriptExecutionFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
 			return "", errors.New("ok")
 		}
 

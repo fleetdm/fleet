@@ -2199,13 +2199,10 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Hosts all have to be on the same team as the script
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
-	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same fleet")
-
 	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	summary, err := ds.BatchExecuteSummary(ctx, execID)
@@ -2343,13 +2340,10 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Hosts all have to be on the same team as the script
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
-	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same fleet")
-
 	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	// Update the batch to have a pending status
@@ -2916,14 +2910,18 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Actual good execution
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
 
 	// Schedule another one
-	execID2, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID2, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID2)
+	err = ds.RunScheduledBatchActivity(ctx, execID2)
+	require.NoError(t, err)
 
 	// Get the upcoming activities for each host
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
@@ -2982,9 +2980,11 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
 
 	// Schedule another batch that we will cancel.
-	execID3, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID3, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID3)
+	err = ds.RunScheduledBatchActivity(ctx, execID3)
+	require.NoError(t, err)
 
 	// Update the batch activity status to "started"
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
@@ -3058,9 +3058,11 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	////
 	// Immediate execution
 	//
-	execID1, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
+	execID1, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID1)
+	err = ds.RunScheduledBatchActivity(ctx, execID1)
+	require.NoError(t, err)
 
 	summary1, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
 	require.NoError(t, err)

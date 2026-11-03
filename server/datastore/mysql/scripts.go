@@ -2791,6 +2791,8 @@ func teamIDEq(teamID1, teamID2 *uint) bool {
 	return sameTeamNoTeam || sameTeamNumber
 }
 
+var errBatchScriptCanceled = errors.New("batch script canceled")
+
 func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
@@ -2881,7 +2883,7 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 		// and roll back if it was canceled during the run.
 		var canceled bool
 		err = sqlx.GetContext(ctx, tx, &canceled, `SELECT canceled FROM batch_activities WHERE execution_id = ? FOR UPDATE`, batchExecID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "locking batch activity")
 		}
 		if canceled {
@@ -2938,34 +2940,6 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 	}
 
 	return nil
-}
-
-var errBatchScriptCanceled = errors.New("batch script canceled")
-
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
-	batchExecID := uuid.New().String()
-
-	script, err := ds.Script(ctx, scriptID)
-	if err != nil {
-		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
-	}
-
-	for _, hostID := range hostIDs {
-		host, err := ds.HostLite(ctx, hostID)
-		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
-		}
-
-		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same fleet as the script")
-		}
-	}
-
-	if err := ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "immediate batch execution")
-	}
-
-	return batchExecID, nil
 }
 
 func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
