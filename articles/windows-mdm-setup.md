@@ -14,7 +14,7 @@ To migrate Windows hosts from your current MDM solution to Fleet, follow the [Au
 
 ## Zero-touch enrollment with an OEM service
 
-**You don't need Windows Autopilot, Microsoft Entra ID P1, or Intune to manage Windows hosts with Fleet.** The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. This works at any scale, and works best for customers with at least 500 PCs, since you can get a better deal from your hardware provider. Fleet is designed to make this easy:
+You don't need Windows Autopilot, Microsoft Entra ID P1, or Intune to manage Windows hosts with Fleet. We recommend using a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider. This works at any scale. It works best for customers with at least 500 PCs, since you can get a better deal from your hardware provider. Fleet is designed to make this easy:
 
 1. [Turn on Windows MDM](#turn-on-windows-mdm) in Fleet.
 
@@ -286,7 +286,7 @@ If you created and licensed a test user in Step 1b, skip to step 6.
 
 ## Windows Autopilot
 
-Windows Autopilot requires Microsoft Entra ID P1, and isn't required to enroll Windows hosts. For the recommended path, see [Zero-touch enrollment with an OEM service](#zero-touch-enrollment-with-an-oem-service). See [Microsoft licenses you need](#microsoft-licenses-you-need) for the subscriptions that qualify.
+Windows Autopilot requires Microsoft Entra ID P1. You don't need Autopilot to enroll Windows hosts. For the recommended path, see [Zero-touch enrollment with an OEM service](#zero-touch-enrollment-with-an-oem-service). For the subscriptions that qualify, see [Microsoft licenses you need](#microsoft-licenses-you-need).
 
 ### Step 1: Create an Autopilot profile
 

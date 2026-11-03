@@ -32,7 +32,7 @@ NinjaOne is a cloud-native IT management solution combining remote monitoring an
 
 Fleet, Jamf Pro, and NinjaOne support zero-touch enrollment for Apple devices through Apple Business.
 
-Fleet supports zero-touch Windows enrollment through an OEM service such as Dell ReadyImage or Lenovo RTP, which installs Fleet's agent and doesn't need Autopilot, Microsoft Entra ID P1, or Intune, and through Windows Autopilot, which requires Microsoft Entra ID. Fleet can assign Autopilot hosts to a fleet before they enroll. Fleet also supports [Android zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment), so company-owned Android devices enroll in Fleet the first time they're turned on. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
+Fleet supports zero-touch Windows enrollment through an OEM service such as Dell ReadyImage or Lenovo RTP. The OEM service installs Fleet's agent, and doesn't need Autopilot, Microsoft Entra ID P1, or Intune. Fleet also supports Windows Autopilot, which requires Microsoft Entra ID, and can assign Autopilot hosts to a fleet before they enroll. Fleet also supports [Android zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment), so company-owned Android devices enroll in Fleet the first time they're turned on. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
 
 NinjaOne also supports Android zero-touch enrollment and Windows Autopilot.
 
