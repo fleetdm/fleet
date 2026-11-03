@@ -329,12 +329,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, err)
 	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
-	// GET /hosts/:id gives the same id-only answer for an identifier and for an id.
+	// GET /hosts/:id is denied for an identifier and for an id.
 	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID)} {
-		resp = s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusOK)
-		body, err = io.ReadAll(resp.Body)
-		require.NoError(t, err)
-		require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
+		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
 	}
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")

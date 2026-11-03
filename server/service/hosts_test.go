@@ -2408,7 +2408,6 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 		identifier      string
 		idExists        bool
 		wantHostID      uint
-		wantIDOnly      bool
 		wantForbidden   bool
 		wantIDLookup    bool
 		wantOtherLookup bool
@@ -2438,12 +2437,12 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 			wantHostID: hostFoundByIdentifier.ID, wantOtherLookup: true,
 		},
 		{
-			name: "gitops gets the id only when matched by id", user: globalGitOps, identifier: numericIdentifier, idExists: true,
-			wantHostID: numericHostID, wantIDOnly: true, wantIDLookup: true,
+			name: "gitops is denied an id before any lookup", user: globalGitOps, identifier: numericIdentifier, idExists: true,
+			wantForbidden: true,
 		},
 		{
-			name: "gitops gets the id only when matched by identifier", user: globalGitOps, identifier: "some-host",
-			wantHostID: hostFoundByIdentifier.ID, wantIDOnly: true, wantOtherLookup: true,
+			name: "gitops is denied an identifier before any lookup", user: globalGitOps, identifier: "some-host",
+			wantForbidden: true,
 		},
 		{
 			name: "an unreadable id match is denied instead of falling back", user: otherFleetObserver, identifier: numericIdentifier, idExists: true,
@@ -2522,9 +2521,6 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
 
-			// requireIDOnly asserts the caller got the host id and no other host data,
-			// and that Fleet didn't even load the details it isn't allowed to see.
-
 			host, err := svc.GetHostByIDOrIdentifier(ctx, tc.identifier, fleet.HostDetailOptions{})
 			require.Equal(t, tc.wantIDLookup, ds.HostLiteByIDFuncInvoked, "id lookup")
 			require.Equal(t, tc.wantOtherLookup, ds.HostLiteByIdentifierFuncInvoked, "identifier lookup")
@@ -2534,8 +2530,6 @@ func TestGetHostByIDOrIdentifier(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.wantHostID, host.ID)
-			require.Equal(t, tc.wantIDOnly, host.IDOnly)
-			require.Equal(t, !tc.wantIDOnly, ds.HostFuncInvoked, "full details load only for callers who can read the host")
 		})
 	}
 }

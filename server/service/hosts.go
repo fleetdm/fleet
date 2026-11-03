@@ -937,10 +937,6 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		return getHostResponse{Err: err}, nil
 	}
 
-	if host.IDOnly {
-		return hostIDOnlyResponse{Host: hostIDOnly{ID: host.ID}}, nil
-	}
-
 	resp, err := hostDetailResponseForHost(ctx, svc, host)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
@@ -1195,11 +1191,15 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, host)
-	if err != nil {
-		return nil, err
-	}
-	if idOnly {
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		// GitOps has no host read access, but it is granted selective_read here so
+		// the deprecated Puppet module can resolve a host identifier to a host id
+		// before pre-assigning profiles. Such a caller gets that id and nothing
+		// else: host details are read data it isn't entitled to.
+		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
+			return nil, selectiveErr
+		}
 		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
 	}
 
@@ -1211,26 +1211,12 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return hostDetails, nil
 }
 
-// authorizeHostReadOrIDOnly authorizes reading a host whose team_id is loaded. It reports idOnly when the caller may only learn
-// the host's id: GitOps has no host read access, but it is granted selective_read so the deprecated Puppet module can resolve a
-// host identifier to a host id before pre-assigning profiles. Host details are read data such a caller isn't entitled to.
-func (svc *Service) authorizeHostReadOrIDOnly(ctx context.Context, host *fleet.Host) (idOnly bool, err error) {
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
-			return false, selectiveErr
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
 // GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
 // priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial
 // rather than a reason to keep looking, so the same value can't resolve to different hosts depending on who is asking.
 func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// Coarse gate before the host's team is known. selective_list admits GitOps,
-	// which the team-scoped check below then limits to the host's id.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -1250,15 +1236,6 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 		}
 	}
 
-	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID})
-	if err != nil {
-		return nil, err
-	}
-	if idOnly {
-		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
-	}
-
-	// The lookups above only load what authorization needs. GetHost builds the response, so it is the same however the host was found.
 	return svc.GetHost(ctx, host.ID, opts)
 }
 
