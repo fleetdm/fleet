@@ -23,9 +23,8 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "invalidQuery",
-        // Advisory only — a SQL syntax error surfaces the inline warning but
-        // does not block submission (parallels PackageForm's pre-install
-        // query carve-out; see #35058).
+        // Advisory only: a SQL syntax error surfaces the inline warning but
+        // does not block submission, matching PackageForm's pre-install query.
         isValid: () => true,
         message: (formData) => {
           const query = formData.preInstallQuery ?? "";

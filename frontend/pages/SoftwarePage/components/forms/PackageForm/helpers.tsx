@@ -37,7 +37,7 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "invalidQuery",
-        // Allow all SQL including empty SQL: this field never blocks form submission Request: #35058
+        // Allow all SQL including empty SQL: this field never blocks form submission
         isValid: () => true,
         message: (formData) => {
           const query = formData.preInstallQuery;
