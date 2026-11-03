@@ -231,6 +231,57 @@ describe('configuration profile generation pipeline', function() {
 
   });
 
+  describe('notes what a Chrome homepage needs to take effect', function() {
+
+    let chromeStartupPolicy = (name, data, recommended = false)=>{
+      let area = recommended ? 'googlechrome_recommended~Startup_recommended' : 'googlechrome~Startup';
+      return `<Replace><Item><Meta><Format xmlns="syncml:metinf">chr</Format></Meta><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~${area}/${name}${recommended ? '_recommended' : ''}</LocURI></Target><Data><![CDATA[${data}]]></Data></Item></Replace>`;
+    };
+    let homepageLocation = chromeStartupPolicy('HomepageLocation', '<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>');
+    let generateWindows = async (profile, deliveryNotes = '')=>{
+      generationOutcomes = [Object.assign(responseWith(profile), { deliveryNotes })];
+      return await generate('csp', true, 'Set the Google Chrome homepage to https://fleetdm.com');
+    };
+
+    it('when the profile only sets the homepage URL', async function() {
+      let result = await generateWindows(homepageLocation);
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+      assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+    });
+
+    it('naming only what is missing', async function() {
+      let result = await generateWindows(homepageLocation + chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage/);
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+    });
+
+    it('for the recommended homepage too', async function() {
+      let result = await generateWindows(chromeStartupPolicy('HomepageLocation', '<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>', true));
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+    });
+
+    it('but not when the profile sets everything', async function() {
+      let result = await generateWindows(homepageLocation +
+        chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>') +
+        chromeStartupPolicy('ShowHomeButton', '<enabled/>') +
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage|ShowHomeButton/);
+    });
+
+    it('but not when the model already explained it', async function() {
+      let modelNote = 'Chrome uses the New Tab page as the homepage unless HomepageIsNewTabPage is disabled.';
+      let result = await generateWindows(homepageLocation, modelNote);
+      assert.strictEqual(result.generatedProfile.deliveryNotes.split('HomepageIsNewTabPage').length - 1, 1);
+    });
+
+    it('but not when the homepage policy is disabled', async function() {
+      let result = await generateWindows(chromeStartupPolicy('HomepageLocation', '<disabled/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes || '', /HomepageIsNewTabPage/);
+    });
+
+  });
+
   describe('retries a failed generation once', function() {
 
     for (let statusCode of [429, 529, 500]) {
