@@ -468,7 +468,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "platform",
   "detail_updated_at",
   "policy_updated_at",
-  "team_name",
+  "fleet_name",
   "display_name",
   "maintenance_window",
   "os_version",

@@ -9,7 +9,7 @@ export interface IAppleBusinessTokenFormData {
 
 export interface IGetAppleBMInfoResponse {
   apple_id: string;
-  default_team: string;
+  default_fleet: string;
   mdm_server_url: string;
   org_name: string;
   renew_date: string;
