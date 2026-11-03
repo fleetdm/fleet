@@ -2,11 +2,11 @@
 
 import classnames from "classnames";
 import React, { useState, useEffect, useCallback, useContext } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import { validateQuery } from "components/forms/validators/validate_query";
 import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
@@ -339,22 +339,30 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax warning without flashing mid-token. Blur / submit still fire
+  // immediately. The warning is advisory: Save isn't gated on preInstallQuery
+  // validity.
+  const debounceValidatePreInstallQuery = useDebouncedCallback(
+    (value?: string) => {
+      setFormValidation(
+        generateFormValidation({ ...formData, preInstallQuery: value })
+      );
+    },
+    3000
+  );
+
   const onChangePreInstallQuery = (value?: string) => {
-    // Validation runs on blur so incomplete SQL doesn't flash a warning
-    // mid-type. The warning is advisory: Save isn't gated on preInstallQuery
-    // validity.
     setFormData({ ...formData, preInstallQuery: value });
-    // Clear a stale syntax error the moment the query parses again. Never
-    // set a new error here: new errors wait for blur / submit.
-    if (
-      formValidation.preInstallQuery?.message &&
-      (!value || !validateQuery(value).error)
-    ) {
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (formValidation.preInstallQuery?.message) {
       setFormValidation({
         ...formValidation,
         preInstallQuery: { isValid: true, message: "" },
       });
     }
+    debounceValidatePreInstallQuery(value);
   };
 
   const onBlurPreInstallQuery = () => {

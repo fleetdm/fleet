@@ -6,6 +6,7 @@ import { size } from "lodash";
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -242,6 +243,13 @@ const PolicyForm = ({
     setErrors({ ...newErrors });
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // an error without flashing mid-token. Blur / submit still fire immediately.
+  const debounceValidateSql = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  }, 3000);
+
   const platformSelectorDisabled =
     isFetchingAutofillDescription ||
     isFetchingAutofillResolution ||
@@ -428,11 +436,12 @@ const PolicyForm = ({
     setLastEditedQueryBody(sqlString);
     setCompatiblePlatforms(sqlString);
     resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
-    // Clear a stale syntax error the moment the query parses again. Never
-    // set a new error here: new errors wait for blur / submit.
-    if (errors.query && validateQuery(sqlString).isValid) {
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (errors.query) {
       setErrors({ ...errors, query: undefined });
     }
+    debounceValidateSql(sqlString);
   };
 
   const onAddPatchAutomation = async () => {

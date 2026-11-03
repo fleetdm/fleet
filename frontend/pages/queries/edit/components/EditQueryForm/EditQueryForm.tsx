@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -309,6 +310,13 @@ const EditQueryForm = ({
     setErrors({ ...newErrors });
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // an error without flashing mid-token. Blur / submit still fire immediately.
+  const debounceValidateSql = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  }, 3000);
+
   const toggleSaveNewQueryModal = () => {
     setShowSaveNewQueryModal(!showSaveNewQueryModal);
   };
@@ -343,11 +351,12 @@ const EditQueryForm = ({
     setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
     setCompatiblePlatforms(sqlString);
-    // Clear a stale syntax error the moment the query parses again. Never
-    // set a new error here: new errors wait for blur / submit.
-    if (errors.query && validateQuery(sqlString).isValid) {
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (errors.query) {
       setErrors({ ...errors, query: undefined });
     }
+    debounceValidateSql(sqlString);
   };
 
   const frequencyOptions = useMemo(

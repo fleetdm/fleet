@@ -35,6 +35,10 @@
     .loading-spinner {
       margin: 69.5px auto;
     }
+
+    &--error {
+      border-color: $core-vibrant-red;
+    }
   }
 
   &__label {

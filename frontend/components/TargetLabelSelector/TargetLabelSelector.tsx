@@ -103,6 +103,7 @@ interface ILabelCheckboxListProps {
   disabledLabels: Record<string, boolean>;
   onSelectLabel: (arg: { name: string; value: boolean }) => void;
   disableOptions: boolean;
+  isError?: boolean;
 }
 
 const LabelCheckboxList = ({
@@ -111,8 +112,13 @@ const LabelCheckboxList = ({
   disabledLabels,
   onSelectLabel,
   disableOptions,
+  isError = false,
 }: ILabelCheckboxListProps) => (
-  <div className={`${baseClass}__checkboxes`}>
+  <div
+    className={classnames(`${baseClass}__checkboxes`, {
+      [`${baseClass}__checkboxes--error`]: isError,
+    })}
+  >
     {labels.map((label) => (
       <div className={`${baseClass}__label`} key={label.name}>
         <Checkbox
@@ -188,6 +194,9 @@ interface ILabelTabContentProps {
   onChangeSearch: (val: string) => void;
   tabKey: LabelTabKey;
   disableOptions: boolean;
+  /** Validation error shown in red, replacing the "Labels" label text and
+   * turning the list outline red. */
+  labelsError?: ReactNode | null;
 }
 
 const LabelTabContent = ({
@@ -197,6 +206,7 @@ const LabelTabContent = ({
   onChangeSearch,
   tabKey,
   disableOptions,
+  labelsError,
 }: ILabelTabContentProps) => (
   <>
     {tab.showModeToggle && (
@@ -215,12 +225,20 @@ const LabelTabContent = ({
       onSelectLabel={tab.onSelectLabel}
       disableOptions={disableOptions}
     />
+    <div
+      className={classnames("form-field__label", {
+        "form-field__label--error": !!labelsError,
+      })}
+    >
+      {labelsError || "Labels"}
+    </div>
     <LabelCheckboxList
       labels={filteredLabels}
       selectedLabels={tab.selectedLabels}
       disabledLabels={disabledLabels}
       onSelectLabel={tab.onSelectLabel}
       disableOptions={disableOptions}
+      isError={!!labelsError}
     />
   </>
 );
@@ -234,6 +252,7 @@ interface ICustomTargetTabsProps {
   isLoadingLabels: boolean;
   isErrorLabels: boolean;
   disableOptions: boolean;
+  labelsError?: ReactNode | null;
 }
 
 const CustomTargetTabs = ({
@@ -245,6 +264,7 @@ const CustomTargetTabs = ({
   isLoadingLabels,
   isErrorLabels,
   disableOptions,
+  labelsError,
 }: ICustomTargetTabsProps) => {
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [labelSearchQuery, setLabelSearchQuery] = useState("");
@@ -300,6 +320,7 @@ const CustomTargetTabs = ({
               onChangeSearch={setLabelSearchQuery}
               tabKey="include"
               disableOptions={disableOptions}
+              labelsError={labelsError}
             />
           ) : (
             <NoLabelsEmptyState
@@ -317,6 +338,7 @@ const CustomTargetTabs = ({
               onChangeSearch={setLabelSearchQuery}
               tabKey="exclude"
               disableOptions={disableOptions}
+              labelsError={labelsError}
             />
           ) : (
             <NoLabelsEmptyState
@@ -377,7 +399,8 @@ export interface ITargetLabelSelectorProps {
   isErrorLabels?: boolean;
   className?: string;
   disableOptions?: boolean;
-  /** Validation error rendered in red above the include/exclude tabs. */
+  /** Validation error rendered in red in the "Labels" label slot above the
+   * labels list, with the list outline turning red to match. */
   labelsError?: ReactNode | null;
 }
 
@@ -410,23 +433,17 @@ const TargetLabelSelector = ({
         disableOptions={disableOptions}
       />
       {selectedTargetType === "Custom" && (
-        <>
-          {labelsError && (
-            <div className={`${baseClass}__description--error`}>
-              {labelsError}
-            </div>
-          )}
-          <CustomTargetTabs
-            labels={labels || []}
-            include={includeConfig}
-            exclude={excludeConfig}
-            emptyStateDescription={emptyStateDescription}
-            onAddLabel={onAddLabel}
-            isLoadingLabels={isLoadingLabels}
-            isErrorLabels={isErrorLabels}
-            disableOptions={disableOptions}
-          />
-        </>
+        <CustomTargetTabs
+          labels={labels || []}
+          include={includeConfig}
+          exclude={excludeConfig}
+          emptyStateDescription={emptyStateDescription}
+          onAddLabel={onAddLabel}
+          isLoadingLabels={isLoadingLabels}
+          isErrorLabels={isErrorLabels}
+          disableOptions={disableOptions}
+          labelsError={labelsError}
+        />
       )}
     </div>
   );

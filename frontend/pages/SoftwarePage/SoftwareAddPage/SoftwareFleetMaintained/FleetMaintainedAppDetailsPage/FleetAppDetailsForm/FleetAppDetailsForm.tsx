@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
-import { validateQuery } from "components/forms/validators/validate_query";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -181,22 +181,30 @@ const FleetAppDetailsForm = ({
     setFormData((prevData) => ({ ...prevData, installScript: value }));
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax warning without flashing mid-token. Blur / submit still fire
+  // immediately. The warning is advisory: Save isn't gated on preInstallQuery
+  // validity.
+  const debounceValidatePreInstallQuery = useDebouncedCallback(
+    (value?: string) => {
+      setFormValidation(
+        generateFormValidation({ ...formData, preInstallQuery: value })
+      );
+    },
+    3000
+  );
+
   const onChangePreInstallQuery = (value?: string) => {
-    // Validation runs on blur so incomplete SQL doesn't flash a warning
-    // mid-type. The warning is advisory: Save isn't gated on preInstallQuery
-    // validity.
     setFormData({ ...formData, preInstallQuery: value });
-    // Clear a stale syntax error the moment the query parses again. Never
-    // set a new error here: new errors wait for blur / submit.
-    if (
-      formValidation.preInstallQuery?.message &&
-      (!value || !validateQuery(value).error)
-    ) {
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (formValidation.preInstallQuery?.message) {
       setFormValidation({
         ...formValidation,
         preInstallQuery: { isValid: true, message: "" },
       });
     }
+    debounceValidatePreInstallQuery(value);
   };
 
   const onBlurPreInstallQuery = () => {

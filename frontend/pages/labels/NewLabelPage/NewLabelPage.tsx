@@ -426,6 +426,17 @@ const NewLabelPage = ({
     setIsUpdating(false);
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax error without flashing mid-token. Blur / submit still fire
+  // immediately.
+  const debounceValidateSql = useDebouncedCallback((query: string) => {
+    if (!query.trim()) {
+      setQuerySyntaxError(null);
+      return;
+    }
+    setQuerySyntaxError(validateQuery(query).error);
+  }, 3000);
+
   const onQueryChange = (newQuery: string) => {
     const newFormData = { ...formData, labelQuery: newQuery };
     setFormData(newFormData);
@@ -449,11 +460,12 @@ const NewLabelPage = ({
       return next;
     });
 
-    // Clear a stale syntax error the moment the query parses again. Never
-    // set a new error here: new errors wait for blur / submit.
-    if (querySyntaxError && !validateQuery(newQuery).error) {
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (querySyntaxError) {
       setQuerySyntaxError(null);
     }
+    debounceValidateSql(newQuery);
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error
