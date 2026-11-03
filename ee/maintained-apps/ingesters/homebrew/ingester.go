@@ -351,6 +351,17 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "wechat" {
+		// WeChat's CFBundleShortVersionString is three parts ("4.2.0" for cask
+		// "4.2.0.16,270352"), so it always sorts below the cask version. Compare
+		// CFBundleVersion against the build after the comma instead.
+		if m := weChatCaskBuildPattern.FindStringSubmatch(cask.Version); m != nil {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, m[1],
+			)
+		}
+	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp":
 		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5",
@@ -507,6 +518,10 @@ func firefoxMacBundleVersion(version, buildDate string) (string, error) {
 	yy := buildDate[2:4]
 	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
 }
+
+// weChatCaskBuildPattern extracts the numeric build from a WeChat cask version
+// ("4.2.0.16,270352").
+var weChatCaskBuildPattern = regexp.MustCompile(`^[^,]+,(\d+)$`)
 
 // firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
 // Nightly cask version ("154.0a1,2026-07-17-09-27-13").

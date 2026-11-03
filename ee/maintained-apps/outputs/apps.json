@@ -1125,7 +1125,7 @@
       "name": "BitBox",
       "slug": "bitbox/darwin",
       "platform": "darwin",
-      "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+      "unique_identifier": "ch.shiftcrypto.wallet",
       "description": "BitBox is a companion app for the Swiss-made BitBox hardware wallet."
     },
     {
@@ -6592,7 +6592,7 @@
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tapbots.Pastebot2Mac",
+      "unique_identifier": "com.tapbots.Pastebot3Mac",
       "description": "Pastebot is a workflow application to improve productivity."
     },
     {
@@ -9518,7 +9518,7 @@
       "name": "Webex",
       "slug": "webex/windows",
       "platform": "windows",
-      "unique_identifier": "Cisco Webex",
+      "unique_identifier": "Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
@@ -9707,7 +9707,7 @@
       "name": "Wondershare Filmora",
       "slug": "wondershare-filmora/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.wondershare.filmoramac",
+      "unique_identifier": "com.wondershare.filmoramacos",
       "description": "Wondershare Filmora is a video editor."
     },
     {
