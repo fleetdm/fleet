@@ -1083,6 +1083,7 @@ const HostDetailsPage = ({
               actorFullName: actor_full_name,
               fleetInitiated: fleet_initiated,
               selfService: details?.self_service,
+              activityCreatedAt: created_at,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -1138,6 +1139,7 @@ const HostDetailsPage = ({
             fleetInitiated: fleet_initiated,
             selfService: details?.self_service,
             vppTokenLocation: details?.vpp_token?.location,
+            activityCreatedAt: created_at,
           });
           break;
         case "installed_certificate":
@@ -2297,6 +2299,7 @@ const HostDetailsPage = ({
                   "pending_install") as SoftwareInstallUninstallStatus,
                 hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
                 commandUuid: ipaPackageInstallDetails.commandUuid || "",
+                activityCreatedAt: ipaPackageInstallDetails.activityCreatedAt,
               }}
               onCancel={onCancelIpaSoftwareInstallDetailsModal}
             />

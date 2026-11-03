@@ -306,6 +306,7 @@ const ActivityFeed = ({
                 ...details,
                 actor_full_name,
                 fleet_initiated,
+                activity_created_at: created_at,
               })
             : setPackageInstallDetails({
                 ...details,
@@ -328,7 +329,12 @@ const ActivityFeed = ({
       case ActivityType.InstalledAppStoreApp:
         // Apple VPP + Android installs. Envelope actor fields ride along so
         // the modal can render the actor-driven failure copy per Figma.
-        setVppInstallDetails({ ...details, actor_full_name, fleet_initiated });
+        setVppInstallDetails({
+          ...details,
+          actor_full_name,
+          fleet_initiated,
+          activity_created_at: created_at,
+        });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -511,6 +517,7 @@ const ActivityFeed = ({
             actorFullName: ipaPackageInstallDetails.actor_full_name,
             fleetInitiated: ipaPackageInstallDetails.fleet_initiated,
             selfService: ipaPackageInstallDetails.self_service,
+            activityCreatedAt: ipaPackageInstallDetails.activity_created_at,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -539,6 +546,7 @@ const ActivityFeed = ({
             fleetInitiated: vppInstallDetails.fleet_initiated,
             selfService: vppInstallDetails.self_service,
             vppTokenLocation: vppInstallDetails.vpp_token?.location,
+            activityCreatedAt: vppInstallDetails.activity_created_at,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />
