@@ -104,7 +104,7 @@ describe("DeployModal", () => {
     // automations locked on.
     await waitFor(() =>
       expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+        fleet_id: 1,
         type: "patch",
         patch_software_title_id: 10,
         software_title_id: 10,
@@ -138,7 +138,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+        fleet_id: 1,
         type: "patch",
         patch_software_title_id: 10,
         software_title_id: 10,
@@ -183,7 +183,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
+        fleet_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
         notify_before_patching: true,
@@ -255,7 +255,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+        fleet_id: 1,
         name: "[Install software] Firefox",
         description:
           "Policy triggers automatic install of Firefox on each host that's missing this software.",
@@ -340,7 +340,7 @@ describe("DeployModal", () => {
     // hits Save gets patch_deadline: true + continuous automations locked on.
     await waitFor(() =>
       expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
+        fleet_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
         notify_before_patching: false,
@@ -373,7 +373,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
+        fleet_id: 1,
         software_title_id: null,
         patch_when_closed: false,
         notify_before_patching: false,
@@ -408,7 +408,7 @@ describe("DeployModal", () => {
     // because the user never re-clicks the radio.
     await waitFor(() =>
       expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
+        fleet_id: 1,
         software_title_id: 10,
         patch_when_closed: false,
         notify_before_patching: false,

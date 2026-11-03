@@ -64,6 +64,7 @@ fi
 
 # vpn-installer.sh kills anything still running from the app before replacing it,
 # so a failed quit doesn't stop the install.
+quit_application 'com.express.vpn'
 quit_application 'com.expressvpn.ExpressVPN'
 
 # Remove quarantine attributes so Gatekeeper won't block binaries during install
