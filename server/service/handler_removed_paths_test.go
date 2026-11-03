@@ -46,6 +46,7 @@ func TestRemovedPaths(t *testing.T) {
 			for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete,
 				http.MethodHead, http.MethodOptions} {
 				t.Run(method+" "+path, func(t *testing.T) {
+					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
 					require.Equal(t, http.StatusGone, rec.Code)
