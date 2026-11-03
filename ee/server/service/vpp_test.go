@@ -997,6 +997,10 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
 			return nil, nil
 		}
+		ds.GetEnterpriseFunc = func(context.Context) (*android.Enterprise, error) {
+			return &android.Enterprise{EnterpriseID: "LC01"}, nil
+		}
+		svc.androidModule = &playStoreLookupAndroidModule{availableApplicationIDs: []string{"com.example.app"}}
 		return svc, ds, baseSvc
 	}
 
