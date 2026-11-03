@@ -4,6 +4,7 @@
   "package_identifier": "TortoiseGit.TortoiseGit",
   "unique_identifier": "TortoiseGit",
   "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'TortoiseGit %' AND publisher = 'TortoiseGit' AND upgrade_code = '{F46D0E11-F71A-48A0-8A7B-FD8669B5080C}';",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
