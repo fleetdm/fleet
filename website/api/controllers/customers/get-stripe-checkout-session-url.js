@@ -74,7 +74,8 @@ module.exports = {
       tax_id_collection: {// eslint-disable-line camelcase
         enabled: true,
         required: 'if_supported'
-      }
+      },
+      automatic_tax: { enabled: true },
     });
 
     // Return the url of the Stripe checkout session.
