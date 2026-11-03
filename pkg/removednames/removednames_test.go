@@ -146,7 +146,10 @@ func TestEntriesWellFormed(t *testing.T) {
 	// Renaming teams always has a replacement, and every old name is team-related.
 	for _, e := range teamEntries {
 		assert.NotEmpty(t, e.New, e.Old)
-		assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
+		// The one exception is the short command alias "t" of the team commands.
+		if e.Kind != KindCommand {
+			assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
+		}
 	}
 }
 
@@ -382,6 +385,18 @@ func collectCLIAliases(file *ast.File, match func(string) bool) []cliAlias {
 	var walk func(node ast.Node, command []string)
 	walk = func(node ast.Node, command []string) {
 		ast.Inspect(node, func(n ast.Node) bool {
+			// logDeprecatedCommandName lists every deprecated spelling of a command, including ones with no team in their name.
+			if call, ok := n.(*ast.CallExpr); ok {
+				if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "logDeprecatedCommandName" && len(call.Args) == 3 {
+					names, replacement := stringLits(call.Args[1]), stringLits(call.Args[2])
+					if len(replacement) == 1 && slices.ContainsFunc(names, match) {
+						for _, name := range names {
+							out = append(out, cliAlias{kind: cliCommandAlias, name: name, command: replacement})
+						}
+					}
+				}
+				return true
+			}
 			lit, ok := n.(*ast.CompositeLit)
 			if !ok {
 				return true

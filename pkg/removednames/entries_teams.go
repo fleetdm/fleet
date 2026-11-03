@@ -83,6 +83,7 @@ var teamEntries = []Entry{
 	// fleetctl commands, flags, and environment variables.
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl get teams", New: "fleetctl get fleets"},
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl get team", New: "fleetctl get fleets"},
+	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl get t", New: "fleetctl get fleets"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl report"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl user create"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl generate-gitops"},
@@ -93,6 +94,7 @@ var teamEntries = []Entry{
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl get hosts"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl get software"},
 	{Kind: KindFlagValue, Scope: ScopeRequest, Old: "--team no-team", New: "--fleet unassigned", Context: "fleetctl generate-gitops"},
+	{Kind: KindFlagValue, Scope: ScopeRequest, Old: "--fleet no-team", New: "--fleet unassigned", Context: "fleetctl generate-gitops"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "policies-team", New: "policies-fleet", Context: "fleetctl apply"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "delete-other-teams", New: "delete-other-fleets", Context: "fleetctl gitops"},
 	{Kind: KindEnvVar, Scope: ScopeRequest, Old: "DELETE_OTHER_TEAMS", New: "DELETE_OTHER_FLEETS", Context: "fleetctl gitops"},
