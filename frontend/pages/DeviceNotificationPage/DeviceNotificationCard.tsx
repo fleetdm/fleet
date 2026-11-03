@@ -154,6 +154,11 @@ const DeviceNotificationCard = ({
             )}
           </div>
           {isPostError && (
+            // Keep the error message to a single line of plain text. The
+            // compact InfoBanner's 32px height + the card's --list-max-
+            // height-override shrink are tuned to a one-line pill; a
+            // wrapping or multi-element message will push the toast
+            // taller than the shrink accounts for.
             <div role="alert">
               <InfoBanner
                 color="red"

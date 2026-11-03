@@ -147,10 +147,14 @@ const ErrorAfterDelay = ({
   ...rest
 }: ErrorStoryArgs) => {
   const [isPostError, setIsPostError] = useState(false);
-  const [isPosting, setIsPosting] = useState(false);
+  // Start posting so the story opens on the loading state (mirrors a user
+  // who clicked Update now right before the story mounted).
+  const [isPosting, setIsPosting] = useState(true);
 
   // While not in the error state (either initial mount or an in-flight
-  // retry), wait 5 seconds and then surface the error.
+  // retry), wait 5 seconds and then surface the error. isPosting is in
+  // the deps so clicking Update now mid-countdown restarts the 5s timer
+  // instead of carrying over the remainder of the initial one.
   useEffect(() => {
     if (isPostError) return undefined;
     const timer = window.setTimeout(() => {
@@ -158,7 +162,7 @@ const ErrorAfterDelay = ({
       setIsPostError(true);
     }, 5_000);
     return () => window.clearTimeout(timer);
-  }, [isPostError]);
+  }, [isPostError, isPosting]);
 
   const onPostAction = (_action: unknown, isPrimary: boolean) => {
     if (!isPrimary) return;

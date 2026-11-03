@@ -29,15 +29,6 @@
     .info-banner__info {
       align-self: center;
     }
-
-    // __info's default `align-content: center` only applies to multi-line
-    // flex/grid containers (it's a no-op on a plain block). Make __info a
-    // flex container so a single-line message centers vertically inside its
-    // own box too, catching any residual baseline drift.
-    .info-banner__info {
-      display: flex;
-      align-items: center;
-    }
   }
 
   // When a leading icon is rendered, group it with the copy on the left
