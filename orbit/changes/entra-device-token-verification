@@ -1,0 +1,1 @@
+- On macOS, fleetd now gets an Entra-signed token proving the host's Entra device ID through the Company Portal SSO extension, when Fleet's Microsoft Entra conditional access integration asks for it.

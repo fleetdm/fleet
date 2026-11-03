@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -216,16 +217,26 @@ KSCy+VfKBn4=
 	})
 }
 
-func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincipalName string) submitDistributedQueryResultsRequestShim {
-	results := make(map[string]json.RawMessage)
-	results["fleet_detail_query_conditional_access_microsoft_device_id"] = json.RawMessage(fmt.Sprintf(`[{"device_id": "%s", "user_principal_name": "%s"}]`, deviceID, userPrincipalName))
-	return submitDistributedQueryResultsRequestShim{
-		NodeKey:  *host.NodeKey,
-		Results:  results,
-		Statuses: make(map[string]any),
-		Messages: make(map[string]string),
-		Stats:    map[string]*fleet.Stats{},
+// reportEntraDeviceToken reports an Entra device token for h the way fleetd does: it reads the
+// request from the orbit config and posts a token for it signed by signer. It returns the
+// request, nil if the orbit config didn't include one.
+func (s *integrationEnterpriseTestSuite) reportEntraDeviceToken(
+	signer *testEntraSigner, h *fleet.Host, deviceID, userPrincipalName string, expectedStatus int,
+) *fleet.OrbitEntraDeviceTokenRequest {
+	t := s.T()
+	var cfg fleet.OrbitConfig
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &cfg)
+	nonce := entraDeviceNonce(testConditionalAccessProxySecret, h.UUID)
+	if req := cfg.EntraDeviceTokenRequest; req != nil {
+		require.Equal(t, fleet.OrbitEntraDeviceTokenRequest{TenantID: testEntraTenantID, ClientID: testEntraClientID, Nonce: nonce}, *req)
 	}
+	token := signer.sign(t, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, deviceID, userPrincipalName, nonce, time.Now()))
+	var resp fleet.OrbitPostEntraDeviceTokenResponse
+	s.DoJSON("POST", "/api/fleet/orbit/entra_device_token", fleet.OrbitPostEntraDeviceTokenRequest{
+		OrbitNodeKey: *h.OrbitNodeKey,
+		IDToken:      token,
+	}, expectedStatus, &resp)
+	return cfg.EntraDeviceTokenRequest
 }
 
 func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID string) submitDistributedQueryResultsRequestShim {
@@ -241,8 +252,13 @@ func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID st
 }
 
 const (
-	testEntraTenantID      = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
-	otherTestEntraTenantID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+	testEntraClientID                = "d6f479f6-9b7c-459d-baa4-9146b15e93bb"
+	testConditionalAccessProxySecret = "secret"
+	testEntraDeviceID                = "c57f684e-4a62-4eb7-9429-a055431e44f4"
+	testEntraDeviceID2               = "1af954af-17e2-4e74-8499-5d44b75a2a3d"
+	testEntraDeviceID3               = "fd11d67c-3f4e-4b0a-9a51-8f0f2b6c7d10"
+	testEntraTenantID                = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+	otherTestEntraTenantID           = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
 )
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
@@ -406,6 +422,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	t := s.T()
+	signer := newTestEntraSigner(t)
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
@@ -493,8 +510,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	windowsHost1.OrbitNodeKey = &windowsHostorbitKey
 
 	// Feature is disabled on the host's team.
-	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h1, "entraDeviceID", "entraUserPrincipalName"), http.StatusOK, &distributedResp)
+	require.Nil(t, s.reportEntraDeviceToken(signer, h1, testEntraDeviceID, "entraUserPrincipalName", http.StatusBadRequest))
 	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
@@ -507,16 +523,15 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		},
 	}, http.StatusOK, &tmResp)
 
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h1, "entraDeviceID", "entraUserPrincipalName"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h1, testEntraDeviceID, "entraUserPrincipalName", http.StatusOK))
 	h1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.Nil(t, h1s.Managed)
 	require.Nil(t, h1s.Compliant)
 
-	distributedResp = submitDistributedQueryResultsResponse{}
+	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(windowsHost1, "entraDeviceIDWindows"), http.StatusOK, &distributedResp)
 	wh1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
@@ -585,7 +600,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.False(t, *h1s.Managed) // not MDM enrolled
@@ -651,7 +666,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed) // now should be MDM enrolled
@@ -707,7 +722,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed)
@@ -749,7 +764,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed)
@@ -826,11 +841,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NoError(t, err)
 
 	// Ingest device ID and user principal name.
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h2, "entraDeviceID2", "entraUserPrincipalName2"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h2, testEntraDeviceID2, "entraUserPrincipalName2", http.StatusOK))
 	h2s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
@@ -855,7 +869,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.NotNil(t, h2s.Managed)
 	require.True(t, *h2s.Managed)
@@ -885,7 +899,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.NotNil(t, h2s.Managed)
 	require.True(t, *h2s.Managed)
@@ -893,11 +907,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.True(t, *h2s.Compliant) // now the host is compliant
 
 	// A change of device ID and user principal name should update and clear the managed and compliant values.
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h2, "entraDeviceID3", "entraUserPrincipalName3"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h2, testEntraDeviceID3, "entraUserPrincipalName3", http.StatusOK))
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID3", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID3, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName3", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
@@ -963,7 +976,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
-			Platform:        "darwin",
+			Platform:        "windows",
 			TeamID:          teamID,
 		})
 		require.NoError(t, err)
@@ -986,6 +999,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		compliantValue *bool
 		deviceIDValue  *string
 	)
+	setDone := make(chan struct{})
 	// override value to reduce test time.
 	conditionalAccessSetWaitTime = 250 * time.Millisecond
 	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
@@ -1000,24 +1014,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
 		deviceIDValue = &deviceID
 		compliantValue = &compliant
-		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{
-			MessageID: "messageID",
-		}, nil
-	}
-
-	setDone := make(chan struct{})
-
-	mockedConditionalAccessMicrosoftProxyInstance.getMessageStatusFunc = func(
-		ctx context.Context,
-		tenantID string,
-		secret string,
-		messageID string,
-	) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error) {
+		// The Windows API is synchronous, so the message status isn't polled.
 		close(setDone)
-		return &conditional_access_microsoft_proxy.GetMessageStatusResponse{
-			MessageID: "messageID",
-			Status:    "Completed",
-		}, nil
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{}, nil
 	}
 
 	// Check that before the distributed/write there's no device information.
@@ -1030,18 +1029,18 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		"node_key": "%[1]s",
 		"queries": {
 			"%[2]s": [{"1": "1"}],
-			"%[6]s": [],
-			"%[3]s": [{"device_id": "%[4]s", "user_principal_name": "%[5]s"}]
+			"%[5]s": [],
+			"%[3]s": [{"device_id": "%[4]s"}]
 		},
 		"messages": {},
 		"statuses": {
 			"%[2]s": 0,
-			"%[6]s": 0,
+			"%[5]s": 0,
 			"%[3]s": 0
 		}
 	}`, *h1.NodeKey,
 		hostPolicyQueryPrefix+fmt.Sprint(cp1.ID),
-		hostDetailQueryPrefix+"conditional_access_microsoft_device_id", "entraDeviceID", "entraUserPrincipalName",
+		hostDetailQueryPrefix+"conditional_access_microsoft_device_id_windows", "entraDeviceID",
 		hostPolicyQueryPrefix+fmt.Sprint(cp2.ID),
 	)
 	s.DoRaw("POST", "/api/osquery/distributed/write", []byte(rawJSON), http.StatusOK)
@@ -1062,7 +1061,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	h1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceID", h1s.DeviceID)
-	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
+	require.Empty(t, h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.False(t, *h1s.Managed) // not MDM enrolled
 	require.NotNil(t, h1s.Compliant)
@@ -1996,4 +1995,105 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 			},
 		},
 	}, http.StatusOK, &applyResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDeviceToken() {
+	t := s.T()
+	ctx := t.Context()
+	signer := newTestEntraSigner(t)
+
+	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
+		TenantID: testEntraTenantID,
+		Secret:   testConditionalAccessProxySecret,
+	}
+	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
+		TenantID:  testEntraTenantID,
+		SetupDone: true,
+	}
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: testEntraTenantID,
+	}, http.StatusOK, &r)
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{}, http.StatusOK, &c)
+	require.True(t, c.ConfigurationCompleted)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": true},
+	}, http.StatusOK, &tmResp)
+
+	newHost := func(name, platform string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        name + ".local",
+			Platform:        platform,
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, h, s.ds)
+		h.OrbitNodeKey = &orbitKey
+		return h
+	}
+	mac1 := newHost("mac1", "darwin")
+	mac2 := newHost("mac2", "darwin")
+	win := newHost("win", "windows")
+
+	postToken := func(h *fleet.Host, claims jwt.MapClaims, expectedStatus int) {
+		var resp fleet.OrbitPostEntraDeviceTokenResponse
+		s.DoJSON("POST", "/api/fleet/orbit/entra_device_token", fleet.OrbitPostEntraDeviceTokenRequest{
+			OrbitNodeKey: *h.OrbitNodeKey,
+			IDToken:      signer.sign(t, claims),
+		}, expectedStatus, &resp)
+	}
+	assertDeviceID := func(h *fleet.Host, deviceID string) {
+		status, err := s.ds.LoadHostConditionalAccessStatus(ctx, h.ID)
+		if deviceID == "" {
+			require.True(t, fleet.IsNotFound(err), err)
+			return
+		}
+		require.NoError(t, err)
+		require.Equal(t, deviceID, status.DeviceID)
+	}
+
+	// Only macOS hosts get the request.
+	var cfg fleet.OrbitConfig
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *win.OrbitNodeKey)), http.StatusOK, &cfg)
+	require.Nil(t, cfg.EntraDeviceTokenRequest)
+	postToken(win, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com",
+		entraDeviceNonce(testConditionalAccessProxySecret, win.UUID), time.Now()), http.StatusBadRequest)
+	assertDeviceID(win, "")
+
+	// mac2 reporting a token minted with mac1's nonce (e.g. relayed from mac1) is rejected.
+	mac1Nonce := entraDeviceNonce(testConditionalAccessProxySecret, mac1.UUID)
+	postToken(mac2, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	assertDeviceID(mac2, "")
+
+	// Tokens for another tenant or app, or too old, are rejected.
+	postToken(mac1, testEntraDeviceTokenClaims(otherTestEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, "00000003-0000-0000-c000-000000000000", testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now().Add(-2*time.Hour)), http.StatusBadRequest)
+	assertDeviceID(mac1, "")
+
+	// A valid token is stored.
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user@example.com", http.StatusOK))
+	status, err := s.ds.LoadHostConditionalAccessStatus(ctx, mac1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testEntraDeviceID, status.DeviceID)
+	require.Equal(t, "user@example.com", status.UserPrincipalName)
+
+	// Disabling the feature stops the request and the ingestion.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": false},
+	}, http.StatusOK, &tmResp)
+	require.Nil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID2, "user2@example.com", http.StatusBadRequest))
+	assertDeviceID(mac2, "")
 }

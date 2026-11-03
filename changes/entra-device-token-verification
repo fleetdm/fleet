@@ -1,0 +1,2 @@
+- For Microsoft Entra conditional access on macOS, Fleet now only accepts an Entra device ID that the host proves with an Entra-signed token, instead of the device ID the host reports. The host's Platform SSO profile must allow `com.fleetdm.orbit` in `ExtensionData` > `AppAllowList`; until it does, Fleet doesn't report the host's compliance to Intune.
+- Upgrading deletes the Entra device IDs macOS hosts reported before this change. Hosts report a verified device ID on their next check-in.

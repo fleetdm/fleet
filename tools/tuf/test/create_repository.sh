@@ -158,6 +158,12 @@ for system in $SYSTEMS; do
       -o $orbit_target ./orbit/cmd/orbit
     fi
 
+    # Without a codesign identity, ad-hoc sign orbit with its release identifier, which the Microsoft
+    # SSO extension's AppAllowList matches for the Entra device token.
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ -z "$CODESIGN_IDENTITY" ]; then
+        codesign -s - -i com.fleetdm.orbit -f $orbit_target
+    fi
+
     ./build/fleetctl updates add \
         --path $TUF_PATH \
         --target $orbit_target \
