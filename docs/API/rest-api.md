@@ -16767,6 +16767,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
       "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
+      "hidden": false
     }
   ],
   "count": 123,
@@ -16815,6 +16816,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "cisa_known_exploit": false,// Available in Fleet Premium
     "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
     "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability."// Available in Fleet Premium
+    "hidden": false
   },
   "os_versions": [
     {
