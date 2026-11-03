@@ -1,6 +1,7 @@
 package packaging
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -8,21 +9,42 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// maxFilenameBytes keeps generated file names under the 255-byte limit of common file systems, with room for the
-// " (1)" browsers add to repeated downloads and for the folder path under Windows' 260-character MAX_PATH.
-const maxFilenameBytes = 200
+// maxFilenameBytes caps generated file names well below Windows' 260-character path limit, which also counts the
+// folder: Intune stages MSIs about 120 characters deep, OneDrive folders add about 70, and WiX 3 fails on long paths.
+// A UTF-8 byte count is never smaller than the UTF-16 count Windows uses, so this holds on every OS.
+const maxFilenameBytes = 100
 
 // outputFilename returns the default name of a generated package: fleet-<platform>[-<arch>][-<fleet>].<ext>.
-func outputFilename(platform, arch, fleetName, ext string) string {
+func outputFilename(platform, arch, ext string, opt Options) string {
 	name := "fleet-" + platform
 	if arch != "" {
 		name += "-" + arch
 	}
 	ext = "." + ext
-	if fleet := truncateUTF8(fleetNameForFilename(fleetName), maxFilenameBytes-len(name)-len("-")-len(ext)); fleet != "" {
+	budget := maxFilenameBytes - len(name) - len("-") - len(ext)
+	if fleet := fleetFilenamePart(opt.FleetName, opt.FleetID, opt.OtherFleetNames, budget); fleet != "" {
 		name += "-" + fleet
 	}
 	return name + ext
+}
+
+// fleetFilenamePart returns the cleaned fleet name, cut to budget bytes. If another fleet's name gives the same part,
+// it ends with the fleet ID instead, so two fleets' packages never share a name and one can't overwrite the other.
+func fleetFilenamePart(name string, id uint, others []string, budget int) string {
+	part := truncateUTF8(fleetNameForFilename(name), budget)
+	if part == "" || id == 0 {
+		return part
+	}
+	for _, other := range others {
+		if truncateUTF8(fleetNameForFilename(other), budget) == part {
+			suffix := strconv.FormatUint(uint64(id), 10)
+			if short := truncateUTF8(fleetNameForFilename(name), budget-len(suffix)-len("-")); short != "" {
+				return short + "-" + suffix
+			}
+			return suffix
+		}
+	}
+	return part
 }
 
 // fleetNameForFilename lowercases a fleet name and keeps only its letters and digits, in any script, turning every

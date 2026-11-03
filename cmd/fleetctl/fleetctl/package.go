@@ -474,9 +474,10 @@ func packageCommand() *cli.Command {
 
 			fmt.Println("Generating your fleetd agent...")
 			// opt is package-level, so reset what no flag sets.
-			opt.FleetName = ""
+			opt.FleetName, opt.FleetID, opt.OtherFleetNames = "", 0, nil
 			if opt.CustomOutfile == "" {
-				opt.FleetName = fleetNameForPackage(c.String("config"), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+				f := fleetForPackage(c.String("config"), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+				opt.FleetName, opt.FleetID, opt.OtherFleetNames = f.Name, f.ID, f.OtherNames
 			}
 			path, err := buildFunc(opt)
 			if err != nil {

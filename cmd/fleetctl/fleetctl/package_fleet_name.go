@@ -21,25 +21,33 @@ import (
 // must not stall the package build.
 var fleetNameLookupTimeout = 10 * time.Second
 
-// fleetNameForPackage returns the name of the fleet that enrollSecret belongs to, asking the server through the
-// fleetctl config contexts logged in to fleetURL. It returns "" whenever the name can't be found, which never fails the
-// build: Fleet Free, a global (Unassigned) secret, a role that can't read enroll secrets (Fleet masks them), no matching
-// context, or any error. Only an invalid or expired token prints a note, to errWriter.
-func fleetNameForPackage(configPath, fleetURL, enrollSecret string, errWriter io.Writer) string {
+// packageFleet is what the package file name needs about the fleet an enroll secret belongs to: its name, and its ID
+// with the other fleets' names, to tell apart fleets whose names clean up the same.
+type packageFleet struct {
+	Name       string
+	ID         uint
+	OtherNames []string
+}
+
+// fleetForPackage finds the fleet that enrollSecret belongs to, asking the server through the fleetctl config contexts
+// logged in to fleetURL. It returns the zero value whenever the fleet can't be found, which never fails the build: Fleet
+// Free, a global (Unassigned) secret, a role that can't read enroll secrets (Fleet masks them), no matching context, or
+// any error. Only an invalid or expired token prints a note, to errWriter.
+func fleetForPackage(configPath, fleetURL, enrollSecret string, errWriter io.Writer) packageFleet {
 	target, ok := normalizeServerURL(fleetURL)
 	if !ok || enrollSecret == "" {
-		return ""
+		return packageFleet{}
 	}
 	// Read the config directly: `package` must not create ~/.fleet/config as a side effect.
 	b, err := os.ReadFile(configPath)
 	if err != nil {
 		zlog.Debug().Err(err).Msg("fleet name lookup: read fleetctl config")
-		return ""
+		return packageFleet{}
 	}
 	var config configFile
 	if err := yaml.Unmarshal(b, &config); err != nil {
 		zlog.Debug().Err(err).Msg("fleet name lookup: parse fleetctl config")
-		return ""
+		return packageFleet{}
 	}
 
 	var names []string
@@ -67,10 +75,10 @@ func fleetNameForPackage(configPath, fleetURL, enrollSecret string, errWriter io
 		if timeout <= 0 {
 			break
 		}
-		fleetName, err := fleetNameFromServer(config.Contexts[name], enrollSecret, timeout)
+		fleet, err := fleetFromServer(config.Contexts[name], enrollSecret, timeout)
 		switch {
-		case err == nil && fleetName != "":
-			return fleetName
+		case err == nil && fleet.Name != "":
+			return fleet
 		case err == nil:
 			listed = true
 			zlog.Debug().Str("context", name).Msg("fleet name lookup: no fleet visible to this user has the enroll secret")
@@ -83,39 +91,45 @@ func fleetNameForPackage(configPath, fleetURL, enrollSecret string, errWriter io
 		fmt.Fprintf(errWriter, "Note: left the fleet name out of the file name because the fleetctl token for %s is invalid or expired. "+
 			"To add it, log in with fleetctl login.\n", fleetURL)
 	}
-	return ""
+	return packageFleet{}
 }
 
-// fleetNameFromServer lists the fleets visible to the context's user and returns the name of the one with enrollSecret,
-// or "" if none has it.
-func fleetNameFromServer(cc Context, enrollSecret string, timeout time.Duration) (string, error) {
+// fleetFromServer lists the fleets visible to the context's user and returns the one with enrollSecret, or the zero
+// value if none has it.
+func fleetFromServer(cc Context, enrollSecret string, timeout time.Duration) (packageFleet, error) {
 	options := []service.ClientOption{service.SetClientErrorWriter(io.Discard)}
 	if len(cc.CustomHeaders) > 0 {
 		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
 	}
 	client, err := service.NewClient(cc.Address, cc.TLSSkipVerify, cc.RootCA, cc.URLPrefix, options...)
 	if err != nil {
-		return "", err
+		return packageFleet{}, err
 	}
 	httpClient, ok := client.HTTP.(*http.Client)
 	if !ok {
-		return "", errors.New("unexpected HTTP client type")
+		return packageFleet{}, errors.New("unexpected HTTP client type")
 	}
 	httpClient.Timeout = timeout
 	client.SetToken(cc.Token)
 
 	fleets, err := client.ListTeams("")
 	if err != nil {
-		return "", err
+		return packageFleet{}, err
 	}
 	for _, f := range fleets {
 		for _, s := range f.Secrets {
 			if s != nil && s.Secret == enrollSecret {
-				return f.Name, nil
+				match := packageFleet{Name: f.Name, ID: f.ID}
+				for _, other := range fleets {
+					if other.ID != f.ID {
+						match.OtherNames = append(match.OtherNames, other.Name)
+					}
+				}
+				return match, nil
 			}
 		}
 	}
-	return "", nil
+	return packageFleet{}, nil
 }
 
 func joinURLPrefix(address, prefix string) string {

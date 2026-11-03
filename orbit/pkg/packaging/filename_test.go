@@ -24,21 +24,54 @@ func TestOutputFilename(t *testing.T) {
 		{"linux", "amd64", "pkg.tar.zst", "fleet-linux-amd64-workstations.pkg.tar.zst", "fleet-linux-amd64.pkg.tar.zst"},
 		{"linux", "arm64", "pkg.tar.zst", "fleet-linux-arm64-workstations.pkg.tar.zst", "fleet-linux-arm64.pkg.tar.zst"},
 	} {
-		assert.Equal(t, tc.withFleet, outputFilename(tc.platform, tc.arch, "Workstations", tc.ext))
-		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, "", tc.ext))
-		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, "🚀 🚀", tc.ext))
+		assert.Equal(t, tc.withFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: "Workstations"}))
+		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{}))
+		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: "🚀 🚀"}))
 	}
 
 	t.Run("long names are cut at a character boundary", func(t *testing.T) {
-		for _, name := range []string{strings.Repeat("a", 255), strings.Repeat("東", 255), strings.Repeat("ab-", 100)} {
-			got := outputFilename("linux", "arm64", name, "pkg.tar.zst")
-			assert.LessOrEqual(t, len(got), maxFilenameBytes, got)
-			assert.True(t, utf8.ValidString(got), got)
-			assert.True(t, strings.HasPrefix(got, "fleet-linux-arm64-"), got)
-			assert.True(t, strings.HasSuffix(got, ".pkg.tar.zst"), got)
-			assert.NotContains(t, got, "-.", got)
+		for _, opt := range []Options{
+			{FleetName: strings.Repeat("a", 255)},
+			{FleetName: strings.Repeat("東", 255)},
+			{FleetName: strings.Repeat("ab-", 100)},
+			{FleetName: strings.Repeat("東", 255), FleetID: 4294967295, OtherFleetNames: []string{strings.Repeat("東", 254)}},
+		} {
+			for _, ext := range []string{"pkg.tar.zst", "msi"} {
+				got := outputFilename("linux", "arm64", ext, opt)
+				assert.LessOrEqual(t, len(got), maxFilenameBytes, got)
+				assert.True(t, utf8.ValidString(got), got)
+				assert.True(t, strings.HasPrefix(got, "fleet-linux-arm64-"), got)
+				assert.True(t, strings.HasSuffix(got, "."+ext), got)
+				assert.NotContains(t, got, "-.", got)
+			}
 		}
+		assert.Len(t, outputFilename("windows", "amd64", "msi", Options{FleetName: strings.Repeat("a", 255)}), maxFilenameBytes)
 	})
+}
+
+func TestFleetFilenamePart(t *testing.T) {
+	long := strings.Repeat("a", 80)
+	for _, tc := range []struct {
+		name   string
+		fleet  string
+		id     uint
+		others []string
+		want   string
+	}{
+		{"no other fleets", "Workstations", 12, nil, "workstations"},
+		{"other fleets with different names", "Workstations", 12, []string{"Servers", "Workstations 2"}, "workstations"},
+		{"other fleet differs only in case and emojis", "Workstations", 12, []string{"💻 WORKSTATIONS"}, "workstations-12"},
+		{"other fleet differs only in punctuation", "Workstations (Canary)", 7, []string{"workstations-canary"}, "workstations-canary-7"},
+		{"names that match only after the cut", long + "x", 3, []string{long + "y"}, strings.Repeat("a", 28) + "-3"},
+		{"no ID to add", "Workstations", 0, []string{"workstations"}, "workstations"},
+		{"emoji-only names stay without a fleet name", "🚀", 5, []string{"🛸"}, ""},
+		// U+043E is a Cyrillic "о": it looks like the Latin "o" but is a different letter, so no collision.
+		{"lookalike Cyrillic letter", "Wоrkstations", 9, []string{"Workstations"}, "wоrkstations"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, fleetFilenamePart(tc.fleet, tc.id, tc.others, 30))
+		})
+	}
 }
 
 func TestFleetNameForFilename(t *testing.T) {

@@ -255,7 +255,7 @@ func msiFilename(opt Options) string {
 	if arch == "" {
 		arch = ArchAmd64
 	}
-	return outputFilename("windows", arch, opt.FleetName, "msi")
+	return outputFilename("windows", arch, "msi", opt)
 }
 
 func checkWine(wineChecked bool) error {

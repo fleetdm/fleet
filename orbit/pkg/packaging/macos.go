@@ -191,7 +191,7 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	filename := outputFilename("macos", "", opt.FleetName, "pkg")
+	filename := outputFilename("macos", "", "pkg", opt)
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
 	}

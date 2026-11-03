@@ -271,7 +271,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager, ext string) (string, error) {
 			ArchLinux: archLinuxInfo,
 		},
 	}
-	filename := outputFilename("linux", opt.Architecture, opt.FleetName, ext)
+	filename := outputFilename("linux", opt.Architecture, ext, opt)
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
 	}

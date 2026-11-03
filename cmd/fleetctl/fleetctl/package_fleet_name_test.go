@@ -27,6 +27,7 @@ func TestFleetNameForPackage(t *testing.T) {
 		return []*fleet.Team{
 			{ID: 1, Name: "Servers", Secrets: []*fleet.EnrollSecret{{Secret: "servers-secret"}}},
 			{ID: 2, Name: "💻 Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "old-secret"}, {Secret: "workstations-secret"}}},
+			{ID: 3, Name: "Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "other-workstations-secret"}}},
 		}, nil
 	}
 	// Tokens for an observer, whose view of enroll secrets Fleet masks, and for an expired session.
@@ -55,24 +56,26 @@ func TestFleetNameForPackage(t *testing.T) {
 	hung := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-stuck }))
 	t.Cleanup(func() { close(stuck); hung.Close() })
 
+	servers := packageFleet{Name: "Servers", ID: 1, OtherNames: []string{"💻 Workstations", "Workstations"}}
 	type fleetctlContext struct{ name, address, token string }
 	for _, tc := range []struct {
 		name     string
 		contexts []fleetctlContext
 		fleetURL string
 		secret   string
-		want     string
+		want     packageFleet
 		wantNote bool
 	}{
 		{
 			name:     "fleet secret",
 			contexts: []fleetctlContext{{"default", premium.URL, "admin-token"}},
-			fleetURL: premium.URL, secret: "workstations-secret", want: "💻 Workstations",
+			fleetURL: premium.URL, secret: "workstations-secret",
+			want: packageFleet{Name: "💻 Workstations", ID: 2, OtherNames: []string{"Servers", "Workstations"}},
 		},
 		{
 			name:     "URL spelled differently from the context address",
 			contexts: []fleetctlContext{{"default", premium.URL, "admin-token"}},
-			fleetURL: strings.ToUpper(premium.URL) + "/", secret: "servers-secret", want: "Servers",
+			fleetURL: strings.ToUpper(premium.URL) + "/", secret: "servers-secret", want: servers,
 		},
 		{
 			name:     "global secret",
@@ -92,12 +95,12 @@ func TestFleetNameForPackage(t *testing.T) {
 		{
 			name:     "expired token in one context, valid in another",
 			contexts: []fleetctlContext{{"default", premium.URL, "expired-token"}, {"other", premium.URL, "admin-token"}},
-			fleetURL: premium.URL, secret: "servers-secret", want: "Servers",
+			fleetURL: premium.URL, secret: "servers-secret", want: servers,
 		},
 		{
 			name:     "context for another server is not used",
 			contexts: []fleetctlContext{{"default", free.URL, "admin-token"}, {"prod", premium.URL, "admin-token"}},
-			fleetURL: premium.URL, secret: "servers-secret", want: "Servers",
+			fleetURL: premium.URL, secret: "servers-secret", want: servers,
 		},
 		{
 			name:     "no context for the server",
@@ -140,7 +143,7 @@ func TestFleetNameForPackage(t *testing.T) {
 
 			var errOut bytes.Buffer
 			start := time.Now()
-			require.Equal(t, tc.want, fleetNameForPackage(configPath, tc.fleetURL, tc.secret, &errOut))
+			require.Equal(t, tc.want, fleetForPackage(configPath, tc.fleetURL, tc.secret, &errOut))
 			assert.Less(t, time.Since(start), 5*time.Second)
 			if tc.wantNote {
 				assert.Contains(t, errOut.String(), "left the fleet name out of the file name")
@@ -153,7 +156,7 @@ func TestFleetNameForPackage(t *testing.T) {
 
 	t.Run("missing config file", func(t *testing.T) {
 		configPath := filepath.Join(t.TempDir(), "config")
-		require.Empty(t, fleetNameForPackage(configPath, premium.URL, "servers-secret", &bytes.Buffer{}))
+		require.Zero(t, fleetForPackage(configPath, premium.URL, "servers-secret", &bytes.Buffer{}))
 		require.NoFileExists(t, configPath)
 	})
 }
