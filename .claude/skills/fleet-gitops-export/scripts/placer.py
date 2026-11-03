@@ -107,7 +107,9 @@ class Placer:
     # ------------------------------------------------------------ main
 
     def place(self):
-        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self.plan["remove"]:
+        pristine = self.work / "pristine"
+        restored = [str(p.relative_to(pristine)) for p in pristine.rglob("*") if p.is_file()]
+        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self.plan["remove"] + restored:
             self.target(rel)
         self._restore()
         for f in self.files.values():
@@ -134,7 +136,7 @@ class Placer:
         for dirpath, _, filenames in os.walk(pristine):
             for name in filenames:
                 src = Path(dirpath) / name
-                dst = self.root / src.relative_to(pristine)
+                dst = self.target(str(src.relative_to(pristine)))
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
         for dirpath, dirnames, filenames in sorted(os.walk(self.root), reverse=True):

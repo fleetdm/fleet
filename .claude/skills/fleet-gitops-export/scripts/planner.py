@@ -18,7 +18,7 @@ import plistlib
 import re
 import unicodedata
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from fleet_defaults import is_default_script
 from layout import Layout
@@ -53,6 +53,11 @@ MAC_HINTS = re.compile(r"\b(?:launchctl|defaults|osascript|profiles|diskutil|sof
 FMA_DRIFT_RATIO = 0.75
 
 UNSAFE_CHARS = set('/\\:*?"<>|[{')
+
+# Setup experience booleans GitOps resets to false when they're left out.
+SETUP_FLAGS = ("enable_end_user_authentication", "require_all_software_macos", "require_all_software_windows",
+               "apple_enable_release_device_manually", "macos_manual_agent_install", "enable_create_local_admin_account",
+               "macos_enable_bootstrap_package_during_manual_enrollment", "macos_enable_bootstrap_package_during_migration")
 
 
 def slugify(name: str, fallback: str = "item") -> str:
@@ -107,6 +112,15 @@ def software_labels(obj: dict) -> dict:
         if obj.get(k):
             return {k: names(obj[k])}
     return {}
+
+
+POLICY_LABELS = ("labels_include_all", "labels_include_any", "labels_exclude_any")
+SOFTWARE_LABELS = ("labels_include_any", "labels_exclude_any", "labels_include_all")
+
+
+def every_label(labels: dict, keys=SOFTWARE_LABELS) -> dict:
+    """Each label key, None where unset, so reconcile also catches labels only the repo has."""
+    return {k: labels.get(k) for k in keys}
 
 
 def text_of(b: bytes) -> str | None:
@@ -325,16 +339,17 @@ class Planner:
         by_globs = sorted(templates, key=lambda f: len([g for g in self.layout.globs if g["file"] == f]))
         mobile_tpl = by_globs[0] if by_globs else None
         computer_tpl = by_globs[-1] if by_globs else None
-        used, taken = set(), set()
+        taken = set()
         self._fleet_files = {}
-        for key, sc in scopes.items():
-            if key in ("global", "unassigned"):
-                continue
+        fleets = [(key, sc) for key, sc in scopes.items() if key not in ("global", "unassigned")]
+        # A template named exactly like a fleet goes to that fleet, even when another fleet's name slugs to its file.
+        fleets.sort(key=lambda kv: kv[1]["name"] not in by_name)
+        for key, sc in fleets:
             name = sc["name"]
             slug = slugify(name, "fleet")
-            if name in by_name:
+            if by_name.get(name) and by_name[name] not in taken:
                 fpath, action, tpl = by_name[name], "fill", by_name[name]
-            elif f"fleets/{slug}.yml" in templates and f"fleets/{slug}.yml" not in used:
+            elif f"fleets/{slug}.yml" in templates and f"fleets/{slug}.yml" not in taken:
                 fpath = tpl = f"fleets/{slug}.yml"
                 action = "fill"
             else:
@@ -343,11 +358,11 @@ class Planner:
                     fpath, n = f"fleets/{slug}-{n}.yml", n + 1
                 tpl = mobile_tpl if self._is_mobile(sc) else computer_tpl
                 action = "clone"
-            used.add(tpl)
             taken.add(fpath)
             self._fleet_files[key] = {"file": fpath, "template": tpl, "action": action}
+        # Clones read the template from the pristine copy, so a template no fleet fills is removed even when one was cloned from it.
         for f in templates:
-            if f not in used:
+            if f not in taken:
                 self.remove.append(f)
         if self.flags["premium"]:
             self._fleet_files["unassigned"] = {"file": "fleets/unassigned.yml", "template": None, "action": "create"}
@@ -539,7 +554,8 @@ class Planner:
                     it = dict(it)
                     if "api_key_json" in it:
                         it["api_key_json"] = self.add_env(f"FLEET_{k.upper()}_API_KEY_JSON" + (f"_{i + 1}" if i else ""), "default.yml",
-                                                          f"{k.replace('_', ' ').title()} service account key JSON for {it.get('domain', '')}", {"type": "mask"})
+                                                          f"{k.replace('_', ' ').title()} service account key JSON for {it.get('domain', '')}",
+                                                          {"type": "mask", "object": True})
                     items.append(it)
                 out[k] = items
             elif v not in (None, [], {}) or k in ("conditional_access_enabled", "certificates_disable_host_end_user_binding"):
@@ -721,23 +737,17 @@ class Planner:
         if certs:
             c.setdefault("android_settings", {})["certificates"] = certs
             self.count(scope, "Android certificates", len(certs))
-        if premium and self.flags["apple_mdm"]:
+        # Windows MDM alone still has setup experience settings (require_all_software_windows).
+        if premium and (self.flags["apple_mdm"] or self.flags["windows_mdm"]):
             se = self._setup_experience(mdm, sc, scope)
             if se:
                 c["setup_experience"] = se
         return c
 
     def _setup_experience(self, mdm: dict, sc: dict, scope: str) -> dict:
-        api_se = mdm.get("setup_experience") or {}
-        if not api_se and mdm.get("macos_setup"):
-            api_se = {{"bootstrap_package": "macos_bootstrap_package", "macos_setup_assistant": "apple_setup_assistant",
-                       "enable_release_device_manually": "apple_enable_release_device_manually", "script": "macos_script",
-                       "manual_agent_install": "macos_manual_agent_install",
-                       "enable_managed_local_account": "enable_create_local_admin_account"}.get(k, k): v
-                      for k, v in mdm["macos_setup"].items()}
+        api_se = api_setup_experience(mdm)
         se = {}
-        for k in ("enable_end_user_authentication", "require_all_software_macos", "require_all_software_windows",
-                  "apple_enable_release_device_manually", "macos_manual_agent_install", "enable_create_local_admin_account"):
+        for k in SETUP_FLAGS:
             if api_se.get(k):
                 se[k] = True
         # Unset, it follows enable_end_user_authentication, so it's always written.
@@ -783,12 +793,15 @@ class Planner:
             if not exact_name_ok(name):
                 self.note("gap", scope, name, "the script name can't be a file name GitOps can reference with `path:`; rename it in Fleet, then export again")
                 continue
-            fid = self.add_file("script", platform, name, content=s["content"], exact=True, fleet=scope, review=review)
             names_found = sorted({self._enroll_secret_name(r["source"]["team"], r["source"]["index"])[0] for r in s.get("env_refs") or []})
             if names_found:
-                self.note("review", scope, self.files[fid]["path"],
-                          f"holds the value of {', '.join(names_found)} as plain text. fleetctl doesn't expand variables in scripts, "
-                          "so it's exported as-is; tell the user and suggest a $FLEET_SECRET_ variable instead")
+                # fleetctl doesn't expand variables in scripts, so exporting it would put the secret in the repo.
+                self.note("gap", scope, name,
+                          f"holds the value of {', '.join(names_found)} as plain text, so it isn't exported (that would put the secret in the repo). "
+                          "In Fleet, replace the value with a $FLEET_SECRET_ variable (Fleet fills it in when the script runs), then export again. "
+                          "Until then, applying this repo would delete the script")
+                continue
+            fid = self.add_file("script", platform, name, content=s["content"], exact=True, fleet=scope, review=review)
             self._script_ids[(fleet["key"], s["id"])] = fid
             entries.append({"file": fid, "opts": {}})
             self.count(scope, "scripts")
@@ -861,7 +874,8 @@ class Planner:
             return
         labels = sc.get("labels") or []
         is_global = fleet["key"] == "global"
-        directory = self.layout.labels_dir if is_global else f"{self.layout.labels_dir}/{slugify(fleet['sections'].get('name') or fleet['key'], 'fleet')}"
+        # Named after the fleet file, which is unique where fleet names can share a slug ("EMEA Ops", "EMEA+Ops").
+        directory = self.layout.labels_dir if is_global else f"{self.layout.labels_dir}/{os.path.splitext(os.path.basename(fleet['file']))[0]}"
         self._existing_labels = getattr(self, "_existing_labels", set())
         for lbl in labels:
             spec = {"name": lbl["name"]}
@@ -1188,8 +1202,9 @@ class Planner:
             else:
                 item["hash_sha256"] = p.get("hash_sha256") or pkg.get("hash_sha256")
             p_ext = os.path.splitext(p.get("name") or fname)[1]
+            ids = _package_ids(t, p_ext)
             for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall"), ("post_install_script", "post-install")):
-                if p.get(key) and not is_default_script(key, p_ext, p[key]):
+                if p.get(key) and not is_default_script(key, p_ext, p[key], ids):
                     item[key] = {"path": {"$file": self.add_file("software_file", platform, f"{prefix}-{suffix}{script_ext}",
                                                                  content=p[key].encode(), exact=True, fleet=scope)}}
             if p.get("pre_install_query"):
@@ -1295,6 +1310,7 @@ class Planner:
         planner writes), so the reconcile check after placement compares two independent sources.
 
         Shape: {file: {kind: [[key, {field: value}], ...]}}. Lists, not dicts, so duplicates show.
+        A value of {ANY_OF: [...]} accepts any of those values (a Fleet default the repo may leave out, say).
         """
         inv: dict = {}
 
@@ -1302,14 +1318,23 @@ class Planner:
             inv.setdefault(target, {}).setdefault(kind, []).append([key, fields])
 
         premium = self.flags["premium"]
+        cfg = self.snap["config"]
         for key, sc in scopes.items():
             target = "default.yml" if key == "global" else self._fleet_files.get(key, {}).get("file")
             if not target:
                 continue
             controls = "default.yml" if key == "unassigned" else target
             sw = self._software_index(key)
-            failing = set(((sc.get("team") or self.snap["config"]).get("webhook_settings") or {})
+            team = sc.get("team") or {}
+            failing = set(((team or cfg).get("webhook_settings") or {})
                           .get("failing_policies_webhook", {}).get("policy_ids") or [])
+            titles = {t.get("id"): t for t in (sc.get("software") or {}).get("titles", [])}
+            for section, fields in _api_settings(key, sc, cfg, premium):
+                add(target, "settings", section, fields)
+            if (not premium and key == "global") or (premium and key != "global"):
+                for section, fields in _api_controls(cfg["mdm"] if key in ("global", "unassigned") else team.get("mdm") or {},
+                                                     premium, key in ("global", "unassigned")):
+                    add(controls, "settings", section, fields)
             for p in sc.get("policies") or []:
                 f = {k: p.get(k) for k in ("platform", "description", "resolution", "calendar_events_enabled",
                                            "conditional_access_enabled", "continuous_automations_enabled")}
@@ -1320,14 +1345,22 @@ class Planner:
                     f["query"] = p.get("query")
                 if premium:
                     f.update({"critical": p.get("critical"), "hidden": p.get("hidden")})
-                    f.update(scope_labels(p))
+                    f.update(every_label(scope_labels(p), POLICY_LABELS + ("labels_exclude_all",)))
                 f["webhooks_and_tickets_enabled"] = p["id"] in failing
                 f["run_script"] = (p.get("run_script") or {}).get("name")
+                inst = p.get("install_software")
+                if f["type"] == "patch":
+                    f["install_software"] = bool(inst)
+                else:
+                    # A title this fleet doesn't have can't be named in the repo, so it can't match.
+                    f["install_software"] = inst and (_install_target(titles.get(inst.get("software_title_id")) or {})
+                                                      or f"software title {inst.get('name')!r}")
                 add(target, "policies", p["name"], f)
             for r in sc.get("reports") or []:
                 f = {k: r.get(k) for k in ("query", "platform", "description", "interval", "observer_can_run", "automations_enabled",
                                            "logging", "discard_data", "min_osquery_version")}
-                f.update(scope_labels(r, ("labels_include_any",) + (("labels_include_all",) if premium else ())))
+                keys = ("labels_include_any",) + (("labels_include_all",) if premium else ())
+                f.update(every_label(scope_labels(r, keys), keys))
                 add(target, "reports", r["name"], f)
             if key != "unassigned" and not self.exceptions.get("labels"):
                 for lbl in sc.get("labels") or []:
@@ -1347,7 +1380,7 @@ class Planner:
                     continue
                 f = {"sha256": hashlib.sha256(prof["content"]).hexdigest(), "self_service": prof.get("self_service"),
                      "hidden": prof.get("hidden"), "description": prof.get("description")}
-                f.update(scope_labels(prof, ("labels_include_all", "labels_include_any", "labels_exclude_any")))
+                f.update(every_label(scope_labels(prof, POLICY_LABELS), POLICY_LABELS))
                 if prof.get("activation"):
                     f["activation_sha256"] = hashlib.sha256(prof["activation"]).hexdigest()
                 add(controls, "profiles", prof.get("name"), f)
@@ -1355,36 +1388,192 @@ class Planner:
                 add(controls, "assets", asset["name"], {"sha256": hashlib.sha256(asset["content"]).hexdigest()})
             if not self.exceptions.get("software") and key != "global":
                 seen = set()
-                for t in (sc.get("software") or {}).get("titles", []):
-                    for ident, f in _software_identities(t):
+                for t in titles.values():
+                    for ident, f in _software_identities(t, self.keep_fma_scripts):
                         if ident not in seen:
                             seen.add(ident)
                             add(target, "software", ident, f)
         return inv
 
 
-def _software_identities(t: dict):
+ANY_OF = "$any_of"
+
+
+def _sha_text(s: str) -> str:
+    return hashlib.sha256(s.encode()).hexdigest()
+
+
+def _api_settings(key: str, sc: dict, cfg: dict, premium: bool):
+    """(section, {field: value}) for the inline settings Fleet reports for a scope, keyed by their GitOps path.
+
+    Values the repo holds as $VARIABLEs (webhook URLs, tokens, metadata) and policy_ids (set through
+    each policy) are left out; logos and lists of integrations are files or variables too.
+    """
+    def webhooks(wh: dict, prefix: str, kinds=None):
+        for k, v in (wh or {}).items():
+            if isinstance(v, dict) and (kinds is None or k in kinds):
+                yield f"{prefix}.{k}", {f: x for f, x in v.items() if f not in ("destination_url", "policy_ids")}
+
+    team = sc.get("team") or {}
+    if key == "global":
+        yield TOP_LEVEL, {"agent_options": cfg.get("agent_options")}
+        info = drop_aliases("org_info", cfg.get("org_info") or {})
+        yield "org_settings.org_info", {"org_name": info.get("org_name"), "contact_url": info.get("contact_url")}
+        ss = drop_aliases("server_settings", cfg.get("server_settings") or {})
+        yield "org_settings.server_settings", {k: v for k, v in ss.items() if k != "server_url"}
+        for k in ("features", "fleet_desktop", "host_expiry_settings", "activity_expiry_settings"):
+            if isinstance(cfg.get(k), dict):
+                yield f"org_settings.{k}", cfg[k]
+        yield from webhooks(cfg.get("webhook_settings"), "org_settings.webhook_settings")
+        yield "org_settings.integrations", {k: v for k, v in (cfg.get("integrations") or {}).items()
+                                            if isinstance(v, (bool, str, int, float))}
+        sso = {k: v for k, v in (cfg.get("sso_settings") or {}).items() if k != "metadata"}
+        if not premium:
+            sso = {k: v for k, v in sso.items() if k not in ("enable_jit_provisioning", "enable_jit_role_sync")}
+        yield "org_settings.sso_settings", sso
+    elif key == "unassigned":
+        yield from webhooks(team.get("webhook_settings"), "settings.webhook_settings", ("failing_policies_webhook", "host_activities_webhook"))
+    else:
+        yield TOP_LEVEL, {"agent_options": team.get("agent_options")}
+        for k in ("features", "host_expiry_settings"):
+            if isinstance(team.get(k), dict):
+                yield f"settings.{k}", team[k]
+        yield from webhooks(team.get("webhook_settings"), "settings.webhook_settings")
+        integ = team.get("integrations") or {}
+        yield "settings.integrations", {"conditional_access_enabled": integ.get("conditional_access_enabled")}
+        if isinstance(integ.get("google_calendar"), dict):
+            yield "settings.integrations.google_calendar", {k: v for k, v in integ["google_calendar"].items() if k != "webhook_url"}
+
+
+TOP_LEVEL = "(top level)"
+
+
+def _api_controls(mdm: dict, premium: bool, is_global: bool):
+    """(section, {field: value}) for the controls Fleet reports that aren't files, keyed by their GitOps path."""
+    top = {}
+    if is_global:
+        top.update({k: mdm.get(k) for k in ("windows_enabled_and_configured", "android_enabled_and_configured")})
+        if "enable_profile_validation" in mdm:
+            # Leaving it out means true.
+            top["enable_profile_validation"] = {ANY_OF: [None, True]} if mdm["enable_profile_validation"] else False
+        if premium:
+            top.update({k: mdm.get(k) for k in ("windows_migration_enabled", "enable_turn_on_windows_mdm_manually",
+                                                "apple_require_hardware_attestation", "only_allow_apple_business_enrollment")})
+            if mdm.get("windows_enabled_and_configured"):
+                top.update({k: mdm.get(k) for k in ("windows_entra_tenant_ids", "windows_entra_client_ids")})
+            mig = mdm.get("macos_migration") or {}
+            yield "controls.macos_migration", {"enable": mig.get("enable"), "mode": mig.get("mode")}
+    if premium:
+        top.update({"enable_recovery_lock_password": mdm.get("enable_recovery_lock_password"), "name_template": mdm.get("name_template")})
+    if top:
+        yield "controls", top
+    if not premium:
+        return
+    for k in ("macos_updates", "ios_updates", "ipados_updates"):
+        u = mdm.get(k) or {}
+        yield f"controls.{k}", {f: u.get(f) for f in ("minimum_version", "deadline", "deadline_days")
+                                + (("update_new_hosts",) if k == "macos_updates" else ())}
+    wu = mdm.get("windows_updates") or {}
+    yield "controls.windows_updates", {f: wu.get(f) for f in ("deadline_days", "grace_period_days")}
+    apple = mdm.get("apple_settings") or mdm.get("macos_settings") or {}
+    windows = mdm.get("windows_settings") or {}
+    yield "controls.apple_settings", {"enable_disk_encryption": apple.get("enable_disk_encryption") or mdm.get("enable_disk_encryption"),
+                                      "enable_escrow_disk_encryption_key": apple.get("enable_escrow_disk_encryption_key")}
+    yield "controls.windows_settings", {"enable_disk_encryption": windows.get("enable_disk_encryption"),
+                                        "require_bitlocker_pin": windows.get("require_bitlocker_pin") or mdm.get("windows_require_bitlocker_pin"),
+                                        "enable_managed_local_account": windows.get("enable_managed_local_account")}
+    yield "controls.linux_settings", {"enable_escrow_disk_encryption_key": (mdm.get("linux_settings") or {}).get("enable_escrow_disk_encryption_key")}
+    se = api_setup_experience(mdm)
+    fields = {k: se.get(k) for k in SETUP_FLAGS + ("lock_end_user_info",)}
+    fields["end_user_local_account_type"] = None if se.get("end_user_local_account_type") in (None, "", "admin") else se["end_user_local_account_type"]
+    yield "controls.setup_experience", fields
+
+
+def _install_target(t: dict):
+    """What a policy's install_software names, as the reconcile check resolves it: a package by URL or hash."""
+    pkg, app = t.get("software_package"), t.get("app_store_app")
+    if pkg and pkg.get("fleet_maintained_app_id"):
+        return f"fma:{(t.get('fma') or {}).get('slug')}"
+    if pkg:
+        return {ANY_OF: [f"package:{v}" for v in (pkg.get("url"), pkg.get("hash_sha256")) if v]}
+    if app:
+        return f"app:{app.get('app_store_id')}"
+    return None
+
+
+def _script_field(stored: str | None, default: bool):
+    """A script as reconcile compares it: its hash, or, when it's Fleet's own, also absent from the repo."""
+    if not stored:
+        return None
+    return {ANY_OF: [None, _sha_text(stored)]} if default else _sha_text(stored)
+
+
+def _software_identities(t: dict, keep_fma_scripts=()):
     """(identity, settings) for each installable item of a software title, as the reconcile check keys them."""
     pkg, app = t.get("software_package"), t.get("app_store_app")
     if pkg and pkg.get("fleet_maintained_app_id"):
-        f = {"self_service": pkg.get("self_service"), "categories": pkg.get("categories")}
-        f.update(software_labels(pkg))
-        yield f"fma:{(t.get('fma') or {}).get('slug')}", f
+        fma = t.get("fma") or {}
+        f = {"self_service": pkg.get("self_service"), "categories": pkg.get("categories"), "display_name": t.get("display_name"),
+             "version": pkg.get("pinned_version")}
+        f.update(every_label(software_labels(pkg)))
+        for key in ("install_script", "uninstall_script"):
+            state = _fma_script_state(pkg, fma, key)
+            # An older copy of Fleet's script is left out unless kept, and the plan lists it for review.
+            f[key] = _script_field(pkg.get(key), state == "default" or (state == "older" and not ({"all", fma.get("slug")} & set(keep_fma_scripts))))
+        f["post_install_script"] = _script_field(pkg.get("post_install_script"), False)
+        patch = pkg.get("patch_policy") or {}
+        managed = patch.get("patch_when_closed") or patch.get("notify_before_patching")
+        q = pkg.get("pre_install_query")
+        f["pre_install_query"] = {ANY_OF: [None, q]} if q and managed else q
+        yield f"fma:{fma.get('slug')}", f
     elif pkg:
         is_script = os.path.splitext(pkg.get("name", ""))[1].lower() in (".sh", ".ps1", ".py")
         for p in (t.get("packages") or [pkg]) if len(t.get("packages") or []) > 1 else [pkg]:
-            f = {"self_service": p.get("self_service"), "categories": p.get("categories")}
-            f.update(software_labels(p))
+            f = {"self_service": p.get("self_service"), "categories": p.get("categories"), "display_name": t.get("display_name"),
+                 "pre_install_query": p.get("pre_install_query")}
+            f.update(every_label(software_labels(p)))
+            ext = os.path.splitext(p.get("name") or pkg.get("name", ""))[1]
+            for key in ("install_script", "uninstall_script", "post_install_script"):
+                if not (is_script and key == "install_script"):
+                    f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext)))
             # Keyed by URL when there is one: packages whose URL names no version don't pin a hash.
             yield f"package:{(not is_script and p.get('url')) or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
     elif app:
         versions = t.get("app_store_apps") or []
         multi = len(versions) > 1 or (len(versions) == 1 and versions[0].get("name") not in (None, "", "Default version"))
-        f = {}
+        ident = f"app:{app.get('app_store_id')}:{app.get('platform', '')}"
         if not multi:
-            f = {"self_service": app.get("self_service"), "categories": app.get("categories")}
-            f.update(software_labels(app))
-        yield f"app:{app.get('app_store_id')}:{app.get('platform', '')}", f
+            f = {"self_service": app.get("self_service"), "categories": app.get("categories"), "display_name": t.get("display_name"),
+                 "configuration": app_config_value(app.get("platform", ""), app.get("configuration"))}
+            f.update(every_label(software_labels(app)))
+            yield ident, f
+            return
+        yield ident, {"display_name": t.get("display_name")}
+        for v in versions:
+            f = {"self_service": v.get("self_service"), "categories": v.get("categories"),
+                 "configuration": app_config_value(app.get("platform", ""), v.get("configuration"))}
+            f.update(every_label(software_labels(v)))
+            yield f"{ident}:{v.get('name')}", f
+
+
+def app_config_value(platform: str, cfg):
+    """An App Store app's managed configuration as reconcile compares it: the XML's hash (Apple) or the parsed JSON (Android)."""
+    if cfg in (None, "", {}):
+        return None
+    if platform in ("ios", "ipados"):
+        return _sha_text(cfg) if isinstance(cfg, str) else None
+    return cfg
+
+
+def api_setup_experience(mdm: dict) -> dict:
+    """The setup experience settings Fleet returned, under their GitOps names (older servers use macos_setup's)."""
+    if mdm.get("setup_experience") or not mdm.get("macos_setup"):
+        return mdm.get("setup_experience") or {}
+    return {{"bootstrap_package": "macos_bootstrap_package", "macos_setup_assistant": "apple_setup_assistant",
+             "enable_release_device_manually": "apple_enable_release_device_manually", "script": "macos_script",
+             "manual_agent_install": "macos_manual_agent_install",
+             "enable_managed_local_account": "enable_create_local_admin_account"}.get(k, k): v
+            for k, v in mdm["macos_setup"].items()}
 
 
 def _envslug(name: str) -> str:
@@ -1430,13 +1619,31 @@ def _fma_script_state(pkg: dict, fma: dict, key: str) -> str:
     return "older" if ratio >= FMA_DRIFT_RATIO else "custom"
 
 
+def _package_ids(t: dict, ext: str) -> dict:
+    """The identifiers Fleet fills into a package's default scripts, as far as the API returns them.
+
+    A .deb or .rpm's package ID is its name, which Fleet also uses as the title name; an MSI's upgrade
+    code is on the title. Product codes and .pkg receipt IDs aren't returned, so those stay unchecked.
+    """
+    ext = ext.lower().lstrip(".")
+    if ext in ("deb", "rpm") and t.get("name"):
+        return {"PACKAGE_ID": [t["name"]]}
+    if ext == "msi" and t.get("upgrade_code"):
+        return {"UPGRADE_CODE": [t["upgrade_code"]]}
+    return {}
+
+
 def _url_names_version(url: str, version: str | None) -> bool:
-    """Does the download URL name the package's version (so the bytes behind it shouldn't change)?"""
+    """Does the download URL's path name the package's version (so the bytes behind it shouldn't change)?
+
+    Only a whole version counts: "8.1" doesn't match "18.1" or "8.1.2", and the host and query are ignored.
+    """
     if not version:
         return True
     v = version.split(":")[-1]  # Debian epoch
-    path = unquote(url)
-    return any(c and c in path for c in (v, re.split(r"[-+~]", v)[0]))
+    path = unquote(urlparse(url).path)
+    return any(c and re.search(r"(?<![0-9A-Za-z])(?<![0-9]\.)[vV]?" + re.escape(c) + r"(?![0-9A-Za-z])(?!\.[0-9])", path)
+               for c in (v, re.split(r"[-+~]", v)[0]))
 
 
 def _payload_display_name(content: bytes):

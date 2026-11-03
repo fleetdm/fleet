@@ -121,7 +121,7 @@ The repository includes a GitHub Actions workflow and a GitLab pipeline. On GitH
 3. Add these as repository secrets (GitHub) or CI/CD variables (GitLab):
    - `FLEET_URL`: your Fleet server's URL.
    - `FLEET_API_TOKEN`: the API-only user's token.
-   - Every variable in `.env.example`, with its real value.
+   - Every variable in `.env.example`, with its real value. If the check said a value has to be quoted, wrap it in double quotes.
 4. Push the repository to a branch other than `main`, and open a pull request. Check that the workflow's dry run passes and shows nothing you didn't expect.
 5. Merge the pull request. From now on, merging to `main` applies the repository to Fleet.
 6. In Fleet, go to **Settings > Integrations > Change management** and turn on **GitOps mode**. Otherwise, the next run overwrites changes made in the Fleet UI.

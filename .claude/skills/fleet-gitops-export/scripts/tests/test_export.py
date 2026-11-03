@@ -1,6 +1,7 @@
 """Offline tests for the export scripts. Run: python3 -m unittest discover -s scripts/tests"""
 
 import argparse
+import json
 import re
 import shutil
 import stat
@@ -160,6 +161,51 @@ class CommandTest(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
+    def test_session_pins_relative_paths(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl="bin/fleetctl", config="fleetctl.yml", context=None)
+            gitops_export.session(args)
+            saved = json.loads((tmp / "work/session.json").read_text())
+            self.assertEqual(saved["fleetctl"], str(Path("bin/fleetctl").resolve()))
+            self.assertEqual(saved["config"], str(Path("fleetctl.yml").resolve()))
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl="fleetctl", config=None, context=None)
+            gitops_export.session(args)
+            saved = json.loads((tmp / "work/session.json").read_text())
+            self.assertEqual((saved["fleetctl"], saved["config"]), ("fleetctl", str(Path("fleetctl.yml").resolve())))
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_failed_export_leaves_no_stale_plan(self):
+        tmp = Path(tempfile.mkdtemp())
+        saved = gitops_export.Collector, gitops_export.Planner, gitops_export.Layout, gitops_export.say
+
+        class Boom:
+            def __init__(self, *a, **kw):
+                pass
+
+            def collect(self):
+                return {}
+
+            def build(self):
+                raise RuntimeError("boom")
+
+        try:
+            gitops_export.Collector = gitops_export.Planner = Boom
+            gitops_export.Layout = type("L", (), {"load": staticmethod(lambda p: None)})
+            gitops_export.say = lambda *a: None
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl=None, config=None, context=None,
+                                      keep_fma_scripts=None)
+            work = gitops_export.work_dir(tmp / "repo", args.work)
+            (work / "layout.json").write_text("{}")
+            (work / "plan.json").write_text("{}")
+            with self.assertRaises(RuntimeError):
+                gitops_export.cmd_export(args)
+            self.assertFalse((work / "plan.json").exists())
+        finally:
+            gitops_export.Collector, gitops_export.Planner, gitops_export.Layout, gitops_export.say = saved
+            shutil.rmtree(tmp)
+
     def test_preflight_names_the_missing_install(self):
         tmp, out, saved = Path(tempfile.mkdtemp()), [], gitops_export.say
         gitops_export.say = out.append
@@ -211,6 +257,30 @@ class DryRunEnvTest(unittest.TestCase):
         self.assertEqual(len(notes), 1)
         self.assertNotIn("s3cr3t", " ".join(notes))
 
+    def test_values_yaml_would_misread(self):
+        if not yaml_backend():
+            self.skipTest("no YAML parser")
+
+        class FakeAPI:
+            def json(self, path, params=None):
+                return {"ca": {"password": "p@ss: word #1"}, "url": "https://fleet.example.test"}
+
+        f = self.tmp / ".env"
+        f.write_text("FLEET_EXPORT_TEST_TOKEN=true\nFLEET_EXPORT_TEST_QUOTED='\"a: b\"'\n")
+        plan = {"env": [{"name": "FLEET_EXPORT_TEST_PASSWORD", "source": {"type": "config", "pointer": ["ca", "password"]}, "used_in": ["default.yml"]},
+                        {"name": "FLEET_EXPORT_TEST_URL", "source": {"type": "config", "pointer": ["url"]}, "used_in": ["default.yml"]},
+                        {"name": "FLEET_EXPORT_TEST_TOKEN", "source": {"type": "mask"}, "used_in": ["default.yml"]},
+                        {"name": "FLEET_EXPORT_TEST_QUOTED", "source": {"type": "mask"}, "used_in": ["default.yml"]},
+                        {"name": "FLEET_EXPORT_TEST_KEY", "source": {"type": "mask", "object": True}, "used_in": ["default.yml"]}]}
+        ch = Checker(self.tmp, plan)
+        env, _ = ch.dry_run_env(FakeAPI(), f)
+        doc = fleetctl_expand("ca:\n  password: $FLEET_EXPORT_TEST_PASSWORD\n", env)
+        self.assertEqual(load_yaml(doc, yaml_backend())["ca"]["password"], "p@ss: word #1")
+        self.assertEqual(env["FLEET_EXPORT_TEST_URL"], "https://fleet.example.test")
+        results = [(r["level"], r["message"].split(":")[0]) for r in ch.results["reconcile"]]
+        self.assertEqual(results, [("WARN", "FLEET_EXPORT_TEST_PASSWORD"), ("FAIL", "FLEET_EXPORT_TEST_TOKEN")])
+        self.assertNotIn("p@ss", repr(ch.results))
+
     def test_mask_stays_a_yaml_string(self):
         backend = yaml_backend()
         if not backend:
@@ -234,6 +304,8 @@ class SecretSpansTest(unittest.TestCase):
         self.assertEqual(refs[0]["source"], {"type": "enroll_secret", "team": 1, "index": 0})
         self.assertNotIn("env_refs", scopes[0]["scripts"][0])
         self.assertNotIn("wk-s3cr3t-value", repr(refs))
+        self.assertEqual(len(c.warnings), 1)
+        self.assertIn("shorter than", c.warnings[0]["message"])
 
 
 class FleetDefaultsTest(unittest.TestCase):
@@ -244,6 +316,14 @@ class FleetDefaultsTest(unittest.TestCase):
         self.assertTrue(is_default_script("uninstall_script", "pkg", pkg))
         upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
         self.assertTrue(is_default_script("uninstall_script", "msi", upgrade))
+
+    def test_retargeted_defaults_are_not_defaults(self):
+        ids = {"PACKAGE_ID": ["zoom"]}
+        self.assertTrue(is_default_script("uninstall_script", "deb", default_script("uninstall_deb.sh", "zoom"), ids))
+        self.assertFalse(is_default_script("uninstall_script", "deb", default_script("uninstall_deb.sh", "zoom-beta"), ids))
+        upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
+        self.assertTrue(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{ABC-123}"]}))
+        self.assertFalse(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{DEF-456}"]}))
 
     def test_custom_scripts_are_not_defaults(self):
         self.assertFalse(is_default_script("install_script", "deb", default_script("install_deb.sh") + "systemctl restart x\n"))
@@ -275,6 +355,11 @@ class HelpersTest(unittest.TestCase):
         self.assertTrue(_url_names_version("https://x.test/slack-4.52.155-0.1.el8.x86_64.rpm", "4.52.155-0.1.el8"))
         self.assertTrue(_url_names_version("https://x.test/app_2.0.deb", "1:2.0-3"))
         self.assertFalse(_url_names_version("https://x.test/stable/1password-latest.deb", "8.11.16"))
+        self.assertTrue(_url_names_version("https://x.test/releases/v8.11.16/app.dmg", "8.11.16"))
+        self.assertFalse(_url_names_version("https://8.11.16.x.test/latest.deb", "8.11.16"))
+        self.assertFalse(_url_names_version("https://x.test/latest.deb?v=8.11.16", "8.11.16"))
+        self.assertFalse(_url_names_version("https://x.test/app-18.1.deb", "8.1"))
+        self.assertFalse(_url_names_version("https://x.test/app-8.1.2.deb", "8.1"))
         self.assertTrue(_url_names_version("https://x.test/anything.pkg", None))
 
     def test_fma_script_state(self):
@@ -327,6 +412,14 @@ def render_templates(dest: Path):
 def team(name, mdm=None):
     return {"name": name, "features": {"enable_host_users": True}, "host_expiry_settings": {"host_expiry_enabled": False, "host_expiry_window": 0},
             "webhook_settings": {}, "integrations": {}, "mdm": mdm or {}}
+
+
+def fleet_scope(fleet_id, name, **kw):
+    sc = {"key": str(fleet_id), "id": fleet_id, "name": name, "team": team(name), "enroll_secret_count": 0, "labels": [],
+          "policies": [], "reports": [], "scripts": [], "profiles": [], "assets": [], "android_certificates": [], "setup": {},
+          "software": {"titles": [], "setup": [], "setup_macos": []}}
+    sc.update(kw)
+    return sc
 
 
 SECRET = "wk-s3cr3t-value-1234"
@@ -397,14 +490,13 @@ def snapshot():
                           {"id": 5, "name": "Zoom installed", "query": "SELECT 1;", "platform": "linux",
                            "install_software": {"software_title_id": 21, "name": "Zoom"}}],
              "reports": [],
-             "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"},
-                         {"id": 5, "name": "enroll.sh", "content": ENROLL_SCRIPT, "env_refs": secret_span(ENROLL_SCRIPT, SERVER_SECRET, 2)}],
+             "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"}],
              "profiles": [], "assets": [], "android_certificates": [], "setup": {},
-             "software": {"titles": [{"id": 20, "name": "Zoom", "software_package": {
+             "software": {"titles": [{"id": 20, "name": "zoom", "software_package": {
                                           "name": "zoom_amd64.deb", "platform": "linux", "version": "7.1.5.4332",
                                           "url": "https://cdn.example.test/prod/7.1.5.4332/zoom_amd64.deb", "hash_sha256": "a" * 64,
                                           "install_script": default_script("install_deb.sh"), "uninstall_script": default_script("uninstall_deb.sh", "zoom")}},
-                                     {"id": 21, "name": "Zoom", "software_package": {
+                                     {"id": 21, "name": "zoom", "software_package": {
                                           "name": "zoom_x86_64.rpm", "platform": "linux", "version": "7.1.5.4332",
                                           "url": "https://cdn.example.test/zoom-latest.rpm", "hash_sha256": "b" * 64,
                                           "install_script": "#!/bin/sh\nrpm -i --nodeps \"$INSTALLER_PATH\"\n",
@@ -431,6 +523,20 @@ class EndToEndTest(unittest.TestCase):
 
     def read(self, rel):
         return (self.root / rel).read_text(encoding="utf-8")
+
+    def replan(self, snap, **kw):
+        shutil.rmtree(self.work / "blobs")
+        plan = Planner(snap, self.layout, self.work, **kw).build()
+        Placer(plan, self.layout, self.work).place()
+        return plan
+
+    def reconcile(self, plan=None):
+        ch = Checker(self.root, plan or self.plan)
+        if not ch.load_repo():
+            self.skipTest("no YAML parser")
+        ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": SECRET}
+        ch.reconcile()
+        return ch.results["reconcile"]
 
     def test_layout(self):
         self.assertTrue((self.root / "fleets/workstations.yml").exists())
@@ -490,11 +596,18 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(next(f for f in self.plan["files"].values() if f["path"] == rel)["env_refs"], ["FLEET_WORKSTATIONS_ENROLL_SECRET"])
         self.assertNotIn(SECRET, repr({k: v for k, v in self.plan.items() if k != "inventory"}))
 
-    def test_enroll_secret_in_script_is_flagged(self):
-        notes = [n for n in self.plan["notes"] if n["level"] == "review" and n["item"].endswith("/enroll.sh")]
+    def test_script_with_enroll_secret_isnt_exported(self):
+        snap = snapshot()
+        servers = next(s for s in snap["scopes"] if s["key"] == "2")
+        servers["scripts"].append({"id": 5, "name": "enroll.sh", "content": ENROLL_SCRIPT, "env_refs": secret_span(ENROLL_SCRIPT, SERVER_SECRET, 2)})
+        plan = self.replan(snap)
+        notes = [n for n in plan["notes"] if n["level"] == "gap" and n["item"] == "enroll.sh"]
         self.assertEqual(len(notes), 1)
         self.assertIn("FLEET_SERVERS_ENROLL_SECRET", notes[0]["message"])
         self.assertNotIn(SERVER_SECRET, notes[0]["message"])
+        self.assertFalse(list(self.root.rglob("enroll.sh")))
+        self.assertFalse(any(SERVER_SECRET.encode() in p.read_bytes() for p in (self.work / "blobs").iterdir()))
+        self.assertIn("script 'enroll.sh' is in Fleet but not in the repo", "\n".join(r["message"] for r in self.reconcile(plan)))
 
     def test_reconcile_fills_in_enroll_secret_variables(self):
         ch = Checker(self.root, self.plan)
@@ -566,6 +679,97 @@ class EndToEndTest(unittest.TestCase):
         Placer(self.plan, self.layout, self.work).place()
         after = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
         self.assertEqual(before, after)
+
+    def test_restore_stays_in_repo(self):
+        outside = self.tmp / "outside"
+        outside.mkdir()
+        shutil.rmtree(self.root / ".github")
+        (self.root / ".github").symlink_to(outside)
+        with self.assertRaises(ValueError):
+            Placer(self.plan, self.layout, self.work).place()
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_fleet_files_never_collide_or_linger(self):
+        snap = snapshot()
+        snap["scopes"].insert(2, fleet_scope(3, "Workstations"))
+        files = {f.get("name"): f["file"] for f in self.replan(snap)["fleets"]}
+        self.assertEqual(files["💻 Workstations"], "fleets/workstations.yml")
+        self.assertEqual(files["Workstations"], "fleets/workstations-2.yml")
+
+        snap = snapshot()
+        snap["scopes"] = [s for s in snap["scopes"] if s["key"] != "1"]
+        plan = self.replan(snap)
+        self.assertFalse((self.root / "fleets/workstations.yml").exists())
+        self.assertTrue((self.root / "fleets/servers.yml").exists())
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+        (self.root / "fleets/extra.yml").write_text("name: Extra\n")
+        self.assertIn("fleets/extra.yml isn't a fleet in Fleet", "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_label_folders_follow_fleet_files(self):
+        snap = snapshot()
+        label = {"name": "Ops", "query": "SELECT 1", "label_membership_type": "dynamic"}
+        snap["scopes"] += [fleet_scope(5, "EMEA Ops", labels=[dict(label, fleet_id=5)]),
+                           fleet_scope(6, "EMEA+Ops", labels=[dict(label, fleet_id=6)])]
+        plan = self.replan(snap)
+        files = {f.get("name"): f["file"] for f in plan["fleets"]}
+        self.assertEqual((files["EMEA Ops"], files["EMEA+Ops"]), ("fleets/emea-ops.yml", "fleets/emea-ops-2.yml"))
+        self.assertIn("paths: ../labels/emea-ops/*.yml", self.read("fleets/emea-ops.yml"))
+        self.assertIn("paths: ../labels/emea-ops-2/*.yml", self.read("fleets/emea-ops-2.yml"))
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_setup_experience_flags(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["team"]["mdm"] = {"setup_experience": {"macos_enable_bootstrap_package_during_manual_enrollment": True}}
+        self.replan(snap)
+        self.assertIn("macos_enable_bootstrap_package_during_manual_enrollment: true", self.read("fleets/workstations.yml"))
+
+        snap["flags"]["apple_mdm"] = False
+        srv = next(s for s in snap["scopes"] if s["key"] == "2")
+        srv["team"]["mdm"] = {"macos_setup": {"require_all_software_windows": True}}
+        plan = self.replan(snap)
+        self.assertIn("require_all_software_windows: true", self.read("fleets/servers.yml"))
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+        servers = self.root / "fleets/servers.yml"
+        servers.write_text(servers.read_text().replace("require_all_software_windows: true", "require_all_software_windows: false"))
+        self.assertIn("settings 'controls.setup_experience': require_all_software_windows",
+                      "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_reconcile_compares_every_kind_and_setting(self):
+        servers = self.root / "fleets/servers.yml"
+        servers.write_text(servers.read_text().replace(
+            "  windows_settings:\n    configuration_profiles:\n", "  windows_settings:\n    configuration_profiles:\n"
+                                                                "      - path: ../platforms/windows/configuration-profiles/Min password.xml\n", 1))
+        default = self.root / "default.yml"
+        default.write_text(default.read_text().replace("distributed_interval: 10", "distributed_interval: 20")
+                           .replace("deadline_days: 14", "deadline_days: 7"))
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("fleets/servers.yml: profile 'Min password' is in the repo but not in Fleet", messages)
+        self.assertIn("default.yml: settings '(top level)': agent_options", messages)
+        self.assertIn("default.yml: settings 'controls.macos_updates': deadline_days", messages)
+
+    def test_reconcile_compares_software_contents(self):
+        policy = self.root / "platforms/linux/policies/zoom-installed.yml"
+        policy.write_text(policy.read_text().replace("zoom-rpm.package.yml", "zoom-deb.package.yml"))
+        (self.root / "platforms/linux/software/zoom-rpm-install.sh").write_text("#!/bin/sh\nrpm -i \"$INSTALLER_PATH\"\n")
+        deb = self.root / "platforms/linux/software/zoom-deb.package.yml"
+        (deb.parent / "zoom-deb-uninstall.sh").write_text(default_script("uninstall_deb.sh", "zoom"))
+        deb.write_text(deb.read_text() + "  uninstall_script:\n    path: ./zoom-deb-uninstall.sh\n")
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("policy 'Zoom installed': install_software", messages)
+        self.assertIn("install_script is", messages)
+        self.assertNotIn("uninstall_script", messages)
+
+    def test_reconcile_compares_app_configurations(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["software"]["titles"].append({"id": 12, "name": "Slack", "app_store_app": {
+            "app_store_id": "803453959", "platform": "ios", "configuration": "<dict><key>k</key><string>v</string></dict>"}})
+        plan = self.replan(snap)
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+        config = next(self.root.rglob("slack-ios-config.xml"))
+        config.write_text(config.read_text().replace(">v<", ">w<"))
+        self.assertIn("software 'app:803453959:ios': configuration", "\n".join(r["message"] for r in self.reconcile(plan)))
 
 
 if __name__ == "__main__":

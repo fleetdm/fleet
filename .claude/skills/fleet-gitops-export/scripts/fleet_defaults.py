@@ -24,9 +24,9 @@ DEFAULTS = {
 }
 
 # What Fleet substitutes for the placeholders: a quoted ID, or a list of them for .pkg.
-_FILLED = r"(?:'[^'\n]*'|\(\n(?:  '[^'\n]*'\n)*\))"
+_FILLED = r"('[^'\n]*'|\(\n(?:  '[^'\n]*'\n)*\))"
 # Mirrors file.PackageIDRegex and file.UpgradeCodeRegex; the suffix character is kept, so it's a lookahead here.
-_PLACEHOLDER = re.compile(r'"\$(?:PACKAGE_ID|UPGRADE_CODE)"(?=\W|$)|\$(?:PACKAGE_ID|UPGRADE_CODE)(?=\W|$)|"?\$\{(?:PACKAGE_ID|UPGRADE_CODE)\}"?')
+_PLACEHOLDER = re.compile(r'"\$(PACKAGE_ID|UPGRADE_CODE)"(?=\W|$)|\$(PACKAGE_ID|UPGRADE_CODE)(?=\W|$)|"?\$\{(PACKAGE_ID|UPGRADE_CODE)\}"?')
 
 _patterns: dict = {}
 
@@ -36,18 +36,33 @@ def _norm(text: str) -> str:
 
 
 def _pattern(filename: str):
+    """(template, regex with one group per filled placeholder, placeholder names in order)."""
     if filename not in _patterns:
         template = _norm((_DIR / filename).read_text(encoding="utf-8"))
-        parts = _PLACEHOLDER.split(template)
-        _patterns[filename] = (template, re.compile(_FILLED.join(re.escape(p) for p in parts)))
+        parts, kinds, pos = [], [], 0
+        for m in _PLACEHOLDER.finditer(template):
+            parts.append(template[pos:m.start()])
+            kinds.append(next(g for g in m.groups() if g))
+            pos = m.end()
+        parts.append(template[pos:])
+        _patterns[filename] = (template, re.compile(_FILLED.join(re.escape(p) for p in parts)), kinds)
     return _patterns[filename]
 
 
-def is_default_script(key: str, extension: str, script: str) -> bool:
-    """Is `script` Fleet's default `key` ("install_script" or "uninstall_script") for this package type?"""
+def is_default_script(key: str, extension: str, script: str, ids: dict | None = None) -> bool:
+    """Is `script` Fleet's default `key` ("install_script" or "uninstall_script") for this package type?
+
+    `ids` maps a placeholder ("PACKAGE_ID", "UPGRADE_CODE") to the values Fleet would fill in for this
+    package. A filled-in value that isn't one of them means an admin retargeted the script, so it isn't
+    the default. Placeholders missing from `ids` (the API doesn't return every identifier) accept any value.
+    """
     text = _norm(script or "")
     for filename in DEFAULTS.get(key, {}).get(extension.lower().lstrip("."), []):
-        template, pattern = _pattern(filename)
-        if text == template or pattern.fullmatch(text):
+        template, pattern, kinds = _pattern(filename)
+        if text == template:
+            return True
+        m = pattern.fullmatch(text)
+        if m and all(kind not in (ids or {}) or set(re.findall(r"'([^'\n]*)'", value)) <= set(ids[kind])
+                     for kind, value in zip(kinds, m.groups())):
             return True
     return False

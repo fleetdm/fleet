@@ -75,7 +75,13 @@ def session(args) -> tuple[Fleetctl, Path, Path]:
     work = work_dir(target, args.work)
     saved_path = work / "session.json"
     saved = json.loads(saved_path.read_text()) if saved_path.exists() else {}
-    conn = {k: getattr(args, k) or saved.get(k) for k in ("fleetctl", "config", "context")}
+    given = {"fleetctl": args.fleetctl, "config": args.config}
+    # The dry run runs from the repo, so relative paths are pinned now; a bare fleetctl stays a PATH lookup.
+    for k, v in given.items():
+        if v and (k == "config" or os.sep in v or "/" in v):
+            given[k] = str(Path(v).expanduser().resolve())
+    conn = {"fleetctl": given["fleetctl"] or saved.get("fleetctl"), "config": given["config"] or saved.get("config"),
+            "context": args.context or saved.get("context")}
     saved_path.write_text(json.dumps(conn, indent=2))
     return Fleetctl(conn["fleetctl"] or "fleetctl", conn["config"], conn["context"]), target, work
 
@@ -223,6 +229,8 @@ def cmd_export(args) -> int:
     fc, target, work = session(args)
     layout = Layout.load(need(work, "layout.json", "scaffold"))
     snap = Collector(API(fc), log=lambda m: say(f"  {m}")).collect()
+    # A plan left from an earlier run would point at the blobs about to be deleted if this build fails.
+    (work / "plan.json").unlink(missing_ok=True)
     blobs = work / "blobs"
     if blobs.exists():
         shutil.rmtree(blobs)
@@ -230,12 +238,10 @@ def cmd_export(args) -> int:
     plan = Planner(snap, layout, work, keep_fma_scripts=keep).build()
     (work / "plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
     say(f"plan: {len(plan['files'])} files, {len(plan['fleets'])} fleet files, {len(plan['env'])} environment variables")
-    reviews = [n for n in plan["notes"] if n["level"] == "review"]
-    gaps = [n for n in plan["notes"] if n["level"] == "gap"]
-    for n in reviews:
-        say(f"REVIEW {n['scope']}: {n['item']}: {n['message']}")
-    for n in gaps:
-        say(f"GAP {n['scope']}: {n['item']}: {n['message']}")
+    for level in ("review", "gap", "warn"):
+        for n in plan["notes"]:
+            if n["level"] == level:
+                say(f"{level.upper()} {n['scope']}: {n['item']}: {n['message']}")
     say(f"plan written to {work / 'plan.json'}")
     return 0
 
@@ -354,7 +360,8 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
     if val:
         caveat = ("`fleetctl gitops --dry-run` lists most sections as \"would've applied\" without comparing them, and only reports "
                   "deletions for policies, reports, labels, software packages, custom host vitals, Android certificates, and fleets. "
-                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item and field by field.")
+                  "The repo-vs-Fleet check covers the rest by resolving every path and glob and comparing the result with Fleet, item by item and field by field, "
+                  "settings and controls included; values the repo holds as variables are checked only by the dry run.")
         lines += ["", "## Validation", "", caveat, ""]
         for section, title in (("references", "YAML and references"), ("reconcile", "Repo vs. Fleet")):
             fails = [r for r in val[section] if r["level"] == "FAIL"]

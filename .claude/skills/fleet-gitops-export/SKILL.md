@@ -61,7 +61,7 @@ Runs `fleetctl new` and records what it generated: fleet templates, their `paths
 python3 <skill folder>/scripts/gitops_export.py export --dir <target>
 ```
 
-Reads Fleet and writes `plan.json` to a work folder outside the repo (the command prints where). The plan lists every file with its destination, what goes into each YAML file, and every environment variable. It prints `REVIEW` lines for placements you should check and `GAP` lines for things GitOps can't represent.
+Reads Fleet and writes `plan.json` to a work folder outside the repo (the command prints where). The plan lists every file with its destination, what goes into each YAML file, and every environment variable. It prints `REVIEW` lines for placements you should check, `GAP` lines for things GitOps can't represent, and `WARN` lines for things to tell the user about.
 
 ### 4. Review the plan (judgment)
 
@@ -98,7 +98,7 @@ Before running it, ask the user to copy `.env.example` to `.env` in the repo and
 
 1. runs the scaffold's own `fleet-gitops` validator (static checks; its FAILs are reported but don't fail the export, because some come from content as it exists in Fleet),
 2. parses every YAML file and checks that every reference exists and no file is orphaned,
-3. reconciles the repo with Fleet item by item and field by field: policy, report, and label definitions against the values Fleet returned, scripts, profiles, activations, and DDM assets by content hash, and software by package URL (hash when there's no URL), Fleet-maintained app slug, or App Store ID with its self-service, category, and label settings,
+3. reconciles the repo with Fleet item by item and field by field, for every fleet file and every kind of item, so an item in a fleet that has none of that kind in Fleet still counts: policy (including `install_software`), report, and label definitions against the values Fleet returned; scripts, profiles, activations, and DDM assets by content hash; software by package URL (hash when there's no URL), Fleet-maintained app slug, or App Store ID, with its settings, scripts and pre-install query (a Fleet default script may be left out), and App Store app configurations; org and fleet settings, agent options, and the controls that aren't files (OS updates, disk encryption, setup experience, and so on), except values the repo holds as variables. A fleet file Fleet has no fleet for fails too,
 4. runs `fleetctl gitops -f default.yml -f fleets/*.yml --delete-other-fleets --dry-run` with secrets in the process environment.
 
 The export passes when references and reconcile are clean, the dry run exits 0, and it prints no deletion, creation, or move. Treat any of those as an export bug or a gap: find which, fix the plan or explain the gap, and re-run. Don't edit generated YAML by hand to make a check pass without understanding why it failed. Known cases:
@@ -106,6 +106,8 @@ The export passes when references and reconcile are clean, the dry run exits 0, 
 - **`unknown key "org_settings.yara_rules.[0].path"`**: a current fleetctl bug; GitOps can't represent YARA rules until it's fixed. Report it; don't hand-edit around it.
 - **Validator FAILs about `install_software` or labels with GitOps exceptions on**: the validator doesn't know software or labels are managed in the UI; they're expected.
 - **Dry-run notes about placeholders or masks**: the value wasn't available, so that file or integration wasn't checked with its real value. Say so.
+- **A variable "doesn't read back as the same text"**: `fleetctl` puts values into YAML as-is, so one with YAML syntax in it (`: `, ` #`, a leading `*` or `&`) or one that reads as a number, boolean, or null would apply as something else. For a value from Fleet it's a WARN (the dry run quoted it); tell the user to set that variable in CI wrapped in double quotes. For a value from `.env` it's a FAIL; the user quotes it there and in CI.
+- **`script '…' is in Fleet but not in the repo` with a matching `GAP` line**: the script holds an enroll secret, so it isn't exported (see below).
 
 ### 7. Report
 
@@ -125,7 +127,7 @@ Report these as gaps, never as failures you worked around (details in [reference
 - Values Fleet only returns masked (Jira and Zendesk tokens, Google service account keys, Apple account provisioning client secret, EJBCA client certificates) and `FLEET_SECRET_*` custom variable values. They become environment variables the user fills in.
 - Fleet-level Jira and Zendesk settings, users and roles, ABM/VPP/APNs tokens and certificates, SMTP settings, GitOps-mode settings.
 - Packages uploaded without a URL: pinned by `hash_sha256` only, so they can't be recreated on another Fleet instance.
-- Hardcoded credentials inside profiles or scripts as they exist in Fleet (a Wi-Fi password in a `.mobileconfig`, say). They're exported as-is, because changing them would change what Fleet deploys. If you see one, tell the user and suggest moving it into a `$FLEET_SECRET_` variable. Enroll secrets are the exception the export can recognize: in a profile or DDM asset it writes the enroll secret's variable (Fleet stores those files after `fleetctl` expanded it), and in a script, which `fleetctl` doesn't expand, it prints a `REVIEW` line.
+- Hardcoded credentials inside profiles or scripts as they exist in Fleet (a Wi-Fi password in a `.mobileconfig`, say). They're exported as-is, because changing them would change what Fleet deploys. If you see one, tell the user and suggest moving it into a `$FLEET_SECRET_` variable. Enroll secrets are the exception the export can recognize: in a profile or DDM asset it writes the enroll secret's variable (Fleet stores those files after `fleetctl` expanded it). A script isn't expanded by `fleetctl`, so one with an enroll secret in it isn't exported, with a `GAP` line: the user replaces the value in Fleet with a `$FLEET_SECRET_` variable (Fleet fills those in when it runs the script), then exports again. An enroll secret shorter than eight characters can't be found reliably, so a file that may hold one gets a `WARN` line to check before committing.
 
 Secrets and variable names are in [references/secrets.md](references/secrets.md); how this export compares with `fleetctl generate-gitops` is in [references/parity-checklist.md](references/parity-checklist.md).
 
