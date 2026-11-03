@@ -828,8 +828,6 @@ type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, t
 
 type MigrateTablesFunc func(ctx context.Context) error
 
-type MigrateDataFunc func(ctx context.Context) error
-
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
@@ -3880,9 +3878,6 @@ type DataStore struct {
 
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
-
-	MigrateDataFunc        MigrateDataFunc
-	MigrateDataFuncInvoked bool
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
@@ -9465,13 +9460,6 @@ func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.MigrateTablesFunc(ctx)
-}
-
-func (s *DataStore) MigrateData(ctx context.Context) error {
-	s.mu.Lock()
-	s.MigrateDataFuncInvoked = true
-	s.mu.Unlock()
-	return s.MigrateDataFunc(ctx)
 }
 
 func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
