@@ -239,6 +239,8 @@ Testing automatic enrollment requires a Microsoft Entra ID test user and a fresh
 
 ## Windows Autopilot
 
+Windows Autopilot requires Microsoft Entra ID P1. See [Microsoft licenses you need](#microsoft-licenses-you-need) for the subscriptions that qualify.
+
 ### Step 1: Create an Autopilot profile
 
 1. Sign in to [Microsoft Intune](https://intune.microsoft.com/).
