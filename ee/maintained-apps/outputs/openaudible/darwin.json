@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.1",
+      "version": "5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '5.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '5.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.openaudible.openaudible' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v5.1.1/OpenAudible_5.1.1.dmg",
+      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v5.2/OpenAudible_5.2.dmg",
       "install_script_ref": "10e61150",
       "uninstall_script_ref": "1cabaf9f",
-      "sha256": "dedd583ffcbbae8b6f2ad66be1cad28f675302b740ca81f049baee109c8ea367",
+      "sha256": "56b8323b60a8f1c3a665a3a2be87dabf91dcfda66d42de1229d58a07e2ad25de",
       "default_categories": [
         "Productivity"
       ]
