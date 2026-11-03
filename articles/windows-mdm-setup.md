@@ -10,6 +10,12 @@ To migrate Windows hosts from your current MDM solution to Fleet, follow the [Au
 
 > Fleet supports two ways to enroll Windows hosts: installing Fleet's agent (fleetd), and enrolling through Microsoft Entra ID. End users authenticate through Entra during enrollment, so you can use a third-party identity provider (IdP) if it's federated with Entra. Enrolling against an IdP that isn't federated with Entra isn't currently supported.
 
+## Autopilot isn't required
+
+Windows Autopilot isn't required to manage Windows hosts with Fleet. The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. Fleet is designed to make this easy. Learn more on the [Windows page](https://fleetdm.com/windows), or see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot).
+
+For Fleet customers moving from Intune with more than 500 devices who have negotiated a discounted price for these OEM services, Fleet will cover that one-time cost for new PCs during the term of the Fleet Premium subscription.
+
 ## Turn on Windows MDM
 
 ### Step 1: Generate your certificate and key
