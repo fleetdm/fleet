@@ -150,7 +150,7 @@ func run(cfg *Config) error {
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
 		ac.ExistsQuery = maintainedApp.AutomaticInstallQuery
-		ac.PatchVersion = patchedQueryVersion(maintainedApp.PatchQuery)
+		ac.PatchedQuery = maintainedApp.PatchQuery
 		// default version to maintained app version
 		ac.Version = maintainedApp.Version
 		ac.InstallScript = maintainedApp.InstallScript
@@ -242,7 +242,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
+		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchedQuery, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)

@@ -45,6 +45,48 @@ var (
 	OutsetVersionShortener              = makeVersionShortener(3) // "4.2.0.21973" → "4.2.0"
 	CmuxVersionShortener                = makeVersionShortener(3) // hotfix tag "0.65.2.2" → "0.65.2"
 	MEGAsyncVersionShortener            = makeVersionShortener(3) // "6.7.0.3" → "6.7.0"
+	CapCutVersionShortener              = makeVersionShortener(3) // "9.5.0.4590" → "9.5.0"
+	DevToysVersionShortener             = makeVersionShortener(3) // "2.0.9.0" → "2.0.9"
+	FontLabVersionShortener             = makeVersionShortener(3) // "8.4.2.8950" → "8.4.2"
+	MemoryAnalyzerVersionShortener      = makeVersionShortener(3) // "1.17.0.20260601" → "1.17.0"
+	NDIToolsVersionShortener            = makeVersionShortener(3) // "6.3.2.0" → "6.3.2"
+	PlexVersionShortener                = makeVersionShortener(3) // "1.115.0.426" → "1.115.0"
+	PlexHTPCVersionShortener            = makeVersionShortener(3) // "1.71.1.346" → "1.71.1"
+	ElgatoCameraHubVersionShortener     = makeVersionShortener(3) // "2.3.0.7295" → "2.3.0"
+	MuseScoreVersionShortener           = makeVersionShortener(3) // "4.7.6.261022093" → "4.7.6"
+	Shapr3DVersionShortener             = makeVersionShortener(3) // "26.202.0.12281" → "26.202.0"
+	YACReaderVersionShortener           = makeVersionShortener(3) // "10.4.0.261009428" → "10.4.0"
+	AdGuardVersionShortener             = makeVersionShortener(3) // "2.20.2.2629" → "2.20.2"
+	NumiVersionShortener                = makeVersionShortener(2) // "3.35.743" → "3.35"
+	OrigamiStudioVersionShortener       = makeVersionShortener(2) // "231.0.0.0.0" → "231.0"
+	SQLProVersionShortener              = makeVersionShortener(2) // "2026.301.2" → "2026.301"
+)
+
+// makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"
+// segments from the Homebrew version, keeping at least minSegments, for apps
+// whose bundle_short_version omits them ("4.6" for "4.6.0") but keeps a
+// nonzero patch ("4.5.1").
+func makeTrailingZeroTrimmer(minSegments int) func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	return func(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+		if app.Version == "" {
+			return app, fmt.Errorf("empty version for app %s", app.Slug)
+		}
+		parts := strings.Split(app.Version, ".")
+		for len(parts) > minSegments && parts[len(parts)-1] == "0" {
+			parts = parts[:len(parts)-1]
+		}
+		app.Version = strings.Join(parts, ".")
+		return app, nil
+	}
+}
+
+var (
+	MoomVersionTrimmer                     = makeTrailingZeroTrimmer(2) // "4.6.0" → "4.6"
+	OpalComposerVersionTrimmer             = makeTrailingZeroTrimmer(2) // "2.0.0" → "2.0"
+	PlistEditProVersionTrimmer             = makeTrailingZeroTrimmer(2) // "1.10.0" → "1.10"
+	RocketmanChoicesPackagerVersionTrimmer = makeTrailingZeroTrimmer(2) // "1.0.0" → "1.0"
+	// Runs after AdGuardVersionShortener: AdGuard reports "2.20" for "2.20.0.2626".
+	AdGuardVersionTrimmer = makeTrailingZeroTrimmer(2)
 )
 
 // SublimeVersionTransformer prepends "Build " to match what macOS reports as

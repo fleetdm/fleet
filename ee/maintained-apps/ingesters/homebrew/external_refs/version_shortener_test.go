@@ -52,6 +52,10 @@ func TestMakeVersionShortenerKeep2(t *testing.T) {
 		{name: "opera", version: "129.0.5823.28", slug: "opera", expected: "129.0"},
 		{name: "twingate", version: "2026.29.22575", slug: "twingate", expected: "2026.29"},
 		{name: "microsoft 365 copilot", version: "1.2608.0301", slug: "microsoft-365-copilot", expected: "1.2608"},
+		{name: "numi", version: "3.35.743", slug: "numi", expected: "3.35"},
+		{name: "origami studio", version: "231.0.0.0.0", slug: "origami-studio", expected: "231.0"},
+		{name: "sqlpro hotfix", version: "2026.301.2", slug: "sqlpro-for-sqlite", expected: "2026.301"},
+		{name: "sqlpro release", version: "2026.247", slug: "sqlpro-for-sqlite", expected: "2026.247"},
 	}
 
 	for _, tc := range tcs {
@@ -81,6 +85,8 @@ func TestMakeVersionShortenerKeep3(t *testing.T) {
 		{name: "cmux hotfix", version: "0.65.2.2", slug: "cmux", expected: "0.65.2"},
 		{name: "cmux release", version: "0.65.2", slug: "cmux", expected: "0.65.2"},
 		{name: "megasync", version: "6.7.0.3", slug: "megasync", expected: "6.7.0"},
+		{name: "capcut", version: "9.5.0.4590", slug: "capcut", expected: "9.5.0"},
+		{name: "shapr3d keeps a trailing zero", version: "26.202.0.12281", slug: "shapr3d", expected: "26.202.0"},
 	}
 
 	for _, tc := range tcs {
@@ -244,6 +250,58 @@ func TestShottrVersionTransformer(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestMakeTrailingZeroTrimmer(t *testing.T) {
+	trimmer := makeTrailingZeroTrimmer(2)
+
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "trailing zero", version: "4.6.0", expected: "4.6"},
+		{name: "nonzero patch", version: "4.5.1", expected: "4.5.1"},
+		{name: "keeps min segments", version: "1.0.0", expected: "1.0"},
+		{name: "interior zero", version: "2.0.9", expected: "2.0.9"},
+		{name: "several trailing zeros", version: "3.1.0.0", expected: "3.1"},
+		{name: "fewer segments than min", version: "7", expected: "7"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "test-app"}
+			result, err := trimmer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestAdGuardVersion(t *testing.T) {
+	// AdGuard's bundle_short_version drops the build and, for x.y.0 releases,
+	// the trailing zero.
+	tcs := []struct {
+		version  string
+		expected string
+	}{
+		{version: "2.20.2.2629", expected: "2.20.2"},
+		{version: "2.20.0.2626", expected: "2.20"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.version, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "adguard/darwin"}
+			EnrichManifest(app)
+			assert.Equal(t, tc.expected, app.Version)
 		})
 	}
 }
