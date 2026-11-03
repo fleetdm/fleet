@@ -10,7 +10,7 @@
       "installer_url": "https://cdn.gpsoft.com.au/files/Opus13/DOpusInstall-13.25.exe",
       "install_script_ref": "37fe3170",
       "uninstall_script_ref": "bc24b894",
-      "sha256": "d3dd29ccba820c14d3fc40d8a9109d94529fa4712d5e60ce34f5aa71a115c167",
+      "sha256": "ef8905f9693c1e3a26b0ada42fd40ea845c047c0b48b794201c6489a3436e18d",
       "default_categories": [
         "Productivity"
       ]

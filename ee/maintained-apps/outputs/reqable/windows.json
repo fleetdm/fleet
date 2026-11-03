@@ -3,8 +3,8 @@
     {
       "version": "3.3.9",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Reqable' AND publisher = 'Reqqable Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reqable' AND publisher = 'Reqqable Inc.' AND version_compare(version, '3.3.9') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Reqable %' AND publisher = 'Reqable Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Reqable %' AND publisher = 'Reqable Inc.' AND version_compare(version, '3.3.9') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reqable.exe');"
       },
       "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.3.9/reqable-app-windows-x86_64.exe",

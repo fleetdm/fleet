@@ -3,8 +3,8 @@
     {
       "version": "10.4.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND publisher = 'YACReader' AND version_compare(version, '10.4.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'YACReader %' AND version_compare(version, '10.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('yacreader.exe','yacreaderlibrary.exe'));"
       },
       "installer_url": "https://github.com/YACReader/yacreader/releases/download/10.4.0/YACReader-v10.4.0.261009428-winx64-7z-qt6.exe",

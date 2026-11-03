@@ -3,8 +3,8 @@
     {
       "version": "1.18.2",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.18.2') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'LocalSend %' AND publisher = 'Tien Do Nam';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'LocalSend %' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.18.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'localsend_app.exe');"
       },
       "installer_url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-x86-64.exe",
