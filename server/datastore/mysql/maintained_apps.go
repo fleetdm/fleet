@@ -313,23 +313,23 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 		return nil, nil
 	}
 
-	// Inventory-only versioned titles. Exclude titles with an upgrade code (those join
-	// through it instead) and titles owned by an installer/VPP/in-house app, whose links
-	// are the authoritative mapping. That last exclusion also removes every destination,
-	// since a destination is by definition installer-owned.
+	// Inventory-only versioned titles. Exclude titles owned by an installer/VPP/in-house
+	// app, whose links are the authoritative mapping. That exclusion also removes every
+	// destination, since a destination is by definition installer-owned. Titles with an
+	// upgrade code are filtered below, once their destination is known.
 	staleStmt := `
-		SELECT st.id, st.name
+		SELECT st.id, st.name, COALESCE(st.upgrade_code, '') AS upgrade_code
 		FROM software_titles st
 		WHERE st.source = 'programs' AND st.extension_for = ''
 			AND (` + strings.Join(nameConds, " OR ") + `)
-			AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
 			AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)
 			AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = st.id)
 			AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = st.id)`
 
 	var candidates []struct {
-		ID   uint   `db:"id"`
-		Name string `db:"name"`
+		ID          uint   `db:"id"`
+		Name        string `db:"name"`
+		UpgradeCode string `db:"upgrade_code"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &candidates, staleStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select stale windows titles")
@@ -339,6 +339,7 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	var unmatched []string
 	for _, c := range candidates {
 		match, ok := matchWindowsFMATitle(c.Name, allPrefixes)
+		ok = ok && match.acceptsUpgradeCode(c.UpgradeCode)
 		if !ok || match.titleID == c.ID {
 			if !ok {
 				unmatched = append(unmatched, c.Name)
@@ -719,7 +720,8 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	// checks it and would otherwise return nothing for every row.
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
-			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
+			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name,
+			COALESCE(MIN(st.upgrade_code), '') AS title_upgrade_code, MIN(si.extension) AS installer_extension
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL

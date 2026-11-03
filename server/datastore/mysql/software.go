@@ -1306,9 +1306,22 @@ func longestCommonPrefix(strs []string) string {
 // title no installer owns, leaving the uninstall action hidden and the reconcile pass
 // unable to repair it.
 type windowsFMAPrefix struct {
-	prefix    string
-	titleName string
-	titleID   uint
+	prefix           string
+	titleName        string
+	titleID          uint
+	titleUpgradeCode string
+	msiInstaller     bool
+}
+
+// acceptsUpgradeCode reports whether a program reporting upgradeCode may join this
+// title by name. A program with an upgrade code normally joins through it instead
+// (software_titles.unique_identifier resolves to upgrade_code ahead of name), so it is
+// accepted only when nothing else can link it: the app installs from an MSI, whose
+// program reports an upgrade code, and the title has none to join through because the
+// FMA manifest carries none. Requiring the MSI keeps an unrelated MSI product that
+// shares a prefix, such as an add-in named after an exe-installed app, off its title.
+func (p windowsFMAPrefix) acceptsUpgradeCode(upgradeCode string) bool {
+	return upgradeCode == "" || (p.titleUpgradeCode == "" && p.msiInstaller)
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
@@ -1321,9 +1334,11 @@ func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 		}
 		for _, p := range f.WinMatchPrefixes() {
 			prefixes = append(prefixes, windowsFMAPrefix{
-				prefix:    normalizeSoftwareNameForMatch(p),
-				titleName: f.TitleName,
-				titleID:   *f.TitleID,
+				prefix:           normalizeSoftwareNameForMatch(p),
+				titleName:        f.TitleName,
+				titleID:          *f.TitleID,
+				titleUpgradeCode: f.TitleUpgradeCode,
+				msiInstaller:     f.InstallerExtension == "msi",
 			})
 		}
 	}
@@ -1487,6 +1502,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
 				// there is not an existing software title corresponding to this incoming software version
 				newTitleName := sw.Name
+				newTitleUpgradeCode := sw.UpgradeCode
 				if sw.BundleIdentifier != "" {
 					// First check if there's an FMA with this bundle identifier - use its canonical name
 					if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
@@ -1502,17 +1518,15 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							newTitleName = computedName
 						}
 					}
-				} else if sw.Source == "programs" && (sw.UpgradeCode == nil || *sw.UpgradeCode == "") {
+				} else if sw.Source == "programs" {
 					// Use the canonical FMA name so versioned program names collapse
-					// onto the single title the FMA installer owns.
-					//
-					// Only when there is no upgrade code. software_titles.unique_identifier
-					// resolves to upgrade_code ahead of name, so renaming a program that
-					// reports one would create a second title under the canonical name with
-					// a different unique_identifier: a duplicate in the UI, and still not the
-					// title the installer owns. Those programs already match by upgrade code.
-					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok {
+					// onto the single title the FMA installer owns. The title's own upgrade
+					// code is carried so the insert collides with that title on
+					// unique_identifier rather than creating a second one under the same
+					// name; the software row keeps the code it reported.
+					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok && match.acceptsUpgradeCode(ptr.ValOrZero(sw.UpgradeCode)) {
 						newTitleName = match.titleName
+						newTitleUpgradeCode = new(match.titleUpgradeCode)
 					}
 				}
 
@@ -1528,9 +1542,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 					newTitle.ApplicationID = sw.ApplicationID
 				}
-				if sw.UpgradeCode != nil {
+				if newTitleUpgradeCode != nil {
 					// intentionally write both empty and non-empty strings as upgrade codes
-					newTitle.UpgradeCode = sw.UpgradeCode
+					newTitle.UpgradeCode = newTitleUpgradeCode
 				}
 				newTitlesNeeded[checksum] = newTitle
 			}

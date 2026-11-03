@@ -30,6 +30,11 @@ type MaintainedApp struct {
 	// only renames when an upgrade code is present). Windows software ingestion merges
 	// onto TitleID, and this is that title's name.
 	TitleName string `json:"-" db:"title_name"`
+	// TitleUpgradeCode and InstallerExtension describe the title TitleID names and the
+	// installer that owns it. Windows name matching uses them to decide whether a program
+	// reporting an upgrade code may join the title by name.
+	TitleUpgradeCode   string `json:"-" db:"title_upgrade_code"`
+	InstallerExtension string `json:"-" db:"installer_extension"`
 }
 
 // WinMatchPrefixes returns the candidate program-name prefixes for matching a reported

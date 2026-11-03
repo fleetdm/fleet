@@ -13276,6 +13276,34 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	}
 }
 
+func TestWindowsFMAPrefixAcceptsUpgradeCode(t *testing.T) {
+	prefixFor := func(titleUpgradeCode, installerExtension string) windowsFMAPrefix {
+		prefixes := windowsFMAPrefixes([]fleet.MaintainedApp{{
+			Name: "Azul Zulu JRE", UniqueIdentifier: "Azul Zulu JRE", Platform: "windows",
+			TitleID: new(uint(1)), TitleName: "Azul Zulu JRE",
+			TitleUpgradeCode: titleUpgradeCode, InstallerExtension: installerExtension,
+		}})
+		require.Len(t, prefixes, 1)
+		return prefixes[0]
+	}
+	const (
+		code      = "{C519F0B9-88B8-4FCD-91FA-A5F673AC4B47}"
+		otherCode = "{D6E1E4B2-1F0A-4C2B-9F3E-8A7B6C5D4E3F}"
+	)
+
+	msiNoCode := prefixFor("", "msi")
+	require.True(t, msiNoCode.acceptsUpgradeCode(""))
+	require.True(t, msiNoCode.acceptsUpgradeCode(code), "nothing else can join an MSI app's program to a title without an upgrade code")
+
+	msiWithCode := prefixFor(code, "msi")
+	require.True(t, msiWithCode.acceptsUpgradeCode(""))
+	require.False(t, msiWithCode.acceptsUpgradeCode(otherCode), "a title with an upgrade code is joined through it, not by name")
+
+	exeNoCode := prefixFor("", "exe")
+	require.True(t, exeNoCode.acceptsUpgradeCode(""))
+	require.False(t, exeNoCode.acceptsUpgradeCode(code), "an exe app's program reports no upgrade code, so one that does is another product")
+}
+
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
