@@ -16,11 +16,11 @@ To turn GitOps mode on or off, navigate to **Settings** > **Integrations** > **C
 
 ## Exceptions
 
-Exceptions let you opt a resource out of GitOps mode, so you can manage that resource in the Fleet UI while everything else stays in git. Under **Settings** > **Integrations** > **Change management**, you can add an exception for labels, software, or enroll secrets.
+Exceptions let you opt a resource out of GitOps mode, so you can manage that resource in the Fleet UI while everything else stays in git. Under **Settings** > **Integrations** > **Change management**, you can add an exception for labels, software, enroll secrets, or vulnerability dismissals.
 
 When a resource has an exception, three things happen:
 - The Fleet UI stays editable for that resource, even with GitOps mode on.
-- `fleetctl gitops` leaves your existing labels, software, or enroll secrets intact. Without the exception, omitting the key deletes them.
+- `fleetctl gitops` leaves your existing labels, software, enroll secrets, or vulnerability dismissals intact. Without the exception, omitting the key deletes labels, software, and enroll secrets. Omitting [`vulnerability_dismissals`](https://fleetdm.com/docs/configuration/yaml-files#vulnerability-dismissals) keeps existing dismissals with or without the exception.
 - `fleetctl gitops` fails if your YAML includes that resource's key. The error tells you to remove the key or disable the exception. This keeps the UI and git from overwriting each other.
 
 Exceptions apply to `fleetctl gitops` whether or not GitOps mode is turned on.
@@ -33,7 +33,7 @@ GitOps mode prevents the UI user from editing [GitOps-configurable features](htt
 - Read any data presented in the UI
 - Add and edit users
 - Run live queries
-- Add and edit labels, software, or enroll secrets, if that resource has an [exception](#exceptions)
+- Manage labels, software, enroll secrets, or vulnerability dismissals, if that resource has an [exception](#exceptions)
 
 ## More
 <!-- TODO - update to link to Allen's article, uncomment -->

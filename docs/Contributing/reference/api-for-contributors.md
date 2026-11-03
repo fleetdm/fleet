@@ -17,6 +17,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Vulnerabilities](#vulnerabilities)
 - [Certificates](#certificates)
 - [Users](#users)
 - [Conditional access](#conditional-access)
@@ -4933,6 +4934,90 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+
+---
+
+## Vulnerabilities
+
+### Batch-apply vulnerability dismissals
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/vulnerability_dismissals/batch`
+
+#### Parameters
+
+| Name                     | Type    | In    | Description |
+| ------------------------ | ------- | ----- | ----------- |
+| fleet_id                 | integer | query | The ID of the fleet to apply the dismissals to. Use `0` for "Unassigned" hosts. If not specified, the dismissals are applied for all fleets. |
+| dry_run                  | boolean | query | Validate the provided dismissals and return any validation errors, but don't apply the changes. |
+| vulnerability_dismissals | array   | body  | **Required**. The full list of dismissals for the fleet. Each item contains `cve` and `reason`, and optionally `comment` and `expires_at`, with the same values as [Create vulnerability dismissals](https://fleetdm.com/docs/rest-api/rest-api#create-vulnerability-dismissals). |
+
+> This endpoint replaces all dismissals for the specified fleet (or for all fleets), including dismissals created in the Fleet UI. Any existing dismissal that isn't in the list is deleted, and an existing dismissal for the same CVE is updated. Providing an empty list deletes every dismissal for the fleet. `fleetctl gitops` only calls this endpoint when the YAML file includes `vulnerability_dismissals`, so omitting the key preserves existing dismissals.
+
+Entries whose `expires_at` has passed are skipped. Applied dismissals have `source` set to `"gitops"`.
+
+#### Example
+
+`POST /api/v1/fleet/vulnerability_dismissals/batch?fleet_id=12`
+
+##### Request body
+
+```json
+{
+  "vulnerability_dismissals": [
+    {
+      "cve": "CVE-2022-30190",
+      "reason": "compensating_control",
+      "comment": "Mitigated by network rule. Review each quarter.",
+      "expires_at": "2027-01-30T00:00:00Z"
+    },
+    {
+      "cve": "CVE-2022-40898",
+      "reason": "false_positive"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerability_dismissals": [
+    {
+      "id": 90,
+      "cve": "CVE-2022-30190",
+      "fleet_id": 12,
+      "reason": "compensating_control",
+      "comment": "Mitigated by network rule. Review each quarter.",
+      "expires_at": "2027-01-30T00:00:00Z",
+      "source": "gitops",
+      "author_id": 2,
+      "author_name": "GitOps",
+      "author_email": "gitops@example.com",
+      "created_at": "2026-11-02T18:00:12Z",
+      "updated_at": "2026-11-02T18:00:12Z"
+    },
+    {
+      "id": 91,
+      "cve": "CVE-2022-40898",
+      "fleet_id": 12,
+      "reason": "false_positive",
+      "comment": "",
+      "expires_at": null,
+      "source": "gitops",
+      "author_id": 2,
+      "author_name": "GitOps",
+      "author_email": "gitops@example.com",
+      "created_at": "2026-11-02T18:00:12Z",
+      "updated_at": "2026-11-02T18:00:12Z"
+    }
+  ]
+}
 ```
 
 ---
