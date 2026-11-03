@@ -2877,6 +2877,17 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 			})
 		}
 
+		// Lock the batch so a later cancel waits for this transaction to commit,
+		// and roll back if it was canceled during the run.
+		var canceled bool
+		err = sqlx.GetContext(ctx, tx, &canceled, `SELECT canceled FROM batch_activities WHERE execution_id = ? FOR UPDATE`, batchExecID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if canceled {
+			return errBatchScriptCanceled
+		}
+
 		_, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
@@ -2920,11 +2931,16 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		return nil
 	}); err != nil {
+		if errors.Is(err, errBatchScriptCanceled) {
+			return nil
+		}
 		return fmt.Errorf("creating bulk execution order: %w", err)
 	}
 
 	return nil
 }
+
+var errBatchScriptCanceled = errors.New("batch script canceled")
 
 func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
 	batchExecID := uuid.New().String()
@@ -3102,6 +3118,13 @@ WHERE
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Wait for a running batch to commit, so the scripts it queued get canceled below.
+		var status fleet.ScheduledBatchExecutionStatus
+		err = sqlx.GetContext(ctx, tx, &status, `SELECT status FROM batch_activities WHERE execution_id = ? FOR UPDATE`, executionID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+
 		// If job worker exists, mark it as complete to stop it from running
 		if jobID := activity.JobID; jobID != nil {
 			job, err := ds.GetJob(ctx, *jobID)
@@ -3116,7 +3139,7 @@ WHERE
 			}
 		}
 
-		if activity.Status == fleet.ScheduledBatchExecutionStarted {
+		if status == fleet.ScheduledBatchExecutionStarted {
 			// If the batch activity has started, we need to cancel anything in progress or queued
 			toCancel := []struct {
 				HostExecutionID string `db:"host_execution_id"`
