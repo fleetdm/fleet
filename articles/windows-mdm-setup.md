@@ -20,7 +20,7 @@ You don't need Windows Autopilot, Microsoft Entra ID P1, or Intune to manage Win
 
 2. Forward the order email from Fleet to your hardware provider, such as Dell, Lenovo, or HP.
 
-3. The provider installs Fleet's agent (fleetd) on your new PCs before they ship.
+3. The provider installs Fleet's agent (fleetd) on your new PCs before they ship. The enroll secret in the agent's package sets the fleet that new hosts join.
 
 4. When an end user turns on a new PC and it comes online, it enrolls in Fleet. Windows turns MDM on after the end user signs in. See [Manual enrollment](#manual-enrollment) for details.
 
