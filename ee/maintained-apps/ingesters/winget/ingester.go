@@ -100,6 +100,13 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 					"name", input.Name, "err", err)
 				continue
 			}
+			// winget deletes every version of a package with a version-less installer URL when
+			// the vendor ships new bytes, and the replacement can sit unmerged for days.
+			if errors.Is(err, errNoWingetVersions) {
+				logger.WarnContext(ctx, "skipping app: winget has no versions of this package; its output is left unchanged",
+					"name", input.Name, "err", err)
+				continue
+			}
 			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
@@ -112,6 +119,8 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 
 	return manifestApps, nil
 }
+
+var errNoWingetVersions = errors.New("no version manifest directories found under package path")
 
 // isTransientGitHubError reports whether err is GitHub load-shedding (rate limits, 429s, 5xx).
 func isTransientGitHubError(err error) bool {
@@ -181,7 +190,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
 	if len(versionDirs) == 0 {
-		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+		return nil, ctxerr.WrapWithData(ctx, errNoWingetVersions, "listing winget package versions", map[string]any{
 			"path": dirPath,
 		})
 	}

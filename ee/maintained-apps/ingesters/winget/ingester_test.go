@@ -800,6 +800,28 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
+
+	t.Run("package with only subpackage dirs fails with a skippable error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo" {
+				w.WriteHeader(http.StatusBadRequest)
+				t.Errorf("unexpected path %s", r.URL.Path)
+				return
+			}
+			content := []github.RepositoryContent{
+				{Name: new("Beta"), Type: new("dir")},
+				{Name: new("EXE"), Type: new("dir")},
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.ErrorIs(t, err, errNoWingetVersions, "the caller must recognize this error and skip the app")
+		require.False(t, isTransientGitHubError(err))
+	})
 }
 
 func TestNormalizeSourceForgeURL(t *testing.T) {
