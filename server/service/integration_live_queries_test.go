@@ -119,7 +119,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		require.NoError(t, err)
 
 		s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): query}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, query, []uint{host.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -362,7 +362,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -479,7 +479,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -585,7 +585,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesSomeFailToAuthorize() {
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 2 from osquery;"}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -834,7 +834,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 
 		s.lq.On("QueriesForHost", h1.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
 		s.lq.On("QueriesForHost", h2.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -1031,6 +1031,41 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	}
 
 	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req3, http.StatusBadRequest, &createResp)
+}
+
+func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignIgnoresBlankHostIdentifiers() {
+	t := s.T()
+
+	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("StopQuery", mock.Anything).Return(nil)
+
+	// The suite's hosts all have an empty hardware serial, so a blank identifier would match every one of them.
+	labeledHost := s.hosts[0]
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Hosts: []string{labeledHost.Hostname}}, http.StatusOK, &labelResp)
+	labelID := labelResp.Label.ID
+	t.Cleanup(func() {
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", labelID), nil, http.StatusOK)
+	})
+
+	blankHostsWithLabel := createDistributedQueryCampaignByIdentifierRequest{
+		QuerySQL: "SELECT 1",
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
+			Hosts:  []string{"", " "},
+			Labels: []string{t.Name()},
+		},
+	}
+	var createResp createDistributedQueryCampaignResponse
+	s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", blankHostsWithLabel, http.StatusOK, &createResp)
+	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts, "only the label's host is targeted")
+	targets, err := s.ds.DistributedQueryCampaignTargetIDs(t.Context(), createResp.Campaign.ID)
+	require.NoError(t, err)
+	assert.Empty(t, targets.HostIDs, "blank identifiers must not add host targets")
+	assert.Equal(t, []uint{labelID}, targets.LabelIDs)
+
+	blankHostsOnly := blankHostsWithLabel
+	blankHostsOnly.Selected.Labels = nil
+	s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", blankHostsOnly, http.StatusBadRequest, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {

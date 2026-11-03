@@ -1,9 +1,9 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { ISoftwareInstallPolicyUI } from "interfaces/software";
 
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
 import InstallerPoliciesTable from "../SoftwareInstallerCard/InstallerPoliciesTable";
 
 const baseClass = "policies-modal";

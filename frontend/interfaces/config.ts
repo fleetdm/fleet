@@ -6,9 +6,10 @@ import {
   IWebhookActivities,
   IWebhookHostActivities,
 } from "interfaces/webhook";
+
+import { IVulnExposureFilterDefaults } from "./charts";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
-import { IVulnExposureFilterDefaults } from "./charts";
 
 export interface ILicense {
   tier: string;
@@ -93,6 +94,8 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     apple_setup_assistant: string | null;
     apple_enable_release_device_manually: boolean | null;
+    macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+    macos_enable_bootstrap_package_during_migration: boolean;
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
     require_all_software_windows: boolean | null;
@@ -122,6 +125,7 @@ export interface IMdmConfig {
   windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
   only_allow_apple_business_enrollment: boolean;
+  enable_profile_validation: boolean;
 }
 
 /** Settings for new user-driven Windows MDM enrollments (Premium only). */
@@ -175,6 +179,7 @@ export interface IConfigServerSettings {
   query_reports_disabled: boolean;
   scripts_disabled: boolean;
   ai_features_disabled: boolean;
+  mcp_disabled: boolean;
 }
 
 export interface IConfig {
@@ -272,11 +277,20 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  /** Read-only, sourced from the fleet server configuration. Omitted when
+   * nothing in it is enabled. */
+  auth?: IAuthSettings;
   max_software_package_size: number;
+  staged_upload_available: boolean;
 }
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+interface IAuthSettings {
+  mdm_apple_one_time_enroll_secrets?: boolean;
+  mdm_windows_one_time_enroll_secrets?: boolean;
 }
 
 export interface IAppleAccountProvisioning {

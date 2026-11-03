@@ -1,0 +1,1 @@
+- Fixed end users getting stuck on the MDM enrollment page with no way back to **My device**. **Turn on MDM** now opens the enrollment page in a sheet over **My device** with a **Close** button, shows every enrollment step without scrolling, and stays open after the profile downloads.

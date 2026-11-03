@@ -1,5 +1,5 @@
-import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
 
 export const teamStub: ITeam = {
   description: "This is the test team",

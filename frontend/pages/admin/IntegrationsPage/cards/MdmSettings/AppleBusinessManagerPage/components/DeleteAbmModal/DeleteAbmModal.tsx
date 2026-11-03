@@ -1,16 +1,21 @@
 import React, { useCallback, useState } from "react";
 
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 const baseClass = "delete-abm-modal";
 
 interface IDeleteAbmModalProps {
   tokenOrgName: string;
   tokenId: number;
+  /** Whether the token being deleted is the default one; deleting a
+   * non-default token doesn't affect the default, so no extra copy. */
+  tokenIsDefault: boolean;
+  /** Count of AB tokens before this deletion, used to pick the copy about
+   * what happens to the default token afterwards. */
+  tokensCount: number;
   onCancel: () => void;
   onDeletedToken: () => void;
 }
@@ -18,6 +23,8 @@ interface IDeleteAbmModalProps {
 const DeleteAbmModal = ({
   tokenOrgName,
   tokenId,
+  tokenIsDefault,
+  tokensCount,
   onCancel,
   onDeletedToken,
 }: IDeleteAbmModalProps) => {
@@ -47,8 +54,18 @@ const DeleteAbmModal = ({
       isContentDisabled={isDeleting}
     >
       <p>
-        New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
-        automatically enroll to Fleet.{" "}
+        New hosts purchased in <b>{tokenOrgName}</b> won&apos;t automatically
+        enroll to Fleet.
+        {tokenIsDefault && tokensCount === 2 && (
+          <> Your remaining token will become the default automatically.</>
+        )}
+        {tokenIsDefault && tokensCount > 2 && (
+          <>
+            {" "}
+            Manual enrollments may not be able to sign into Managed Apple IDs
+            until you set a new default.
+          </>
+        )}
       </p>
       <p>
         If you want to re-enable automatic enrollment, you&apos;ll have to

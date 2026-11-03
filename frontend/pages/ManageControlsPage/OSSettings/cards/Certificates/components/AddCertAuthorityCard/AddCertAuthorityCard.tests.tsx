@@ -1,8 +1,8 @@
+import { screen } from "@testing-library/react";
 import React from "react";
 
-import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import PATHS from "router/paths";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AddCertAuthorityCard from "./AddCertAuthorityCard";
 
@@ -12,9 +12,9 @@ describe("AddCertAuthorityCard", () => {
     const render = createCustomRenderer();
     render(<AddCertAuthorityCard router={router} />);
 
-    expect(screen.getByText("Add certificate authority")).toBeInTheDocument();
+    expect(screen.getByText("No certificate authority")).toBeInTheDocument();
     expect(
-      screen.getByText(/custom SCEP certificate authority must be configured/i)
+      screen.getByText(/custom SCEP certificate authority/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add CA" })).toBeInTheDocument();
   });

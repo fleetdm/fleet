@@ -1,14 +1,12 @@
 import React from "react";
 
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import Spinner from "components/Spinner";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
-import Spinner from "components/Spinner";
-
-import WindowsTargetForm from "../WindowsTargetForm";
-import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesTargetPlatform } from "../../OSUpdates";
+import PlatformTabs from "../PlatformTabs";
 
 const baseClass = "os-updates-target-section";
 
@@ -150,8 +148,6 @@ const TargetSection = ({
     return <Spinner />;
   }
 
-  const isAndroidMdmEnabled = appConfig.mdm.android_enabled_and_configured;
-
   const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
 
   const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
@@ -230,17 +226,6 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isWindowsMdmEnabled && !isAppleMdmEnabled && !isAndroidMdmEnabled) {
-      return (
-        <WindowsTargetForm
-          currentTeamId={currentTeamId}
-          defaultDeadlineDays={defaultWindowsDeadlineDays}
-          defaultGracePeriodDays={defaultWindowsGracePeriodDays}
-          refetchAppConfig={refetchAppConfig}
-          refetchTeamConfig={refetchTeamConfig}
-        />
-      );
-    }
     return (
       <PlatformTabs
         currentTeamId={currentTeamId}
@@ -260,8 +245,8 @@ const TargetSection = ({
         onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
         refetchTeamConfig={refetchTeamConfig}
+        isAppleMdmEnabled={isAppleMdmEnabled}
         isWindowsMdmEnabled={isWindowsMdmEnabled}
-        isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
     );
   };

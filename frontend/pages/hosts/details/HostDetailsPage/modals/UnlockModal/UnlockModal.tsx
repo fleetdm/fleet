@@ -1,16 +1,15 @@
-import React from "react";
 import { AxiosError } from "axios";
+import React from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
 import { isIPadOrIPhone } from "interfaces/platform";
 import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 
 const baseClass = "unlock-modal";
 

@@ -1,6 +1,6 @@
 import { ISSOSettings } from "interfaces/ssoSettings";
-import { IUser } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";

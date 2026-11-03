@@ -1,7 +1,7 @@
+import classnames from "classnames";
 import React from "react";
 
 import Icon from "components/Icon";
-import classnames from "classnames";
 import { Colors } from "styles/var/colors";
 
 interface ICustomLinkProps {

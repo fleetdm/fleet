@@ -1,3 +1,4 @@
+import { find } from "lodash";
 import React, {
   createContext,
   useReducer,
@@ -5,12 +6,11 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { find } from "lodash";
 
-import { osqueryTables } from "utilities/osquery_tables";
+import { ILabelPolicy } from "interfaces/label";
 import { IOsQueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ILabelPolicy } from "interfaces/label";
+import { osqueryTables } from "utilities/osquery_tables";
 
 enum ACTIONS {
   SET_LAST_EDITED_QUERY_INFO = "SET_LAST_EDITED_QUERY_INFO",
@@ -26,6 +26,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryBody?: string;
   lastEditedQueryResolution?: string;
   lastEditedQueryCritical?: boolean;
+  lastEditedQueryHidden?: boolean;
   lastEditedQueryPlatform?: CommaSeparatedPlatformString | null;
   lastEditedQueryLabelsIncludeAny?: ILabelPolicy[];
   lastEditedQueryLabelsExcludeAny?: ILabelPolicy[];
@@ -60,6 +61,7 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
   lastEditedQueryCritical: boolean;
+  lastEditedQueryHidden: boolean;
   lastEditedQueryPlatform: CommaSeparatedPlatformString | null;
   lastEditedQueryLabelsIncludeAny: ILabelPolicy[];
   lastEditedQueryLabelsIncludeAll: ILabelPolicy[];
@@ -72,6 +74,7 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryResolution: (value: string) => void;
   setLastEditedQueryCritical: (value: boolean) => void;
+  setLastEditedQueryHidden: (value: boolean) => void;
   setLastEditedQueryPlatform: (
     value: CommaSeparatedPlatformString | null
   ) => void;
@@ -99,6 +102,7 @@ const initialState = {
   lastEditedQueryBody: "",
   lastEditedQueryResolution: "",
   lastEditedQueryCritical: false,
+  lastEditedQueryHidden: false,
   lastEditedQueryPlatform: null,
   lastEditedQueryLabelsIncludeAny: [],
   lastEditedQueryLabelsIncludeAll: [],
@@ -111,6 +115,7 @@ const initialState = {
   setLastEditedQueryBody: () => null,
   setLastEditedQueryResolution: () => null,
   setLastEditedQueryCritical: () => null,
+  setLastEditedQueryHidden: () => null,
   setLastEditedQueryPlatform: () => null,
   setLastEditedQueryLabelsIncludeAny: () => null,
   setLastEditedQueryLabelsIncludeAll: () => null,
@@ -164,6 +169,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
           typeof action.lastEditedQueryCritical === "undefined"
             ? state.lastEditedQueryCritical
             : action.lastEditedQueryCritical,
+        lastEditedQueryHidden:
+          typeof action.lastEditedQueryHidden === "undefined"
+            ? state.lastEditedQueryHidden
+            : action.lastEditedQueryHidden,
         lastEditedQueryPlatform:
           typeof action.lastEditedQueryPlatform === "undefined"
             ? state.lastEditedQueryPlatform
@@ -254,6 +263,15 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     },
     []
   );
+  const setLastEditedQueryHidden = useCallback(
+    (lastEditedQueryHidden: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryHidden,
+      });
+    },
+    []
+  );
   const setLastEditedQueryPlatform = useCallback(
     (
       lastEditedQueryPlatform: CommaSeparatedPlatformString | null | undefined
@@ -320,6 +338,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       lastEditedQueryBody: state.lastEditedQueryBody,
       lastEditedQueryResolution: state.lastEditedQueryResolution,
       lastEditedQueryCritical: state.lastEditedQueryCritical,
+      lastEditedQueryHidden: state.lastEditedQueryHidden,
       lastEditedQueryPlatform: state.lastEditedQueryPlatform,
       lastEditedQueryLabelsIncludeAny: state.lastEditedQueryLabelsIncludeAny,
       lastEditedQueryLabelsIncludeAll: state.lastEditedQueryLabelsIncludeAll,
@@ -332,6 +351,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       setLastEditedQueryBody,
       setLastEditedQueryResolution,
       setLastEditedQueryCritical,
+      setLastEditedQueryHidden,
       setLastEditedQueryPlatform,
       setLastEditedQueryLabelsIncludeAny,
       setLastEditedQueryLabelsIncludeAll,
@@ -347,6 +367,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       setDefaultPolicy,
       setLastEditedQueryBody,
       setLastEditedQueryCritical,
+      setLastEditedQueryHidden,
       setLastEditedQueryDescription,
       setLastEditedQueryId,
       setLastEditedQueryName,
@@ -361,6 +382,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       state.defaultPolicy,
       state.lastEditedQueryBody,
       state.lastEditedQueryCritical,
+      state.lastEditedQueryHidden,
       state.lastEditedQueryDescription,
       state.lastEditedQueryId,
       state.lastEditedQueryName,

@@ -58,10 +58,35 @@ func TestOvalPlatform(t *testing.T) {
 			{"zorin", "Zorin OS 17.0.0", "ubuntu_2204"},
 			{"zorin", "Zorin OS 18.1", "ubuntu_2404"},
 			{"zorin", "Zorin OS 99.0.0", "zorin_99"},
+			{"parrot", "Parrot OS 4.11", "debian_10"},
+			{"parrot", "Parrot OS 5.3", "debian_11"},
+			{"parrot", "Parrot OS 6.0", "debian_12"},
+			{"parrot", "Parrot OS 6.4.2", "debian_12"},
+			{"parrot", "Parrot Security 7.3", "debian_13"},
+			{"parrot", "Parrot OS 99.0", "parrot_99"},
 		}
 
 		for _, c := range cases {
 			require.Equal(t, c.expected, string(NewPlatform(c.platform, c.osVersion)), c)
+		}
+	})
+
+	t.Run("NewPlatform rejects non-token platforms", func(t *testing.T) {
+		// Platforms are reported by hosts and end up in file paths and download URLs.
+		cases := []struct {
+			platform  string
+			osVersion string
+		}{
+			{"amzn_01/../../pwned-a/f", "Amazon Linux 1.0.0"},
+			{"amzn_01/../fleet_goval_dictionary_amzn", "Amazon Linux 2023.0.0"},
+			{"amzn_01/sub/f", "Amazon Linux 1.0.0"},
+			{`amzn_01\..\..\f`, "Amazon Linux 1.0.0"},
+			{"amzn_01.%2e", "Amazon Linux 1.0.0"},
+			{"amzn\n", "Amazon Linux 2023.0.0"},
+			{"opensuse-leap", "openSUSE Leap 15.5.0"},
+		}
+		for _, c := range cases {
+			require.Empty(t, NewPlatform(c.platform, c.osVersion), c)
 		}
 	})
 
@@ -100,7 +125,6 @@ func TestOvalPlatform(t *testing.T) {
 		}{
 			{"Amazon Linux 1.0.0", "amzn_01.sqlite3"},
 			{"Amazon Linux 2.0.0", "amzn_02.sqlite3"},
-			{"Amazon Linux 2022.0.0", "amzn_2022.sqlite3"},
 			{"Amazon Linux 2023.0.0", "amzn_2023.sqlite3"},
 		}
 		for _, c := range cases {
@@ -129,6 +153,28 @@ func TestOvalPlatform(t *testing.T) {
 		for _, c := range cases {
 			plat := NewPlatform(c.platform, c.osVersion)
 			require.Equal(t, c.kernelOnly, plat.IsGovalDictionaryKernelOnly(), "platform=%s, osVersion=%s", c.platform, c.osVersion)
+		}
+	})
+
+	t.Run("supported platforms match exactly", func(t *testing.T) {
+		require.True(t, NewPlatform("amzn", "Amazon Linux 2023.5.20240624").IsGovalDictionarySupported())
+		require.False(t, NewPlatform("amzn", "Amazon Linux 2022.0.20221207").IsGovalDictionarySupported())
+		require.True(t, NewPlatform("rhel", "Red Hat Enterprise Linux 9.4.0").IsGovalDictionaryKernelOnly())
+		require.True(t, NewPlatform("ubuntu", "Ubuntu 22.04.3 LTS").IsSupported())
+
+		// Host-reported values that pass the token check but only start with a
+		// supported platform must still be rejected.
+		prefixed := []Platform{
+			NewPlatform("amzn_01x", "Amazon Linux 1.0.0"),
+			NewPlatform("rhel_09", "Red Hat Enterprise Linux 9.0.0"),
+			"ubuntu_20040",
+			"amzn_2023_01",
+			"rhel_09x",
+		}
+		for _, p := range prefixed {
+			require.False(t, p.IsGovalDictionarySupported(), p)
+			require.False(t, p.IsGovalDictionaryKernelOnly(), p)
+			require.False(t, p.IsSupported(), p)
 		}
 	})
 }

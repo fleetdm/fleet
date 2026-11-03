@@ -1,12 +1,13 @@
-import React from "react";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
+import React from "react";
+
 import {
   emptySelfServiceCategoriesHandler,
   listSelfServiceCategoriesErrorHandler,
   listSelfServiceCategoriesHandler,
 } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareOptionsSelector from "./SoftwareOptionsSelector";
 
@@ -121,7 +122,7 @@ describe("SoftwareOptionsSelector", () => {
       const link = await screen.findByRole("link", { name: /add category/i });
       expect(link).toHaveAttribute(
         "href",
-        "/software/library/categories?fleet_id=1"
+        "/software/library/settings/categories?fleet_id=1"
       );
       expect(screen.getByText("to assign software to it.")).toBeInTheDocument();
     });
@@ -134,7 +135,7 @@ describe("SoftwareOptionsSelector", () => {
       const link = await screen.findByRole("link", { name: /add category/i });
       expect(link).toHaveAttribute(
         "href",
-        "/software/library/categories?fleet_id=0"
+        "/software/library/settings/categories?fleet_id=0"
       );
     });
 

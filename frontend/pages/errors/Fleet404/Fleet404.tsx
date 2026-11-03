@@ -1,11 +1,10 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
 import { SUPPORT_LINK } from "utilities/constants";
 
-import Button from "components/buttons/Button";
-
 // @ts-ignore
-import illustration from "../../../../assets/images/404.png";
+import illustration from "../../../assets/images/404.png";
 
 const baseClass = "fleet-404";
 
@@ -21,6 +20,8 @@ const Fleet404 = () => (
       </p>
       <Button
         variant="secondary"
+        icon="external-link"
+        iconPosition="right"
         onClick={() =>
           window.open(SUPPORT_LINK, "_blank", "noopener,noreferrer")
         }

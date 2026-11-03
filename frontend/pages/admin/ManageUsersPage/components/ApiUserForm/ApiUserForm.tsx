@@ -1,21 +1,21 @@
 import React from "react";
-
-import { IApiEndpointRef } from "interfaces/api_endpoint";
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-import useFormValidation from "hooks/useFormValidation";
-
 import { SingleValue } from "react-select-5";
+
 import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import useFormValidation from "hooks/useFormValidation";
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
-import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
-import ApiAccessSection from "../ApiAccessSection";
 import { roleOptions } from "../../helpers/userManagementHelpers";
+import ApiAccessSection from "../ApiAccessSection";
+import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
+
 import { ApiUserFormState, validateApiUserForm } from "./helpers";
 
 export interface IApiUserFormData {
@@ -54,11 +54,9 @@ const ApiUserForm = ({
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<ApiUserFormState>({
@@ -174,13 +172,8 @@ const ApiUserForm = ({
     <div>
       <form autoComplete="off" onSubmit={handleSubmit(onValidSubmit)}>
         <InputField
-          name="name"
+          {...getTextFieldProps("name")}
           label="Name"
-          value={formData.name}
-          onChange={(value: string) => setField("name", value)}
-          onFocus={() => clearFieldError("name")}
-          onBlur={() => validateField("name")}
-          error={getError("name")}
           disabled={isSubmitting}
           autofocus
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}

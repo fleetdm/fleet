@@ -1,34 +1,26 @@
+import classnames from "classnames";
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import classnames from "classnames";
-
 import isURL from "validator/lib/isURL";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-
-import { getErrorReason } from "interfaces/errors";
-
-import configAPI from "services/entities/config";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-
+import Button from "components/buttons/Button/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
-import Button from "components/buttons/Button/Button";
-import SectionHeader from "components/SectionHeader";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 
-import CustomLink from "components/CustomLink";
-
+import MdmMigrationVideo from "../../../../../../../assets/videos/mdm-migration-video.mp4";
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
-
-import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
 
 const baseClass = "end-user-migration-section";
 
@@ -100,7 +92,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     setIsValidWebhookUrl(validateWebhookUrl(webhookUrl));
   };
 
-  const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (formData.isEnabled && !validateWebhookUrl(formData.webhookUrl)) {
@@ -168,7 +160,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
 
   return (
     <SettingsSection className={baseClass} title="End user migration workflow">
-      <form>
+      <form onSubmit={onSubmit}>
         <p>
           Control the end user migration workflow for macOS hosts.{" "}
           <CustomLink
@@ -255,7 +247,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           tipOffset={8}
           renderChildren={(disableChildren) => (
             <Button
-              onClick={onSubmit}
+              type="submit"
               disabled={disableChildren || isUpdating}
               isLoading={isUpdating}
             >

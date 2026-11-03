@@ -1,8 +1,9 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
+
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { LogDestination } from "interfaces/config";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ILogDestinationIndicatorProps {
   logDestination: LogDestination;

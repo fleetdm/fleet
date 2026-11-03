@@ -1,10 +1,10 @@
-import React, { useState } from "react";
 import classNames from "classnames";
+import React, { useState } from "react";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { IconNames } from "components/icons";
 import Card from "components/Card";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import { Colors } from "styles/var/colors";
 
 const baseClass = "info-banner";
@@ -14,8 +14,6 @@ export interface IInfoBannerProps {
   className?: string;
   /** default grey */
   color?: "grey" | "yellow";
-  /** default 4px  */
-  borderRadius?: "medium" | "xlarge";
   pageLevel?: boolean;
   /** Add this element to the end of the banner message. Mutually exclusive with `link`. */
   cta?: JSX.Element;
@@ -33,7 +31,6 @@ const InfoBanner = ({
   children,
   className,
   color = "grey",
-  borderRadius,
   pageLevel,
   cta,
   closable,
@@ -84,11 +81,7 @@ const InfoBanner = ({
   }
 
   return (
-    <Card
-      className={wrapperClasses}
-      color={color}
-      borderRadiusSize={borderRadius}
-    >
+    <Card className={wrapperClasses} color={color}>
       {content}
     </Card>
   );

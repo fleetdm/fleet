@@ -143,8 +143,12 @@ func createHostWithSoftware(
 	return h
 }
 
-// fixturesToSoftware converts SoftwareFixtures to fleet.Software.
-func fixturesToSoftware(fixtures []SoftwareFixture) []fleet.Software {
+// fixturesToSoftware converts SoftwareFixtures to fleet.Software. The scanners only list
+// software from the package sources they cover, so the fixtures have to carry the source their
+// platform would report.
+func fixturesToSoftware(platformStr string, fixtures []SoftwareFixture) []fleet.Software {
+	source := packageSource(platformStr)
+
 	software := make([]fleet.Software, len(fixtures))
 	for i, fi := range fixtures {
 		software[i] = fleet.Software{
@@ -152,9 +156,18 @@ func fixturesToSoftware(fixtures []SoftwareFixture) []fleet.Software {
 			Version: fi.Version,
 			Release: fi.Release,
 			Arch:    fi.Arch,
+			Source:  source,
 		}
 	}
 	return software
+}
+
+// packageSource returns the software source a platform's package manager reports under.
+func packageSource(platformStr string) string {
+	if strings.HasPrefix(platformStr, "ubuntu") || strings.HasPrefix(platformStr, "debian") {
+		return "deb_packages"
+	}
+	return "rpm_packages"
 }
 
 // LoadSoftwareFromFixture creates a host and populates it with software from a VulnFixture.
@@ -165,7 +178,7 @@ func LoadSoftwareFromFixture(
 	fixture *VulnFixture,
 	t require.TestingT,
 ) *fleet.Host {
-	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(fixture.Software()), t)
+	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(platformStr, fixture.Software()), t)
 }
 
 // RunAndAssert loads software from a VulnFixture, runs the scanner, and asserts that
@@ -265,7 +278,7 @@ func LoadSoftware(
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(contents, &fixtures))
 
-	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(fixtures), t)
+	return createHostWithSoftware(ds, platformStr, ver, fixturesToSoftware(platformStr, fixtures), t)
 }
 
 // loadExpectedCVEs reads expected CVEs from a CSV fixture file.

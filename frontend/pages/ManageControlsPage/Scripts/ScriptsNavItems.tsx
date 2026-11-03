@@ -1,9 +1,9 @@
 import { useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import PATHS from "router/paths";
 
 import ScriptBatchProgress, {
   IScriptBatchProgressProps,

@@ -1,1 +1,0 @@
-- Fixed autofilled inputs showing a white background in dark mode. The autofill style now uses theme colors instead of a hardcoded white, and covers Firefox via the standard `:autofill` selector.

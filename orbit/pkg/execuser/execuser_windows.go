@@ -1,4 +1,4 @@
-// nolint:gosec,G103,govet,unsafeptr // Reason: unsafe required for Windows API calls.
+//nolint:gosec,govet // G103, unsafeptr: unsafe required for Windows API calls.
 package execuser
 
 // NOTE: The following was copied from

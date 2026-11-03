@@ -442,6 +442,14 @@ func TestValidateTitlePackages(t *testing.T) {
 			wantErr:  "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet",
 		},
 		{
+			name: "two Windows FMAs sharing a DisplayName title are rejected by catalog name",
+			payloads: []*UploadSoftwareInstallerPayload{
+				{Title: "Firefox Nightly", FleetMaintainedAppID: new(uint(1)), FMAName: "Mozilla Firefox Nightly"},
+				{Title: "Firefox Nightly", FleetMaintainedAppID: new(uint(2)), FMAName: "Mozilla Firefox Nightly (ARM64)"},
+			},
+			wantErr: "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet",
+		},
+		{
 			name:     "same FMA across multiple versions is allowed",
 			payloads: []*UploadSoftwareInstallerPayload{fma(1, "Mozilla Firefox"), fma(1, "Mozilla Firefox")},
 		},

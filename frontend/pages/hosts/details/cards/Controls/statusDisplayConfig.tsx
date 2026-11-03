@@ -1,5 +1,6 @@
 import React from "react";
 
+import { IconNames } from "components/icons";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
@@ -10,12 +11,11 @@ import {
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
 
-import { IconNames } from "components/icons";
-
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
 import {
   getAndroidCertificateRetryMessage,
   isRetryingAndroidCertificate,
@@ -51,7 +51,7 @@ export type ControlMessage =
 
 export type ProfileDisplayOption = {
   statusText: string;
-  iconName: IconNames;
+  iconName: IconNames | null;
   /** Body copy for the control's details modal. */
   message: ControlMessage | null;
 } | null;
@@ -89,7 +89,7 @@ type AndroidCertSpecificStatus = "delivered" | "delivering";
 
 export type ProfileStatus = Exclude<
   OsSettingsTableStatusValue,
-  AndroidCertSpecificStatus
+  AndroidCertSpecificStatus | null
 >;
 type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
 
@@ -487,6 +487,15 @@ export const getControlDisplayOption = (
 ): ProfileDisplayOption => {
   const { status, operation_type: operationType, platform } = row;
   const profileUUID = row.profile_uuid;
+
+  // A self-service profile the host hasn't opted in to.
+  if (status === null) {
+    return {
+      statusText: "---",
+      iconName: null,
+      message: null,
+    };
+  }
 
   if (platform === "linux") {
     return LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[

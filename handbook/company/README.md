@@ -2,14 +2,21 @@
 
 ## Purpose
 
-Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet Device Management is the open-core company behind the leading AI-native device management platform for Windows, Apple, Linux, Android, and more. Today, Fleet enrolls millions of devices and infrastructure at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
-Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
-- 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
-- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
-- 🪟 reducing complexity by eliminating tool overlap from multiple traditional systems.
+Fleet is dedicated to:
+
+- 🔌 giving IT admins the time to transform themselves into 5x AI engineers, cutting [KTLO](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32) so they can build the future. With AI and human review, experts can one-shot entire IT projects in minutes.
+- 🪟 unbundling the Microsoft suite and dispelling misconceptions about what is and isn't possible. Customers should choose the right IdP, MDM, EDR, and office suite for their needs, not their vendors'.
+- 🐧 remaining the best Linux management option on the market and the premier solution for managing every distro, deskside hardware, and new devices like ARM PCs and NVIDIA's DGX series.
+
+With Fleet, customers reduce maintenance effort by 50-80%, speed up employee onboarding by 98% (often down to under 5-10 minutes), and cut onboarding tickets and errors from 80-90% to less than 1%, compared with Intune, Jamf, Ivanti, and Workspace ONE.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
+
+> "If our grandchildren are going to be monitored all the time, at least let's set the precedent that they're monitored with open-source software."
+>
+> Mike McNeil, CEO
 
 
 ## Culture
@@ -139,9 +146,9 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastructure.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product, Fleet API, and reference documentation.
-- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible for Fleet's internal IT/Security policies, solutions consulting, and dogfooding Fleet the product.
+- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible for Fleet's internal IT/Security policies and dogfooding Fleet the product.
 - 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
-- 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
+- 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet, solutions consulting, and helping customers deliver on their objectives.
 - 🫧 [Marketing](https://fleetdm.com/handbook/marketing): The Marketing department is directly responsible for growing awareness of Fleet, customer training curriculum, and prospect enablement, and nurturing the community through participation in events, conversations, and other programs.
 - 💸 [Finance](https://fleetdm.com/handbook/finance): The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems.
 - 🧑‍🚀 [People](https://fleetdm.com/handbook/people): The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools.

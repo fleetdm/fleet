@@ -50,6 +50,8 @@ func (s *integrationInstallTestSuite) SetupSuite() {
 
 	fleetConfig := config.TestConfig()
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	// Signing settings are only honored when S3 is the selected storage backend (bucket set).
+	fleetConfig.S3.SoftwareInstallersBucket = "test-bucket"
 	fleetConfig.S3.SoftwareInstallersCloudFrontSigner = signer
 	installConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -373,7 +375,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 	}{
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", InstallScript: "echo $FLEET_VAR_NONEXISTENT"}, unsupportedVarErrMsg},
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", PostInstallScript: "echo ${FLEET_VAR_NONEXISTENT}"}, unsupportedVarErrMsg},
-		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts."},
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"}, "Fleet variable $FLEET_VAR_NDES_SCEP_PROXY_URL is not supported in scripts."},
 	}
 	for _, c := range uploadCases {
 		s.uploadSoftwareInstaller(t, c.payload, http.StatusUnprocessableEntity, c.errMsg)

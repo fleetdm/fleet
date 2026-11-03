@@ -1,5 +1,5 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
 import PATHS from "router/paths";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";

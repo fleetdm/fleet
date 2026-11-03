@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,8 +45,10 @@ func TestQueries(t *testing.T) {
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
 		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
+		{"ScheduledQueriesDigest", testScheduledQueriesDigest},
 		{"LabelScopedScheduledQueryScopes", testLabelScopedScheduledQueryScopes},
 		{"QueryLabelsAtomic", testQueryLabelsAtomic},
+		{"ClearResultsThenCleanup", testQueriesClearResultsThenCleanup},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1717,6 +1721,79 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	requireQueries(t, queries, []string{queryNoLabel.Name})
 }
 
+func testScheduledQueriesDigest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-digest"})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test-digest", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	digest := func(teamID *uint) string {
+		d, err := ds.ScheduledQueriesDigest(ctx, teamID)
+		require.NoError(t, err)
+		return d
+	}
+	emptyGlobal, emptyTeam := digest(nil), digest(&team.ID)
+
+	q, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "global-scheduled",
+		Query:              "SELECT 1",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	global := digest(nil)
+	assert.NotEqual(t, emptyGlobal, global)
+	assert.Equal(t, emptyTeam, digest(&team.ID), "global reports don't change the team digest")
+	assert.Equal(t, global, digest(nil), "stable")
+
+	// Fields agents don't see don't change the digest.
+	q.Description = "new description"
+	q.ObserverCanRun = true
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.Equal(t, global, digest(nil))
+
+	// Unscheduled reports aren't in the config.
+	_, err = ds.NewQuery(ctx, &fleet.Query{Name: "unscheduled", Query: "SELECT 2", Saved: true, Logging: fleet.LoggingSnapshot})
+	require.NoError(t, err)
+	assert.Equal(t, global, digest(nil))
+
+	// Fields agents see do.
+	q.Interval = 120
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	changed := digest(nil)
+	assert.NotEqual(t, global, changed)
+
+	q.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, changed, digest(nil))
+	changed = digest(nil)
+
+	q.LabelsIncludeAny = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	scoped := digest(nil)
+	assert.NotEqual(t, changed, scoped)
+
+	q.LabelsIncludeAny = nil
+	q.LabelsIncludeAll = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, scoped, digest(nil))
+
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:     "team-scheduled",
+		Query:    "SELECT 1",
+		Saved:    true,
+		Interval: 60,
+		TeamID:   &team.ID,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	assert.NotEqual(t, emptyTeam, digest(&team.ID))
+}
+
 func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2001,4 +2078,111 @@ func testQueryLabelsAtomic(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, queries)
+}
+
+func testQueriesClearResultsThenCleanup(t *testing.T, ds *Datastore) {
+	orig := deleteQueryResultsBatchSize
+	deleteQueryResultsBatchSize = 2
+	t.Cleanup(func() { deleteQueryResultsBatchSize = orig })
+
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "User", "user@example.com", true)
+	hosts := make([]*fleet.Host, 0, 5)
+	for i := range 5 {
+		hosts = append(hosts, test.NewHost(t, ds, fmt.Sprintf("host%d", i), "", fmt.Sprintf("key%d", i), fmt.Sprintf("uuid%d", i), time.Now()))
+	}
+	const rowsPerHost = 3
+	writeResults := func(q *fleet.Query, h *fleet.Host) {
+		// More rows per host than the batch size, so cleanup pages end mid-host.
+		rows := make([]*fleet.ScheduledQueryResultRow, 0, rowsPerHost)
+		for range rowsPerHost {
+			rows = append(rows, &fleet.ScheduledQueryResultRow{
+				QueryID: q.ID, HostID: h.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
+			})
+		}
+		_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
+		require.NoError(t, err)
+	}
+	newQueryWithResults := func(name string) *fleet.Query {
+		q := test.NewQuery(t, ds, nil, name, "SELECT 1", user.ID, true)
+		for _, h := range hosts {
+			writeResults(q, h)
+		}
+		return q
+	}
+	requireStored := func(q *fleet.Query, want int) {
+		t.Helper()
+		var got int
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &got, `SELECT COUNT(*) FROM query_results WHERE query_id = ?`, q.ID))
+		require.Equal(t, want, got)
+	}
+	requireVisible := func(q *fleet.Query, want int) {
+		t.Helper()
+		_, total, _, err := ds.QueryResultRows(ctx, q.ID, fleet.TeamFilter{User: user}, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Equal(t, want, total)
+		counts, err := ds.ResultCountsForQueries(ctx, []uint{q.ID})
+		require.NoError(t, err)
+		require.Equal(t, want, counts[q.ID])
+		hostRows, err := ds.QueryResultRowsForHost(ctx, q.ID, hosts[0].ID)
+		require.NoError(t, err)
+		require.Len(t, hostRows, min(want, rowsPerHost))
+		hostCount, err := ds.ResultCountForQueryAndHost(ctx, q.ID, hosts[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, min(want, rowsPerHost), hostCount)
+		byQuery, err := ds.QueryResultRowsForHostByQuery(ctx, hosts[0].ID, []uint{q.ID})
+		require.NoError(t, err)
+		require.Len(t, byQuery[q.ID], min(want, rowsPerHost))
+	}
+	const allRows = 5 * rowsPerHost
+
+	applied := newQueryWithResults("applied")
+	appliedKept := newQueryWithResults("applied kept")
+	saved := newQueryWithResults("saved")
+	deleted := newQueryWithResults("deleted")
+	deletedMany1 := newQueryWithResults("deleted many 1")
+	deletedMany2 := newQueryWithResults("deleted many 2")
+	untouched := newQueryWithResults("untouched")
+
+	applied.Query = "SELECT 2"
+	require.NoError(t, ds.ApplyQueries(ctx, user.ID, []*fleet.Query{applied, appliedKept}, map[uint]struct{}{applied.ID: {}}))
+	saved.Query = "SELECT 2"
+	require.NoError(t, ds.SaveQuery(ctx, saved, true, false))
+	require.NoError(t, ds.DeleteQuery(ctx, nil, deleted.Name))
+	n, err := ds.DeleteQueries(ctx, []uint{deletedMany1.ID, deletedMany2.ID})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+
+	// Cleared results are hidden as soon as the edit is saved, before any row is deleted.
+	for _, q := range []*fleet.Query{applied, saved, deleted, deletedMany1, deletedMany2} {
+		requireStored(q, allRows)
+	}
+	requireVisible(applied, 0)
+	requireVisible(saved, 0)
+	requireVisible(appliedKept, allRows)
+
+	// Results written after the edit come from the new SQL and are kept.
+	writeResults(saved, hosts[0])
+	requireVisible(saved, rowsPerHost)
+
+	require.NoError(t, ds.CleanupStaleQueryResults(ctx))
+	requireStored(applied, 0)
+	requireStored(saved, rowsPerHost)
+	requireVisible(saved, rowsPerHost)
+	for _, q := range []*fleet.Query{deleted, deletedMany1, deletedMany2} {
+		requireStored(q, 0)
+	}
+	requireStored(appliedKept, allRows)
+	requireStored(untouched, allRows)
+
+	var pending int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &pending, `SELECT COUNT(*) FROM queries WHERE results_cleanup_pending = 1`))
+	require.Zero(t, pending)
+
+	// A later edit moves the cutoff past the rows written after the first one.
+	saved.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, saved, true, false))
+	requireVisible(saved, 0)
+	require.NoError(t, ds.CleanupStaleQueryResults(ctx))
+	requireStored(saved, 0)
 }

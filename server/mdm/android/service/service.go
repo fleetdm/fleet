@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -61,6 +62,7 @@ type Service struct {
 	AllowLocalhostServerURL bool
 	keyValueStore           fleet.KeyValueStore
 	clock                   clock.Clock
+	installReapTimeout      time.Duration
 }
 
 func NewService(
@@ -73,9 +75,11 @@ func NewService(
 	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 	keyValueStore fleet.KeyValueStore,
+	opts ...ServiceOption,
 ) (android.Service, error) {
-	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, WithKeyValueStore(keyValueStore))
+	client := NewAMAPIClient(ctx, logger, licenseKey)
+	opts = append([]ServiceOption{WithKeyValueStore(keyValueStore)}, opts...)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, opts...)
 }
 
 // ServiceOption configures optional dependencies of the android service.
@@ -89,6 +93,12 @@ func WithKeyValueStore(kv fleet.KeyValueStore) ServiceOption {
 // WithClock replaces the clock, for tests.
 func WithClock(clk clock.Clock) ServiceOption {
 	return func(s *Service) { s.clock = clk }
+}
+
+// WithInstallReapTimeout sets how long a setup experience app install can go unreported
+// by the device before it is marked failed. Zero or less keeps it pending indefinitely.
+func WithInstallReapTimeout(d time.Duration) ServiceOption {
+	return func(s *Service) { s.installReapTimeout = d }
 }
 
 func NewServiceWithClient(
@@ -135,7 +145,8 @@ func NewServiceWithClient(
 	return svc, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string) androidmgmt.Client {
+// NewAMAPIClient creates the appropriate AMAPI client based on environment configuration.
+func NewAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	getEnv := dev_mode.Env
 	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
@@ -143,7 +154,7 @@ func newAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string)
 	} else {
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, getEnv)
 	}
-	return client
+	return androidmgmt.NewRetryClient(client, logger)
 }
 
 func newErrResponse(err error) android.DefaultResponse {
@@ -471,6 +482,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		}
 	}
 
+	err = svc.ds.DeleteZeroTouchEnrollmentTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting zero-touch enrollment tokens")
+	}
+
 	err = svc.ds.DeleteAllEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
@@ -579,6 +595,9 @@ func (r enrollmentTokenResponse) SetCookies(_ context.Context, w http.ResponseWr
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	// This endpoint is unauthenticated (gated only by the enroll secret), so don't let requests hold
+	// connections open for minutes while the AMAPI quota is exhausted; the device can request again.
+	ctx = androidmgmt.WithoutRetry(ctx)
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpSessionID, req.FullyManaged)
 	if err != nil {
@@ -594,9 +613,16 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
-	if err != nil {
-		return nil, err
+
+	// Verify the enroll secret before anything that could reveal server
+	// configuration state, so callers without a valid secret always get the
+	// same response.
+	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewAuthFailedError("invalid secret")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
 	var idpUUID string
@@ -612,12 +638,8 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		}
 	}
 
-	_, err = svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	switch {
-	case fleet.IsNotFound(err):
-		return nil, fleet.NewAuthFailedError("invalid secret")
-	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	if _, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict); err != nil {
+		return nil, err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -885,6 +907,11 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 		svc.logger.WarnContext(ctx, "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
 	}
 
+	// Delete zero-touch enrollment tokens (they reference the enterprise being deleted)
+	if deleteErr := svc.ds.DeleteZeroTouchEnrollmentTokens(ctx); deleteErr != nil {
+		svc.logger.ErrorContext(ctx, "failed to delete zero-touch enrollment tokens after enterprise deletion", "err", deleteErr)
+	}
+
 	// Delete local enterprise records
 	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
 		svc.logger.ErrorContext(ctx, "failed to delete local enterprise records after deletion", "err", deleteErr)
@@ -932,6 +959,30 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return nil // no-op for non-Android hosts
 	}
 
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, and
+	// the resulting transient "wiping" status is reported as a pending unenroll for BYO Android (see suppressAndroidBYODWipeStatus).
+	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
+	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
+	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
+	}
+	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	if isBYO {
+		// A work-profile wipe already in flight (from an earlier Unenroll or Wipe) will unenroll the host when it comes online,
+		// so another one would only leave an extra WIPE pending on AMAPI. Read from the primary so a quick second request
+		// sees the first one's wipe_ref.
+		lockWipe, err := svc.fleetDS.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host lock/wipe status for android unenrollment")
+		}
+		if lockWipe.IsPendingWipe() {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.CantUnenrollPendingUnenrollMessage}, "unenroll android host")
+		}
+	}
+
 	// Resolve Android device and enterprise
 	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
 	if err != nil {
@@ -952,17 +1003,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
-
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
-	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, but
-	// the resulting transient "wiping" status is suppressed for BYO Android (see suppressAndroidBYODWipeStatus) so no pending badge is
-	// shown. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
-	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
-	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
-	}
-	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
 
 	if isBYO {
 		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
@@ -1032,6 +1072,21 @@ func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
 }
 
 var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassword"\s*:\s*"[^"]*"\s*,?\s*`)
+
+func redactAndroidCommandJSON(rawJSON []byte) []byte {
+	var m map[string]any
+	if err := json.Unmarshal(rawJSON, &m); err != nil {
+		return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+	}
+	if _, ok := m["newPassword"]; !ok {
+		return rawJSON
+	}
+	delete(m, "newPassword")
+	if b, err := json.Marshal(m); err == nil {
+		return b
+	}
+	return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+}
 
 // redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from
 // the AMAPI Operation metadata before the Operation is persisted as raw_result.
@@ -1216,9 +1271,70 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
+// companyOwnedOnlyCommandTypes are the AMAPI command types Google documents as unsupported on a personally-owned work
+// profile. On such a host AMAPI still accepts REBOOT and reports the operation as done with no error while the device
+// silently ignores it, so refusing before issuing is the only place Fleet can catch it.
+//
+// Google gates these on management mode, not ownership, and Fleet only records ownership
+// (host_mdm.is_personal_enrollment). The two agree for the enrollment types Fleet supports today, fully managed and
+// BYOD work profile. They diverge for a company-owned device with a work profile (COPE), where REBOOT is still
+// unsupported but the host is not personally owned, so this check lets it through; catching that needs AMAPI's
+// Device.managementMode, which Fleet does not store.
+var companyOwnedOnlyCommandTypes = map[android.MDMAndroidCommandType]struct{}{
+	android.MDMAndroidCommandTypeReboot:              {},
+	android.MDMAndroidCommandTypeRelinquishOwnership: {},
+	android.MDMAndroidCommandTypeStartLostMode:       {},
+	android.MDMAndroidCommandTypeStopLostMode:        {},
+}
+
+// companyOwnedOnlyCommandType returns the normalized command type if cmd is one of companyOwnedOnlyCommandTypes, and
+// "" otherwise. AMAPI infers the type from the params when type is omitted, so the lost mode params are checked too -
+// a payload of just {"startLostModeParams":{}} is a START_LOST_MODE. The normalization is only used to decide whether
+// to reject; the type persisted on the command row is still the one AMAPI accepted.
+func companyOwnedOnlyCommandType(cmd *androidmanagement.Command) android.MDMAndroidCommandType {
+	cmdType := android.MDMAndroidCommandType(strings.ToUpper(strings.TrimSpace(cmd.Type)))
+	if cmdType == "" {
+		switch {
+		case cmd.StartLostModeParams != nil:
+			cmdType = android.MDMAndroidCommandTypeStartLostMode
+		case cmd.StopLostModeParams != nil:
+			cmdType = android.MDMAndroidCommandTypeStopLostMode
+		}
+	}
+	if _, ok := companyOwnedOnlyCommandTypes[cmdType]; ok {
+		return cmdType
+	}
+	return ""
+}
+
+// androidCustomCommandType returns the command type to persist for a custom AMAPI command.
+// AMAPI derives the type from a params field when type is omitted (e.g. clearAppsDataParams →
+// CLEAR_APP_DATA), and that derived type is reflected back in the Operation metadata but is not
+// trivially accessible here, so unrecognized shapes fall back to "CUSTOM".
+//
+// wipeParams is mapped explicitly because the acknowledged-wipe handling in ProcessPubSubPush keys
+// on the stored type: storing "CUSTOM" for a command AMAPI treats as a WIPE means a device that
+// really was wiped is never marked unenrolled. The other inferable types carry no such side effect
+// in Fleet, so they stay "CUSTOM" until one of them needs the same treatment.
+//
+// companyOwnedOnlyCommandType above infers types from params too, for the pre-issue rejection check
+// rather than for storage; a type that needs both has to be added in both places.
+func androidCustomCommandType(cmd *androidmanagement.Command) string {
+	switch {
+	case cmd.Type != "":
+		return cmd.Type
+	case cmd.WipeParams != nil:
+		return string(android.MDMAndroidCommandTypeWipe)
+	default:
+		return "CUSTOM"
+	}
+}
+
 // IssueCustomCommand issues an arbitrary AMAPI command from raw JSON. It reuses resolveAndroidCommandTarget
 // for auth/device resolution, unmarshals the JSON into an AMAPI Command, calls IssueCommand, and persists the
-// row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written.
+// row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written. Command types
+// AMAPI does not support on a personally-owned work profile (see companyOwnedOnlyCommandTypes) are refused with
+// a BadRequestError before anything is sent or persisted.
 func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "custom-command")
 	if err != nil {
@@ -1236,33 +1352,67 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		amapiCmd.Duration = longCommandDuration
 	}
 
+	if cmdType := companyOwnedOnlyCommandType(&amapiCmd); cmdType != "" {
+		// Read the primary: is_personal_enrollment is written during enrollment, and a replica that has not
+		// caught up yet would report a freshly enrolled BYOD host as company-owned, letting the command through
+		// on exactly the hosts this check exists to protect.
+		hostMDM, err := svc.fleetDS.GetHostMDM(ctxdb.RequirePrimary(ctx, true), host.ID)
+		switch {
+		case err != nil && !fleet.IsNotFound(err):
+			return nil, ctxerr.Wrap(ctx, err, "getting host_mdm for android custom command")
+
+		case err != nil || hostMDM == nil:
+			// Every enrolled Android host gets its host_mdm row in the same transaction as the host, so a
+			// missing row means the host stopped being enrolled between the caller's MDM check and here.
+			// Ownership is then unknowable, and issuing anyway is how the silent success this check prevents
+			// would come back.
+			return nil, &fleet.BadRequestError{
+				Message: "Can't run the MDM command because the host doesn't have MDM turned on.",
+			}
+
+		case hostMDM.IsPersonalEnrollment:
+			// Logged because the rejection hinges on Fleet's ownership classification, which is derived from an
+			// AMAPI Ownership field that some payloads omit. If an admin reports a wrongly refused command, this
+			// is the record that says Fleet considered the host personally owned.
+			svc.logger.InfoContext(ctx, "rejecting android command unsupported on personally-owned host",
+				"host_id", host.ID, "command_type", cmdType)
+			return nil, &fleet.BadRequestError{
+				Message: string(cmdType) + " is not supported for personally-owned Android hosts.",
+			}
+		}
+	}
+
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &amapiCmd)
 	if err != nil {
 		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
 			return nil, fleetErr
 		}
+		if ae, ok := errors.AsType[*googleapi.Error](err); ok && ae.Code == http.StatusInternalServerError {
+			msg := ae.Message
+			if msg == "" {
+				msg = ae.Body
+			}
+			if msg == "" {
+				msg = http.StatusText(ae.Code)
+			}
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Android Management API rejected the command: %s", msg),
+				InternalErr: err,
+			}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}
 
-	// Determine the command type from the AMAPI response metadata or the request.
-	cmdType := amapiCmd.Type
-	if cmdType == "" {
-		// AMAPI infers the type from params fields (e.g. clearAppsDataParams → CLEAR_APP_DATA).
-		// The type is reflected back in the Operation metadata but not trivially accessible here,
-		// so fall back to "CUSTOM" for now.
-		cmdType = "CUSTOM"
-	}
+	cmdType := strings.ToUpper(androidCustomCommandType(&amapiCmd))
 
-	// Redact sensitive fields before persisting. The original rawJSON (with any
-	// password) was already sent to AMAPI above; only the stored copy is sanitized.
-	amapiCmd.NewPassword = ""
+	storedPayload := redactAndroidCommandJSON(rawJSON)
 
 	cmd := &android.MDMAndroidCommand{
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   cmdType,
-		RawCommand:    marshalRawCommand(&amapiCmd),
+		RawCommand:    sql.Null[string]{V: string(storedPayload), Valid: true},
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.InsertMDMAndroidCommand(ctx, cmd); err != nil {
@@ -1384,10 +1534,33 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 			continue
 		}
 
-		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+		policyBuiltAt := time.Now()
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
 		if err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			continue
+		}
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "get android host %s", uuid))
+			continue
+		}
+		var inPolicyVersion *int64
+		if policy != nil && policy.Version > 0 {
+			inPolicyVersion = &policy.Version
+		}
+		// Save the sent Fleet agent like the Android app reconciler does, so the next status report will verify it
+		err = svc.fleetDS.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+			HostID:          androidHost.Host.ID,
+			AdamID:          packageName,
+			InstallType:     android.AppStatusForceInstalled,
+			Status:          fleet.AndroidSoftwareInstallStatusPending,
+			InPolicyVersion: inPolicyVersion,
+			PolicyBuiltAt:   policyBuiltAt,
+		}}, nil)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "save fleet agent install for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
@@ -1770,27 +1943,29 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 // SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
 
 		var apiErr error
 		policy := &androidmanagement.Policy{Applications: appPolicies}
 		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
-			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
 		}
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {

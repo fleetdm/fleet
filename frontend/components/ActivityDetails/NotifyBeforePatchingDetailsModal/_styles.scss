@@ -1,0 +1,28 @@
+.notify-before-patching-details-modal {
+  &__content {
+    @include vertical-modal-layout;
+
+    // Prevent full-width stretching
+    .reveal-button {
+      align-self: flex-start;
+    }
+  }
+
+  &__explanation {
+    margin: 0;
+  }
+
+  &__output-section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__output-label {
+    margin: 0;
+  }
+
+  &__output-tooltip {
+    width: 300px;
+  }
+}

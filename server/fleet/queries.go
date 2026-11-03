@@ -582,6 +582,18 @@ type ScheduledQueryResult struct {
 }
 
 // ScheduledQueryResultRow is a scheduled query result row.
+// QueryReportWriteResult describes the outcome of storing one host's results for a report.
+type QueryReportWriteResult struct {
+	// RowsAdded is the net change in stored rows with data.
+	RowsAdded int
+	// Rejected is true when nothing was stored because the write would have pushed the report
+	// past the cap.
+	Rejected bool
+	// NewHost is true when the host had no stored rows with data before this write and has
+	// some now, i.e. the report had room for a host it didn't cover yet.
+	NewHost bool
+}
+
 type ScheduledQueryResultRow struct {
 	// QueryID is the unique identifier of the query.
 	QueryID uint `db:"query_id"`
@@ -600,6 +612,12 @@ type ScheduledQueryResultRow struct {
 	Data *json.RawMessage `db:"data"`
 	// LastFetched is the time this result was received.
 	LastFetched time.Time `db:"last_fetched"`
+}
+
+// StoredQueryResultRow is a stored query result row along with its row ID.
+type StoredQueryResultRow struct {
+	ID uint `db:"id"`
+	ScheduledQueryResultRow
 }
 
 func (s *ScheduledQueryResultRow) HostDisplayName() string {

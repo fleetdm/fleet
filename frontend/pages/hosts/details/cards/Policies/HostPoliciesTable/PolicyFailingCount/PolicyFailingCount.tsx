@@ -1,8 +1,8 @@
-import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
-import InfoBanner from "components/InfoBanner";
 import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
+import { IHostPolicy } from "interfaces/policy";
 
 const baseClass = "policy-failing-count";
 
@@ -54,7 +54,7 @@ const PolicyFailingCount = ({
     );
 
   return failCount ? (
-    <InfoBanner className={baseClass} borderRadius="xlarge">
+    <InfoBanner className={baseClass}>
       <IconStatusMessage
         iconName="error-outline"
         iconColor="ui-fleet-black-50"

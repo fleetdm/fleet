@@ -1,27 +1,22 @@
 import React, { useCallback, useContext, useMemo } from "react";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-
-import { IHostScript } from "interfaces/script";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import { IUser } from "interfaces/user";
-import { IHostScriptsResponse } from "services/entities/scripts";
-
-import permissions from "utilities/permissions";
-import { getPathWithQueryParams } from "utilities/url";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError/DataError";
 import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner/Spinner";
-
 import TableContainer, {
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
+import { AppContext } from "context/app";
+import { IHostScript } from "interfaces/script";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import { IHostScriptsResponse } from "services/entities/scripts";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 

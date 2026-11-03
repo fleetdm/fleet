@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+
 import { QueryablePlatform, QueryableDisplayPlatform } from "./platform";
 
 export default PropTypes.shape({

@@ -104,7 +104,9 @@ jobs:
 
     - name: Run Fleet server
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl preview --no-hosts --disable-open-browser
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl get enroll-secret
@@ -195,7 +197,9 @@ jobs:
     - id: login
       name: Attempt login
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }}
 
         # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
@@ -244,7 +248,9 @@ jobs:
     steps:
     - name: Install fleetctl
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Set Cloudflare DNS
@@ -350,7 +356,9 @@ jobs:
 
     - name: Install fleetctl
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Set Cloudflare DNS
@@ -465,11 +473,31 @@ jobs:
         Clear-DnsClientCache
 
     - name: Install fleetctl
+      shell: powershell
+      env:
+        GH_TOKEN: ${{ github.token }} # authenticated requests avoid the 60/hour anonymous GitHub API limit
+      # install-fleetctl.sh does not support Windows, so install the fleetctl MSI from the latest release.
+      # The MSI installs to C:\Program Files\FleetDM\fleetctl and adds it to the system PATH.
+      run: |
+        $ProgressPreference = "SilentlyContinue"
+        $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/fleetdm/fleet/releases/latest" -Headers $headers
+        $arch = if ("${{ runner.arch }}" -eq "ARM64") { "arm64" } else { "amd64" }
+        $asset = $release.assets | Where-Object { $_.name -like "fleetctl_*_windows_$arch.msi" }
+        if (-not $asset) { throw "No fleetctl MSI for windows_$arch in release $($release.tag_name)" }
+        Write-Host "Installing $($asset.name)..."
+        $msi = Join-Path $env:RUNNER_TEMP $asset.name
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $msi
+        $proc = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn" -Wait -PassThru
+        if ($proc.ExitCode -ne 0) { throw "msiexec exited with code $($proc.ExitCode)" }
+        $installDir = "C:\Program Files\FleetDM\fleetctl"
+        $installDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        & "$installDir\fleetctl.exe" --version
+
+    - name: Configure fleetctl
       shell: bash
       # On Windows we need to set rootca or tls-skip verify. Since this is a test environment we can skip TLS verification.
-      run: |
-        npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+      run: fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
 
     - name: Wait until fleet address is reachable and fleet responds
       shell: bash

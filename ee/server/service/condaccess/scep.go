@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	scepPath         = "/api/fleet/conditional_access/scep"
+	scepPath         = fleet.ConditionalAccessSCEPPath
 	scepValidityDays = 398 // Apple's maximum allowed certificate validity
 )
 
@@ -83,6 +84,8 @@ func RegisterSCEP(
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
 	scepHandler = otel.WrapHandler(scepHandler, scepPath, *fleetConfig)
 	mux.Handle(scepPath, scepHandler)
+	// The Windows SCEP client appends /pkiclient.exe to the server URL, as NDES expects, and can't be told not to.
+	mux.Handle(scepPath+"/pkiclient.exe", scepHandler)
 	return nil
 }
 
@@ -164,6 +167,14 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &fleet.BadRequestError{Message: "missing data for PKIOperation"}
 	}
+
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.logger)))
 	if err != nil {
 		return nil, err
@@ -180,7 +191,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.logger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
+		return certRep.Raw, err
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)

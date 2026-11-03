@@ -71,13 +71,13 @@ module.exports = {
     customRenderer.heading = function(textHTML, level) {
       let inlineStyles;
       if(level === 1) { // For h1s
-        inlineStyles = 'font-weight: 800; font-size: 24px; line-height: 32px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 800; font-size: 32px; line-height: 150%; margin-bottom: 32px;';
       } else if (level === 2) { // For h2s
-        inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 28px; margin-bottom: 16px; margin-top: 32px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;';
       } else if (level === 3) { // for h3s
-        inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 24px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;';
       } else {// H4s or higher
-        inlineStyles = 'font-weight: 700; font-size: 16px; line-height: 20px; margin-bottom: 16px;';
+        inlineStyles = 'color: #192147; font-weight: 700; font-size: 16px; line-height: 20px; margin-bottom: 16px;';
       }
       return `<h${level} style="${inlineStyles}">\n${textHTML}\n</h${level}>\n`;
     };
@@ -98,7 +98,7 @@ module.exports = {
 
     // For list items
     customRenderer.listitem = function(textHTML) {
-      return `<li style="margin-bottom: 16px;">\n${textHTML}\n</li>\n`;
+      return `<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">\n${textHTML}\n</span></li>\n`;
     };
 
     customRenderer.paragraph = function(text) {
@@ -107,7 +107,7 @@ module.exports = {
 
     // For bold text
     customRenderer.strong = function(textHTML) {
-      return `<strong style="display: inline; font-weight: 700; font-size: 16px; line-height: 24px;">${textHTML}</strong>`;
+      return `<strong style="display: inline; font-weight: 700; color: #192147">${textHTML}</strong>`;
     };
 
     // For emphasized text
@@ -139,13 +139,13 @@ module.exports = {
           }
         }
       };
-      return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none; word-break: break-word;" href="${href}" target="_blank">${textHTML}</a>`;
+      return `<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="${_.escape(href)}" target="_blank">${textHTML}</a>`;
     };
 
     // For images
     customRenderer.image = function(href, title) {
       let linkToImageInAssetsFolder = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com');
-      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${linkToImageInAssetsFolder}" alt="${title}">`;
+      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${_.escape(linkToImageInAssetsFolder)}" alt="${_.escape(title)}">`;
     };
 
     markedOpts.renderer = customRenderer;

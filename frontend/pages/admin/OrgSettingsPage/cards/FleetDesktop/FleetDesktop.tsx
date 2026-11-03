@@ -1,22 +1,18 @@
 import React, { useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import validUrl from "components/forms/validators/valid_url";
-import validHostname from "components/forms/validators/valid_hostname";
-
+import { isValidHostname, isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
 
-import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 import TooltipWrapper from "../../../../../components/TooltipWrapper";
+import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 
 const END_USER_AUTH_LABEL_ID = "end-user-authentication-label";
 
@@ -85,12 +81,12 @@ const FleetDesktop = ({
 
     if (
       transparencyURL &&
-      !validUrl({ url: transparencyURL, protocols: ["http", "https"] })
+      !isValidURL({ url: transparencyURL, protocols: ["http", "https"] })
     ) {
       errors.transparencyURL = `Custom transparency URL must include protocol (e.g. https://)`;
     }
 
-    if (alternativeBrowserHost && !validHostname(alternativeBrowserHost)) {
+    if (alternativeBrowserHost && !isValidHostname(alternativeBrowserHost)) {
       errors.alternativeBrowserHost = `Browser host must be a valid hostname or IP address (e.g. example.com, 192.168.1.50) and may include a port.`;
     }
 

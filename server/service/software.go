@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -72,6 +74,13 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	// legacy endpoint for backwards compatibility)
 	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
 
+	// fleet.DefaultPerPage is effectively unbounded, and returning a whole large
+	// inventory in one response takes long enough to trip a load balancer's idle
+	// timeout, so fall back to the bounded page size instead.
+	if req.SoftwareListOptions.ListOptions.PerPage == 0 {
+		req.SoftwareListOptions.ListOptions.PerPage = platform_http.MaxPerPage
+	}
+
 	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
@@ -110,8 +119,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// default sort order to hosts_count descending
@@ -124,6 +138,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
 		return nil, nil, err
+	}
+	// ai_tool is Fleet Premium, so it's omitted on Free. That also hides software flagged before a
+	// downgrade, since the flag is never reset in the database.
+	if !lic.IsPremium() {
+		for i := range softwares {
+			softwares[i].AITool = nil
+		}
 	}
 
 	return softwares, meta, nil
@@ -208,6 +229,9 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
+	if !license.IsPremium(ctx) {
+		software.AITool = nil
+	}
 
 	return software, nil
 }
@@ -266,8 +290,13 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return 0, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return 0, err
 	}
 
 	// required for vulnerability filters

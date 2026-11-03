@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	fleetotel "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -349,7 +350,7 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 
 		// Create the instrumented handler with the proper route
 		instrumentedHandler := otelhttp.NewHandler(
-			otelhttp.WithRouteTag(route, next),
+			fleetotel.WithRouteTag(route, next),
 			"", // Empty operation name - will be set by span name formatter
 			otelhttp.WithSpanNameFormatter(func(operation string, req *http.Request) string {
 				return req.Method + " " + route

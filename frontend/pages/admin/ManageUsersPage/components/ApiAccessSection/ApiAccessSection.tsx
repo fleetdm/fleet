@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
 
-import { IApiEndpointRef } from "interfaces/api_endpoint";
 import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+
 import ApiEndpointSelectorTable from "../ApiEndpointSelectorTable";
 
 const baseClass = "api-access-section";

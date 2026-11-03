@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+
 import {
   IAppleDeviceUpdates,
   IConfigFeatures,
@@ -6,8 +7,8 @@ import {
 } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
-import { UserRole } from "./user";
 import { EndUserLocalAccountType, ITokenFleet, ITokenTeam } from "./mdm";
+import { UserRole } from "./user";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -68,6 +69,8 @@ export interface ITeam extends ITeamSummary {
       enable_end_user_authentication: boolean;
       apple_setup_assistant: string | null;
       apple_enable_release_device_manually: boolean | null;
+      macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+      macos_enable_bootstrap_package_during_migration: boolean;
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
       require_all_software_windows: boolean | null;

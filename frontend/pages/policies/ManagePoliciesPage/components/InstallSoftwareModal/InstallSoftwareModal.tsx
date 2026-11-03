@@ -1,34 +1,31 @@
-import React, { useCallback, useMemo, useRef } from "react";
-
-import { useQuery } from "react-query";
 import { omit } from "lodash";
+import React, { useCallback, useMemo, useRef } from "react";
+import { useQuery } from "react-query";
 
-import paths from "router/paths";
-import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import softwareAPI, {
-  ISoftwareTitlesQueryKey,
-  ISoftwareTitlesResponse,
-} from "services/entities/software";
-import { IPaginatedListHandle } from "components/PaginatedList";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import { getExtensionFromFileName } from "utilities/file/fileUtils";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Modal from "components/Modal";
-import DataError from "components/DataError";
+import { IPaginatedListHandle } from "components/PaginatedList";
 import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import {
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import softwareAPI, {
+  ISoftwareTitlesQueryKey,
+  ISoftwareTitlesResponse,
+} from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { getPathWithQueryParams } from "utilities/url";
 
 import PoliciesPaginatedList, {
   IFormPolicy,

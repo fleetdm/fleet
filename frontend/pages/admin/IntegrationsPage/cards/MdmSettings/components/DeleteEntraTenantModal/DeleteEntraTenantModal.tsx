@@ -1,11 +1,10 @@
 import React, { useContext, useState } from "react";
 
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import { notify } from "components/ToastNotification";
 
 const baseClass = "delete-entra-tenant-modal";
 

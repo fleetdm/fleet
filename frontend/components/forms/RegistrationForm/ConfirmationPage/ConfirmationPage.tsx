@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
 import classnames from "classnames";
+import React, { useEffect } from "react";
 
 import Button from "components/buttons/Button";
-import { IRegistrationFormData } from "interfaces/registration_form_data";
 import Checkbox from "components/forms/fields/Checkbox";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 
 const baseClass = "confirm-user-reg";
 

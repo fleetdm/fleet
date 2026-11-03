@@ -9,12 +9,12 @@
 			<dict>
 				<key>AllowAllAppsAccess</key>
 				<true/>
-				<key>CertificateRenewalTimeInterval</key>
-				<integer>14</integer>
 				<key>Challenge</key>
 				<string>YOUR_SCEP_SECRET_KEY_FROM_OKTA</string>
+				<key>Key Type</key>
+				<string>RSA</string>
 				<key>Key Usage</key>
-				<integer>4</integer>
+				<integer>1</integer>
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>Subject</key>

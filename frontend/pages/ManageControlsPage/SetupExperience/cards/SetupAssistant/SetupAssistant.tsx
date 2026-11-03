@@ -1,31 +1,31 @@
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import mdmAPI, {
   IAppleSetupEnrollmentProfileResponse,
   IDefaultAppleSetupEnrollmentProfileResponse,
 } from "services/entities/mdm";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import PATHS from "router/paths";
 
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-
-import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
-import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
-import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
-import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+
+import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
+import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
+import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
+import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
 
 const baseClass = "setup-assistant";
 

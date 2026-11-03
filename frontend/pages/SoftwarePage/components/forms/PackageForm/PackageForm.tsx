@@ -1,9 +1,35 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useState, useEffect, useCallback, useContext } from "react";
-import classnames from "classnames";
 
+import classnames from "classnames";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import InfoBanner from "components/InfoBanner";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { isScriptOnlyPackageType } from "interfaces/package_type";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  SoftwareCategory,
+} from "interfaces/software";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
+import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
+import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   formatFileSize,
@@ -12,41 +38,15 @@ import {
 } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
-import { ILabelSummary } from "interfaces/label";
-
-import {
-  IAppStoreApp,
-  ISoftwarePackage,
-  SoftwareCategory,
-} from "interfaces/software";
-import { isScriptOnlyPackageType } from "interfaces/package_type";
-
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import FileUploader from "components/FileUploader";
-import {
-  CUSTOM_TARGET_OPTIONS,
-  generateHelpText,
-  generateSelectedLabels,
-  getCustomTarget,
-  getTargetType,
-} from "pages/SoftwarePage/helpers";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
-import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
-import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
+
 import {
   createTooltipContent,
   estimateUploadSize,
   generateFormValidation,
 } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -159,11 +159,15 @@ interface IPackageFormProps {
   /** Overrides the initial `targetType` for new (non-editing) forms. The
    * multi-package add modal preselects `"Custom"` per Figma. */
   initialTargetType?: string;
-  patchWhenClosed?: boolean;
+  preInstallQueryLocked?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
   ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.py,.ipa";
+
+// Matches the FileUploader's drop-rejection fallback so picker and drop
+// report the same copy when a user picks a type the installer can't handle.
+const UNSUPPORTED_FILE_TYPE_ERROR = "File type isn't supported";
 
 const PackageForm = ({
   labels,
@@ -188,7 +192,7 @@ const PackageForm = ({
   restrictedFileAccept,
   restrictedFileTypeLabel,
   initialTargetType,
-  patchWhenClosed = false,
+  preInstallQueryLocked = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const { config } = useContext(AppContext);
@@ -220,6 +224,7 @@ const PackageForm = ({
     isValid: false,
     software: { isValid: false },
   });
+  const [uploaderError, setUploaderError] = useState<string | null>(null);
 
   // GitOps mode hides the target selector, so a "Custom" target with no labels
   // can never be satisfied: the picker that would fix it isn't rendered, and
@@ -277,32 +282,25 @@ const PackageForm = ({
         setFormData(newData);
 
         setFormValidation(generateFormValidation(newData));
+        setUploaderError(null);
       } else {
+        // The picker's `accept` filter can let unsupported types through
+        // (e.g. Chrome's `application/gzip` table includes bare `.gz`), so
+        // mirror the uploader's inline "File type isn't supported" rather
+        // than toasting the raw script-mapping error.
         let newDefaultInstallScript: string;
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
-        } catch (e) {
-          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
-            response: {
-              data: {
-                message: e instanceof Error ? e.message : String(e),
-              },
-            },
-          });
+        } catch {
+          setUploaderError(UNSUPPORTED_FILE_TYPE_ERROR);
           return;
         }
 
         let newDefaultUninstallScript: string;
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
-        } catch (e) {
-          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
-            response: {
-              data: {
-                message: e instanceof Error ? e.message : String(e),
-              },
-            },
-          });
+        } catch {
+          setUploaderError(UNSUPPORTED_FILE_TYPE_ERROR);
           return;
         }
 
@@ -314,6 +312,7 @@ const PackageForm = ({
         };
         setFormData(newData);
         setFormValidation(generateFormValidation(newData));
+        setUploaderError(null);
       }
     }
   };
@@ -519,10 +518,9 @@ const PackageForm = ({
           icon="info-outline"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
-          borderRadius="medium"
         >
-          If multiple packages of the same software target the same host, Fleet
-          will install the one that was added first.
+          If multiple versions target the same host, Fleet will deploy the one
+          that was added first.
         </InfoBanner>
       )}
       <DropdownTargetLabelSelector
@@ -558,6 +556,7 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+          internalError={uploaderError ?? undefined}
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
@@ -607,7 +606,7 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
-            patchWhenClosed={patchWhenClosed}
+            preInstallQueryLocked={preInstallQueryLocked}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>
@@ -616,11 +615,12 @@ const PackageForm = ({
             // tooltipped and non-tooltipped branches need identical text,
             // disabled state, and type. A previous duplication let the
             // "Save" / "Add software" copy drift between branches.
+            let submitText = "Add software";
+            if (multiPackageContext) submitText = "Add";
+            else if (isEditingSoftware) submitText = "Save";
             const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
-                {isEditingSoftware || multiPackageContext
-                  ? "Save"
-                  : "Add software"}
+                {submitText}
               </Button>
             );
             return submitTooltipContent ? (

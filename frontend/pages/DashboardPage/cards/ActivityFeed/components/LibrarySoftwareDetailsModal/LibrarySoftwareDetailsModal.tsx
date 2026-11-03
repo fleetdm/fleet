@@ -1,13 +1,12 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import DataSet from "components/DataSet";
+import Modal from "components/Modal";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IActivityDetails } from "interfaces/activity";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "library-software-details-modal";
 

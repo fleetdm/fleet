@@ -4,7 +4,9 @@ Mike McNeil, Fleet's CEO, will speak at [Oktane 2026](https://www.okta.com/oktan
 
 ## Mike's session
 
-Mike will talk about how IT and security teams can bring Linux devices under the same identity controls as macOS and Windows. Session title, time, and room will be posted here once the Oktane schedule is final.
+- **Session title:** Every employee has an EA now
+- **Session date and time:** Wednesday, September 23, 2026. 2:30 - 3:00
+- **Room location:** Alliance 311. 
 
 ## Fleet and Okta
 
@@ -25,9 +27,11 @@ Everyone who visits the booth can get a not-for-resale (NFR) license to run Flee
 
 ## Find us
 
-- **Booth:** TBD
+- **Booth:** EX29
 - **Dates:** Tuesday, September 22 through Thursday, September 24, 2026
 - **Venue:** Caesars Forum, Las Vegas
+- **Session date and time:** Wednesday, September 23, 2026. 2:30 - 3:00
+- **Session location:** Alliance 311
 
 Not attending Oktane? You can still [try Fleet](https://fleetdm.com/try-fleet) or [talk to us](https://fleetdm.com/contact) anytime.
 

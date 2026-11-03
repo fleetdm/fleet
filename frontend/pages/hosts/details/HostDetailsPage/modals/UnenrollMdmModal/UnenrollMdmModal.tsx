@@ -1,20 +1,18 @@
 import React, { useState } from "react";
 
-import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-
-import mdmAPI from "services/entities/mdm";
-import { hasStatusKey } from "interfaces/errors";
-import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import {
-  isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
-  isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "unenroll-mdm-modal";
 
@@ -23,11 +21,6 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
-  /** MDM enrollment channel. Account-Driven User Enrollment re-enrolls through
-   * Apple's "Sign in to Work or School Account" flow; every other personal
-   * enrollment re-enrolls through the enrollment link, and both report the same
-   * enrollmentStatus. */
-  lastMdmEnrollmentType?: string | null;
   onlyAllowAppleBusinessEnrollment: boolean;
   depAssignedToFleet: boolean;
   onClose: () => void;
@@ -39,7 +32,6 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
-  lastMdmEnrollmentType,
   onlyAllowAppleBusinessEnrollment,
   depAssignedToFleet,
   onClose,
@@ -68,12 +60,14 @@ const UnenrollMdmModal = ({
       onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      // A 409 means MDM is already off for this host, so "please try again"
-      // would send the user in a loop. It also means this page was working from
-      // stale data, so refresh it to drop the action.
+      // A 409 means MDM is already off for this host (or, on Android, an
+      // unenroll is already pending), so "please try again" would send the
+      // user in a loop. It also means this page was working from stale data,
+      // so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
         notify.error(
-          "Couldn't turn off MDM. This host already has MDM turned off.",
+          (isAndroid(hostPlatform) && getErrorReason(unenrollMdmError)) ||
+            "Couldn't turn off MDM. This host already has MDM turned off.",
           { response: unenrollMdmError }
         );
         onSuccess();
@@ -112,7 +106,14 @@ const UnenrollMdmModal = ({
       );
     }
 
-    if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
+    if (isBYODManualEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
+        </p>
+      );
+    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -121,16 +122,6 @@ const UnenrollMdmModal = ({
             to Work or School Account...
           </b>{" "}
           on their host and to log in with their work email.
-        </p>
-      );
-    } else if (
-      isBYODManualEnrollment(enrollmentStatus) ||
-      isPersonalEnrollmentStatus(enrollmentStatus)
-    ) {
-      return (
-        <p>
-          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-          share the link with end user.
         </p>
       );
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {

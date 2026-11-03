@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+
 import { IHost } from "./host";
 
 export default PropTypes.shape({

@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { SingleValue } from "react-select-5";
 
-import Slider from "components/forms/fields/Slider/Slider";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Slider from "components/forms/fields/Slider/Slider";
 
 const statusBaseClass = "fma-status-select";
 const platformBaseClass = "fma-platform-select";

@@ -21,7 +21,10 @@ let plugins = [
     template: "frontend/templates/react.ejs",
   }),
   new webpack.DefinePlugin({
-    featureFlags: {},
+    featureFlags: {
+      // Hidden until the AI features are released; set to "true" to build it in.
+      showAIProfileBuilder: JSON.stringify(process.env.SHOW_AI_PROFILE_BUILDER),
+    },
   }),
 ];
 

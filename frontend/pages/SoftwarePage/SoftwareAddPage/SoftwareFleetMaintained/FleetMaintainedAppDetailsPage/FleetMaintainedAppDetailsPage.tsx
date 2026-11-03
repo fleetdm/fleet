@@ -1,39 +1,38 @@
-import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
 import { Location } from "history";
+import React, { useContext, useState } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
-import { useErrorHandler } from "react-error-boundary";
 
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import DataError from "components/DataError";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SidePanelPage from "components/SidePanelPage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
-import { AppContext } from "context/app";
-import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { notify } from "components/ToastNotification";
-import SidePanelPage from "components/SidePanelPage";
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Card from "components/Card";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import Button from "components/buttons/Button";
-import PageDescription from "components/PageDescription";
-import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
-
-import FleetAppDetailsForm from "./FleetAppDetailsForm";
-import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
+import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
+import FleetAppDetailsForm from "./FleetAppDetailsForm";
+import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
-
 import { getErrorMessage } from "./helpers";
-import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -68,10 +67,7 @@ const FleetAppSummary = ({
   }
 
   return (
-    <Card
-      className={`${baseClass}__fleet-app-summary`}
-      borderRadiusSize="medium"
-    >
+    <Card className={`${baseClass}__fleet-app-summary`}>
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
         <div className={`${baseClass}__fleet-app-summary--details`}>
@@ -146,6 +142,7 @@ const FleetMaintainedAppDetailsPage = ({
     data: fleetApp,
     isLoading: isLoadingFleetApp,
     isError: isErrorFleetApp,
+    error: errorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMaintainedApp(appId, teamId),
@@ -154,7 +151,13 @@ const FleetMaintainedAppDetailsPage = ({
       enabled: isPremiumTier,
       retry: false,
       select: (res) => res.fleet_maintained_app,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // Show the server's message on the page when Fleet can't reach the Fleet-maintained apps manifest
+        if (hasStatusKey(error) && error.status === 502) {
+          return;
+        }
+        handlePageError(error);
+      },
     }
   );
 
@@ -218,7 +221,10 @@ const FleetMaintainedAppDetailsPage = ({
           ...(formData.patchOption !== "manual" && {
             software_title_id: addedSoftwareTitleId,
           }),
-          ...getPatchPolicyFlags(formData.patchOption),
+          ...getPatchPolicyFlags(
+            formData.patchOption,
+            formData.endUserExperience
+          ),
         });
       }
 
@@ -256,7 +262,13 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return (
+        <DataError
+          verticalPaddingSize="pad-xxxlarge"
+          description={getErrorReason(errorFleetApp) || undefined}
+          excludeIssueLink
+        />
+      );
     }
 
     if (fleetApp) {
@@ -285,6 +297,7 @@ const FleetMaintainedAppDetailsPage = ({
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
+              platform={fleetApp.platform}
             />
           </div>
         </>
@@ -296,10 +309,8 @@ const FleetMaintainedAppDetailsPage = ({
 
   return (
     <SidePanelPage>
-      <>
-        <MainContent className={baseClass}>
-          <>{renderContent()}</>
-        </MainContent>
+      <MainContent className={baseClass}>
+        <>{renderContent()}</>
         {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
         {showAppDetailsModal && fleetApp && (
           <FleetAppDetailsModal
@@ -311,7 +322,7 @@ const FleetMaintainedAppDetailsPage = ({
             onCancel={() => setShowAppDetailsModal(false)}
           />
         )}
-      </>
+      </MainContent>
     </SidePanelPage>
   );
 };

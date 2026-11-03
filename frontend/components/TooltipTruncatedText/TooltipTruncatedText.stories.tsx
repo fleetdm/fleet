@@ -1,7 +1,9 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
-import TooltipTruncatedText from ".";
+import React from "react";
+
 import DataSet from "../DataSet";
+
+import TooltipTruncatedText from ".";
 
 import "../../index.scss";
 

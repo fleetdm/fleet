@@ -1,8 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import Dropdown from "components/forms/fields/Dropdown";
+import { renderWithSetup } from "test/test-utils";
 
 describe("Dropdown - component", () => {
   const options = [

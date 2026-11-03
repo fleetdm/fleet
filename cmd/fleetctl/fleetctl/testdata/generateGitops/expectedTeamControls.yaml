@@ -1,4 +1,3 @@
-android_enabled_and_configured: true
 android_settings:
   certificates:
   - certificate_authority_name: DIGIDOO
@@ -7,7 +6,8 @@ android_settings:
     subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
 apple_settings:
   configuration_profiles:
-  - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
+  - name: Team MacOS MobileConfig Profile
+    path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
   enable_disk_encryption: true
   enable_escrow_disk_encryption_key: true
 enable_recovery_lock_password: false
@@ -31,7 +31,6 @@ macos_updates:
 name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
 scripts:
 - path: ../lib/some_team/scripts/Script B.ps1
-windows_enabled_and_configured: true
 windows_settings:
   enable_disk_encryption: true
   require_bitlocker_pin: false

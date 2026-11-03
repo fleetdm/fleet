@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 import { IActivityDetails } from "interfaces/activity";
 

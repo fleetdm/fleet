@@ -2,7 +2,10 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -35,20 +38,8 @@ const (
 var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries, queriesToDiscardResults); err != nil {
 		return ctxerr.Wrap(ctx, err, "apply queries in tx")
-	}
-
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
-	for queryID := range queriesToDiscardResults {
-		queryIDs = append(queryIDs, queryID)
-	}
-	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete query_results")
 	}
 	return nil
 }
@@ -57,6 +48,7 @@ func (ds *Datastore) applyQueriesInTx(
 	ctx context.Context,
 	authorID uint,
 	queries []*fleet.Query,
+	queriesToDiscardResults map[uint]struct{},
 ) (err error) {
 	// First, verify all 'queries' are valid.
 	for _, q := range queries {
@@ -171,6 +163,16 @@ func (ds *Datastore) applyQueriesInTx(
 				return ctxerr.Wrap(ctx, err, "closing query rows")
 			}
 
+			var discardIDs []uint
+			for _, q := range batch {
+				if _, ok := queriesToDiscardResults[q.ID]; ok {
+					discardIDs = append(discardIDs, q.ID)
+				}
+			}
+			if err := markQueryResultsStale(ctx, tx, discardIDs); err != nil {
+				return err
+			}
+
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
@@ -180,18 +182,30 @@ func (ds *Datastore) applyQueriesInTx(
 	return nil
 }
 
-func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
+// Deleting a large report's rows can outlast the request, so they're hidden when the edit commits
+// and deleted later by CleanupStaleQueryResults.
+func markQueryResultsStale(ctx context.Context, tx sqlx.ExtContext, queryIDs []uint) error {
 	if len(queryIDs) == 0 {
 		return nil
 	}
-
-	deleteQueryResultsStmt := `DELETE FROM query_results WHERE query_id IN (?)`
-	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
+	// The table-wide max is read from the end of the primary key, where a per-query max would
+	// scan every row of the report.
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, tx, &maxID, `SELECT MAX(id) FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
 	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	if !maxID.Valid {
+		return nil
+	}
+	stmt, args, err := sqlx.In(
+		`UPDATE queries SET results_valid_from_id = ?, results_cleanup_pending = 1 WHERE id IN (?)`,
+		maxID.Int64+1, queryIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building mark query results stale statement")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking query results stale")
 	}
 	return nil
 }
@@ -633,6 +647,11 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.updateQueryLabelsInTx(ctx, []*fleet.Query{q}, tx); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
 		}
+		if shouldDiscardResults {
+			if err := markQueryResultsStale(ctx, tx, []uint{q.ID}); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -644,24 +663,6 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{q.ID})
 	}
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if shouldDiscardResults {
-		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting query_results")
-		}
-	}
-
-	return nil
-}
-
-func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	resultsSQL := `DELETE FROM query_results WHERE query_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, resultsSQL, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
-	}
 	return nil
 }
 
@@ -698,14 +699,6 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{queryID})
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteQueryResults(ctx, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting query_results")
-	}
-
 	return nil
 }
 
@@ -720,13 +713,6 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), ids)
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteMultipleQueryResults(ctx, ids); err != nil {
-		return deleted, ctxerr.Wrap(ctx, err, "delete multiple query_results")
-	}
 	return deleted, nil
 }
 
@@ -1140,6 +1126,67 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	// Agent eligibility (automations_enabled, discard_data, logging_type) also
+	// depends on the app config, so its inputs are included rather than
+	// filtered on.
+	queriesStmt := `
+		SELECT
+			q.name,
+			q.query,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.discard_data
+		FROM queries q
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name`
+	labelsStmt := `
+		SELECT q.name, ql.label_id, ql.require_all
+		FROM queries q
+		JOIN query_labels ql ON ql.query_id = q.id
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name, ql.label_id`
+	var args []any
+	teamSQL := "q.team_id IS NULL"
+	if teamID != nil {
+		teamSQL = "q.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	var digest struct {
+		Queries []struct {
+			Name               string `db:"name"`
+			Query              string `db:"query"`
+			Interval           uint   `db:"schedule_interval"`
+			Platform           string `db:"platform"`
+			MinOsqueryVersion  string `db:"min_osquery_version"`
+			AutomationsEnabled bool   `db:"automations_enabled"`
+			Logging            string `db:"logging_type"`
+			DiscardData        bool   `db:"discard_data"`
+		}
+		Labels []struct {
+			Name       string `db:"name"`
+			LabelID    uint   `db:"label_id"`
+			RequireAll bool   `db:"require_all"`
+		}
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Queries, fmt.Sprintf(queriesStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled queries for digest")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Labels, fmt.Sprintf(labelsStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled query labels for digest")
+	}
+	b, err := json.Marshal(digest)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal scheduled queries digest")
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {

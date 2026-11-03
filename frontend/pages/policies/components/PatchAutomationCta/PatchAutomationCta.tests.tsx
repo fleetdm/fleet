@@ -1,10 +1,11 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import { AppContext, initialState } from "context/app";
 import { IPolicy } from "interfaces/policy";
-import createMockConfig from "__mocks__/configMock";
+
 import PatchAutomationCta from "./PatchAutomationCta";
 
 const createMockPatchPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({

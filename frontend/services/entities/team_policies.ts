@@ -1,17 +1,18 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
@@ -83,6 +84,7 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
       labels_include_all,
@@ -92,6 +94,8 @@ export default {
       patch_software_title_id,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -103,6 +107,7 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
       labels_include_all,
@@ -112,6 +117,8 @@ export default {
       patch_software_title_id,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -124,11 +131,14 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,
@@ -148,10 +158,13 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,
@@ -166,7 +179,7 @@ export default {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

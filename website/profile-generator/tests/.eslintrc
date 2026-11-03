@@ -1,0 +1,12 @@
+{
+  // Tolerate mocha's globals (describe, it, before, after) in here.
+  "env": {
+    "mocha": true
+  },
+
+  "rules": {
+    // Mocha callbacks have to be `function(){}`: an arrow takes `this` from the enclosing scope,
+    // and `this.timeout()` / `this.skip()` are how a test or hook reaches its own context.
+    "prefer-arrow-callback": ["off"]
+  }
+}

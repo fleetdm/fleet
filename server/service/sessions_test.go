@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,11 +103,15 @@ func TestSessionAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "listing sessions must not refresh them")
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "inspecting a session must not refresh it")
 
 			err = svc.DeleteSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailWrite, err)
@@ -319,13 +324,26 @@ func (a *testAuth) RawResponse() []byte {
 	return nil
 }
 
+func (a *testAuth) AssertionID() string { return "" }
+
+func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
+
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+	opts := &TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-	})
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	var roleActivities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if isRoleChangeActivity(activity) {
+			roleActivities = append(roleActivities, activity)
+		}
+		return nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -369,6 +387,15 @@ func TestGetSSOUser(t *testing.T) {
 	require.NotNil(t, newUser.GlobalRole)
 	require.Equal(t, "admin", *newUser.GlobalRole)
 	require.Empty(t, newUser.Teams)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeChangedUserGlobalRole{
+			UserID:    newUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "admin",
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// Test SSO login with the same (now existing) user (should update roles).
 
@@ -389,6 +416,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	// (2) Test SSO login with the same user with roles updated in its attributes.
 
+	roleActivities = nil
 	var savedUser *fleet.User
 	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
 		savedUser = user
@@ -418,6 +446,23 @@ func TestGetSSOUser(t *testing.T) {
 	require.Equal(t, "maintainer", savedUser.Teams[0].Role)
 
 	require.True(t, ds.SaveUserFuncInvoked)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeDeletedUserGlobalRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			OldRole:   "admin",
+			JIT:       true,
+		},
+		fleet.ActivityTypeChangedUserTeamRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "maintainer",
+			TeamID:    2,
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// (3) Test existing user's role is not changed after a new login if EnableJITProvisioning is false.
 
@@ -705,6 +750,81 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 			require.NotEmpty(t, idpURL)
 		})
 	}
+}
+
+// The relay URL is where the browser lands after the IdP callback, so only a
+// path on the Fleet origin is acceptable; anything carrying a host would turn
+// the login flow into a redirect off-site.
+func TestInitiateSSORelayURLMustBeRelativePath(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	accepted := []string{"", "/", "/dashboard", "/hosts/manage?order_key=hostname#top"}
+	for _, relayURL := range accepted {
+		t.Run("accepts "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.NoError(t, err)
+		})
+	}
+
+	rejected := []string{
+		"https://evil.example/login",
+		"http://fleet.example.com/dashboard", // absolute even when same host: the API documents a relative URL
+		"//evil.example/login",
+		`/\evil.example/login`,
+		"javascript:alert(1)",
+		"dashboard",
+		"\\\\evil.example",
+	}
+	for _, relayURL := range rejected {
+		t.Run("rejects "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.Error(t, err)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+		})
+	}
+}
+
+// An accepted relay URL must survive into the stored SSO session unchanged,
+// since that is the value the callback redirects to.
+func TestInitiateSSOStoresRelayURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	const relayURL = "/hosts/manage?order_key=hostname#top"
+	sessionID, _, _, err := svc.InitiateSSO(ctx, relayURL)
+	require.NoError(t, err)
+
+	// Read the session back through a store on the same pool, which is what the
+	// test service was built with (see newTestServiceWithConfig).
+	session, err := sso.NewSessionStore(pool).Fullfill(sessionID)
+	require.NoError(t, err)
+	require.Equal(t, relayURL, session.OriginalURL)
 }
 
 func TestInitiateSSOWithInvalidURL(t *testing.T) {

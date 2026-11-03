@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -68,9 +69,23 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 
 	resolved := make(map[string]string, len(supported))
 	hostIDForUUIDCache := map[string]uint{host.UUID: host.ID}
+	var ndesCA *fleet.NDESSCEPProxyCA
 	for _, v := range supported {
 		var value string
 		switch fleet.FleetVarName(v) {
+		case fleet.FleetVarNDESSCEPChallenge:
+			// fetched after the loop, once nothing else can stop the script
+			// from running
+			groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+			if err != nil {
+				return "", "", ctxerr.Wrap(ctx, err, "get certificate authorities for script")
+			}
+			if groupedCAs.NDESSCEP == nil {
+				_ = fail(fleet.NDESNotConfiguredMsg)
+				continue
+			}
+			ndesCA = groupedCAs.NDESSCEP
+			continue
 		case fleet.FleetVarHostUUID:
 			value = host.UUID
 			if value == "" {
@@ -102,10 +117,29 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 
 		// a NUL silently truncates the line for the interpreter
 		if strings.ContainsRune(value, 0) {
-			_ = fail(fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character. Fleet couldn't populate it.", v))
+			_ = fail(nulValueMsg(v))
 			continue
 		}
 		resolved[v] = value
+	}
+
+	if ndesCA != nil && len(failures) == 0 {
+		// the preamble insertion below would fail anyway; check first so the
+		// failure doesn't cost a challenge
+		if err := variables.CheckPreamble(contents, dialect); err != nil {
+			if errors.Is(err, variables.ErrPowerShellLeadingParamBlock) {
+				return "", powerShellParamBlockMsg, nil
+			}
+			return "", "", ctxerr.Wrap(ctx, err, "check fleet variable preamble")
+		}
+		challenge, failure, err := svc.scriptNDESChallenge(ctx, *ndesCA)
+		if err != nil {
+			return "", "", err
+		}
+		if failure != "" {
+			return "", failure, nil
+		}
+		resolved[string(fleet.FleetVarNDESSCEPChallenge)] = challenge
 	}
 
 	if len(failures) > 0 {
@@ -138,6 +172,27 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 	return expanded, "", nil
 }
 
+// scriptNDESChallenge fetches a challenge from the NDES admin URL. The
+// challenge must never be logged.
+func (svc *Service) scriptNDESChallenge(ctx context.Context, ca fleet.NDESSCEPProxyCA) (challenge string, failureMessage string, err error) {
+	challenge, err = svc.scepConfigService.GetNDESSCEPChallenge(ctx, ca)
+	// a dropped request is not the CA's failure and must not fail the run
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", "", ctxerr.Wrap(ctx, ctxErr, "get NDES challenge for script")
+	}
+	switch {
+	case err != nil:
+		return "", scep.NDESChallengeErrorToScriptDetail(err), nil
+	case strings.ContainsRune(challenge, 0):
+		return "", nulValueMsg(string(fleet.FleetVarNDESSCEPChallenge)), nil
+	}
+	return challenge, "", nil
+}
+
+func nulValueMsg(name string) string {
+	return fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character. Fleet couldn't populate it.", name)
+}
+
 // scriptFleetVarDialect returns the interpreter to write the preamble for, or a
 // message explaining why variables can't be delivered to it. Platform decides
 // first: on Windows fleetd runs the script through PowerShell whatever shebang
@@ -157,4 +212,48 @@ func scriptFleetVarDialect(host *fleet.Host, contents string) (variables.Dialect
 		return variables.DialectPython, ""
 	}
 	return variables.DialectPOSIX, ""
+}
+
+// isNotificationScript identifies an end user notification by the script Fleet
+// queued for it. Its stored contents always hold the notification URL variable,
+// since Fleet only ever expands that into the copy fleetd fetches, so this holds
+// whatever the notification's execution_id points at by now. Both the fetch and
+// the result path ask this, and they have to agree.
+func isNotificationScript(script *fleet.HostScriptResult) bool {
+	// admin-written scripts are never internal, so this skips them without a scan
+	if !script.IsInternal {
+		return false
+	}
+	return slices.Contains(variables.Find(script.ScriptContents), string(fleet.FleetVarPatchNotificationURL))
+}
+
+// expandNotificationURL resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to the
+// notification's device page URL. It resolves here rather than when the script
+// is queued so script_contents never holds a live credential.
+func (svc *Service) expandNotificationURL(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult, notificationUUID string) (expanded string, failureMessage string) {
+	// orbit generates this token and sends it on check-in, so Fleet waits for one
+	// rather than minting it here
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		svc.logger.InfoContext(ctx, "host has no fresh device auth token to notify against, waiting for it to send one",
+			"host_id", host.ID)
+		return "", "Fleet is waiting for this host to send a current authentication token."
+	default:
+		svc.logger.ErrorContext(ctx, "failed to check a host's device auth token", "host_id", host.ID, "err", err)
+		return "", "Fleet couldn't check this host's authentication token."
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to load app config to build a notification url", "err", err)
+		return "", "Fleet couldn't load its configuration to build the notification URL."
+	}
+
+	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
+		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notificationUUID)
+
+	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), ""
 }

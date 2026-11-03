@@ -1,12 +1,15 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import { ISoftware } from "interfaces/software";
+
+import MatchedIcon from "./MatchedIcon";
+
 import {
   getMatchedSoftwareIcon,
   SOFTWARE_NAME_TO_ICON_MAP,
   SOFTWARE_SOURCE_TO_ICON_MAP,
 } from ".";
-import MatchedIcon from "./MatchedIcon";
 
 // Extend the props type to include the new selection prop because name and source are mutually exclusive
 type IconWrapperProps = Pick<ISoftware, "name" | "source"> & {

@@ -16,7 +16,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
+var MigrationClient = newMigrationClient()
+
+func newMigrationClient() *goose.Client {
+	c := goose.New("migration_status_tables", goose.MySqlDialect{})
+	// NOTE FOR MIGRATION AUTHORS: because of out-of-order application (below),
+	// a migration cannot assume that later-numbered migrations haven't run yet
+	// — e.g. one shipped in a patch release runs after newer migrations on
+	// databases already upgraded past it. Migrations must be order-independent
+	// of concurrently in-flight migrations, and the guard helpers in this file
+	// (columnExists, indexExistsTx, ...) protect against reordering as well as
+	// retries.
+	// Migrations newer than the ones shipped in fleet v4.94.0 may be applied
+	// out of order, so a migration shipped in a patch release with a timestamp
+	// older than already-applied migrations is picked up on the next
+	// `fleet prepare db` instead of requiring renumbering. The floor is the
+	// first migration after the v4.94.0 RC was cut: migrations at or below the
+	// RC's newest (20261014074522) predate the order-independence rule and had
+	// their relative order guaranteed by releases, so gaps there are
+	// historical and are left alone. Bump this to the first post-RC migration
+	// when a release introduces a new ordering guarantee worth anchoring to.
+	c.MinOutOfOrderVersion = 20261014132040
+	return c
+}
 
 // can override in tests
 var (
@@ -223,6 +245,31 @@ AND index_name = ?
 	}
 
 	return count > 0
+}
+
+type indexDef struct {
+	name    string
+	columns string
+}
+
+// addIndexesTx adds the given indexes to table in one online ALTER, skipping any
+// that already exist so a failed migration can be rerun.
+func addIndexesTx(tx *sql.Tx, table string, indexes ...indexDef) error {
+	var clauses []string
+	for _, idx := range indexes {
+		if indexExistsTx(tx, table, idx.name) {
+			continue
+		}
+		clauses = append(clauses, fmt.Sprintf("ADD INDEX %s (%s)", idx.name, idx.columns))
+	}
+	if len(clauses) == 0 {
+		return nil
+	}
+	stmt := fmt.Sprintf("ALTER TABLE %s %s, ALGORITHM=INPLACE, LOCK=NONE", table, strings.Join(clauses, ", "))
+	if _, err := tx.Exec(stmt); err != nil {
+		return fmt.Errorf("failed to add indexes to %s: %w", table, err)
+	}
+	return nil
 }
 
 // updateAppConfigJSON updates the `json_value` stored in the `app_config_json` after applying the

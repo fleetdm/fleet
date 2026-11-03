@@ -7,12 +7,11 @@ import Select, {
   StylesConfig,
 } from "react-select-5";
 
-import { COLORS } from "styles/var/colors";
-import { PADDING } from "styles/var/padding";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<

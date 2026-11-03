@@ -2,10 +2,10 @@ import { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
+import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 
 interface IEmailTokenRedirectProps {

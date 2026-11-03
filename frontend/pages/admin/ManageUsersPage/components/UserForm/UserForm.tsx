@@ -1,28 +1,27 @@
 import React, { useContext, useEffect, useId } from "react";
-import PATHS from "router/paths";
-
-import { PRIMO_TOOLTIP } from "utilities/constants";
-
-import { AppContext } from "context/app";
-
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-
 import { SingleValue } from "react-select-5";
+
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import ModalFooter from "components/ModalFooter";
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import CustomLink from "components/CustomLink";
+import ModalFooter from "components/ModalFooter";
 import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+import PATHS from "router/paths";
+import { PRIMO_TOOLTIP } from "utilities/constants";
+
+import { roleOptions } from "../../helpers/userManagementHelpers";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import { roleOptions } from "../../helpers/userManagementHelpers";
+
 import {
   isPasswordShown,
   NewUserType,
@@ -131,11 +130,9 @@ const UserForm = ({
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<UserFormState>({
@@ -399,13 +396,8 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={getError("name")}
-        name="name"
-        onChange={(value: string) => setField("name", value)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
+        {...getTextFieldProps("name")}
         placeholder="Full name"
-        value={formData.name}
         disabled={isSubmitting}
         inputOptions={{
           maxLength: 80,
@@ -413,14 +405,9 @@ const UserForm = ({
       />
       <InputField
         label="Email"
-        error={getError("email")}
-        name="email"
+        {...getTextFieldProps("email")}
         type="email"
-        onChange={(value: string) => setField("email", value)}
-        onFocus={() => clearFieldError("email")}
-        onBlur={() => validateField("email")}
         placeholder="Email"
-        value={formData.email}
         disabled={isSubmitting}
         readOnly={isEmailReadOnly}
         tooltip={
@@ -484,13 +471,8 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={getError("password")}
-        name="password"
-        onChange={(value: string) => setField("password", value)}
-        onFocus={() => clearFieldError("password")}
-        onBlur={() => validateField("password")}
+        {...getTextFieldProps("password")}
         placeholder={isNewUser ? "Password" : "••••••••"}
-        value={formData.password}
         type="password"
         disabled={isSubmitting}
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."

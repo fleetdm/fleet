@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 	"slices"
@@ -104,6 +105,9 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		LabelMembershipType: label.LabelMembershipType,
 		HostVitalsCriteria:  label.HostVitalsCriteria,
 	}); err != nil {
+		return nil, nil, err
+	}
+	if err := fleet.ValidateLabelFieldLengths(label.Name, label.Description); err != nil {
 		return nil, nil, err
 	}
 
@@ -273,6 +277,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	}
 	if payload.Description != nil {
 		label.Description = *payload.Description
+	}
+	if err := fleet.ValidateLabelFieldLengths(label.Name, label.Description); err != nil {
+		return nil, nil, err
 	}
 
 	hostIDs := payload.HostIDs
@@ -695,6 +702,9 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
 			return err.WithStatus(http.StatusUnprocessableEntity)
 		}
+		if err := fleet.ValidateLabelFieldLengths(spec.Name, spec.Description); err != nil {
+			return err.WithStatus(http.StatusUnprocessableEntity)
+		}
 		// Validate host vitals criteria structurally (unknown vital, missing
 		// custom_host_vital_id, etc.) and that any referenced custom vital
 		// exists, mirroring the checks in NewLabel so a bad spec fails at apply
@@ -773,16 +783,42 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
+	// The name column's collation also ignores accents and trailing spaces, so compare names in MySQL; a spec matching another spec or a
+	// built-in label would be upserted into that label's row. IsReservedLabelName only catches case variants.
+	regularSpecNames := make([]string, 0, len(regularSpecs))
+	for _, s := range regularSpecs {
+		regularSpecNames = append(regularSpecNames, s.Name)
+	}
+	reservedNames := slices.Sorted(maps.Keys(fleet.ReservedLabelNames()))
+	equalNameGroups, err := svc.ds.GetDuplicateStringGroupsUnderCollation(ctx, append(slices.Clone(regularSpecNames), reservedNames...))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for duplicate label names")
+	}
+	for _, group := range equalNameGroups {
+		// The compared names are the specs followed by the built-in names, and each group's indices are sorted. So a group that
+		// starts past the specs holds only built-in names and involves no spec.
+		if group.Indices[0] >= len(regularSpecNames) {
+			continue
+		}
+		if last := group.Indices[len(group.Indices)-1]; last >= len(regularSpecNames) {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "cannot add label '%s' because it conflicts with the name of a built-in label",
+					reservedNames[last-len(regularSpecNames)]),
+				http.StatusUnprocessableEntity,
+			)
+		}
+		return fleet.NewUserMessageError(
+			ctxerr.Errorf(ctx, "Couldn't edit labels. More than one label has the same name: %q", regularSpecNames[group.Indices[1]]),
+			http.StatusUnprocessableEntity,
+		)
+	}
+
 	// Look up which regular specs already exist in the target team scope so we
 	// can emit "created" vs "edited" label activities below. Spec apply can
 	// update multiple edit-relevant fields for regular labels (for example
 	// description, platform, query, label membership type, host vitals criteria,
 	// and manual-label host membership), so we skip the activity only when an
 	// existing label already matches the spec for those fields.
-	regularSpecNames := make([]string, 0, len(regularSpecs))
-	for _, s := range regularSpecs {
-		regularSpecNames = append(regularSpecNames, s.Name)
-	}
 	scopeFilter := fleet.TeamFilter{User: user.User, IncludeObserver: true}
 	if teamID != nil {
 		scopeFilter.TeamID = teamID // filter to fetch team labels only

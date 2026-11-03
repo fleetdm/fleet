@@ -1,12 +1,16 @@
 .software-app-store-vpp {
   &__content {
+    @include vertical-page-layout;
+  }
+
+  &__action-buttons {
     display: flex;
-    flex-direction: column;
+    flex-direction: row-reverse;
+    gap: $gap-action-elements;
   }
 
   &__premium-message,
   &__error {
     margin-top: $pad-xxxlarge;
   }
-
 }

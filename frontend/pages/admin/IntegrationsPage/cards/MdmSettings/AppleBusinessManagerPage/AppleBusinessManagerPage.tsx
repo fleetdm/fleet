@@ -1,32 +1,31 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { AxiosError } from "axios";
-
-import PATHS from "router/paths";
-
+import { getEarliestExpiry } from "components/App/App";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import MainContent from "components/MainContent";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IMdmAbToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mdmAbmAPI, {
   IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackButton from "components/BackButton";
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
-import { getEarliestExpiry } from "components/App/App";
-
-import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
-import RenewAbmModal from "./components/RenewAbmModal";
+import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
+import RemoveDefaultTokenModal from "./components/RemoveDefaultTokenModal";
+import RenewAbmModal from "./components/RenewAbmModal";
+import SetDefaultTokenModal from "./components/SetDefaultTokenModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -51,6 +50,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
+  const [
+    showRemoveDefaultTokenModal,
+    setShowRemoveDefaultTokenModal,
+  ] = useState(false);
+  const [showSetDefaultTokenModal, setShowSetDefaultTokenModal] = useState(
+    false
+  );
 
   const selectedToken = useRef<IMdmAbToken | null>(null);
 
@@ -58,7 +64,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     data: abTokens,
     error: errorAbmTokens,
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery<IGetAbTokensResponse, AxiosError, IMdmAbToken[]>(
     ["abTokens"],
@@ -108,6 +113,30 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch();
     setShowEditTeamsModal(false);
   }, [refetch]);
+
+  const onClickToggleTokenDefault = (abmToken: IMdmAbToken) => {
+    if (abmToken.default) {
+      setShowRemoveDefaultTokenModal(true);
+    } else {
+      setShowSetDefaultTokenModal(true);
+    }
+    selectedToken.current = abmToken;
+  };
+
+  const onToggleTokenDefault = useCallback(
+    async (abmToken: IMdmAbToken) => {
+      try {
+        await mdmAbmAPI.updateTokenDefault(abmToken.id, !abmToken.default);
+        notify.success("Successfully updated default token.");
+      } catch (e) {
+        notify.error("Couldn't update default token. Please try again.", {
+          response: e,
+        });
+      }
+      refetch();
+    },
+    [refetch]
+  );
 
   const onAddAbm = () => {
     setShowAddAbmModal(true);
@@ -184,7 +213,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(false);
   }, [refetch]);
 
-  if (isLoading || isRefetching) {
+  if (isLoading) {
     return <Spinner />;
   }
 
@@ -232,6 +261,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <AppleBusinessManagerTable
             abTokens={abTokens}
             onEditTokenTeam={onEditTokenTeam}
+            onToggleTokenDefault={onClickToggleTokenDefault}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
           />
@@ -281,6 +311,8 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <DeleteAbmModal
           tokenOrgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
+          tokenIsDefault={selectedToken.current.default}
+          tokensCount={abTokens?.length ?? 0}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
         />
@@ -290,6 +322,28 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           token={selectedToken.current}
           onCancel={onCancelEditTeam}
           onSuccess={onEditedTeam}
+        />
+      )}
+      {showRemoveDefaultTokenModal && selectedToken.current && (
+        <RemoveDefaultTokenModal
+          onExit={() => setShowRemoveDefaultTokenModal(false)}
+          onRemoveDefault={() => {
+            if (selectedToken.current) {
+              onToggleTokenDefault(selectedToken.current);
+              setShowRemoveDefaultTokenModal(false);
+            }
+          }}
+        />
+      )}
+      {showSetDefaultTokenModal && selectedToken.current && (
+        <SetDefaultTokenModal
+          onExit={() => setShowSetDefaultTokenModal(false)}
+          onSetDefault={() => {
+            if (selectedToken.current) {
+              onToggleTokenDefault(selectedToken.current);
+              setShowSetDefaultTokenModal(false);
+            }
+          }}
         />
       )}
     </MainContent>

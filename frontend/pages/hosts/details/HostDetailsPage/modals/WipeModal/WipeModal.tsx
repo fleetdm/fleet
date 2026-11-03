@@ -1,14 +1,13 @@
 import React from "react";
 
-import hostAPI from "services/entities/hosts";
-import { getErrorReason } from "interfaces/errors";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
 import { isAndroid, isAppleDevice } from "interfaces/platform";
+import hostAPI from "services/entities/hosts";
 
 const baseClass = "wipe-modal";
 

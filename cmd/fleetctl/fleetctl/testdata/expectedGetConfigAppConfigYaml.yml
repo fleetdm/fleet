@@ -28,6 +28,9 @@ spec:
       uptime: true
       vulnerabilities: true
   integrations:
+    certificates_disable_host_end_user_binding: null
+    certificates_idp_client_ids: null
+    certificates_idp_introspection_urls: null
     conditional_access_enabled: null
     google_calendar: null
     jira: null
@@ -57,6 +60,7 @@ spec:
     microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     only_allow_apple_business_enrollment: false
+    enable_profile_validation: false
     macos_migration:
       enable: false
       mode: ""
@@ -94,6 +98,8 @@ spec:
       enable_release_device_manually: false
       end_user_local_account_type: admin
       lock_end_user_info: false
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
@@ -108,6 +114,8 @@ spec:
       end_user_local_account_type: admin
       lock_end_user_info: false
       apple_setup_assistant:
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
@@ -152,6 +160,7 @@ spec:
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

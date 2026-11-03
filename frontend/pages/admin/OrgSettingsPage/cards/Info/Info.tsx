@@ -1,21 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { IOrgLogoStorableMode } from "interfaces/org_logo";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
+import { isValidURL } from "components/forms/validators";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import validUrl from "components/forms/validators/valid_url";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
+import PageDescription from "components/PageDescription";
 import { notify } from "components/ToastNotification";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { IOrgLogoStorableMode } from "interfaces/org_logo";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import logoAPI from "services/entities/logo";
 import {
   ORG_LOGO_ACCEPT,
@@ -195,7 +193,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
+      !isValidURL({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = "Organization support URL is not a valid URL";
     }

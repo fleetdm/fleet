@@ -1,23 +1,20 @@
 import React from "react";
+import { CellProps, Column } from "react-table";
 
-import PATHS from "router/paths";
-
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   SCRIPT_BATCH_HOST_EXECUTED_STATUSES,
   SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES,
   ScriptBatchHostStatus,
 } from "interfaces/script";
+import PATHS from "router/paths";
 import { IScriptBatchHostResult } from "services/entities/scripts";
-
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { CellProps, Column } from "react-table";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 type IScriptBatchHostsTableConfig = Column<IScriptBatchHostResult>;
 type ITableHeaderProps = IHeaderProps<IScriptBatchHostResult>;

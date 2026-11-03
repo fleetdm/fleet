@@ -1,14 +1,13 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
-
-import { dateAgo } from "utilities/date_format";
-import { internationalTimeFormat } from "utilities/helpers";
+import React, { ReactNode } from "react";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { dateAgo } from "utilities/date_format";
+import { internationalTimeFormat } from "utilities/helpers";
 
 const baseClass = "feed-list-item";
 

@@ -78,15 +78,12 @@ $max-width: 2560px;
   &__list-item-actions {
     display: flex;
     justify-content: flex-end;
+    gap: $pad-medium;
   }
 
   &__list-item-button {
     width: 40px;
     height: 40px;
-  }
-
-  &__list-item-button:not(:last-child) {
-    margin-right: $pad-medium;
   }
 }
 
@@ -189,18 +186,6 @@ $max-width: 2560px;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: $max-width;
-}
-
-@mixin color-contrasted-sections {
-  .section {
-    display: flex;
-    flex-direction: column;
-    background-color: $core-fleet-white;
-    border-radius: 16px;
-    border: 1px solid $ui-fleet-black-10;
-    padding: $pad-xxlarge;
-    box-shadow: 0px 3px 0px rgba(226, 228, 234, 0.4);
-  }
 }
 
 @mixin tooltip-text {
@@ -386,7 +371,7 @@ $max-width: 2560px;
 
     &:not(.is-open) {
       .Select-control:hover .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+        content: url("./assets/images/icon-chevron-blue-16x16@2x.png");
       }
     }
 
@@ -509,6 +494,36 @@ $max-width: 2560px;
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: $core-fleet-white; // area below gradient — transitionable
+}
+
+// Bordered, scrollable list of checkbox rows with a status line for loading,
+// error, and no-match states. Used by the Software filters modal's Types picker
+// and the dashboard chart filter's host and CVE pickers.
+@mixin scrollable-checkbox-list($max-height) {
+  max-height: $max-height;
+  overflow-y: auto;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius;
+}
+
+@mixin scrollable-checkbox-list-row {
+  padding: $pad-small $pad-medium;
+  border-bottom: 1px solid $ui-fleet-black-10;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .fleet-checkbox {
+    margin: 0;
+  }
+}
+
+@mixin scrollable-checkbox-list-status {
+  padding: $pad-medium;
+  text-align: center;
+  font-size: $x-small;
+  color: $ui-fleet-black-50;
 }
 
 // Shared styling for a search input rendered inside a dropdown menu (icon on

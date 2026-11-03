@@ -1,1 +1,0 @@
-* Fixed osquery and orbit config endpoints returning HTTP 500 when a host references a recently deleted team by invalidating the Redis host cache on team deletion.

@@ -17,7 +17,9 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
+delete_host := "delete_host"
 clear_passcode := "clear_passcode"
+rotate_disk_encryption_key := "rotate_disk_encryption_key"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
 write_members := "write_members"
@@ -361,6 +363,13 @@ allow {
 	action == transfer_host
 }
 
+# Global admin, maintainers, technicians, and gitops can delete hosts.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer, technician, gitops][_]
+	action == delete_host
+}
+
 # Global admin and maintainers can cancel activities on a host.
 allow {
 	object.type == "host"
@@ -406,6 +415,13 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
 	action == transfer_host
+}
+
+# Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	action == delete_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.
@@ -1030,6 +1046,13 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global gitops can list AB tokens, so fleetctl gitops can check setup assistant coverage.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == gitops
+  action == list
+}
+
 # Global admins can write/modify AB release devices
 allow {
   object.type == "mdm_ab_release"
@@ -1103,6 +1126,22 @@ allow {
   object.is_apple_mobile == false
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == clear_passcode
+}
+
+# Global admins and maintainers can rotate a host's disk encryption key (not gitops,
+# as this is not something that relates to fleetctl gitops).
+allow {
+  object.type == "mdm_command"
+  subject.global_role == [admin, maintainer][_]
+  action == rotate_disk_encryption_key
+}
+
+# Team admins and maintainers can rotate the disk encryption key of their teams' hosts.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_command"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == rotate_disk_encryption_key
 }
 
 # Global admins, maintainers, technicians, observers and observer_plus can read MDM commands.
@@ -1203,16 +1242,16 @@ allow {
   action == write
 }
 
-# Global admins can read, write, and list MDM apple eula information.
+# Global admins can read, write, and list the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == admin
   action == [read, write, list][_]
 }
 
-# Global gitops can read and write the EULA.
+# Global gitops can read and write the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == gitops
   action == [read, write][_]
 }
@@ -1296,11 +1335,19 @@ allow {
 # Single host script result (script execution and output)
 ##
 
-# Global admins, maintainers, and technicians can write (execute) scripts (not
-# gitops as this is not something that relates to fleetctl gitops).
+# Global admins and maintainers can write (execute) scripts (not gitops as
+# this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global technicians can write (execute) saved scripts only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.script_id)
+  subject.global_role == technician
   action == write
 }
 
@@ -1312,12 +1359,21 @@ allow {
   action == read
 }
 
-# Team admin, maintainers, and technicians can write (execute) scripts for their
-# teams (not gitops as this is not something that relates to fleetctl gitops).
+# Team admin and maintainers can write (execute) scripts for their teams (not
+# gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team technicians can write (execute) saved scripts for their teams only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.team_id)
+  not is_null(object.script_id)
+  team_role(subject, object.team_id) == technician
   action == write
 }
 
@@ -1576,6 +1632,40 @@ allow {
   object.type == "software_category"
   object.team_id != 0
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Patch deadline settings
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

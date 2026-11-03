@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import specAPI from "services/entities/spec";
-import teamsAPI from "services/entities/teams";
 
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import specAPI from "services/entities/spec";
+import teamsAPI from "services/entities/teams";
 
 export default {
   getGlobalEnrollSecrets: () => {
@@ -21,7 +21,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -34,7 +34,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

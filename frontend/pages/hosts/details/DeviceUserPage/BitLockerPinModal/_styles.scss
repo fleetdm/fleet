@@ -1,0 +1,9 @@
+.bit-locker-pin-modal {
+  form {
+    @include vertical-form-layout;
+  }
+
+  p {
+    margin: 0;
+  }
+}

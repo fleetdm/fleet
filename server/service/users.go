@@ -872,11 +872,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	}
 
 	currentUser := authz.UserFromContext(ctx)
+	callerIsGlobalAdmin := currentUser != nil && currentUser.GlobalRole != nil && *currentUser.GlobalRole == fleet.RoleAdmin
 
 	var isGlobalAdminDemotion bool
 
-	if p.GlobalRole != nil && *p.GlobalRole != "" {
-		if currentUser.GlobalRole == nil {
+	if p.GlobalRole != nil {
+		if !callerIsGlobalAdmin {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot edit global role as a team member",
 				currentUser, user, fleet.ActionWriteRole,
@@ -897,6 +898,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		// Track whether this is a demotion from global admin by assigning teams.
 		isGlobalAdminDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin
 
+		if user.HasAnyGlobalRole() && !callerIsGlobalAdmin {
+			return nil, authz.ForbiddenWithInternal(
+				"cannot move a global user to teams as a team member",
+				currentUser, user, fleet.ActionWriteRole,
+			)
+		}
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot modify teams in that way",
@@ -951,7 +958,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user, false); err != nil {
 		return nil, err
 	}
 

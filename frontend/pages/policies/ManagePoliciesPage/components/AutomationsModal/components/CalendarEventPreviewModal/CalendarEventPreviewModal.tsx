@@ -1,11 +1,11 @@
 import React, { useContext } from "react";
 
-import { TRANSPARENCY_LINK } from "utilities/constants";
-
-import { AppContext } from "context/app";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
 import Icon from "components/Icon";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { TRANSPARENCY_LINK } from "utilities/constants";
 
 import { IFormPolicy } from "../../../PoliciesPaginatedList/PoliciesPaginatedList";
 
@@ -42,7 +42,7 @@ const CalendarEventPreviewModal = ({
           </>
         )}
       </span>
-      <div className={`${baseClass}__preview`}>
+      <Card paddingSize="xxlarge" className={`${baseClass}__preview`}>
         <div className={`${baseClass}__preview-header`}>
           <div className={`${baseClass}__preview-header__square-wrapper`}>
             <div className={`${baseClass}__preview-header__square`} />
@@ -117,7 +117,7 @@ const CalendarEventPreviewModal = ({
           </div>
           <div className={`${baseClass}__preview-invitee__text`}>Anna Chao</div>
         </div>
-      </div>
+      </Card>
       <div className={`${baseClass}__footer`}>
         {showGenericPreview ? (
           <>

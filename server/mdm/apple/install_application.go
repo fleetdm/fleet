@@ -120,7 +120,8 @@ func SubstituteFleetVarsInAppConfig(
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname:
+			fleet.FleetVarHostEndUserIDPFullname,
+			fleet.FleetVarHostEndUserIDPExternalID:
 			// onError in the profile processor writes a per-host failure
 			// record; here we just capture the per-variable detail string so
 			// we can surface it through UnresolvableAppConfigVarError.
@@ -206,50 +207,50 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Command</key>
-    <dict>
-        <key>InstallAsManaged</key>
-        <true/>
-        <key>ManagementFlags</key>
-        <integer>`)
+  <key>Command</key>
+  <dict>
+    <key>InstallAsManaged</key>
+    <true/>
+    <key>ManagementFlags</key>
+    <integer>`)
 	fmt.Fprintf(&b, "%d", managementFlags)
 	b.WriteString(`</integer>
 `)
 	// Apple rejects ChangeManagementState on the Account-Driven User Enrollment
 	// channel. Omit it for User Enrollment; include it everywhere else.
 	if !params.IsUserEnrollment {
-		b.WriteString(`        <key>ChangeManagementState</key>
-        <string>Managed</string>
+		b.WriteString(`    <key>ChangeManagementState</key>
+    <string>Managed</string>
 `)
 	}
-	b.WriteString(`        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
+	b.WriteString(`    <key>Options</key>
+    <dict>
+      <key>PurchaseMethod</key>
+      <integer>1</integer>
+    </dict>
 `)
 
 	// Configuration is iOS/iPadOS-only. Strip any outer plist wrapper so we
 	// inline only the bare <dict>...</dict>.
 	if fleet.IsAppleMobilePlatform(params.HostPlatform) && len(params.Configuration) > 0 {
-		b.WriteString("        <key>Configuration</key>\n        ")
+		b.WriteString("    <key>Configuration</key>\n    ")
 		b.Write(stripPlistWrapper(params.Configuration))
 		b.WriteString("\n")
 	}
 
-	b.WriteString(`        <key>RequestType</key>
-        <string>InstallApplication</string>
+	b.WriteString(`    <key>RequestType</key>
+    <string>InstallApplication</string>
 `)
 	switch {
 	case params.ITunesStoreID != "":
-		fmt.Fprintf(&b, "        <key>iTunesStoreID</key>\n        <integer>%s</integer>\n", params.ITunesStoreID)
+		fmt.Fprintf(&b, "    <key>iTunesStoreID</key>\n    <integer>%s</integer>\n", params.ITunesStoreID)
 	case params.ManifestURL != "":
-		fmt.Fprintf(&b, "        <key>ManifestURL</key>\n        <string>%s</string>\n", params.ManifestURL)
+		fmt.Fprintf(&b, "    <key>ManifestURL</key>\n    <string>%s</string>\n", params.ManifestURL)
 	}
 
-	b.WriteString(`    </dict>
-    <key>CommandUUID</key>
-    <string>`)
+	b.WriteString(`  </dict>
+  <key>CommandUUID</key>
+  <string>`)
 	b.WriteString(params.CommandUUID)
 	b.WriteString(`</string>
 </dict>

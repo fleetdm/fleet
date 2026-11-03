@@ -1,14 +1,13 @@
 import React from "react";
 import { Link } from "react-router";
 
-import { IPolicy, OtherAutomationType } from "interfaces/policy";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
 import Graphic from "components/Graphic";
 import { GraphicNames } from "components/graphics";
+import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "policy-automations-list";
 

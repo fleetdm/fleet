@@ -25,6 +25,7 @@ const DEFAULT_POLICY_MOCK: IPolicyStats = {
   type: "dynamic",
   calendar_events_enabled: true,
   conditional_access_enabled: false,
+  hidden: false,
   install_software: {
     name: "testSw0",
     software_title_id: 1,

@@ -66,6 +66,10 @@ type refetchTestEnv struct {
 	commander  *MDMAppleCommander
 	pusher     *fakePusher
 	events     []string
+	// trackedUUIDs records, per command type, the UUID written to the
+	// tracking row, so enqueues and rollbacks can assert they refer to the
+	// same command the row tracks.
+	trackedUUIDs map[string]string
 }
 
 func refetchCommandType(commandUUID string) string {
@@ -97,19 +101,27 @@ func setupRefetchTest(t *testing.T) *refetchTestEnv {
 			{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 		}, nil
 	}
+	env.trackedUUIDs = map[string]string{}
 	env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
 		for _, cmd := range commands {
 			require.Equal(t, uint(1), cmd.HostID)
+			require.True(t, strings.HasPrefix(cmd.CommandUUID, cmd.CommandType),
+				"tracking row must record the full prefixed command UUID")
+			env.trackedUUIDs[cmd.CommandType] = cmd.CommandUUID
 			env.events = append(env.events, "add:"+cmd.CommandType)
 		}
 		return nil
 	}
-	env.ds.RemoveHostMDMCommandsFunc = func(ctx context.Context, hostIDs []uint, commandType string) error {
+	env.ds.RemoveHostMDMCommandsFunc = func(ctx context.Context, hostIDs []uint, commandType, commandUUID string) error {
 		require.Equal(t, []uint{1}, hostIDs)
+		require.Equal(t, env.trackedUUIDs[commandType], commandUUID,
+			"rollback must target the command it tracked")
 		env.events = append(env.events, "remove:"+commandType)
 		return nil
 	}
 	env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.Equal(t, env.trackedUUIDs[refetchCommandType(cmd.CommandUUID)], cmd.CommandUUID,
+			"enqueued command must be the one the tracking row records")
 		env.events = append(env.events, "enqueue:"+refetchCommandType(cmd.CommandUUID))
 		return nil, nil
 	}

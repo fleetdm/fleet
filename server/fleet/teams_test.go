@@ -233,6 +233,18 @@ func TestValidateUserRoles(t *testing.T) {
 			checkErr: checkErrCode(ErrNoRoleNeeded),
 		},
 		{
+			name:   "empty-global-role-with-team-role",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(""),
+				Teams:      &[]UserTeam{{Role: RoleAdmin}},
+			},
+			license: LicenseInfo{
+				Tier: TierPremium,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
 			name:   "no-roles-set",
 			create: true,
 			payload: UserPayload{

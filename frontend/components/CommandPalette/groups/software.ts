@@ -1,6 +1,7 @@
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
+
 import { IDerivedContext } from "./derivations";
 
 const buildSoftwareItems = (
@@ -87,9 +88,9 @@ const buildSoftwareItems = (
             ],
             subItems: [
               {
-                id: "software-library-categories",
+                id: "software-library-settings-categories",
                 label: "Self-service categories",
-                path: withTeamId(paths.SOFTWARE_LIBRARY_CATEGORIES),
+                path: withTeamId(paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES),
                 keywords: [
                   "custom categories",
                   "self service categories",
@@ -97,6 +98,20 @@ const buildSoftwareItems = (
                   "groups",
                   "grouping",
                   "install all",
+                ],
+              },
+              {
+                id: "software-library-settings-patch-deadline",
+                label: "Patch deadline",
+                path: withTeamId(
+                  paths.SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE
+                ),
+                keywords: [
+                  "patch deadline",
+                  "patching",
+                  "deadline",
+                  "force patch",
+                  "patch schedule",
                 ],
               },
             ],

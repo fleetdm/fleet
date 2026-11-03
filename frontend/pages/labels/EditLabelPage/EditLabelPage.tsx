@@ -1,28 +1,27 @@
+import { AxiosError } from "axios";
 import React, { useContext } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
-import { AxiosError } from "axios";
 
+import DataError from "components/DataError";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { getErrorReason } from "interfaces/errors";
+import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
 import PATHS from "router/paths";
 import labelsAPI, {
   IGetHostsInLabelResponse,
   IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getErrorReason } from "interfaces/errors";
-import { ILabel } from "interfaces/label";
-import { IHost } from "interfaces/host";
-import { notify } from "components/ToastNotification";
-import { AppContext } from "context/app";
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 
 import DynamicLabelForm from "../components/DynamicLabelForm";
-import ManualLabelForm from "../components/ManualLabelForm";
 import { IDynamicLabelFormData } from "../components/DynamicLabelForm/DynamicLabelForm";
+import ManualLabelForm from "../components/ManualLabelForm";
 import { IManualLabelFormData } from "../components/ManualLabelForm/ManualLabelForm";
 import { hasEditPermission } from "../ManageLabelsPage/LabelsTable/LabelsTableConfig";
 

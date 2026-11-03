@@ -1,20 +1,24 @@
 import React, { ReactNode, useCallback, useMemo } from "react";
 
-import { IHostReport } from "services/entities/host_reports";
-import { humanLastSeen } from "utilities/helpers";
-import { pluralize } from "utilities/strings/stringUtils";
-
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
-import ActionsDropdown from "components/ActionsDropdown";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
+import {
+  humanLastSeen,
+  internallyTruncateText,
+  internationalTimeFormat,
+} from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
 const ICON_COLOR: Colors = "ui-fleet-black-75";
@@ -31,7 +35,7 @@ const ReportBanner = ({
   message: ReactNode;
   children?: ReactNode;
 }) => (
-  <InfoBanner borderRadius="xlarge">
+  <InfoBanner>
     <div className={`${baseClass}__banner-content`}>
       <div className={`${baseClass}__banner-text`}>
         <Icon name={iconName} color={ICON_COLOR} />
@@ -84,12 +88,20 @@ const HostReportCard = ({
   }, [hasResults]);
 
   const renderLastUpdated = () => {
-    if (isAwaitingResults) return null;
+    const lastFetched = report.last_fetched;
+    if (!lastFetched) return null;
 
-    const prefix = doesNotStoreResults ? "Last ran" : "Last updated";
+    const prefix = doesNotStoreResults ? "Last ran" : "Last fetched";
     return (
       <span className={`${baseClass}__last-updated`}>
-        {prefix} {humanLastSeen(report.last_fetched || "")}
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(lastFetched))}
+          position="top"
+          underline={false}
+          showArrow
+        >
+          {prefix} {humanLastSeen(lastFetched)}
+        </TooltipWrapper>
       </span>
     );
   };
@@ -104,7 +116,14 @@ const HostReportCard = ({
           <DataSet
             key={key}
             title={key}
-            value={<TooltipTruncatedText value={value} />}
+            value={
+              <TooltipTruncatedText
+                value={value}
+                tooltip={
+                  value.length > 300 ? internallyTruncateText(value) : undefined
+                }
+              />
+            }
             textOnly
           />
         ))}
@@ -168,34 +187,34 @@ const HostReportCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header-left`}>
+        <div className={`${baseClass}__header-top`}>
           <div className={`${baseClass}__title-row`}>
             <h3 className={`${baseClass}__name`}>
               <TooltipTruncatedText value={report.name} fixedPositionStrategy />
             </h3>
             {renderLastUpdated()}
           </div>
-          {report.description && (
-            <p className={`${baseClass}__description`}>{report.description}</p>
-          )}
+          <div className={`${baseClass}__header-right`}>
+            {report.report_clipped && (
+              <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
+                <Icon size="small" name="warning" color={ICON_COLOR} />
+                Report clipped
+              </Tag>
+            )}
+            <ActionsDropdown
+              options={actionOptions}
+              placeholder="Actions"
+              onChange={onActionChange}
+              variant="secondary"
+              menuAlign="right"
+            />
+          </div>
         </div>
-        <div className={`${baseClass}__header-right`}>
-          {report.report_clipped && (
-            <Tag tooltip="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
-              <Icon size="small" name="warning" color={ICON_COLOR} />
-              Report clipped
-            </Tag>
-          )}
-          <ActionsDropdown
-            options={actionOptions}
-            placeholder="Actions"
-            onChange={onActionChange}
-            variant="secondary"
-            menuAlign="right"
-          />
-        </div>
+        {report.description && (
+          <p className={`${baseClass}__description`}>{report.description}</p>
+        )}
       </div>
 
       {renderDataCells()}

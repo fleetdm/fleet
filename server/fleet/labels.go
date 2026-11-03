@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ModifyLabelPayload is used to change editable fields for a Label
@@ -149,6 +150,34 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"linux":   {}, // matches hosts on any Linux distribution
 	"ubuntu":  {},
 	"centos":  {},
+}
+
+// LabelNameMaxLength and LabelDescriptionMaxLength match the varchar(255) size
+// of labels.name and labels.description in MySQL. Enforce them before
+// insert/update so callers get an InvalidArgumentError instead of a raw
+// "Data too long" MySQL error, and so GitOps dry runs catch them.
+const (
+	LabelNameMaxLength        = 255
+	LabelDescriptionMaxLength = 255
+)
+
+// ValidateLabelFieldLengths checks that a label's name and description fit
+// their database columns. It returns nil if both fit.
+func ValidateLabelFieldLengths(name, description string) *InvalidArgumentError {
+	var invalid InvalidArgumentError
+	label := name
+	if utf8.RuneCountInString(name) > LabelNameMaxLength {
+		// Show only the start of an over-long name so the message stays readable.
+		label = string([]rune(name)[:40]) + "..."
+		invalid.Append("name", fmt.Sprintf("label %q name may not exceed %d characters", label, LabelNameMaxLength))
+	}
+	if utf8.RuneCountInString(description) > LabelDescriptionMaxLength {
+		invalid.Append("description", fmt.Sprintf("label %q description may not exceed %d characters", label, LabelDescriptionMaxLength))
+	}
+	if invalid.HasErrors() {
+		return &invalid
+	}
+	return nil
 }
 
 // ValidateLabelMembershipFields checks that the fields on a label spec are

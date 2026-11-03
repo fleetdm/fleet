@@ -34,9 +34,9 @@ func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
 		return nil
 	}
 
-	dbCount, err := d.CountEnrolledHosts(ctx)
+	dbCount, err := d.CountAllHosts(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "count enrolled hosts from the database")
+		return ctxerr.Wrap(ctx, err, "count all hosts from the database")
 	}
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())

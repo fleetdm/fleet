@@ -1,13 +1,13 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
 
 import Certificates from "./Certificates";
 
@@ -92,7 +92,7 @@ describe("Certificates tab-header", () => {
 
     // Wait for the "no CAs" empty state to confirm the CA fetch resolved.
     expect(
-      await screen.findByText(/Add certificate authority/i)
+      await screen.findByText("No certificate authority")
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Add certificate$/i })
@@ -111,8 +111,14 @@ describe("Certificates tab-header", () => {
 
     render(<Certificates {...baseProps} />);
 
+    expect(await screen.findByText("No certificates")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: /Add certificate$/i })
+      screen.getByText(
+        "Add a certificate to help your end users connect to your corporate network."
+      )
     ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /Add certificate$/i })
+    ).toHaveLength(2);
   });
 });

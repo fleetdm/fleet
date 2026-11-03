@@ -1,8 +1,23 @@
-import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import { toZonedTime } from "date-fns-tz";
+import React, { useEffect, useRef, useState } from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import DataSet from "components/DataSet";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon/Icon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
+import {
+  isPersonalEnrollment,
+  wasBYODEnrolled,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
 import {
   isAndroid,
   isIPadOrIPhone,
@@ -10,36 +25,23 @@ import {
   platformSupportsDiskEncryption,
   DiskEncryptionSupportedPlatform,
 } from "interfaces/platform";
-import {
-  isBYODAccountDrivenUserEnrollment,
-  wasBYODEnrolled,
-  MDM_ENROLLMENT_STATUS_UI_MAP,
-} from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { getHardwareModelDisplay } from "pages/hosts/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
   removeOSPrefix,
   compareVersions,
+  internationalTimeFormat,
 } from "utilities/helpers";
-import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Card from "components/Card";
-import DataSet from "components/DataSet";
-import CardHeader from "components/CardHeader";
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-import Icon from "components/Icon/Icon";
-import Button from "components/buttons/Button";
+import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
-import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import buildAndroidHostVitals, {
   stripAndroidOSPatchLevel,
 } from "./androidVitals";
-import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 /** Everything buildHostVitals needs to render the pre-existing host vitals.
  * Shared with the "View all" modal so both surfaces build the same rows from
@@ -113,26 +115,14 @@ const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. The user must enter their password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
   },
   windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. If recently turned on, encryption could take awhile.",
     disabled: "The disk is unencrypted.",
   },
   linux: {
@@ -402,6 +392,27 @@ export const buildHostVitals = ({
     });
   }
 
+  if (
+    (isIosOrIpadosHost || isAndroidHost) &&
+    vitalsData.google_device_id &&
+    vitalsData.google_device_id !== DEFAULT_EMPTY_CELL_VALUE
+  ) {
+    vitals.push({
+      sortKey: "Google device ID",
+      element: (
+        <DataSet
+          key="google-device-id"
+          title={
+            <TooltipWrapper tipContent="The host's device ID in Google, used for conditional access.">
+              Google device ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.google_device_id} />}
+        />
+      ),
+    });
+  }
+
   // Hardware model
   const hardwareModelDisplay = getHardwareModelDisplay(
     vitalsData.platform,
@@ -416,11 +427,16 @@ export const buildHostVitals = ({
         title="Hardware model"
         value={
           hardwareModelDisplay.tooltip ? (
-            <TooltipWrapper tipContent={hardwareModelDisplay.tooltip}>
-              {hardwareModelDisplay.value}
+            <TooltipWrapper
+              className={`${baseClass}__ellipsis-tooltip`}
+              tipContent={hardwareModelDisplay.tooltip}
+            >
+              <span className={`${baseClass}__ellipsis-tooltip-text`}>
+                {hardwareModelDisplay.value}
+              </span>
             </TooltipWrapper>
           ) : (
-            hardwareModelDisplay.value
+            <TooltipTruncatedText value={hardwareModelDisplay.value} />
           )
         }
       />
@@ -438,6 +454,7 @@ export const buildHostVitals = ({
           value={
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={vitalsData.last_restarted_at}
+              tooltipPosition="bottom"
             />
           }
         />
@@ -639,7 +656,7 @@ export const buildHostVitals = ({
                 <Icon name="error-outline" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
-                className={`${baseClass}__os-version-tooltip`}
+                className={`${baseClass}__ellipsis-tooltip`}
                 tipContent={
                   <>
                     Minimum version required: <b>{osUpdateMinimumVersion}</b>
@@ -648,7 +665,7 @@ export const buildHostVitals = ({
                   </>
                 }
               >
-                <span className={`${baseClass}__os-version-text`}>
+                <span className={`${baseClass}__ellipsis-tooltip-text`}>
                   {vitalsData.os_version}
                 </span>
               </TooltipWrapper>
@@ -711,7 +728,27 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
+  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Windows, and Linux always show the row, with "---" until osquery fills
+  // it in.
+  const showTimezone =
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+  if (showTimezone) {
+    // toZonedTime shifts the instant so its epoch value reads as the host's
+    // timezone under the system's own default-timezone formatting, letting
+    // internationalTimeFormat run unmodified/as-is elsewhere. It returns an
+    // Invalid Date for a zone the browser doesn't know, which would throw.
+    const hostNow = hasValidTimezone
+      ? toZonedTime(new Date(), vitalsData.timezone)
+      : null;
+    const localTime =
+      hostNow && !Number.isNaN(hostNow.getTime())
+        ? internationalTimeFormat(hostNow)
+        : DEFAULT_EMPTY_CELL_VALUE;
+
     vitals.push({
       sortKey: "Timezone",
       element: (
@@ -719,9 +756,21 @@ export const buildHostVitals = ({
           key="timezone"
           title="Timezone"
           value={
-            <TooltipTruncatedText
-              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-            />
+            hasValidTimezone ? (
+              <TooltipTruncatedText
+                value={vitalsData.timezone}
+                tooltip={
+                  <>
+                    <b>Local time:</b> {localTime}
+                  </>
+                }
+                alwaysShowTooltip
+                showArrow={false}
+                tooltipPosition="bottom-start"
+              />
+            ) : (
+              DEFAULT_EMPTY_CELL_VALUE
+            )
           }
         />
       ),
@@ -789,8 +838,7 @@ const Vitals = ({
   // purpose: the cap exists because a personally-enrolled device reports few vitals
   // right now, not because of how it was once enrolled.
   const showExpandedVitals =
-    isIosOrIpadosHost &&
-    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
+    isIosOrIpadosHost && !isPersonalEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);
@@ -830,11 +878,7 @@ const Vitals = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="Vitals" />
         {showExpandedVitals && toggleVitalsModal && (

@@ -3,10 +3,10 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -294,8 +295,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			Department *string `db:"department"`
 			GivenName  *string `db:"given_name"`
 			FamilyName *string `db:"family_name"`
+			ExternalID *string `db:"external_id"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name, external_id FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -340,8 +342,23 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 
 		usernameChanged := old.UserName != user.UserName
-		departmentChanged := !cmp.Equal(old.Department, user.Department)
-		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
+		var changedVars []fleet.FleetVarName
+		if usernameChanged {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart)
+		}
+		if !cmp.Equal(old.Department, user.Department) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPDepartment)
+		}
+		if !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPFullname)
+		}
+		if !cmp.Equal(old.ExternalID, user.ExternalID) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPExternalID)
+		}
+		// every store the rename flows into holds an email address
+		renamedBetweenEmails := usernameChanged &&
+			fleet.ValidateEmail(old.UserName) == nil &&
+			fleet.ValidateEmail(user.UserName) == nil
 
 		// Only update emails if they've changed
 		if emailsNeedUpdate {
@@ -369,14 +386,29 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
-		// resend profiles that depend on this username if it changed
-		if usernameChanged || departmentChanged || nameChanged {
-			certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
-			if err != nil {
-				return err
-			}
-			resentCerts = append(resentCerts, certs...)
+		if len(changedVars) == 0 {
+			return nil
 		}
+
+		hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, user.ID)
+		if err != nil {
+			return err
+		}
+
+		// only hosts whose IdP email actually moved need the email profiles resent
+		var idpEmailChangedHostIDs []uint
+		if renamedBetweenEmails {
+			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, user.ID, hostIDs, old.UserName, user.UserName)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile host idp mappings for idp email change")
+			}
+		}
+
+		certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, hostIDs, changedVars, idpEmailChangedHostIDs)
+		if err != nil {
+			return err
+		}
+		resentCerts = append(resentCerts, certs...)
 
 		return nil
 	})
@@ -384,6 +416,229 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		return nil, err
 	}
 	return resentCerts, nil
+}
+
+// reconcileHostIdPMappingsForIdPEmailChange renames the host IdP device mapping
+// and the mdm_idp_accounts row it derives from, leaving alone rows that no
+// longer carry the old identity and accounts of other SCIM users. Returns the
+// hosts whose authenticated mapping moved.
+func reconcileHostIdPMappingsForIdPEmailChange(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	logger *slog.Logger,
+	scimUserID uint,
+	hostIDs []uint,
+	oldEmail, newEmail string,
+) ([]uint, error) {
+	if err := fleet.ValidateEmail(oldEmail); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "old IdP email %q is not an email address", oldEmail)
+	}
+	if err := fleet.ValidateEmail(newEmail); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "new IdP email %q is not an email address", newEmail)
+	}
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	acctsByHost, err := getMDMIdPAccountsByHostIDs(ctx, tx, logger, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp accounts")
+	}
+
+	acctsByUUID := make(map[string]*fleet.MDMIdPAccount, len(acctsByHost))
+	oldIdentities := map[string]struct{}{oldEmail: {}}
+
+	for _, hostID := range hostIDs {
+		acct, ok := acctsByHost[hostID]
+		if !ok {
+			// linked to the SCIM user without an IdP-authenticated enrollment
+			continue
+		}
+		if _, seen := acctsByUUID[acct.UUID]; seen {
+			continue
+		}
+		// a host reassigned from the User card still points at its enrollment account
+		owned, err := mdmIdPAccountBelongsToScimUser(ctx, tx, logger, acct, scimUserID, oldEmail)
+		if err != nil {
+			return nil, err
+		}
+		if !owned {
+			logger.InfoContext(ctx, "scim user rename: skip mdm idp account of another scim user", "host_id", hostID,
+				"account_uuid", acct.UUID, "account_email", acct.Email, "scim_user_id", scimUserID)
+			continue
+		}
+		if acct.Email != "" {
+			oldIdentities[acct.Email] = struct{}{}
+		}
+		acctsByUUID[acct.UUID] = acct
+	}
+
+	// sorted for a stable outcome when the hosts span more than one account: the
+	// unique index lets only one hold the new email, so whichever is renamed
+	// first wins and the others get repointed at it
+	for _, acctUUID := range slices.Sorted(maps.Keys(acctsByUUID)) {
+		if err := renameMDMIdPAccount(ctx, tx, logger, acctsByUUID[acctUUID], newEmail); err != nil {
+			return nil, err
+		}
+	}
+	return renameHostIdPEmails(ctx, tx, logger, hostIDs, slices.Sorted(maps.Keys(oldIdentities)), newEmail)
+}
+
+// mdmIdPAccountBelongsToScimUser is true when the account holds the identity
+// being renamed away from, or resolves to that SCIM user or to none: the user's
+// own row is already renamed in this transaction, so it resolves to nobody.
+func mdmIdPAccountBelongsToScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, acct *fleet.MDMIdPAccount, scimUserID uint, oldEmail string) (bool, error) {
+	if acct.Email == oldEmail {
+		return true, nil
+	}
+
+	// the account username is the email local part, which an unrelated bare-login
+	// user can hold, so the email identifies the owner first
+	owner, err := scimUserByUserNameOrEmail(ctx, tx, logger, "", acct.Email)
+	if fleet.IsNotFound(err) && acct.Username != "" {
+		owner, err = scimUserByUserNameOrEmail(ctx, tx, logger, acct.Username, "")
+	}
+	switch {
+	case fleet.IsNotFound(err):
+		return true, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "resolve mdm idp account scim user")
+	case owner == nil: // several SCIM users share the address
+		return false, nil
+	}
+	return owner.ID == scimUserID, nil
+}
+
+// renameMDMIdPAccount renames one IdP account so the next enrollment reconcile
+// doesn't write the old email back. hostIDs bounds the repoint to this rename's
+// hosts when the new email is already taken.
+func renameMDMIdPAccount(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	logger *slog.Logger,
+	idpAcct *fleet.MDMIdPAccount,
+	newEmail string,
+) error {
+	if idpAcct == nil || idpAcct.Email == newEmail {
+		return nil
+	}
+
+	const updateStmt = `UPDATE mdm_idp_accounts SET email = ?, username = ? WHERE uuid = ?`
+	_, err := tx.ExecContext(ctx, updateStmt, newEmail, fleet.EmailLocalPart(newEmail), idpAcct.UUID)
+	switch {
+	case err == nil:
+		logger.InfoContext(ctx, "scim user rename: update mdm idp account email",
+			"old_email", idpAcct.Email, "new_email", newEmail, "account_uuid", idpAcct.UUID)
+		return nil
+	case !IsDuplicate(err):
+		return ctxerr.Wrap(ctx, err, "update mdm idp account email")
+	}
+
+	// if we get a dup error, another row already holds the new email
+	// (the user re-authenticated after the rename): repoint every host
+	// on this account at it.
+	const repointStmt = `
+		UPDATE host_mdm_idp_accounts hmia
+		JOIN mdm_idp_accounts mia ON mia.email = ?
+		SET hmia.account_uuid = mia.uuid
+		WHERE hmia.account_uuid = ?`
+	res, err := tx.ExecContext(ctx, repointStmt, newEmail, idpAcct.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "repoint host mdm idp accounts")
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get rows affected for repoint host mdm idp accounts")
+	}
+	if rowsAffected == 0 {
+		return ctxerr.Errorf(ctx, "no host repointed to the account holding %q", newEmail)
+	}
+	logger.InfoContext(ctx, "scim user rename: repoint host mdm idp accounts", "account_uuid", idpAcct.UUID,
+		"old_email", idpAcct.Email, "new_email", newEmail, "hosts_repointed", rowsAffected)
+	return nil
+}
+
+// renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
+// authenticated row moved, the only source the IdP email variable resolves from.
+//
+// Authenticated rows are matched on the address rather than on scimHostIDs: the
+// account email is unique, so a row holding it belongs to that account whether or
+// not its host is linked to the SCIM user. Manual rows carry no such guarantee,
+// so they stay scoped to the user's own hosts.
+func renameHostIdPEmails(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	logger *slog.Logger,
+	scimHostIDs []uint,
+	oldIdentities []string,
+	newEmail string,
+) ([]uint, error) {
+	selStmt, selArgs, err := sqlx.In(
+		`SELECT DISTINCT host_id FROM host_emails WHERE source = ? AND email IN (?) AND email <> ? ORDER BY host_id`,
+		fleet.DeviceMappingMDMIdpAccounts, oldIdentities, newEmail)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select host idp device mappings arguments")
+	}
+	var changedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &changedHostIDs, selStmt, selArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host idp device mappings")
+	}
+
+	// rewritten in place so the rows keep their source
+	authStmt, authArgs, err := sqlx.In(
+		`UPDATE host_emails SET email = ? WHERE source = ? AND email IN (?)`,
+		newEmail, fleet.DeviceMappingMDMIdpAccounts, oldIdentities)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare update authenticated host_emails arguments")
+	}
+	authRes, err := tx.ExecContext(ctx, authStmt, authArgs...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update authenticated host_emails")
+	}
+	authRows, err := authRes.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get rows affected for update authenticated host_emails")
+	}
+
+	manualStmt, manualArgs, err := sqlx.In(
+		`UPDATE host_emails SET email = ? WHERE host_id IN (?) AND source = ? AND email IN (?)`,
+		newEmail, scimHostIDs, fleet.DeviceMappingIDP, oldIdentities)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare update manual host_emails arguments")
+	}
+	manualRes, err := tx.ExecContext(ctx, manualStmt, manualArgs...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update manual host_emails")
+	}
+	manualRows, err := manualRes.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get rows affected for update manual host_emails")
+	}
+	if authRows+manualRows == 0 {
+		logger.DebugContext(ctx, "scim user rename: no host idp device mapping to update", "new_email", newEmail)
+		return nil, nil
+	}
+
+	dedupe := make(map[uint]struct{}, len(changedHostIDs)+len(scimHostIDs))
+	for _, hostID := range slices.Concat(changedHostIDs, scimHostIDs) {
+		dedupe[hostID] = struct{}{}
+	}
+
+	// an authenticated and a manual row may now hold the same address; the
+	// authenticated one wins
+	delStmt, delArgs, err := sqlx.In(
+		`DELETE he FROM host_emails he
+		 JOIN host_emails authenticated
+		   ON authenticated.host_id = he.host_id AND authenticated.source = ? AND authenticated.email = ?
+		 WHERE he.host_id IN (?) AND he.source = ? AND he.email = ?`,
+		fleet.DeviceMappingMDMIdpAccounts, newEmail, slices.Sorted(maps.Keys(dedupe)), fleet.DeviceMappingIDP, newEmail)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare delete duplicate host idp device mappings arguments")
+	}
+	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete duplicate manual host idp device mappings")
+	}
+	return changedHostIDs, nil
 }
 
 func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser) error {
@@ -811,49 +1066,9 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bo
 	return group, nil
 }
 
-// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore.
-// If the slice is empty, it returns true. This mirrors ScimUsersExist.
-func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
-
-	// Create a set to track which IDs we've found
-	foundIDs := make(map[uint]struct{}, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
-		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim groups exist in batch")
-		}
-
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = struct{}{}
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// Verify that all requested IDs were found
-	for _, id := range ids {
-		if _, ok := foundIDs[id]; !ok {
-			return false, nil
-		}
-	}
-	return true, nil
+// ExistingScimGroupIDs returns the subset of ids that reference existing SCIM groups.
+func (ds *Datastore) ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_groups", ids)
 }
 
 // insertScimGroupChildren inserts direct parent -> child SCIM group edges
@@ -1507,23 +1722,38 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedScimUserID)
+// triggerResendProfilesForIDPUserChange resends profiles using changedVars on
+// scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
+// either set without being in the other.
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
 		return nil, err
 	}
-	vars := []fleet.FleetVarName{
-		fleet.FleetVarHostEndUserIDPUsername,
-		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-		fleet.FleetVarHostEndUserIDPDepartment,
-		fleet.FleetVarHostEndUserIDPFullname,
+	if err := triggerResendProfilesUsingVariables(ctx, tx, scimHostIDs, changedVars); err != nil {
+		return nil, err
 	}
-	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
+
+	if len(idpEmailChangedHostIDs) == 0 {
+		return resentCerts, nil
+	}
+	emailVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserEmailIDP}
+	emailCerts, err := selectCertTemplatesToResend(ctx, tx, idpEmailChangedHostIDs, fleetVarNamesToDBVars(emailVars))
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, hostIDs, vars); err != nil {
+	if err := triggerResendProfilesUsingVariables(ctx, tx, idpEmailChangedHostIDs, emailVars); err != nil {
 		return nil, err
+	}
+	// a template using both kinds of variable is selected twice
+	seen := make(map[[2]uint]struct{}, len(resentCerts))
+	for _, c := range resentCerts {
+		seen[[2]uint{c.HostID, c.CertificateTemplateID}] = struct{}{}
+	}
+	for _, c := range emailCerts {
+		if _, dup := seen[[2]uint{c.HostID, c.CertificateTemplateID}]; !dup {
+			resentCerts = append(resentCerts, c)
+		}
 	}
 	return resentCerts, nil
 }
@@ -1539,6 +1769,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -1600,6 +1831,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -1724,7 +1956,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	SET
 		hmap.status = NULL,
 		hmap.detail = NULL,
-		hmap.command_uuid = ''
+		hmap.command_uuid = '',
+		hmap.retries = 0
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
@@ -1841,8 +2074,17 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
-		updateStmt, args, err := sqlx.Named(query, namedParams)
+	var windowsRowsAffected int64
+	for _, update := range []struct {
+		query     string
+		isWindows bool
+	}{
+		{appleUpdateStatusQuery, false},
+		{windowsUpdateStatusQuery, true},
+		{declarationUpdateStatusQuery, false},
+		{androidUpdateStatusQuery, false},
+	} {
+		updateStmt, args, err := sqlx.Named(update.query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
@@ -1852,10 +2094,35 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
 		}
 
-		_, err = tx.ExecContext(ctx, updateStmt, args...)
+		res, err := tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute resend profiles")
 		}
+		if update.isWindows {
+			windowsRowsAffected, _ = res.RowsAffected()
+		}
+	}
+
+	// The Windows update reset status to NULL, so only hosts now holding a pending row can have a stale rollup.
+	if windowsRowsAffected > 0 {
+		windowsHostUUIDStmt, windowsHostUUIDArgs, err := sqlx.In(
+			`SELECT DISTINCT h.uuid FROM hosts h JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid
+			 WHERE h.id IN (?) AND hmwp.status IS NULL`,
+			hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare windows hosts lookup for profiles status rollup")
+		}
+		var windowsHostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs, windowsHostUUIDStmt, windowsHostUUIDArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select windows hosts for profiles status rollup")
+		}
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for variable resend")
+		}
+	}
+
+	if err := triggerResendCAProfilesUsingVariables(ctx, tx, hostIDs, affectedVars); err != nil {
+		return err
 	}
 
 	// Resend certificate templates that use affected variables.
@@ -1888,6 +2155,155 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "resend host name templates for idp change")
 	}
 
+	return nil
+}
+
+// triggerResendCAProfilesUsingVariables resends Apple profiles that get a certificate from a DigiCert or EJBCA CA whose certificate fields
+// use an affected variable. The variable is in the CA, not the profile, so the profile has no association with it.
+func triggerResendCAProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+	var cas []struct {
+		Type   fleet.CAType `db:"type"`
+		Name   string       `db:"name"`
+		Fields string       `db:"fields"`
+	}
+	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text. CONCAT_WS skips the columns a type doesn't use.
+	caTypes := make([]fleet.CAType, 0, len(profileCATypes))
+	for _, t := range profileCATypes {
+		caTypes = append(caTypes, t.caType)
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT type, name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, ejbca_username_template,
+			certificate_user_principal_names) AS fields
+		FROM certificate_authorities
+		WHERE type IN (?)`, caTypes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select CAs for resend")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &cas, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select CAs for resend")
+	}
+	caNames := make(map[fleet.CAType][]string, len(profileCATypes))
+	for _, ca := range cas {
+		if slices.ContainsFunc(variables.Find(ca.Fields), func(v string) bool {
+			return slices.Contains(affectedVars, fleet.FleetVarName(v))
+		}) {
+			caNames[ca.Type] = append(caNames[ca.Type], ca.Name)
+		}
+	}
+	for _, t := range profileCATypes {
+		if len(caNames[t.caType]) == 0 {
+			continue
+		}
+		if err := resendCAProfilesDB(ctx, tx, t.dataVar, caNames[t.caType], hostIDs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resendCAProfilesDB resends the Apple profiles that get a certificate from one of the named CAs, through the profile variable with the
+// dataVar prefix, to hostIDs, or to every host that has them when hostIDs is empty.
+func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.FleetVarName, caNames []string, hostIDs []uint) error {
+	dataVars := make(map[string]struct{}, len(caNames))
+	for _, name := range caNames {
+		dataVars[string(dataVar)+name] = struct{}{}
+	}
+
+	selectStmt := `
+		SELECT macp.profile_uuid, macp.team_id, macp.mobileconfig
+		FROM mdm_apple_configuration_profiles macp
+		WHERE EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_variables mcpv
+				JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+			WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
+		)`
+	selectArgs := []any{"FLEET_VAR_" + string(dataVar)}
+	if len(hostIDs) > 0 {
+		// Scoped to the hosts' teams rather than their host_mdm_apple_profiles rows, which have no index by profile alone.
+		selectStmt += ` AND EXISTS (
+			SELECT 1
+			FROM hosts h
+			WHERE h.id IN (?) AND (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL))
+		)`
+		selectArgs = append(selectArgs, hostIDs)
+	}
+	selectStmt, selectArgs, err := sqlx.In(selectStmt, selectArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare select CA profiles for resend")
+	}
+	type caProfile struct {
+		ProfileUUID  string `db:"profile_uuid"`
+		TeamID       uint   `db:"team_id"`
+		Mobileconfig []byte `db:"mobileconfig"`
+	}
+	var profiles []caProfile
+	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select CA profiles for resend")
+	}
+	// Keep only the profiles that actually get their certificate from one of the CAs being resent
+	profiles = slices.DeleteFunc(profiles, func(p caProfile) bool {
+		return !slices.ContainsFunc(variables.Find(string(p.Mobileconfig)), func(v string) bool {
+			_, ok := dataVars[v]
+			return ok
+		})
+	})
+	if len(profiles) == 0 {
+		return nil
+	}
+
+	if len(hostIDs) > 0 {
+		profileUUIDs := make([]string, 0, len(profiles))
+		for _, p := range profiles {
+			profileUUIDs = append(profileUUIDs, p.ProfileUUID)
+		}
+		updateStmt, updateArgs, err := sqlx.In(`
+			UPDATE
+				host_mdm_apple_profiles hmap
+				JOIN hosts h
+					ON h.uuid = hmap.host_uuid
+				JOIN mdm_apple_configuration_profiles macp
+					ON (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+						 macp.profile_uuid = hmap.profile_uuid
+			SET
+				hmap.status = NULL,
+				hmap.detail = NULL,
+				hmap.command_uuid = '',
+				hmap.retries = 0
+			WHERE
+				h.id IN (?) AND
+				hmap.profile_uuid IN (?) AND
+				hmap.operation_type = ? AND
+				hmap.status IS NOT NULL`, hostIDs, profileUUIDs, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare resend CA profiles")
+		}
+		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend CA profiles")
+		}
+		return nil
+	}
+
+	// One profile at a time, driven by its team's hosts, since host_mdm_apple_profiles has no index by profile alone.
+	for _, p := range profiles {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE
+				host_mdm_apple_profiles hmap
+				JOIN hosts h
+					ON h.uuid = hmap.host_uuid
+			SET
+				hmap.status = NULL,
+				hmap.detail = NULL,
+				hmap.command_uuid = '',
+				hmap.retries = 0
+			WHERE
+				h.team_id <=> ? AND
+				hmap.profile_uuid = ? AND
+				hmap.operation_type = ? AND
+				hmap.status IS NOT NULL`, ptr.UintOrNilIfZero(p.TeamID), p.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend CA profile to all hosts")
+		}
+	}
 	return nil
 }
 
@@ -1941,33 +2357,40 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds android app configs that reference any of
-// the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values.
+// queueManagedConfigResendJobs finds App Store app configurations that reference any of the affected Fleet
+// variables and flags the affected hosts' installs, so the App Store app configuration cron and the Android app
+// reconciler will send them with the updated values.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	// Find app configs that use any of the affected variables.
-	const findAffectedApps = `
+	// Find app configs that use any of the affected variables. Skip a version when the host is in scope
+	// for an earlier version of the same app, the host gets the configuration of that earlier version.
+	findAffectedApps := fmt.Sprintf(`
 	SELECT DISTINCT
-		aac.application_id,
+		vat.adam_id AS application_id,
+		vat.platform,
+		vat.global_or_team_id,
 		vat.id AS app_team_id
 	FROM
 		mdm_configuration_profile_variables mcpv
-		JOIN android_app_configurations aac
-			ON mcpv.android_app_configuration_id = aac.id
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 		JOIN vpp_apps_teams vat
-			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+			ON mcpv.vpp_app_team_id = vat.id
 		JOIN hosts h
-			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
+			ON vat.global_or_team_id = COALESCE(h.team_id, 0)
 	WHERE
 		fv.name IN (?) AND
-		h.id IN (?)
-`
+		h.id IN (?) AND
+		NOT EXISTS (
+			SELECT 1 FROM vpp_apps_teams earlier_vat
+			WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
+				AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
+				AND EXISTS (%s)
+		)
+`, fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
 
 	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
 	if err != nil {
@@ -1975,51 +2398,53 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	type affectedApp struct {
-		ApplicationID string `db:"application_id"`
-		AppTeamID     uint   `db:"app_team_id"`
+		ApplicationID  string                          `db:"application_id"`
+		Platform       fleet.InstallableDevicePlatform `db:"platform"`
+		GlobalOrTeamID uint                            `db:"global_or_team_id"`
+		AppTeamID      uint                            `db:"app_team_id"`
 	}
-	var apps []affectedApp
-	if err := sqlx.SelectContext(ctx, tx, &apps, findStmt, findArgs...); err != nil {
+	var affectedApps []affectedApp
+	if err := sqlx.SelectContext(ctx, tx, &affectedApps, findStmt, findArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	if len(apps) == 0 {
+	var androidAppTeamIDs []uint
+	var appleAppTeamIDs []uint
+	for _, app := range affectedApps {
+		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
+			continue
+		}
+		androidAppTeamIDs = append(androidAppTeamIDs, app.AppTeamID)
+	}
+
+	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
+	// host's latest install can be of another version with the same configuration
+	if len(appleAppTeamIDs) > 0 {
+		const markConfigurationResendStmt = `
+		UPDATE host_vpp_software_installs hvsi
+		JOIN vpp_apps_teams vat ON vat.adam_id = hvsi.adam_id AND vat.platform = hvsi.platform
+		SET hvsi.needs_resend = 1
+		WHERE hvsi.host_id IN (?) AND vat.id IN (?) AND hvsi.canceled = 0
+`
+		var markStmt string
+		var markArgs []any
+		markStmt, markArgs, err = sqlx.In(markConfigurationResendStmt, hostIDs, appleAppTeamIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare mark vpp app configuration resend")
+		}
+		_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "mark vpp app configuration resend")
+		}
+	}
+
+	if len(androidAppTeamIDs) == 0 {
 		return nil
 	}
 
-	// Get the enterprise name from the DB.
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// No enterprise configured — nothing to do.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id")
-	}
-	enterpriseName := "enterprises/" + enterpriseID
-
-	// Insert a job for each affected app config.
-	const insertJob = `
-	INSERT INTO jobs (name, args, state, error)
-	VALUES (?, ?, 'queued', '')
-`
-	for _, app := range apps {
-		args, err := json.Marshal(map[string]any{
-			"task":               "make_android_app_available",
-			"application_id":     app.ApplicationID,
-			"app_team_id":        app.AppTeamID,
-			"enterprise_name":    enterpriseName,
-			"app_config_changed": true,
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
-		}
-		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
-		}
-	}
-
-	return nil
+	// Flag the affected Android apps for the Android app reconciler
+	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, hostIDs, androidAppTeamIDs)
 }
 
 // emailsRequireUpdate compares two slices of emails and returns true if they are different
@@ -2047,50 +2472,29 @@ func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
 	return false
 }
 
-// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-// If the slice is empty, it returns true
-// This method processes IDs in batches to handle large numbers of IDs efficiently
-func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
+// ExistingScimUserIDs returns the subset of ids that reference existing SCIM users.
+func (ds *Datastore) ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_users", ids)
+}
 
-	// Create a map to track which IDs we've found
-	foundIDs := make(map[uint]bool, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+func existingScimIDs(ctx context.Context, q sqlx.QueryerContext, table string, ids []uint) (map[uint]struct{}, error) {
+	found := make(map[uint]struct{}, len(ids))
+	err := common_mysql.BatchProcessSimple(ids, 10000, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(fmt.Sprintf("SELECT id FROM %s WHERE id IN (?)", table), batchIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+			return ctxerr.Wrap(ctx, err, "prepare existing ids query for "+table)
 		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		var batchFound []uint
+		if err := sqlx.SelectContext(ctx, q, &batchFound, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select existing ids from "+table)
 		}
-
-		// Mark found IDs
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = true
+		for _, id := range batchFound {
+			found[id] = struct{}{}
 		}
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	// Check if all IDs were found
-	for _, id := range ids {
-		if !foundIDs[id] {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return found, nil
 }

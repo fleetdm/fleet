@@ -1,11 +1,12 @@
-import URL_PREFIX from "router/url_prefix";
+import React from "react";
+
+import { ICampaign } from "interfaces/campaign";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHost } from "interfaces/host";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ICampaign } from "interfaces/campaign";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { IHost } from "interfaces/host";
+import URL_PREFIX from "router/url_prefix";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -97,6 +98,8 @@ export const MAX_ENTITY_CHAR_LENGTH = 255;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.24.1 +", value: "5.24.1" },
+  { label: "5.24.0 +", value: "5.24.0" },
   { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
@@ -382,6 +385,13 @@ export const MDM_STATUS_TOOLTIP: Record<
       admins can wipe this device and enforce all MDM restrictions.
     </span>
   ),
+  "On (personal)": (
+    <span>
+      Enrolled via a Managed Apple Account (Account-driven User Enrollment) or
+      Android work profile as a personal (BYOD) device. IT admins cannot wipe
+      this device or lock the end user out.
+    </span>
+  ),
   "On (manual - personal)": (
     <span>
       Enrolled with a manual enrollment profile as a personal (BYOD) device. IT
@@ -391,6 +401,22 @@ export const MDM_STATUS_TOOLTIP: Record<
   "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
+    <span>
+      Hosts pending automatic enrollment in Apple Business (AB) or Windows
+      Autopilot.
+    </span>
+  ),
+};
+
+/** Used where a single host's platform is known, e.g. the host details MDM status modal. */
+export const MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM = {
+  windows: (
+    <span>
+      Hosts added to Windows Autopilot. These will automatically enroll to Fleet
+      and turn on MDM when they&apos;re unboxed.
+    </span>
+  ),
+  apple: (
     <span>
       Hosts ordered via Apple Business (AB). These will automatically enroll to
       Fleet and turn on MDM when they&apos;re unboxed.
@@ -430,6 +456,11 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
+// Fields the host summary row (top of the Host details page and My device page)
+// renders. Not every field is shown on both pages: display_name, maintenance_window,
+// and patch_deadline_at are gated out of My device by the components that read them.
+// timezone rides along to let HostSummary format patch_deadline_at in the host's
+// local time without a second trip through the host record.
 export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
@@ -438,11 +469,13 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "detail_updated_at",
   "policy_updated_at",
   "team_name",
-  "display_name", // Not rendered on my device page
-  "maintenance_window", // Not rendered on my device page
+  "display_name",
+  "maintenance_window",
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
+  "timezone",
+  "patch_deadline_at",
 ];
 
 export const HOST_VITALS_DATA = [
@@ -474,6 +507,7 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  "google_device_id",
   // Android-only vitals. Absent for every other platform, so they're simply
   // dropped by the pick rather than needing a platform check here.
   "adb_enabled",

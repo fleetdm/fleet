@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, {
   useState,
   useEffect,
@@ -6,11 +7,11 @@ import React, {
   Ref,
   ReactElement,
 } from "react";
-import classnames from "classnames";
+
 import Checkbox from "components/forms/fields/Checkbox";
+import Pagination from "components/Pagination";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Pagination from "components/Pagination";
 
 const baseClass = "paginated-list";
 

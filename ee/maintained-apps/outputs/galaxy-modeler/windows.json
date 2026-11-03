@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "13.0.1",
+      "version": "13.7.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Galaxy Modeler' AND publisher = 'Ideamerit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Galaxy Modeler' AND publisher = 'Ideamerit' AND version_compare(version, '13.0.1') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Galaxy Modeler %' AND publisher = 'Ideamerit';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Galaxy Modeler %' AND publisher = 'Ideamerit' AND version_compare(version, '13.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'galaxy modeler.exe');"
       },
-      "installer_url": "https://www.datensen.com/downloads/Galaxy%20Modeler-13.0.1-x64.exe",
+      "installer_url": "https://www.datensen.com/downloads/Galaxy%20Modeler-13.7.0-x64.exe",
       "install_script_ref": "44443700",
       "uninstall_script_ref": "5719b9f7",
-      "sha256": "33ce631cef01a69529f889bba6df75042880f77ce6efe8aa542ff3e9c61f3582",
+      "sha256": "9eb1085622d081a3f3ce3719fbfd3b9ac6e4ccdd8fea075d638f436368b57c7a",
       "default_categories": [
         "Developer tools"
       ]

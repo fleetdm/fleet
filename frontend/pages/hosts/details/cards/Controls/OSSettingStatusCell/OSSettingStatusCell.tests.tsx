@@ -1,5 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
@@ -11,6 +12,7 @@ import {
 } from "pages/hosts/details/helpers";
 
 import { ANDROID_CERT_RETRYING_DISPLAY_CONFIG } from "../statusDisplayConfig";
+
 import OSSettingStatusCell from "./OSSettingStatusCell";
 
 describe("OS setting status cell", () => {
@@ -103,7 +105,7 @@ describe("OS setting status cell", () => {
         operation_type: "install",
         status: "delivered",
         detail:
-          "Network error during SCEP enrollment: Failed to communicate with SCEP server",
+          "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
         certificate_template_id: 4,
         retrying: true,
         retry_count: 1,

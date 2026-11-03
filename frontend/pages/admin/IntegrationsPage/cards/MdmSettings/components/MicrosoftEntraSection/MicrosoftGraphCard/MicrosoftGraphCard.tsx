@@ -2,6 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
+
 import SectionCard from "../../SectionCard";
 
 interface IMicrosoftGraphCardProps {

@@ -66,6 +66,8 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
@@ -82,6 +84,10 @@ type PolicyPayload struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -129,6 +135,8 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type *string
@@ -139,6 +147,10 @@ type NewTeamPolicyPayload struct {
 	ContinuousAutomationsEnabled bool
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool
 }
 
 var (
@@ -155,10 +167,27 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyHiddenWithConditionalAccess             = errors.New("\"hidden\" and \"conditional_access_enabled\" cannot both be set")
 	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
+	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
+	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
+	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
+
+// PatchOptionsConflict reports whether more than one patch option is set.
+func PatchOptionsConflict(options ...bool) bool {
+	n := 0
+	for _, o := range options {
+		if o {
+			n++
+		}
+	}
+	return n > 1
+}
 
 // PolicyNoTeamID is the team ID of "No team" policies.
 const PolicyNoTeamID = uint(0)
@@ -174,8 +203,20 @@ const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
@@ -342,6 +383,15 @@ func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform strin
 	return nil
 }
 
+// PolicyVerifyHidden rejects hiding a conditional access policy: end users must
+// be able to see why their sign-in is blocked.
+func PolicyVerifyHidden(hidden, conditionalAccessEnabled bool) error {
+	if hidden && conditionalAccessEnabled {
+		return errPolicyHiddenWithConditionalAccess
+	}
+	return nil
+}
+
 // ModifyPolicyPayload holds data for policy modification.
 type ModifyPolicyPayload struct {
 	// Name is the name of the policy.
@@ -395,6 +445,8 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -405,12 +457,22 @@ type ModifyPolicyPayload struct {
 	Type string `json:"-"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline *bool `json:"patch_deadline" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
 	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching != nil && *p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline != nil && *p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
@@ -498,6 +560,8 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden" db:"hidden"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"type" db:"type"`
@@ -514,6 +578,10 @@ type PolicyData struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool `json:"patch_deadline" db:"patch_deadline"`
 
 	UpdateCreateTimestamps
 }
@@ -614,6 +682,7 @@ type PolicySoftwareInstallerData struct {
 	ID                           uint `db:"id"`
 	InstallerID                  uint `db:"software_installer_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	OverridePreInstallQuery      bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {
@@ -772,6 +841,8 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	//
@@ -779,6 +850,10 @@ type PolicySpec struct {
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool `json:"patch_deadline"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -837,6 +912,9 @@ func (p PolicySpec) Verify() error {
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
 		return err
 	}
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
 	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
@@ -848,6 +926,15 @@ func (p PolicySpec) Verify() error {
 	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()
 }

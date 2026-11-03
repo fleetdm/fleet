@@ -1,4 +1,6 @@
-import { checkTable } from "./sql_tools";
+import { QUERYABLE_PLATFORMS } from "interfaces/platform";
+
+import { checkPlatformCompatibility, checkTable } from "./sql_tools";
 
 describe("checkTable", () => {
   // from https://github.com/fleetdm/fleet/issues/26366
@@ -78,5 +80,23 @@ WHERE triggering_extension IS NOT NULL AND username NOT LIKE '\\_%' ESCAPE '\\';
   it("should return an error if SQL is invalid", () => {
     const result = checkTable("SELECTx * FROM users");
     expect(result.error).not.toBeNull();
+  });
+
+  // Blank input is not a savable query, but for autocomplete it means "no
+  // tables yet", not a syntax error.
+  it("should return no tables and no error for comments-only input", () => {
+    expect(checkTable("-- todo\n/* later */")).toEqual({
+      tables: [],
+      error: null,
+    });
+  });
+});
+
+describe("checkPlatformCompatibility", () => {
+  it("should treat comments-only input as compatible with all platforms", () => {
+    expect(checkPlatformCompatibility("-- todo\n/* later */")).toEqual({
+      platforms: [...QUERYABLE_PLATFORMS],
+      error: null,
+    });
   });
 });

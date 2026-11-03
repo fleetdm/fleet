@@ -78,6 +78,10 @@ func TestMakeVersionShortenerKeep3(t *testing.T) {
 		{name: "anka virtualization", version: "3.8.6.212", slug: "anka-virtualization", expected: "3.8.6"},
 		{name: "onedrive", version: "26.139.0720.0007", slug: "onedrive", expected: "26.139.0720"},
 		{name: "harmony sase", version: "12.11.0.12314", slug: "harmony-sase", expected: "12.11.0"},
+		{name: "expressvpn", version: "14.3.1.15429", slug: "expressvpn", expected: "14.3.1"},
+		{name: "cmux hotfix", version: "0.65.2.2", slug: "cmux", expected: "0.65.2"},
+		{name: "cmux release", version: "0.65.2", slug: "cmux", expected: "0.65.2"},
+		{name: "megasync", version: "6.7.0.3", slug: "megasync", expected: "6.7.0"},
 	}
 
 	for _, tc := range tcs {
@@ -208,6 +212,33 @@ func TestLensVersionTransformer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "lens"}
 			result, err := LensVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestShottrVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "letter suffix", version: "1.9.3b", expected: "1.9.3"},
+		{name: "no suffix", version: "1.9.2", expected: "1.9.2"},
+		{name: "two segments", version: "1.9", expected: "1.9"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "shottr"}
+			result, err := ShottrVersionTransformer(app)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

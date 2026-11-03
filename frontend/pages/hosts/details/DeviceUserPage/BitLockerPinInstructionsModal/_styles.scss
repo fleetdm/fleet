@@ -1,0 +1,8 @@
+.bit-locker-pin-instructions-modal {
+  ol {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    line-height: $medium;
+  }
+}

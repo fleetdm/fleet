@@ -1,23 +1,52 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
-import { ISoftwareInstallPolicy } from "interfaces/software";
-
-import {
-  createMockSoftwareTitle,
-  createMockSoftwarePackage,
-  createMockAppStoreApp,
-} from "__mocks__/softwareMock";
 import {
   createMockHostSoftwarePackage,
   createMockHostAppStoreApp,
   createMockHostSoftware,
 } from "__mocks__/hostMock";
 import {
+  createMockSoftwareTitle,
+  createMockSoftwarePackage,
+  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
+} from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
+import { ISoftwareInstallPolicy } from "interfaces/software";
+
+import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
+  getAutoUpdateWindowDurationMinutes,
+  getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
+  routeVersionNameError,
+  getSoftwareListName,
 } from "./helpers";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
+
+it("keeps custom software names while identifying script filenames", () => {
+  const title = createMockSoftwareTitle({
+    name: "hello",
+    display_name: "Setup script",
+    source: "py_packages",
+    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+  });
+
+  expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
+  expect(getSoftwareListName({ ...title, source: "pkg_packages" })).toBe(
+    "Setup script"
+  );
+});
 
 describe("getSelfServiceTooltip", () => {
   it("returns Play Store tooltip content when isAndroidPlayStoreApp is true", () => {
@@ -37,15 +66,12 @@ describe("getSelfServiceTooltip", () => {
 
     render(tooltip as React.ReactElement);
 
+    // "self service" is the link text now — the sentence wraps it inline.
+    expect(screen.getByText(/End users can install from/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/End users can install from self service\./i)
+      screen.getByRole("link", { name: /self service/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Learn how to deploy self service/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Learn how to deploy self service/i })
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /self service/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/deploy-self-service-to-ios")
     );
@@ -59,9 +85,9 @@ describe("getSelfServiceTooltip", () => {
     expect(screen.getByText(/End users can install from/i)).toBeInTheDocument();
     expect(screen.getByText(/Fleet Desktop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Learn more/i })
+      screen.getByRole("link", { name: /Self service/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Self service/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/self-service-software")
     );
@@ -184,5 +210,369 @@ describe("getDisplayedSoftwareName", () => {
   it("returns a default when neither name nor display_name is provided", () => {
     expect(getDisplayedSoftwareName(undefined, undefined)).toBe("Software");
     expect(getDisplayedSoftwareName(null, null)).toBe("Software");
+  });
+
+  // macOS hides helper apps such as MediaRemoteUI by setting CFBundleDisplayName
+  // to a lone U+200E LEFT-TO-RIGHT MARK. trim() does not strip it, so the name
+  // arrives here as a non-empty but entirely invisible string.
+  it.each([
+    ["left-to-right mark", "\u200e"],
+    ["right-to-left mark", "\u200f"],
+    ["zero-width space", "\u200b"],
+    ["word joiner", "\u2060"],
+    ["right-to-left override", "\u202e"],
+    ["byte order mark", "\ufeff"],
+    ["non-breaking space", "\u00a0"],
+    ["null character", "\u0000"],
+    ["delete character", "\u007f"],
+    ["mixed invisibles", "\u200e\u00a0\u200b"],
+  ])("labels a name of only %s with the bundle identifier", (_label, name) => {
+    expect(
+      getDisplayedSoftwareName(name, null, "com.apple.MediaRemoteUI")
+    ).toBe("com.apple.MediaRemoteUI");
+  });
+
+  it("treats an invisible display_name as absent and falls back to name", () => {
+    expect(getDisplayedSoftwareName("Some App", "\u200e")).toBe("Some App");
+  });
+
+  it("returns the default when the name is invisible and there is no bundle identifier", () => {
+    expect(getDisplayedSoftwareName("\u200e", null)).toBe("Software");
+  });
+
+  it("returns the default when the bundle identifier is also invisible", () => {
+    expect(getDisplayedSoftwareName("\u200e", null, "\u200e")).toBe("Software");
+  });
+
+  // Only wholly invisible names fall back; a name with visible characters is
+  // left untouched so legitimate titles are not rewritten.
+  it("keeps a name that merely contains an invisible character", () => {
+    expect(getDisplayedSoftwareName("Foo\u200eBar", null)).toBe("Foo\u200eBar");
+  });
+
+  it("prefers display_name over the bundle identifier", () => {
+    expect(
+      getDisplayedSoftwareName("\u200e", "My App", "com.apple.MediaRemoteUI")
+    ).toBe("My App");
+  });
+});
+
+describe("getAutoUpdateWindowDurationMinutes", () => {
+  it("returns same-day duration when end > start", () => {
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "10:30")).toBe(90);
+  });
+
+  it("returns zero when start equals end", () => {
+    expect(getAutoUpdateWindowDurationMinutes("12:00", "12:00")).toBe(0);
+  });
+
+  it("wraps overnight when end < start", () => {
+    // 23:00 to 00:00 = 60 minutes (the minimum valid overnight window).
+    expect(getAutoUpdateWindowDurationMinutes("23:00", "00:00")).toBe(60);
+  });
+
+  // The pre-fix regression: 23:30 to 00:15 is 45 minutes overnight but the
+  // naive `end >= start && end - start < 60` check skipped the branch, letting
+  // the sub-hour window through client-side validation.
+  it("catches short overnight windows (23:30 to 00:15 = 45 minutes)", () => {
+    expect(getAutoUpdateWindowDurationMinutes("23:30", "00:15")).toBe(45);
+  });
+
+  it("handles a full-length overnight window", () => {
+    // 22:00 to 02:00 = 240 minutes.
+    expect(getAutoUpdateWindowDurationMinutes("22:00", "02:00")).toBe(240);
+  });
+
+  it("returns null for malformed inputs", () => {
+    expect(getAutoUpdateWindowDurationMinutes("bad", "02:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "25:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("", "")).toBeNull();
+  });
+});
+
+describe("getDefaultAutoUpdateFromVersions", () => {
+  it("returns undefined when there are no versions", () => {
+    expect(getDefaultAutoUpdateFromVersions([])).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(null)).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(undefined)).toBeUndefined();
+  });
+
+  it("returns the shared schedule when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toEqual({
+      enabled: true,
+      windowStart: "22:00",
+      windowEnd: "02:00",
+    });
+  });
+
+  it("returns undefined when siblings disagree on the window", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "23:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("returns undefined when siblings disagree on enabled", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("normalizes nullish windows to empty strings when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: null,
+      auto_update_window_end: null,
+    });
+    expect(getDefaultAutoUpdateFromVersions([a])).toEqual({
+      enabled: false,
+      windowStart: "",
+      windowEnd: "",
+    });
+  });
+});
+
+describe("routeVersionNameError", () => {
+  const setServerErrors = jest.fn();
+  const notifyError = notify.error as jest.Mock;
+
+  beforeEach(() => {
+    setServerErrors.mockClear();
+    notifyError.mockClear();
+  });
+
+  // Regression guard: the duplicate-version-name conflict must land on the
+  // Name field, not the toast. Matcher keys on the BE phrase "a version named"
+  // (see server/datastore/mysql/vpp.go and ee/server/service/vpp.go — reword
+  // those and this test breaks).
+  it("routes `A version named ...` to the Name field", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'A version named "Production" already exists for this app in this fleet.',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(err, setServerErrors, "fallback");
+
+    expect(setServerErrors).toHaveBeenCalledWith({
+      name:
+        'A version named "Production" already exists for this app in this fleet.',
+    });
+    expect(notifyError).not.toHaveBeenCalled();
+  });
+
+  // Regression guard: an unrelated error whose reason happens to contain
+  // "name" (e.g. an unsupported FLEET_VAR username) must stay in the toast,
+  // not clobber the Name field.
+  it("routes an unrelated `name`-containing reason to the toast", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
+      "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+      {
+        response: err,
+      }
+    );
+  });
+
+  // Regression guard: when the backend refuses a configuration (e.g. unknown
+  // top-level key in an Android managed config), the toast must name the
+  // reason instead of the generic "Please try again."
+  it("surfaces the server reason in the toast when present", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+      { response: err }
+    );
+  });
+
+  // Falls back to the generic message when the server returned no reason
+  // (e.g. a network error with no error body).
+  it("falls back to the generic message when no reason is returned", () => {
+    const err = { response: undefined };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't update. Please try again.",
+      {
+        response: err,
+      }
+    );
+  });
+
+  // iOS/iPadOS BE phrases the error as lowercase "unsupported variable ...".
+  // Must be rewritten so the admin sees the same copy Edit configuration uses
+  // ("Couldn't edit. Variable \"...\" doesn't exist.") instead of the raw BE
+  // reason.
+  it("rewrites an unknown $FLEET_VAR_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_PW_BOGUS",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_PW_BOGUS" doesn't exist.`,
+      { response: err }
+    );
+  });
+
+  // A profile-only variable (e.g. NDES_SCEP_CHALLENGE) in a managed
+  // configuration gets the profile-only explanation, matching Edit
+  // configuration.
+  it("rewrites a profile-only $FLEET_VAR_ reason with the profile-only copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can only be used in configuration profiles.`,
+      { response: err }
+    );
+  });
+
+  // Missing $FLEET_SECRET_ reasons also get the Edit configuration rewrite.
+  it("rewrites a missing $FLEET_SECRET_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA" doesn't exist.`,
+      { response: err }
+    );
   });
 });

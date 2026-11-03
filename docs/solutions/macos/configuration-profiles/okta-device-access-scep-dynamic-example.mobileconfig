@@ -9,12 +9,12 @@
 			<dict>
 				<key>AllowAllAppsAccess</key>
 				<true/>
-				<key>CertificateRenewalTimeInterval</key>
-				<integer>14</integer>
 				<key>Challenge</key>
 				<string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
+				<key>Key Type</key>
+				<string>RSA</string>
 				<key>Key Usage</key>
-				<integer>4</integer>
+				<integer>1</integer>
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>Subject</key>
@@ -24,9 +24,11 @@
 							<string>CN</string>
 							<string>managementAttestation %HardwareUUID%</string>
 						</array>
+					</array>
+					<array>
 						<array>
 							<string>OU</string>
-							<string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
 						</array>
 					</array>
 				</array>

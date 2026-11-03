@@ -5,30 +5,57 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AcrobatReader from "./AcrobatReader";
+import AdobePlugin from "./AdobePlugin";
+import AmazonDCV from "./AmazonDCV";
+import AndroidApp from "./AndroidApp";
+import AndroidOS from "./AndroidOS";
+import AndroidPlayStore from "./AndroidPlayStore";
+import AppleApp from "./AppleApp";
+import AppleAppStore from "./AppleAppStore";
+import Box from "./Box";
+import Brave from "./Brave";
+import ChromeApp from "./ChromeApp";
+import ChromeOS from "./ChromeOS";
+import Cloudflare from "./Cloudflare";
+import Edge from "./Edge";
+import Excel from "./Excel";
+import Extension from "./Extension";
+import Falcon from "./Falcon";
+import Figma from "./Figma";
+import GoBinary from "./GoBinary";
+import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import iOS from "./iOS";
+import iPadOS from "./iPadOS";
+import LinuxOS from "./LinuxOS";
+import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
-
+import OnePassword from "./OnePassword";
+import Package from "./Package";
+import ZeroOneZeroEditor from "./png/010Editor.png";
+import ThreeDfZephyrFree from "./png/3DfZephyrFree.png";
+import SevenZip from "./png/7Zip.png";
+import EightXEightWork from "./png/8X8Work.png";
 import ABetterFinderRename from "./png/ABetterFinderRename.png";
 import AbletonLive12Suite from "./png/AbletonLive12Suite.png";
-import Abstract from "./png/Abstract.png";
 import Acorn from "./png/Acorn.png";
-import AcrobatReader from "./AcrobatReader";
 import Activedock from "./png/Activedock.png";
 import Activitywatch from "./png/Activitywatch.png";
 import Actual from "./png/Actual.png";
 import Adguard from "./png/Adguard.png";
 import Adlock from "./png/Adlock.png";
+import CreativeCloud from "./png/AdobeCreativeCloud.png";
 import AdobeDigitalEditions45 from "./png/AdobeDigitalEditions45.png";
 import AdobeDngConverter from "./png/AdobeDngConverter.png";
-import AdobePlugin from "./AdobePlugin";
 import AdvancedInstaller from "./png/AdvancedInstaller.png";
 import AdvancedRenamer from "./png/AdvancedRenamer.png";
 import Affinity from "./png/Affinity.png";
-import AffinityDesigner from "./png/AffinityDesigner.png";
 import AffinityDesigner1 from "./png/AffinityDesigner1.png";
-import AffinityPhoto from "./png/AffinityPhoto.png";
+import AffinityDesigner from "./png/AffinityDesigner.png";
 import AffinityPhoto1 from "./png/AffinityPhoto1.png";
-import AffinityPublisher from "./png/AffinityPublisher.png";
+import AffinityPhoto from "./png/AffinityPhoto.png";
 import AffinityPublisher1 from "./png/AffinityPublisher1.png";
+import AffinityPublisher from "./png/AffinityPublisher.png";
 import AgentRansack from "./png/AgentRansack.png";
 import Airbuddy from "./png/Airbuddy.png";
 import Aircall from "./png/Aircall.png";
@@ -44,7 +71,6 @@ import Alacritty from "./png/Alacritty.png";
 import Alcove from "./png/Alcove.png";
 import Aldente from "./png/Aldente.png";
 import Alfaview from "./png/Alfaview.png";
-import Alloy from "./png/Alloy.png";
 import AllwaySync from "./png/AllwaySync.png";
 import AltairGraphqlClient from "./png/AltairGraphqlClient.png";
 import AltTab from "./png/AltTab.png";
@@ -55,16 +81,11 @@ import AmazonCorretto21 from "./png/AmazonCorretto21.png";
 import AmazonCorretto24 from "./png/AmazonCorretto24.png";
 import AmazonCorretto25 from "./png/AmazonCorretto25.png";
 import AmazonCorretto26 from "./png/AmazonCorretto26.png";
-import AmazonDCV from "./AmazonDCV";
 import AmazonRedshiftOdbcDriver from "./png/AmazonRedshiftOdbcDriver.png";
 import AmazonWorkspaces from "./png/AmazonWorkspaces.png";
 import Amethyst from "./png/Amethyst.png";
 import Amie from "./png/Amie.png";
-import AndroidApp from "./AndroidApp";
-import AndroidOS from "./AndroidOS";
-import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./png/AndroidStudio.png";
-import AngryIpScanner from "./png/AngryIpScanner.png";
 import Anka from "./png/Anka.png";
 import AnotherRedisDesktopManager from "./png/AnotherRedisDesktopManager.png";
 import Antigravity from "./png/Antigravity.png";
@@ -79,9 +100,6 @@ import Apidog from "./png/Apidog.png";
 import Apparency from "./png/Apparency.png";
 import AppCleaner from "./png/AppCleaner.png";
 import AppFair from "./png/AppFair.png";
-import AppiumInspector from "./png/AppiumInspector.png";
-import AppleApp from "./AppleApp";
-import AppleAppStore from "./AppleAppStore";
 import Applite from "./png/Applite.png";
 import Aptakube from "./png/Aptakube.png";
 import Arc from "./png/Arc.png";
@@ -145,9 +163,7 @@ import BomeNetwork from "./png/BomeNetwork.png";
 import Boom3D from "./png/Boom3D.png";
 import Boop from "./png/Boop.png";
 import BoostNote from "./png/BoostNote.png";
-import Box from "./Box";
 import BoxTools from "./png/BoxTools.png";
-import Brave from "./Brave";
 import Breaktimer from "./png/Breaktimer.png";
 import BricklinkStudio from "./png/BricklinkStudio.png";
 import Browserstacklocal from "./png/Browserstacklocal.png";
@@ -173,7 +189,6 @@ import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
 import Cavalry from "./png/Cavalry.png";
-import Cellprofiler from "./png/Cellprofiler.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
 import Charles from "./png/Charles.png";
@@ -188,8 +203,6 @@ import CherryKeys from "./png/CherryKeys.png";
 import CherryStudio from "./png/CherryStudio.png";
 import Chime from "./png/Chime.png";
 import Choosy from "./png/Choosy.png";
-import ChromeApp from "./ChromeApp";
-import ChromeOS from "./ChromeOS";
 import ChromeRemoteDesktop from "./png/ChromeRemoteDesktop.png";
 import Cinc from "./png/Cinc.png";
 import CiscoJabber from "./png/CiscoJabber.png";
@@ -211,7 +224,6 @@ import Clockassist from "./png/Clockassist.png";
 import Clocker from "./png/Clocker.png";
 import ClockifyDesktop from "./png/ClockifyDesktop.png";
 import Clop from "./png/Clop.png";
-import Cloudflare from "./Cloudflare";
 import Cloudmounter from "./png/Cloudmounter.png";
 import CmakeApp from "./png/CmakeApp.png";
 import Cmux from "./png/Cmux.png";
@@ -235,7 +247,6 @@ import Cork from "./png/Cork.png";
 import CotEditor from "./png/CotEditor.png";
 import CpuZ from "./png/CpuZ.png";
 import CrashPlan from "./png/CrashPlan.png";
-import CreativeCloud from "./png/AdobeCreativeCloud.png";
 import CreativeForceKelvin from "./png/CreativeForceKelvin.png";
 import CreativeForceTriad from "./png/CreativeForceTriad.png";
 import CrestronAirmedia from "./png/CrestronAirmedia.png";
@@ -271,7 +282,6 @@ import DBeaverLite from "./png/DBeaverLite.png";
 import DBeaverUltimate from "./png/DBeaverUltimate.png";
 import Dbgate from "./png/Dbgate.png";
 import Dbvisualizer from "./png/Dbvisualizer.png";
-import Debookee from "./png/Debookee.png";
 import Deckset from "./png/Deckset.png";
 import DeepL from "./png/DeepL.png";
 import Deezer from "./png/Deezer.png";
@@ -292,6 +302,7 @@ import Devpod from "./png/Devpod.png";
 import Devtoys from "./png/Devtoys.png";
 import Devutils from "./png/Devutils.png";
 import DfuBlasterPro from "./png/DfuBlasterPro.png";
+import Dia from "./png/Dia.png";
 import Dialpad from "./png/Dialpad.png";
 import Dictionaries from "./png/Dictionaries.png";
 import Diffusionbee from "./png/Diffusionbee.png";
@@ -334,18 +345,16 @@ import Eaglefiler from "./png/Eaglefiler.png";
 import Easydict from "./png/Easydict.png";
 import Easyfind from "./png/Easyfind.png";
 import Eclipse from "./png/Eclipse.png";
+import EclipseTemurinJdk8 from "./png/EclipseTemurinJdk8.png";
 import EclipseTemurinJdk11 from "./png/EclipseTemurinJdk11.png";
 import EclipseTemurinJdk17 from "./png/EclipseTemurinJdk17.png";
 import EclipseTemurinJdk21 from "./png/EclipseTemurinJdk21.png";
-import EclipseTemurinJdk8 from "./png/EclipseTemurinJdk8.png";
+import EclipseTemurinJre8 from "./png/EclipseTemurinJre8.png";
 import EclipseTemurinJre11 from "./png/EclipseTemurinJre11.png";
 import EclipseTemurinJre17 from "./png/EclipseTemurinJre17.png";
 import EclipseTemurinJre21 from "./png/EclipseTemurinJre21.png";
-import EclipseTemurinJre8 from "./png/EclipseTemurinJre8.png";
-import Edge from "./Edge";
 import Egnyte from "./png/Egnyte.png";
 import EgnyteWebedit from "./png/EgnyteWebedit.png";
-import EightXEightWork from "./png/8X8Work.png";
 import Electronmail from "./png/Electronmail.png";
 import Electrum from "./png/Electrum.png";
 import Element from "./png/Element.png";
@@ -366,22 +375,19 @@ import EpicGames from "./png/EpicGames.png";
 import Equinox from "./png/Equinox.png";
 import Etrecheckpro from "./png/Etrecheckpro.png";
 import Evernote from "./png/Evernote.png";
-import Excel from "./Excel";
 import Exifcleaner from "./png/Exifcleaner.png";
 import Exifrenamer from "./png/Exifrenamer.png";
 import ExpressVpn from "./png/ExpressVpn.png";
-import Extension from "./Extension";
 import Extradock from "./png/Extradock.png";
-import Falcon from "./Falcon";
 import Fantastical from "./png/Fantastical.png";
 import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
+import Fathom from "./png/Fathom.png";
 import Fellow from "./png/Fellow.png";
 import Ferdium from "./png/Ferdium.png";
 import FetchApp from "./png/FetchApp.png";
-import Figma from "./Figma";
 import Filebeat from "./png/Filebeat.png";
 import FileJuicer from "./png/FileJuicer.png";
 import FileMakerPro from "./png/FileMakerPro.png";
@@ -399,6 +405,7 @@ import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
 import FluxApp from "./png/FluxApp.png";
+import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
 import Folx from "./png/Folx.png";
 import Fontbase from "./png/Fontbase.png";
@@ -439,6 +446,7 @@ import Gimp from "./png/Gimp.png";
 import Git from "./png/Git.png";
 import GitExtensions from "./png/GitExtensions.png";
 import Gitfinder from "./png/Gitfinder.png";
+import GitHubCopilot from "./png/GitHubCopilot.png";
 import GithubCopilotForXcode from "./png/GithubCopilotForXcode.png";
 import GitHubDesktop from "./png/GitHubDesktop.png";
 import Gitify from "./png/Gitify.png";
@@ -446,8 +454,8 @@ import GitKraken from "./png/GitKraken.png";
 import GitupApp from "./png/GitupApp.png";
 import Glyphs from "./png/Glyphs.png";
 import Gnupg from "./png/Gnupg.png";
-import Go from "./png/Go.png";
 import Go2Shell from "./png/Go2Shell.png";
+import Go from "./png/Go.png";
 import GoanywhereOpenpgpStudio from "./png/GoanywhereOpenpgpStudio.png";
 import Godot from "./png/Godot.png";
 import Godspeed from "./png/Godspeed.png";
@@ -462,8 +470,8 @@ import GoogleEarthPro from "./png/GoogleEarthPro.png";
 import GoogleGemini from "./png/GoogleGemini.png";
 import GoogleWebDesigner from "./png/GoogleWebDesigner.png";
 import GoToMeeting from "./png/GoToMeeting.png";
-import GpgKeychain from "./png/GpgKeychain.png";
 import Gpg4Win from "./png/Gpg4Win.png";
+import GpgKeychain from "./png/GpgKeychain.png";
 import Gpodder from "./png/Gpodder.png";
 import GrammarlyDesktop from "./png/GrammarlyDesktop.png";
 import Grandperspective from "./png/Grandperspective.png";
@@ -471,15 +479,16 @@ import Granola from "./png/Granola.png";
 import Graphviz from "./png/Graphviz.png";
 import Grepwin from "./png/Grepwin.png";
 import Grids from "./png/Grids.png";
+import GrokBot from "./png/GrokBot.png";
 import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
 import HandbrakeApp from "./png/HandbrakeApp.png";
+import Handy from "./png/Handy.png";
 import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
-import Helium from "./png/Helium.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -488,26 +497,26 @@ import Hidock from "./png/Hidock.png";
 import HighlightAi from "./png/HighlightAi.png";
 import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
+import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
 import HpPrimeVirtualCalculator from "./png/HpPrimeVirtualCalculator.png";
 import Hubstaff from "./png/Hubstaff.png";
-import Huly from "./png/Huly.png";
 import Hwmonitor from "./png/Hwmonitor.png";
 import Hyper from "./png/Hyper.png";
 import Hyperkey from "./png/Hyperkey.png";
 import I1Profiler from "./png/I1Profiler.png";
 import IbmNotifier from "./png/IbmNotifier.png";
+import IbmSemeruJdk8 from "./png/IbmSemeruJdk8.png";
 import IbmSemeruJdk11 from "./png/IbmSemeruJdk11.png";
 import IbmSemeruJdk17 from "./png/IbmSemeruJdk17.png";
 import IbmSemeruJdk21 from "./png/IbmSemeruJdk21.png";
-import IbmSemeruJdk8 from "./png/IbmSemeruJdk8.png";
+import IbmSemeruJre8 from "./png/IbmSemeruJre8.png";
 import IbmSemeruJre11 from "./png/IbmSemeruJre11.png";
 import IbmSemeruJre17 from "./png/IbmSemeruJre17.png";
 import IbmSemeruJre21 from "./png/IbmSemeruJre21.png";
-import IbmSemeruJre8 from "./png/IbmSemeruJre8.png";
 import IconComposer from "./png/IconComposer.png";
 import Iconjar from "./png/Iconjar.png";
 import Idagio from "./png/Idagio.png";
@@ -525,10 +534,7 @@ import Install4J from "./png/Install4J.png";
 import Intellidock from "./png/Intellidock.png";
 import IntelliJIdea from "./png/IntelliJIdea.png";
 import IntelliJIdeaCe from "./png/IntelliJIdeaCe.png";
-import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Invesalius from "./png/Invesalius.png";
-import iOS from "./iOS";
-import iPadOS from "./iPadOS";
 import Irfanview from "./png/Irfanview.png";
 import Ironpython from "./png/Ironpython.png";
 import Isobuster from "./png/Isobuster.png";
@@ -563,6 +569,7 @@ import KeyboardMaestro from "./png/KeyboardMaestro.png";
 import Keycastr from "./png/Keycastr.png";
 import Keyclu from "./png/Keyclu.png";
 import KeystoreExplorer from "./png/KeystoreExplorer.png";
+import KiCad from "./png/KiCad.png";
 import Kiro from "./png/Kiro.png";
 import KiroCli from "./png/KiroCli.png";
 import Kitty from "./png/Kitty.png";
@@ -578,27 +585,27 @@ import LastWindowQuits from "./png/LastWindowQuits.png";
 import Latest from "./png/Latest.png";
 import Launchbar from "./png/Launchbar.png";
 import LenovoDockManager from "./png/LenovoDockManager.png";
+import LenovoSuhelper from "./png/LenovoSuhelper.png";
 import LenovoSystemUpdate from "./png/LenovoSystemUpdate.png";
 import Lens from "./png/Lens.png";
 import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
-import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
-import LogiTune from "./png/LogiTune.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
+import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
 import Lookaway from "./png/Lookaway.png";
 import Loom from "./png/Loom.png";
 import Loop from "./png/Loop.png";
 import Loopback from "./png/Loopback.png";
-import LoRain from "./png/LoRain.png";
 import Losslesscut from "./png/Losslesscut.png";
 import LowProfile from "./png/LowProfile.png";
 import LuLu from "./png/LuLu.png";
@@ -608,11 +615,8 @@ import Lunasea from "./png/Lunasea.png";
 import Lunatask from "./png/Lunatask.png";
 import Lycheeslicer from "./png/Lycheeslicer.png";
 import Maccy from "./png/Maccy.png";
-import Macdown from "./png/Macdown.png";
 import Mace from "./png/Mace.png";
-import Macjournal from "./png/Macjournal.png";
 import MacMouseFix from "./png/MacMouseFix.png";
-import MacOS from "./MacOS";
 import Macpacker from "./png/Macpacker.png";
 import Macpass from "./png/Macpass.png";
 import Macpilot from "./png/Macpilot.png";
@@ -713,9 +717,8 @@ import Nordlayer from "./png/Nordlayer.png";
 import Nordpass from "./png/Nordpass.png";
 import NordVpn from "./png/NordVpn.png";
 import NosqlWorkbench from "./png/NosqlWorkbench.png";
-import Notchnook from "./png/Notchnook.png";
-import Notepad from "./png/NotepadPlusPlus.png";
 import Notepadexe from "./png/Notepadexe.png";
+import Notepad from "./png/NotepadPlusPlus.png";
 import Notesnook from "./png/Notesnook.png";
 import Notesollama from "./png/Notesollama.png";
 import Notion from "./png/Notion.png";
@@ -728,6 +731,8 @@ import Nudge from "./png/Nudge.png";
 import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
+import NvidiaSync from "./png/NvidiaSync.png";
+import NvmWindows from "./png/NvmWindows.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -741,7 +746,6 @@ import Omnioutliner from "./png/Omnioutliner.png";
 import Omniplan from "./png/Omniplan.png";
 import OmnissaHorizonClient from "./png/OmnissaHorizonClient.png";
 import OneDrive from "./png/OneDrive.png";
-import OnePassword from "./OnePassword";
 import OneSwitch from "./png/OneSwitch.png";
 import Onionshare from "./png/Onionshare.png";
 import Onlyoffice from "./png/Onlyoffice.png";
@@ -762,9 +766,10 @@ import Opera from "./png/Opera.png";
 import OptimusPlayer from "./png/OptimusPlayer.png";
 import OrbStack from "./png/OrbStack.png";
 import OrigamiStudio from "./png/OrigamiStudio.png";
+import Orion from "./png/Orion.png";
+import Outset from "./png/Outset.png";
 import P4V from "./png/P4V.png";
 import Pacifist from "./png/Pacifist.png";
-import Package from "./Package";
 import PaintDotNet from "./png/PaintDotNet.png";
 import PaleMoon from "./png/PaleMoon.png";
 import Paletro from "./png/Paletro.png";
@@ -840,6 +845,7 @@ import PyCharmCe from "./png/PyCharmCe.png";
 import Python313 from "./png/Python313.png";
 import Python314 from "./png/Python314.png";
 import Qemu from "./png/Qemu.png";
+import Qgis from "./png/Qgis.png";
 import Qlab from "./png/Qlab.png";
 import Qlmarkdown from "./png/Qlmarkdown.png";
 import QspacePro from "./png/QspacePro.png";
@@ -875,7 +881,6 @@ import Retrobatch from "./png/Retrobatch.png";
 import Rewritebar from "./png/Rewritebar.png";
 import Rider from "./png/Rider.png";
 import Rightfont from "./png/Rightfont.png";
-import Ringcentral from "./png/Ringcentral.png";
 import Rive from "./png/Rive.png";
 import Rize from "./png/Rize.png";
 import Robofont from "./png/Robofont.png";
@@ -884,6 +889,7 @@ import Rocket from "./png/Rocket.png";
 import RocketChat from "./png/RocketChat.png";
 import RocketmanChoicesPackager from "./png/RocketmanChoicesPackager.png";
 import RocketTypist from "./png/RocketTypist.png";
+import Rowel from "./png/Rowel.png";
 import RoyalTsx from "./png/RoyalTsx.png";
 import Rstudio from "./png/Rstudio.png";
 import Rsyncui from "./png/Rsyncui.png";
@@ -893,7 +899,6 @@ import Runjs from "./png/Runjs.png";
 import RustDesk from "./png/RustDesk.png";
 import RustRover from "./png/RustRover.png";
 import Sabnzbd from "./png/Sabnzbd.png";
-import Safari from "./Safari";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
 import Santa from "./png/Santa.png";
@@ -914,7 +919,6 @@ import Sensei from "./png/Sensei.png";
 import SequelAce from "./png/SequelAce.png";
 import Session from "./png/Session.png";
 import Setapp from "./png/Setapp.png";
-import SevenZip from "./png/7Zip.png";
 import SfSymbols from "./png/SfSymbols.png";
 import Shapr3D from "./png/Shapr3D.png";
 import Sharefile from "./png/Sharefile.png";
@@ -930,7 +934,6 @@ import SimpleComic from "./png/SimpleComic.png";
 import Sirimote from "./png/Sirimote.png";
 import Sketch from "./png/Sketch.png";
 import Slab from "./png/Slab.png";
-import Slack from "./Slack";
 import Slicer from "./png/Slicer.png";
 import Slidepad from "./png/Slidepad.png";
 import Sloth from "./png/Sloth.png";
@@ -984,8 +987,10 @@ import SublimeMerge from "./png/SublimeMerge.png";
 import SublimeText from "./png/SublimeText.png";
 import Supercollider from "./png/Supercollider.png";
 import Superhuman from "./png/Superhuman.png";
+import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -1000,6 +1005,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -1009,8 +1015,6 @@ import Tailscale from "./png/Tailscale.png";
 import Taskade from "./png/Taskade.png";
 import Taskbar from "./png/Taskbar.png";
 import Teacode from "./png/Teacode.png";
-import Teams from "./Teams";
-import TeamViewer from "./TeamViewer";
 import Telegram from "./png/Telegram.png";
 import TeleportConnect from "./png/TeleportConnect.png";
 import Terminal from "./png/Terminal.png";
@@ -1021,7 +1025,6 @@ import TextExpander from "./png/TextExpander.png";
 import Thaw from "./png/Thaw.png";
 import TheUnarchiver from "./png/TheUnarchiver.png";
 import Thorium from "./png/Thorium.png";
-import ThreeDfZephyrFree from "./png/3DfZephyrFree.png";
 import Threema from "./png/Threema.png";
 import Thumbsup from "./png/Thumbsup.png";
 import Thunderbird from "./png/Thunderbird.png";
@@ -1060,6 +1063,7 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
+import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
 import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
@@ -1078,13 +1082,13 @@ import VirtualBuddy from "./png/VirtualBuddy.png";
 import Viscosity from "./png/Viscosity.png";
 import VisualParadigm from "./png/VisualParadigm.png";
 import VisualStudio2022 from "./png/VisualStudio2022.png";
-import VisualStudioCode from "./VisualStudioCode";
 import Vivaldi from "./png/Vivaldi.png";
 import VividApp from "./png/VividApp.png";
 import Viz from "./png/Viz.png";
 import Vlc from "./png/Vlc.png";
 import VncViewer from "./png/VncViewer.png";
 import Voiceink from "./png/Voiceink.png";
+import Vorssaint from "./png/Vorssaint.png";
 import VpnTracker365 from "./png/VpnTracker365.png";
 import VsCodium from "./png/VsCodium.png";
 import Vuescan from "./png/Vuescan.png";
@@ -1101,27 +1105,25 @@ import Webex from "./png/Webex.png";
 import WebStorm from "./png/WebStorm.png";
 import Wechat from "./png/Wechat.png";
 import Weektodo from "./png/Weektodo.png";
+import WezTerm from "./png/WezTerm.png";
 import Whatroute from "./png/Whatroute.png";
-import WhatsApp from "./WhatsApp";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
 import Wifiman from "./png/Wifiman.png";
+import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
-import WindowsAppRemote from "./WindowsAppRemote";
-import WindowsDefender from "./WindowsDefender";
-import WindowsOS from "./WindowsOS";
 import Windsurf from "./png/Windsurf.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
 import WondershareEdrawmax from "./png/WondershareEdrawmax.png";
 import WondershareFilmora from "./png/WondershareFilmora.png";
-import Word from "./Word";
 import Wordservice from "./png/Wordservice.png";
 import Workflowy from "./png/Workflowy.png";
 import WorksheetCrafter from "./png/WorksheetCrafter.png";
@@ -1140,7 +1142,6 @@ import Yaak from "./png/Yaak.png";
 import Yacreader from "./png/Yacreader.png";
 import Yarn from "./png/Yarn.png";
 import Yattee from "./png/Yattee.png";
-import Yippy from "./png/Yippy.png";
 import YtMusic from "./png/YtMusic.png";
 import YubicoAuthenticator from "./png/YubicoAuthenticator.png";
 import YubikeyManager from "./png/YubikeyManager.png";
@@ -1148,15 +1149,25 @@ import Zappy from "./png/Zappy.png";
 import Zed from "./png/Zed.png";
 import Zen from "./png/Zen.png";
 import Zeplin from "./png/Zeplin.png";
-import ZeroOneZeroEditor from "./png/010Editor.png";
 import Zettlr from "./png/Zettlr.png";
 import Zight from "./png/Zight.png";
-import Zoom from "./Zoom";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
 import ZoomRooms from "./png/ZoomRooms.png";
 import Zotero from "./png/Zotero.png";
 import Zulip from "./png/Zulip.png";
 import Zwift from "./png/Zwift.png";
+import Safari from "./Safari";
+import Slack from "./Slack";
+import Teams from "./Teams";
+import TeamViewer from "./TeamViewer";
+import VisualStudioCode from "./VisualStudioCode";
+import WhatsApp from "./WhatsApp";
+import WindowsAppRemote from "./WindowsAppRemote";
+import WindowsDefender from "./WindowsDefender";
+import WindowsOS from "./WindowsOS";
+import Word from "./Word";
+import Zoom from "./Zoom";
+
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -1176,7 +1187,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
-  abstract: Abstract,
   acorn: Acorn,
   activedock: Activedock,
   activitywatch: Activitywatch,
@@ -1212,7 +1222,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   alcove: Alcove,
   aldente: Aldente,
   alfaview: Alfaview,
-  alloy: Alloy,
   "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
@@ -1234,7 +1243,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   amie: Amie,
   "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
-  "angry ip scanner": AngryIpScanner,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
@@ -1249,7 +1257,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
-  "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
   aptakube: Aptakube,
@@ -1345,7 +1352,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
   cavalry: Cavalry,
-  cellprofiler: Cellprofiler,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
   charles: Charles,
@@ -1445,7 +1451,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   dbgate: Dbgate,
   dbvisualizer: Dbvisualizer,
-  debookee: Debookee,
   deckset: Deckset,
   deepl: DeepL,
   deezer: Deezer,
@@ -1466,6 +1471,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
+  dia: Dia,
   dialpad: Dialpad,
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,
@@ -1554,6 +1560,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
+  fathom: Fathom,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
@@ -1574,6 +1581,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
   fontbase: Fontbase,
@@ -1609,6 +1617,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   git: Git,
   "git extensions": GitExtensions,
   gitfinder: Gitfinder,
+  "github copilot": GitHubCopilot,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
@@ -1646,14 +1655,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   graphviz: Graphviz,
   grepwin: Grepwin,
   grids: Grids,
+  "grok bot": GrokBot,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  handy: Handy,
   "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
-  helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1662,13 +1672,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   highlight: HighlightAi,
   hive: HiveApp,
   "home assistant": HomeAssistant,
+  homebrew: Homebrew,
   homerow: Homerow,
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
   "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
-  huly: Huly,
   hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
@@ -1736,6 +1746,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   keycastr: Keycastr,
   keyclu: Keyclu,
   "keystore explorer": KeystoreExplorer,
+  kicad: KiCad,
   kiro: Kiro,
   "kiro cli": KiroCli,
   kitty: Kitty,
@@ -1751,20 +1762,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   latest: Latest,
   launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
+  "lenovo suhelper": LenovoSuhelper,
   "lenovo system update": LenovoSystemUpdate,
   lens: Lens,
   libreoffice: LibreOffice,
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
-  "lo-rain": LoRain,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
@@ -1781,9 +1793,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
-  macdown: Macdown,
   mace: Mace,
-  macjournal: Macjournal,
   macpacker: Macpacker,
   macpass: Macpass,
   macpilot: Macpilot,
@@ -1817,6 +1827,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "merlin project": MerlinProject,
   "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft .net sdk": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
@@ -1896,7 +1907,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nordvpn: NordVpn,
   "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
-  notchnook: Notchnook,
   "notepad++": Notepad,
   "notepad.exe": Notepadexe,
   notesnook: Notesnook,
@@ -1911,6 +1921,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   numi: Numi,
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
+  "nvidia sync": NvidiaSync,
+  "nvm for windows": NvmWindows,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
@@ -1945,6 +1957,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "optimus player": OptimusPlayer,
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
+  orion: Orion,
+  outset: Outset,
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
@@ -2023,10 +2037,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   qemu: Qemu,
+  qgis: Qgis,
+  "qgis ltr": Qgis,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
   qview: Qview,
+  "r for macos": R,
   "r for windows": R,
   "radio silence": RadioSilence,
   "raindrop.io": Raindropio,
@@ -2059,7 +2076,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
-  ringcentral: Ringcentral,
   rive: Rive,
   rize: Rize,
   robofont: Robofont,
@@ -2068,6 +2084,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rocket typist": RocketTypist,
   "rocket.chat": RocketChat,
   "rocketman choices packager": RocketmanChoicesPackager,
+  rowel: Rowel,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
@@ -2169,7 +2186,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "super productivity": SuperProductivity,
   supercollider: Supercollider,
   superhuman: Superhuman,
+  "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
@@ -2184,6 +2203,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
@@ -2244,6 +2264,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
+  unnaturalscrollwheels: UnnaturalScrollWheels,
   updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
@@ -2271,6 +2292,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
+  vorssaint: Vorssaint,
   "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
   vuescan: Vuescan,
@@ -2289,11 +2311,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
+  wezterm: WezTerm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  "willow voice": WillowVoice,
   windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,
@@ -2304,6 +2328,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
   "wondershare filmora": WondershareFilmora,
@@ -2326,7 +2351,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yacreader: Yacreader,
   yarn: Yarn,
   yattee: Yattee,
-  yippy: Yippy,
   "youtube music": YtMusic,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
@@ -2336,6 +2360,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
@@ -2385,6 +2410,10 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
+  go_binaries: GoBinary,
+  ai_clis: Package,
+  ai_skills: Package,
+  mcp_servers: Package,
 } as const;
 
 /**
@@ -2416,11 +2445,18 @@ const matchStrictNameSourceToIcon = ({
  * Sources whose own icon wins over any name match, strict or loose, because their names
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
- * so showing the other application's icon would misrepresent the row. Other extension
- * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
- * gets the Docker icon.
+ * so showing the other application's icon would misrepresent the row; a Go binary named
+ * "zoom" is the same case, as are MCP servers and AI skills named after the service they
+ * connect to (e.g. "slack"). Other extension sources keep matching on name first, so e.g.
+ * a VSCode extension named "Docker" still gets the Docker icon, and AI CLI tools match
+ * their vendor's application.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+const SOURCE_ICON_OVERRIDES_NAME = [
+  "adobe_plugins",
+  "go_binaries",
+  "mcp_servers",
+  "ai_skills",
+];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

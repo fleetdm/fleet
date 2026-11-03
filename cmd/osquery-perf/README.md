@@ -60,6 +60,26 @@ Supported Linux templates: `ubuntu_22.04`, `rhel_8`, `rhel_9`, `rhel_10`. RHEL t
 
 The software database (`cmd/osquery-perf/software-library/software.db`) is optional — macOS, Windows, and Ubuntu have embedded fallback fixtures, and RHEL kernels are embedded too. The DB only adds non-kernel software variety. If the DB isn't present at `--software_db_path`, osquery-perf logs a warning and falls back to the embedded fixtures.
 
+### Homebrew executable hashes
+
+macOS hosts report a sha256 for every Mach-O executable their Homebrew formulae install, and the
+server stores one installed path row per executable. That fan-out, not the number of formulae, is
+what sizes a macOS host's installed path delta, so it has its own flags:
+
+- `--software_homebrew_keg_percent` (default 80): percentage of a host's Homebrew packages that
+  are kegs reporting executable hashes. The rest report none, as a cask does. `0` reports no
+  hashes at all, like a host running an older `fleetd`.
+- `--software_homebrew_large_keg_percent` (default 1): percentage of those kegs that install 200
+  or more executables, standing in for a formula like netpbm or texlive. The rest install one to
+  three, as most formulae do.
+
+Which packages are kegs, which kegs are large, and how many executables each installs are derived
+from the formula name, so a keg reports the same set on every run and every host that has the
+formula agrees about it.
+
+Homebrew formulae come from the software database, so these flags do nothing when it isn't loaded
+(the embedded macOS fixtures are all `apps`).
+
 ## Controlling Agent Behavior From the Fleet UI
 
 ### Specify Query Results
@@ -118,11 +138,13 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 
 `mdm_prob` determines the probability of MDM enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM.
 
+`mdm_prob_macos` and `mdm_prob_windows` override `mdm_prob` for macOS and Windows hosts, so a mix can enroll each platform at its own rate (for example, `--mdm_prob_macos 0 --mdm_prob_windows 1.0` enrolls only the Windows hosts, with no Apple MDM or mock APNs server needed). Each defaults to `mdm_prob`.
+
 `mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
 
 `mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
 
-`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
+`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob` or `mdm_prob_macos`.
 
 `mdm_cancelable_command_ack_delay` makes simulated Apple devices log when they fetch a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and wait the given duration before acknowledging it. This opens a window to cancel an already-delivered command (`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`) and observe the server restoring the host's lock/wipe state when the acknowledgment arrives anyway. The default is 0 (acknowledge immediately, no behavior change).
 

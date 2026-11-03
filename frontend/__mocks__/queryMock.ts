@@ -1,5 +1,5 @@
-import { ISchedulableQuery } from "interfaces/schedulable_query";
 import { IQueryStats } from "interfaces/query_stats";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 const DEFAULT_QUERY_MOCK: ISchedulableQuery = {
   created_at: "2022-11-03T17:22:14Z",

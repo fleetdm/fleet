@@ -24,13 +24,15 @@
     max-width: 100px;
   }
 
-  // Fixed width so the ViewAllHostsButton / ActionsDropdown column doesn't
-  // shrink under the base `max-width: 99px` cap and cause the widgets to
-  // overflow. `text-align: right` from the base .actions__cell rule keeps
-  // the cell as table-cell (needed for last-row border-radius to render).
-  .data-table-block .actions__header,
-  .data-table-block .actions__cell {
-    width: 170px;
-    max-width: 170px;
+  // Read-only roles get "View all hosts" here instead of the narrower actions
+  // dropdown, and that button is wider than the column fixed layout grants it
+  // (the base `td.actions__cell` rule caps the column at 99px of content, and
+  // it wins on specificity). The button then spilled a few pixels past the
+  // table's right edge, giving the card a permanent horizontal scrollbar that
+  // sat on its bottom border and left the corner open. Dropping the left
+  // padding gives the widgets the room they need; `text-align: right` from the
+  // base rule still holds them against the right edge.
+  .data-table-block .data-table tbody td.actions__cell {
+    padding-left: 0;
   }
 }

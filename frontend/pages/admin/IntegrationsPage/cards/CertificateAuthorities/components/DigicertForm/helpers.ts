@@ -1,6 +1,5 @@
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
-import valid_url from "components/forms/validators/valid_url";
 
 import { IDigicertFormData } from "./DigicertForm";
 
@@ -78,7 +77,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: IDigicertFormData) => {
-            return valid_url({ url: formData.url });
+            return isValidURL({ url: formData.url });
           },
           message: "Must be a valid URL.",
         },

@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockSoftwareTitlesResponse } from "__mocks__/softwareMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
 
@@ -119,7 +119,7 @@ describe("Software library table", () => {
     expect(screen.getByText("Self service only")).toBeInTheDocument();
   });
 
-  it("Navigates to the categories page when the Categories button is clicked", async () => {
+  it("Navigates to the settings page when the Settings button is clicked", async () => {
     const router = createMockRouter();
     const render = createCustomRenderer({
       context: {
@@ -149,9 +149,9 @@ describe("Software library table", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: /Categories/ }));
+    await user.click(screen.getByRole("button", { name: /Settings/ }));
     expect(router.push).toHaveBeenCalledWith(
-      "/software/library/categories?fleet_id=4"
+      "/software/library/settings?fleet_id=4"
     );
   });
 

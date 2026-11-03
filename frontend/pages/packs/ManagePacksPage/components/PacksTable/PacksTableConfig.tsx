@@ -1,20 +1,18 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
 
 import { format } from "date-fns";
+import React from "react";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import PATHS from "router/paths";
-
 import { IPack } from "interfaces/pack";
+import PATHS from "router/paths";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;

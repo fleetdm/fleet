@@ -1,4 +1,4 @@
-import { astify } from ".";
+import { astify, hasNoStatement } from ".";
 
 /**
  * Accept/reject cases live in corpus.json, driven by corpus.tests.ts. This file
@@ -20,5 +20,41 @@ describe("osquery_sql_parser", () => {
       expect(location?.start.line).toEqual(4);
       expect(location?.start.column).toEqual(1);
     }
+  });
+
+  it("reports ORDER BY before a compound operator at that operator", () => {
+    expect.assertions(2);
+    try {
+      astify("SELECT uid FROM users ORDER BY uid\nUNION SELECT uid FROM last");
+    } catch (err) {
+      const { location } = err as {
+        location?: { start: { line: number; column: number } };
+      };
+      expect(location?.start.line).toEqual(2);
+      expect(location?.start.column).toEqual(1);
+    }
+  });
+
+  describe("hasNoStatement", () => {
+    it.each([
+      "",
+      "  \n\t\r\n",
+      "-- todo",
+      "/* todo */",
+      "/***/",
+      "-- one\r\n/* two\n three **/\n  -- four\n",
+    ])("is true for %j", (sql) => {
+      expect(hasNoStatement(sql)).toBe(true);
+    });
+
+    it.each([
+      "SELECT 1",
+      "-- todo\nSELECT 1",
+      ";",
+      "/* unterminated",
+      "SELECTx",
+    ])("is false for %j", (sql) => {
+      expect(hasNoStatement(sql)).toBe(false);
+    });
   });
 });

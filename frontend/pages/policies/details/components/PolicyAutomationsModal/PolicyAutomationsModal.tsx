@@ -1,8 +1,8 @@
 import React from "react";
 
-import { IPolicy, OtherAutomationType } from "interfaces/policy";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import { PolicyAutomationsList } from "pages/policies/components";
 
 const baseClass = "policy-automations-modal";

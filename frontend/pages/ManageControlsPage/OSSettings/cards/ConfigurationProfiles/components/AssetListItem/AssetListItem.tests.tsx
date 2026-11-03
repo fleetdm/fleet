@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { IMdmAsset } from "interfaces/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import AssetListItem from "./AssetListItem";
 
@@ -25,6 +25,7 @@ describe("AssetListItem", () => {
     );
 
     expect(screen.getByText("com.example.asset1")).toBeInTheDocument();
+    expect(screen.getByText("Asset")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Copy com.example.asset1" })
     ).toBeInTheDocument();

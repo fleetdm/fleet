@@ -1,22 +1,22 @@
-import React, { useCallback, useContext } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
-import { InjectedRouter } from "react-router";
 import { Location } from "history";
+import React, { useCallback, useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { Tab, TabList, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
+import BackButton from "components/BackButton";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
-import BackButton from "components/BackButton";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import PageDescription from "components/PageDescription";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   FmaPlatformValue,
@@ -76,7 +76,14 @@ const SoftwareAddPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { availableTeams } = useContext(AppContext);
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
+  // Resolve the fleet name directly from availableTeams instead of via
+  // useTeamIdParam. On Fleet Free, that hook strips any fleet_id from the URL,
+  // but the page guard below immediately re-adds fleet_id=0, which loops.
+  const currentTeamName = availableTeams?.find(
+    (t) => t.id === parseInt(location.query.fleet_id ?? "", 10)
+  )?.name;
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -143,6 +150,7 @@ const SoftwareAddPage = ({
             {React.cloneElement(children, {
               router,
               currentTeamId: parseInt(location.query.fleet_id, 10),
+              currentTeamName,
               isSidePanelOpen,
               setSidePanelOpen,
             })}

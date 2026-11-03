@@ -1,21 +1,24 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
-
-import { getPathWithQueryParams } from "utilities/url";
-import {
-  formatSoftwareType,
-  ISoftwareVersion,
-  ISoftwareVulnerability,
-} from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import PATHS from "router/paths";
+import { CellProps, Column } from "react-table";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import {
+  formatSoftwareType,
+  formatSoftwareVersion,
+  ISoftwareVersion,
+  ISoftwareVulnerability,
+  NO_VERSION_TOOLTIP_BY_SOURCE,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
+} from "interfaces/software";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
+import EmptyCellWithTooltip from "../../components/tables/EmptyCellWithTooltip";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 // NOTE: cellProps come from react-table
@@ -43,7 +46,13 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, display_name, source } = cellProps.row.original;
+        const {
+          id,
+          name,
+          display_name,
+          bundle_identifier,
+          source,
+        } = cellProps.row.original;
 
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
@@ -56,6 +65,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             // iconUrl does not exist on ISoftwareVersion
             path={softwareVersionDetailsPath}
@@ -69,9 +79,16 @@ const generateTableHeaders = (
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { version, source } = cellProps.row.original;
+        const noVersionTip = NO_VERSION_TOOLTIP_BY_SOURCE[source];
+        if (!version && noVersionTip) {
+          return <EmptyCellWithTooltip tipContent={noVersionTip} />;
+        }
+        return (
+          <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
+        );
+      },
     },
     {
       Header: "Type",
@@ -86,6 +103,11 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
+        }
         if (
           ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
         ) {

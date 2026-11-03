@@ -2,16 +2,15 @@ import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 import microsoftGraphCredentialsAPI, {
   IGetMicrosoftGraphCredentialsResponse,
 } from "services/entities/microsoft_graph_credentials";
 
-import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
 import MicrosoftGraphCard from "./MicrosoftGraphCard";
+import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
 
 const baseClass = "microsoft-entra-section";
 

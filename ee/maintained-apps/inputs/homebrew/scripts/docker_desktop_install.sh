@@ -23,12 +23,12 @@ trap cleanup EXIT
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null || echo "false")
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null || echo "false")
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return 0
@@ -49,17 +49,16 @@ quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1 || true
     sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
@@ -72,7 +71,7 @@ quit_and_track_application() {
 relaunch_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   # Check if the app was running before installation
@@ -112,6 +111,27 @@ relaunch_application() {
 }
 
 
+# Root removes Docker's per-user update staging from a pinned working
+# directory after checking its kernel path (/bin/pwd, not the shell's string
+# walk): the home's owner controls this tree, so root following a symlink they
+# swapped in could otherwise delete files anywhere on the system. A failure
+# stops the install (set -e) before Docker is quit with a staged update still
+# on disk.
+remove_from_user_home() { # remove_from_user_home <home directory> <parent dir under home> <entry>
+  local home="$1" parent="$2" entry="$3" real_home
+  [[ -e "$home/$parent/$entry" ]] || return 0
+  real_home=$(cd "$home" && /bin/pwd -P) || return 1
+  (
+    cd "$home/$parent" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/$parent" ]]; then
+      echo "refusing to remove $home/$parent/$entry: $home/$parent resolves to $(/bin/pwd -P)" >&2
+      exit 1
+    fi
+    rm -rf "$entry"
+  )
+}
+
+
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
@@ -125,7 +145,9 @@ MOUNT_POINT=""
 # Quitting Docker Desktop with a staged self-update triggers its install-on-quit
 # updater, which renames Docker.app to Docker.app.back and races this script.
 # Remove the staging dir (staged bundle + updater state) first so it can't fire.
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support" "com.docker.install"
+done
 quit_and_track_application 'com.electron.dockerdesktop'
 # Wait out any updater already in flight before touching /Applications/Docker.app.
 SECONDS=0
@@ -139,16 +161,31 @@ fi
 # bundle_identifier and patch policies report Docker as out of date.
 sudo rm -rf "$APPDIR/Docker.app.back"
 sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
+# Docker Desktop manages its own CLI symlinks: on every launch it compares each
+# /usr/local/bin link byte-for-byte with /Applications/Docker.app/Contents/Resources/bin/<name>
+# and asks the user for an admin password to rewrite any that differ. Earlier versions of
+# this script wrote those links with a "/Applications//Docker.app/..." target, which fails
+# that check after every update. Repair the links this script created so affected hosts
+# converge without a prompt, and otherwise leave the links to Docker.
+for name in docker docker-credential-desktop docker-credential-ecr-login docker-credential-osxkeychain kubectl.docker hub-tool; do
+  link="/usr/local/bin/$name"
+  [ -L "$link" ] || continue
+  target=$(readlink "$link")
+  case "$target" in
+    /Applications//Docker.app/*) ;;
+    *) continue ;;
+  esac
+  clean="/Applications/${target#/Applications//}"
+  if [ -e "$clean" ]; then
+    /bin/ln -h -f -s -- "$clean" "$link"
+  else
+    # The binary no longer ships (hub-tool); Docker treats the link as obsolete.
+    rm -f -- "$link"
+  fi
+done
 relaunch_application 'com.electron.dockerdesktop'
-mkdir -p /usr/local/cli-plugins
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/cli-plugins/docker-compose" "/usr/local/cli-plugins/docker-compose"
-mkdir -p /usr/local/bin
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/hub-tool" "/usr/local/bin/hub-tool"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/kubectl" "/usr/local/bin/kubectl.docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-desktop" "/usr/local/bin/docker-credential-desktop"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-ecr-login" "/usr/local/bin/docker-credential-ecr-login"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-osxkeychain" "/usr/local/bin/docker-credential-osxkeychain"
 # Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install/in_progress" "Docker.app"
+done

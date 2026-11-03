@@ -3,15 +3,15 @@
 import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { SelectedPlatform } from "interfaces/platform";
 import {
   IGetOSVersionsQueryKey,
   IOSVersionsResponse,
   getOSVersions,
 } from "services/entities/operating_systems";
-
-import TableDataError from "components/DataError";
-import Spinner from "components/Spinner";
-import { SelectedPlatform } from "interfaces/platform";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 

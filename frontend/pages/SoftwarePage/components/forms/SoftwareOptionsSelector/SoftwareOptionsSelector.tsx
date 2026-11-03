@@ -1,30 +1,30 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { useQuery } from "react-query";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import Slider from "components/forms/fields/Slider";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import Slider from "components/forms/fields/Slider";
+import FormField from "components/forms/FormField";
 import Spinner from "components/Spinner";
-
-import paths from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
-import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   CATEGORIES_ITEMS,
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
-import Button from "components/buttons/Button";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
+import paths from "router/paths";
 import selfServiceCategoriesAPI, {
   ISelfServiceCategoriesResponse,
 } from "services/entities/self_service_categories";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-options-selector";
 
@@ -41,26 +41,37 @@ interface ICategoriesSelector {
   /** When provided, categories are fetched from the self-service categories API
    * for this fleet. When undefined, the hardcoded list is used. */
   teamId?: number;
+  /** Override the section label. Defaults to "Categories". */
+  label?: string;
+  /** Override the preview button copy. Defaults to "Preview end user
+   * experience". */
+  previewButtonLabel?: string;
+  /** When true, each category checkbox is disabled and removed from the
+   * tab order. */
+  disabled?: boolean;
 }
 
 export const AndroidOptionsDescription = () => (
   <p>
-    Currently, Android apps can only be added as self-service and the end user
-    can install them from the <strong>Play Store</strong> in their work profile.
-    Additionally, you can install it when hosts enroll on the{" "}
+    Currently, Android apps are always available in self-service (Google Play
+    Store) in their work profile. You can automatically install it when hosts
+    enroll via{" "}
     <CustomLink
       url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-      text="Setup experience"
-    />{" "}
-    page.
+      text="setup experience"
+    />
+    .
   </p>
 );
 
-const CategoriesSelector = ({
+export const CategoriesSelector = ({
   onSelectCategory,
   selectedCategories,
   onClickPreviewEndUserExperience,
   teamId,
+  label = "Categories",
+  previewButtonLabel = "Preview end user experience",
+  disabled = false,
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -118,9 +129,10 @@ const CategoriesSelector = ({
       return (
         <div className={`${baseClass}__categories-empty`}>
           <CustomLink
-            url={getPathWithQueryParams(paths.SOFTWARE_LIBRARY_CATEGORIES, {
-              fleet_id: teamId,
-            })}
+            url={getPathWithQueryParams(
+              paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+              { fleet_id: teamId }
+            )}
             text="Add category"
           />
           <span>to assign software to it.</span>
@@ -138,6 +150,7 @@ const CategoriesSelector = ({
               value={selectedCategories.includes(cat.value)}
               onChange={onSelectCategory}
               parseTarget
+              disabled={disabled}
             >
               <div className={`${baseClass}__label-name`}>{cat.label}</div>
             </Checkbox>
@@ -148,17 +161,24 @@ const CategoriesSelector = ({
   };
 
   return (
-    <>
-      <div className="form-field__label">Categories</div>
+    <FormField
+      name="category"
+      label={
+        <div className={`${baseClass}__categories-header`}>
+          <span>{label}</span>
+          <Button
+            variant="subdued"
+            size="small"
+            onClick={onClickPreviewEndUserExperience}
+            className={`${baseClass}__preview-button`}
+          >
+            {previewButtonLabel}
+          </Button>
+        </div>
+      }
+    >
       {renderList()}
-      <Button
-        variant="secondary"
-        onClick={onClickPreviewEndUserExperience}
-        className={`${baseClass}__preview-button`}
-      >
-        Preview end user experience
-      </Button>
-    </>
+    </FormField>
   );
 };
 
@@ -212,7 +232,11 @@ const SoftwareOptionsSelector = ({
     : undefined;
 
   return (
-    <div className={`form-field ${classNames}`}>
+    <div
+      className={classnames(`form-field ${classNames}`, {
+        [`${baseClass}--disabled`]: disableOptions,
+      })}
+    >
       <div className="form-field__label">Options</div>
       {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
@@ -232,6 +256,7 @@ const SoftwareOptionsSelector = ({
             selectedCategories={formData.categories}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             teamId={teamId}
+            disabled={disableOptions}
           />
         )}
       </div>

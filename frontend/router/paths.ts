@@ -2,6 +2,7 @@ import {
   DiskEncryptionSettingsPlatform,
   SetupExperiencePlatform,
 } from "interfaces/platform";
+
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -15,7 +16,10 @@ export default {
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/configuration-profiles`,
-  CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
+  CONTROLS_CUSTOM_SETTINGS_NEW: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new`,
+  CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new/manual`,
+  CONTROLS_CUSTOM_SETTINGS_EDIT: (profileUUID: string) =>
+    `${URL_PREFIX}/controls/os-settings/configuration-profiles/${profileUUID}`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_DISK_ENCRYPTION_PLATFORM: (
@@ -68,6 +72,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_APPLE: `${INTEGRATIONS_PREFIX}/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${INTEGRATIONS_PREFIX}/mdm/windows`,
   ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
+  ADMIN_INTEGRATIONS_MDM_ANDROID_ZERO_TOUCH: `${INTEGRATIONS_PREFIX}/mdm/android-zero-touch`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/ab`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_MICROSOFT_GRAPH: `${INTEGRATIONS_PREFIX}/mdm/microsoft-graph`,
@@ -75,6 +80,7 @@ export default {
   ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
   ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${INTEGRATIONS_PREFIX}/change-management`,
   ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${INTEGRATIONS_PREFIX}/conditional-access`,
+  ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA: `${INTEGRATIONS_PREFIX}/conditional-access/okta`,
   ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${INTEGRATIONS_PREFIX}/certificate-authorities`,
   ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${INTEGRATIONS_PREFIX}/identity-provider`,
   ADMIN_INTEGRATIONS_VPP: `${INTEGRATIONS_PREFIX}/mdm/vpp`,
@@ -101,7 +107,9 @@ export default {
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
-  SOFTWARE_LIBRARY_CATEGORIES: `${URL_PREFIX}/software/library/categories`,
+  SOFTWARE_LIBRARY_SETTINGS: `${URL_PREFIX}/software/library/settings`,
+  SOFTWARE_LIBRARY_SETTINGS_CATEGORIES: `${URL_PREFIX}/software/library/settings/categories`,
+  SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE: `${URL_PREFIX}/software/library/settings/patch-deadline`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
@@ -210,6 +218,12 @@ export default {
   },
   DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
+  },
+  DEVICE_NOTIFICATION: (
+    deviceAuthToken: string,
+    notificationUuid: string
+  ): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/notifications/${notificationUuid}`;
   },
 
   FLEET_DETAILS_USERS: (teamId?: number): string => {

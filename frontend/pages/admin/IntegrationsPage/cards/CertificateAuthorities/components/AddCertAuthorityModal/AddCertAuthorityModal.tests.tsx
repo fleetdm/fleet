@@ -1,12 +1,13 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 import { renderWithSetup } from "test/test-utils";
 
-import AddCertAuthorityModal from "./AddCertAuthorityModal";
 import CA_LABEL_BY_TYPE from "../helpers";
+
+import AddCertAuthorityModal from "./AddCertAuthorityModal";
 
 describe("AddCertAuthorityModal", () => {
   it("renders the Custom EST form by default", () => {
@@ -35,6 +36,21 @@ describe("AddCertAuthorityModal", () => {
     expect(screen.getByLabelText("Name")).toBeVisible();
     expect(screen.getByLabelText("SCEP URL")).toBeVisible();
     expect(screen.getByLabelText("Challenge")).toBeVisible();
+  });
+
+  it("shows the EJBCA form when EJBCA is selected", async () => {
+    const { user } = renderWithSetup(
+      <AddCertAuthorityModal certAuthorities={[]} onExit={noop} />
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(
+      screen.getByRole("option", { name: CA_LABEL_BY_TYPE.ejbca })
+    );
+
+    expect(screen.getByLabelText("Name")).toBeVisible();
+    expect(screen.getByLabelText("Client certificate password")).toBeVisible();
+    expect(screen.getByLabelText("End entity profile name")).toBeVisible();
   });
 
   it("does not allow NDES option to be selected if there is already an NDES CA added", async () => {

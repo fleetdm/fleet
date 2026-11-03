@@ -166,6 +166,8 @@ Ze7A</ds:X509Certificate>
 	require.NoError(t, err)
 	require.NotNil(t, auth)
 	assert.Equal(t, "john@kolide.co", auth.UserID())
+	assert.Equal(t, "_9ffad90ab367f32a52b749d5c4b2b7df1493305396749", auth.AssertionID())
+	assert.Equal(t, time.Date(2017, 4, 27, 15, 8, 16, 760_000_000, time.UTC), auth.AssertionNotOnOrAfter().UTC())
 }
 
 func TestDecodeWithCommentInName(t *testing.T) {

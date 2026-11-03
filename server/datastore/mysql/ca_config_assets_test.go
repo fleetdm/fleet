@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -266,4 +267,16 @@ func testGetCAConfigAsset(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 	assert.Nil(t, asset)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// Rows written by the legacy encrypt helper must still decrypt via server/crypto.
+	legacyEncrypted, err := encrypt([]byte("legacy-value"), ds.serverPrivateKey)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO ca_config_assets (name, type, value) VALUES (?, ?, ?)`,
+			"legacy-asset", fleet.CAConfigDigiCert, legacyEncrypted)
+		return err
+	})
+	asset, err = ds.GetCAConfigAsset(ctx, "legacy-asset", fleet.CAConfigDigiCert)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("legacy-value"), asset.Value)
 }

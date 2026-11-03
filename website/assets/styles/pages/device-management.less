@@ -196,6 +196,65 @@
     }
   }
 
+  [purpose='quote-section'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 696px;
+    margin-left: auto;
+    margin-right: auto;
+    [purpose='quote-image'] {
+      img {
+        height: 40px;
+        width: auto;
+      }
+    }
+    [purpose='quote-author-info'] {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      align-self: center;
+    }
+    [purpose='quote-text'] {
+      color: #515774;
+      text-align: center;
+      font-size: 22px;
+      font-style: italic;
+      font-weight: 400;
+      line-height: @text-lineheight;
+    }
+    [purpose='name-and-title'] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    [purpose='quote-author-image'] {
+      img {
+        height: 48px;
+        width: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+    }
+    [purpose='author-name'] {
+      color: #192147;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: @text-lineheight;
+    }
+    [purpose='author-title'] {
+      color: #515774;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: @text-lineheight;
+      text-align: center;
+    }
+  }
+
   [purpose='logo-grid'] {
     display: flex;
     flex-direction: column;
@@ -228,10 +287,10 @@
             height: 28px;
           }
         }
-        &.easygo {
-          padding: 0 33px 0 35px;
+        &.nvidia {
+          padding: 0 24px;
           img {
-            height: 20px;
+            height: 24px;
           }
         }
         &.conductor-one {
@@ -813,8 +872,11 @@
                 height: 15px;
               }
             }
-            &.easygo {
+            &.nvidia {
               padding: unset;
+              img {
+                height: 24px;
+              }
             }
             &.fastly {
               padding: unset;

@@ -1,10 +1,10 @@
-import endpoints from "utilities/endpoints";
 import {
   IActivity,
   IHostPastActivity,
   IHostUpcomingActivity,
 } from "interfaces/activity";
 import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 const DEFAULT_PAGE = 0;

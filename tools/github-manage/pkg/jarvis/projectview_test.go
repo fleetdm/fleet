@@ -19,9 +19,10 @@ func TestReplaceProjectView(t *testing.T) {
 			},
 			BucketNeedsYourHands: {{Kind: KindIssue, Number: 200}},
 		}},
-		statuses: map[int]string{},
-		projects: map[int]int{},
+		statuses: map[string]string{},
+		projects: map[string]int{},
 	}
+	key200 := ghapi.IssueRefKey("fleetdm/fleet", 200)
 
 	// Refresh project 108: issue #100 stays and newly-assigned #200 appears.
 	m.replaceProjectView(projectRefreshedMsg{
@@ -31,8 +32,8 @@ func TestReplaceProjectView(t *testing.T) {
 			{Kind: KindIssue, Number: 100},
 			{Kind: KindIssue, Number: 200},
 		},
-		statuses: map[int]string{200: "In progress"},
-		projects: map[int]int{200: 108},
+		statuses: map[string]string{key200: "In progress"},
+		projects: map[string]int{key200: 108},
 	})
 
 	primary := m.board.Buckets[BucketPrimary]
@@ -54,8 +55,8 @@ func TestReplaceProjectView(t *testing.T) {
 	if len(m.board.Buckets[BucketNeedsYourHands]) != 0 {
 		t.Errorf("expected #200 dropped from NeedsYourHands, got %v", m.board.Buckets[BucketNeedsYourHands])
 	}
-	if m.statuses[200] != "In progress" || m.projects[200] != 108 {
-		t.Errorf("expected #200 status/project merged, got %q/%d", m.statuses[200], m.projects[200])
+	if m.statuses[key200] != "In progress" || m.projects[key200] != 108 {
+		t.Errorf("expected #200 status/project merged, got %q/%d", m.statuses[key200], m.projects[key200])
 	}
 }
 

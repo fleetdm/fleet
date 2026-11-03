@@ -1,11 +1,10 @@
 import React from "react";
 
-import PATHS from "router/paths";
-
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 
 import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
 

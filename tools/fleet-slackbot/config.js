@@ -26,10 +26,19 @@ const config = {
     autoFix: process.env.CI_AUTO_FIX !== "false",
   },
   mcp: {
-    url: process.env.FLEET_MCP_URL || "http://localhost:8181/sse",
+    url: process.env.FLEET_MCP_URL,
     authToken: process.env.FLEET_MCP_AUTH_TOKEN,
+    // The SDK's 60s default is too short for live queries.
+    toolTimeoutMs: Number(process.env.FLEET_MCP_TOOL_TIMEOUT_MS || "240000"),
   },
 };
+
+if (!Number.isSafeInteger(config.mcp.toolTimeoutMs) || config.mcp.toolTimeoutMs <= 0) {
+  console.error(
+    `Invalid FLEET_MCP_TOOL_TIMEOUT_MS: ${process.env.FLEET_MCP_TOOL_TIMEOUT_MS} (must be a positive integer of milliseconds)`
+  );
+  process.exit(1);
+}
 
 // Validate required env vars
 const required = [
@@ -39,6 +48,7 @@ const required = [
   ["GITHUB_BOT_USERNAME", config.github.botUsername],
   ["ANTHROPIC_API_KEY", config.anthropic.apiKey],
   ["GITHUB_WEBHOOK_SECRET", config.webhook.secret],
+  ["FLEET_MCP_URL", config.mcp.url],
   ["FLEET_MCP_AUTH_TOKEN", config.mcp.authToken],
 ];
 
