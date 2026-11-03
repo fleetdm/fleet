@@ -5,7 +5,7 @@ import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Slider from "components/forms/fields/Slider";
-import validURL from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import useGitOpsMode from "hooks/useGitOpsMode";
@@ -52,7 +52,7 @@ const HostActivityAutomationsModal = ({
   const { gitOpsModeEnabled } = useGitOpsMode();
 
   const isValidDestinationURL = (destinationURL: string) =>
-    validURL({ url: destinationURL || "", protocols: ["http", "https"] });
+    isValidURL({ url: destinationURL || "", protocols: ["http", "https"] });
 
   const validateForm = (data: IHostActivityAutomationsFormData) => {
     const errors: Record<string, string> = {};
@@ -130,7 +130,7 @@ const HostActivityAutomationsModal = ({
           for{" "}
           {
             <CustomLink
-              url="https://fleetdm.com/learn-more-about/audit-logs"
+              url="https://fleetdm.com/learn-more-about/host-audit-logs"
               text="audit logs"
               newTab
             />

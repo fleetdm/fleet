@@ -165,6 +165,9 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1323,7 +1326,7 @@ spec:
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
-		assert.True(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 		mockStore.Lock()
 		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -2509,6 +2512,7 @@ spec:
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
 		},
 		{
+			// macOS disk encryption doesn't require Apple MDM
 			desc: "team config macos_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
@@ -2520,7 +2524,7 @@ spec:
       macos_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
+			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",

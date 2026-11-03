@@ -1046,6 +1046,13 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global gitops can list AB tokens, so fleetctl gitops can check setup assistant coverage.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == gitops
+  action == list
+}
+
 # Global admins can write/modify AB release devices
 allow {
   object.type == "mdm_ab_release"
@@ -1328,11 +1335,19 @@ allow {
 # Single host script result (script execution and output)
 ##
 
-# Global admins, maintainers, and technicians can write (execute) scripts (not
-# gitops as this is not something that relates to fleetctl gitops).
+# Global admins and maintainers can write (execute) scripts (not gitops as
+# this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global technicians can write (execute) saved scripts only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.script_id)
+  subject.global_role == technician
   action == write
 }
 
@@ -1344,12 +1359,21 @@ allow {
   action == read
 }
 
-# Team admin, maintainers, and technicians can write (execute) scripts for their
-# teams (not gitops as this is not something that relates to fleetctl gitops).
+# Team admin and maintainers can write (execute) scripts for their teams (not
+# gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team technicians can write (execute) saved scripts for their teams only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.team_id)
+  not is_null(object.script_id)
+  team_role(subject, object.team_id) == technician
   action == write
 }
 
@@ -1608,6 +1632,40 @@ allow {
   object.type == "software_category"
   object.team_id != 0
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Patch deadline settings
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

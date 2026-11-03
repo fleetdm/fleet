@@ -212,4 +212,20 @@ describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
       os_settings_disk_encryption: "verified",
     });
   });
+
+  it("keeps the App Store app version filter with a software title and status", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        teamId: 3,
+        softwareTitleId: 12,
+        softwareStatus: "failed",
+        appStoreAppVersionId: 5,
+      })
+    ).toEqual({
+      software_title_id: 12,
+      software_status: "failed",
+      app_store_app_version_id: 5,
+      fleet_id: 3,
+    });
+  });
 });

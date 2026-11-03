@@ -125,4 +125,12 @@
       margin-top: $pad-small;
     }
   }
+
+  &--disabled {
+    .form-field__label,
+    .form-field__subtitle,
+    .target-label-selector__label-name {
+      color: $ui-fleet-black-50;
+    }
+  }
 }

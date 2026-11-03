@@ -1,5 +1,6 @@
 import {
   canTriggerAPNSPing,
+  formatVppTokenLabel,
   isAndroidBYO,
   isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
@@ -63,5 +64,19 @@ describe("personal enrollment predicates", () => {
     expect(
       MDM_ENROLLMENT_STATUS_UI_MAP["On (manual - personal)"].filterValue
     ).toBe("manual-personal");
+  });
+});
+
+describe("formatVppTokenLabel", () => {
+  it("joins the location and the country", () => {
+    expect(
+      formatVppTokenLabel({ location: "Acme K.K.", country_code: "jp" })
+    ).toBe("Acme K.K. • 🇯🇵 Japan");
+  });
+
+  it("shows only the location when the country is empty", () => {
+    expect(
+      formatVppTokenLabel({ location: "Acme Inc.", country_code: "" })
+    ).toBe("Acme Inc.");
   });
 });

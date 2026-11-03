@@ -1,3 +1,5 @@
+import { formatCountry } from "utilities/country";
+
 import { IConfigServerSettings, IMdmConfig } from "./config";
 import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
 import { isAndroid, isAppleDevice, isWindows } from "./platform";
@@ -10,7 +12,7 @@ export interface IMdmApple {
 }
 
 export interface IMdmAppleBm {
-  default_team?: string;
+  default_fleet?: string;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
@@ -54,7 +56,27 @@ export interface IMdmVppToken {
   country_code: string;
   renew_date: string;
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
+  /** Null for rows the backend can't date. Renders "---". */
+  created_at: string | null;
 }
+
+/** VPP token snapshot on software titles (with org_name) and activities (without). */
+export interface IVppTokenSummary {
+  id: number;
+  location: string;
+  country_code: string;
+  org_name?: string;
+}
+
+/** "<location> • <flag> <country>" */
+export const formatVppTokenLabel = (token: {
+  location: string;
+  country_code: string;
+}) =>
+  // Legacy tokens have no country until the backfill runs.
+  [token.location, formatCountry(token.country_code)]
+    .filter(Boolean)
+    .join(" • ");
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
@@ -236,7 +258,7 @@ export interface IProfileLabel {
 
 export interface IMdmProfile {
   profile_uuid: string;
-  team_id: number;
+  fleet_id: number;
   name: string;
   description?: string;
   /** The PayloadDisplayName inside a .mobileconfig, which can differ from
@@ -376,7 +398,7 @@ export interface IMdmSSOResponse {
 
 export interface IBootstrapPackageMetadata {
   name: string;
-  team_id: number;
+  fleet_id: number;
   sha256: string;
   token: string;
   created_at: string;

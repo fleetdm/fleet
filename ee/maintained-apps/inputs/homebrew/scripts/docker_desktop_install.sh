@@ -23,12 +23,12 @@ trap cleanup EXIT
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null || echo "false")
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null || echo "false")
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return 0
@@ -52,9 +52,9 @@ quit_and_track_application() {
   local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1 || true
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -71,7 +71,7 @@ quit_and_track_application() {
 relaunch_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   # Check if the app was running before installation
@@ -111,6 +111,27 @@ relaunch_application() {
 }
 
 
+# Root removes Docker's per-user update staging from a pinned working
+# directory after checking its kernel path (/bin/pwd, not the shell's string
+# walk): the home's owner controls this tree, so root following a symlink they
+# swapped in could otherwise delete files anywhere on the system. A failure
+# stops the install (set -e) before Docker is quit with a staged update still
+# on disk.
+remove_from_user_home() { # remove_from_user_home <home directory> <parent dir under home> <entry>
+  local home="$1" parent="$2" entry="$3" real_home
+  [[ -e "$home/$parent/$entry" ]] || return 0
+  real_home=$(cd "$home" && /bin/pwd -P) || return 1
+  (
+    cd "$home/$parent" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/$parent" ]]; then
+      echo "refusing to remove $home/$parent/$entry: $home/$parent resolves to $(/bin/pwd -P)" >&2
+      exit 1
+    fi
+    rm -rf "$entry"
+  )
+}
+
+
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
@@ -124,7 +145,9 @@ MOUNT_POINT=""
 # Quitting Docker Desktop with a staged self-update triggers its install-on-quit
 # updater, which renames Docker.app to Docker.app.back and races this script.
 # Remove the staging dir (staged bundle + updater state) first so it can't fire.
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support" "com.docker.install"
+done
 quit_and_track_application 'com.electron.dockerdesktop'
 # Wait out any updater already in flight before touching /Applications/Docker.app.
 SECONDS=0
@@ -163,4 +186,6 @@ done
 relaunch_application 'com.electron.dockerdesktop'
 # Remove stale copies recreated during the quit/relaunch window, if any.
 sudo rm -rf "$APPDIR/Docker.app.back"
-sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install/in_progress" "Docker.app"
+done

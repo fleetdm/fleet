@@ -7,14 +7,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -22,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1460,20 +1465,7 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
 		require.Equal(t, "tëst", versions[1].VersionName)
 
-		countResendJobs := func() int {
-			var count int
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &count,
-					`SELECT COUNT(*) FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' AND args->>'$.application_id' = ? AND args->'$.fleet_id' = ?`,
-					iosAdamID, fleetID)
-			})
-			return count
-		}
-		// check the applies above queued no re-send, none of them changed a version's configuration or labels
-		resendJobsBeforeRemove := countResendJobs()
-		require.Zero(t, resendJobsBeforeRemove)
-
-		// apply only the Production version, the Test version should be removed and a re-send queued for the hosts that had it
+		// apply only the Production version, the Test version should be removed
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{productionVersion}},
 			http.StatusOK, &batchResp, c.queryParams...)
@@ -1481,7 +1473,6 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.NoError(t, err)
 		require.Len(t, versions, 1)
 		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
-		require.Equal(t, resendJobsBeforeRemove+1, countResendJobs())
 
 		// dry run the iOS app as an entry without versions and an entry with versions, the request should fail
 		unnamedVersion := testVersion
@@ -1523,13 +1514,11 @@ func (s *integrationMDMTestSuite) TestBatchAppStoreAppVersions() {
 		require.Len(t, forSetup, 1)
 		require.Equal(t, versions[0].VPPAppsTeamsID, forSetup[0].AppTeamID)
 
-		// apply no apps, every version of the iOS app should be deleted and no re-send queued
-		resendJobsBeforeDeleteAll := countResendJobs()
+		// apply no apps, every version of the iOS app should be deleted
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{}}, http.StatusOK, &batchResp, c.queryParams...)
 		_, err = s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 		require.True(t, fleet.IsNotFound(err))
-		require.Equal(t, resendJobsBeforeDeleteAll, countResendJobs())
 	}
 }
 
@@ -1660,47 +1649,248 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 	require.Equal(t, addBResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[1].Status)
 	require.Equal(t, uint(1), titleResp.SoftwareTitle.AppStoreApps[1].Status.Pending)
+}
 
-	countResendJobs := func() int {
-		var count int
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &count,
-				`SELECT COUNT(*) FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' AND args->>'$.application_id' = ?`,
-				iosAdamID)
-		})
-		return count
+func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+	s.registerResetVPPProxyData(t)
+
+	s.setVPPTokenForTeam(0)
+	var tokensResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokensResp)
+	vppTokenID := tokensResp.Tokens[0].ID
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppTokenID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &patchVPPTokensTeamsResponse{})
+
+	// Adam ID "2" is the iOS app every case installs, it's registered for iOS in the mock proxy
+	const adamID = "2"
+	appInInventory := fleet.Software{Name: "App 2", BundleIdentifier: "b-2", Version: "2.0.0", Source: "ios_apps", Installed: true}
+	otherAppInInventory := fleet.Software{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Source: "ios_apps", Installed: true}
+	configurationValueRegexp := regexp.MustCompile(`<key>value</key><string>([^<]*)</string>`)
+	appInstallRegexp := regexp.MustCompile(`<key>iTunesStoreID</key>\s*<integer>` + adamID + `</integer>`)
+
+	newFleet := func(t *testing.T) *fleet.Team {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		return team
 	}
-	resendJobsBeforeLabelsEdit := countResendJobs()
 
-	// edit version A's labels to include label B, a re-send should be queued for the hosts whose version changed
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), &updateAppStoreAppRequest{
-		TeamID: &team.ID, VersionID: &addAResp.VersionID, SelfService: new(true), LabelsIncludeAny: []string{labelA.Name, labelB.Name},
-	}, http.StatusOK, &updateAppStoreAppResponse{})
-	require.Equal(t, resendJobsBeforeLabelsEdit+1, countResendJobs())
-	var versionLabelsChanged bool
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &versionLabelsChanged,
-			`SELECT args->'$.version_labels_changed' = TRUE FROM jobs WHERE name = 'software_worker' AND args->>'$.task' = 'resend_vpp_app_configuration' ORDER BY id DESC LIMIT 1`)
+	newManualLabel := func(t *testing.T, name string) *fleet.Label {
+		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + " " + name, LabelMembershipType: fleet.LabelMembershipTypeManual})
+		require.NoError(t, err)
+		return label
+	}
+
+	addVersion := func(t *testing.T, teamID uint, name string, configurationValue string, labelsIncludeAny []string) addAppStoreAppResponse {
+		configuration, err := json.Marshal(fmt.Sprintf(`<dict><key>value</key><string>%s</string></dict>`, configurationValue))
+		require.NoError(t, err)
+		var resp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &teamID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: name,
+			LabelsIncludeAny: labelsIncludeAny, Configuration: configuration,
+		}, http.StatusOK, &resp)
+		return resp
+	}
+
+	// acknowledgeCommands answers every command the device has, and returns the configuration value of each install of app
+	// "2", an empty value for an install without a configuration
+	acknowledgeCommands := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
+		var configurations []string
+		for {
+			cmd, err := device.Idle()
+			require.NoError(t, err)
+			if cmd == nil {
+				s.runWorkerUntilDone()
+				cmd, err = device.Idle()
+				require.NoError(t, err)
+				if cmd == nil {
+					return configurations
+				}
+			}
+			switch cmd.Command.RequestType {
+			case "InstallApplication":
+				if appInstallRegexp.Match(cmd.Raw) {
+					var value string
+					match := configurationValueRegexp.FindStringSubmatch(string(cmd.Raw))
+					if match != nil {
+						value = match[1]
+					}
+					configurations = append(configurations, value)
+				}
+				_, err = device.Acknowledge(cmd.CommandUUID)
+			case "InstalledApplicationList":
+				_, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID, []fleet.Software{appInInventory, otherAppInInventory})
+			case "CertificateList":
+				_, err = device.AcknowledgeCertificateList(device.UUID, cmd.CommandUUID, nil)
+			case "DeviceInformation":
+				_, err = device.AcknowledgeDeviceInformation(device.UUID, cmd.CommandUUID, "iPhone", "iPhone", "America/Los_Angeles")
+			default:
+				_, err = device.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+	}
+
+	newHost := func(t *testing.T, teamID uint) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		host, device := s.createAppleMobileHostThenEnrollMDM("ios")
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &teamID}, http.StatusOK)
+		s.awaitRunAppleMDMWorkerSchedule()
+		acknowledgeCommands(t, device)
+		return host, device
+	}
+
+	installApp := func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient, titleID uint) []string {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
+		s.awaitRunAppleMDMWorkerSchedule()
+		configurations := acknowledgeCommands(t, device)
+		_, err := s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{appInInventory})
+		require.NoError(t, err)
+		// Move the app's configuration changes back a second, install times have whole seconds and would compare as older than
+		// a configuration written in the same second before the install
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration_updated_at = configuration_updated_at - INTERVAL 1 SECOND WHERE adam_id = ? AND configuration_updated_at IS NOT NULL`, adamID)
+			return err
+		})
+		return configurations
+	}
+
+	// runCronAndAcknowledge runs the configuration cron and the worker that sends its installs, and returns what the device got
+	runCronAndAcknowledge := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
+		s.runWorkerUntilDone()
+		premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		retryCounter := redis_install_attempts.NewTest(t, s.redisPool, redis_install_attempts.AppStoreAppPrefix)
+		err := eeservice.ReconcileAppStoreAppConfigurations(premiumCtx, s.ds, s.fleetSvc.(fleet.AppleMDMVPPInstaller), retryCounter, s.logger)
+		require.NoError(t, err)
+		s.runWorkerUntilDone()
+		return acknowledgeCommands(t, device)
+	}
+
+	t.Run("running the configuration cron for a host whose version and configuration didn't change sends nothing", func(t *testing.T) {
+		team := newFleet(t)
+		version := addVersion(t, team.ID, "Only", "configuration-unchanged", nil)
+		host, device := newHost(t, team.ID)
+		require.Equal(t, []string{"configuration-unchanged"}, installApp(t, host, device, version.TitleID))
+
+		// run the configuration cron without any change, the host should get nothing
+		require.Empty(t, runCronAndAcknowledge(t, device))
 	})
-	require.True(t, versionLabelsChanged)
 
-	// edit version A with the same labels, no re-send should be queued
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), &updateAppStoreAppRequest{
-		TeamID: &team.ID, VersionID: &addAResp.VersionID, SelfService: new(true), LabelsIncludeAny: []string{labelA.Name, labelB.Name},
-	}, http.StatusOK, &updateAppStoreAppResponse{})
-	require.Equal(t, resendJobsBeforeLabelsEdit+1, countResendJobs())
+	t.Run("editing the configuration of a host's version sends the new configuration to the host", func(t *testing.T) {
+		team := newFleet(t)
+		version := addVersion(t, team.ID, "Only", "configuration-before", nil)
+		host, device := newHost(t, team.ID)
+		require.Equal(t, []string{"configuration-before"}, installApp(t, host, device, version.TitleID))
 
-	resendJobsBeforeDelete := countResendJobs()
+		// edit the version's configuration, the host should get the new configuration
+		configuration, err := json.Marshal(`<dict><key>value</key><string>configuration-after</string></dict>`)
+		require.NoError(t, err)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", version.TitleID), &updateAppStoreAppRequest{
+			TeamID: &team.ID, VersionID: &version.VersionID, Configuration: configuration,
+		}, http.StatusOK, &updateAppStoreAppResponse{})
+		require.Equal(t, []string{"configuration-after"}, runCronAndAcknowledge(t, device))
+	})
 
-	// delete version A, a configuration re-send should be queued for the hosts that move to version B
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
-		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addAResp.VersionID))
-	require.Equal(t, resendJobsBeforeDelete+1, countResendJobs())
+	t.Run("adding a label to a host sends the configuration of the label's version", func(t *testing.T) {
+		team := newFleet(t)
+		labelA := newManualLabel(t, "a")
+		versionA := addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
+		addVersion(t, team.ID, "B", "configuration-b", nil)
+		host, device := newHost(t, team.ID)
+		require.Equal(t, []string{"configuration-b"}, installApp(t, host, device, versionA.TitleID))
 
-	// delete every remaining version of the app, no configuration re-send should be queued since deleting never removes the app from hosts
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
-		"fleet_id", fmt.Sprint(team.ID))
-	require.Equal(t, resendJobsBeforeDelete+1, countResendJobs())
+		// add label A to the host, the host should get version A's configuration
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host.ID), addLabelsToHostRequest{Labels: []string{labelA.Name}}, http.StatusOK, &addLabelsToHostResponse{})
+		require.Equal(t, []string{"configuration-a"}, runCronAndAcknowledge(t, device))
+	})
+
+	t.Run("moving a host to another fleet sends the configuration of the new fleet's version", func(t *testing.T) {
+		team := newFleet(t)
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+		require.NoError(t, err)
+		version := addVersion(t, team.ID, "Old fleet", "configuration-old-fleet", nil)
+		addVersion(t, otherTeam.ID, "New fleet", "configuration-new-fleet", nil)
+		host, device := newHost(t, team.ID)
+		require.Equal(t, []string{"configuration-old-fleet"}, installApp(t, host, device, version.TitleID))
+
+		// move the host to the other fleet, the host should get the other fleet's configuration
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
+		require.Equal(t, []string{"configuration-new-fleet"}, runCronAndAcknowledge(t, device))
+	})
+
+	t.Run("deleting a queued install's version sends the first-added version, then the next cron run sends the host's version", func(t *testing.T) {
+		team := newFleet(t)
+		labelA := newManualLabel(t, "a")
+		labelB := newManualLabel(t, "b")
+		addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
+		versionB := addVersion(t, team.ID, "B", "configuration-b", []string{labelB.Name})
+		addVersion(t, team.ID, "C", "configuration-c", []string{labelB.Name})
+		host, device := newHost(t, team.ID)
+		require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{labelB.ID}))
+
+		// queue an install of app "3" that the device doesn't answer, so the install of version B waits behind it in the host's queue
+		s.appleVPPProxySrvData = maps.Clone(s.appleVPPProxySrvData)
+		s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`
+		var otherApp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: "3", Platform: fleet.IOSPlatform,
+		}, http.StatusOK, &otherApp)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, otherApp.TitleID), &installSoftwareRequest{}, http.StatusAccepted)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, versionB.TitleID), &installSoftwareRequest{}, http.StatusAccepted)
+
+		// delete version B before its install runs, the queued install should send the first-added version A's configuration
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", versionB.TitleID), nil, http.StatusNoContent,
+			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(versionB.VersionID))
+		require.Equal(t, []string{"configuration-a"}, runCronAndAcknowledge(t, device))
+
+		// run the configuration cron again, the host should get version C's configuration
+		require.Equal(t, []string{"configuration-c"}, runCronAndAcknowledge(t, device))
+	})
+
+	t.Run("linking a host to another IdP user sends the configuration with the new username", func(t *testing.T) {
+		team := newFleet(t)
+		scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "username-before"})
+		require.NoError(t, err)
+		otherScimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "username-after"})
+		require.NoError(t, err)
+		version := addVersion(t, team.ID, "Only", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		host, device := newHost(t, team.ID)
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"username-before"}, installApp(t, host, device, version.TitleID))
+
+		// link the host to another IdP user, the host should get the configuration with the new username
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, otherScimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"username-after"}, runCronAndAcknowledge(t, device))
+	})
+
+	t.Run("transferring a host then changing its IdP username re-sends the configuration", func(t *testing.T) {
+		team := newFleet(t)
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+		require.NoError(t, err)
+		scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "moved-username-before"})
+		require.NoError(t, err)
+		otherScimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "moved-username-after"})
+		require.NoError(t, err)
+		version := addVersion(t, team.ID, "Old fleet", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		addVersion(t, otherTeam.ID, "New fleet", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		host, device := newHost(t, team.ID)
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"moved-username-before"}, installApp(t, host, device, version.TitleID))
+
+		// move the host to the other fleet whose version has the same configuration, the host should get nothing
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
+		require.Empty(t, runCronAndAcknowledge(t, device))
+
+		// link the host to another IdP user, the host should get the other fleet's configuration with the new username
+		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, otherScimUserID)
+		require.NoError(t, err)
+		require.Equal(t, []string{"moved-username-after"}, runCronAndAcknowledge(t, device))
+	})
 }
 
 func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
@@ -1711,4 +1901,53 @@ func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, 
 			adamID, platform, teamID)
 	})
 	return ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(t.Context(), true), vppAppTeamID)
+}
+
+func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-requires-apple-mdm"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "vpprequiresapplemdmtoken" //nolint:gosec // G101: test value, not a real credential
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	var uploadResp uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &uploadResp)
+	var patchResp patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", uploadResp.Token.ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &patchResp)
+
+	var appsResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appsResp, "fleet_id", fmt.Sprint(team.ID))
+	require.NotEmpty(t, appsResp.AppStoreApps)
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	t.Cleanup(func() {
+		appCfg.MDM.EnabledAndConfigured = true
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+	})
+
+	res := s.Do("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusBadRequest, "fleet_id", fmt.Sprint(team.ID))
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "1",
+		Platform:   fleet.MacOSPlatform,
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
+	}, http.StatusBadRequest, "team_name", team.Name)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

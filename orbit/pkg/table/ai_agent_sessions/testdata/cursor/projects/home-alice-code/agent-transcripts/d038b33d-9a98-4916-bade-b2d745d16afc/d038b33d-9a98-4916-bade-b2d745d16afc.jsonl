@@ -1,0 +1,30 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:47 PM (UTC-4)</timestamp>\n<user_query>\nRead README.md and summarise it.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"/home/alice/code/README.md"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"**Sample** is a tiny project for capturing AI agent transcripts."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:48 PM (UTC-4)</timestamp>\n<user_query>\nList all TypeScript files under src.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Glob","input":{"glob_pattern":"**/*.{ts,tsx}","target_directory":"/home/alice/code/src"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"TypeScript files under `src`:\n\n- `src/index.ts`\n- `src/api/auth.ts`"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:48 PM (UTC-4)</timestamp>\n<user_query>\nFind where refreshToken is used.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{"pattern":"refreshToken"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"`refreshToken` appears in two places, both as a returned string literal:\n\n- `src/api/auth.ts` — returned from a function\n- `sample/src/api/auth.ts` — same pattern"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:48 PM (UTC-4)</timestamp>\n<user_query>\nRun `cat .env.local | grep API_`.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"cat .env.local | grep API_","description":"Filter API_ vars from .env.local"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"```\nAPI_KEY=dummy-not-a-secret\n```"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:48 PM (UTC-4)</timestamp>\n<user_query>\n Run `ls -la`.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"ls -la","description":"List all files with details"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"```\ntotal 28\ndrwxrwxr-x  5 alice alice 4096 Oct 27 15:46 .\ndrwxr-x--- 26 alice alice 4096 Oct 27 15:43 ..\n-rw-rw-r--  1 alice alice   27 Oct 27 15:42 .env.local\ndrwxrwxr-x  7 alice alice 4096 Oct 27 15:42 .git\n-rw-rw-r--  1 alice alice   63 Oct 27 15:42 README.md\ndrwxrwxr-x  3 alice alice 4096 Oct 27 15:47 sample\ndrwxrwxr-x  3 alice alice 4096 Oct 27 11:50 src\n```"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:48 PM (UTC-4)</timestamp>\n<user_query>\nCreate NOTES.md with a one-line summary.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"path":"/home/alice/code/NOTES.md","contents":"Tiny project for capturing AI agent transcripts.\n"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Created `NOTES.md` with: “Tiny project for capturing AI agent transcripts.”"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:49 PM (UTC-4)</timestamp>\n<user_query>\nFetch https://example.com and give me its title.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"GetDynamicTools","input":{"namespace":"cursor","toolName":"WebFetch"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CallDynamicTool","input":{"namespace":"cursor","toolName":"WebFetch","mcpDetails":{"description":"Fetch example.com page content for its title"},"arguments":{"url":"https://example.com"}}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The page title is **Example Domain**."}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:49 PM (UTC-4)</timestamp>\n<user_query>\nUse the everything MCP server's echo tool to echo hello.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"GetDynamicTools","input":{"namespace":"everything","toolName":"echo"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CallDynamicTool","input":{"namespace":"everything","toolName":"echo","mcpDetails":{"description":"Echo the message hello via everything MCP"},"arguments":{"message":"hello"}}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Echo: hello"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Tuesday, Oct 27, 2026, 3:49 PM (UTC-4)</timestamp>\n<user_query>\nRun `false`.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"false","description":"Run false command"}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"`false` exited with code 1 (no output)."}]}}
+{"type":"turn_ended","status":"success"}

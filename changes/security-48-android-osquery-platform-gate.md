@@ -1,1 +1,0 @@
-- Osquery API endpoints now validate that the authenticating host runs on a platform that supports osquery.

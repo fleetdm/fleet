@@ -1,1 +1,0 @@
-- Fixed the `santa_status` table running `/usr/local/bin/santactl` as root, which let a user who can write to `/usr/local/bin` run code as root. The table now runs the binary inside `/Applications/Santa.app`.

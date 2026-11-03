@@ -117,8 +117,10 @@ jobs:
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
           TRIVY_SECRET_CONFIG: "./security/code/trivy-secret.yaml"
         with:
           scan-type: "fs"

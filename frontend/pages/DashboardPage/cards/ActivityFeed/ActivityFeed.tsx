@@ -1,5 +1,5 @@
 import { isEmpty } from "lodash";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
@@ -253,14 +253,14 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      onSuccess: () => {
-        setShowActivityFeedTitle(true);
-      },
-      onError: () => {
-        setShowActivityFeedTitle(true);
-      },
     }
   );
+
+  useLayoutEffect(() => {
+    if (activitiesData || errorActivities) {
+      setShowActivityFeedTitle(true);
+    }
+  }, [activitiesData, errorActivities, setShowActivityFeedTitle]);
 
   setRefetchActivities(refetch);
 
@@ -529,6 +529,7 @@ const ActivityFeed = ({
             actorFullName: vppInstallDetails.actor_full_name,
             fleetInitiated: vppInstallDetails.fleet_initiated,
             selfService: vppInstallDetails.self_service,
+            vppTokenLocation: vppInstallDetails.vpp_token?.location,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

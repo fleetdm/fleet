@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -13,6 +14,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -46,11 +48,21 @@ const DeleteConditionalAccessModal = ({
   config,
 }: IDeleteConditionalAccessModal) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const providerName =
     provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
 
+  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
+  // while this confirmation is open, block the write here so a stale open
+  // modal can't bypass the card-level gate. Entra deletion hits a separate
+  // table, not AppConfig, so leave it alone.
+  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+
   const handleDelete = async () => {
+    if (oktaBlockedByGitOps) {
+      return;
+    }
     setIsDeleting(true);
     try {
       let updatedConfig;
@@ -132,7 +144,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting}
+          disabled={isDeleting || oktaBlockedByGitOps}
         >
           Delete
         </Button>
@@ -157,7 +169,11 @@ enum EntraPhase {
   ConsentMissing = "consent-missing",
 }
 
-const ConditionalAccess = () => {
+interface IConditionalAccessProps {
+  router: InjectedRouter;
+}
+
+const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
@@ -362,19 +378,30 @@ const ConditionalAccess = () => {
     let oktaCta: React.JSX.Element;
     if (oktaConfigured) {
       oktaCta = (
-        <GitOpsModeTooltipWrapper
-          renderChildren={(disableChildren) => (
-            <Button
-              variant="subdued"
-              onClick={handleOktaDelete}
-              icon="trash"
-              iconPosition="right"
-              disabled={disableChildren}
-            >
-              Delete
-            </Button>
-          )}
-        />
+        <div className={`${baseClass}__card-actions`}>
+          <Button
+            variant="subdued"
+            onClick={() =>
+              router.push(paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA)
+            }
+            icon="pencil"
+          >
+            Edit
+          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="subdued"
+                onClick={handleOktaDelete}
+                icon="trash"
+                iconPosition="right"
+                disabled={disableChildren}
+              >
+                Delete
+              </Button>
+            )}
+          />
+        </div>
       );
     } else {
       // Connect stays enabled; the modal gates its own Save.

@@ -409,6 +409,66 @@ describe("ManageHostsPage", () => {
     }
   });
 
+  it("sends the App Store app version filter from the URL with the host list and count requests", async () => {
+    let listedVersionId: string | null = null;
+    let countedVersionId: string | null = null;
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      http.get(baseUrl("/hosts"), ({ request }) => {
+        listedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ hosts: [] });
+      }),
+      http.get(baseUrl("/hosts/count"), ({ request }) => {
+        countedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ count: 0 });
+      })
+    );
+
+    const premiumAdminContext = {
+      ...mockAppContext,
+      isPremiumTier: true,
+      isFreeTier: false,
+      availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+      setCurrentTeam: jest.fn(),
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: premiumAdminContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search:
+          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5",
+        hash: "",
+        query: {
+          fleet_id: "1",
+          software_title_id: "12",
+          software_status: "failed",
+          app_store_app_version_id: "5",
+        },
+      },
+    });
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // open the hosts page filtered by an App Store app version, both requests should filter by that version
+    await waitFor(() => expect(listedVersionId).toBe("5"));
+    await waitFor(() => expect(countedVersionId).toBe("5"));
+  });
+
   it("renders filtered empty state with enabled controls", async () => {
     setupHandlers(0);
     const render = createCustomRenderer({
@@ -488,8 +548,8 @@ describe("ManageHostsPage", () => {
       status: "online",
       platform: "darwin",
       os_version: "macOS 14.0",
-      team_id: null,
-      team_name: null,
+      fleet_id: null,
+      fleet_name: null,
       primary_ip: "192.168.1.1",
       primary_mac: "00:00:00:00:00:00",
       seen_time: "2024-01-01T00:00:00Z",
@@ -520,6 +580,69 @@ describe("ManageHostsPage", () => {
     ).not.toBeDisabled();
   });
 
+  it.each([
+    { tier: "Free", isPremiumTier: false, hasSelection: false },
+    { tier: "Premium", isPremiumTier: true, hasSelection: true },
+  ])(
+    "offers host selection for bulk delete to a technician on Fleet $tier: $hasSelection",
+    async ({ isPremiumTier, hasSelection }) => {
+      setupHandlers(1, [
+        {
+          id: 1,
+          hostname: "test-host",
+          display_name: "test-host",
+          status: "online",
+          platform: "darwin",
+          fleet_id: 1,
+          fleet_name: "Workstations",
+          issues: { total_issues_count: 0, failing_policies_count: 0 },
+        },
+      ]);
+      mockServer.use(
+        http.get(baseUrl("/fleets"), () => {
+          return HttpResponse.json({
+            teams: [{ id: 1, name: "Team 1", description: "" }],
+          });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            isPremiumTier,
+            isFreeTier: !isPremiumTier,
+            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+            setCurrentTeam: jest.fn(),
+            isGlobalAdmin: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      // Free redirects away any fleet_id; Premium waits for a valid one.
+      const fleetId = isPremiumTier ? "1" : undefined;
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: fleetId ? `?fleet_id=${fleetId}` : "",
+          hash: "",
+          query: fleetId ? { fleet_id: fleetId } : {},
+        },
+      });
+      render(<ManageHostsPage {...(props as any)} />);
+
+      expect(await screen.findByText("1 host")).toBeInTheDocument();
+      expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
+
+      // The Fleet column reads fleet_name and only exists on Premium. The table re-renders when the fleets load, so retry.
+      await waitFor(() => {
+        expect(screen.queryByText("Workstations") !== null).toBe(isPremiumTier);
+      });
+    }
+  );
+
   it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
     const mockHost = {
       id: 1,
@@ -529,8 +652,8 @@ describe("ManageHostsPage", () => {
       status: "online",
       platform: "darwin",
       os_version: "macOS 14.0",
-      team_id: null,
-      team_name: null,
+      fleet_id: null,
+      fleet_name: null,
       seen_time: "2024-01-01T00:00:00Z",
       issues: { total_issues_count: 0, failing_policies_count: 0 },
     };

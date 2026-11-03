@@ -18,6 +18,7 @@ import decodeBase64Utf8 from "utilities/base64";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 import formatJsonForDisplay from "utilities/json_format";
+import decodePlistDataForDisplay from "utilities/plist_format";
 
 const baseClass = "command-details-modal";
 
@@ -216,7 +217,9 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={formatJsonForDisplay(result.payload)}
+          value={formatJsonForDisplay(
+            decodePlistDataForDisplay(result.payload)
+          )}
           readOnly
           enableCopy
           disableResize

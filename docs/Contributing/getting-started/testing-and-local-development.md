@@ -19,8 +19,8 @@
     - [Command line](#command-line)
   - [Test hosts](#test-hosts)
   - [Email](#email)
-    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
-      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+    - [Manually testing email with Mailpit](#manually-testing-email-with-mailpit)
+      - [Mailpit SMTP server without authentication](#mailpit-smtp-server-without-authentication)
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
@@ -42,7 +42,6 @@
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
-    - [Nudge](#nudge)
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
@@ -178,7 +177,7 @@ MYSQL_TEST=1 make test-go
 
 ### Email tests
 
-To run email related integration tests using MailHog set environment as follows:
+To run email related integration tests using the Mailpit and smtp4dev services, set environment as follows:
 
 ```sh
 MAIL_TEST=1 make test-go
@@ -288,9 +287,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog and Mailpit
+### Manually testing email with Mailpit
 
-#### MailHog SMTP server without authentication
+#### Mailpit SMTP server without authentication
+
+This runs as the `mailhog` service in `docker-compose.yml`. The service name is kept for backwards compatibility, but it runs Mailpit.
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
@@ -300,7 +301,7 @@ Then, in the "SMTP options" section, set:
 - "Use SSL/TLS to connect (recommended)" to unchecked. 
 - "Authentication type" to `None`.
 
-Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 #### Mailpit SMTP server with plain authentication
 
@@ -479,7 +480,7 @@ awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_RE
 
 The following guide assumes you have server dependencies running:
 ```sh
-docker-compose up
+docker compose --profile localstack up
 #
 # (Starts LocalStack with kinesis enabled.)
 #
@@ -1077,6 +1078,16 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
 7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
+## AI configuration profile autofill
+
+The autofill configuration profile endpoints call the configuration profile generator on `https://fleetdm.com`. To test against a local or preview website instead, start the server in dev mode with `FLEET_DEV_AI_AUTOFILL_BASE_URL` set to the website's base URL:
+
+```sh
+FLEET_DEV_AI_AUTOFILL_BASE_URL="http://localhost:2024" ./build/fleet serve --dev
+```
+
+The variable is ignored without `--dev`. Pointing it at an unreachable URL exercises the AI service failure path.
+
 ## MDM setup and testing
 
 To run your local server with the MDM features enabled, you need to get certificates and keys.
@@ -1177,36 +1188,6 @@ mdm:
 > Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
 
 The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
-
-### Nudge
-
-We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Fleetd:
-
-1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
-2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
-3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
-
-#### Debugging tips
-
-- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
-
-```sh
-open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
-```
-
-- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
-
-- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
-
-```sh
-log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
-```
-
-- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
-
-```sh
-open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
-```
 
 ### Bootstrap package
 

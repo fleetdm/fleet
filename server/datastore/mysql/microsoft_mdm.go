@@ -483,8 +483,20 @@ func (ds *Datastore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, e
 // device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
 // safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.
 func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	if hardwareSerial == "" {
-		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty hardware serial"))
+	return ds.getUnlinkedWindowsEnrolledDeviceBy(ctx, "hardware_serial", hardwareSerial)
+}
+
+// MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID is MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial keyed on
+// the Autopilot device ID the device supplied at enrollment.
+func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	return ds.getUnlinkedWindowsEnrolledDeviceBy(ctx, "ztd_registration_id", ztdRegistrationID)
+}
+
+// getUnlinkedWindowsEnrolledDeviceBy looks up the single unlinked enrollment whose column equals value. column is always a
+// constant from the callers above, and each is indexed.
+func (ds *Datastore) getUnlinkedWindowsEnrolledDeviceBy(ctx context.Context, column, value string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	if value == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty "+column))
 	}
 	stmt := `SELECT
 		id,
@@ -509,15 +521,15 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		updated_at,
 		host_uuid
 		FROM mdm_windows_enrollments
-		WHERE hardware_serial = ? AND host_uuid = ''
+		WHERE ` + column + ` = ? AND host_uuid = ''
 		LIMIT 2`
 
 	var devices []fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, hardwareSerial); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, value); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unlinked windows enrolled device by "+column)
 	}
 	if len(devices) != 1 {
-		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(value))
 	}
 	return &devices[0], nil
 }
@@ -998,10 +1010,17 @@ func truncateMDMWindowsProfileDetail(detail string) string {
 	return str.TruncateBytes(detail, maxMDMWindowsProfileDetailLen, "... (truncated)")
 }
 
+// RefreshMDMWindowsProfilesStatusRollup recomputes the per-host profile status rollup for the given hosts, one autocommit statement
+// per batch so no locks are held across batches.
+func (ds *Datastore) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	return updateWindowsProfilesStatusRollupDB(ctx, ds.writer(ctx), hostUUIDs, true)
+}
+
 // MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
 // and upserts their profile tracking rows. The command must already exist in
 // windows_mdm_commands (inserted via MDMWindowsBulkInsertCommands or
-// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts).
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts). The per-host profile status rollup is not refreshed here: recomputing it
+// per command re-aggregates every profile row of the hosts each time, so the caller refreshes it once per host window instead.
 func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1094,10 +1113,6 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 			)
 			if _, err := tx.ExecContext(ctx, profileStmt, profileArgs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
-			}
-
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
 
 			return nil
@@ -1282,23 +1297,51 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.E
 	return allIDs, err
 }
 
-// getEnrollmentIDsByHostUUIDOrDeviceIDDB fetches enrollment IDs using a
-// per-row SELECT that supports both host_uuid and mdm_device_id lookups.
-// Used by the general-purpose command insertion path (typically 1-2 IDs).
+// getEnrollmentIDsByHostUUIDOrDeviceIDDB resolves each host UUID or MDM device ID to its latest enrollment (by created_at, then id),
+// skipping identifiers that match no enrollment. The result follows the order of the input.
 func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string) ([]uint, error) {
-	var allIDs []uint
-	for _, id := range hostUUIDsOrDeviceIDs {
-		var eid uint
-		err := sqlx.GetContext(ctx, tx, &eid,
-			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-			id, id)
+	type enrollmentRow struct {
+		ID          uint      `db:"id"`
+		HostUUID    string    `db:"host_uuid"`
+		MDMDeviceID string    `db:"mdm_device_id"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+
+	allIDs := make([]uint, 0, len(hostUUIDsOrDeviceIDs))
+	err := common_mysql.BatchProcessSimple(hostUUIDsOrDeviceIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(
+			`SELECT id, host_uuid, mdm_device_id, created_at FROM mdm_windows_enrollments WHERE host_uuid IN (?) OR mdm_device_id IN (?)`,
+			batch, batch,
+		)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue // host not enrolled, skip
-			}
-			return nil, ctxerr.Wrap(ctx, err, "looking up enrollment ID")
+			return ctxerr.Wrap(ctx, err, "building enrollment lookup")
 		}
-		allIDs = append(allIDs, eid)
+		var rows []enrollmentRow
+		if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "looking up enrollment IDs")
+		}
+
+		latest := make(map[string]enrollmentRow, len(batch))
+		consider := func(key string, row enrollmentRow) {
+			if cur, ok := latest[key]; !ok || row.CreatedAt.After(cur.CreatedAt) ||
+				(row.CreatedAt.Equal(cur.CreatedAt) && row.ID > cur.ID) {
+				latest[key] = row
+			}
+		}
+		// The columns are utf8mb4_unicode_ci, so the match here has to be case-insensitive too.
+		for _, row := range rows {
+			consider(strings.ToLower(row.HostUUID), row)
+			consider(strings.ToLower(row.MDMDeviceID), row)
+		}
+		for _, id := range batch {
+			if row, ok := latest[strings.ToLower(id)]; ok {
+				allIDs = append(allIDs, row.ID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return allIDs, nil
 }
@@ -1661,11 +1704,11 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// Soft-dequeue the commands we just recorded results for: stamp acked_at on exactly those queue rows, in the
-		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. This is
-		// the ONLY path that inserts windows_mdm_command_results; any new results-insert path must stamp acked_at too,
-		// or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC range-deletes
-		// stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age floor is
-		// measured from the original acknowledgment.
+		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. The only
+		// other path that inserts windows_mdm_command_results, MDMWindowsFailUndeliverableCommand, does the same; any new
+		// one must too, or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC
+		// range-deletes stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age
+		// floor is measured from the original acknowledgment.
 		//
 		// The has_pending_commands recompute deliberately does NOT happen here: it runs at most once per OMA-DM session (in
 		// getManagementResponse, when the reply-building pending-commands fetch finds no non-poll commands remaining and the flag was
@@ -1688,8 +1731,92 @@ ON DUPLICATE KEY UPDATE
 	return result, nil
 }
 
+// MDMWindowsFailUndeliverableCommand records a failed result, with reason as its response, for a pending command Fleet can't
+// deliver to the enrollment, so it leaves the queue instead of staying pending. A profile behind the command is failed or
+// retried as if the device had rejected it. It does nothing if the command is no longer pending.
+func (ds *Datastore) MDMWindowsFailUndeliverableCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID, reason string) error {
+	if enrolledDevice == nil {
+		return ctxerr.New(ctx, "enrolled device is nil")
+	}
+	rawResponse, err := fabricateWindowsFailureResponse(commandUUID, reason)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building undeliverable command response")
+	}
+	compressedResp, err := compressWindowsMDMResponse(rawResponse)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "compressing undeliverable command response")
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Stamped first so that a concurrent session that already recorded the command leaves nothing to record.
+		res, err := tx.ExecContext(ctx,
+			`UPDATE windows_mdm_command_queue SET acked_at = NOW(6) WHERE enrollment_id = ? AND command_uuid = ? AND acked_at IS NULL`,
+			enrolledDevice.ID, commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "stamp acked_at on undeliverable command")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+
+		res, err = tx.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`,
+			enrolledDevice.ID, compressedResp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "saving undeliverable command response")
+		}
+		responseID, _ := res.LastInsertId()
+		const insertResultStmt = `
+INSERT INTO windows_mdm_command_results
+    (enrollment_id, command_uuid, raw_result, response_id, status_code)
+VALUES (?, ?, '', ?, ?)
+ON DUPLICATE KEY UPDATE
+    raw_result = VALUES(raw_result),
+    response_id = VALUES(response_id),
+    status_code = VALUES(status_code),
+    updated_at = CURRENT_TIMESTAMP
+`
+		if _, err := tx.ExecContext(ctx, insertResultStmt, enrolledDevice.ID, commandUUID, responseID, syncml.CmdStatusBadRequest); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting undeliverable command result")
+		}
+
+		// Profiles are tracked per host, so an enrollment not linked to one yet has none.
+		if enrolledDevice.HostUUID == "" {
+			return nil
+		}
+		failed := fleet.MDMDeliveryFailed
+		payload := &fleet.MDMWindowsProfilePayload{HostUUID: enrolledDevice.HostUUID, CommandUUID: commandUUID, Status: &failed, Detail: reason}
+		if _, err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, []*fleet.MDMWindowsProfilePayload{payload},
+			microsoft_mdm.WindowsUserContextStateFromDevice(enrolledDevice), microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID)); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profile status for undeliverable command")
+		}
+		return nil
+	})
+}
+
+// xmlTextEscaper escapes only what element content requires. xml.EscapeText also escapes quotes, which shows up as "can&#39;t"
+// where the raw response is displayed.
+var xmlTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+
+// fabricateWindowsFailureResponse builds the response Fleet records in the device's place for a command it couldn't deliver: a
+// failed <Status> carrying the reason, in a SyncML envelope like a device's response.
+func fabricateWindowsFailureResponse(commandUUID, reason string) ([]byte, error) {
+	msg := fleet.SyncML{
+		Xmlns:   syncml.SyncCmdNamespace,
+		SyncHdr: fleet.SyncHdr{VerDTD: syncml.SyncMLSupportedVersion, VerProto: syncml.SyncMLVerProto},
+	}
+	msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		CmdID:   fleet.CmdID{Value: "1"},
+		CmdRef:  &commandUUID,
+		Data:    new(syncml.CmdStatusBadRequest),
+		// RawXmlData is inner XML, so the reason is escaped here.
+		Items: []fleet.CmdItem{{Data: &fleet.RawXmlData{Content: xmlTextEscaper.Replace(reason)}}},
+	})
+	return xml.Marshal(msg)
+}
+
 // renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
-// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep).
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, Smallstep, or conditional access).
 func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
 	if len(profileUUIDs) == 0 {
 		return nil, nil
@@ -1903,15 +2030,17 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 // SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
 // today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
-// back in the pending state so the profile manager redelivers it on its next tick.
-func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
-	var retried bool
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", detail)
+// back in the pending state so the profile manager redelivers it on its next tick. With onlyIfVerifying, only a
+// delivery the host acknowledged and is still verifying is charged.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string,
+	onlyIfVerifying bool,
+) (changed bool, retried bool, err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		c, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
 		if err != nil {
 			return err
 		}
-		retried = r
+		changed, retried = c, r
 		if !changed {
 			return nil
 		}
@@ -1922,27 +2051,32 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	return retried, nil
+	return changed, retried, nil
 }
 
 // failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
 // it failed otherwise. When verifyingCmdUUID is set, the row is only touched while it is still "verifying" for that
-// install command, so a failure reported about an earlier delivery can't charge a newer one. The caller refreshes the
-// rollup when changed is true.
-func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID, detail string,
+// install command, so a failure reported about an earlier delivery can't charge a newer one. onlyIfVerifying requires
+// "verifying" without naming the command. The caller refreshes the rollup when changed is true.
+func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID string,
+	onlyIfVerifying bool, detail string,
 ) (changed bool, retried bool, err error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
 	loadStmt := `
-		SELECT status, retries
+		SELECT status, retries, COALESCE(detail, '') AS detail
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
 	if verifyingCmdUUID != "" {
-		loadStmt += ` AND command_uuid = ? AND status = ?`
-		loadArgs = append(loadArgs, verifyingCmdUUID, fleet.MDMDeliveryVerifying)
+		loadStmt += ` AND command_uuid = ?`
+		loadArgs = append(loadArgs, verifyingCmdUUID)
+	}
+	if verifyingCmdUUID != "" || onlyIfVerifying {
+		loadStmt += ` AND status = ?`
+		loadArgs = append(loadArgs, fleet.MDMDeliveryVerifying)
 	}
 	loadStmt += ` FOR UPDATE`
 
@@ -1959,6 +2093,7 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 	var row struct {
 		Status  *fleet.MDMDeliveryStatus `db:"status"`
 		Retries uint                     `db:"retries"`
+		Detail  string                   `db:"detail"`
 	}
 	switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, loadArgs...); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -1978,6 +2113,8 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 			return false, false, ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
 		}
 		return true, true, nil
+	case *row.Status == fleet.MDMDeliveryFailed && row.Detail == truncateMDMWindowsProfileDetail(detail):
+		return false, false, nil
 	default:
 		if _, err := tx.ExecContext(
 			ctx, failStmt,
@@ -2027,7 +2164,23 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-	query := `SELECT
+	// The enrollments come from the command's results, plus the ones still waiting in its queue (acked_at IS NULL), which report as
+	// pending even when other enrollments already replied. Every join after that is on the full (enrollment_id, command_uuid) key.
+	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
+	var queueHostFilter, resultsHostFilter string
+	var args []any
+	if hostUUID != "" {
+		queueHostFilter = fmt.Sprintf(hostFilter, "wmcq")
+		resultsHostFilter = fmt.Sprintf(hostFilter, "wmcr")
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID)
+	if hostUUID != "" {
+		args = append(args, hostUUID)
+	}
+	args = append(args, commandUUID, commandUUID)
+
+	query := fmt.Sprintf(`SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(wmcr.status_code, '101') AS status,
@@ -2040,21 +2193,16 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
     wmc.raw_command AS payload
 FROM
     windows_mdm_commands wmc
-    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+    JOIN (
+        SELECT wmcq.enrollment_id FROM windows_mdm_command_queue wmcq%s WHERE wmcq.command_uuid = ? AND wmcq.acked_at IS NULL
+        UNION
+        SELECT wmcr.enrollment_id FROM windows_mdm_command_results wmcr%s WHERE wmcr.command_uuid = ?
+    ) pairs ON TRUE
+    JOIN mdm_windows_enrollments mwe ON mwe.id = pairs.enrollment_id
+    LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid AND wmcr.enrollment_id = pairs.enrollment_id
     LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
-    LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
-    LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
-        wmcr.enrollment_id,
-        wmcq.enrollment_id
-    )
 WHERE
-    wmc.command_uuid = ?`
-
-	args := []any{commandUUID}
-	if hostUUID != "" {
-		query += " AND mwe.host_uuid = ?"
-		args = append(args, hostUUID)
-	}
+    wmc.command_uuid = ?`, queueHostFilter, resultsHostFilter)
 
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
@@ -2309,6 +2457,10 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
+	if mdmInfo == nil {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host without mdm info", "host_id", host.ID)
+		return nil, nil
+	}
 
 	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
@@ -2325,6 +2477,12 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
+	// Like the summary and the list filters, ignore hosts that are not connected to Fleet MDM (for example, third-party MDM).
+	if !mdmInfo.ConnectedToFleet {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host not connected to fleet mdm", "host_id", host.ID)
+		return nil, nil
+	}
+
 	stmt := fmt.Sprintf(
 		`
 SELECT
@@ -2336,7 +2494,11 @@ SELECT
 		WHEN (%s) THEN '%s'
 		ELSE ''
 	END AS status,
-	COALESCE(client_error, '') as detail,
+	CASE
+		WHEN COALESCE(client_error, '') != '' THEN client_error
+		WHEN hdek.decryptable = 0 AND hdek.base64_encrypted != '' THEN ?
+		ELSE ''
+	END AS detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
 	hd.bitlocker_boot_protector_set,
@@ -2369,7 +2531,7 @@ WHERE
 		ProtectionError   string                     `db:"bitlocker_protection_error"`
 		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.BitLockerKeyUndecryptableDetail, host.ID); err != nil {
 		if err != sql.ErrNoRows {
 			return &fleet.HostMDMDiskEncryption{}, err
 		}

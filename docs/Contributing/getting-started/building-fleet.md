@@ -152,6 +152,8 @@ To set up a canonical development environment via Docker, run the following from
 docker compose up
 ```
 
+LocalStack and Azurite are behind [Compose profiles](https://docs.docker.com/compose/how-tos/profiles/) and don't start by default. To start them, run `docker compose --profile localstack --profile azurite up` (or set `COMPOSE_PROFILES=localstack,azurite`).
+
 > Note: you can customize the DB Docker image via the environment variables FLEET_MYSQL_IMAGE and FLEET_MYSQL_PLATFORM. For example:
 > - MySQL runs on your host's native architecture by default. To force a platform (for example, to emulate amd64 on Apple silicon), set FLEET_MYSQL_PLATFORM=linux/amd64.
 > - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not officially supported).
