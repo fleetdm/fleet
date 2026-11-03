@@ -2256,8 +2256,8 @@ func TestHostAuth(t *testing.T) {
 
 // TestHostByIdentifierGitOpsGetsIDOnly asserts that GitOps, which is denied on
 // every other host read endpoint, doesn't get host details from the identifier
-// endpoint either: it only gets the host id it needs to resolve an identifier
-// for the deprecated Puppet module's profile pre-assignment flow.
+// endpoint either: it only gets the host id, a documented permission kept for
+// compatibility.
 func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
