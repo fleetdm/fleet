@@ -230,20 +230,30 @@ func patchedQueryPasses(ctx context.Context, patchedQuery string) (bool, error) 
 	return len(rows) > 0, nil
 }
 
-// patchedQueryFailure explains a patched query that fails right after the
-// expected version was installed, and names the fix.
-func patchedQueryFailure(expectedVersion, foundVersion, foundBundledVersion string) string {
-	if foundVersion != "" && strings.HasPrefix(expectedVersion, foundVersion+".") {
-		return fmt.Sprintf("osquery reports bundle_short_version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or compare bundle_version in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go if it carries the full version.", foundVersion, expectedVersion)
-	}
-	return fmt.Sprintf("the patched query returns no rows with version '%s' installed (bundle_short_version '%s', bundle_version '%s'), so the patch policy would fail on hosts that have this version. Transform the version to match bundle_short_version in ee/maintained-apps/ingesters/homebrew/external_refs, or compare the column that carries it in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go.", expectedVersion, foundVersion, foundBundledVersion)
+// looseMatch is a version match on something other than bundle_short_version:
+// bundle_version, a concatenation, or a shorter version.
+type looseMatch struct {
+	shortVersion   string
+	bundledVersion string
 }
 
-// appExists reports whether the app is installed at the expected version. When
-// only a looser match than bundle_short_version is found, the manifest's patched
-// query must also pass, or it returns an error that names the fix. The second
-// value is always empty because the app is always found in apps, the table the
-// exists query reads.
+// patchedQueryFailure explains a patched query that fails right after the
+// expected version was installed, and names the fix. loose is nil when a
+// bundle_short_version matched exactly.
+func patchedQueryFailure(expectedVersion string, loose *looseMatch) string {
+	if loose == nil {
+		return fmt.Sprintf("bundle_short_version matches '%s', but the patched query returns no rows, so the patch policy would fail on hosts that have this version. Usually another copy with the same bundle identifier reports an older version (see the Found app lines above): exclude its path in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go, as Docker Desktop and Microsoft Edge do. Otherwise, the patched query compares a column that doesn't carry this version.", expectedVersion)
+	}
+	if loose.shortVersion != "" && strings.HasPrefix(expectedVersion, loose.shortVersion+".") {
+		return fmt.Sprintf("osquery reports bundle_short_version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or compare bundle_version in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go if it carries the full version.", loose.shortVersion, expectedVersion)
+	}
+	return fmt.Sprintf("the patched query returns no rows with version '%s' installed (bundle_short_version '%s', bundle_version '%s'), so the patch policy would fail on hosts that have this version. Transform the version to match bundle_short_version in ee/maintained-apps/ingesters/homebrew/external_refs, or compare the column that carries it in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go.", expectedVersion, loose.shortVersion, loose.bundledVersion)
+}
+
+// appExists reports whether the app is installed at the expected version. The
+// manifest's patched query must also pass, or it returns an error that names
+// the fix. The second value is always empty because the app is always found in
+// apps, the table the exists query reads.
 func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, patchedQuery, appPath, _ string) (bool, string, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -289,10 +299,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
-	type looseMatch struct {
-		shortVersion   string
-		bundledVersion string
-	}
+	var exact bool
 	var loose *looseMatch
 	if len(results) > 0 {
 		for _, result := range results {
@@ -396,28 +403,28 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				if shortVersion == appVersion {
-					return true, "", nil
-				}
-				// A later row may still match exactly, so keep looking.
-				if loose == nil {
+					exact = true
+				} else if loose == nil {
 					loose = &looseMatch{shortVersion: shortVersion, bundledVersion: result.BundledVersion}
 				}
 			}
 		}
 	}
 
-	if loose == nil {
+	if !exact && loose == nil {
 		return false, "", nil
 	}
-	// The default patched query compares bundle_short_version, so a match on
-	// anything else (bundle_version, a concatenation, a shorter version) can hide
-	// a patch policy that fails on hosts with this version installed.
+	// Even an exact match can hide a failing patch policy: an older copy with the
+	// same bundle identifier fails the default query on every host that has it.
 	passes, err := patchedQueryPasses(ctx, patchedQuery)
 	if err != nil {
 		return false, "", err
 	}
 	if !passes {
-		return false, "", errors.New(patchedQueryFailure(appVersion, loose.shortVersion, loose.bundledVersion))
+		if exact {
+			return false, "", errors.New(patchedQueryFailure(appVersion, nil))
+		}
+		return false, "", errors.New(patchedQueryFailure(appVersion, loose))
 	}
 	return true, "", nil
 }

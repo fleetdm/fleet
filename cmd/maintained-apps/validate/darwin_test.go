@@ -78,6 +78,7 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 		return fmt.Sprintf(`{"name":"Example","path":"/Applications/Example.app","bundle_short_version":%q,"bundle_version":%q}`, short, bundle)
 	}
 	const noRows = "[\n\n]\n"
+	const oneRow = `[{"1":"1"}]`
 
 	testCases := []struct {
 		name        string
@@ -91,9 +92,11 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 		wantErr     string
 	}{
 		{
-			name:       "short version matches",
-			rows:       row("6.7.0.3", ""),
-			wantExists: true,
+			name:        "short version matches",
+			rows:        row("6.7.0.3", ""),
+			patchedRows: oneRow,
+			wantExists:  true,
+			wantPatched: true,
 		},
 		{
 			name:        "shorter short version, patched query fails",
@@ -105,7 +108,7 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 		{
 			name:        "shorter short version, patched query compares bundle_version",
 			rows:        row("6.7.0", "270352"),
-			patchedRows: `[{"1":"1"}]`,
+			patchedRows: oneRow,
 			wantExists:  true,
 			wantPatched: true,
 		},
@@ -124,9 +127,25 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 			wantErr:     "bundle_short_version '', bundle_version '6.7.0.3'",
 		},
 		{
-			name:       "stale shorter copy listed before the exact one",
-			rows:       row("6.7.0", "6.7.0") + "," + row("6.7.0.3", ""),
-			wantExists: true,
+			name:        "stale shorter copy listed before the exact one",
+			rows:        row("6.7.0", "6.7.0") + "," + row("6.7.0.3", ""),
+			patchedRows: noRows,
+			wantPatched: true,
+			wantErr:     "bundle_short_version matches '6.7.0.3', but the patched query returns no rows",
+		},
+		{
+			name:        "stale older copy listed after the exact one",
+			rows:        row("6.7.0.3", "") + "," + row("6.6.2", "6.6.2"),
+			patchedRows: noRows,
+			wantPatched: true,
+			wantErr:     "another copy with the same bundle identifier",
+		},
+		{
+			name:        "stale copy excluded by the patched query",
+			rows:        row("6.7.0.3", "") + "," + row("6.7.0", "6.7.0"),
+			patchedRows: oneRow,
+			wantExists:  true,
+			wantPatched: true,
 		},
 		{
 			name:        "patched query fails to run",
@@ -137,12 +156,14 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 		},
 		{
 			// MutateSoftwareOnIngestion strips the "v", but the patched query
-			// compares the raw column.
-			name:       "short version matches before sanitizing",
-			bundleID:   "com.raspberrypi.rpi-imager",
-			version:    "v6.7.0.3",
-			rows:       row("v6.7.0.3", "v6.7.0.3"),
-			wantExists: true,
+			// compares the raw column, so this is an exact match.
+			name:        "short version matches before sanitizing",
+			bundleID:    "com.raspberrypi.rpi-imager",
+			version:     "v6.7.0.3",
+			rows:        row("v6.7.0.3", "v6.7.0.3"),
+			patchedRows: noRows,
+			wantPatched: true,
+			wantErr:     "bundle_short_version matches 'v6.7.0.3'",
 		},
 		{
 			name: "no match",
