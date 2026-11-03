@@ -340,6 +340,16 @@ What to do: Run MDM commands, or lock, unlock, and wipe hosts, with a different 
 
 GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
+### GitOps users can't view hosts by identifier
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| GitOps users can get a host's `id` from `GET /api/v1/fleet/hosts/identifier/:identifier` | GitOps users get a 403 from [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) |
+
+What to do: If an integration uses a GitOps user's API token to look up hosts by identifier, switch it to a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) that can view hosts.
+
+GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
+
 ### Certificate authority names must be unique
 
 | Fleet 4 | Fleet 5 |
