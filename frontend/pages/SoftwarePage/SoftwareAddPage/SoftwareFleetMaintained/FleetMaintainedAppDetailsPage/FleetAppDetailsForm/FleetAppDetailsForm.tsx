@@ -6,6 +6,7 @@ import { useQuery } from "react-query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import { validateQuery } from "components/forms/validators/validate_query";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -185,6 +186,17 @@ const FleetAppDetailsForm = ({
     // mid-type. The warning is advisory: Save isn't gated on preInstallQuery
     // validity.
     setFormData({ ...formData, preInstallQuery: value });
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (
+      formValidation.preInstallQuery?.message &&
+      (!value || !validateQuery(value).error)
+    ) {
+      setFormValidation({
+        ...formValidation,
+        preInstallQuery: { isValid: true, message: "" },
+      });
+    }
   };
 
   const onBlurPreInstallQuery = () => {

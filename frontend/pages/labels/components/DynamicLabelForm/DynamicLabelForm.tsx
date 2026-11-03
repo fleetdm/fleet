@@ -52,6 +52,11 @@ const DynamicLabelForm = ({
 
   const onQueryChange = (newQuery: string) => {
     setQuery(newQuery);
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (queryError && !validateQuery(newQuery).error) {
+      setQueryError(null);
+    }
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error

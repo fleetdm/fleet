@@ -448,6 +448,12 @@ const NewLabelPage = ({
 
       return next;
     });
+
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (querySyntaxError && !validateQuery(newQuery).error) {
+      setQuerySyntaxError(null);
+    }
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error

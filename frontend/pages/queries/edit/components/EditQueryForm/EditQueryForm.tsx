@@ -291,9 +291,9 @@ const EditQueryForm = ({
 
   queryIdForEdit = queryIdForEdit || 0;
 
-  // Compute compatibility once the stored query lands. Validation and
-  // compatibility update on editor blur and on submit, not on every
-  // keystroke, so incomplete SQL doesn't flash "Syntax error" mid-type.
+  // Compute compatibility once the stored query lands. On-change updates
+  // happen in onChangeQuery; syntax validation runs on blur / submit, not
+  // on every keystroke, so incomplete SQL doesn't flash "Syntax error".
   useEffect(() => {
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
@@ -301,10 +301,9 @@ const EditQueryForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
 
-  const validateAndSetCompat = (sql: string) => {
+  const validateSqlOnBlur = (sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
     setErrors({ ...newErrors });
-    setCompatiblePlatforms(sql);
   };
 
   const toggleSaveNewQueryModal = () => {
@@ -340,6 +339,12 @@ const EditQueryForm = ({
   const onChangeQuery = (sqlString: string) => {
     setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
+    setCompatiblePlatforms(sqlString);
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (errors.query && validateQuery(sqlString).isValid) {
+      setErrors({ ...errors, query: undefined });
+    }
   };
 
   const frequencyOptions = useMemo(
@@ -777,7 +782,7 @@ const EditQueryForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
-            onBlur={() => validateAndSetCompat(lastEditedQueryBody)}
+            onBlur={() => validateSqlOnBlur(lastEditedQueryBody)}
             handleSubmit={
               confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }

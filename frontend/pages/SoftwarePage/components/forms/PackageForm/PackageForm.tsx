@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, useContext } from "react";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
+import { validateQuery } from "components/forms/validators/validate_query";
 import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
@@ -343,6 +344,17 @@ const PackageForm = ({
     // mid-type. The warning is advisory: Save isn't gated on preInstallQuery
     // validity.
     setFormData({ ...formData, preInstallQuery: value });
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (
+      formValidation.preInstallQuery?.message &&
+      (!value || !validateQuery(value).error)
+    ) {
+      setFormValidation({
+        ...formValidation,
+        preInstallQuery: { isValid: true, message: "" },
+      });
+    }
   };
 
   const onBlurPreInstallQuery = () => {

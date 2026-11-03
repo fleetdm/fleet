@@ -238,10 +238,9 @@ const PolicyForm = ({
     setCompatiblePlatforms,
   } = platformCompatibility;
 
-  const validateAndSetCompat = (sql: string) => {
+  const validateSqlOnBlur = (sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
     setErrors({ ...newErrors });
-    setCompatiblePlatforms(sql);
   };
 
   const platformSelectorDisabled =
@@ -381,9 +380,9 @@ const PolicyForm = ({
     }
   }, []);
 
-  // Compute compatibility once a policy loads. Validation and compatibility
-  // update on editor blur and on submit, not on every keystroke, so
-  // incomplete SQL doesn't flash "Syntax error" mid-type.
+  // Compute compatibility once a policy loads. On-change updates happen
+  // in onChangePolicySql; syntax validation runs on blur / submit, not on
+  // every keystroke, so incomplete SQL doesn't flash "Syntax error".
   useEffect(() => {
     if (
       (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
@@ -416,7 +415,13 @@ const PolicyForm = ({
 
   const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    setCompatiblePlatforms(sqlString);
     resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
+    // Clear a stale syntax error the moment the query parses again. Never
+    // set a new error here: new errors wait for blur / submit.
+    if (errors.query && validateQuery(sqlString).isValid) {
+      setErrors({ ...errors, query: undefined });
+    }
   };
 
   const onAddPatchAutomation = async () => {
@@ -888,7 +893,7 @@ const PolicyForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicySql}
-            onBlur={() => validateAndSetCompat(lastEditedQueryBody)}
+            onBlur={() => validateSqlOnBlur(lastEditedQueryBody)}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
