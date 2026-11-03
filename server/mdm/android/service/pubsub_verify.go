@@ -53,7 +53,10 @@ func (svc *Service) getAMAPIDevice(ctx context.Context, deviceName string) (*and
 	if err := svc.setAMAPIClientSecret(ctx); err != nil {
 		return nil, err
 	}
-	device, err := svc.androidAPIClient.EnterprisesDevicesGet(ctx, deviceName)
+	// No retry on 429: the retry client waits out the quota window, longer than Pub/Sub's ack
+	// deadline, so Pub/Sub would redeliver while this delivery is still running. Failing lets
+	// Pub/Sub's own backoff retry.
+	device, err := svc.androidAPIClient.EnterprisesDevicesGet(androidmgmt.WithoutRetry(ctx), deviceName)
 	switch {
 	case androidmgmt.IsNotFoundError(err):
 		return nil, nil
@@ -81,6 +84,10 @@ func (svc *Service) verifyAMAPIDevice(ctx context.Context, device *androidmanage
 	switch {
 	case amapiDevice == nil:
 		return svc.rejectPubSub(ctx, device, "device not found")
+	// AMAPI returns the canonical name; a different one means the lookup resolved a name that is
+	// not the device's own (e.g. one with extra characters the proxy drops).
+	case amapiDevice.Name != device.Name:
+		return svc.rejectPubSub(ctx, device, "device name differs")
 	case strings.EqualFold(amapiDevice.State, string(android.DeviceStateDeleted)):
 		return svc.rejectPubSub(ctx, device, "device is deleted")
 	case amapiDevice.HardwareInfo == nil || getAndroidHostKey(amapiDevice) != getAndroidHostKey(device):
@@ -117,6 +124,24 @@ func (svc *Service) verifyDeviceChange(ctx context.Context, host *fleet.AndroidH
 		return svc.rejectPubSub(ctx, device, "invalid device name")
 	}
 	if host.Device != nil && host.Device.DeviceID == deviceID {
+		return nil
+	}
+	return svc.verifyAMAPIDevice(ctx, device, false)
+}
+
+// verifyNewHostDevice checks an enrollment that would create a host for a device ID Fleet already
+// has, since creating the host moves that device record, and with it the device's commands and
+// policy, to the new host.
+func (svc *Service) verifyNewHostDevice(ctx context.Context, device *androidmanagement.Device) error {
+	deviceID, err := svc.getDeviceID(ctx, device)
+	if err != nil {
+		return svc.rejectPubSub(ctx, device, "invalid device name")
+	}
+	exists, err := svc.fleetDS.AndroidDeviceExistsByDeviceID(ctxdb.RequirePrimary(ctx, true), deviceID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for an existing android device")
+	}
+	if !exists {
 		return nil
 	}
 	return svc.verifyAMAPIDevice(ctx, device, false)
@@ -174,29 +199,64 @@ func (svc *Service) isCommandForCurrentDevice(ctx context.Context, cmd *android.
 	return deviceIDFromOperationName(cmd.OperationName) == host.Device.DeviceID, nil
 }
 
+// isCommandDeviceGone reports whether AMAPI no longer has the command's device as an active one.
+func (svc *Service) isCommandDeviceGone(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
+	deviceName, _, _ := strings.Cut(cmd.OperationName, "/operations/")
+	amapiDevice, err := svc.getAMAPIDevice(ctx, deviceName)
+	if err != nil {
+		return false, err
+	}
+	return amapiDevice == nil || strings.EqualFold(amapiDevice.State, string(android.DeviceStateDeleted)), nil
+}
+
+// shouldRerunWipeUnenroll reports whether a redelivered result for an acknowledged WIPE may re-run
+// the host's unenroll: the wipe must be for the host's current device, and that device must be
+// gone from AMAPI.
+func (svc *Service) shouldRerunWipeUnenroll(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
+	current, err := svc.isCommandForCurrentDevice(ctx, cmd)
+	if err != nil || !current {
+		return false, err
+	}
+	return svc.isCommandDeviceGone(ctx, cmd)
+}
+
 // verifiedOperation returns AMAPI's record of a finished command operation, to be used in place of
 // the notification's copy. It returns nil (and the caller acks without changing the command) when
 // AMAPI reports the operation is not done.
 //
-// AMAPI may no longer have the operation once the device itself is gone, which is the normal
-// outcome of a wipe. Only in that case is the notification's copy used. If the device is still
-// there, an error is returned so Pub/Sub redelivers once AMAPI's state settles.
-func (svc *Service) verifiedOperation(ctx context.Context, op *androidmanagement.Operation) (*androidmanagement.Operation, error) {
+// AMAPI drops operations it has finished with, and has none once the device is gone, so a missing
+// operation can't be checked and the notification's copy is used, with two exceptions:
+//   - when the device is gone, only for a command issued to the host's current device, since a
+//     result for an earlier device must not act on the re-enrolled host;
+//   - a WIPE can't have finished while its device is still active, so an error is returned and
+//     Pub/Sub redelivers once AMAPI's state settles.
+func (svc *Service) verifiedOperation(ctx context.Context, cmd *android.MDMAndroidCommand, op *androidmanagement.Operation) (*androidmanagement.Operation, error) {
 	if err := svc.setAMAPIClientSecret(ctx); err != nil {
 		return nil, err
 	}
 	amapiOp, err := svc.androidAPIClient.EnterprisesDevicesOperationsGet(ctx, op.Name)
 	switch {
 	case androidmgmt.IsNotFoundError(err):
-		deviceName, _, _ := strings.Cut(op.Name, "/operations/")
-		amapiDevice, err := svc.getAMAPIDevice(ctx, deviceName)
+		gone, err := svc.isCommandDeviceGone(ctx, cmd)
 		if err != nil {
 			return nil, err
 		}
-		if amapiDevice == nil || strings.EqualFold(amapiDevice.State, string(android.DeviceStateDeleted)) {
+		if gone {
+			current, err := svc.isCommandForCurrentDevice(ctx, cmd)
+			if err != nil {
+				return nil, err
+			}
+			if !current {
+				svc.logger.WarnContext(ctx, "dropping Android PubSub COMMAND for a device that is gone and is not the host's current one",
+					"operation_name", op.Name)
+				return nil, nil
+			}
 			return op, nil
 		}
-		return nil, ctxerr.Errorf(ctx, "android command operation %s not found in AMAPI while its device exists, retry", op.Name)
+		if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) {
+			return nil, ctxerr.Errorf(ctx, "android wipe operation %s not found in AMAPI while its device is active, retry", op.Name)
+		}
+		return op, nil
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "get android command operation from AMAPI")
 	case !amapiOp.Done:

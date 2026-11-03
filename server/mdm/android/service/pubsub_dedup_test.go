@@ -352,7 +352,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hUUID string) (*fleet.AndroidHost, error) {
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hUUID}}, nil
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hUUID}, Device: &android.Device{HostID: hostID, DeviceID: "D"}}, nil
 		}
 		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil

@@ -13,9 +13,11 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -91,6 +93,16 @@ func TestPubSubTokenComparison(t *testing.T) {
 			require.ErrorAs(t, err, &authErr)
 		})
 	}
+
+	t.Run("an empty stored token matches nothing", func(t *testing.T) {
+		mockDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			queryerContext sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{fleet.MDMAssetAndroidPubSubToken: {Value: []byte{}}}, nil
+		}
+		var authErr *fleet.AuthFailedError
+		require.ErrorAs(t, svc.authenticatePubSub(t.Context(), ""), &authErr)
+	})
 }
 
 func TestPubSubEventTimeCap(t *testing.T) {
@@ -172,7 +184,11 @@ func TestPubSubReenrollmentVerifiedWithAMAPI(t *testing.T) {
 	}
 
 	t.Run("matching AMAPI record resets the host", func(t *testing.T) {
-		svc, mockDS, client, msg, _ := newReenroll(t)
+		svc, mockDS, client, msg, payload := newReenroll(t)
+		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+			require.True(t, androidmgmt.RetryDisabled(ctx), "a lookup must not wait out a 429 past Pub/Sub's ack deadline")
+			return &payload, nil
+		}
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", msg))
 		require.True(t, client.EnterprisesDevicesGetFuncInvoked)
 		require.True(t, mockDS.AndroidResetOnReenrollmentFuncInvoked)
@@ -262,6 +278,49 @@ func TestPubSubReenrollmentVerifiedWithAMAPI(t *testing.T) {
 		require.False(t, client.EnterprisesDevicesGetFuncInvoked)
 		require.True(t, mockDS.NewAndroidHostFuncInvoked)
 	})
+
+	// Creating a host for a device ID Fleet already has moves that device record to the new host.
+	for _, tc := range []struct {
+		name        string
+		amapiDevice func(payload androidmanagement.Device) *androidmanagement.Device
+		wantCreated bool
+	}{
+		{"device ID of an existing host with another hardware identity is dropped", func(d androidmanagement.Device) *androidmanagement.Device {
+			hw := *d.HardwareInfo
+			hw.EnterpriseSpecificId = "the-real-device"
+			d.HardwareInfo = &hw
+			return &d
+		}, false},
+		{"device ID of an existing host that AMAPI confirms creates the host", func(d androidmanagement.Device) *androidmanagement.Device {
+			return &d
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, mockDS, client, msg, payload := newReenroll(t)
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("android host")
+			}
+			mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+				require.Equal(t, "verify-reenroll", deviceID)
+				return true, nil
+			}
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				host.Host.ID = existingHostID + 1
+				return host, nil
+			}
+			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+				require.Equal(t, payload.Name, name)
+				return tc.amapiDevice(payload), nil
+			}
+			err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+			if tc.wantCreated {
+				require.NoError(t, err)
+			} else {
+				requireAckedAsUnverified(t, err)
+			}
+			require.Equal(t, tc.wantCreated, mockDS.NewAndroidHostFuncInvoked)
+		})
+	}
 }
 
 func TestPubSubDeletedVerifiedWithAMAPI(t *testing.T) {
@@ -418,6 +477,18 @@ func TestPubSubStatusReportDeviceChangeVerifiedWithAMAPI(t *testing.T) {
 		require.True(t, mockDS.UpdateAndroidHostFuncInvoked)
 	})
 
+	t.Run("report for a name AMAPI resolves to another name is dropped", func(t *testing.T) {
+		svc, mockDS, client, _ := newDeviceChange(t)
+		msg, device := report(t, "current-device?")
+		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+			resolved := device
+			resolved.Name = createAndroidDeviceId("current-device")
+			return &resolved, nil
+		}
+		requireAckedAsUnverified(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
+		require.False(t, mockDS.UpdateAndroidHostFuncInvoked)
+	})
+
 	t.Run("report and DELETED for a device AMAPI does not have leave the host enrolled", func(t *testing.T) {
 		svc, mockDS, client, host := newDeviceChange(t)
 		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
@@ -446,7 +517,7 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 	const opName = "enterprises/E/devices/D/operations/wipe-1"
 	const deviceName = "enterprises/E/devices/D"
 
-	newCommand := func(t *testing.T) (*Service, *AndroidMockDS, *android_mock.Client, *string) {
+	newCommand := func(t *testing.T, commandType android.MDMAndroidCommandType, currentDeviceID string) (*Service, *AndroidMockDS, *android_mock.Client, *string) {
 		svc, mockDS, client := newVerifyTestService(t)
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
@@ -456,10 +527,20 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 				CommandUUID:   "cmd-wipe",
 				HostUUID:      "host-uuid",
 				OperationName: opName,
-				CommandType:   string(android.MDMAndroidCommandTypeLock),
+				CommandType:   string(commandType),
 				Status:        string(android.MDMAndroidCommandStatusPending),
 			}, nil
 		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host:   &fleet.Host{ID: 7, UUID: hostUUID},
+				Device: &android.Device{HostID: 7, DeviceID: currentDeviceID},
+			}, nil
+		}
+		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{}, nil
+		}
+		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) { return false, nil }
 		var status string
 		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, s string, errorCode, errorMessage, rawResult *string) error {
 			status = s
@@ -478,7 +559,7 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 	notifiedSuccess := androidmanagement.Operation{Name: opName, Done: true}
 
 	t.Run("AMAPI's result is used instead of the notification's", func(t *testing.T) {
-		svc, _, client, status := newCommand(t)
+		svc, _, client, status := newCommand(t, android.MDMAndroidCommandTypeLock, "D")
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
 			require.Equal(t, opName, name)
 			return &androidmanagement.Operation{Name: name, Done: true, Error: &androidmanagement.Status{Code: 9, Message: "failed"}}, nil
@@ -488,7 +569,7 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 	})
 
 	t.Run("operation not done in AMAPI leaves the command pending", func(t *testing.T) {
-		svc, mockDS, client, _ := newCommand(t)
+		svc, mockDS, client, _ := newCommand(t, android.MDMAndroidCommandTypeLock, "D")
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
 			return &androidmanagement.Operation{Name: name, Done: false}, nil
 		}
@@ -496,33 +577,49 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 	})
 
-	t.Run("operation unknown to AMAPI for an active device is retried", func(t *testing.T) {
-		svc, mockDS, client, _ := newCommand(t)
-		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
-			return nil, amapiNotFound()
-		}
-		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
-			require.Equal(t, deviceName, name)
-			return &androidmanagement.Device{Name: name, State: "ACTIVE"}, nil
-		}
-		require.Error(t, svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedSuccess)))
-		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
-	})
-
-	t.Run("operation and device gone from AMAPI use the notification's result", func(t *testing.T) {
-		svc, _, client, status := newCommand(t)
-		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
-			return nil, amapiNotFound()
-		}
-		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
-			return nil, amapiNotFound()
-		}
-		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedSuccess)))
-		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), *status)
-	})
+	// AMAPI drops operations it has finished with, so a missing operation is not checked unless
+	// the result would act on a host it may no longer belong to.
+	for _, tc := range []struct {
+		name            string
+		commandType     android.MDMAndroidCommandType
+		currentDeviceID string
+		deviceActive    bool
+		wantStatus      android.MDMAndroidCommandStatus // empty: the command is left as is
+		wantRetry       bool
+	}{
+		{"lock dropped by AMAPI for an active device uses the notification's result", android.MDMAndroidCommandTypeLock, "D", true, android.MDMAndroidCommandStatusAcknowledged, false},
+		{"wipe unknown to AMAPI for an active device is retried", android.MDMAndroidCommandTypeWipe, "D", true, "", true},
+		{"operation and device gone from AMAPI use the notification's result", android.MDMAndroidCommandTypeWipe, "D", false, android.MDMAndroidCommandStatusAcknowledged, false},
+		{"result for a gone device that is not the host's current one is dropped", android.MDMAndroidCommandTypeWipe, "new-device", false, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, mockDS, client, status := newCommand(t, tc.commandType, tc.currentDeviceID)
+			client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
+				return nil, amapiNotFound()
+			}
+			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+				require.Equal(t, deviceName, name)
+				if !tc.deviceActive {
+					return nil, amapiNotFound()
+				}
+				return &androidmanagement.Device{Name: name, State: "ACTIVE"}, nil
+			}
+			err := svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedSuccess))
+			if tc.wantRetry {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantStatus != "", mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			if tc.wantStatus != "" {
+				require.Equal(t, string(tc.wantStatus), *status)
+			}
+			require.Equal(t, tc.commandType == android.MDMAndroidCommandTypeWipe && tc.wantStatus != "", mockDS.SetAndroidHostUnenrolledFuncInvoked)
+		})
+	}
 
 	t.Run("AMAPI error is retried", func(t *testing.T) {
-		svc, mockDS, client, _ := newCommand(t)
+		svc, mockDS, client, _ := newCommand(t, android.MDMAndroidCommandTypeLock, "D")
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
 			return nil, &googleapi.Error{Code: http.StatusInternalServerError}
 		}
@@ -540,13 +637,22 @@ func TestPubSubAcknowledgedWipeRedelivery(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
 		currentDeviceID string
+		deviceActive    bool
 		wantUnenroll    bool
 	}{
-		{"wipe for the host's current device is re-run", "old-device", true},
-		{"wipe for an earlier enrollment is ignored", "new-device", false},
+		{"wipe for the host's current device is re-run", "old-device", false, true},
+		{"wipe for an earlier enrollment is ignored", "new-device", false, false},
+		{"wipe for a device AMAPI still has active is ignored", "old-device", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, mockDS, _ := newVerifyTestService(t)
+			svc, mockDS, client := newVerifyTestService(t)
+			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+				require.Equal(t, "enterprises/E/devices/old-device", name)
+				if !tc.deviceActive {
+					return nil, amapiNotFound()
+				}
+				return &androidmanagement.Device{Name: name, State: "ACTIVE"}, nil
+			}
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 			}

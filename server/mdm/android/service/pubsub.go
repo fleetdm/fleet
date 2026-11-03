@@ -105,7 +105,7 @@ func (svc *Service) authenticatePubSub(ctx context.Context, token string) error 
 		return ctxerr.Wrap(ctx, err, "getting Android PubSub token")
 	}
 	goldenToken, ok := assets[fleet.MDMAssetAndroidPubSubToken]
-	if !ok || subtle.ConstantTimeCompare(goldenToken.Value, []byte(token)) != 1 {
+	if !ok || len(goldenToken.Value) == 0 || subtle.ConstantTimeCompare(goldenToken.Value, []byte(token)) != 1 {
 		return fleet.NewAuthFailedError("invalid Android PubSub token")
 	}
 	return nil
@@ -196,11 +196,11 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 	// failures on the original delivery recover on this retry.
 	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
 		if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && cmd.Status == string(android.MDMAndroidCommandStatusAcknowledged) {
-			current, err := svc.isCommandForCurrentDevice(ctx, cmd)
+			rerun, err := svc.shouldRerunWipeUnenroll(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			if current {
+			if rerun {
 				if err := androidWipeAckUnenroll(ctx, svc.fleetDS, svc.newActivity, cmd,
 					svc.pubSubDedupRecorder(ctx, messageID, publishTime)); err != nil {
 					return err
@@ -212,7 +212,7 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		return nil
 	}
 
-	verifiedOp, err := svc.verifiedOperation(ctx, &op)
+	verifiedOp, err := svc.verifiedOperation(ctx, cmd, &op)
 	if err != nil {
 		return err
 	}
@@ -905,6 +905,9 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	// Device is new to Fleet
+	if err := svc.verifyNewHostDevice(ctx, device); err != nil {
+		return 0, err
+	}
 	return svc.addNewHost(ctx, device)
 }
 
