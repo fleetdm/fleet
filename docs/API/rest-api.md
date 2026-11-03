@@ -7486,7 +7486,7 @@ Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or And
 
 Wiping an Android host is available in both Fleet Free and Fleet Premium. For BYOD hosts, this action only deletes the work profile. For company-owned hosts, this will wipe all data.
 
-Wiping a macOS, iOS, iPadOS, Linux, or Windows is available in Fleet Premium.
+Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premium.
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
