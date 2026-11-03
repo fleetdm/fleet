@@ -3,6 +3,7 @@ package removednames
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // GuideURL is the Fleet 5 migration guide that every removal message links to.
@@ -64,6 +65,12 @@ func (e Entry) Message() string {
 		return ReplacedFormat{}.Message(e)
 	}
 	return e.Format.Message(e)
+}
+
+// MessageForVersion is Message for a request to a removed path, with the API version the request used (for example "v1" or "latest")
+// in place of the _version_ segment of the paths in the message.
+func (e Entry) MessageForVersion(version string) string {
+	return strings.ReplaceAll(e.Message(), "/_version_/", "/"+version+"/")
 }
 
 // Message formats the removal message for an arbitrary old name and its replacement, which may be empty.

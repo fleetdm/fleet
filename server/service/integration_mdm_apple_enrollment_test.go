@@ -1086,7 +1086,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 		Name:    tm.Name,
 		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// a new fleetd configuration profile for that team is created
 	s.awaitTriggerProfileSchedule(t)

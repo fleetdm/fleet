@@ -76,6 +76,22 @@ func TestEntryMessageFormats(t *testing.T) {
 	}
 }
 
+func TestMessageForVersion(t *testing.T) {
+	t.Parallel()
+
+	e, ok := Find(KindPath, pathPrefix+"/spec/teams", "POST")
+	require.True(t, ok)
+	assert.Equal(t, "/api/v1/fleet/spec/teams was removed in Fleet 5. Use /api/v1/fleet/spec/fleets instead. See "+GuideURL,
+		e.MessageForVersion("v1"))
+	assert.Contains(t, e.MessageForVersion("latest"), "/api/latest/fleet/spec/fleets")
+	assert.Contains(t, e.Message(), "/api/_version_/fleet/spec/teams")
+
+	// Names that are not paths are unchanged.
+	e, ok = Find(KindJSONKey, "team_id", "")
+	require.True(t, ok)
+	assert.Equal(t, e.Message(), e.MessageForVersion("v1"))
+}
+
 func TestFindAndFilter(t *testing.T) {
 	t.Parallel()
 
