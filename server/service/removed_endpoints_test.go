@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -25,6 +25,23 @@ func TestRemovedEndpointsReturnGone(t *testing.T) {
 		{Method: http.MethodPatch, Path: "/removed-endpoint-test"},
 		{Method: http.MethodDelete, Path: "/removed-endpoint-test"},
 	}
+	testOnlyMessage := func(method, path string) (string, bool) { return "test message for " + method + " " + path, true }
+
+	type check struct {
+		removedEndpoint
+		want string
+	}
+	var checks []check
+	for _, re := range removedEndpoints {
+		msg, ok := removedEndpointMessage(re.Method, re.Path)
+		require.True(t, ok)
+		require.Equal(t, `The "`+re.Method+` `+re.Path+`" endpoint is not available anymore. What to use instead: `+removednames.GuideURL, msg)
+		checks = append(checks, check{re, msg})
+	}
+	for _, re := range testOnly {
+		msg, _ := testOnlyMessage(re.Method, re.Path)
+		checks = append(checks, check{re, msg})
+	}
 
 	for _, tier := range []string{fleet.TierFree, fleet.TierPremium} {
 		t.Run(tier, func(t *testing.T) {
@@ -37,15 +54,15 @@ func TestRemovedEndpointsReturnGone(t *testing.T) {
 				License:             &fleet.LicenseInfo{Tier: tier},
 				SkipCreateTestUsers: true,
 				FeatureRoutes: []endpointer.HandlerRoutesFunc{func(r *mux.Router, opts []kithttp.ServerOption) {
-					registerRemovedEndpoints(newNoAuthEndpointer(routeSvc, opts, r, "v1", "2022-04"), testOnly)
+					registerRemovedEndpoints(newNoAuthEndpointer(routeSvc, opts, r, "v1", "2022-04"), testOnly, testOnlyMessage)
 				}},
 			})
 			defer server.Close()
 
-			for _, re := range slices.Concat(removedEndpoints, testOnly) {
+			for _, c := range checks {
 				for _, prefix := range []string{"/api/v1/fleet", "/api/latest/fleet"} {
 					// No auth header, and a body the old endpoint would have accepted.
-					req, err := http.NewRequestWithContext(t.Context(), re.Method, server.URL+prefix+re.Path,
+					req, err := http.NewRequestWithContext(t.Context(), c.Method, server.URL+prefix+c.Path,
 						strings.NewReader(`{"external_host_identifier":"x"}`))
 					require.NoError(t, err)
 					resp, err := fleethttp.NewClient().Do(req)
@@ -61,15 +78,20 @@ func TestRemovedEndpointsReturnGone(t *testing.T) {
 					require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 					resp.Body.Close()
 
-					want := `The "` + re.Method + ` ` + re.Path + `" endpoint is not available anymore. ` +
-						`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
-					require.Equal(t, http.StatusGone, resp.StatusCode, re.Method+" "+prefix+re.Path)
-					require.Equal(t, want, body.Message, re.Method+" "+prefix+re.Path)
+					require.Equal(t, http.StatusGone, resp.StatusCode, c.Method+" "+prefix+c.Path)
+					require.Equal(t, c.want, body.Message, c.Method+" "+prefix+c.Path)
 					require.Len(t, body.Errors, 1)
 					require.Equal(t, "base", body.Errors[0].Name)
-					require.Equal(t, want, body.Errors[0].Reason)
+					require.Equal(t, c.want, body.Errors[0].Reason)
 				}
 			}
 		})
 	}
+
+	t.Run("missing removednames entry panics at registration", func(t *testing.T) {
+		ne := newNoAuthEndpointer(nil, nil, mux.NewRouter(), "v1")
+		require.Panics(t, func() {
+			registerRemovedEndpoints(ne, []removedEndpoint{{Method: http.MethodPost, Path: "/not-in-removednames"}}, removedEndpointMessage)
+		})
+	})
 }
