@@ -37,17 +37,19 @@
 //   - Context narrows the entry. For a flag, env var, or command it is the fleetctl command (for example "fleetctl get hosts"), so the
 //     same flag name can be removed from one command and stay on another. For a path it is an HTTP method, so GET can be removed while
 //     POST stays. Empty means it applies everywhere.
-//   - Format picks the message. Nil means [ReplacedFormat]. Use [EndpointFormat] for a removed endpoint whose replacement the guide
-//     explains. Setting EndpointFormat.ByDefault says "by default" for an endpoint that a setting can turn back on, and it is up to the
+//   - Format picks the message. Nil means the default for the kind, which follows the Fleet 5 error spec: [EndpointFormat] for a path
+//     ("The "POST /software" endpoint is not available anymore..."), [ParameterFormat] for a query parameter, form field, or JSON key,
+//     [KeyFormat] for a YAML key, and [ReplacedFormat] ("x was removed in Fleet 5. Use y instead.") for the kinds the spec does not cover
+//     yet. Setting EndpointFormat.ByDefault says "by default" for an endpoint that a setting can turn back on, and it is up to the
 //     caller to reject the request only while that setting is off.
 //
-// To support a message that neither format fits, add a type that implements [Format] to format.go and a case for it in
+// To support a message that none of the formats fit, add a type that implements [Format] to format.go and a case for it in
 // TestEntriesWellFormed.
 //
 // # Rejecting a name
 //
-// Look the name up and return the entry's message, with the HTTP status that suits the caller (the Fleet 5 plan uses 410 for removed
-// paths, parameters, and keys):
+// Look the name up and return the entry's message, with the HTTP status that suits the caller (the Fleet 5 error spec uses 410 for a
+// removed endpoint and 422 for a removed parameter):
 //
 //	if entry, ok := removednames.Find(removednames.KindQueryParam, name, ""); ok {
 //		return errors.New(entry.Message())
@@ -60,9 +62,9 @@
 // a handler for each removed path, or a struct validator that walks request bodies). A zero scope matches every scope. All returns a
 // copy of the whole table.
 //
-// The package only holds names and messages. It does not match requests, choose the status code, or render a path's _version_ segment
-// (the caller knows whether the request used v1 or latest). Entry.Message shows a path as stored, so a caller that shows the path to
-// the user should substitute the version first.
+// The package only holds names and messages. It does not match requests or choose the status code. A removed path's message shows the
+// path without its /api/_version_/fleet prefix, and the method of the entry's Context. A path that is removed for every method has no
+// Context, so the handler sets it to the method of the request before it asks for the message.
 //
 // # Keeping the table honest
 //

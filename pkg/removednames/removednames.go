@@ -56,23 +56,18 @@ type Entry struct {
 	// Context narrows the entry to one fleetctl command (for example "fleetctl get hosts") or, for a path, to one HTTP method.
 	// Empty means it applies everywhere.
 	Context string
-	// Format builds the error message. Nil means ReplacedFormat.
+	// Format builds the error message. Nil means the default for the Kind: EndpointFormat for a path, ParameterFormat for a query
+	// parameter, form field, or JSON key, KeyFormat for a YAML key, and ReplacedFormat for the rest.
 	Format Format
 }
 
 // Message returns the error message for the removed name, for example
-// "team_id was removed in Fleet 5. Use fleet_id instead. See https://fleetdm.com/learn-more-about/fleet-5-migration".
+// `The "team_id" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`.
 func (e Entry) Message() string {
 	if e.Format == nil {
-		return ReplacedFormat{}.Message(e)
+		return defaultFormat(e.Kind).Message(e)
 	}
 	return e.Format.Message(e)
-}
-
-// MessageForVersion is Message for a request to a removed path, with the API version the request used (for example "v1" or "latest")
-// in place of the _version_ segment of the paths in the message.
-func (e Entry) MessageForVersion(version string) string {
-	return strings.ReplaceAll(e.Message(), "/_version_/", "/"+version+"/")
 }
 
 // Message formats the removal message for an arbitrary old name and its replacement, which may be empty.

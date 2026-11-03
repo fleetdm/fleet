@@ -20,7 +20,11 @@ func removedPaths() []endpointer.RemovedPath {
 		if !ok {
 			panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", template))
 		}
-		paths = append(paths, endpointer.RemovedPath{Path: template, Message: entry.MessageForVersion})
+		paths = append(paths, endpointer.RemovedPath{Path: template, Message: func(method string) string {
+			// The entry is for every method, and the message names the one that was used.
+			entry.Context = method
+			return entry.Message()
+		}})
 	}
 	return paths
 }

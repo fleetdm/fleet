@@ -10,7 +10,28 @@ type Format interface {
 	Message(e Entry) string
 }
 
-// ReplacedFormat is the default format: it names the replacement, or just the removal when the entry has no replacement.
+// ParameterFormat is for a removed or renamed request parameter, form field, or body key. The replacement is left to the guide.
+//
+//	The "team_id" parameter is not available anymore. What to use instead: <guide>
+type ParameterFormat struct{}
+
+// Message implements Format.
+func (ParameterFormat) Message(e Entry) string {
+	return fmt.Sprintf(`The "%s" parameter is not available anymore. What to use instead: %s`, e.Old, GuideURL)
+}
+
+// KeyFormat is for a removed or renamed key in a YAML file. The replacement is left to the guide.
+//
+//	The "team_settings" key is not available anymore. What to use instead: <guide>
+type KeyFormat struct{}
+
+// Message implements Format.
+func (KeyFormat) Message(e Entry) string {
+	return fmt.Sprintf(`The "%s" key is not available anymore. What to use instead: %s`, e.Old, GuideURL)
+}
+
+// ReplacedFormat names the replacement, or just the removal when the entry has no replacement. It is the default for the kinds that
+// the error spec does not cover yet (sort keys, CSV columns, target types, flags, commands, and so on).
 //
 //	team_id was removed in Fleet 5. Use fleet_id instead. See <guide>
 //	team_id was removed in Fleet 5. See <guide>
@@ -41,6 +62,21 @@ func (f EndpointFormat) Message(e Entry) string {
 		byDefault = " by default"
 	}
 	return fmt.Sprintf(`The "%s" endpoint is not available anymore%s. What to use instead: %s`, endpoint, byDefault, GuideURL)
+}
+
+// defaultFormat is the format of an entry that does not set one, which follows the Fleet 5 error spec: one wording for endpoints,
+// parameters, and YAML keys.
+func defaultFormat(kind Kind) Format {
+	switch kind {
+	case KindPath:
+		return EndpointFormat{}
+	case KindQueryParam, KindFormField, KindJSONKey:
+		return ParameterFormat{}
+	case KindYAMLKey:
+		return KeyFormat{}
+	default:
+		return ReplacedFormat{}
+	}
 }
 
 // displayName is how a name appears in a message. Only flags are displayed differently: they get their leading dashes, one for a

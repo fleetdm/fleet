@@ -22,7 +22,7 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
 		Path:    "/api/_version_/fleet/gone/{id}",
-		Message: func(version string) string { return "gone in " + version },
+		Message: func(method string) string { return "gone via " + method },
 	}})
 
 	removedRequests := 0
@@ -31,10 +31,10 @@ func TestRegisterRemovedPaths(t *testing.T) {
 		wantStatus         int
 		wantMessage        string
 	}{
-		{"v1", http.MethodGet, "/api/v1/fleet/gone/1?token=secret", http.StatusGone, "gone in v1"},
-		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone in 2022-04"},
+		{"v1", http.MethodGet, "/api/v1/fleet/gone/1?token=secret", http.StatusGone, "gone via GET"},
+		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone via POST"},
 		{"head", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusGone, ""},
-		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone in latest"},
+		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
 	} {

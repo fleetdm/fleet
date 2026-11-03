@@ -28,9 +28,16 @@ func TestMessage(t *testing.T) {
 		context string
 		want    string
 	}{
-		{KindJSONKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
+		// The Fleet 5 error spec: one wording for parameters and YAML keys, with the replacement left to the guide.
+		{KindQueryParam, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindJSONKey, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindYAMLKey, "team_settings", "", `The "team_settings" key is not available anymore. What to use instead: ` + GuideURL},
+		// The kinds the spec does not cover name the replacement.
+		{KindSortKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
 		// Only flags are displayed differently: they get their leading dashes.
 		{KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
+		// A removed endpoint leaves the replacement to the guide. The request's method is added when a handler answers it.
+		{KindPath, pathPrefix + "/spec/teams", "", `The "/spec/teams" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{KindFlag, "t", "fleetctl user create", "-t was removed in Fleet 5. Use --fleet instead." + suffix},
 	} {
 		e, ok := Find(c.kind, c.old, c.context)
@@ -51,7 +58,13 @@ func TestEntryMessageFormats(t *testing.T) {
 		entry Entry
 		want  string
 	}{
-		{"nil format is ReplacedFormat", Entry{Kind: KindJSONKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
+		{"nil format is ReplacedFormat for a sort key", Entry{Kind: KindSortKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
+		{"nil format is ParameterFormat for a JSON key", Entry{Kind: KindJSONKey, Old: "a", New: "b"},
+			`The "a" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{"nil format is KeyFormat for a YAML key", Entry{Kind: KindYAMLKey, Old: "a.b", New: "a.c"},
+			`The "a.b" key is not available anymore. What to use instead: ` + GuideURL},
+		{"nil format is EndpointFormat for a path", Entry{Kind: KindPath, Old: pathPrefix + "/a", Context: "GET"},
+			`The "GET /a" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{"replaced without a replacement", Entry{Kind: KindJSONKey, Old: "a", Format: ReplacedFormat{}}, "a was removed in Fleet 5." + suffix},
 		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "abc"}, "--abc was removed in Fleet 5." + suffix},
 		{"single-letter flag", Entry{Kind: KindFlag, Old: "a"}, "-a was removed in Fleet 5." + suffix},
@@ -76,22 +89,6 @@ func TestEntryMessageFormats(t *testing.T) {
 			assert.Equal(t, c.want, c.entry.Message())
 		})
 	}
-}
-
-func TestMessageForVersion(t *testing.T) {
-	t.Parallel()
-
-	e, ok := Find(KindPath, pathPrefix+"/spec/teams", "POST")
-	require.True(t, ok)
-	assert.Equal(t, "/api/v1/fleet/spec/teams was removed in Fleet 5. Use /api/v1/fleet/spec/fleets instead. See "+GuideURL,
-		e.MessageForVersion("v1"))
-	assert.Contains(t, e.MessageForVersion("latest"), "/api/latest/fleet/spec/fleets")
-	assert.Contains(t, e.Message(), "/api/_version_/fleet/spec/teams")
-
-	// Names that are not paths are unchanged.
-	e, ok = Find(KindJSONKey, "team_id", "")
-	require.True(t, ok)
-	assert.Equal(t, e.Message(), e.MessageForVersion("v1"))
 }
 
 func TestFindAndFilter(t *testing.T) {
@@ -157,7 +154,10 @@ func TestEntriesWellFormed(t *testing.T) {
 		}
 		assert.Contains(t, e.Message(), GuideURL, e.Old)
 		switch e.Format.(type) {
-		case nil, ReplacedFormat:
+		case nil:
+		case ReplacedFormat:
+			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
+		case ParameterFormat, KeyFormat:
 		case EndpointFormat:
 			assert.Equal(t, KindPath, e.Kind, "an endpoint message is for a path: %s", e.Old)
 		default:

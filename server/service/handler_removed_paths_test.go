@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -38,7 +39,7 @@ func TestRemovedPaths(t *testing.T) {
 	// Fill in the path variables with a value that matches any of them.
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
 	for _, template := range removedPathTemplates {
-		entry, ok := removednames.Find(removednames.KindPath, template, "")
+		_, ok := removednames.Find(removednames.KindPath, template, "")
 		require.True(t, ok, template)
 		for _, version := range []string{"v1", "latest"} {
 			path := pathVar.ReplaceAllString(strings.Replace(template, "/_version_/", "/"+version+"/", 1), "1")
@@ -59,7 +60,9 @@ func TestRemovedPaths(t *testing.T) {
 					require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 					assert.Equal(t, "Gone", body.Message)
 					require.Len(t, body.Errors, 1)
-					assert.Equal(t, entry.MessageForVersion(version), body.Errors[0]["reason"])
+					want := fmt.Sprintf(`The "%s %s" endpoint is not available anymore. What to use instead: %s`,
+						method, strings.TrimPrefix(template, "/api/_version_/fleet"), removednames.GuideURL)
+					assert.Equal(t, want, body.Errors[0]["reason"])
 				})
 			}
 		}
