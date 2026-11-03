@@ -29,6 +29,8 @@ const (
 	KindCommand      Kind = "command"       // fleetctl command, verbatim
 	KindYAMLKey      Kind = "yaml_key"      // GitOps or apply YAML key path, dot notation, [] for array elements
 	KindSpecKind     Kind = "spec_kind"     // kind of a fleetctl apply spec
+	KindFileName     Kind = "file_name"     // name of a GitOps file, without its directory
+	KindYAMLValue    Kind = "yaml_value"    // value of a YAML key, written "key: value" and compared without regard to case
 	KindActivityType Kind = "activity_type" // activity type name
 )
 

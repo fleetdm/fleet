@@ -296,6 +296,32 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 		})
 		assert.Positive(t, found)
 	})
+
+	t.Run("gitops no-team file and name", func(t *testing.T) {
+		t.Parallel()
+		var fileNames, noTeamNames []string
+		ast.Inspect(parseFile(t, filepath.Join(root, "pkg", "spec", "gitops.go")), func(n ast.Node) bool {
+			switch v := n.(type) {
+			case *ast.BasicLit:
+				if strings.HasSuffix(v.Value, `-team.yml"`) {
+					fileNames = append(fileNames, stringLits(v)...)
+				}
+			case *ast.ValueSpec:
+				if len(v.Names) == 1 && v.Names[0].Name == "noTeam" && len(v.Values) == 1 {
+					noTeamNames = append(noTeamNames, stringLits(v.Values[0])...)
+				}
+			}
+			return true
+		})
+		require.NotEmpty(t, fileNames)
+		require.NotEmpty(t, noTeamNames)
+		for _, name := range fileNames {
+			assert.True(t, has(KindFileName, ScopeRequest, name, ""), "GitOps file name %s is missing from entries", name)
+		}
+		for _, name := range noTeamNames {
+			assert.True(t, has(KindYAMLValue, ScopeRequest, "name: "+name, ""), "GitOps fleet name %s is missing from entries", name)
+		}
+	})
 }
 
 // parseFiles parses the non-test Go files under dirs (relative to root) that contain substr, keyed by path relative to root.

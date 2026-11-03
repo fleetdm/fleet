@@ -113,6 +113,10 @@ var teamEntries = []Entry{
 	// The key that holds a fleet in a fleetctl apply spec of kind fleet.
 	yamlEntry("spec.team", "spec.fleet"),
 
+	// The GitOps file for hosts that belong to no fleet, and the fleet name in it. The name is compared without regard to case.
+	{Kind: KindFileName, Scope: ScopeRequest, Old: "no-team.yml", New: "unassigned.yml"},
+	{Kind: KindYAMLValue, Scope: ScopeRequest, Old: "name: No team", New: "name: Unassigned"},
+
 	// Spec kinds accepted by fleetctl apply.
 	{Kind: KindSpecKind, Scope: ScopeRequest, Old: "team", New: "fleet"},
 }
