@@ -3356,12 +3356,18 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
 	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
 	// reports that ServerURL here, so we read the flag back the same way we read
-	// the enroll reference above. Without this, the detail-query ingest would
-	// overwrite the personal enrollment type set by the Apple Authenticate flow.
-	// Must be read before RawQuery is cleared below.
+	// the enroll reference above, but only to keep the personal type the Apple
+	// Authenticate flow set, since the host reports the URL. Must be read before
+	// RawQuery is cleared below.
 	personalType := fleet.PersonalEnrollmentTypeNone
 	if mdmSolutionName == fleet.WellKnownMDMFleet && serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1" {
-		personalType = fleet.PersonalEnrollmentTypeManualProfile
+		hostMDM, err := ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "getting host mdm for personal enrollment")
+		}
+		if hostMDM != nil && hostMDM.PersonalEnrollmentType == fleet.PersonalEnrollmentTypeManualProfile {
+			personalType = fleet.PersonalEnrollmentTypeManualProfile
+		}
 	}
 
 	// strip any query parameters from the URL

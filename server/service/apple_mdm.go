@@ -5472,6 +5472,31 @@ func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 	}
 }
 
+// personalEnrollmentRefusal returns why a host can't enroll as personal, or "" when it can. A Mac assigned to
+// Fleet in Apple Business is company-owned, and a host already enrolled in Fleet as company-owned has to
+// unenroll first: personal enrollment removes lock and wipe.
+func (svc *MDMAppleCheckinAndCommandService) personalEnrollmentRefusal(ctx context.Context, info *fleet.HostMDMCheckinInfo, serial string) (string, error) {
+	if info != nil {
+		if info.DEPAssignedToFleet {
+			return "host is assigned to Fleet in Apple Business", nil
+		}
+		if info.FleetEnrolledCorporate {
+			return "host is enrolled in Fleet as company-owned", nil
+		}
+	}
+	if serial == "" {
+		return "", nil
+	}
+	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, serial)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting DEP assignments for personal enrollment")
+	}
+	if len(assignments) > 0 {
+		return "serial is assigned to Fleet in Apple Business", nil
+	}
+	return "", nil
+}
+
 // Authenticate handles MDM [Authenticate][1] requests.
 //
 // This method is executed after the request has been handled by nanomdm, note
@@ -5560,6 +5585,18 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	// AddPersonalEnrollmentToFleetURL bakes "byod=1" into the ServerURL when
 	// the end user chose "Personal (BYOD)" on the /enroll page; nanomdm surfaces it here.
 	isPersonal := r.Params != nil && r.Params[apple_mdm.FleetPersonalEnrollmentKey] == "1"
+	if isPersonal && !scepRenewalInProgress {
+		// The query params come from the URL the device sends, so byod=1 is only the device's claim. A renewal
+		// doesn't write the host's personal state.
+		reason, err := svc.personalEnrollmentRefusal(r.Context, existingDeviceInfo, m.SerialNumber)
+		if err != nil {
+			return err
+		}
+		if reason != "" {
+			svc.logger.WarnContext(r.Context, "ignoring personal enrollment flag", "host_uuid", r.ID, "reason", reason)
+			isPersonal = false
+		}
+	}
 	personalType := fleet.PersonalEnrollmentTypeNone
 	if isPersonal {
 		personalType = fleet.PersonalEnrollmentTypeManualProfile
