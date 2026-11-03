@@ -9875,7 +9875,12 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	// before responding, create a host record, and assign the host to the
 	// team that matches the enroll secret provided.
-	previousAcctUUID, err := svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)
+	// Recorded on a new host until its Authenticate arrives, so that check-in sees a personal host.
+	otaPersonalType := fleet.PersonalEnrollmentTypeNone
+	if personal {
+		otaPersonalType = fleet.PersonalEnrollmentTypeManualProfile
+	}
+	previousAcctUUID, err := svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo, otaPersonalType)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
 	}
