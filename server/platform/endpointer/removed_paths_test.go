@@ -34,7 +34,6 @@ func TestRegisterRemovedPaths(t *testing.T) {
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
 			assert.Equal(t, c.wantStatus, rec.Code)

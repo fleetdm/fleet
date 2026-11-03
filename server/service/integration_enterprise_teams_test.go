@@ -24,7 +24,6 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
@@ -105,14 +104,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	// The removed path answers 410 with the migration message, for any version and without authentication.
-	for _, version := range []string{"v1", "latest"} {
-		res := s.Do("POST", "/api/"+version+"/fleet/spec/teams", teamSpecs, http.StatusGone)
-		assert.Equal(t, fmt.Sprintf("Gone: /api/%[1]s/fleet/spec/teams was removed in Fleet 5. Use /api/%[1]s/fleet/spec/fleets instead. See %s",
-			version, removednames.GuideURL), extractServerErrorText(res.Body))
-	}
-	s.DoRawNoAuth("POST", "/api/latest/fleet/spec/teams", nil, http.StatusGone)
-
 	var applyResp applyTeamSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
