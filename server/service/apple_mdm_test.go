@@ -2919,9 +2919,9 @@ func TestGetMDMManualEnrollmentProfileStaticChallenge(t *testing.T) {
 		cfg.MDM.AppleSCEPStaticChallengeEnabled = false
 	})
 	_, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
-	var badRequest *fleet.BadRequestError
-	require.ErrorAs(t, err, &badRequest)
-	require.ErrorContains(t, err, fleet.ManualEnrollmentStaticChallengeDisabledErrMsg)
+	var notAllowed *fleet.NotAllowedByDefaultDeprecationError
+	require.ErrorAs(t, err, &notAllowed)
+	require.ErrorContains(t, err, fleet.Fleet5MigrationGuide)
 
 	svc, ctx, _, _ = setupAppleMDMService(t, premium)
 	profile, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)

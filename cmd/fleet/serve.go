@@ -435,6 +435,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
 	}
 
+	if config.MDM.AppleSCEPStaticChallengeEnabled {
+		logger.WarnContext(cmd.Context(), "Using static SCEP challenges for Apple enrollments is deprecated and will be removed in a future release.")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)

@@ -2345,7 +2345,7 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_agent.signing_sha256")
 	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
 	man.hideConfig("mdm.android_batch_size")
-	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", true, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
+	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", false, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
 	man.addConfigDuration(

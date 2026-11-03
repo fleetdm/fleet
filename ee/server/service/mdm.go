@@ -1996,7 +1996,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	}
 	// the manual profile isn't tied to a device, so it can only carry the static challenge
 	if !svc.config.MDM.AppleSCEPStaticChallengeEnabled {
-		return nil, &fleet.BadRequestError{Message: fleet.ManualEnrollmentStaticChallengeDisabledErrMsg}
+		return nil, &fleet.NotAllowedByDefaultDeprecationError{Method: "GET", Endpoint: "/enrollment_profiles/manual"}
 	}
 
 	topic, err := assets.APNSTopic(ctx, svc.ds)
