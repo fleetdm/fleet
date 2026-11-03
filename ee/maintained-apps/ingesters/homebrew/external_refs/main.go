@@ -53,6 +53,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"shottr/darwin":                     {ShottrVersionTransformer},
 	"outset/darwin":                     {OutsetVersionShortener},
 	"updf/darwin":                       {UPDFInstallerHost},
+	"expressvpn/darwin":                 {ExpressVPNVersionShortener},
 	"cmux/darwin":                       {CmuxVersionShortener},
 	"megasync/darwin":                   {MEGAsyncVersionShortener},
 	"capcut/darwin":                     {CapCutVersionShortener},
