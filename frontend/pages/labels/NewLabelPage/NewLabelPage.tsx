@@ -469,8 +469,11 @@ const NewLabelPage = ({
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error
-  // mid-type. A blank query is reported by formErrors as a required field.
+  // mid-type. Also run the full form validation on blur so the required-
+  // field error ("Enter a query") still appears when the user clears the
+  // query and tabs away.
   const onQueryBlur = () => {
+    setFormErrors(validateNewLabelFormData(formData));
     if (!formData.labelQuery.trim()) {
       setQuerySyntaxError(null);
       return;

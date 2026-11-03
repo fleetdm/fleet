@@ -240,7 +240,7 @@ const PolicyForm = ({
 
   const validateSqlOnBlur = (sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
-    setErrors({ ...newErrors });
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
   };
 
   // Also validate 3s after the user stops typing, so a stale pause surfaces
