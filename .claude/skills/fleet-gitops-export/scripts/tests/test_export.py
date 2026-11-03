@@ -181,10 +181,14 @@ class CommandTest(unittest.TestCase):
         saved = gitops_export.Collector, gitops_export.Planner, gitops_export.Layout, gitops_export.say
 
         class Boom:
+            fail_collect = False
+
             def __init__(self, *a, **kw):
                 pass
 
             def collect(self):
+                if Boom.fail_collect:
+                    raise RuntimeError("boom")
                 return {}
 
             def build(self):
@@ -198,10 +202,12 @@ class CommandTest(unittest.TestCase):
                                       keep_fma_scripts=None)
             work = gitops_export.work_dir(tmp / "repo", args.work)
             (work / "layout.json").write_text("{}")
-            (work / "plan.json").write_text("{}")
-            with self.assertRaises(RuntimeError):
-                gitops_export.cmd_export(args)
-            self.assertFalse((work / "plan.json").exists())
+            for fail_collect in (False, True):
+                Boom.fail_collect = fail_collect
+                (work / "plan.json").write_text("{}")
+                with self.subTest(fail_collect=fail_collect), self.assertRaises(RuntimeError):
+                    gitops_export.cmd_export(args)
+                self.assertFalse((work / "plan.json").exists())
         finally:
             gitops_export.Collector, gitops_export.Planner, gitops_export.Layout, gitops_export.say = saved
             shutil.rmtree(tmp)
@@ -281,6 +287,23 @@ class DryRunEnvTest(unittest.TestCase):
         self.assertEqual(results, [("WARN", "FLEET_EXPORT_TEST_PASSWORD"), ("FAIL", "FLEET_EXPORT_TEST_TOKEN")])
         self.assertNotIn("p@ss", repr(ch.results))
 
+    def test_no_quotes_for_values_profiles_also_use(self):
+        if not yaml_backend():
+            self.skipTest("no YAML parser")
+
+        class FakeAPI:
+            def json(self, path, params=None):
+                return {"spec": {"secrets": [{"secret": "12345678"}]}}
+
+        plan = {"env": [{"name": "FLEET_GLOBAL_ENROLL_SECRET", "source": {"type": "enroll_secret", "team": None, "index": 0},
+                         "used_in": ["default.yml", "platforms/macos/configuration-profiles/fleetd.mobileconfig"]}]}
+        ch = Checker(self.tmp, plan)
+        env, _ = ch.dry_run_env(FakeAPI(), None)
+        self.assertEqual(env["FLEET_GLOBAL_ENROLL_SECRET"], "12345678")
+        self.assertEqual([r["level"] for r in ch.results["reconcile"]], ["FAIL"])
+        self.assertIn("fleetd.mobileconfig", ch.results["reconcile"][0]["message"])
+        self.assertNotIn("12345678", repr(ch.results))
+
     def test_mask_stays_a_yaml_string(self):
         backend = yaml_backend()
         if not backend:
@@ -296,7 +319,7 @@ class SecretSpansTest(unittest.TestCase):
         c = Collector(api=None)
         c._secret_values = [("wk-s3cr3t-value", {"type": "enroll_secret", "team": 1, "index": 0}),
                             ("short", {"type": "enroll_secret", "team": None, "index": 0})]
-        scopes = [{"profiles": [{"content": b"<string>wk-s3cr3t-value</string> and wk-s3cr3t-value"}],
+        scopes = [{"profiles": [{"content": b"<string>wk-s3cr3t-value</string> and wk-s3cr3t-value"}, {"content": b"shortcake"}],
                    "scripts": [{"content": b"echo short"}], "assets": [{"content": b"\xff\xfe"}]}]
         c._mark_secrets(scopes)
         refs = scopes[0]["profiles"][0]["env_refs"]
@@ -304,8 +327,11 @@ class SecretSpansTest(unittest.TestCase):
         self.assertEqual(refs[0]["source"], {"type": "enroll_secret", "team": 1, "index": 0})
         self.assertNotIn("env_refs", scopes[0]["scripts"][0])
         self.assertNotIn("wk-s3cr3t-value", repr(refs))
+        self.assertEqual(scopes[0]["scripts"][0]["short_secret_refs"], [{"type": "enroll_secret", "team": None, "index": 0}])
+        self.assertNotIn("short_secret_refs", scopes[0]["profiles"][1])
         self.assertEqual(len(c.warnings), 1)
-        self.assertIn("shorter than", c.warnings[0]["message"])
+        self.assertIn("inside a longer word", c.warnings[0]["message"])
+        self.assertNotIn("short", repr(scopes[0]["scripts"][0]["short_secret_refs"]))
 
 
 class FleetDefaultsTest(unittest.TestCase):
@@ -360,6 +386,8 @@ class HelpersTest(unittest.TestCase):
         self.assertFalse(_url_names_version("https://x.test/latest.deb?v=8.11.16", "8.11.16"))
         self.assertFalse(_url_names_version("https://x.test/app-18.1.deb", "8.1"))
         self.assertFalse(_url_names_version("https://x.test/app-8.1.2.deb", "8.1"))
+        self.assertFalse(_url_names_version("https://x.test/8.1/latest.rpm", "8.1"))
+        self.assertFalse(_url_names_version("https://x.test/app-current.pkg", None))
         self.assertTrue(_url_names_version("https://x.test/anything.pkg", None))
 
     def test_fma_script_state(self):
@@ -448,12 +476,16 @@ def snapshot():
         "config": {
             "org_info": {"org_name": "Test Org", "contact_url": "https://example.test/help"},
             "server_settings": {"server_url": "https://fleet.example.test", "live_query_disabled": False, "live_reporting_disabled": False},
-            "features": {"enable_host_users": True}, "webhook_settings": {}, "integrations": {}, "sso_settings": {},
+            "features": {"enable_host_users": True}, "webhook_settings": {}, "sso_settings": {},
+            "integrations": {"jira": [{"url": "https://jira.example.test", "username": "fleet", "api_token": "********",
+                                       "project_key": "IT", "enable_failing_policies": True}]},
             "agent_options": {"config": {"options": {"distributed_interval": 10}}},
             "mdm": {"windows_enabled_and_configured": True, "enable_profile_validation": True,
                     "macos_updates": {"minimum_version": "latest", "deadline_days": 14}},
         },
-        "enroll_secret_count": 1, "custom_host_vitals": [{"name": "Asset tag"}], "certificate_authorities": {},
+        "enroll_secret_count": 1, "custom_host_vitals": [{"name": "Asset tag"}],
+        "certificate_authorities": {"digicert": [{"name": "WIFI", "url": "https://one.digicert.test", "api_token": "********",
+                                                  "profile_id": "7", "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}]},
         "graph_credentials": [], "vpp_tokens": [], "eula": {}, "logos": {}, "warnings": [],
         "scopes": [
             {"key": "global", "id": None, "name": "Global",
@@ -747,6 +779,44 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("fleets/servers.yml: profile 'Min password' is in the repo but not in Fleet", messages)
         self.assertIn("default.yml: settings '(top level)': agent_options", messages)
         self.assertIn("default.yml: settings 'controls.macos_updates': deadline_days", messages)
+
+    def test_profile_validation_left_out_means_true(self):
+        default = self.root / "default.yml"
+        text = default.read_text()
+        self.assertIn("enable_profile_validation: true", text)
+        default.write_text(text.replace("  enable_profile_validation: true\n", ""))
+        self.assertEqual([r for r in self.reconcile() if r["level"] == "FAIL"], [])
+        default.write_text(text.replace("enable_profile_validation: true", "enable_profile_validation: false"))
+        self.assertIn("enable_profile_validation", "\n".join(r["message"] for r in self.reconcile()))
+
+        snap = snapshot()
+        snap["config"]["mdm"]["enable_profile_validation"] = False
+        plan = self.replan(snap)
+        text = default.read_text()
+        self.assertIn("enable_profile_validation: false", text)
+        default.write_text(text.replace("  enable_profile_validation: false\n", ""))
+        self.assertIn("enable_profile_validation is true in the repo but false in Fleet", "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_reconcile_compares_integrations_and_certificate_authorities(self):
+        default = self.root / "default.yml"
+        text = default.read_text()
+        self.assertIn("api_token: $FLEET_JIRA_API_TOKEN", text)
+        default.write_text(text.replace("https://jira.example.test", "https://jira2.example.test")
+                           .replace("https://one.digicert.test", "https://two.digicert.test"))
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("settings 'org_settings.integrations': jira", messages)
+        self.assertIn("settings 'org_settings.certificate_authorities': digicert", messages)
+
+    def test_short_enroll_secret_keeps_item_out(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["profiles"][0]["short_secret_refs"] = [{"type": "enroll_secret", "team": 1, "index": 0}]
+        plan = self.replan(snap)
+        notes = [n for n in plan["notes"] if n["level"] == "gap" and n["item"] == "Firewall on"]
+        self.assertEqual(len(notes), 1)
+        self.assertIn("FLEET_WORKSTATIONS_ENROLL_SECRET", notes[0]["message"])
+        self.assertFalse((self.root / "platforms/macos/configuration-profiles/firewall-on.mobileconfig").exists())
+        self.assertIn("profile 'Firewall on' is in Fleet but not in the repo", "\n".join(r["message"] for r in self.reconcile(plan)))
 
     def test_reconcile_compares_software_contents(self):
         policy = self.root / "platforms/linux/policies/zoom-installed.yml"

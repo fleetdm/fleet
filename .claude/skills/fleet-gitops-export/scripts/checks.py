@@ -63,6 +63,8 @@ def load_yaml(text: str, backend: str):
 KIND_NAMES = {"policies": "policy", "reports": "report", "labels": "label", "scripts": "script",
               "profiles": "profile", "assets": "DDM asset", "software": "software", "settings": "settings"}
 LABEL_KEYS = ("labels_include_any", "labels_exclude_any", "labels_include_all")
+# Settings whose omitted value isn't false.
+OMITTED = {("controls", "enable_profile_validation"): True}
 
 
 def _sha(b: bytes) -> str:
@@ -155,6 +157,7 @@ class Checker:
         self.backend = yaml_backend()
         # Files where the export wrote $VARIABLEs in place of values Fleet stored (enroll secrets in profiles).
         self.env_refs = {f["path"]: f["env_refs"] for f in (plan.get("files") or {}).values() if f.get("env_refs")}
+        self.env_names = {e["name"] for e in plan.get("env") or []}
         self.env_values: dict | None = None
         self.env_notes: list = []
 
@@ -281,6 +284,17 @@ class Checker:
                 out.append((os.path.dirname(top), entry))
         return out
 
+    def _strip_env(self, v):
+        """A setting without the values the repo holds as variables (tokens, URLs), which Fleet's side leaves out too."""
+        if isinstance(v, dict):
+            def is_ref(x):
+                m = re.fullmatch(r"\$\{?(\w+)\}?", x) if isinstance(x, str) else None
+                return bool(m) and m.group(1) in self.env_names
+            return {k: self._strip_env(x) for k, x in v.items() if not is_ref(x)}
+        if isinstance(v, list):
+            return [self._strip_env(x) for x in v]
+        return v
+
     def _ref(self, base: str, ref) -> str | None:
         """The repo path a `{path: ...}` value points at."""
         if isinstance(ref, dict) and ref.get("path"):
@@ -377,7 +391,11 @@ class Checker:
             found[kind] = [[item.get("name"), item] for _, item in self._yaml_items(top, [kind])]
         for section, fields in settings:
             node = doc if section == TOP_LEVEL else _walk(doc, section.split("."))
-            found["settings"].append([section, {k: _walk(node, [k]) for k in fields}])
+            values = {}
+            for k in fields:
+                v = _walk(node, [k])
+                values[k] = OMITTED.get((section, k)) if v is None and (section, k) in OMITTED else self._strip_env(v)
+            found["settings"].append([section, values])
         for path, _ in self._items(top, ["controls", "scripts"]):
             if path:
                 found["scripts"].append([os.path.basename(path), {"sha256": _sha(self._bytes(path, False))}])
@@ -543,10 +561,18 @@ class Checker:
             # fleetctl substitutes values into YAML as-is (bare `key: $NAME`), so one with YAML syntax in it
             # reads back as something else. Multi-line metadata, JSON objects, and FLEET_SECRET_ values
             # (which fleetctl leaves for the server) are meant to go in raw.
-            in_yaml = any(u.endswith((".yml", ".yaml")) for u in e.get("used_in") or []) and t != "fleet_secret" \
+            used_in = e.get("used_in") or []
+            in_yaml = any(u.endswith((".yml", ".yaml")) for u in used_in) and t != "fleet_secret" \
                 and not (src.get("indent") or src.get("object") or src.get("field") == "api_key_json")
+            # Profiles and DDM assets that hold the variable get the value as-is, so quotes would end up in them.
+            raw = [u for u in used_in if not u.endswith((".yml", ".yaml"))]
             if in_yaml and isinstance(val, str) and val != PLACEHOLDER and val != f'"{MASK}"' and not self._survives_yaml(val):
-                if not from_user:
+                if raw:
+                    self.fail("reconcile", f"{name}: its value doesn't read back as the same text when fleetctl puts it in YAML as-is "
+                                           "(it has YAML syntax in it, or reads as a number, boolean, or null), and quoting it would put "
+                                           f"the quotes into {', '.join(raw)}. In Fleet, change it to a value that's plain text in YAML, "
+                                           "then export again")
+                elif not from_user:
                     val = json.dumps(val, ensure_ascii=False)
                     self.warn("reconcile", f"{name}: Fleet's value doesn't read back as the same text when fleetctl puts it in YAML as-is "
                                            "(it has YAML syntax in it, or reads as a number, boolean, or null). Set it in CI and .env "

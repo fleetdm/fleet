@@ -228,9 +228,9 @@ def cmd_scaffold(args) -> int:
 def cmd_export(args) -> int:
     fc, target, work = session(args)
     layout = Layout.load(need(work, "layout.json", "scaffold"))
-    snap = Collector(API(fc), log=lambda m: say(f"  {m}")).collect()
-    # A plan left from an earlier run would point at the blobs about to be deleted if this build fails.
+    # A failed export leaves no plan, so `place` can't write an earlier snapshot (or point at deleted blobs).
     (work / "plan.json").unlink(missing_ok=True)
+    snap = Collector(API(fc), log=lambda m: say(f"  {m}")).collect()
     blobs = work / "blobs"
     if blobs.exists():
         shutil.rmtree(blobs)

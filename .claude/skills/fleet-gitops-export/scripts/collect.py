@@ -95,17 +95,21 @@ class Collector:
 
     def _mark_secrets(self, scopes):
         values = [(v, src) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
-        # Too short to replace safely, but still worth a look before the file is committed.
-        short = [re.compile(r"(?<![A-Za-z0-9])" + re.escape(v) + r"(?![A-Za-z0-9])") for v, _ in self._secret_values if v and len(v) < MIN_SECRET_LEN]
+        # Too short to replace safely: a whole-token match keeps the item out of the repo, any other match is a warning.
+        short = [(v, re.compile(r"(?<![A-Za-z0-9])" + re.escape(v) + r"(?![A-Za-z0-9])"), src)
+                 for v, src in self._secret_values if v and len(v) < MIN_SECRET_LEN]
         for sc in scopes:
             for item in (sc.get("profiles") or []) + (sc.get("assets") or []) + (sc.get("scripts") or []):
                 try:
                     text = item["content"].decode("utf-8")
                 except UnicodeDecodeError:
                     continue
-                if any(p.search(text) for p in short):
-                    self.warn(sc.get("name"), item.get("name"), f"may hold an enroll secret shorter than {MIN_SECRET_LEN} characters, which "
-                                                                "the export can't replace with its variable; check it before committing")
+                whole = [src for _, p, src in short if p.search(text)]
+                if whole:
+                    item["short_secret_refs"] = whole
+                elif any(v in text for v, _, _ in short):
+                    self.warn(sc.get("name"), item.get("name"), f"contains the characters of an enroll secret shorter than {MIN_SECRET_LEN} "
+                                                                "characters inside a longer word; check it before committing")
                 spans = []
                 for v, src in values:
                     start = text.find(v)

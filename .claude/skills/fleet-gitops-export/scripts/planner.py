@@ -20,6 +20,7 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from collect import MIN_SECRET_LEN
 from fleet_defaults import is_default_script
 from layout import Layout
 from yamlio import env_escape, fleet_secret_names
@@ -53,6 +54,11 @@ MAC_HINTS = re.compile(r"\b(?:launchctl|defaults|osascript|profiles|diskutil|sof
 FMA_DRIFT_RATIO = 0.75
 
 UNSAFE_CHARS = set('/\\:*?"<>|[{')
+
+# Certificate authority fields written as variables.
+CA_SECRETS = {"digicert": ["api_token"], "ndes_scep_proxy": ["password"], "custom_scep_proxy": ["challenge"],
+              "hydrant": ["client_secret"], "custom_est_proxy": ["password"], "smallstep": ["username", "password"],
+              "google_cas": ["api_key_json"], "ejbca": ["client_p12", "password"]}
 
 # Setup experience booleans GitOps resets to false when they're left out.
 SETUP_FLAGS = ("enable_end_user_authentication", "require_all_software_macos", "require_all_software_windows",
@@ -204,6 +210,18 @@ class Planner:
                 used.append(name)
         out.append(env_escape(text[pos:]))
         return "".join(out).encode("utf-8"), False, used
+
+    def _short_secret_gap(self, item: dict, scope: str, name: str) -> bool:
+        """Leave out an item that holds an enroll secret too short to tell apart from ordinary text."""
+        refs = item.get("short_secret_refs")
+        if not refs:
+            return False
+        names = sorted({self._enroll_secret_name(src["team"], src["index"])[0] for src in refs})
+        self.note("gap", scope, name,
+                  f"may hold the value of {', '.join(names)}, an enroll secret shorter than {MIN_SECRET_LEN} characters that the export can't "
+                  "tell apart from ordinary text, so it isn't exported (that could put the secret in the repo). In Fleet, change that enroll "
+                  "secret to a longer one (and this item with it, if it uses the secret), then export again. Until then, applying this repo would delete it")
+        return True
 
     def _record_env_refs(self, fid: str, names: list, scope: str):
         if not names:
@@ -603,9 +621,7 @@ class Planner:
 
     def _certificate_authorities(self) -> dict:
         cas = self.snap.get("certificate_authorities") or {}
-        secrets = {"digicert": ["api_token"], "ndes_scep_proxy": ["password"], "custom_scep_proxy": ["challenge"],
-                   "hydrant": ["client_secret"], "custom_est_proxy": ["password"], "smallstep": ["username", "password"],
-                   "google_cas": ["api_key_json"], "ejbca": ["client_p12", "password"]}
+        secrets = CA_SECRETS
         out = {}
         for kind, val in cas.items():
             if not val:
@@ -717,6 +733,8 @@ class Planner:
         self._profiles(sc, fleet, scope)
         assets = []
         for asset in sc.get("assets") or []:
+            if self._short_secret_gap(asset, scope, asset["name"]):
+                continue
             if not exact_name_ok(asset["name"] + ".json"):
                 self.note("gap", scope, asset["name"], "Fleet names a DDM asset after its file, and this name can't be a file name; rename the asset in Fleet, then export again")
                 continue
@@ -793,6 +811,8 @@ class Planner:
             if not exact_name_ok(name):
                 self.note("gap", scope, name, "the script name can't be a file name GitOps can reference with `path:`; rename it in Fleet, then export again")
                 continue
+            if self._short_secret_gap(s, scope, name):
+                continue
             names_found = sorted({self._enroll_secret_name(r["source"]["team"], r["source"]["index"])[0] for r in s.get("env_refs") or []})
             if names_found:
                 # fleetctl doesn't expand variables in scripts, so exporting it would put the secret in the repo.
@@ -810,6 +830,8 @@ class Planner:
         mobile = fleet.get("template") and fleet["template"] == self._mobile_template()
         for p in sc.get("profiles") or []:
             content, name, plat = p["content"], p.get("name", ""), p.get("platform")
+            if self._short_secret_gap(p, scope, name):
+                continue
             text = text_of(content)
             opts = {}
             for k in ("labels_include_all", "labels_include_any", "labels_exclude_any"):
@@ -1329,7 +1351,7 @@ class Planner:
             failing = set(((team or cfg).get("webhook_settings") or {})
                           .get("failing_policies_webhook", {}).get("policy_ids") or [])
             titles = {t.get("id"): t for t in (sc.get("software") or {}).get("titles", [])}
-            for section, fields in _api_settings(key, sc, cfg, premium):
+            for section, fields in _api_settings(key, sc, self.snap, premium):
                 add(target, "settings", section, fields)
             if (not premium and key == "global") or (premium and key != "global"):
                 for section, fields in _api_controls(cfg["mdm"] if key in ("global", "unassigned") else team.get("mdm") or {},
@@ -1403,18 +1425,18 @@ def _sha_text(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
 
 
-def _api_settings(key: str, sc: dict, cfg: dict, premium: bool):
+def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
     """(section, {field: value}) for the inline settings Fleet reports for a scope, keyed by their GitOps path.
 
     Values the repo holds as $VARIABLEs (webhook URLs, tokens, metadata) and policy_ids (set through
-    each policy) are left out; logos and lists of integrations are files or variables too.
+    each policy) are left out; the check drops variables from the repo's side the same way. Logos are files.
     """
     def webhooks(wh: dict, prefix: str, kinds=None):
         for k, v in (wh or {}).items():
             if isinstance(v, dict) and (kinds is None or k in kinds):
                 yield f"{prefix}.{k}", {f: x for f, x in v.items() if f not in ("destination_url", "policy_ids")}
 
-    team = sc.get("team") or {}
+    team, cfg = sc.get("team") or {}, snap["config"]
     if key == "global":
         yield TOP_LEVEL, {"agent_options": cfg.get("agent_options")}
         info = drop_aliases("org_info", cfg.get("org_info") or {})
@@ -1425,8 +1447,18 @@ def _api_settings(key: str, sc: dict, cfg: dict, premium: bool):
             if isinstance(cfg.get(k), dict):
                 yield f"org_settings.{k}", cfg[k]
         yield from webhooks(cfg.get("webhook_settings"), "org_settings.webhook_settings")
-        yield "org_settings.integrations", {k: v for k, v in (cfg.get("integrations") or {}).items()
-                                            if isinstance(v, (bool, str, int, float))}
+        integ = cfg.get("integrations") or {}
+        fields = {k: v for k, v in integ.items() if isinstance(v, (bool, str, int, float))}
+        for k, secret in (("jira", "api_token"), ("zendesk", "api_token"), ("google_calendar", "api_key_json")) + \
+                ((("google_workspace", "api_key_json"),) if premium else ()):
+            if isinstance(integ.get(k), list):
+                fields[k] = [{f: x for f, x in it.items() if f != secret} for it in integ[k] if isinstance(it, dict)]
+        yield "org_settings.integrations", fields
+        cas = {}
+        for kind, val in (snap.get("certificate_authorities") or {}).items():
+            items = [{f: x for f, x in it.items() if f not in CA_SECRETS.get(kind, [])} for it in (val if isinstance(val, list) else [val]) if it]
+            cas[kind] = items if isinstance(val, list) else (items[0] if items else None)
+        yield "org_settings.certificate_authorities", cas
         sso = {k: v for k, v in (cfg.get("sso_settings") or {}).items() if k != "metadata"}
         if not premium:
             sso = {k: v for k, v in sso.items() if k not in ("enable_jit_provisioning", "enable_jit_role_sync")}
@@ -1454,8 +1486,8 @@ def _api_controls(mdm: dict, premium: bool, is_global: bool):
     if is_global:
         top.update({k: mdm.get(k) for k in ("windows_enabled_and_configured", "android_enabled_and_configured")})
         if "enable_profile_validation" in mdm:
-            # Leaving it out means true.
-            top["enable_profile_validation"] = {ANY_OF: [None, True]} if mdm["enable_profile_validation"] else False
+            # Leaving it out means true; the check reads it that way.
+            top["enable_profile_validation"] = bool(mdm["enable_profile_validation"])
         if premium:
             top.update({k: mdm.get(k) for k in ("windows_migration_enabled", "enable_turn_on_windows_mdm_manually",
                                                 "apple_require_hardware_attestation", "only_allow_apple_business_enrollment")})
@@ -1637,11 +1669,14 @@ def _url_names_version(url: str, version: str | None) -> bool:
     """Does the download URL's path name the package's version (so the bytes behind it shouldn't change)?
 
     Only a whole version counts: "8.1" doesn't match "18.1" or "8.1.2", and the host and query are ignored.
+    A file named for a channel ("latest.rpm" under "/8.1/", say) can still be replaced, so it never counts.
     """
+    path = unquote(urlparse(url).path)
+    if re.search(r"(?<![A-Za-z])(?:latest|current|stable|nightly)(?![A-Za-z])", path.rsplit("/", 1)[-1], re.I):
+        return False
     if not version:
         return True
     v = version.split(":")[-1]  # Debian epoch
-    path = unquote(urlparse(url).path)
     return any(c and re.search(r"(?<![0-9A-Za-z])(?<![0-9]\.)[vV]?" + re.escape(c) + r"(?![0-9A-Za-z])(?!\.[0-9])", path)
                for c in (v, re.split(r"[-+~]", v)[0]))
 
