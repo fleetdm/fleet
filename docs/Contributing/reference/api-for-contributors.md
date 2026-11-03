@@ -2454,7 +2454,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
-| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties. Each label's `name` and `description` must be 255 characters or fewer. |
 | names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other fleets. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct fleet can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
 
 The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one fleet (or global) to using that same label name on another fleet (or switching a fleet label to a global label). Once labels are created on the correct fleets, the old labels are cleaned up when GitOps is run on the old fleet via explicit `DELETE` calls.
