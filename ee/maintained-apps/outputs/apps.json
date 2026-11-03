@@ -1125,7 +1125,7 @@
       "name": "BitBox",
       "slug": "bitbox/darwin",
       "platform": "darwin",
-      "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+      "unique_identifier": "ch.shiftcrypto.wallet",
       "description": "BitBox is a companion app for the Swiss-made BitBox hardware wallet."
     },
     {
