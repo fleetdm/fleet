@@ -3306,8 +3306,8 @@ type Datastore interface {
 	// it and returns the batch execution ID. Run it with BatchExecuteScript.
 	NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
-	// BatchExecuteScript queues the script of a batch created with NewBatchScriptExecution
-	// on the given hosts and records the result for each host.
+	// BatchExecuteScript queues the script of a batch created with NewBatchScriptExecution on the
+	// given hosts, and saves for each host its script execution ID or why the script can't run.
 	BatchExecuteScript(ctx context.Context, batchExecID string, userID *uint, scriptID uint, hostIDs []uint) error
 
 	// GetBatchActivity returns a batch activity with executionID
