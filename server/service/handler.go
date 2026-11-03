@@ -1197,6 +1197,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
+	registerRemovedEndpoints(ne, removedEndpoints)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, contract.EnrollOsqueryAgentRequest{})
 
