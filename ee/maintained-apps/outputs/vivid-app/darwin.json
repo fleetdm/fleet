@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.19.1",
+      "version": "2.19.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.vivid';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.vivid' AND version_compare(bundle_short_version, '2.19.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.vivid' AND version_compare(bundle_short_version, '2.19.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.goodsnooze.vivid' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://lumen-digital.com/apps/vivid/releases/Vivid2.19.1.zip",
+      "installer_url": "https://lumen-digital.com/apps/vivid/releases/Vivid2.19.2.zip",
       "install_script_ref": "8870d1be",
       "uninstall_script_ref": "6f52e770",
-      "sha256": "91a44f63ebe60cb36f4bb2c340dd0785e260a50b8056e0c777f6e60f26089ab5",
+      "sha256": "3837b010a9ef854879b0358d3c93d5dd8a84abcc3d6623126da48013e6f3978d",
       "default_categories": [
         "Productivity"
       ]
