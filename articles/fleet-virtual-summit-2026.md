@@ -79,7 +79,7 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   </tbody>
 </table>
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### AI agents as a device management problem
@@ -109,7 +109,7 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### Device management 2027
@@ -142,7 +142,7 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ## How to watch
