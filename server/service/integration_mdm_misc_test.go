@@ -698,7 +698,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		// create a team from spec
 		tmSpecReq := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "Pirates"}}}
 		var tmSpecResp applyTeamSpecsResponse
-		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusOK, &tmSpecResp)
+		s.DoJSON("POST", "/api/latest/fleet/spec/fleets", tmSpecReq, http.StatusOK, &tmSpecResp)
 		teamID, ok := tmSpecResp.TeamIDsByName["Pirates"]
 		require.True(t, ok)
 		team := fleet.Team{ID: teamID, Name: "Pirates"}
@@ -790,7 +790,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 					Name: team.Name,
 					MDM:  *c.mdm,
 				}}}
-				s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, c.expectedStatus, &tmSpecResp)
+				s.DoJSON("POST", "/api/latest/fleet/spec/fleets", tmSpecReq, c.expectedStatus, &tmSpecResp)
 
 				if c.expectedStatus == http.StatusOK {
 					checkTeam(t, &team, c.mdm)
@@ -978,7 +978,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 	teamID := applyResp.TeamIDsByName[t.Name()]
 
@@ -1018,7 +1018,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 	// assign the DEP profile and assert that contains the right values for the URL
 	s.runWorker()
@@ -1046,7 +1046,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// assign the DEP profile and assert that contains the right values for the URL
@@ -1081,7 +1081,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
 
 	t.Cleanup(func() {
 		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
