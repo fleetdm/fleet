@@ -419,7 +419,6 @@ The `controls` section allows you to configure scripts and device management (MD
 
 > `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
 > `windows_require_bitlocker_pin` at this level is deprecated. Please use `windows_settings.require_bitlocker_pin` instead.
-> `windows_enabled_and_configured` and `windows_migration_enabled` are deprecated as of Fleet 5.0. They're maintained for backwards compatibility. Please use `enable_windows_mdm` and `enable_windows_mdm_migration` instead.
 
 
 #### Example
