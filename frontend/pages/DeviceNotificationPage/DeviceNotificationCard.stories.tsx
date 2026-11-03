@@ -58,6 +58,11 @@ const BASE_VIEW: INotificationView = {
   install_at: null,
 };
 
+// Width of the macOS native toast window the web view renders inside
+// (per Figma 5301:179). Constraining stories to this width shows the
+// real-world layout fit.
+const TOAST_WIDTH_PX = 525;
+
 const meta: Meta<typeof DeviceNotificationCard> = {
   title: "Pages/DeviceNotificationCard",
   component: DeviceNotificationCard,
@@ -70,7 +75,9 @@ const meta: Meta<typeof DeviceNotificationCard> = {
   decorators: [
     (Story) => (
       <QueryClientProvider client={queryClient}>
-        <Story />
+        <div style={{ width: TOAST_WIDTH_PX }}>
+          <Story />
+        </div>
       </QueryClientProvider>
     ),
   ],
