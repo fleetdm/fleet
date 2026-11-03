@@ -20,7 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/pssocrypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	jose "github.com/go-jose/go-jose/v3"
+	jose "github.com/go-jose/go-jose/v4"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
