@@ -12,7 +12,17 @@ To migrate Windows hosts from your current MDM solution to Fleet, follow the [Au
 
 ## Autopilot and Entra ID aren't required
 
-**You don't need Microsoft Entra ID or Windows Autopilot to manage Windows hosts with Fleet.** The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. Fleet's agent (fleetd) enrolls the device into Fleet MDM directly, so you don't connect Fleet to Entra or join hosts to Entra ID. See [Manual enrollment](#manual-enrollment) for how it works, including when Windows turns MDM on. Fleet is designed to make this easy. Learn more on the [Windows page](https://fleetdm.com/windows), or see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot).
+**You don't need Microsoft Entra ID or Windows Autopilot to manage Windows hosts with Fleet.** The recommended path is to use a service like Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider, where you get your PCs. This works at any scale, and works best for customers with at least 500 PCs, since you can get a better deal from your hardware provider. Fleet is designed to make this easy:
+
+1. [Turn on Windows MDM](#turn-on-windows-mdm) in Fleet.
+
+2. Forward the order email from Fleet to your hardware provider, such as Dell, Lenovo, or HP.
+
+3. The provider installs Fleet's agent (fleetd) on your new PCs before they ship.
+
+4. When an end user turns on a new PC and it comes online, it enrolls in Fleet. Windows turns MDM on after the end user signs in. See [Manual enrollment](#manual-enrollment) for details.
+
+Fleet's agent (fleetd) enrolls the device into Fleet MDM directly, so you don't connect Fleet to Entra or join hosts to Entra ID. Learn more on the [Windows page](https://fleetdm.com/windows), or see [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot).
 
 You only need Microsoft Entra ID P1 if you choose Entra automatic enrollment or Autopilot. In that case, each end user needs a P1 license. See [Microsoft licenses you need](#microsoft-licenses-you-need).
 
@@ -92,7 +102,7 @@ Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-
 
 _Available in Fleet Premium_
 
-Connecting Fleet to Microsoft Entra ID is optional. You don't need it if you use an OEM service or another way to install Fleet's agent.
+Connecting Fleet to Microsoft Entra ID is optional. The recommended way to automatically enroll Windows workstations is an [OEM service](#autopilot-and-entra-id-arent-required), which doesn't use Entra. Follow the steps in this section only if you want to enroll hosts through Entra ID. Each end user needs a Microsoft Entra ID P1 license.
 
 To automatically enroll Windows workstations through Entra ID when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
