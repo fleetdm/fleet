@@ -24,11 +24,11 @@ The tool is not built or tested in CI, so `go mod tidy` may be needed first, and
 
 ### Run the tests
 
-The tests are behind a build tag and read the generated schema, so build it first:
+The tests read the generated schema, so build it first:
 
 ```bash
 go run . generated-schema.json
-go test -tags gitops_auto_complete_test ./...
+go test ./...
 ```
 
 ### Set up with yaml-language-server
