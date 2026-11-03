@@ -158,9 +158,14 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 // handleOperationsGet reports every operation on a fake device as done, since simulated
 // devices ack commands as soon as they see them. Fleet looks the operation up when it
 // handles a COMMAND notification.
-func handleOperationsGet(store *deviceStore) http.HandlerFunc {
+// Operations on devices the mock doesn't know are forwarded to Google when it is configured.
+func handleOperationsGet(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := deviceName(r)
+		if store.getByName(name) == nil && google != nil {
+			google.ForwardOperationsGet(w, r)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if store.getByName(name) == nil {
 			w.WriteHeader(http.StatusNotFound)
