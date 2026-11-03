@@ -60,8 +60,10 @@ const DynamicLabelForm = ({
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error
-  // mid-type.
+  // mid-type. Skipped when editing: the query is read-only, so the user
+  // can't change it to resolve any error we'd surface.
   const onQueryBlur = () => {
+    if (isEditing) return;
     const { error } = validateQuery(query);
     setQueryError(query === "" || error === "" ? null : error);
   };
@@ -70,6 +72,13 @@ const DynamicLabelForm = ({
     labelFormData: ILabelFormData,
     labelFormDataValid: boolean
   ) => {
+    // Query is read-only when editing, so skip SQL validation on save too.
+    if (isEditing) {
+      if (labelFormDataValid) {
+        onSave({ ...labelFormData, query, platform });
+      }
+      return;
+    }
     const { error } = validateQuery(query);
     if (error) {
       setQueryError(error);
@@ -134,7 +143,7 @@ const DynamicLabelForm = ({
         additionalFields={
           <>
             <SQLEditor
-              error={queryError}
+              error={isEditing ? null : queryError}
               name="query"
               onChange={onQueryChange}
               onBlur={onQueryBlur}

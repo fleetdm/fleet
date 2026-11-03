@@ -377,6 +377,8 @@ export interface ITargetLabelSelectorProps {
   isErrorLabels?: boolean;
   className?: string;
   disableOptions?: boolean;
+  /** Validation error rendered in red above the include/exclude tabs. */
+  labelsError?: ReactNode | null;
 }
 
 /**
@@ -396,6 +398,7 @@ const TargetLabelSelector = ({
   isErrorLabels = false,
   className,
   disableOptions = false,
+  labelsError,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
 
@@ -407,16 +410,23 @@ const TargetLabelSelector = ({
         disableOptions={disableOptions}
       />
       {selectedTargetType === "Custom" && (
-        <CustomTargetTabs
-          labels={labels || []}
-          include={includeConfig}
-          exclude={excludeConfig}
-          emptyStateDescription={emptyStateDescription}
-          onAddLabel={onAddLabel}
-          isLoadingLabels={isLoadingLabels}
-          isErrorLabels={isErrorLabels}
-          disableOptions={disableOptions}
-        />
+        <>
+          {labelsError && (
+            <div className={`${baseClass}__description--error`}>
+              {labelsError}
+            </div>
+          )}
+          <CustomTargetTabs
+            labels={labels || []}
+            include={includeConfig}
+            exclude={excludeConfig}
+            emptyStateDescription={emptyStateDescription}
+            onAddLabel={onAddLabel}
+            isLoadingLabels={isLoadingLabels}
+            isErrorLabels={isErrorLabels}
+            disableOptions={disableOptions}
+          />
+        </>
       )}
     </div>
   );

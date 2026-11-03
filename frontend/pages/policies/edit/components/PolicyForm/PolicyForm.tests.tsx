@@ -494,7 +494,7 @@ describe("PolicyForm - component", () => {
       expect(onUpdate.mock.calls[0][0].query).toBe(invalidSQL);
     });
 
-    it("disables save and run button with tooltip for missing policy platforms", async () => {
+    it("surfaces an inline platform error on Save click when no platforms are selected", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -531,6 +531,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
+      const onUpdate = jest.fn();
       const { user } = render(
         <PolicyForm
           router={createMockRouter()}
@@ -544,7 +545,7 @@ describe("PolicyForm - component", () => {
           onCreatePolicy={jest.fn()}
           onOsqueryTableSelect={jest.fn()}
           goToSelectTargets={jest.fn()}
-          onUpdate={jest.fn()}
+          onUpdate={onUpdate}
           onOpenSchemaSidebar={jest.fn()}
           renderLiveQueryWarning={jest.fn()}
           backendValidators={{}}
@@ -556,13 +557,14 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
-      await user.hover(screen.getByRole("button", { name: "Save" }));
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
 
+      expect(onUpdate).not.toHaveBeenCalled();
       await waitFor(() => {
         expect(
-          screen.getByText(/to save or run the policy/i)
+          screen.getByText("Select at least one platform")
         ).toBeInTheDocument();
       });
     });
@@ -742,8 +744,9 @@ describe("PolicyForm - component", () => {
         ).toBeChecked();
       });
 
-      it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-        render(<PolicyForm {...defaultProps} />);
+      it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+        const onUpdate = jest.fn();
+        render(<PolicyForm {...defaultProps} onUpdate={onUpdate} />);
         let allHosts;
         let custom;
         await waitFor(() => {
@@ -753,17 +756,21 @@ describe("PolicyForm - component", () => {
           expect(custom).toBeInTheDocument();
         });
         custom && (await userEvent.click(custom));
-        const saveButton = screen.getByRole("button", { name: "Save" });
-        expect(saveButton).toBeDisabled();
 
-        const funButton = await screen.findByRole("checkbox", {
-          name: "Fun",
-        });
-        expect(funButton).not.toBeChecked();
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+        await userEvent.click(saveButton);
+
+        expect(onUpdate).not.toHaveBeenCalled();
+        expect(
+          screen.getByText(/Select at least one label/)
+        ).toBeInTheDocument();
+
+        const funButton = await screen.findByRole("checkbox", { name: "Fun" });
         await userEvent.click(funButton);
-        await waitFor(() => {
-          expect(saveButton).toBeEnabled();
-        });
+        expect(
+          screen.queryByText(/Select at least one label/)
+        ).not.toBeInTheDocument();
       });
 
       it("should send labels when saving a new query in Custom target mode (include any)", async () => {

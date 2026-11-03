@@ -150,12 +150,27 @@ const SaveNewPolicyModal = ({
     [policyTeamId]
   );
 
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
-  const disableSave =
-    !platformSelector.isAnyPlatformSelected ||
-    disableForm ||
-    (selectedTargetType === "Custom" && !hasCustomLabels);
+
+  const labelsRequired = selectedTargetType === "Custom" && !hasCustomLabels;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
+  useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
+
+  useEffect(() => {
+    if (!labelsRequired) {
+      setShowLabelsError(false);
+    }
+  }, [labelsRequired]);
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -183,7 +198,11 @@ const SaveNewPolicyModal = ({
       ...newErrors,
     });
 
-    if (disableSave || !validName) {
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+
+    if (disableForm || !validName || !hasPlatform || labelsRequired) {
       return;
     }
 
@@ -372,7 +391,7 @@ const SaveNewPolicyModal = ({
           helpText="If this policy fails, what should the end user expect?"
           disabled={disableForm}
         />
-        {platformSelector.render()}
+        {platformSelector.render(platformError)}
         {isPremiumTier && (
           <TargetLabelSelector
             {...selectorProps}
@@ -380,6 +399,7 @@ const SaveNewPolicyModal = ({
             emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
             onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
             disableOptions={disableForm}
+            labelsError={labelsError}
           />
         )}
         {showAutomations ? (
@@ -452,34 +472,14 @@ const SaveNewPolicyModal = ({
           </div>
         )}
         <div className="modal-cta-wrap">
-          <TooltipWrapper
-            tipContent={
-              <>
-                Select the platforms this
-                <br />
-                policy will be checked on
-                <br />
-                to save the policy.
-              </>
-            }
-            tooltipClass={`${baseClass}__button--modal-save-tooltip`}
-            position="top"
-            disableTooltip={!disableSave}
-            underline={false}
-            showArrow
-            tipOffset={8}
+          <Button
+            type="submit"
+            className="save-policy-loading"
+            isLoading={isUpdatingPolicy}
+            disabled={disableForm}
           >
-            <span className={`${baseClass}__button-wrap--modal-save`}>
-              <Button
-                type="submit"
-                disabled={disableSave}
-                className="save-policy-loading"
-                isLoading={isUpdatingPolicy}
-              >
-                Save
-              </Button>
-            </span>
-          </TooltipWrapper>
+            Save
+          </Button>
           <Button
             className={`${baseClass}__button--modal-cancel`}
             type="button"

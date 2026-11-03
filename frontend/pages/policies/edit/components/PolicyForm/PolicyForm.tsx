@@ -133,6 +133,8 @@ const PolicyForm = ({
   resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
@@ -233,10 +235,7 @@ const PolicyForm = ({
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const platformCompatibility = usePlatformCompatibility();
-  const {
-    getCompatiblePlatforms,
-    setCompatiblePlatforms,
-  } = platformCompatibility;
+  const { setCompatiblePlatforms } = platformCompatibility;
 
   const validateSqlOnBlur = (sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
@@ -256,15 +255,27 @@ const PolicyForm = ({
     currentTeam?.id
   );
 
-  const {
-    getSelectedPlatforms,
-    setSelectedPlatforms,
-    isAnyPlatformSelected,
-  } = platformSelector;
+  const { getSelectedPlatforms, isAnyPlatformSelected } = platformSelector;
 
   policyIdForEdit = policyIdForEdit || 0;
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const labelsRequired = selectedTargetType === "Custom" && !hasCustomLabels;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
+  useEffect(() => {
+    if (isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [isAnyPlatformSelected]);
+
+  useEffect(() => {
+    if (!labelsRequired) {
+      setShowLabelsError(false);
+    }
+  }, [labelsRequired]);
 
   const isNewTemplatePolicy =
     !policyIdForEdit &&
@@ -458,12 +469,13 @@ const PolicyForm = ({
       return;
     }
 
-    if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      setErrors({
-        ...errors,
-        name: "At least one platform must be selected",
-      });
-      return;
+    if (isEditMode && !isPatchPolicy) {
+      const hasPlatform = isAnyPlatformSelected;
+      setPlatformError(hasPlatform ? null : "Select at least one platform");
+      setShowLabelsError(labelsRequired);
+      if (!hasPlatform || labelsRequired) {
+        return;
+      }
     }
 
     // Capture + validate automation changes up front so an invalid selection
@@ -537,13 +549,7 @@ const PolicyForm = ({
       return;
     }
 
-    let selectedPlatforms = getSelectedPlatforms();
-    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
-      // If no platforms are selected, default to all compatible platforms
-      selectedPlatforms = getCompatiblePlatforms();
-      setSelectedPlatforms(selectedPlatforms);
-    }
-
+    const selectedPlatforms = getSelectedPlatforms();
     const newPlatformString = selectedPlatforms.join(
       ","
     ) as CommaSeparatedPlatformString;
@@ -770,14 +776,11 @@ const PolicyForm = ({
   };
 
   const renderPolicyForm = () => {
-    // Save stays enabled when name is blank — click reveals the inline name
-    // error via promptSavePolicy, matching Fleet's form validation pattern.
-    // Syntax errors do not disable Save either.
+    // Save stays enabled when name / platforms / labels are missing — click
+    // reveals the inline errors via promptSavePolicy, matching Fleet's form
+    // validation pattern. Syntax errors do not disable Save either.
     const disableSaveFormErrors =
-      isAddingAutomation ||
-      (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
-      (selectedTargetType === "Custom" && !hasCustomLabels) ||
-      errors.query === EMPTY_QUERY_ERR;
+      isAddingAutomation || errors.query === EMPTY_QUERY_ERR;
 
     // Single source of truth: patchOptions renders inside this block (patchSlot)
     // when shown, and standalone otherwise — the two must stay exact complements.
@@ -834,7 +837,9 @@ const PolicyForm = ({
           {isEditMode && renderName()}
           {renderDescription()}
           {renderResolution()}
-          {isEditMode && !isPatchPolicy && platformSelector.render()}
+          {isEditMode &&
+            !isPatchPolicy &&
+            platformSelector.render(platformError)}
           {isEditMode && isPremiumTier && !isPatchPolicy && (
             <TargetLabelSelector
               {...selectorProps}
@@ -842,6 +847,7 @@ const PolicyForm = ({
               emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
               onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
               disableOptions={gitOpsModeEnabled}
+              labelsError={labelsError}
             />
           )}
           {showAutomationsBlock && (
@@ -916,24 +922,14 @@ const PolicyForm = ({
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <TooltipWrapper
-                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
-                  tooltipClass={`${baseClass}__button-wrap--tooltip`}
-                  position="top"
-                  disableTooltip={!isEditMode || isAnyPlatformSelected}
-                  underline={false}
+                <Button
+                  onClick={promptSavePolicy()}
+                  disabled={disableSaveFormErrors || disableChildren}
+                  className="save-loading"
+                  isLoading={isUpdatingPolicy || isSavingAutomations}
                 >
-                  <span className={`${baseClass}__button-wrap--tooltip`}>
-                    <Button
-                      onClick={promptSavePolicy()}
-                      disabled={disableSaveFormErrors || disableChildren}
-                      className="save-loading"
-                      isLoading={isUpdatingPolicy || isSavingAutomations}
-                    >
-                      Save
-                    </Button>
-                  </span>
-                </TooltipWrapper>
+                  Save
+                </Button>
               )}
             />
             <TooltipWrapper
