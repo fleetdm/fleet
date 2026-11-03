@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 import React from "react";
 
@@ -30,6 +31,8 @@ import SoftwareInstallDetailsModal, {
 
 describe("SoftwareInstallDetailsModal", () => {
   describe("StatusMessage component", () => {
+    afterEach(() => jest.useRealTimers());
+
     it("renders basic 'is installed' message when not installed by fleet (no installResult provided)", () => {
       render(<StatusMessage softwareName="CoolApp" isMyDevicePage={false} />);
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
@@ -304,7 +307,8 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
-    it("on activity feed, renders installed message with the activity's timestamp instead of the install's", () => {
+    it("on activity feed, renders installed message with the activity's timestamp instead of the install's", async () => {
+      jest.useFakeTimers();
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       render(
         <StatusMessage
@@ -316,8 +320,17 @@ describe("SoftwareInstallDetailsModal", () => {
           activityCreatedAt={fiveMinutesAgo}
         />
       );
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
       expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/5 minutes ago/));
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(
+        screen.queryByText(/Time when Fleet sent install command/)
+      ).not.toBeInTheDocument();
     });
 
     it("on host software page, renders installed message with the install's created_at instead of a newer updated_at", async () => {
