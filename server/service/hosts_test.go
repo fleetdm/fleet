@@ -2389,6 +2389,160 @@ func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 	})
 }
 
+func TestGetHostByIDOrIdentifier(t *testing.T) {
+	const (
+		numericHostID     = uint(123)
+		otherFleetID      = uint(2)
+		numericIdentifier = "123"
+	)
+	hostFoundByID := &fleet.Host{ID: numericHostID, Hostname: "found-by-id", TeamID: new(uint(1))}
+	hostFoundByIdentifier := &fleet.Host{ID: 456, Hostname: "found-by-identifier", TeamID: new(uint(1))}
+
+	globalAdmin := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	globalGitOps := &fleet.User{ID: 2, GlobalRole: new(fleet.RoleGitOps)}
+	otherFleetObserver := &fleet.User{ID: 3, Teams: []fleet.UserTeam{{ID: otherFleetID, Role: fleet.RoleObserver}}}
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		identifier      string
+		idExists        bool
+		wantHostID      uint
+		wantIDOnly      bool
+		wantForbidden   bool
+		wantIDLookup    bool
+		wantOtherLookup bool
+	}{
+		{
+			name: "existing id wins", user: globalAdmin, identifier: numericIdentifier, idExists: true,
+			wantHostID: numericHostID, wantIDLookup: true,
+		},
+		{
+			name: "numeric value that is not an id falls back to identifiers", user: globalAdmin, identifier: numericIdentifier,
+			wantHostID: hostFoundByIdentifier.ID, wantIDLookup: true, wantOtherLookup: true,
+		},
+		{
+			name: "non-numeric value only looks up identifiers", user: globalAdmin, identifier: "some-host",
+			wantHostID: hostFoundByIdentifier.ID, wantOtherLookup: true,
+		},
+		{
+			name: "leading zeros still match an id", user: globalAdmin, identifier: "0123", idExists: true,
+			wantHostID: numericHostID, wantIDLookup: true,
+		},
+		{
+			name: "leading zeros that match no id fall back to identifiers", user: globalAdmin, identifier: "0123",
+			wantHostID: hostFoundByIdentifier.ID, wantIDLookup: true, wantOtherLookup: true,
+		},
+		{
+			name: "value too large for an id only looks up identifiers", user: globalAdmin, identifier: "99999999999999999999",
+			wantHostID: hostFoundByIdentifier.ID, wantOtherLookup: true,
+		},
+		{
+			name: "gitops gets the id only when matched by id", user: globalGitOps, identifier: numericIdentifier, idExists: true,
+			wantHostID: numericHostID, wantIDOnly: true, wantIDLookup: true,
+		},
+		{
+			name: "gitops gets the id only when matched by identifier", user: globalGitOps, identifier: "some-host",
+			wantHostID: hostFoundByIdentifier.ID, wantIDOnly: true, wantOtherLookup: true,
+		},
+		{
+			name: "an unreadable id match is denied instead of falling back", user: otherFleetObserver, identifier: numericIdentifier, idExists: true,
+			wantForbidden: true, wantIDLookup: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tc.user})
+
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				if tc.idExists && id == numericHostID {
+					return hostFoundByID, nil
+				}
+				return nil, newNotFoundError()
+			}
+			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+				require.Equal(t, tc.identifier, identifier)
+				return hostFoundByIdentifier, nil
+			}
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				if id == numericHostID {
+					return hostFoundByID, nil
+				}
+				return hostFoundByIdentifier, nil
+			}
+			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+				return time.Now(), nil
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+				return nil
+			}
+			ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+				return nil, nil
+			}
+			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+				return nil, nil
+			}
+			ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+				return nil, nil
+			}
+			ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+				return nil, nil
+			}
+			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+				return nil, nil
+			}
+			ds.ListHostDeviceMappingFunc = func(ctx context.Context, hid uint) ([]*fleet.HostDeviceMapping, error) {
+				return nil, nil
+			}
+			ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+				return nil, nil
+			}
+			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
+			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
+			}
+			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
+			}
+			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+				return time.Time{}, nil
+			}
+			ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+				return nil
+			}
+			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+				return false, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
+
+			// requireIDOnly asserts the caller got the host id and no other host data,
+			// and that Fleet didn't even load the details it isn't allowed to see.
+
+			host, err := svc.GetHostByIDOrIdentifier(ctx, tc.identifier, fleet.HostDetailOptions{})
+			require.Equal(t, tc.wantIDLookup, ds.HostLiteFuncInvoked, "id lookup")
+			require.Equal(t, tc.wantOtherLookup, ds.HostByIdentifierFuncInvoked, "identifier lookup")
+			if tc.wantForbidden {
+				checkAuthErr(t, true, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantHostID, host.ID)
+			require.Equal(t, tc.wantIDOnly, host.IDOnly)
+			require.Equal(t, !tc.wantIDOnly, ds.HostFuncInvoked, "full details load only for callers who can read the host")
+		})
+	}
+}
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

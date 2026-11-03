@@ -1557,6 +1557,90 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
 }
 
+func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
+		host := &fleet.Host{
+			Hostname:       "any-identifier-hostname-" + name,
+			OsqueryHostID:  new("any-identifier-osquery-" + name),
+			NodeKey:        new("any-identifier-nodekey-" + name),
+			UUID:           "any-identifier-uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "any-identifier-serial-" + name,
+		}
+		if mutate != nil {
+			mutate(host)
+		}
+		created, err := s.ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		return created
+	}
+	target := newHost("target", nil)
+	// Another host whose serial is the target's ID: the ID has to win.
+	numericSerial := newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
+	// A numeric hostname that no host ID uses resolves as a hostname.
+	const unusedHostID = "4294967295"
+	numericHostname := newHost("numeric-hostname", func(h *fleet.Host) { h.Hostname = unusedHostID })
+	// A serial with leading zeros resolves as a serial when the number is not a host ID.
+	const leadingZerosSerial = "0004294967293"
+	leadingZeros := newHost("leading-zeros", func(h *fleet.Host) { h.HardwareSerial = leadingZerosSerial })
+	// Literal routes keep their meaning even for a host with that name.
+	newHost("literal", func(h *fleet.Host) { h.Hostname = "count" })
+
+	testCases := []struct {
+		name       string
+		identifier string
+		wantHostID uint
+	}{
+		{name: "id", identifier: fmt.Sprint(target.ID), wantHostID: target.ID},
+		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
+		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
+		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
+		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
+		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
+		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
+		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
+		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp getHostResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/"+tc.identifier, nil, http.StatusOK, &resp)
+			require.Equal(t, tc.wantHostID, resp.Host.ID)
+		})
+	}
+
+	t.Run("id beats a matching serial", func(t *testing.T) {
+		var resp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", numericSerial.HardwareSerial), nil, http.StatusOK, &resp)
+		require.Equal(t, target.ID, resp.Host.ID)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
+	})
+
+	t.Run("response does not depend on how the host was found", func(t *testing.T) {
+		const query = "exclude_software"
+		byID := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", target.ID), nil, http.StatusOK, query, "true")
+		byIDBody, err := io.ReadAll(byID.Body)
+		require.NoError(t, err)
+		bySerial := s.Do("GET", "/api/latest/fleet/hosts/"+target.HardwareSerial, nil, http.StatusOK, query, "true")
+		bySerialBody, err := io.ReadAll(bySerial.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, string(byIDBody), string(bySerialBody))
+	})
+
+	t.Run("literal routes win over a host with that hostname", func(t *testing.T) {
+		var resp countHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp)
+		require.Positive(t, resp.Count)
+	})
+}
+
 func (s *integrationTestSuite) TestHostDeviceMapping() {
 	t := s.T()
 	ctx := context.Background()

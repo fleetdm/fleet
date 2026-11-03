@@ -914,8 +914,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID              uint `url:"id"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
+	Identifier      string `url:"id"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -932,9 +932,13 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		IncludePolicies:  true, // intentionally true to preserve existing behavior,
 		ExcludeSoftware:  req.ExcludeSoftware,
 	}
-	host, err := svc.GetHost(ctx, req.ID, opts)
+	host, err := svc.GetHostByIDOrIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
+	}
+
+	if host.IDOnly {
+		return hostIDOnlyResponse{Host: hostIDOnly{ID: host.ID}}, nil
 	}
 
 	resp, err := hostDetailResponseForHost(ctx, svc, host)
@@ -1191,16 +1195,12 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so
-		// the deprecated Puppet module can resolve a host identifier to a host id
-		// before pre-assigning profiles. Such a caller gets that id and nothing
-		// else: host details are read data it isn't entitled to.
-		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
-			return nil, selectiveErr
-		}
-		return &fleet.HostDetail{Host: fleet.Host{ID: host.ID}, IDOnly: true}, nil
+	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	if idOnly {
+		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
 	}
 
 	hostDetails, err := svc.getHostDetails(ctx, host, opts)
@@ -1209,6 +1209,57 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	}
 
 	return hostDetails, nil
+}
+
+// authorizeHostReadOrIDOnly authorizes reading a host whose team_id is loaded. It reports idOnly when the caller may only learn
+// the host's id: GitOps has no host read access, but it is granted selective_read so the deprecated Puppet module can resolve a
+// host identifier to a host id before pre-assigning profiles. Host details are read data such a caller isn't entitled to.
+func (svc *Service) authorizeHostReadOrIDOnly(ctx context.Context, host *fleet.Host) (idOnly bool, err error) {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
+			return false, selectiveErr
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
+// priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial
+// rather than a reason to keep looking, so the same value can't resolve to different hosts depending on who is asking.
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	// Coarse gate before the host's team is known. selective_list admits GitOps,
+	// which the team-scoped check below then limits to the host's id.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return nil, err
+	}
+
+	var host *fleet.Host
+	if id, parseErr := strconv.ParseUint(identifier, 10, 64); parseErr == nil {
+		var err error
+		host, err = svc.ds.HostLite(ctx, uint(id))
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get host by id")
+		}
+	}
+	if host == nil {
+		var err error
+		host, err = svc.ds.HostByIdentifier(ctx, identifier)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+		}
+	}
+
+	idOnly, err := svc.authorizeHostReadOrIDOnly(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	if idOnly {
+		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
+	}
+
+	// GetHost loads what the identifier lookup doesn't, such as host issues, so the response is the same however the host was found.
+	return svc.GetHost(ctx, host.ID, opts)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

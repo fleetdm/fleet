@@ -249,6 +249,8 @@ type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
+type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
+
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
@@ -1401,6 +1403,9 @@ type Service struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
+	GetHostByIDOrIdentifierFuncInvoked bool
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
@@ -3416,6 +3421,13 @@ func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts 
 	s.HostByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostByIdentifierFunc(ctx, identifier, opts)
+}
+
+func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	s.mu.Lock()
+	s.GetHostByIDOrIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostByIDOrIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
