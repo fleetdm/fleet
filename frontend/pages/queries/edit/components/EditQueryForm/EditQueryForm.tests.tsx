@@ -708,14 +708,15 @@ describe("EditQueryForm - component", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected", async () => {
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      onUpdate.mockClear();
       const testProps = {
         ...props,
         storedQuery: createMockQuery({
           labels_include_any: [{ name: "Fun", id: 1 }],
         }),
       };
-      render(<EditQueryForm {...testProps} />);
+      const { user } = render(<EditQueryForm {...testProps} />);
       let saveButton;
       let funButton;
       await waitFor(() => {
@@ -724,20 +725,24 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("Custom")).toBeChecked();
         funButton = screen.getByRole("checkbox", { name: "Fun" });
         expect(funButton).toBeChecked();
-        expect(
-          screen.getByRole("checkbox", { name: "Fresh" })
-        ).not.toBeChecked();
         saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
       });
 
-      // Unchecking the only selected label should disable the save button.
-      funButton && (await userEvent.click(funButton));
-      expect(saveButton).toBeDisabled();
-
-      // Re-checking it should enable it.
-      funButton && (await userEvent.click(funButton));
+      // Uncheck the only selected label — Save stays enabled.
+      funButton && (await user.click(funButton));
       expect(saveButton).toBeEnabled();
+
+      // Clicking Save surfaces the inline labels error and does not persist.
+      saveButton && (await user.click(saveButton));
+      expect(onUpdate).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      // Re-checking a label clears the error.
+      funButton && (await user.click(funButton));
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("should send labels when updating a query in Custom target mode", async () => {

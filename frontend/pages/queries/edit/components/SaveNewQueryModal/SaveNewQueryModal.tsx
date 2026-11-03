@@ -16,6 +16,7 @@ import Modal from "components/Modal";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
+  getLabelsRequiredError,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -109,6 +110,18 @@ const SaveNewQueryModal = ({
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.entries(selectedLabels).some(
+    ([, v]) => v === true
+  );
+  const labelsRequired =
+    isPremiumTier && selectedTargetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired
+      ? getLabelsRequiredError(selectedCustomTarget)
+      : null;
 
   const {
     data: { labels } = { labels: [] },
@@ -140,6 +153,9 @@ const SaveNewQueryModal = ({
       ...selectedLabels,
       [labelName]: value,
     });
+    if (value) {
+      setShowLabelsError(false);
+    }
   };
 
   const toggleAdvancedOptions = () => {
@@ -153,34 +169,38 @@ const SaveNewQueryModal = ({
   }, [name]);
 
   useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
+
+  useEffect(() => {
     setErrors(backendValidators);
   }, [backendValidators]);
-
-  // Disable saving if "Custom" targeting is selected, but no labels are selected.
-  const canSave =
-    platformSelector.isAnyPlatformSelected &&
-    (selectedTargetType === "All hosts" ||
-      Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const trimmedName = name.trim();
 
-    const { valid, errors: newErrors } = validateQueryName(trimmedName);
+    const { valid: validName, errors: newErrors } = validateQueryName(
+      trimmedName
+    );
     setErrors({
       ...errors,
       ...newErrors,
     });
     setName(trimmedName);
 
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString;
 
-    if (valid) {
+    if (validName && hasPlatform && !labelsRequired) {
       const customLabelNames =
         isPremiumTier && selectedTargetType === "Custom"
           ? Object.entries(selectedLabels)
@@ -333,7 +353,7 @@ const SaveNewQueryModal = ({
             </>
           }
         />
-        {platformSelector.render()}
+        {platformSelector.render(platformError)}
         {isPremiumTier && (
           <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
@@ -344,9 +364,13 @@ const SaveNewQueryModal = ({
             }
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
-            onSelectTargetType={setSelectedTargetType}
+            onSelectTargetType={(val) => {
+              setSelectedTargetType(val);
+              if (val === "All hosts") setShowLabelsError(false);
+            }}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            labelsError={labelsError}
             suppressTitle
           />
         )}
@@ -394,7 +418,7 @@ const SaveNewQueryModal = ({
             type="submit"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
-            disabled={!canSave}
+            disabled={isFetchingLabels}
           >
             Save
           </Button>

@@ -33,6 +33,7 @@ import SQLEditor from "components/SQLEditor";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
+  getLabelsRequiredError,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -203,6 +204,8 @@ const EditQueryForm = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
   const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
@@ -371,7 +374,25 @@ const EditQueryForm = ({
       ...selectedLabels,
       [labelName]: value,
     });
+    if (value) {
+      setShowLabelsError(false);
+    }
   };
+
+  const hasSelectedLabel = Object.entries(selectedLabels).some(
+    ([, v]) => v === true
+  );
+  const labelsRequired = selectedTargetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired
+      ? getLabelsRequiredError(selectedCustomTarget)
+      : null;
+
+  useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
@@ -413,16 +434,22 @@ const EditQueryForm = ({
     // allow save when invalid sqlite syntax
     const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (canSave) {
-      if (!isExistingQuery) {
-        platformSelector.setSelectedPlatforms(
-          platformCompatibility.getCompatiblePlatforms()
-        );
-        setShowSaveNewQueryModal(true);
-      } else {
-        onUpdate(updateQueryData);
-      }
+    if (!canSave) return;
+
+    if (!isExistingQuery) {
+      platformSelector.setSelectedPlatforms(
+        platformCompatibility.getCompatiblePlatforms()
+      );
+      setShowSaveNewQueryModal(true);
+      return;
     }
+
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+
+    onUpdate(updateQueryData);
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
@@ -643,15 +670,11 @@ const EditQueryForm = ({
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
-    // Save stays enabled when name is blank — click reveals the inline name
-    // error via handleSaveQuery, matching Fleet's form validation pattern.
+    // Save stays enabled when name, platforms, or labels are missing — click
+    // reveals the inline errors via handleSaveQuery, matching Fleet's form
+    // validation pattern.
     const disableSaveFormErrors =
-      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
-      (isExistingQuery && !platformSelector.isAnyPlatformSelected) ||
-      (selectedTargetType === "Custom" &&
-        !Object.entries(selectedLabels).some(([, value]) => {
-          return value;
-        }));
+      !!errors.query && errors.query === EMPTY_QUERY_ERR;
 
     return (
       <>
@@ -762,7 +785,7 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
-              {isExistingQuery && platformSelector.render()}
+              {isExistingQuery && platformSelector.render(platformError)}
               {isPremiumTier && (
                 <DropdownTargetLabelSelector
                   selectedTargetType={selectedTargetType}
@@ -773,9 +796,13 @@ const EditQueryForm = ({
                   }
                   selectedLabels={selectedLabels}
                   className={`${baseClass}__target`}
-                  onSelectTargetType={setSelectedTargetType}
+                  onSelectTargetType={(val) => {
+                    setSelectedTargetType(val);
+                    if (val === "All hosts") setShowLabelsError(false);
+                  }}
                   onSelectLabel={onSelectLabel}
                   labels={labels || []}
+                  labelsError={labelsError}
                   disableOptions={gitOpsModeEnabled}
                   suppressTitle
                 />
