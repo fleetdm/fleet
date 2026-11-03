@@ -13,7 +13,7 @@ export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
   /** default grey */
-  color?: "grey" | "yellow";
+  color?: "grey" | "yellow" | "red";
   pageLevel?: boolean;
   /** Add this element to the end of the banner message. Mutually exclusive with `link`. */
   cta?: JSX.Element;

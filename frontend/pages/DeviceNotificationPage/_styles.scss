@@ -101,10 +101,15 @@
     gap: $pad-small;
   }
 
-  &__action-error {
-    // Strip DataError's stand-alone-page padding so the actions row keeps a stable height.
-    .data-error__header--single-line {
-      padding: 0;
-    }
+  &__error {
+    // Match the toast's compact-list density.
+    padding: $pad-small $pad-medium;
+  }
+
+  // When the error banner is present, shrink the list cap by one row so the
+  // card doesn't push the toast window taller than it already is. Short lists
+  // sit below the cap and let the window grow by the banner's height instead.
+  &__card--has-error .list__list {
+    max-height: calc(3.5 * 48px);
   }
 }

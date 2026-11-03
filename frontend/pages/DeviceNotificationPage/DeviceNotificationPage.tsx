@@ -1,11 +1,12 @@
+import classnames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
-import DataError from "components/DataError";
 import Icon from "components/Icon";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import InfoBanner from "components/InfoBanner";
 import List from "components/List";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -229,7 +230,12 @@ const DeviceNotificationPage = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__card`} ref={cardRef}>
+      <div
+        className={classnames(`${baseClass}__card`, {
+          [`${baseClass}__card--has-error`]: isPostError,
+        })}
+        ref={cardRef}
+      >
         <div className={`${baseClass}__header`}>
           <p className={`${baseClass}__title`}>
             {renderBoldMarkup(view.title)}
@@ -245,15 +251,6 @@ const DeviceNotificationPage = ({
         />
         <div className={`${baseClass}__actions`}>
           <OrgLogoIcon className={`${baseClass}__logo`} src={orgLogoURL} />
-          {isPostError && (
-            <div className={`${baseClass}__action-error`} role="alert">
-              <DataError
-                singleCustomLine
-                description="Please try again."
-                excludeIssueLink
-              />
-            </div>
-          )}
           {secondaryAction && (
             <Button
               variant="subdued"
@@ -278,6 +275,18 @@ const DeviceNotificationPage = ({
             </Button>
           )}
         </div>
+        {isPostError && (
+          <div role="alert">
+            <InfoBanner
+              color="red"
+              icon="error"
+              iconColor="core-vibrant-red"
+              className={`${baseClass}__error`}
+            >
+              Something went wrong. Please try again
+            </InfoBanner>
+          </div>
+        )}
       </div>
     </div>
   );
