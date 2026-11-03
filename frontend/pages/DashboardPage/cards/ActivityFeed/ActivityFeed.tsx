@@ -256,8 +256,6 @@ const ActivityFeed = ({
     }
   );
 
-  // onSuccess doesn't fire when a remount reads fresh cached data. A layout
-  // effect sets the title before paint, so rows never show without it.
   useLayoutEffect(() => {
     if (activitiesData || errorActivities) {
       setShowActivityFeedTitle(true);
