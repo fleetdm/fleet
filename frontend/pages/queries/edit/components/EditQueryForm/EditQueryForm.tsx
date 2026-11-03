@@ -469,6 +469,20 @@ const EditQueryForm = ({
     toggleSaveAsNewQueryModal();
   };
 
+  // Pre-validate before opening the confirm-changes modal so inline errors
+  // (name, platforms, labels) aren't hidden behind it.
+  const handleSaveWithConfirm = () => {
+    if (!lastEditedQueryName.trim()) {
+      setErrors({ ...errors, name: "Enter a report name" });
+      return;
+    }
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+    toggleConfirmSaveChangesModal();
+  };
+
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showOpenSchemaActionText) {
       return null;
@@ -895,7 +909,7 @@ const EditQueryForm = ({
                         className="save-loading"
                         onClick={
                           confirmChanges
-                            ? toggleConfirmSaveChangesModal
+                            ? handleSaveWithConfirm
                             : handleSaveQuery()
                         }
                         disabled={disableSaveFormErrors || disableChildren}
