@@ -25,7 +25,7 @@ export interface IInfoBannerProps {
   icon?: IconNames;
   /** Overrides the icon's default color when `icon` is set. */
   iconColor?: Colors;
-  /** `"compact"` renders a slim 32px-tall pill with tighter padding, for use
+  /** `"compact"` renders a slim 32px-tall card with tighter padding, for use
    * inside narrow surfaces (e.g. device notification toasts). Defaults to
    * `"regular"`. */
   size?: "regular" | "compact";
