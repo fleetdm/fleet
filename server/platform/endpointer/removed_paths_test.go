@@ -28,6 +28,7 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	}{
 		{"v1", http.MethodGet, "/api/v1/fleet/gone/1", http.StatusGone, "gone in v1"},
 		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone in 2022-04"},
+		{"head", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusGone, ""},
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone in latest"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
