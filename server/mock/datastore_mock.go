@@ -1812,6 +1812,8 @@ type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID ui
 
 type NewBatchScriptExecutionFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+type BatchExecuteScriptFunc func(ctx context.Context, batchExecID string, userID *uint, scriptID uint, hostIDs []uint) error
+
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
@@ -5328,6 +5330,9 @@ type DataStore struct {
 
 	NewBatchScriptExecutionFunc        NewBatchScriptExecutionFunc
 	NewBatchScriptExecutionFuncInvoked bool
+
+	BatchExecuteScriptFunc        BatchExecuteScriptFunc
+	BatchExecuteScriptFuncInvoked bool
 
 	GetBatchActivityFunc        GetBatchActivityFunc
 	GetBatchActivityFuncInvoked bool
@@ -12839,6 +12844,13 @@ func (s *DataStore) NewBatchScriptExecution(ctx context.Context, userID *uint, s
 	s.NewBatchScriptExecutionFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewBatchScriptExecutionFunc(ctx, userID, scriptID, hostIDs)
+}
+
+func (s *DataStore) BatchExecuteScript(ctx context.Context, batchExecID string, userID *uint, scriptID uint, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BatchExecuteScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchExecuteScriptFunc(ctx, batchExecID, userID, scriptID, hostIDs)
 }
 
 func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {

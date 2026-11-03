@@ -2793,6 +2793,10 @@ func teamIDEq(teamID1, teamID2 *uint) bool {
 
 var errBatchScriptCanceled = errors.New("batch script canceled")
 
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, batchExecID string, userID *uint, scriptID uint, hostIDs []uint) error {
+	return ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID)
+}
+
 func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
@@ -3006,40 +3010,19 @@ func (ds *Datastore) NewBatchScriptExecution(ctx context.Context, userID *uint, 
 	batchExecID := uuid.New().String()
 
 	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
-	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(
-			ctx,
-			batchActivitiesStmt,
-			batchExecID,
-			scriptID,
-			userID,
-			fleet.ScheduledBatchExecutionScheduled,
-			fleet.BatchExecutionActivityScript,
-			len(hostIDs),
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
-		}
-
-		args := make([]map[string]any, 0, len(hostIDs))
-		for _, hostID := range hostIDs {
-			args = append(args, map[string]any{
-				"exec_id": batchExecID,
-				"host_id": hostID,
-			})
-		}
-
-		_, err = sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting batch host results")
-		}
-
-		return nil
-	})
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		batchActivitiesStmt,
+		batchExecID,
+		scriptID,
+		userID,
+		fleet.ScheduledBatchExecutionScheduled,
+		fleet.BatchExecutionActivityScript,
+		len(hostIDs),
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creating batch script execution")
+		return "", ctxerr.Wrap(ctx, err, "inserting new batch activity")
 	}
 
 	return batchExecID, nil
@@ -3097,6 +3080,9 @@ WHERE
 		err = sqlx.GetContext(ctx, tx, &status, `SELECT status FROM batch_activities WHERE execution_id = ? FOR UPDATE`, executionID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if status == fleet.ScheduledBatchExecutionFinished {
+			return nil
 		}
 
 		// If job worker exists, mark it as complete to stop it from running
