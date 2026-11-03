@@ -1,100 +1,241 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
-# For Ollama, we match against DisplayName "Ollama" which appears in registry
-$softwareName = "Ollama"
+# Ollama installs per user, so its uninstall entry is in the installing user's
+# registry hive rather than SYSTEM's, and its uninstaller reads the directory to
+# remove out of the hive of whoever runs it -- run as SYSTEM against a user's
+# install it exits 0 and deletes nothing. So search every hive and run the
+# uninstaller as the user who owns the entry.
 
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
-
-# Inno Setup installers require /VERYSILENT flag for silent uninstall
-$uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
-
-$machineKey = `
- 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = `
- 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$userKey = `
- 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$userKey32on64 = `
- 'HKCU:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-
+$displayNamePattern = '^Ollama version '
+$publisher = "Ollama"
+$taskName = "fleet-uninstall-ollama"
+$removedDirs = [System.Collections.Generic.List[string]]::new()
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $exitCode = 0
 
-try {
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-# Stop any running Ollama processes before uninstalling
-Stop-Process -Name "ollama app" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "ollama" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
+            $name = ($key.DisplayName -replace "`0", "").Trim()
+            if ($name -notmatch $displayNamePattern) { continue }
+            if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path @($machineKey, $machineKey32on64, $userKey, $userKey32on64) `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
+            # Only a real user's entry needs the uninstaller run for them; HKLM and
+            # SYSTEM's hive are already in the right context.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar
-    # software
-    if ($key.DisplayName -like $softwareNameLike) {
-        $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
-        }
-
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" /SILENT
-        # Split the command and args
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
+            $entries += [PSCustomObject]@{
+                DisplayName = $name
+                KeyPath     = $sub.PSPath
+                Sid         = $sid
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
             }
-            $uninstallCommand = $splitArgs[1]
         }
-        Write-Host "Uninstall command: $uninstallCommand"
-        Write-Host "Uninstall args: $uninstallArgs"
+    }
+    return $entries
+}
 
-        $processOptions = @{
-            FilePath = $uninstallCommand
-            PassThru = $true
-            Wait = $true
+function Resolve-Uninstaller {
+    param([string]$Command)
+
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } else {
+        Throw "Could not parse uninstall string: $Command"
+    }
+
+    # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
+    # unredirected system32 path that 64-bit PowerShell cannot resolve.
+    if (-not (Test-Path -LiteralPath $exePath)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
+            Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
+            $exePath = $redirected
         }
-        if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = "$uninstallArgs"
+    }
+
+    if ($arguments -notmatch '(?i)/VERYSILENT') {
+        $arguments = "$arguments /VERYSILENT /SUPPRESSMSGBOXES /NORESTART".Trim()
+    }
+
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
+}
+
+function Invoke-UninstallerAsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running the uninstaller as $account"
+
+    try {
+        if ($Arguments) {
+            $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        } else {
+            $action = New-ScheduledTaskAction -Execute $ExePath
         }
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
-        # Start process and track exit code
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
+        $startDate = Get-Date
+        Start-ScheduledTask -TaskName $taskName
 
-        # Prints the exit code
-        Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled.
-        break
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
+            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
+                Write-Host "  Uninstall task still running after 300s; checking the result anyway."
+                return $null
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
     }
 }
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstaller for '$softwareName' not found."
-    # Change exit code to 0 if you don't want to fail if uninstaller is not
-    # found. This could happen if program was already uninstalled.
-    $exitCode = 1
-}
+try {
+    $entries = @(Get-AppEntries)
+    if ($entries.Count -eq 0) {
+        Write-Host "Ollama is not installed."
+        Exit 0
+    }
+
+    foreach ($entry in $entries) {
+        Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
+        if (-not $entry.Command) {
+            Write-Host "  No uninstall string recorded; removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        $installDir = Split-Path $uninstaller.ExePath -Parent
+        $removedDirs.Add($installDir)
+
+        # Anything running out of this install directory blocks removal. Matching on the
+        # directory rather than a process name keeps another install of the same app,
+        # in another user's profile, running.
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+        if (-not (Test-Path -LiteralPath $uninstaller.ExePath)) {
+            Write-Host "  Uninstaller is gone from $($uninstaller.ExePath); removing the leftover registration."
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        Write-Host "  Uninstall command: $($uninstaller.ExePath)"
+        Write-Host "  Uninstall args: $($uninstaller.Arguments)"
+        if ($entry.Sid) {
+            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+        } else {
+            $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                -NoNewWindow -PassThru -Wait
+            $result = $process.ExitCode
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is
+        # still in flight. Either the directory or the registration going away means
+        # it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
+            if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+
+        if (Test-Path -LiteralPath $installDir) {
+            Write-Host "  Uninstaller left $installDir behind; removing it."
+            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "  WARNING: could not remove $installDir."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+            }
+        }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Shortcuts sit in the installing user's profile, so an uninstall that could not
+    # reach that profile leaves them behind. Match on where they point rather than on a
+    # filename, which also catches the vendor subfolders some installers create.
+    if ($removedDirs.Count) {
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
+            foreach ($root in @(
+                (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'),
+                (Join-Path $profileDir.FullName 'Desktop')
+            )) {
+                if (-not (Test-Path -LiteralPath $root)) { continue }
+                foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+                    $target = $null
+                    try { $target = $shell.CreateShortcut($lnk.FullName).TargetPath } catch {}
+                    if (-not $target) { continue }
+                    foreach ($dir in $removedDirs) {
+                        if ($target.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
+                            Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $remaining = @(Get-AppEntries)
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Ollama registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    } else {
+        Write-Host "Ollama removed."
+    }
 
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Error running uninstaller: $_"
     $exitCode = 1
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
