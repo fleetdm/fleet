@@ -2,7 +2,6 @@ package azure
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -18,7 +18,7 @@ import (
 )
 
 func TestNewAPIError(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	newRespErr := func(t *testing.T, method string, status int, code, body string) error {
 		req, err := http.NewRequest(method, "https://acct.blob.core.windows.net/container/blob", nil)
@@ -83,7 +83,7 @@ func TestNewAPIError(t *testing.T) {
 
 func TestAPIErrorMisconfigured(t *testing.T) {
 	checkTestEnv(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("container does not exist", func(t *testing.T) {
 		store, err := NewSoftwareInstallerStore(config.AzureConfig{
@@ -111,8 +111,11 @@ func TestAPIErrorMisconfigured(t *testing.T) {
 
 		_, err = store.Exists(ctx, "installer")
 		require.Error(t, err)
+		var responseError *azcore.ResponseError
+		require.ErrorAs(t, err, &responseError)
+		require.NotEmpty(t, responseError.ErrorCode)
 		msg := ctxerr.Cause(err).Error()
-		require.True(t, strings.HasPrefix(msg, "api error "), msg)
+		require.True(t, strings.HasPrefix(msg, "api error "+responseError.ErrorCode+":"), msg)
 		require.NotContains(t, msg, "RequestId")
 		require.NotContains(t, msg, "\n")
 	})
