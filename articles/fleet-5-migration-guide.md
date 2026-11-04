@@ -115,24 +115,26 @@ GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/mdm/commands` and `GET /api/v1/fleet/mdm/apple/commands` | [`GET /api/v1/fleet/commands`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) |
+| `GET /api/v1/fleet/mdm/commands` and `GET /api/v1/fleet/mdm/apple/commands` | [`GET /api/v1/fleet/commands`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands). For `/mdm/apple/commands`, results have `host_uuid` instead of `device_id`. |
 | `GET /api/v1/fleet/mdm/commandresults` | [`GET /api/v1/fleet/commands/results`](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) |
 | `POST /api/v1/fleet/mdm/commands/run` | [`POST /api/v1/fleet/commands/run`](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) |
 | `PATCH /api/v1/fleet/mdm/hosts/:id/unenroll` | [`DELETE /api/v1/fleet/hosts/:id/mdm`](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm) |
-| `POST /api/v1/fleet/mdm/hosts/:id/lock` | [`POST /api/v1/fleet/hosts/:id/lock`](https://fleetdm.com/docs/rest-api/rest-api#lock-host) |
-| `POST /api/v1/fleet/mdm/hosts/:id/wipe` | [`POST /api/v1/fleet/hosts/:id/wipe`](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
+| `POST /api/v1/fleet/mdm/hosts/:id/lock` | [`POST /api/v1/fleet/hosts/:id/lock`](https://fleetdm.com/docs/rest-api/rest-api#lock-host). Returns a `200` with a JSON body instead of an empty `204`. |
+| `POST /api/v1/fleet/mdm/hosts/:id/wipe` | [`POST /api/v1/fleet/hosts/:id/wipe`](https://fleetdm.com/docs/rest-api/rest-api#wipe-host). Returns a `200` with a JSON body instead of an empty `204`. |
 | `GET /api/v1/fleet/mdm/hosts/:id/profiles` | [`GET /api/v1/fleet/hosts/:id/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-os-settings-configuration-profile) |
 | `GET /api/v1/fleet/mdm/hosts/:id/encryption_key` | [`GET /api/v1/fleet/hosts/:id/encryption_key`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) |
-| `GET /api/v1/fleet/mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | [`GET /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#get-disk-encryption-status) |
+| `GET /api/v1/fleet/mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | [`GET /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#get-disk-encryption-status). For `/mdm/apple/filevault/summary`, each status is an object with `macos`, `windows`, and `linux` counts instead of a number. |
 | `PATCH /api/v1/fleet/mdm/apple/settings` | [`POST /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption) |
-| `GET /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`GET /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles) |
-| `POST /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`POST /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) |
-| `GET /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`GET /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile) |
-| `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`DELETE /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile) |
-| `GET /api/v1/fleet/mdm/profiles/summary` (and `/mdm/apple/profiles/summary`) | [`GET /api/v1/fleet/configuration_profiles/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-configuration-profiles-status) |
-| `POST /api/v1/fleet/mdm/apple/profiles/batch` | [`POST /api/v1/fleet/configuration_profiles/batch`](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles) |
+| `GET /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`GET /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). For `/mdm/apple/profiles`, profiles don't have `profile_id`, and the list also includes profiles for other platforms and declaration (DDM) profiles. |
+| `POST /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`POST /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile). For `/mdm/apple/profiles`, the file name must end in `.mobileconfig`, and the response has `profile_uuid` instead of `profile_id`. |
+| `GET /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`GET /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile). For `/mdm/apple/profiles/:profile_id`, use the profile's UUID instead of its ID. The new endpoint returns JSON. To download the profile, add `?alt=media`. |
+| `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`DELETE /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile). For `/mdm/apple/profiles/:profile_id`, use the profile's UUID instead of its ID. |
+| `GET /api/v1/fleet/mdm/profiles/summary` (and `/mdm/apple/profiles/summary`) | [`GET /api/v1/fleet/configuration_profiles/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-configuration-profiles-status). For `/mdm/apple/profiles/summary`, the counts include hosts on other platforms. |
+| `POST /api/v1/fleet/mdm/apple/profiles/batch` | [`POST /api/v1/fleet/configuration_profiles/batch`](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles). Send each profile as an object in `configuration_profiles` instead of a string in `profiles`. The new endpoint replaces all of the fleet's profiles, including Windows, Android, and declaration (DDM) profiles, so include them in the request. |
 | `PATCH /api/v1/fleet/mdm/apple/setup` | [`PATCH /api/v1/fleet/setup_experience`](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) |
 | `GET /api/v1/fleet/mdm/apple` | [`GET /api/v1/fleet/apns`](https://fleetdm.com/docs/rest-api/rest-api#get-apple-push-notification-service-apns) |
+| `POST /api/v1/fleet/mdm/apple/request_csr` | Removed. To turn on Apple MDM, use `GET /api/v1/fleet/mdm/apple/request_csr` and then `POST /api/v1/fleet/mdm/apple/apns_certificate`, `fleetctl generate mdm-apple`, or the Fleet UI ([guide](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm)). |
+| `POST /api/v1/fleet/mdm/apple/dep/key_pair` | Removed. To connect Apple Business, use `GET /api/v1/fleet/mdm/apple/ab_public_key` and then `POST /api/v1/fleet/ab_tokens`, `fleetctl generate mdm-ab`, or the Fleet UI ([guide](https://fleetdm.com/guides/apple-mdm-setup#apple-business-ab)). |
 | `POST /api/v1/fleet/mdm/apple/enrollment_profile` | [`POST /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile) |
 | `GET /api/v1/fleet/mdm/apple/enrollment_profile` | [`GET /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#get-custom-mdm-setup-enrollment-profile) |
 | `DELETE /api/v1/fleet/mdm/apple/enrollment_profile` | [`DELETE /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#delete-custom-mdm-setup-enrollment-profile) |
@@ -141,13 +143,16 @@ GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 | `GET /api/v1/fleet/mdm/bootstrap/:fleet_id/metadata` (and `/mdm/apple/bootstrap/:fleet_id/metadata`) | [`GET /api/v1/fleet/bootstrap/:fleet_id/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-metadata) |
 | `DELETE /api/v1/fleet/mdm/bootstrap/:fleet_id` (and `/mdm/apple/bootstrap/:fleet_id`) | [`DELETE /api/v1/fleet/bootstrap/:fleet_id`](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package) |
 | `GET /api/v1/fleet/mdm/bootstrap/summary` (and `/mdm/apple/bootstrap/summary`) | [`GET /api/v1/fleet/bootstrap/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-status) |
-| `GET /api/v1/fleet/mdm/bootstrap?token=` (and `/mdm/apple/bootstrap?token=`) | [`GET /api/v1/fleet/bootstrap?token=`](https://fleetdm.com/docs/rest-api/rest-api#download-bootstrap-package) |
+| `GET /api/v1/fleet/mdm/apple/bootstrap?token=` | [`GET /api/v1/fleet/bootstrap?token=`](https://fleetdm.com/docs/rest-api/rest-api#download-bootstrap-package) |
 | `POST /api/v1/fleet/mdm/setup/eula` (and `/mdm/apple/setup/eula`) | [`POST /api/v1/fleet/setup_experience/eula`](https://fleetdm.com/docs/rest-api/rest-api#create-eula) |
 | `GET /api/v1/fleet/mdm/setup/eula/metadata` (and `/mdm/apple/setup/eula/metadata`) | [`GET /api/v1/fleet/setup_experience/eula/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-eula-metadata) |
 | `GET /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`GET /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#download-eula) |
 | `DELETE /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`DELETE /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#delete-eula) |
 
-What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
+What to do:
+
+1. Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path. Where a row has a note, also update the request and the code that reads the response.
+2. If a proxy or firewall in front of Fleet only allows some paths, also allow `/api/*/fleet/bootstrap` and `/api/*/fleet/setup_experience/eula/*`. Hosts download the bootstrap package and end users see the EULA from these paths during setup. Keep `/api/*/fleet/mdm/bootstrap` allowed for hosts that started setup before the upgrade. Learn more about [which API endpoints to expose](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet).
 
 GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
