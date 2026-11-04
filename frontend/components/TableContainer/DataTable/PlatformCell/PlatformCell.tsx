@@ -41,7 +41,6 @@ const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
           <Icon
             className={`${baseClass}__icon`}
             name={ICONS[platform]}
-            size="small"
             key={ICONS[platform]}
           />
         ) : null;
