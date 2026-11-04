@@ -1338,20 +1338,6 @@ spec:
   name: Ubuntu Linux
   query: select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';
 `
-	packsSpec = `---
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  reports:
-    - report: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - report: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-`
 	queriesSpec = `---
 apiVersion: v1
 kind: report
@@ -1924,22 +1910,6 @@ spec:
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
 
-	// Apply packs.
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
-
 	// Apply queries.
 	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
@@ -2100,45 +2070,18 @@ func TestApplyLabels(t *testing.T) {
 	assert.False(t, ds.LabelsByNameFuncInvoked)
 }
 
-func TestApplyPacks(t *testing.T) {
+func TestApplyPacksRemoved(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-
-	name := writeTmpYml(t, packsSpec)
-
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
-
-	interval := writeTmpYml(t, `---
+	name := writeTmpYml(t, queriesSpec+`---
 apiVersion: v1
 kind: pack
 spec:
-  name: test_bad_interval
-  reports:
-    - query: good_interval
-      name: good_interval
-      interval: 7200
-    - query: bad_interval
-      name: bad_interval
-      interval: 604801
+  name: pack1
 `)
-
-	expectedErrMsg := "applying packs: POST /api/latest/fleet/spec/packs received status 400 Bad request: pack payload verification: pack scheduled query interval must be an integer greater than 1 and less than 604800"
-
-	_, err := runAppNoChecks([]string{"apply", "-f", interval})
-	assert.Error(t, err)
-	require.Contains(t, err.Error(), expectedErrMsg)
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	require.ErrorContains(t, err, `kind "pack" is no longer supported`)
+	require.False(t, ds.ApplyQueriesFuncInvoked)
 }
 
 func TestApplyQueries(t *testing.T) {

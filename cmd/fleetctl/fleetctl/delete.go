@@ -62,19 +62,6 @@ func deleteCommand() *cli.Command {
 				}
 			}
 
-			for _, pack := range specs.Packs {
-				fmt.Printf("[+] deleting pack %q\n", pack.Name)
-				if err := fleet.DeletePack(pack.Name); err != nil {
-					root := ctxerr.Cause(err)
-					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-					case service.NotFoundErr:
-						fmt.Printf("[!] pack %q doesn't exist\n", pack.Name)
-						continue
-					}
-					return err
-				}
-			}
-
 			for _, label := range specs.Labels {
 				fmt.Printf("[+] deleting label %q\n", label.Name)
 				if err := fleet.DeleteLabel(label.Name); err != nil {
