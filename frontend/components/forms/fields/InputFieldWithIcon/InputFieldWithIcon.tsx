@@ -166,9 +166,8 @@ const InputFieldWithIcon = ({
             variant="subdued"
             className={`${baseClass}__clear-button`}
             ariaLabel="Clear"
-          >
-            <Icon name="close" color="core-fleet-black" />
-          </Button>
+            icon="close"
+          />
         )}
       </div>
       {renderHelpText()}
