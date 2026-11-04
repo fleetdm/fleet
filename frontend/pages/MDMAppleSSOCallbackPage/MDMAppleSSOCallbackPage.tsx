@@ -39,9 +39,10 @@ const EnrollmentGate = ({
 
   if (initiator === "setup_experience") {
     return (
-      <AuthenticationFormWrapper header="Authentication complete">
+      <AuthenticationFormWrapper header="Setting up your device">
         <div className={`${baseClass} form`}>
-          <p>You’re done! You may now close this window.</p>
+          <p>Please wait. This can take a few minutes.</p>
+          <Spinner delay={0} verticalPadding="small" />
         </div>
       </AuthenticationFormWrapper>
     );

@@ -458,3 +458,8 @@ func readEnvFromProcFile(path string, envVar string) (string, error) {
 	}
 	return "", nil
 }
+
+// interactiveSession is only implemented on Windows.
+func interactiveSession() (username string, sessionID uint32, present bool, err error) {
+	return "", 0, false, nil
+}

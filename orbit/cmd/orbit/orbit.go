@@ -1933,7 +1933,9 @@ func orbitAction(c *cli.Context) error {
 		Bool("notDisabled", setupExperienceNotDisabled).
 		Msg("checking setup experience preflight values")
 
-	openMyDevicePage := func() error {
+	// setupOnly keeps My Device on the setup status screen after software
+	// finishes, for when fleetd continues setup in the same window.
+	openMyDevice := func(setupOnly bool) error {
 		if !c.Bool("fleet-desktop") {
 			log.Debug().Msg("fleet desktop disabled, not launching my device page")
 			return nil
@@ -1946,12 +1948,23 @@ func orbitAction(c *cli.Context) error {
 		}
 		// My Device page
 		browserURL := deviceClient.BrowserDeviceURL(token)
+		if setupOnly {
+			browserURL += "?setup_only=1"
+		}
 		return openBrowserWindow(browserURL)
 	}
+	openMyDevicePage := func() error { return openMyDevice(false) }
 
 	if runSetupExperience {
 		log.Debug().Msg("web setup experience enabled")
-		if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
+		if runtime.GOOS == "windows" && setupexperience.WindowsZeroTouchActive(c.String("root-dir")) {
+			// Windows zero-touch: a retrying config receiver that waits for the
+			// provisioning account's auto-logon desktop, runs the setup
+			// experience there, then creates the real account from the IdP
+			// identity and tears down the provisioning account.
+			wse := setupexperience.NewWindowsSetupExperiencer(orbitClient, c.String("root-dir"), func() error { return openMyDevice(true) }, openBrowserWindow)
+			orbitClient.RegisterConfigReceiver(wse)
+		} else if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
 			log.Error().Err(err).Msg("initiating setup experience")
 		}
 	} else {
@@ -2939,9 +2952,27 @@ func openBrowserWindow(browserURL string) error {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 		}
 	case "windows":
+		// During OOBE there is no interactive desktop to paint on (the active
+		// session belongs to the defaultuser0 placeholder). Skip opening until a
+		// real user is logged in (e.g. the zero-touch provisioning account
+		// auto-logon); callers retry, so the window lands on that desktop.
+		user, _, present, err := execuser.InteractiveSession()
+		if err != nil {
+			log.Debug().Err(err).Msg("checking interactive session before opening browser")
+			return nil
+		} else if !present {
+			log.Debug().Msg("no interactive session yet, deferring browser open")
+			return nil
+		}
 		unescapedAmpsRegex := regexp.MustCompile(`([^\\^])&`)
 		browserURL = unescapedAmpsRegex.ReplaceAllString(browserURL, "${1}^&")
 		cmdLine := fmt.Sprintf("/c start %s", browserURL)
+		if strings.EqualFold(user, setupexperience.ProvisioningAccountName) {
+			// On the zero-touch provisioning desktop, use a full-screen Edge kiosk
+			// so the setup experience (and IdP sign-in) has no browser chrome,
+			// matching the Autopilot ESP look. Edge resolves via its App Paths entry.
+			cmdLine = fmt.Sprintf("/c start msedge --kiosk %s --edge-kiosk-type=fullscreen --no-first-run --no-default-browser-check", browserURL)
+		}
 		opts := []execuser.Option{
 			execuser.WithArg(cmdLine, ""),
 		}

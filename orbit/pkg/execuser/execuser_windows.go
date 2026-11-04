@@ -26,6 +26,7 @@ var (
 	procWTSEnumerateSessionsW        *windows.LazyProc = modwtsapi32.NewProc("WTSEnumerateSessionsW")
 	procWTSGetActiveConsoleSessionId *windows.LazyProc = modkernel32.NewProc("WTSGetActiveConsoleSessionId")
 	procWTSQueryUserToken            *windows.LazyProc = modwtsapi32.NewProc("WTSQueryUserToken")
+	procWTSQuerySessionInformationW  *windows.LazyProc = modwtsapi32.NewProc("WTSQuerySessionInformationW")
 	procDuplicateTokenEx             *windows.LazyProc = modadvapi32.NewProc("DuplicateTokenEx")
 	procCreateEnvironmentBlock       *windows.LazyProc = moduserenv.NewProc("CreateEnvironmentBlock")
 	procCreateProcessAsUser          *windows.LazyProc = modadvapi32.NewProc("CreateProcessAsUserW")
@@ -133,6 +134,57 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
+}
+
+// WTSUserName is the WTS_INFO_CLASS value for querying a session's user name.
+const wtsUserNameInfoClass uintptr = 5
+
+// interactiveSession returns the user name of the active interactive console
+// session when a real user is logged in. present is false during Windows OOBE
+// (where the active session belongs to the "defaultuser0" placeholder) and at
+// the logon screen (where the active session has no user). This lets orbit wait
+// for a usable desktop before launching the setup experience browser window.
+func interactiveSession() (username string, sessionID uint32, present bool, err error) {
+	sessions, err := wtsEnumerateSessions()
+	if err != nil {
+		return "", 0, false, fmt.Errorf("enumerate sessions: %w", err)
+	}
+	for i := range sessions {
+		if sessions[i].State != WTSActive {
+			continue
+		}
+		name, err := wtsSessionUserName(sessions[i].SessionID)
+		if err != nil || name == "" {
+			continue
+		}
+		// defaultuser0 is the OOBE placeholder account; it owns the active
+		// console session while OOBE is still running, so skip it.
+		if strings.EqualFold(name, "defaultuser0") {
+			continue
+		}
+		return name, uint32(sessions[i].SessionID), true, nil
+	}
+	return "", 0, false, nil
+}
+
+// wtsSessionUserName returns the user name associated with the given session.
+func wtsSessionUserName(sessionID windows.Handle) (string, error) {
+	var buf *uint16
+	var size uint32
+	if rc, _, err := procWTSQuerySessionInformationW.Call(
+		WTS_CURRENT_SERVER_HANDLE,
+		uintptr(sessionID),
+		wtsUserNameInfoClass,
+		uintptr(unsafe.Pointer(&buf)),
+		uintptr(unsafe.Pointer(&size)),
+	); rc == 0 {
+		return "", fmt.Errorf("call native WTSQuerySessionInformationW: %s", err)
+	}
+	if buf == nil {
+		return "", nil
+	}
+	defer windows.WTSFreeMemory(uintptr(unsafe.Pointer(buf)))
+	return windows.UTF16PtrToString(buf), nil
 }
 
 // getCurrentUserSessionId will attempt to resolve

@@ -892,6 +892,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// For the Windows zero-touch setup experience, deliver the end user's IdP
+	// identity (recorded during MDM SSO) so fleetd can create the local account
+	// from it. Scoped to MDM-connected Windows hosts; the query returns nil when
+	// no IdP account is associated, which is the common case.
+	var endUserIdPAccount *fleet.OrbitEndUserIdPAccount
+	if host.Platform == "windows" && isConnectedToFleetMDM {
+		idp, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "getting host idp account for setup experience")
+		}
+		if idp != nil {
+			endUserIdPAccount = &fleet.OrbitEndUserIdPAccount{
+				Username: idp.Username,
+				Fullname: idp.Fullname,
+				Email:    idp.Email,
+			}
+		}
+	}
+
 	// load the (active, ready to execute) pending script executions for that host
 	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
@@ -1035,6 +1054,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			UpdateChannels:     updateChannels,
 			DebugLogging:       debugLogging,
 			WebSocketTransport: wsTransport,
+			EndUserIdPAccount:  endUserIdPAccount,
 		}, nil
 	}
 
@@ -1091,6 +1111,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		UpdateChannels:     updateChannels,
 		DebugLogging:       debugLogging,
 		WebSocketTransport: wsTransport,
+		EndUserIdPAccount:  endUserIdPAccount,
 	}, nil
 }
 
