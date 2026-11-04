@@ -14,6 +14,23 @@
     gap: $pad-small;
   }
 
+  // Slim 32px-tall pill for narrow surfaces (e.g. device notification toasts).
+  &--compact {
+    height: 32px;
+    padding: 0 $pad-small;
+    align-items: center;
+    box-sizing: border-box;
+
+    // __icon's align-items: flex-start and __leading-icon's own
+    // align-self: flex-start keep a wrapping multi-line message lined up
+    // with the first line of text. A compact banner is always one line,
+    // so pin both children to the center of the 32px band.
+    .info-banner__leading-icon,
+    .info-banner__info {
+      align-self: center;
+    }
+  }
+
   // When a leading icon is rendered, group it with the copy on the left
   // instead of pushing them to opposite edges with `space-between`.
   &__icon {
