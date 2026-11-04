@@ -553,7 +553,7 @@ GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `server_settings.scripts_disabled` | Removed ([docs](https://fleetdm.com/docs/configuration/yaml-files#server-settings)). `fleetctl gitops` fails if it's set. Fleet 5 turns script features back on for instances that had `scripts_disabled: true`. |
+| `server_settings.scripts_disabled` | Removed ([docs](https://fleetdm.com/docs/configuration/yaml-files#server-settings)). `fleetctl gitops` fails if it's `true` and shows a warning if it's `false`. Fleet 5 turns script features back on for instances that had `scripts_disabled: true`. |
 
 What to do: Remove `scripts_disabled` from your YAML. To keep scripts off, deploy fleetd without `--enable-scripts`.
 
