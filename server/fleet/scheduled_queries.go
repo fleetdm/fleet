@@ -1,9 +1,6 @@
 package fleet
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -166,24 +163,6 @@ type ScheduledQueryStats struct {
 	WallTime uint64 `json:"wall_time" db:"wall_time"`
 	// WallTimeMs should always be hidden (0-value) in the Fleet API response since it does not map to a field in the DB.
 	WallTimeMs uint64 `json:"wall_time_ms,omitempty"`
-}
-
-// TeamID returns the team id if the stat is for a team query stat result
-func (sqs *ScheduledQueryStats) TeamID() (*int, error) {
-	if strings.HasPrefix(sqs.PackName, "team-") {
-		teamIDParts := strings.Split(sqs.PackName, "-")
-		if len(teamIDParts) != 2 {
-			return nil, fmt.Errorf("invalid pack name: %s", sqs.PackName)
-		}
-
-		teamID, err := strconv.Atoi(teamIDParts[1])
-		if err != nil {
-			return nil, err
-		}
-		return &teamID, nil
-	}
-
-	return nil, nil
 }
 
 func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
