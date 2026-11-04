@@ -163,7 +163,9 @@ func TestRenewalMiddleware_ProofBoundToCSRKey(t *testing.T) {
 		}, nil
 	}
 	ds.UpdateHostIdentityCertHostIDBySerialFunc = func(_ context.Context, _ uint64, _ uint) error { return nil }
+	var signed int
 	nextSigner := scepserver.CSRSignerContextFunc(func(_ context.Context, _ *scep.CSRReqMessage) (*x509.Certificate, error) {
+		signed++
 		return &x509.Certificate{SerialNumber: big.NewInt(99999)}, nil
 	})
 
@@ -174,14 +176,14 @@ func TestRenewalMiddleware_ProofBoundToCSRKey(t *testing.T) {
 	}
 	legacyProof := []byte(serialHex)
 
-	renew := func(t *testing.T, requireKeyBinding bool, signedMsg []byte, csrKey *ecdsa.PrivateKey, badCSRSignature bool) (string, error) {
+	renewAs := func(t *testing.T, cn string, requireKeyBinding bool, signedMsg []byte, csrKey *ecdsa.PrivateKey, badCSRSignature bool) (string, error) {
 		hash := sha256.Sum256(signedMsg)
 		sig, err := ecdsa.SignASN1(rand.Reader, oldKey, hash[:])
 		require.NoError(t, err)
 		renewalJSON, err := json.Marshal(types.RenewalData{SerialNumber: serialHex, Signature: base64.StdEncoding.EncodeToString(sig)})
 		require.NoError(t, err)
 		csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-			Subject:            pkix.Name{CommonName: originalCN},
+			Subject:            pkix.Name{CommonName: cn},
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 			ExtraExtensions:    []pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalJSON}},
 		}, csrKey)
@@ -196,6 +198,9 @@ func TestRenewalMiddleware_ProofBoundToCSRKey(t *testing.T) {
 		middleware := renewalMiddleware(ds, slog.New(slog.NewTextHandler(&logs, nil)), requireKeyBinding, nextSigner)
 		_, err = middleware.SignCSRContext(t.Context(), &scep.CSRReqMessage{CSR: csr})
 		return logs.String(), err
+	}
+	renew := func(t *testing.T, requireKeyBinding bool, signedMsg []byte, csrKey *ecdsa.PrivateKey, badCSRSignature bool) (string, error) {
+		return renewAs(t, originalCN, requireKeyBinding, signedMsg, csrKey, badCSRSignature)
 	}
 
 	newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -214,6 +219,11 @@ func TestRenewalMiddleware_ProofBoundToCSRKey(t *testing.T) {
 
 			_, err = renew(t, requireKeyBinding, boundProof(newKey), attackerKey, false)
 			require.ErrorContains(t, err, "invalid renewal signature", "bound proof replayed onto another key is rejected")
+
+			before := signed
+			_, err = renewAs(t, "other-host-identity", requireKeyBinding, boundProof(newKey), newKey, false)
+			require.ErrorContains(t, err, "common name does not match", "bound proof can't renew into another identity")
+			require.Equal(t, before, signed, "no certificate is signed for a mismatched CN")
 
 			logs, err = renew(t, requireKeyBinding, legacyProof, attackerKey, false)
 			if requireKeyBinding {
