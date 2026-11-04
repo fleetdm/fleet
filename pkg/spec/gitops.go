@@ -536,9 +536,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
 
-	// Apply deprecated key mappings (e.g., team_settings -> settings, queries -> reports)
+	// Apply deprecated key mappings (e.g., queries -> reports), then reject the keys that Fleet 5 removed
 	if err := ApplyDeprecatedKeyMappings(rawData, logFn); err != nil {
 		return nil, fmt.Errorf("failed to process deprecated keys in file %s: %w", filePath, err)
+	}
+	if err := RejectRemovedKeys(rawData, filePath); err != nil {
+		return nil, err
 	}
 
 	// Re-marshal and unmarshal to map[string]json.RawMessage for existing parsing logic

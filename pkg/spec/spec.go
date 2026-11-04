@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -225,10 +226,10 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind, fleet.FleetKind:
-			if logFn != nil && kind == fleet.TeamKind {
-				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
-			}
+		case fleet.TeamKind:
+			return nil, removedNameError(removednames.KindSpecKind, "team")
+
+		case fleet.FleetKind:
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/fleets
 			// endpoint so that it is enforced for both the API and the CLI.
@@ -236,14 +237,15 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			// Support `team` (for backwards compatibility) but defer to `fleet` if available.
-			teamRaw := rawTeam["team"]
-			if fleetRaw, ok := rawTeam["fleet"]; ok {
-				teamRaw = fleetRaw
+			if _, ok := rawTeam["team"]; ok {
+				return nil, removedNameError(removednames.KindYAMLKey, "spec.team")
 			}
 
-			var err error
-			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			var (
+				teamRaw json.RawMessage
+				err     error
+			)
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(rawTeam["fleet"], fleet.TeamSpec{})
 			if err != nil {
 				return nil, fmt.Errorf("in %s spec: %w", kind, err)
 			}
@@ -265,6 +267,15 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		}
 	}
 	return specs, nil
+}
+
+// removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
+func removedNameError(kind removednames.Kind, name string) error {
+	entry, ok := removednames.Find(kind, name, "")
+	if !ok {
+		panic(fmt.Sprintf("removed name %s has no entry in pkg/removednames", name))
+	}
+	return errors.New(entry.Message())
 }
 
 // SplitYaml splits a text file into separate yaml documents divided by ---

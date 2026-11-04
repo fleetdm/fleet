@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -280,6 +281,34 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 	}
 }
 
+var removedTeamKey = regexp.MustCompile(`(?m)^(\s*)(team_settings|macos_team|ios_team|ipados_team|byod_team|teams):`)
+
+// migrateRemovedTeamKeys renames the team keys that Fleet 5 removed in the YAML files under dir, for the fleet-gitops repo, which has
+// not been migrated yet.
+func migrateRemovedTeamKeys(t *testing.T, dir string) {
+	renamed := map[string]string{
+		"team_settings": "settings", "macos_team": "macos_fleet", "ios_team": "ios_fleet", "ipados_team": "ipados_fleet",
+		"byod_team": "byod_fleet", "teams": "fleets",
+	}
+	root, err := os.OpenRoot(dir)
+	require.NoError(t, err)
+	defer root.Close()
+	require.NoError(t, fs.WalkDir(root.FS(), ".", func(file string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || (path.Ext(file) != ".yml" && path.Ext(file) != ".yaml") {
+			return err
+		}
+		content, err := root.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		migrated := removedTeamKey.ReplaceAllStringFunc(string(content), func(match string) string {
+			parts := removedTeamKey.FindStringSubmatch(match)
+			return parts[1] + renamed[parts[2]] + ":"
+		})
+		return root.WriteFile(file, []byte(migrated), 0o644)
+	}))
+}
+
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
 // Changes to that repo may cause this test to fail.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
@@ -303,6 +332,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 		},
 	)
 	require.NoError(t, err)
+	migrateRemovedTeamKeys(t, repoDir)
 
 	// Set the required environment variables
 	t.Setenv("FLEET_URL", s.Server.URL)
@@ -5101,7 +5131,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Jungle
-        teams:
+        fleets:
           - %s
 policies:
 reports:
@@ -5543,7 +5573,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Jungle
-        teams:
+        fleets:
           - %s
 policies:
 reports:
@@ -5674,7 +5704,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Jungle
-        teams:
+        fleets:
           - %s
 policies:
 controls:
@@ -5701,7 +5731,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   %s
 `
 
@@ -5720,7 +5750,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   %s
 `
 
@@ -6985,7 +7015,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Jungle
-        teams:
+        fleets:
           - %s
 policies:
 reports:
@@ -7069,7 +7099,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMultiplePackagesRoundTrip() {
 	teamFile := filepath.Join(applyDir, "fleets", "team.yml")
 	require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: roundtrip_secret
 agent_options:

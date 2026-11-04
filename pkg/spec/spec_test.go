@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -465,9 +466,16 @@ func TestRewriteNewToOldKeys(t *testing.T) {
 }
 
 func TestGroupFromBytesTeamKinds(t *testing.T) {
+	removedMessage := func(kind removednames.Kind, name string) string {
+		entry, ok := removednames.Find(kind, name, "")
+		require.True(t, ok, name)
+		return entry.Message()
+	}
+
 	tests := []struct {
-		name string
-		in   []byte
+		name    string
+		in      []byte
+		wantErr string
 	}{
 		{
 			"kind: team with team: key",
@@ -478,6 +486,7 @@ spec:
   team:
     name: macOS
 `),
+			removedMessage(removednames.KindSpecKind, "team"),
 		},
 		{
 			"kind: fleet with fleet: key",
@@ -488,6 +497,7 @@ spec:
   fleet:
     name: macOS
 `),
+			"",
 		},
 		{
 			"kind: fleet with team: key",
@@ -498,6 +508,7 @@ spec:
   team:
     name: macOS
 `),
+			removedMessage(removednames.KindYAMLKey, "spec.team"),
 		},
 		{
 			"kind: team with fleet: key",
@@ -508,12 +519,17 @@ spec:
   fleet:
     name: macOS
 `),
+			removedMessage(removednames.KindSpecKind, "team"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := GroupFromBytes(tt.in)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
 			require.NoError(t, err)
 			require.Len(t, g.Teams, 1)
 			require.NotNil(t, g.Teams[0])
