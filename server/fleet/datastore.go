@@ -733,11 +733,6 @@ type Datastore interface {
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that exceeded their expiry window and
 	// returns the details of the hosts it deleted. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
-	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
-	// query names. It returns a slice of IDs in the same order as
-	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
-	// scheduled query did not exist.
-	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
@@ -4814,8 +4809,6 @@ type Cloner interface {
 }
 
 const (
-	// Default batch size to use for ScheduledQueryIDsByName.
-	DefaultScheduledQueryIDsByNameBatchSize = 1000
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )

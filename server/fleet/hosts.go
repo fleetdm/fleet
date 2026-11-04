@@ -1334,14 +1334,12 @@ func (h Host) AuthzType() string {
 	return "host"
 }
 
-// HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
+// HostDetail provides the full host metadata along with associated labels.
+// It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
 	Labels []*Label `json:"labels"`
-	// Packs is the list of packs the host is a member of.
-	Packs []*Pack `json:"packs"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that

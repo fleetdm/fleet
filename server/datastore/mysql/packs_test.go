@@ -516,7 +516,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 
 				amount := rand.Intn(5000)
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+				require.NoError(t, ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 			}
 		}
 	}()
@@ -568,7 +568,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					require.NoError(t, err)
 
 					amount := rand.Intn(5000)
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer(context.Background()), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
+					require.NoError(t, ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 				}
 			}
 		}()
