@@ -2077,6 +2077,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	postToken(mac2, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
 	assertDeviceID(mac2, "")
 
+	// mac2 submitting results for the Windows detail query is ignored.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(mac2, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(mac2, "")
+
 	// Tokens for another tenant or app, or too old, are rejected.
 	postToken(mac1, testEntraDeviceTokenClaims(otherTestEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
 	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, "00000003-0000-0000-c000-000000000000", testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
@@ -2105,6 +2110,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 
 	// A different user on the device does.
 	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user2@example.com", http.StatusOK))
+	assertRefetchRequested(mac1, true)
+
+	// So does a different device ID for the same user (e.g. the device registered again).
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID2, "user2@example.com", http.StatusOK))
+	assertDeviceID(mac1, testEntraDeviceID2)
 	assertRefetchRequested(mac1, true)
 
 	// Disabling the feature stops the request and the ingestion.

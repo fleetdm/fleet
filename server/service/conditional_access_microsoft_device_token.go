@@ -173,7 +173,7 @@ func verifyEntraDeviceToken(ctx context.Context, rawToken, tenantID, clientID st
 		}
 		return key.Key(), nil
 	}); err != nil {
-		return nil, fmt.Errorf("parse token: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "parse token")
 	}
 
 	if !strings.EqualFold(claims.TenantID, tenantID) {
