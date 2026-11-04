@@ -602,13 +602,20 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	require.NotZero(t, createResp.Scheduled.ID)
 
 	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
+	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusNotFound)
 	res.Body.Close()
 
 	// list again, this time with the correct version
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
+
+	// the removed pack GET /schedule/{id} shares its path with the report-backed
+	// PATCH and DELETE on 2022-04+, so it is 405 there and 404 on v1
+	res = s.DoRaw("GET", fmt.Sprintf("/api/2022-04/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusMethodNotAllowed)
+	res.Body.Close()
+	res = s.DoRaw("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
+	res.Body.Close()
 
 	// delete using the old endpoint but on the wrong new version
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
