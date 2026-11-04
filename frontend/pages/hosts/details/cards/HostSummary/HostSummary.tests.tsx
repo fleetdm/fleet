@@ -40,18 +40,18 @@ describe("Host Summary section", () => {
           },
         },
       });
-      const summaryData = createMockHostSummary({ team_name: "Engineering" });
+      const summaryData = createMockHostSummary({ fleet_name: "Engineering" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
       expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
         "Engineering"
       );
     });
 
-    it("renders 'No team' when team_name is '---'", () => {
+    it("renders 'No team' when fleet_name is '---'", () => {
       const render = createCustomRenderer({
         /* ...context... */
       });
-      const summaryData = createMockHostSummary({ team_name: "---" });
+      const summaryData = createMockHostSummary({ fleet_name: "---" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
       expect(screen.getByText("Unassigned")).toBeInTheDocument();
     });
@@ -70,13 +70,13 @@ describe("Host Summary section", () => {
       });
 
       const summaryData = createMockHostSummary({
-        team_id: 2,
-        team_name: "Mobile",
+        fleet_id: 2,
+        fleet_name: "Mobile",
         platform: "ios",
         os_version: "iOS 14.7.1",
       });
 
-      const teamName = summaryData.team_name as string;
+      const teamName = summaryData.fleet_name as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
@@ -96,13 +96,13 @@ describe("Host Summary section", () => {
       });
 
       const summaryData = createMockHostSummary({
-        team_id: 2,
-        team_name: "Mobile",
+        fleet_id: 2,
+        fleet_name: "Mobile",
         platform: "ipados",
         os_version: "iPadOS 16.7.8",
       });
 
-      const teamName = summaryData.team_name as string;
+      const teamName = summaryData.fleet_name as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 

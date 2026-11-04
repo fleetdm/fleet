@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker' AND version_compare(bundle_short_version, '1.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sarensx.MacPacker' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://macpacker-releases.s3.amazonaws.com/MacPacker_v1.2.0.zip",
+      "installer_url": "https://github.com/sarensw/MacPacker/releases/download/v1.2.0/MacPacker_v1.2.0.zip",
       "install_script_ref": "026d96d8",
       "uninstall_script_ref": "577847b2",
       "sha256": "3634a905a1e9b1d2a26a48f0cc6b9fda49101e6e623c63f851374fa886b656a4",

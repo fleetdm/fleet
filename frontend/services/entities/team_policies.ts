@@ -80,7 +80,7 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
@@ -98,7 +98,7 @@ export default {
       patch_deadline,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies`;
+    const path = `${TEAMS}/${fleet_id}/policies`;
 
     return sendRequest("POST", path, {
       name,
@@ -127,7 +127,7 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
@@ -149,7 +149,7 @@ export default {
       labels_exclude_all,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies/${id}`;
+    const path = `${TEAMS}/${fleet_id}/policies/${id}`;
 
     return sendRequest("PATCH", path, {
       name,
