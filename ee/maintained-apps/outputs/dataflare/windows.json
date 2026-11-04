@@ -3,8 +3,8 @@
     {
       "version": "3.2.6",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare' AND version_compare(version, '3.2.6') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'dataflare';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'dataflare' AND version_compare(version, '3.2.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dataflare.exe');"
       },
       "installer_url": "https://assets.dataflare.app/release/windows/x86_64/Dataflare-Setup-3.2.6.exe",
