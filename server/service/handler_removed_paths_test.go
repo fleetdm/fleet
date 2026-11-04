@@ -75,3 +75,32 @@ func TestRemovedPaths(t *testing.T) {
 		}
 	}
 }
+
+// TestRemovedPathOverlaps covers the requests that the wildcard of an overlap catches without being requests to the removed path.
+func TestRemovedPathOverlaps(t *testing.T) {
+	t.Parallel()
+
+	router := mux.NewRouter()
+	endpointer.RegisterRemovedPaths(router, []string{"v1"}, slog.New(slog.DiscardHandler), removedPaths())
+
+	for _, c := range []struct {
+		method, path string
+		wantStatus   int
+	}{
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed},
+		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host-results", http.StatusMethodNotAllowed},
+		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound},
+		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound},
+	} {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
+		})
+	}
+}

@@ -73,8 +73,12 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	r := mux.NewRouter()
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
-		Path:    "/api/_version_/fleet/items/{id}/old/{name}",
-		Overlap: RemovedPathOverlap{Method: http.MethodPost, RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}"},
+		Path: "/api/_version_/fleet/items/{id}/old/{name}",
+		Overlap: RemovedPathOverlap{
+			Methods:       []string{http.MethodPost, http.MethodDelete},
+			RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
+			LivePaths:     []string{"/api/_version_/fleet/items/{id}/live/{name}"},
+		},
 		Message: func(method string) string { return "gone via " + method },
 	}})
 
@@ -85,6 +89,8 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	}{
 		{"overlapping method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via POST"},
 		{"other method", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via GET"},
+		{"another overlapping method", http.MethodDelete, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via DELETE"},
+		{"live path on a method it does not serve", http.MethodPost, "/api/v1/fleet/items/1/live/abc", http.StatusMethodNotAllowed, ""},
 		{"other value is an unknown path", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound, "404 page not found\n"},
 		{"other value on another method is a mismatch", http.MethodPut, "/api/v1/fleet/items/1/other/abc", http.StatusMethodNotAllowed, ""},
 	} {
@@ -95,7 +101,7 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 			assert.Contains(t, rec.Body.String(), c.wantBody)
 		})
 	}
-	assert.Equal(t, 2, strings.Count(logs.String(), "request to a removed path"), "only the 410s are logged")
+	assert.Equal(t, 3, strings.Count(logs.String(), "request to a removed path"), "only the 410s are logged")
 }
 
 func TestLiteralSegmentsMatch(t *testing.T) {

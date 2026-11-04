@@ -22,12 +22,15 @@ type RemovedPath struct {
 	Message func(method string) string
 }
 
-// RemovedPathOverlap registers RouteTemplate instead of the removed path for the one method that overlaps a live route. RouteTemplate
-// writes the overlapping literal segment as a wildcard, which makes it less specific than the live route, and a request without the
-// literals of the removed path gets a 404. The other methods keep the removed path, so a wrong method on the live route still gets a 405.
+// RemovedPathOverlap registers RouteTemplate instead of the removed path for the methods that overlap a live route. RouteTemplate writes
+// the overlapping literal segment as a wildcard, which makes it less specific than the live route, and a request without the literals of
+// the removed path gets a 404. The other methods keep the removed path, so a wrong method on the live route still gets a 405.
 type RemovedPathOverlap struct {
-	Method        string
+	// Methods has HEAD next to GET when GET overlaps, because a stdlib GET pattern also matches HEAD.
+	Methods       []string
 	RouteTemplate string
+	// LivePaths are the live routes that RouteTemplate catches for a method they don't serve. A request to one gets a 405, not a 404.
+	LivePaths []string
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
@@ -47,10 +50,10 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 		handler := removedPathHandler(removed, logger)
 		methods := slices.Clone(removedPathMethods)
 		if overlap := removed.Overlap; overlap.RouteTemplate != "" {
-			methods = slices.DeleteFunc(methods, func(method string) bool { return method == overlap.Method })
+			methods = slices.DeleteFunc(methods, func(method string) bool { return slices.Contains(overlap.Methods, method) })
 			// Register a more generic path template so it doesn't conflict with the still supported path template
-			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlap.Method).
-				Name(getNameFromPathAndVerb(overlap.Method, removed.Path, ""))
+			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlap.Methods...).
+				Name(getNameFromPathAndVerb("overlap", removed.Path, ""))
 		}
 		r.Handle(versioned(removed.Path), handler).Methods(methods...).Name(getNameFromPathAndVerb("any", removed.Path, ""))
 	}
@@ -59,6 +62,10 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
+			if slices.ContainsFunc(removed.Overlap.LivePaths, func(live string) bool { return literalSegmentsMatch(live, r.URL.Path) }) {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
 			http.NotFound(w, r)
 			return
 		}

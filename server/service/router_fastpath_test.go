@@ -231,8 +231,32 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byGorilla,
 		},
 		{
-			name: "batch summary beats batch host results", method: "GET",
-			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byGorilla,
+			name: "live batch host results wins the overlap", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed batch summary", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/summary/abc", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed batch summary on the method of the live cancel", method: "POST",
+			path: "/api/latest/fleet/scripts/batch/summary/abc", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed batch summary on HEAD", method: "HEAD",
+			path: "/api/latest/fleet/scripts/batch/summary/abc", wantServedBy: byGorilla,
+		},
+		{
+			name: "wrong method on the live batch cancel", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/abc/cancel", wantServedBy: byFastPath,
+		},
+		{
+			name: "wrong method on the live batch host results", method: "POST",
+			path: "/api/latest/fleet/scripts/batch/abc/host_results", wantServedBy: byFastPath,
+		},
+		{
+			name: "HEAD on the live batch host results", method: "HEAD",
+			path: "/api/latest/fleet/scripts/batch/abc/host_results", wantServedBy: byGorilla,
 		},
 		{
 			name: "live resend wins the overlap", method: "POST",
@@ -372,7 +396,7 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 		if _, supported := supportedVarMatchers(tpl); !supported {
 			return nil
 		}
-		for _, method := range methods {
+		for _, method := range stdlibMethods(methods) {
 			key := unversionedKey(method, tpl)
 			registered[key] = struct{}{}
 			for _, pattern := range expandToStdlibPatterns(tpl) {

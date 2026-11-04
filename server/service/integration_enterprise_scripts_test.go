@@ -474,12 +474,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
 	require.Equal(t, uint(2), *batchStatusResp.NumPending)
 
-	// Deprecated summary endpoint
-	var batchSummaryResp fleet.BatchScriptExecutionSummaryResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchSummaryResp)
-	require.Equal(t, batchSummaryResp.ScriptID, script.ID)
-	require.Equal(t, uint(2), *batchSummaryResp.NumTargeted)
-	require.Equal(t, uint(2), *batchSummaryResp.NumPending)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusGone)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusMethodNotAllowed)
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),

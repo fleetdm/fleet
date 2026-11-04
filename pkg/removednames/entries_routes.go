@@ -8,4 +8,8 @@ var routeEntries = []Entry{
 		Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
 		New: pathPrefix + "/hosts/{host_id}/configuration_profiles/{profile_uuid}/resend", Format: EndpointFormat{},
 	},
+	{
+		Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/scripts/batch/summary/{batch_execution_id}",
+		New: pathPrefix + "/scripts/batch/{batch_execution_id}", Format: EndpointFormat{},
+	},
 }
