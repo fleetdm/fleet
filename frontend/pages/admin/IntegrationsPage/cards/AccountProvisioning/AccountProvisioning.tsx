@@ -4,7 +4,7 @@ import { useQueryClient } from "react-query";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -49,7 +49,7 @@ const validate = (rawFormData: IFormData): IFormErrors => {
 
   if (!formData.tokenUrl) {
     errors.tokenUrl = "Token URL is required.";
-  } else if (!validUrl({ url: formData.tokenUrl, protocols: ["https"] })) {
+  } else if (!isValidURL({ url: formData.tokenUrl, protocols: ["https"] })) {
     errors.tokenUrl =
       "Must be a valid https URL (e.g. https://yourdomain.okta.com/oauth2/v1/token)";
   }

@@ -1,0 +1,1 @@
+- Removed the Render blueprint and Render deployment instructions for the standalone `fleet-mcp` server. In Fleet Premium, use the MCP server built into Fleet instead.

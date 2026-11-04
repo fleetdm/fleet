@@ -20,6 +20,7 @@ export default {
   CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
   CONDITIONAL_ACCESS_IDP_SIGNING_CERT: `/${API_VERSION}/fleet/conditional_access/idp/signing_cert`,
   CONDITIONAL_ACCESS_IDP_APPLE_PROFILE: `/${API_VERSION}/fleet/conditional_access/idp/apple/profile`,
+  CONDITIONAL_ACCESS_IDP_WINDOWS_PROFILES: `/${API_VERSION}/fleet/conditional_access/idp/windows/profiles`,
 
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
@@ -152,6 +153,8 @@ export default {
 
   // self-service categories
   SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  // patch deadline settings
+  PATCH_DEADLINE_SETTINGS: `/${API_VERSION}/fleet/software/patch_deadline_settings`,
   SELF_SERVICE_CATEGORY: (id: number) =>
     `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
@@ -312,6 +315,8 @@ export default {
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
+  AUTOFILL_CONFIG_PROFILE_NAME_DESCRIPTION: `/${API_VERSION}/fleet/autofill/configuration_profile/name_description`,
+  AUTOFILL_CONFIG_PROFILE_CONTENT: `/${API_VERSION}/fleet/autofill/configuration_profile/content`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

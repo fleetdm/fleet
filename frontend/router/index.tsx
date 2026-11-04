@@ -248,10 +248,10 @@ const LazySoftwareLibrary = lazyPage(
       /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary"
     )
 );
-const LazySelfServiceCategoriesPage = lazyPage(
+const LazySoftwareLibrarySettingsPage = lazyPage(
   () =>
     import(
-      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage"
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SoftwareLibrarySettingsPage"
     )
 );
 const LazySoftwareTitleDetailsPage = lazyPage(
@@ -388,6 +388,12 @@ const LazyAppleMdmPage = lazyPage(
   () =>
     import(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage"
+    )
+);
+const LazyOktaConditionalAccessPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/ConditionalAccess/OktaConditionalAccessPage"
     )
 );
 const LazyAndroidMdmPage = lazyPage(
@@ -605,6 +611,14 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={LazyVppPage} />
+            <Route component={AuthGlobalAdminRoutes}>
+              <Route component={PremiumRoutes}>
+                <Route
+                  path="integrations/conditional-access/okta"
+                  component={LazyOktaConditionalAccessPage}
+                />
+              </Route>
+            </Route>
             <Route component={ExcludeInSandboxRoutes}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="users/new/human" component={LazyCreateUserPage} />
@@ -677,6 +691,10 @@ const routes = (
             <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
               <Route
                 path="controls/os-settings/configuration-profiles/new"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/new/manual"
                 component={LazyProfileFormPage}
               />
               <Route
@@ -765,8 +783,26 @@ const routes = (
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route
+              path="library/settings"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            <Route
+              path="library/settings/:section"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            {/*
+              Static <Redirect to="/path"> strips the query. Use onEnter so
+              fleet_id (and any deep-link params like add_category=1) survive
+              the hop from the pre-rename URL.
+            */}
+            <Route
               path="library/categories"
-              component={LazySelfServiceCategoriesPage}
+              onEnter={(nextState, replace) =>
+                replace({
+                  pathname: PATHS.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+                  query: nextState.location.query,
+                })
+              }
             />
             <Route path="titles/:id" component={LazySoftwareTitleDetailsPage} />
             <Route

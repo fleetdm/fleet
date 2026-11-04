@@ -5,6 +5,7 @@ import {
 import {
   getAutomationNotifiedMessage,
   getCaveatMessage,
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
 } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
@@ -14,9 +15,18 @@ import { Colors } from "styles/var/colors";
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
-// Undefined on pre-4.93 skips, which were all patch-when-closed, so only an explicit false means notify.
+// The automation activities endpoint returns raw pre_install_output (empty on
+// skips, since EnhanceOutputDetails runs only on the single-install-result
+// path), so the deadline/notify discriminator must come from the dedicated
+// booleans on the activity details. Both are undefined on legacy skip rows.
+export const isDeadlineSkip = (activity: IPolicyAutomationActivity): boolean =>
+  activity.details?.patch_deadline === true;
+
 export const isNotifySkip = (activity: IPolicyAutomationActivity): boolean =>
-  activity.details?.patch_when_closed === false;
+  activity.details?.notify_before_patching === true ||
+  (activity.details?.notify_before_patching === undefined &&
+    activity.details?.patch_when_closed === false &&
+    !isDeadlineSkip(activity));
 
 // One notify activity can cover several policies (bundled toast). The row is
 // scoped to a single policy, so pick the title paired with currentPolicyId
@@ -145,9 +155,9 @@ export const getDetailOutputText = (
     if (reason) return reason;
   }
   if (activity.details?.skipped_install) {
-    return isNotifySkip(activity)
-      ? SKIPPED_INSTALL_NOTIFY_EXPLANATION
-      : SKIPPED_INSTALL_DETAILS;
+    if (isDeadlineSkip(activity)) return SKIPPED_INSTALL_DEADLINE_EXPLANATION;
+    if (isNotifySkip(activity)) return SKIPPED_INSTALL_NOTIFY_EXPLANATION;
+    return SKIPPED_INSTALL_DETAILS;
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;

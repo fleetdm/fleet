@@ -1,9 +1,12 @@
 import { isEmpty } from "lodash";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
 import SoftwareUninstallDetailsModal, {
@@ -123,11 +126,11 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
+  ] = useState<IPackageInstallDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IPackageInstallDetails | null>(null);
   const [
     ipaPackageInstallDetails,
     setIpaPackageInstallDetails,
@@ -253,14 +256,14 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      onSuccess: () => {
-        setShowActivityFeedTitle(true);
-      },
-      onError: () => {
-        setShowActivityFeedTitle(true);
-      },
     }
   );
+
+  useLayoutEffect(() => {
+    if (activitiesData || errorActivities) {
+      setShowActivityFeedTitle(true);
+    }
+  }, [activitiesData, errorActivities, setShowActivityFeedTitle]);
 
   setRefetchActivities(refetch);
 
@@ -293,15 +296,22 @@ const ActivityFeed = ({
         break;
       case ActivityType.InstalledSoftware:
         if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
-          setScriptPackageDetails({ ...details });
+          setScriptPackageDetails({
+            ...details,
+            activity_created_at: created_at,
+          });
         } else {
           details?.command_uuid
             ? setIpaPackageInstallDetails({
                 ...details,
                 actor_full_name,
                 fleet_initiated,
+                activity_created_at: created_at,
               })
-            : setPackageInstallDetails({ ...details });
+            : setPackageInstallDetails({
+                ...details,
+                activity_created_at: created_at,
+              });
         }
         break;
       case ActivityType.UninstalledSoftware:
@@ -319,7 +329,12 @@ const ActivityFeed = ({
       case ActivityType.InstalledAppStoreApp:
         // Apple VPP + Android installs. Envelope actor fields ride along so
         // the modal can render the actor-driven failure copy per Figma.
-        setVppInstallDetails({ ...details, actor_full_name, fleet_initiated });
+        setVppInstallDetails({
+          ...details,
+          actor_full_name,
+          fleet_initiated,
+          activity_created_at: created_at,
+        });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -502,6 +517,7 @@ const ActivityFeed = ({
             actorFullName: ipaPackageInstallDetails.actor_full_name,
             fleetInitiated: ipaPackageInstallDetails.fleet_initiated,
             selfService: ipaPackageInstallDetails.self_service,
+            activityCreatedAt: ipaPackageInstallDetails.activity_created_at,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -529,6 +545,8 @@ const ActivityFeed = ({
             actorFullName: vppInstallDetails.actor_full_name,
             fleetInitiated: vppInstallDetails.fleet_initiated,
             selfService: vppInstallDetails.self_service,
+            vppTokenLocation: vppInstallDetails.vpp_token?.location,
+            activityCreatedAt: vppInstallDetails.activity_created_at,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

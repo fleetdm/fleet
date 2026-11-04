@@ -11,6 +11,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Tag from "components/Tag";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
@@ -84,7 +85,12 @@ const SelectedLabelBadges = ({
           dismissLabel={`Remove ${name}`}
           onDismiss={() => onSelectLabel({ name, value: false })}
         >
-          {name}
+          {/* The tag's GitOps tooltip owns hover, so suppress the name tooltip. */}
+          <TooltipTruncatedText
+            value={name}
+            disableTooltip={!!gitOpsTip}
+            fixedPositionStrategy
+          />
         </Tag>
       ))}
     </div>

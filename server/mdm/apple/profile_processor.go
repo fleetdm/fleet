@@ -2,7 +2,6 @@ package apple_mdm
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -70,6 +70,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 	err = preprocessProfileContents(ctx, appConfig, ds,
 		scep.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
+		ejbca.NewService(ejbca.WithLogger(logger)),
 		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
 		return nil, err
@@ -156,6 +157,7 @@ func preprocessProfileContents(
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	logger *slog.Logger,
 	targets map[string]*fleet.CmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -170,10 +172,12 @@ func preprocessProfileContents(
 	var (
 		// Copy of NDES SCEP config which will contain unencrypted password, if needed
 		ndesConfig    *fleet.NDESSCEPProxyCA
-		digiCertCAs   map[string]*fleet.DigiCertCA
+		pkcs12CAs     = make(map[string]pkcs12CA) // the CAs of the profile that deliver a PKCS#12, by pkcs12CAVariable.cacheKey
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 		smallstepCAs  map[string]*fleet.SmallstepSCEPProxyCA
 	)
+
+	pkcs12CATypes := newPKCS12CATypes(digiCertService, ejbcaService)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
 	// need to look it up more than once per host.
@@ -225,10 +229,10 @@ func preprocessProfileContents(
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
 		for _, fleetVar := range fleetVars {
-			if fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
+			_, isPKCS12CA := findPKCS12CAVariable(pkcs12CATypes, fleetVar)
+			if isPKCS12CA || fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarHostUUID) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
-				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
 				// Give a few minutes leeway to account for clock skew
 				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
@@ -238,6 +242,7 @@ func preprocessProfileContents(
 
 	initialFleetVarLoop:
 		for _, fleetVar := range fleetVars {
+			pkcs12Var, isPKCS12CA := findPKCS12CAVariable(pkcs12CATypes, fleetVar)
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 				configured, err := isNDESSCEPConfigured(ctx, logger, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
@@ -257,18 +262,11 @@ func preprocessProfileContents(
 				fleetVar == string(fleet.FleetVarHostUUID):
 				// No extra validation needed for these variables
 
-			case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)):
-				caName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix))
-				if !found {
-					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
-				}
-
-				if digiCertCAs == nil {
-					digiCertCAs = make(map[string]*fleet.DigiCertCA)
-				}
-				configured, err := isDigiCertConfigured(ctx, logger, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
+			case isPKCS12CA:
+				configured, err := isPKCS12CAConfigured(ctx, logger, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, pkcs12CAs,
+					profUUID, target, pkcs12Var, fleetVar)
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
+					return ctxerr.Wrapf(ctx, err, "checking %s configuration", pkcs12Var.caType.vendor)
 				}
 				if !configured {
 					valid = false
@@ -374,9 +372,14 @@ func preprocessProfileContents(
 
 			hostContents := contentsStr
 			failed := false
+			// Holds the records of the certificates issued for this host while its profile is built. They are saved only if the whole
+			// profile is sent: after a later failure the host keeps its old certificates, and a new record would give a wrong expiry.
+			// This only matters for a profile that gets more than one certificate, which is rare and not possible with some CA types (like SCEP).
+			var pkcs12ManagedCertificates []*fleet.MDMManagedCertificate
 
 		fleetVarLoop:
 			for _, fleetVar := range fleetVars {
+				pkcs12Var, isPKCS12CA := findPKCS12CAVariable(pkcs12CATypes, fleetVar)
 				var err error
 				switch {
 				case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
@@ -568,93 +571,30 @@ func preprocessProfileContents(
 
 					hostContents = replacedContents
 
-				case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)):
+				case isPKCS12CA && !pkcs12Var.isData:
 					// We will replace the password when we populate the certificate data
 
 				case fleetVar == string(fleet.FleetVarHostUUID):
 					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, hostContents, hostUUID)
 
-				case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)):
-					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
-					ca, ok := digiCertCAs[caName]
+				case isPKCS12CA:
+					ca, ok := pkcs12CAs[pkcs12Var.cacheKey()]
 					if !ok {
-						logger.ErrorContext(ctx, "Custom DigiCert CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(digiCertCAs))
+						logger.ErrorContext(ctx, "Custom "+pkcs12Var.caType.vendor+" CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier")
 						continue
 					}
-					caCopy := *ca
-					// Deep copy the UPN slice to prevent cross-host contamination: a
-					// shallow copy shares the backing array, so in-place substitutions for
-					// one host would corrupt the cached CA used by subsequent hosts.
-					caCopy.CertificateUserPrincipalNames = slices.Clone(ca.CertificateUserPrincipalNames)
-
-					// Populate Fleet vars in the CA fields
-					caVarsCache := make(map[string]string)
-
-					ok, err := replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
+					updatedContents, managed, ok, err := issuePKCS12ForHost(ctx, ds, logger, ca, pkcs12Var, target, hostLite, profUUID, hostContents,
+						hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+						return err
 					}
 					if !ok {
 						failed = true
 						break fleetVarLoop
 					}
-					ok, err = replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA seat ID")
-					}
-					if !ok {
-						failed = true
-						break fleetVarLoop
-					}
-					if len(caCopy.CertificateUserPrincipalNames) > 0 {
-						for i := range caCopy.CertificateUserPrincipalNames {
-							ok, err = replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
-							if err != nil {
-								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA user principal name")
-							}
-							if !ok {
-								failed = true
-								break fleetVarLoop
-							}
-						}
-					}
-
-					cert, err := digiCertService.GetCertificate(ctx, caCopy)
-					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
-						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:        target.CmdUUID,
-							HostUUID:           hostUUID,
-							Status:             &fleet.MDMDeliveryFailed,
-							Detail:             detail,
-							OperationType:      fleet.MDMOperationTypeInstall,
-							VariablesUpdatedAt: variablesUpdatedAt,
-						})
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
-						}
-						failed = true
-						break fleetVarLoop
-					}
-					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertDataPrefix), caName, hostContents,
-						base64.StdEncoding.EncodeToString(cert.PfxData))
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert data")
-					}
-					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarDigiCertPasswordPrefix), caName, hostContents, cert.Password)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
-					}
-					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:       hostUUID,
-						ProfileUUID:    profUUID,
-						NotValidBefore: &cert.NotValidBefore,
-						NotValidAfter:  &cert.NotValidAfter,
-						Type:           fleet.CAConfigDigiCert,
-						CAName:         caName,
-						Serial:         &cert.SerialNumber,
-					})
+					hostContents = updatedContents
+					pkcs12ManagedCertificates = append(pkcs12ManagedCertificates, managed)
 
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
@@ -699,6 +639,7 @@ func preprocessProfileContents(
 			}
 
 			if !failed {
+				managedCertificatePayloads = append(managedCertificatePayloads, pkcs12ManagedCertificates...)
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,
@@ -735,6 +676,9 @@ func preprocessProfileContents(
 // digiCertVarHint tells admins that a failing IdP variable lives in the DigiCert CA fields, not in the profile.
 const digiCertVarHint = " The variable is used in the DigiCert certificate authority, not in the profile."
 
+// ejbcaVarHint tells admins that a failing IdP variable lives in the EJBCA CA fields, not in the profile.
+const ejbcaVarHint = " The variable is used in the EJBCA certificate authority, not in the profile."
+
 // getFirstIDPEmail returns the host's IdP email. On failure, detailHint is added to the profile detail.
 func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostUUID, detailHint string) (string, bool, error) {
 	// Insert the end user email IDP into the profile contents
@@ -763,7 +707,9 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.Cmd
 	return emails[0], true, nil
 }
 
-func replaceFleetVarInDigiCertItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
+// replaceFleetVarInCAItem expands the Fleet variables of one field of a certificate authority for the host. varHint is added to the profile
+// detail of a failure, to tell the admin the variable is in the certificate authority.
+func replaceFleetVarInCAItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error, varHint string) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
 		switch {
@@ -771,7 +717,7 @@ func replaceFleetVarInDigiCertItem(ctx context.Context, ds fleet.Datastore, targ
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
 			if !ok {
 				var err error
-				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostLite.UUID, digiCertVarHint)
+				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostLite.UUID, varHint)
 				if err != nil {
 					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
 				}
@@ -826,7 +772,7 @@ func replaceFleetVarInDigiCertItem(ctx context.Context, ds fleet.Datastore, targ
 						CommandUUID:        target.CmdUUID,
 						HostUUID:           hostLite.UUID,
 						Status:             &fleet.MDMDeliveryFailed,
-						Detail:             strings.TrimSpace(errMsg) + digiCertVarHint,
+						Detail:             strings.TrimSpace(errMsg) + varHint,
 						OperationType:      fleet.MDMOperationTypeInstall,
 						VariablesUpdatedAt: variablesUpdatedAt,
 					})
@@ -844,37 +790,6 @@ func replaceFleetVarInDigiCertItem(ctx context.Context, ds fleet.Datastore, targ
 			// We should not reach this since we validated the variables when saving the CA
 		}
 	}
-	return true, nil
-}
-
-func isDigiCertConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
-	hostProfilesToInstallMap map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	userEnrollmentsToHostUUIDsMap map[string]string,
-	existingDigiCertCAs map[string]*fleet.DigiCertCA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
-) (bool, error) {
-	if !license.IsPremium(ctx) {
-		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
-	}
-	if _, ok := existingDigiCertCAs[caName]; ok {
-		return true, nil
-	}
-	configured := false
-	var digiCertCA *fleet.DigiCertCA
-	if groupedCAs != nil && len(groupedCAs.DigiCert) > 0 {
-		for _, ca := range groupedCAs.DigiCert {
-			if ca.Name == caName {
-				digiCertCA = &ca
-				configured = true
-				break
-			}
-		}
-	}
-	if !configured || digiCertCA == nil {
-		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
-	}
-
-	existingDigiCertCAs[caName] = digiCertCA
 	return true, nil
 }
 

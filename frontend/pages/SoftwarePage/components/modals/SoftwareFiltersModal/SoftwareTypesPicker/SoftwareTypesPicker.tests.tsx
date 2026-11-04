@@ -31,34 +31,33 @@ describe("SoftwareTypesPicker", () => {
   it("checks selected types and shows a chip for each", () => {
     renderWithSetup(<ControlledPicker initialKeys={["macos_app"]} />);
 
-    expect(screen.getByRole("checkbox", { name: "macOS app" })).toHaveAttribute(
-      "aria-checked",
-      "true"
-    );
     expect(
-      screen.getByRole("checkbox", { name: "Brave extension" })
+      screen.getByRole("checkbox", { name: "App (macOS)" })
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("checkbox", { name: "Browser extension (Brave)" })
     ).toHaveAttribute("aria-checked", "false");
     expect(
-      screen.getByRole("button", { name: "macOS app" })
+      screen.getByRole("button", { name: "App (macOS)" })
     ).toBeInTheDocument();
   });
 
   it("narrows the list by display name and keeps hidden selections", async () => {
     const { user } = renderWithSetup(<ControlledPicker />);
 
-    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
     await user.type(screen.getByPlaceholderText("Search types"), "EXT");
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("checkbox", { name: "macOS app" })
+        screen.queryByRole("checkbox", { name: "App (macOS)" })
       ).not.toBeInTheDocument();
     });
     const names = typeNames();
     expect(names.length).toBeGreaterThan(0);
     names.forEach((name) => expect(name.toLowerCase()).toContain("ext"));
     expect(
-      screen.getByRole("button", { name: "macOS app" })
+      screen.getByRole("button", { name: "App (macOS)" })
     ).toBeInTheDocument();
   });
 
@@ -76,17 +75,16 @@ describe("SoftwareTypesPicker", () => {
       <ControlledPicker initialKeys={["macos_app", "brave_extension"]} />
     );
 
-    await user.click(screen.getByRole("button", { name: "macOS app" }));
+    await user.click(screen.getByRole("button", { name: "App (macOS)" }));
 
     expect(
-      screen.queryByRole("button", { name: "macOS app" })
+      screen.queryByRole("button", { name: "App (macOS)" })
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "macOS app" })).toHaveAttribute(
-      "aria-checked",
-      "false"
-    );
     expect(
-      screen.getByRole("button", { name: "Brave extension" })
+      screen.getByRole("checkbox", { name: "App (macOS)" })
+    ).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("button", { name: "Browser extension (Brave)" })
     ).toBeInTheDocument();
   });
 });

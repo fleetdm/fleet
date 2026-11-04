@@ -141,6 +141,7 @@ const NotifyBeforePatchingDetailsModal = ({
               .map(toSoftwareTitle)
               .map((t) => getDisplayedSoftwareName(t.title, t.display_name))
               .join(", ")}
+            multiline
           />
         )}
         {hasDetailsContent && (

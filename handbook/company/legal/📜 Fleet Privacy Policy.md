@@ -1,6 +1,6 @@
 # Fleet Privacy Policy
 
-**Effective Date:** 08/17/2026
+**Effective Date:** 11/03/2026
 
 At Fleet, we take your privacy and data protection seriously. This Privacy Policy explains how Fleet Device Management Inc. (“Fleet,” “we,” “our,” or “us”) collects, uses, shares, and protects personal information across our services, websites, and products. It also explains your rights and choices regarding your information.
 
@@ -151,6 +151,8 @@ Fleet uses cookies and other tracking technologies for:
 - Visitor identification and engagement through conversational marketing tools
 
 Users can manage or disable cookies via their browser settings and may opt out of interest-based advertising through our Cookie Policy. Please note that Fleet's website does not currently recognize or respond to browser-initiated Do Not Track (DNT) signals.
+
+When you visit or log in to our website, cookies and similar technologies may be used by our online data partners or vendors to associate these activities with other personal information they or others have about you, including by association with your email. We (or service providers on our behalf) may then send communications and marketing to these email addresses. You may opt out of receiving this advertising by visiting [https://app.retention.com/optout](https://app.retention.com/optout).
 
 ### **Third-Party Tools and Platforms**
 

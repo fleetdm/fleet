@@ -1,6 +1,8 @@
-import validEmail from "components/forms/validators/valid_email";
-import validPassword from "components/forms/validators/valid_password";
-import validatePresence from "components/forms/validators/validate_presence";
+import {
+  isValidEmail,
+  validatePassword,
+  isPresent,
+} from "components/forms/validators";
 import { IFormErrors } from "hooks/useFormValidation";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
@@ -60,26 +62,26 @@ export const validateUserForm = (
 ): IFormErrors => {
   const errors: IFormErrors = {};
 
-  if (!validatePresence(data.name)) {
+  if (!isPresent(data.name)) {
     errors.name = "Enter a name";
   }
 
   if (!context.isEmailReadOnly) {
-    if (!validatePresence(data.email)) {
+    if (!isPresent(data.email)) {
       errors.email = "Enter an email";
-    } else if (!validEmail(data.email)) {
+    } else if (!isValidEmail(data.email)) {
       errors.email = "Enter a valid email";
     }
   }
 
   if (isPasswordShown(data, context)) {
-    const hasPassword = validatePresence(data.password);
+    const hasPassword = isPresent(data.password);
     if (!hasPassword && isPasswordRequired(data, context)) {
       errors.password = "Enter a password";
     } else if (hasPassword) {
       // An optional password still has to satisfy the format rule once it has a
       // value. Fall back to the validator's own copy if it grows a new code.
-      const { error_code: errorCode, error } = validPassword(data.password);
+      const { error_code: errorCode, error } = validatePassword(data.password);
       if (errorCode) {
         errors.password = PASSWORD_ERRORS[errorCode] || error;
       }

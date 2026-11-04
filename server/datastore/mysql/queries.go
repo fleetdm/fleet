@@ -2,7 +2,10 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -1123,6 +1126,67 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	// Agent eligibility (automations_enabled, discard_data, logging_type) also
+	// depends on the app config, so its inputs are included rather than
+	// filtered on.
+	queriesStmt := `
+		SELECT
+			q.name,
+			q.query,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.discard_data
+		FROM queries q
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name`
+	labelsStmt := `
+		SELECT q.name, ql.label_id, ql.require_all
+		FROM queries q
+		JOIN query_labels ql ON ql.query_id = q.id
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name, ql.label_id`
+	var args []any
+	teamSQL := "q.team_id IS NULL"
+	if teamID != nil {
+		teamSQL = "q.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	var digest struct {
+		Queries []struct {
+			Name               string `db:"name"`
+			Query              string `db:"query"`
+			Interval           uint   `db:"schedule_interval"`
+			Platform           string `db:"platform"`
+			MinOsqueryVersion  string `db:"min_osquery_version"`
+			AutomationsEnabled bool   `db:"automations_enabled"`
+			Logging            string `db:"logging_type"`
+			DiscardData        bool   `db:"discard_data"`
+		}
+		Labels []struct {
+			Name       string `db:"name"`
+			LabelID    uint   `db:"label_id"`
+			RequireAll bool   `db:"require_all"`
+		}
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Queries, fmt.Sprintf(queriesStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled queries for digest")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Labels, fmt.Sprintf(labelsStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled query labels for digest")
+	}
+	b, err := json.Marshal(digest)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal scheduled queries digest")
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {

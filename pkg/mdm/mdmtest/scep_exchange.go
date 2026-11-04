@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
@@ -22,6 +23,7 @@ import (
 type scepExchangeRequest struct {
 	URL       string
 	Subject   pkix.Name
+	URIs      []*url.URL
 	Challenge string
 	KeyBits   int // defaults to 2048 if 0
 }
@@ -71,6 +73,7 @@ func performSCEPExchange(
 	csrTpl := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject:            req.Subject,
+			URIs:               req.URIs,
 			SignatureAlgorithm: x509.SHA256WithRSA,
 		},
 		ChallengePassword: req.Challenge,

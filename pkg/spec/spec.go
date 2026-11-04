@@ -230,7 +230,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
 			}
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
-			// fields at this point - that validation is done in the apply spec/teams
+			// fields at this point - that validation is done in the apply spec/fleets
 			// endpoint so that it is enforced for both the API and the CLI.
 			rawTeam := make(map[string]json.RawMessage)
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {

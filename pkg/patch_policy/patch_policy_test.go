@@ -51,6 +51,15 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '139.0.0') < 0);",
 		},
 		{
+			name: "windows from exists query keyed on MSI product code",
+			p: patch_policy.PolicyData{
+				Platform:    "windows",
+				Version:     "26.002.21931",
+				ExistsQuery: "SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.002.21931') < 0);",
+		},
+		{
 			name: "codex-cli portable install OR precedence and file_version",
 			p: patch_policy.PolicyData{
 				Platform: "windows",
@@ -135,6 +144,12 @@ func TestGenerateOpenQuery(t *testing.T) {
 
 	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
+
+	// the unified 64-bit Acrobat app runs as Acrobat.exe for both Pro and Reader
+	for _, title := range []string{"Adobe Acrobat Pro", "Adobe Acrobat Reader"} {
+		got = patch_policy.GenerateOpenQuery("windows", "", title)
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');", got, title)
+	}
 
 	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)

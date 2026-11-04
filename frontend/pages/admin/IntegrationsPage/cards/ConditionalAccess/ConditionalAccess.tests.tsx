@@ -7,7 +7,11 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import createMockConfig from "__mocks__/configMock";
 import { AppContext, IAppContext, initialState } from "context/app";
 import mockServer from "test/mock-server";
-import { baseUrl, createCustomRenderer } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import ConditionalAccess from "./ConditionalAccess";
 
@@ -53,6 +57,8 @@ const createEmptyConditionalAccessConfig = () =>
     },
   });
 
+const mockRouter = createMockRouter();
+
 describe("Conditional access", () => {
   describe("Not configured", () => {
     it("Renders both integration cards when nothing is configured", () => {
@@ -68,7 +74,7 @@ describe("Conditional access", () => {
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       expect(screen.getByText("Okta")).toBeInTheDocument();
       expect(
@@ -95,7 +101,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       // Click the second Connect button (Microsoft Entra)
       const connectButtons = screen.getAllByText("Connect");
@@ -122,7 +128,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       // Open modal
       const connectButtons = screen.getAllByText("Connect");
@@ -156,7 +162,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       // Click the first Connect button (Okta)
       const connectButtons = screen.getAllByText("Connect");
@@ -168,7 +174,12 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      expect(screen.getByText("User scope profile")).toBeInTheDocument();
+      // Profiles live on the Okta page, not in the setup modal.
+      expect(screen.queryByText("User scope profile")).not.toBeInTheDocument();
+      expect(screen.queryByText("Windows profile")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Windows browser profile")
+      ).not.toBeInTheDocument();
       // Check for input fields
       expect(screen.getByText("IdP ID")).toBeInTheDocument();
       expect(
@@ -193,7 +204,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       // Open modal
       const connectButtons = screen.getAllByText("Connect");
@@ -204,11 +215,10 @@ describe("Conditional access", () => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      // Fill in text fields. textboxes[0] is the read-only User scope profile.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
-      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
-      await user.type(textboxes[3], "https://example.com"); // Audience URI
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID); // IdP ID
+      await user.type(textboxes[1], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[2], "https://example.com"); // Audience URI
 
       // Upload certificate file
       const certificateContent = `-----BEGIN CERTIFICATE-----
@@ -260,16 +270,16 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         context: { app: { isPremiumTier: true, config: mockConfig } },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
       await user.click(screen.getAllByText("Connect")[0]);
       await waitFor(() => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID);
-      await user.type(textboxes[2], "https://example.com/acs");
-      await user.type(textboxes[3], "https://example.com");
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID);
+      await user.type(textboxes[1], "https://example.com/acs");
+      await user.type(textboxes[2], "https://example.com");
 
       // Trailing newline after -----END CERTIFICATE----- is standard PEM output
       // (e.g. from openssl). skipTrim keeps it intact; without the exemption,
@@ -323,7 +333,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       // Spinner has a built-in anti-flash delay, so wait for it to appear.
       expect(await screen.findByTestId("spinner")).toBeVisible();
@@ -354,7 +364,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const entraCopy = screen.getByText(/Microsoft Entra/);
       expect(entraCopy).toBeInTheDocument();
@@ -395,7 +405,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const oktaCopy = screen.getByText(/Okta/);
       expect(oktaCopy).toBeInTheDocument();
@@ -407,6 +417,34 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await waitFor(() => {
         expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
       });
+    });
+
+    it("Goes to the Okta page when clicking Edit on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+      const router = createMockRouter();
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess router={router} />);
+
+      await user.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(router.push).toHaveBeenCalledWith(
+        "/settings/integrations/conditional-access/okta"
+      );
     });
 
     it("Shows both providers as configured when both are set up", async () => {
@@ -432,7 +470,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const entraCopy = screen.getByText(/Microsoft Entra/);
       expect(entraCopy).toBeInTheDocument();
@@ -477,7 +515,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const oktaCopy = screen.getByText(/Okta/);
       expect(oktaCopy).toBeInTheDocument();
@@ -540,7 +578,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       // Checkbox exposes aria-label from `name`; disabled lives on aria-disabled.
       const bypassCheckbox = screen.getByRole("checkbox", {
@@ -594,7 +632,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const Harness = ({ app }: { app: Partial<IAppContext> }) => (
         <QueryClientProvider client={client}>
           <AppContext.Provider value={{ ...initialState, ...app }}>
-            <ConditionalAccess />
+            <ConditionalAccess router={mockRouter} />
           </AppContext.Provider>
         </QueryClientProvider>
       );
@@ -647,7 +685,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       expect(connectButtons).toHaveLength(2);
@@ -682,7 +720,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       await user.click(connectButtons[0]);
@@ -722,7 +760,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       await user.click(connectButtons[1]);
@@ -773,7 +811,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const Harness = ({ app }: { app: Partial<IAppContext> }) => (
         <QueryClientProvider client={client}>
           <AppContext.Provider value={{ ...initialState, ...app }}>
-            <ConditionalAccess />
+            <ConditionalAccess router={mockRouter} />
           </AppContext.Provider>
         </QueryClientProvider>
       );
@@ -816,7 +854,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       expect(
         screen.getByText(/This feature is included in Fleet Premium/i)
@@ -833,7 +871,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      render(<ConditionalAccess router={mockRouter} />);
 
       expect(
         screen.getByRole("heading", {
@@ -855,7 +893,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           },
         },
       });
-      const utils = render(<ConditionalAccess />);
+      const utils = render(<ConditionalAccess router={mockRouter} />);
       const connectButtons = screen.getAllByText("Connect");
       await utils.user.click(connectButtons[0]);
       await waitFor(() => {
@@ -878,10 +916,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Does not show an error while the user types and clears, before blur", async () => {
       const { user } = await renderOktaModal();
 
-      // textboxes[0] is the readonly Editor; [1] is IdP ID.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
 
       expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
     });
@@ -890,8 +927,8 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const { user } = await renderOktaModal();
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
       // Blur by tabbing to the next field.
       await user.tab();
 
@@ -902,12 +939,12 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const { user } = await renderOktaModal();
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
       await user.tab();
       await screen.findByText("Enter IdP ID");
 
-      await user.click(textboxes[1]);
+      await user.click(textboxes[0]);
 
       expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
     });
@@ -940,7 +977,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByText("Connect");
       await user.click(connectButtons[1]);
@@ -986,7 +1023,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByText("Connect");
       await user.click(connectButtons[1]);

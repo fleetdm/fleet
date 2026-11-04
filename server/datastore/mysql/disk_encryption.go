@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 	"uuid"
 
@@ -72,6 +73,7 @@ UPDATE host_disk_encryption_keys SET client_error = ? WHERE host_id = ?`, client
 		return archived, nil
 	}
 
+	// Nothing on this release encrypts to the WSTEP certificate, so any key written here clears the legacy marker.
 	_, err = ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys SET
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
@@ -80,6 +82,7 @@ UPDATE host_disk_encryption_keys SET
     decryptable,
     ?
   ),
+  wstep_encrypted = 0,
   base64_encrypted = ?,
   client_error = ?
 WHERE host_id = ?
@@ -285,8 +288,8 @@ func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID 
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	// NOTE(mna): currently we only verify encryption keys for macOS,
 	// Windows/bitlocker uses a different approach where orbit sends the
-	// encryption key and we encrypt it server-side with the WSTEP certificate,
-	// so it is always decryptable once received.
+	// encryption key and we encrypt it server-side with the server private
+	// key, so it is always decryptable once received.
 	//
 	// To avoid sending Windows-related keys to verify as part of this call, we
 	// only return rows that have a non-empty encryption key (for Windows, the
@@ -344,7 +347,8 @@ SELECT
 	decryptable, 
 	updated_at, 
 	client_error,
-	rotation_command_uuid
+	rotation_command_uuid,
+	wstep_encrypted
 FROM host_disk_encryption_keys
 WHERE host_id = ?`, hostID)
 	if err != nil {
@@ -364,11 +368,13 @@ func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host 
 	// key (or part of a composite index) for finding archived keys.
 	sqlFmt := `
 SELECT
+	id,
 	host_id, 
 	base64_encrypted, 
 	base64_encrypted_salt,
 	key_slot,
-	created_at
+	created_at,
+	wstep_encrypted
 FROM host_disk_encryption_keys_archive
 %s
 ORDER BY created_at DESC
@@ -509,12 +515,92 @@ func (ds *Datastore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Conte
 	return host, nil
 }
 
-func (ds *Datastore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+func (ds *Datastore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+	// Everything this release writes is encrypted with the server private key, so the legacy marker goes with the swap.
+	res, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys
-SET base64_encrypted = ?, updated_at = updated_at
+SET base64_encrypted = ?, wstep_encrypted = 0, updated_at = updated_at
 WHERE host_id = ? AND base64_encrypted = ?`, newBase64Encrypted, hostID, currentBase64Encrypted)
-	return ctxerr.Wrap(ctx, err, "replace host disk encryption key blob")
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "replace host disk encryption key blob")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected for replace host disk encryption key blob")
+	}
+	return n > 0, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Legacy Windows keys, encrypted to the WSTEP certificate by older releases
+////////////////////////////////////////////////////////////////////////////////
+
+func (ds *Datastore) ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error) {
+	var keys []fleet.HostDiskEncryptionKey
+	// The marked rows are the migration's work queue, served by the (wstep_encrypted, host_id) index so a run that
+	// finds the queue empty costs one probe. Marking a row undecryptable takes it out of the queue; the decryptable
+	// filter only guards rows marked by an older version of this job.
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
+SELECT host_id, base64_encrypted, updated_at, wstep_encrypted
+FROM host_disk_encryption_keys
+WHERE wstep_encrypted = 1 AND base64_encrypted != '' AND (decryptable IS NULL OR decryptable = 1) AND host_id > ?
+ORDER BY host_id
+LIMIT ?`, afterHostID, limit)
+	return keys, ctxerr.Wrap(ctx, err, "list WSTEP encrypted disk encryption keys")
+}
+
+func (ds *Datastore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error) {
+	var keys []fleet.HostArchivedDiskEncryptionKey
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
+SELECT id, host_id, base64_encrypted, created_at, wstep_encrypted
+FROM host_disk_encryption_keys_archive
+WHERE wstep_encrypted = 1 AND base64_encrypted != '' AND id > ?
+ORDER BY id
+LIMIT ?`, afterID, limit)
+	return keys, ctxerr.Wrap(ctx, err, "list WSTEP encrypted archived disk encryption keys")
+}
+
+func (ds *Datastore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys_archive
+SET base64_encrypted = ?, wstep_encrypted = 0
+WHERE id = ? AND base64_encrypted = ?`, newBase64Encrypted, id, currentBase64Encrypted)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "replace WSTEP encrypted archived disk encryption key")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected for replace WSTEP encrypted archived disk encryption key")
+	}
+	return n > 0, nil
+}
+
+func (ds *Datastore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	// Matched on the blob as well as the host, so a key the host escrowed meanwhile is never marked. The legacy marker
+	// is cleared with it: the job never retries an undecryptable row, and a leftover marker on a host that never comes
+	// back would keep the queue's index range non-empty, which makes MySQL scan the whole table every hour. Reads still
+	// try the WSTEP pair, so restoring a previous pair still makes the key readable.
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(keys)), ", ")
+	args := make([]any, 0, 2*len(keys))
+	for _, k := range keys {
+		args = append(args, k.HostID, k.Base64Encrypted)
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`
+UPDATE host_disk_encryption_keys
+SET decryptable = 0, wstep_encrypted = 0, updated_at = updated_at
+WHERE (host_id, base64_encrypted) IN (%s)`, placeholders), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark Windows disk encryption keys undecryptable")
+	}
+	// Connected agents are asked to refetch their config, so the re-escrow does not wait for the next poll.
+	hostIDs := make([]uint, 0, len(keys))
+	for _, k := range keys {
+		hostIDs = append(hostIDs, k.HostID)
+	}
+	ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostIDs...)
+	return nil
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

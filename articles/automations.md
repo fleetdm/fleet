@@ -7,9 +7,34 @@ You can configure Fleet to automatically [install software](https://fleetdm.com/
 
 ## Activity automations
 
-Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See our [Audit logs documentation](https://fleetdm.com/docs/using-fleet/audit-logs) for a list of all activity types.
+Activity automations are triggered when an activity happens in Fleet (reports, scripts, logins, etc). For a list of activity types and their fields, see [Global audit logs](https://fleetdm.com/docs/api/global-audit-logs) and [Host audit logs](https://fleetdm.com/docs/api/host-audit-logs).
 
-You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+### See activities
+
+- To see all activities, select the Fleet icon in the top navigation and find the **Activity** section.
+- To see a host's activities, go to the host's details page and select **Activity > Past**.
+
+### Send all activities
+
+To send every activity to a webhook URL:
+
+1. Select the Fleet icon in the top navigation.
+2. In the **Activity** section, select **Manage automations**.
+3. Turn on automations, enter a **Destination URL**, and select **Save**.
+
+You can also use the [`activities_webhook`](https://fleetdm.com/docs/configuration/yaml-files#activities-webhook) GitOps option, or send activities to a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+### Send a fleet's host activities
+
+_Available in Fleet Premium._
+
+To send only the activities linked to one fleet's hosts to a webhook URL:
+
+1. Go to **Hosts** and select the fleet.
+2. Select the settings (gear) icon, then select **Activity automations**.
+3. Turn on automations, enter a **Destination URL**, and select **Save**.
+
+You can also use the [fleets API](https://fleetdm.com/docs/api/rest-api#update-fleet) or the [`host_activities_webhook`](https://fleetdm.com/docs/configuration/yaml-files#host-activities-webhook) GitOps option, including for "Unassigned" hosts in `unassigned.yml`.
 
 ## Policy automations
 

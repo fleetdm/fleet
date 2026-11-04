@@ -86,7 +86,9 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
+		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
@@ -243,7 +245,7 @@ func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datasto
 	err = ReconcileProfilesWithClient(ctx, ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
-	}, 0)
+	}, 0, nil)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -1026,6 +1028,12 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 	return host
 }
 
+// applyHostSpecificPolicy records that the host's device applied its host-specific policy.
+func applyHostSpecificPolicy(t *testing.T, ds fleet.Datastore, host *fleet.AndroidHost) {
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, ds.UpdateAndroidHost(t.Context(), host, false, false))
+}
+
 func createNonAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.Host {
 	hostUUID := uuid.NewString()
 	host := &fleet.Host{
@@ -1118,7 +1126,11 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// Create Android hosts in the team
 	host1 := createAndroidHostInTeam(t, ds, 1, &team.ID)
+	applyHostSpecificPolicy(t, ds, host1)
 	host2 := createAndroidHostInTeam(t, ds, 2, &team.ID)
+	applyHostSpecificPolicy(t, ds, host2)
+	// still on the default policy, so its host-specific policy may not exist in AMAPI yet
+	defaultPolicyHost := createAndroidHostInTeam(t, ds, 3, &team.ID)
 
 	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
 	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
@@ -1178,6 +1190,14 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	// verify host1 is targetted by the api call
 	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
+
+	// the host still on the default policy is left pending for the setup experience to deliver
+	var defaultPolicyHostStatuses []string
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &defaultPolicyHostStatuses,
+			`SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, defaultPolicyHost.Host.UUID)
+	})
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending), string(fleet.CertificateTemplatePending)}, defaultPolicyHostStatuses)
 	require.Len(t, capturedPolicies, 1)
 
 	// Verify the managed configuration contains certificate template IDs with status and operation
@@ -1233,6 +1253,84 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
 	require.Equal(t, 2, countHost1)
+}
+
+// testCertificateTemplatesHeldUntilHostPolicyApplied verifies that a newly enrolled host, whose
+// device is still on the default policy, gets its profiles but not its certificates: its
+// host-specific policy may not exist in AMAPI yet, and the setup experience delivers them.
+func testCertificateTemplatesHeldUntilHostPolicyApplied(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	certTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Certificate",
+	})
+	require.NoError(t, err)
+
+	host := createAndroidHostInTeam(t, ds, 1, &team.ID)
+
+	profile := androidProfileForTest("p1")
+	profile.TeamID = &team.ID
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *profile, nil)
+	require.NoError(t, err)
+
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplate.ID, team.ID)
+	require.NoError(t, err)
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	hostPolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host.Host.UUID)
+	var calls []string
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		calls = append(calls, "patch "+policyName)
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		calls = append(calls, "modify applications "+policyName)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	certStatuses := func() []string {
+		var statuses []string
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
+		})
+		return statuses
+	}
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"patch " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, certStatuses())
+
+	// once the device reports its host-specific policy, the next pass delivers the certificate
+	applyHostSpecificPolicy(t, ds, host)
+	calls = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"modify applications " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplateDelivered)}, certStatuses())
 }
 
 // testBuildAndSendFleetAgentConfigForEnrollment tests the enrollment flow where we send
@@ -1315,6 +1413,39 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 }
 
+func testBuildAndSendFleetAgentConfigSavesTheAgentInstall(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "agent-install-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "agent-install-secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 400, &team.ID)
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{Version: 7}, nil
+	}
+	svc := &Service{
+		logger:           slog.New(slog.DiscardHandler),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
+	}
+
+	// send the host's Fleet agent configuration, the agent's install should be saved as pending in policy version 7
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	agentInstall := installsByHostID[host.Host.ID]["com.fleetdm.agent"]
+	require.NotNil(t, agentInstall)
+	require.Equal(t, android.AppStatusForceInstalled, agentInstall.InstallType)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, agentInstall.Status)
+	require.Equal(t, new(int64(7)), agentInstall.InPolicyVersion)
+}
+
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
 // certificates in various statuses AND a new pending certificate, the agent config sent
 // to AMAPI includes ALL certificate templates, not just the new pending one.
@@ -1390,6 +1521,7 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 
 	// Create an Android host in the team
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
+	applyHostSpecificPolicy(t, ds, host)
 
 	// Insert certificate templates with various statuses
 	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {

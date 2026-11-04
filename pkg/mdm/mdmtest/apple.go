@@ -346,6 +346,17 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 	c.depURLToken = tok
 }
 
+// SetAuthorizationBearerToken sets the bearer token an account-driven user enrollment sends with its check-ins.
+func (c *TestAppleMDMClient) SetAuthorizationBearerToken(tok string) {
+	c.authorizationBearerToken = tok
+}
+
+// FetchAccountDrivenEnrollmentProfile runs only the profile step of Enroll for an account-driven user enrollment, so
+// tests can run SCEPEnroll, Authenticate and TokenUpdate themselves.
+func (c *TestAppleMDMClient) FetchAccountDrivenEnrollmentProfile() error {
+	return c.fetchEnrollmentProfileFromMDMBYODURL()
+}
+
 // Enroll runs the MDM enroll protocol on the simulated device. It fetches the enrollment
 // profile from the Fleet server and then runs the SCEP enrollment, Authenticate and TokenUpdate
 // steps.
@@ -1187,6 +1198,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeSettings acknowledges a Settings command and reports a per-item
+// result for each entry in settings. A device can acknowledge the command while
+// individual items fail.
+func (c *TestAppleMDMClient) AcknowledgeSettings(cmdUUID string, settings []map[string]any) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"Settings":     settings,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

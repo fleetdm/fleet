@@ -1134,11 +1134,25 @@ type WebSocketConfig struct {
 	// OrbitConfigSpread is the window over which an instance paces the
 	// nudges of a fleet-wide or global change across the agents it holds.
 	OrbitConfigSpread time.Duration `yaml:"orbit_config_spread"`
+	// OsqueryConfigEnabled turns on osquery/config nudges: connected agents
+	// serve osquery its config from orbit, fetching it from the server when
+	// notified of a change and every OsqueryConfigPollInterval as a fallback.
+	OsqueryConfigEnabled      bool          `yaml:"osquery_config_enabled"`
+	OsqueryConfigPollInterval time.Duration `yaml:"osquery_config_poll_interval"`
+}
+
+// ScopedNotificationsEnabled reports whether any nudge type targeting a whole
+// fleet or every host is enabled.
+func (w WebSocketConfig) ScopedNotificationsEnabled() bool {
+	return w.OrbitConfigEnabled || w.OsqueryConfigEnabled
 }
 
 // minOrbitConfigPollInterval is orbit's default poll interval: a slower
 // fallback is the point of the setting.
 const minOrbitConfigPollInterval = 30 * time.Second
+
+// minOsqueryConfigPollInterval is osquery's default config refresh with fleetd.
+const minOsqueryConfigPollInterval = time.Minute
 
 // Validate checks that the WebSocketConfig has valid values. The values feed
 // tickers and batch loops, so zero or negative values would panic or spin.
@@ -1147,15 +1161,23 @@ func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 		if w.OrbitConfigEnabled {
 			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.orbit_config_enabled")
 		}
+		if w.OsqueryConfigEnabled {
+			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.osquery_config_enabled")
+		}
 		return
 	}
 	if w.OrbitConfigEnabled {
 		if w.OrbitConfigPollInterval < minOrbitConfigPollInterval {
 			initFatal(fmt.Errorf("must be at least %s", minOrbitConfigPollInterval), "websocket.orbit_config_poll_interval")
 		}
-		if w.OrbitConfigSpread < 0 {
-			initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
+	}
+	if w.OsqueryConfigEnabled {
+		if w.OsqueryConfigPollInterval < minOsqueryConfigPollInterval {
+			initFatal(fmt.Errorf("must be at least %s", minOsqueryConfigPollInterval), "websocket.osquery_config_poll_interval")
 		}
+	}
+	if w.ScopedNotificationsEnabled() && w.OrbitConfigSpread < 0 {
+		initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
 	}
 	for name, ok := range map[string]bool{
 		"websocket.ping_interval":    w.PingInterval > 0,
@@ -2373,7 +2395,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("websocket.orbit_config_poll_interval", 5*time.Minute,
 		"Fallback orbit config poll interval of connected agents with no pending work, when websocket.orbit_config_enabled is set")
 	man.addConfigDuration("websocket.orbit_config_spread", 30*time.Second,
-		"Window over which each instance spreads the orbit config notifications of a fleet-wide or global change")
+		"Window over which each instance spreads the orbit and osquery config notifications of a fleet-wide or global change")
+	man.addConfigBool("websocket.osquery_config_enabled", false,
+		"Notify connected agents of osquery config changes so they can poll it less often (requires websocket.transport_enabled)")
+	man.addConfigDuration("websocket.osquery_config_poll_interval", 10*time.Minute,
+		"Fallback osquery config poll interval of connected agents, when websocket.osquery_config_enabled is set")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2764,6 +2790,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			OrbitConfigEnabled:      man.getConfigBool("websocket.orbit_config_enabled"),
 			OrbitConfigPollInterval: man.getConfigDuration("websocket.orbit_config_poll_interval"),
 			OrbitConfigSpread:       man.getConfigDuration("websocket.orbit_config_spread"),
+
+			OsqueryConfigEnabled:      man.getConfigBool("websocket.osquery_config_enabled"),
+			OsqueryConfigPollInterval: man.getConfigDuration("websocket.osquery_config_poll_interval"),
 		},
 	}
 
@@ -3247,6 +3276,8 @@ func TestConfig() FleetConfig {
 
 			OrbitConfigPollInterval: 5 * time.Minute,
 			OrbitConfigSpread:       30 * time.Second,
+
+			OsqueryConfigPollInterval: 10 * time.Minute,
 		},
 	}
 }
