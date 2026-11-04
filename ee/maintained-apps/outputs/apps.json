@@ -6029,6 +6029,13 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Nitro PDF Pro",
+      "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
