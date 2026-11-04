@@ -3264,8 +3264,7 @@ func TestConfig() FleetConfig {
 			OSVForVulnerabilities: true,
 		},
 		MDM: MDMConfig{
-			AllowOrbitEndUserAuthBypass:     true,
-			AppleSCEPStaticChallengeEnabled: true,
+			AllowOrbitEndUserAuthBypass: true,
 		},
 		WebSocket: WebSocketConfig{
 			TransportEnabled: false,
