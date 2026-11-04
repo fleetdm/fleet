@@ -555,7 +555,7 @@ GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| A package YAML file can hold one package that isn't in a list | Packages must be in a list ([docs](https://fleetdm.com/docs/configuration/yaml-files#packages)). `fleetctl gitops` fails otherwise. |
+| A package YAML file can hold one package that isn't in a list | Packages must be in a list, even if there's only one: start the package with `- ` and indent its other keys ([docs](https://fleetdm.com/docs/configuration/yaml-files#packages)). `fleetctl gitops` fails otherwise. |
 
 What to do: In each package YAML file, put packages in a list, even if there's only one.
 
