@@ -52,9 +52,7 @@ Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to
 - Block browser extensions in [Chrome](https://fleetdm.com/guides/block-chrome-extensions), [Edge](https://fleetdm.com/guides/block-edge-extensions), [Firefox](https://fleetdm.com/guides/block-firefox-extensions), and [Safari](https://fleetdm.com/guides/block-safari-extensions). Block, allow, or force-install extensions across macOS, Windows, and Linux.
 - [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet). Generate Fleet policies, reports, and configuration profiles with Claude Code, with or without GitOps.
 
-## 💬 From the community
 
-- [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) shared [his MacSysAdmin talk on why working in the open matters](https://www.linkedin.com/posts/henry-st_exhibitor-session-fleet-activity-7513481631123394560-Ul1X) as automation and AI agents take over more IT work. Open-source device management lets you see both sides of the API, end to end.
 
 ## 🤝 Community contributions
 
