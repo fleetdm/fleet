@@ -96,7 +96,7 @@ func setupRefetchTest(t *testing.T) *refetchTestEnv {
 	env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration) ([]fleet.AppleDevicesToRefetch, error) {
+	env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration, limit int) ([]fleet.AppleDevicesToRefetch, error) {
 		return []fleet.AppleDevicesToRefetch{
 			{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 		}, nil
@@ -153,7 +153,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 
 	t.Run("mixed devices are grouped by command flag", func(t *testing.T) {
 		env := setupRefetchTest(t)
-		env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration) ([]fleet.AppleDevicesToRefetch, error) {
+		env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration, limit int) ([]fleet.AppleDevicesToRefetch, error) {
 			return []fleet.AppleDevicesToRefetch{
 				{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 				{HostID: 2, UUID: "device-2", InstalledFromDEP: false, IsPersonalEnrollment: true},

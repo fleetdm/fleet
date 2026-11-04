@@ -53,10 +53,10 @@ const (
 	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
 	MobileRefetchInterval = time.Hour
 
-	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
-	// A refetch queued at t may not be dispatched until the next tick, so the
-	// online window must cover a full tick of dispatch latency on top of the
-	// refetch interval.
+	// MobileCronTickPeriod is the dispatch latency budget for the
+	// apple_mdm_iphone_ipad_refetcher cron. The cron ticks every minute but
+	// sends a bounded batch per tick, so a due host may wait several ticks;
+	// the online window must cover that on top of the refetch interval.
 	MobileCronTickPeriod = 10 * time.Minute
 
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
