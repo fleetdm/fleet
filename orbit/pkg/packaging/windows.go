@@ -32,6 +32,10 @@ const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix314
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
 func BuildMSI(opt Options) (string, error) {
+	// fleetctl's default, so the update targets below and the file name agree.
+	if opt.Architecture == "" {
+		opt.Architecture = ArchAmd64
+	}
 	tmpDir, err := initializeTempDir()
 	if err != nil {
 		return "", err
