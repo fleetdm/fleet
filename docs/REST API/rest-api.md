@@ -8658,6 +8658,8 @@ The generated name is meant for declaration (DDM) and Windows profiles. A .mobil
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
+On Fleet Free, this request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
+
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
 
 #### Parameters
@@ -8709,6 +8711,43 @@ Returned when Fleet can't reach the AI service, or the AI service returns an err
 }
 ```
 
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+    }
+  ]
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). Fleet needs it to store the credential it uses to request generations from fleetdm.com.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
+    }
+  ]
+}
+```
+
 ---
 
 ### Autofill configuration profile content
@@ -8718,6 +8757,10 @@ Generates configuration profile content using AI.
 For Apple, Fleet generates a declaration (DDM) profile when one declaration can enforce the instructions. Otherwise, Fleet generates a .mobileconfig profile. For Windows, Fleet generates an XML profile.
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
+
+On Fleet Free, each Fleet instance can make 15 content requests per month. Every request that reaches the AI service counts, including requests the AI declines. The limit resets on the 1st of each month (UTC). Fleet Premium has no limit. A Fleet Premium instance whose license has expired gets the Fleet Free limit.
+
+On Fleet Free, or with an expired license, the Fleet server needs a [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) to generate profiles.
 
 `POST /api/v1/fleet/autofill/configuration_profile/content`
 
@@ -8792,6 +8835,43 @@ Returned when Fleet can't reach the AI service, the AI service returns an error 
     {
       "name": "base",
       "reason": "The AI service timed out."
+    }
+  ]
+}
+```
+
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+    }
+  ]
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
     }
   ]
 }
