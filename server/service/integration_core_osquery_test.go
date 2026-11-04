@@ -477,7 +477,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		TeamIDs: []uint{team1.ID},
 	})
 	require.NoError(t, err)
-	scheduledQueryOnPack1, err := s.ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
+	_, err = s.ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
 		Name:     "scheduled-query-pack1",
 		PackID:   userPack1TargetTeam1.ID,
 		QueryID:  nonScheduledGlobalQuery.ID,
@@ -504,7 +504,9 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	resp = getClientConfigResponse{}
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 	packs = resp.Config["packs"].(map[string]any)
-	require.Len(t, packs, 3)
+	// The 2017 pack targeting the team is not served.
+	require.Len(t, packs, 2)
+	require.NotContains(t, packs, userPack1TargetTeam1.Name)
 	globalQueries = packs["Global"].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, globalQueries, 1)
 	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
@@ -512,9 +514,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Len(t, team1Queries, 2)
 	require.Contains(t, team1Queries, scheduledTeam1Query1.Name)
 	require.Contains(t, team1Queries, scheduledTeam1Query2.Name)
-	userPack1Queries := packs[userPack1TargetTeam1.Name].(map[string]any)["queries"].(map[string]any)
-	require.Len(t, userPack1Queries, 1)
-	require.Contains(t, userPack1Queries, scheduledQueryOnPack1.Name)
 
 	// Now let's simulate a osquery instance running in the team host returning the
 	// stats in the distributed/write (osquery_schedule table)
