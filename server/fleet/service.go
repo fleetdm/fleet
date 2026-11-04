@@ -315,39 +315,6 @@ type Service interface {
 	DeleteSession(ctx context.Context, id uint) (err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// PackService is the service interface for managing query packs.
-
-	// ApplyPackSpecs applies a list of PackSpecs to the datastore, creating and updating packs as necessary.
-	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) ([]*PackSpec, error)
-
-	// GetPackSpecs returns all of the stored PackSpecs.
-	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
-
-	// GetPackSpec gets the spec for the pack with the given name.
-	GetPackSpec(ctx context.Context, name string) (*PackSpec, error)
-
-	// NewPack creates a new pack in the datastore.
-	NewPack(ctx context.Context, p PackPayload) (pack *Pack, err error)
-
-	// ModifyPack modifies an existing pack in the datastore.
-	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
-
-	// ListPacks lists all packs in the application.
-	ListPacks(ctx context.Context, opt PackListOptions) (packs []*Pack, err error)
-
-	// GetPack retrieves a pack by ID.
-	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
-
-	// DeletePack deletes a pack record from the datastore.
-	DeletePack(ctx context.Context, name string) (err error)
-
-	// DeletePackByID is for backwards compatibility with the UI
-	DeletePackByID(ctx context.Context, id uint) (err error)
-
-	// ListPacksForHost lists the packs that a host should execute.
-	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
@@ -689,15 +656,6 @@ type Service interface {
 	// is provided and the referenced query allows observers to run, targets will include hosts that the user has
 	// observer role for.
 	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// ScheduledQueryService
-
-	GetScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) (queries []*ScheduledQuery, err error)
-	GetScheduledQuery(ctx context.Context, id uint) (query *ScheduledQuery, err error)
-	ScheduleQuery(ctx context.Context, sq *ScheduledQuery) (query *ScheduledQuery, err error)
-	DeleteScheduledQuery(ctx context.Context, id uint) (err error)
-	ModifyScheduledQuery(ctx context.Context, id uint, p ScheduledQueryPayload) (query *ScheduledQuery, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// StatusService
