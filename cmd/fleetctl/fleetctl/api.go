@@ -66,6 +66,12 @@ func getToken(configPath, context string) (any, error) {
 	return getConfigValue(configPath, context, "token")
 }
 
+func warnIfTokenEnvVarOverrides(w io.Writer, savedToken string) {
+	if envToken := os.Getenv(apiTokenEnvVar); envToken != "" && envToken != savedToken {
+		fmt.Fprintf(w, "[!] %s is set and will be used instead of the token saved in the config.\n", apiTokenEnvVar)
+	}
+}
+
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleetClient, err := unauthenticatedClientFromCLI(c)
 	if err != nil {

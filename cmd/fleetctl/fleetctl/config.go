@@ -301,6 +301,7 @@ func configSetCommand() *cli.Command {
 					return fmt.Errorf("error setting token: %w", err)
 				}
 				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
+				warnIfTokenEnvVarOverrides(c.App.ErrWriter, flToken)
 			}
 
 			if c.IsSet("tls-skip-verify") {
