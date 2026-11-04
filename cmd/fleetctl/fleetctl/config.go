@@ -39,6 +39,14 @@ func defaultConfigPath() string {
 	return filepath.Join(homeDir, ".fleet", "config")
 }
 
+// configPathFromEnv is the config file for a command without --config: CONFIG, as --config reads it, or the default.
+func configPathFromEnv() string {
+	if path := os.Getenv("CONFIG"); path != "" {
+		return path
+	}
+	return defaultConfigPath()
+}
+
 func configFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "config",

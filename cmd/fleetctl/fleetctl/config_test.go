@@ -247,3 +247,12 @@ func TestConfigGetShowsHelp(t *testing.T) {
 		require.Contains(t, output, "Set config options")
 	})
 }
+
+func TestConfigPathFromEnv(t *testing.T) {
+	t.Setenv("CONFIG", "")
+	require.Equal(t, defaultConfigPath(), configPathFromEnv())
+
+	custom := filepath.Join(t.TempDir(), "fleetctl-config")
+	t.Setenv("CONFIG", custom)
+	require.Equal(t, custom, configPathFromEnv())
+}

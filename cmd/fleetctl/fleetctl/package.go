@@ -475,7 +475,7 @@ func packageCommand() *cli.Command {
 			// opt is package-level, so reset what no flag sets.
 			opt.FleetName, opt.FleetID, opt.OtherFleetNames = "", 0, nil
 			if opt.CustomOutfile == "" {
-				f := fleetForPackage(defaultConfigPath(), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+				f := fleetForPackage(configPathFromEnv(), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
 				opt.FleetName, opt.FleetID, opt.OtherFleetNames = f.Name, f.ID, f.OtherNames
 			}
 			path, err := buildFunc(opt)
