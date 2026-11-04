@@ -162,10 +162,12 @@ func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
 
 	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
 	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)
-	for _, id := range []uint{live.ID, deleted.ID} {
+	notRun := test.NewQuery(t, ds, nil, "not run", "select 3", 0, true)
+	test.NewQuery(t, ds, nil, "no stats", "select 4", 0, true)
+	for id, executions := range map[uint]int{live.ID: 1, deleted.ID: 1, notRun.ID: 0} {
 		_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
 			(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
-			VALUES (1, ?, 1, 1, 1, 1, 1, 1)`, id)
+			VALUES (1, ?, 1, ?, 1, 1, 1, 1)`, id, executions)
 		require.NoError(t, err)
 	}
 	// Delete only the report row, leaving its stats behind like a failed deleteQueryStats.
