@@ -1947,11 +1947,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
 	}
 
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
-	}
-
 	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
@@ -2338,7 +2333,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
-		Packs:                         packs,
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		CustomHostVitals:              customHostVitals,

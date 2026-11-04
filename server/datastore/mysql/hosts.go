@@ -18,6 +18,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -212,248 +213,58 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 }
 
 func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
-}
-
-func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	// NOTE: this implementation must be kept in sync with the async/batch version
-	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
-	// the behaviour per host must be the same.
-
-	var (
-		userPacksArgs              []interface{}
-		userPacksQueryCount        = 0
-		scheduledQueriesArgs       []interface{}
-		scheduledQueriesQueryCount = 0
-	)
-
+	// Stats for any pack other than the report packs ("Global" and the host's
+	// "team-<id>") can't be attributed to a report and are skipped.
+	type pendingStat struct {
+		name fleet.TeamScopedQueryName
+		stat fleet.ScheduledQueryStats
+	}
+	var pending []pendingStat
 	for _, pack := range stats {
-		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
-			for _, query := range pack.QueryStats {
-				scheduledQueriesQueryCount++
-
-				teamIDArg := uint(0)
-				if pack.PackName != "Global" {
-					teamIDArg = *teamID
-				}
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-				scheduledQueriesArgs = append(
-					scheduledQueriesArgs,
-					teamIDArg,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
-		} else { // User 2017 packs
-			for _, query := range pack.QueryStats {
-				userPacksQueryCount++
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-
-				userPacksArgs = append(
-					userPacksArgs,
-					query.PackName,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
+		var packTeamID *uint
+		switch {
+		case pack.PackName == "Global":
+		case teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID):
+			packTeamID = teamID
+		default:
+			continue
+		}
+		for _, qs := range pack.QueryStats {
+			pending = append(pending, pendingStat{
+				name: fleet.TeamScopedQueryName{TeamID: packTeamID, Name: qs.ScheduledQueryName},
+				stat: qs,
+			})
 		}
 	}
-
-	if userPacksQueryCount == 0 && scheduledQueriesQueryCount == 0 {
+	if len(pending) == 0 {
 		return nil
 	}
 
-	if scheduledQueriesQueryCount > 0 {
-		// This query will import stats for queries (new format).
-		values := strings.TrimSuffix(strings.Repeat("((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),", scheduledQueriesQueryCount), ",")
-		sql := fmt.Sprintf(`
-			INSERT IGNORE INTO scheduled_query_stats (
-				scheduled_query_id,
-				host_id,
-				average_memory,
-				denylisted,
-				executions,
-				schedule_interval,
-				last_executed,
-				output_size,
-				system_time,
-				user_time,
-				wall_time
-			)
-			VALUES %s ON DUPLICATE KEY UPDATE
-				scheduled_query_id = VALUES(scheduled_query_id),
-				host_id = VALUES(host_id),
-				average_memory = VALUES(average_memory),
-				denylisted = VALUES(denylisted),
-				executions = VALUES(executions),
-				schedule_interval = VALUES(schedule_interval),
-				last_executed = VALUES(last_executed),
-				output_size = VALUES(output_size),
-				system_time = VALUES(system_time),
-				user_time = VALUES(user_time),
-				wall_time = VALUES(wall_time)
-		`, values)
-		if _, err := db.ExecContext(ctx, sql, scheduledQueriesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert query schedule stats")
-		}
+	names := make([]fleet.TeamScopedQueryName, 0, len(pending))
+	for _, p := range pending {
+		names = append(names, p.name)
 	}
-
-	if userPacksQueryCount > 0 {
-		// This query will import stats for 2017 packs.
-		// NOTE(lucas): If more than one scheduled query reference the same query then only one of the stats will be written.
-		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", userPacksQueryCount), ",")
-		sql := fmt.Sprintf(`
-				INSERT IGNORE INTO scheduled_query_stats (
-					scheduled_query_id,
-					host_id,
-					average_memory,
-					denylisted,
-					executions,
-					schedule_interval,
-					last_executed,
-					output_size,
-					system_time,
-					user_time,
-					wall_time
-				)
-				VALUES %s ON DUPLICATE KEY UPDATE
-					scheduled_query_id = VALUES(scheduled_query_id),
-					host_id = VALUES(host_id),
-					average_memory = VALUES(average_memory),
-					denylisted = VALUES(denylisted),
-					executions = VALUES(executions),
-					schedule_interval = VALUES(schedule_interval),
-					last_executed = VALUES(last_executed),
-					output_size = VALUES(output_size),
-					system_time = VALUES(system_time),
-					user_time = VALUES(user_time),
-					wall_time = VALUES(wall_time)
-			`, values)
-		if _, err := db.ExecContext(ctx, sql, userPacksArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert pack stats")
-		}
-	}
-
-	return nil
-}
-
-// loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
-// queries that haven't run yet are returned with zero values.
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
-	packs, err := listPacksForHost(ctx, db, hid)
+	// Read the primary so stats for a report created moments ago aren't
+	// dropped because it hasn't reached the replica yet.
+	reports, err := ds.QueriesByName(ctxdb.RequirePrimary(ctx, true), names)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
+		return ctxerr.Wrap(ctx, err, "resolve report ids for host stats")
 	}
-	if len(packs) == 0 {
-		return nil, nil
+	resolved := make([]fleet.ScheduledQueryStats, 0, len(pending))
+	for _, p := range pending {
+		report, ok := reports[p.name.Key()]
+		if !ok || report == nil {
+			continue
+		}
+		p.stat.ScheduledQueryID = report.ID
+		resolved = append(resolved, p.stat)
 	}
-	packIDs := make([]uint, len(packs))
-	packTypes := make(map[uint]*string)
-	for i := range packs {
-		packIDs[i] = packs[i].ID
-		packTypes[packs[i].ID] = packs[i].Type
+	if len(resolved) == 0 {
+		return nil
 	}
-	ds := dialect.From(goqu.I("scheduled_queries").As("sq")).Select(
-		goqu.I("sq.name").As("scheduled_query_name"),
-		goqu.I("sq.id").As("scheduled_query_id"),
-		goqu.I("sq.query_name").As("query_name"),
-		goqu.I("q.description").As("description"),
-		goqu.I("p.name").As("pack_name"),
-		goqu.I("p.id").As("pack_id"),
-		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
-		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
-		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
-		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", common_mysql.DefaultNonZeroTime)).As("last_executed"),
-		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
-		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
-		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
-		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
-	).Join(
-		dialect.From("packs").As("p").Select(
-			goqu.I("id"),
-			goqu.I("name"),
-		).Where(goqu.I("id").In(packIDs)),
-		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
-	).Join(
-		goqu.I("queries").As("q"),
-		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
-	).LeftJoin(
-		goqu.L(
-			`
-		(SELECT
-			stats.scheduled_query_id,
-			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
-			MAX(stats.denylisted) AS denylisted,
-			SUM(stats.executions) AS executions,
-			MAX(stats.last_executed) AS last_executed,
-			SUM(stats.output_size) AS output_size,
-			SUM(stats.system_time) AS system_time,
-			SUM(stats.user_time) AS user_time,
-			SUM(stats.wall_time) AS wall_time
-		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs
-		`, hid,
-		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
-	).Where(
-		goqu.Or(
-			// sq.platform empty or NULL means the scheduled query is set to
-			// run on all hosts.
-			goqu.I("sq.platform").Eq(""),
-			goqu.I("sq.platform").IsNull(),
-			// scheduled_queries.platform can be a comma-separated list of
-			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
-		),
-	)
-	sql, args, err := ds.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql build")
-	}
-	var stats []fleet.ScheduledQueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
-	}
-	packStats := map[uint]fleet.PackStats{}
-	for _, query := range stats {
-		pack := packStats[query.PackID]
-		pack.PackName = query.PackName
-		pack.PackID = query.PackID
-		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
-		pack.QueryStats = append(pack.QueryStats, query)
-		packStats[pack.PackID] = pack
-	}
-	var ps []fleet.PackStats
-	for _, pack := range packStats {
-		ps = append(ps, pack)
-	}
-	return ps, nil
+
+	_, err = saveHostsScheduledQueryStatsDB(ctx, ds.writer(ctx), map[uint][]fleet.ScheduledQueryStats{hostID: resolved}, len(resolved))
+	return err
 }
 
 // loadHostScheduledQueryStatsDB will load all the scheduled query stats for the given host.
@@ -550,13 +361,6 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
 	}
 	return stats, nil
-}
-
-func getPackTypeFromDBField(t *string) string {
-	if t == nil {
-		return "pack"
-	}
-	return *t
 }
 
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) ([]fleet.HostUser, error) {
@@ -982,11 +786,6 @@ LIMIT
 	}
 	omitUnknownLinuxDiskEncryption(&host)
 
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 	queriesStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform, host.TeamID)
 	if err != nil {
 		return nil, err
@@ -4044,12 +3843,6 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
-
 	return host, nil
 }
 
@@ -4124,12 +3917,6 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by uuid")
 	}
-
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 
 	return host, nil
 }

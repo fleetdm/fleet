@@ -456,10 +456,6 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	return pack, nil
 }
 
-func teamScheduleName(team *fleet.Team) string {
-	return fmt.Sprintf("Team: %s", team.Name)
-}
-
 // ListPacks returns all fleet.Pack records limited and sorted by fleet.ListOptions
 func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	query := `SELECT * FROM packs WHERE pack_type IS NULL OR pack_type = ''`
