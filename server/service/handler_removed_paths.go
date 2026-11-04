@@ -20,8 +20,8 @@ var removedPathTemplates = []string{
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
 var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": {
-		Method: http.MethodPost,
-		Route:  "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/{resend_segment}/{profile_uuid}",
+		Method:        http.MethodPost,
+		RouteTemplate: "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/{resend_segment}/{profile_uuid}",
 	},
 }
 
