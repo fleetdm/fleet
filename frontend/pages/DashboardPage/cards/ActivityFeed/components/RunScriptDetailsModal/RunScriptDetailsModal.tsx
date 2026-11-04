@@ -37,7 +37,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="success-outline"
+    iconName="success"
     message="Exit code: 0 (Script ran successfully.)"
   />
 );

@@ -137,7 +137,7 @@ const diskEncryptionFailedMessage: ControlMessage = ({ hostDisplayName }) => (
 // Profiles for iOS and iPadOS skip the verifying step
 const APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Verified",
-  iconName: "success",
+  iconName: "success-filled",
   message: (props) =>
     props.isDiskEncryptionProfile ? (
       diskEncryptionVerifiedMessage(props)
@@ -151,7 +151,7 @@ const APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
 
 const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Verifying",
-  iconName: "success-outline",
+  iconName: "success",
   message: (props) =>
     props.isDiskEncryptionProfile ? (
       diskEncryptionVerifyingMessage(props)
@@ -260,12 +260,12 @@ type WindowsDiskEncryptionDisplayConfig = Pick<
 export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: diskEncryptionVerifiedMessage,
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-outline",
+    iconName: "success",
     message: diskEncryptionVerifyingMessage,
   },
   pending: {
@@ -299,7 +299,7 @@ type LinuxDiskEncryptionDisplayConfig = Omit<
 export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayConfig = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: diskEncryptionVerifiedMessage,
   },
   failed: {
@@ -330,7 +330,7 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-outline",
+    iconName: "success",
     message: ({ hostDisplayName }) => (
       <>
         <b>{hostDisplayName}</b> acknowledged the MDM command to rename it.
@@ -340,7 +340,7 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
   },
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: ({ hostDisplayName }) => (
       <>
         <b>{hostDisplayName}</b> was renamed to match this fleet&apos;s host
@@ -366,7 +366,7 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
 > = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: ({ hostDisplayName }) => (
       <>
         Fleet set a recovery lock password for <b>{hostDisplayName}</b>.
@@ -457,7 +457,7 @@ const getAndroidCertificateDisplayOption = (
     case "verified":
       return {
         statusText: "Verified",
-        iconName: "success",
+        iconName: "success-filled",
         message: ({ hostDisplayName, settingName }) => (
           <>
             <b>{hostDisplayName}</b> applied <b>{settingName}</b>. Fleet

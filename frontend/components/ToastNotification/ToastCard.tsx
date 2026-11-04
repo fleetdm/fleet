@@ -33,9 +33,9 @@ export interface IToastCardProps {
 
 const variantIcon: Record<
   ToastVariant,
-  { name: "success-outline" | "error-outline"; color: Colors }
+  { name: "success" | "error-outline"; color: Colors }
 > = {
-  success: { name: "success-outline", color: "status-success" },
+  success: { name: "success", color: "status-success" },
   error: { name: "error-outline", color: "status-error" },
 };
 

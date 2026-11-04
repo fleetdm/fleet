@@ -61,7 +61,7 @@ import Settings from "./Settings";
 import Sparkles from "./Sparkles";
 // Status Icons
 import Success from "./Success";
-import SuccessOutline from "./SuccessOutline";
+import SuccessFilled from "./SuccessFilled";
 import Tag from "./Tag";
 import Text from "./Text";
 import TotalHosts from "./TotalHosts";
@@ -117,7 +117,7 @@ export const ICON_MAP = {
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
-  "success-outline": SuccessOutline,
+  "success-filled": SuccessFilled,
   pending: Pending,
   "pending-outline": PendingOutline,
   error: Error,

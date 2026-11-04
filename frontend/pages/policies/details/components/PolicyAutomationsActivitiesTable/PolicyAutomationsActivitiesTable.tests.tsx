@@ -245,7 +245,7 @@ describe("getAutomationStatusIcon", () => {
     });
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
-    ).toEqual({ name: "success-outline" });
+    ).toEqual({ name: "success" });
   });
 
   it("uses the grey error glyph for a successful 'end user notified' row and red for the failure row", () => {

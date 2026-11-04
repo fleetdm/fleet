@@ -351,9 +351,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
   it("shows a green success icon on success and a red error icon on failure", async () => {
     useScriptResultHandler({ exit_code: 0 });
     const { unmount } = renderModal({ status: "success" });
-    expect(
-      await screen.findByTestId("success-outline-icon")
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("success-icon")).toBeInTheDocument();
     unmount();
 
     useScriptResultHandler({ exit_code: 41 });

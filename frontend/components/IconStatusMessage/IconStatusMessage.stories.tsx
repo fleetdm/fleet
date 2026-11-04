@@ -18,7 +18,7 @@ const meta: Meta<typeof IconStatusMessage> = {
       options: [
         undefined,
         "success",
-        "success-outline",
+        "success",
         "error",
         "error-outline",
         "info",

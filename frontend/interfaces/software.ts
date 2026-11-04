@@ -1465,13 +1465,13 @@ export const INSTALL_STATUS_ICONS: Record<
 > = {
   pending: "pending-outline",
   pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
+  installed: "success",
+  uninstalled: "success",
   failed: "error-outline",
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Script-only software
+  ran_script: "success", // Script-only software
   failed_script: "error-outline", // Script-only software
   pending_script: "pending-outline", // Script-only software
 } as const;

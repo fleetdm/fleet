@@ -110,7 +110,7 @@ export const getAutomationRunDisplayName = (
  *  red for failures, green for successes. */
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
-): { name: "error-outline" | "success-outline"; color?: Colors } => {
+): { name: "error-outline" | "success"; color?: Colors } => {
   if (activity.details?.skipped_install) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
@@ -122,7 +122,7 @@ export const getAutomationStatusIcon = (
   }
   return activity.status === "error"
     ? { name: "error-outline" }
-    : { name: "success-outline" };
+    : { name: "success" };
 };
 
 /**
