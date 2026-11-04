@@ -13,6 +13,13 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
+	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
+}
+
+// removedPathRoutes has the template to register for a removed path that a stdlib ServeMux cannot register next to a live route. The live
+// route is more specific than the template here, so it keeps its requests on both routers.
+var removedPathRoutes = map[string]string{
+	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": "/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{resend_segment}/{profile_uuid}",
 }
 
 func removedPaths() []endpointer.RemovedPath {
@@ -22,7 +29,7 @@ func removedPaths() []endpointer.RemovedPath {
 		if !ok {
 			panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", template))
 		}
-		paths = append(paths, endpointer.RemovedPath{Path: template, Message: func(method string) string {
+		paths = append(paths, endpointer.RemovedPath{Path: template, Route: removedPathRoutes[template], Message: func(method string) string {
 			// The entry is for every method, and the message names the one that was used. Requests share the closure, so set it on a copy.
 			withMethod := entry
 			withMethod.Context = method

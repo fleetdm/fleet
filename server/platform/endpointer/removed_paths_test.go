@@ -66,3 +66,59 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	assert.Equal(t, "/api/_version_/fleet/gone/{id}", entry["removed_path"])
 	assert.NotContains(t, logs.String(), "secret")
 }
+
+func TestRegisterRemovedPathsWithRoute(t *testing.T) {
+	t.Parallel()
+
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/fleet/items/{id}/{name}/live", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	var logs bytes.Buffer
+	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
+		Path:    "/api/_version_/fleet/items/{id}/old/{name}",
+		Route:   "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
+		Message: func(method string) string { return "gone via " + method },
+	}})
+
+	for _, c := range []struct {
+		name, path string
+		wantStatus int
+		wantBody   string
+	}{
+		{"removed path", "/api/v1/fleet/items/1/old/abc", http.StatusGone, ""},
+		{"live route registered first wins the overlap", "/api/v1/fleet/items/1/old/live", http.StatusOK, ""},
+		{"other value answers like an unknown path", "/api/v1/fleet/items/1/other/abc", http.StatusNotFound, "404 page not found\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
+			if c.wantBody != "" {
+				assert.Equal(t, c.wantBody, rec.Body.String())
+			}
+		})
+	}
+	assert.Equal(t, 1, strings.Count(logs.String(), "request to a removed path"), "only the request to the removed path is logged")
+}
+
+func TestLiteralSegmentsMatch(t *testing.T) {
+	t.Parallel()
+
+	const template = "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}"
+	for _, c := range []struct {
+		name        string
+		requestPath string
+		want        bool
+	}{
+		{"removed path", "/api/v1/fleet/hosts/1/configuration_profiles/resend/abc", true},
+		{"removed path under a URL prefix", "/prefix/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", true},
+		{"other value in the literal segment", "/api/v1/fleet/hosts/1/configuration_profiles/foo/abc", false},
+		{"live spelling", "/api/v1/fleet/hosts/1/configuration_profiles/abc/resend", false},
+		{"too few segments", "/resend/abc", false},
+		{"empty", "", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, c.want, literalSegmentsMatch(template, c.requestPath))
+		})
+	}
+}

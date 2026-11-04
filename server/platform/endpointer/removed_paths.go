@@ -16,6 +16,9 @@ import (
 type RemovedPath struct {
 	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
 	Path string
+	// Route, when set, is the template to register instead of Path, for a Path that a stdlib ServeMux cannot register next to a live route.
+	// It writes the overlapping literal segment as a wildcard, and a request without the literals of Path gets a 404.
+	Route string
 	// Message is the response message for a request that used the given HTTP method.
 	Message func(method string) string
 }
@@ -31,7 +34,11 @@ var removedPathMethods = []string{
 func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
 	versionRegex := strings.Join(append(append([]string{}, versions...), "latest"), "|")
 	for _, removed := range paths {
-		pathForHandler := strings.Replace(removed.Path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
+		route := removed.Path
+		if removed.Route != "" {
+			route = removed.Route
+		}
+		pathForHandler := strings.Replace(route, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
 		r.Handle(pathForHandler, removedPathHandler(removed, logger)).Methods(slices.Clone(removedPathMethods)...).
 			Name(getNameFromPathAndVerb("any", removed.Path, ""))
 	}
@@ -39,6 +46,10 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 
 func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if removed.Route != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
+			http.NotFound(w, r)
+			return
+		}
 		logger.WarnContext(r.Context(), "request to a removed path", "method", r.Method, "uri", r.URL.Path, "removed_path", removed.Path,
 			"user_agent", r.UserAgent())
 		reason := removed.Message(r.Method)
@@ -46,4 +57,21 @@ func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 		w.WriteHeader(http.StatusGone)
 		_ = json.NewEncoder(w).Encode(JsonError{Message: "Gone", Errors: baseError(reason)})
 	})
+}
+
+// literalSegmentsMatch reports whether requestPath ends with the literal segments of template. They are aligned from the end because the
+// request path can also have a URL prefix.
+func literalSegmentsMatch(template, requestPath string) bool {
+	templateSegments := strings.Split(strings.TrimPrefix(template, "/"), "/")
+	requestSegments := strings.Split(requestPath, "/")
+	if len(requestSegments) < len(templateSegments) {
+		return false
+	}
+	requestSegments = requestSegments[len(requestSegments)-len(templateSegments):]
+	for i, segment := range templateSegments {
+		if segment != "_version_" && !strings.HasPrefix(segment, "{") && segment != requestSegments[i] {
+			return false
+		}
+	}
+	return true
 }
