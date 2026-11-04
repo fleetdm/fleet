@@ -5232,6 +5232,11 @@ org_settings:
 func TestRemovedTeamKeys(t *testing.T) {
 	t.Parallel()
 
+	for _, key := range RemovedGitOpsKeys {
+		_, ok := removednames.Find(removednames.KindYAMLKey, key.OldPath, "")
+		require.True(t, ok, "%s has no entry in pkg/removednames", key.OldPath)
+	}
+
 	globalConfig := func(mdmSection string) string {
 		return `
 controls:

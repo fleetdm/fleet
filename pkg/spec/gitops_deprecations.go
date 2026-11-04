@@ -123,11 +123,11 @@ func RejectRemovedKeys(data map[string]any, filePath string) error {
 	var errs []error
 	for _, removed := range RemovedGitOpsKeys {
 		if hasKeyPath(data, strings.Split(removed.OldPath, ".")) {
-			entry, ok := removednames.Find(removednames.KindYAMLKey, removed.OldPath, "")
-			if !ok {
-				panic(fmt.Sprintf("removed GitOps key %s has no entry in pkg/removednames", removed.OldPath))
+			message := fmt.Sprintf("%q is not available anymore", removed.OldPath)
+			if entry, ok := removednames.Find(removednames.KindYAMLKey, removed.OldPath, ""); ok {
+				message = entry.Message()
 			}
-			errs = append(errs, fmt.Errorf("%s: %s", filePath, entry.Message()))
+			errs = append(errs, fmt.Errorf("%s: %s", filePath, message))
 		}
 	}
 	return errors.Join(errs...)

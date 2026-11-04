@@ -289,7 +289,7 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 			teamItem = team
 		}
 		// Rename the fleet's own keys here, removing the old ones: printSpec only renames the keys it finds, and the spec key is no longer
-		// "team", whose renamed copy used to carry the new names.
+		// "team", whose renamed copy used to carry the new names. Delete this once the JSON tags are renamed in later PRs.
 		teamJSON, err := json.Marshal(teamItem)
 		if err != nil {
 			return err
