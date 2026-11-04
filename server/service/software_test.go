@@ -305,9 +305,7 @@ func TestStreamSoftwareVersionsResponse(t *testing.T) {
 			many[i] = software[0]
 		}
 		w := &failingResponseWriter{header: http.Header{}}
-		streamSoftwareVersionsResponse{listSoftwareVersionsResponse: listSoftwareVersionsResponse{
-			Count: len(many), Software: many,
-		}}.HijackRender(t.Context(), w)
+		streamSoftwareVersionsResponse{Count: len(many), Software: many}.HijackRender(t.Context(), w)
 		require.Equal(t, 1, w.writes)
 	})
 }
