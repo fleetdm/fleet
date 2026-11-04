@@ -2773,6 +2773,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
+| linear          | array  | See [`integrations.linear`](#integrations-linear).                   |
 
 <br/>
 
@@ -2809,6 +2810,19 @@ _Available in Fleet Premium._
 <br/>
 
 > Note that when making changes to the `integrations.zendesk` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
+##### integrations.linear
+
+`integrations.linear` is an array of objects with the following structure. Linear integrations are global only. They are not available for fleets.
+
+| Name    | Type   | Description   |
+| ------- | ------ | ------------------------------------------------------------------------------------------------------------------ |
+| api_key | string | The Linear API key to use for this Linear integration. Fleet masks the API key in responses.                       |
+| team_id | string | The ID of the Linear team to use for this integration.                                                             |
+
+Linear destinations do not create tickets yet. You can add and remove Linear destinations, and Fleet tests the connection when you save.
+
+> Note that when making changes to the `integrations.linear` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
 
 ##### integrations.google_calendar
 
