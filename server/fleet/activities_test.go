@@ -414,3 +414,16 @@ func TestHostEnrollmentRejectedActivity(t *testing.T) {
 	assert.Equal(t, "orbit", got["enrollment_plane"])
 	assert.Equal(t, "one_time_secret_spent", got["reason"])
 }
+
+// The stored rows of these activity types are renamed to these names by the RenameTeamActivityTypes migration.
+func TestFleetActivityTypeNames(t *testing.T) {
+	for want, activity := range map[string]ActivityDetails{
+		"created_fleet":           ActivityTypeCreatedTeam{},
+		"deleted_fleet":           ActivityTypeDeletedTeam{},
+		"applied_spec_fleet":      ActivityTypeAppliedSpecTeam{},
+		"changed_user_fleet_role": ActivityTypeChangedUserTeamRole{},
+		"deleted_user_fleet_role": ActivityTypeDeletedUserTeamRole{},
+	} {
+		assert.Equal(t, want, activity.ActivityName())
+	}
+}

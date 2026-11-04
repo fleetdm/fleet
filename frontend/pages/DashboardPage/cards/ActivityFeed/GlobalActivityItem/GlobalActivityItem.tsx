@@ -2727,7 +2727,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AppliedSpecSoftware: {
       return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
     }
-    case ActivityType.AppliedSpecTeam: {
+    case ActivityType.AppliedSpecFleet: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
     case ActivityType.EditedAgentOptions: {
@@ -2760,10 +2760,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.UserDeletedGlobalRole: {
       return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
     }
-    case ActivityType.UserChangedTeamRole: {
+    case ActivityType.UserChangedFleetRole: {
       return TAGGED_TEMPLATES.userChangedTeamRole(activity);
     }
-    case ActivityType.UserDeletedTeamRole: {
+    case ActivityType.UserDeletedFleetRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
     case ActivityType.FleetEnrolled: {
@@ -3344,8 +3344,8 @@ const GlobalActivityItem = ({
     switch (activity.type) {
       case ActivityType.UserChangedGlobalRole:
       case ActivityType.UserDeletedGlobalRole:
-      case ActivityType.UserChangedTeamRole:
-      case ActivityType.UserDeletedTeamRole:
+      case ActivityType.UserChangedFleetRole:
+      case ActivityType.UserDeletedFleetRole:
         return isPassiveRoleActivity(activity) ? (
           <b>{activity.details?.user_email} </b>
         ) : (
