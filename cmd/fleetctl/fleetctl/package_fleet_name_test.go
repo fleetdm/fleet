@@ -146,8 +146,8 @@ func TestFleetNameForPackage(t *testing.T) {
 			require.Equal(t, tc.want, fleetForPackage(configPath, tc.fleetURL, tc.secret, &errOut))
 			assert.Less(t, time.Since(start), 5*time.Second)
 			if tc.wantNote {
-				assert.Contains(t, errOut.String(), "left the fleet name out of the file name")
-				assert.Contains(t, errOut.String(), "fleetctl login")
+				assert.Equal(t, "Note: the fleet's name was left out of the package's filename because the API token for "+tc.fleetURL+
+					" is invalid or expired. To add it, log in with: fleetctl login\n", errOut.String())
 			} else {
 				assert.Empty(t, errOut.String())
 			}

@@ -88,8 +88,8 @@ func fleetForPackage(configPath, fleetURL, enrollSecret string, errWriter io.Wri
 		}
 	}
 	if unauthenticated && !listed {
-		fmt.Fprintf(errWriter, "Note: left the fleet name out of the file name because the fleetctl token for %s is invalid or expired. "+
-			"To add it, log in with fleetctl login.\n", fleetURL)
+		fmt.Fprintf(errWriter, "Note: the fleet's name was left out of the package's filename because the API token for %s is invalid or "+
+			"expired. To add it, log in with: fleetctl login\n", fleetURL)
 	}
 	return packageFleet{}
 }
