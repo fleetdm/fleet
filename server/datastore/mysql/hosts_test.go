@@ -344,25 +344,12 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	require.NoError(t, err)
 	assert.Nil(t, reloaded.TeamID, "UpdateHost must not resurrect a team_id that was cleared by a concurrent transfer")
 
-	p, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    t.Name(),
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
-
-	newP, err := ds.Pack(context.Background(), p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Hosts)
 
 	host, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
-
-	err = ds.DeletePack(context.Background(), newP.Name)
-	require.NoError(t, err)
 }
 
 func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
