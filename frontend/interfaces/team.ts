@@ -142,7 +142,7 @@ export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
 interface INewTeamSecret {
-  team_id: number;
+  fleet_id: number;
   secret: string;
   created_at?: string;
 }

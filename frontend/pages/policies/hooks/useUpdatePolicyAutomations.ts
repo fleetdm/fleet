@@ -101,7 +101,7 @@ const useUpdatePolicyAutomations = ({
       if (policyUpdate) {
         requests.push(
           teamPoliciesAPI.update(policyId, {
-            team_id: teamIdForApi,
+            fleet_id: teamIdForApi,
             ...policyUpdate,
           })
         );

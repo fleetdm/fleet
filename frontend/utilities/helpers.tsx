@@ -205,7 +205,7 @@ export const formatPackTargetsForApi = (
   targets: ISelectTargetsEntity[]
 ): IPackTargets => {
   const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, team_ids: teams };
+  return { host_ids: hosts, label_ids: labels, fleet_ids: teams };
 };
 
 export const formatScheduledQueryForServer = (
@@ -346,9 +346,9 @@ export const formatTeamScheduledQueryForServer = (
     platform,
     query_id: queryID,
     shard,
-    team_id: teamID,
+    fleet_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "fleet_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -414,7 +414,7 @@ export const formatTeamForClient = (team: ITeam): ITeam => {
 export const formatPackForClient = (pack: IPack): IPack => {
   pack.host_ids ||= [];
   pack.label_ids ||= [];
-  pack.team_ids ||= [];
+  pack.fleet_ids ||= [];
   return pack;
 };
 

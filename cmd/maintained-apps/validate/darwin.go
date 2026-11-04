@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -189,7 +190,8 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	}
 
 	// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
+	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2". appExists
+	// only accepts this when the patched query passes, since version_compare sorts it lower.
 	if strings.HasPrefix(expectedVersion, foundVersion+".") {
 		return true
 	}
@@ -207,10 +209,42 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-// appExists reports whether the app is installed at the expected version. The
-// second value is always empty because the app is always found in apps, the
-// table the exists query reads.
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, string, error) {
+// patchedQueryPasses runs the manifest's patched query, which Fleet runs on
+// hosts as the patch policy, and reports whether it returned rows.
+func patchedQueryPasses(ctx context.Context, patchedQuery string) (bool, error) {
+	if strings.TrimSpace(patchedQuery) == "" {
+		return false, errors.New("manifest has no patched query")
+	}
+
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	output, err := runOsqueryi(execTimeout, patchedQuery)
+	if err != nil {
+		return false, fmt.Errorf("executing patched query: %w", err)
+	}
+	var rows []json.RawMessage
+	if err := json.Unmarshal(output, &rows); err != nil {
+		return false, fmt.Errorf("parsing patched query output %q: %w", output, err)
+	}
+	return len(rows) > 0, nil
+}
+
+// patchedQueryFailure explains a patched query that fails right after the
+// expected version was installed, and names the fix.
+func patchedQueryFailure(expectedVersion, foundVersion, foundBundledVersion string) string {
+	if foundVersion != "" && strings.HasPrefix(expectedVersion, foundVersion+".") {
+		return fmt.Sprintf("osquery reports bundle_short_version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or compare bundle_version in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go if it carries the full version.", foundVersion, expectedVersion)
+	}
+	return fmt.Sprintf("the patched query returns no rows with version '%s' installed (bundle_short_version '%s', bundle_version '%s'), so the patch policy would fail on hosts that have this version. Transform the version to match bundle_short_version in ee/maintained-apps/ingesters/homebrew/external_refs, or compare the column that carries it in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go.", expectedVersion, foundVersion, foundBundledVersion)
+}
+
+// appExists reports whether the app is installed at the expected version. When
+// only a looser match than bundle_short_version is found, the manifest's patched
+// query must also pass, or it returns an error that names the fix. The second
+// value is always empty because the app is always found in apps, the table the
+// exists query reads.
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, patchedQuery, appPath, _ string) (bool, string, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -239,8 +273,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
-	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
-	output, err := cmd.Output()
+	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
 		return false, "", fmt.Errorf("executing osquery command: %w", err)
 	}
@@ -256,8 +289,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
+	type looseMatch struct {
+		shortVersion   string
+		bundledVersion string
+	}
+	var loose *looseMatch
 	if len(results) > 0 {
 		for _, result := range results {
+			// The patched query compares the column as osquery reports it, before
+			// MutateSoftwareOnIngestion rewrites the version (R, Raspberry Pi Imager).
+			shortVersion := result.Version
 			software := &fleet.Software{
 				Name:             result.Name,
 				Version:          result.Version,
@@ -354,12 +395,31 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
-				return true, "", nil
+				if shortVersion == appVersion {
+					return true, "", nil
+				}
+				// A later row may still match exactly, so keep looking.
+				if loose == nil {
+					loose = &looseMatch{shortVersion: shortVersion, bundledVersion: result.BundledVersion}
+				}
 			}
 		}
 	}
 
-	return false, "", nil
+	if loose == nil {
+		return false, "", nil
+	}
+	// The default patched query compares bundle_short_version, so a match on
+	// anything else (bundle_version, a concatenation, a shorter version) can hide
+	// a patch policy that fails on hosts with this version installed.
+	passes, err := patchedQueryPasses(ctx, patchedQuery)
+	if err != nil {
+		return false, "", err
+	}
+	if !passes {
+		return false, "", errors.New(patchedQueryFailure(appVersion, loose.shortVersion, loose.bundledVersion))
+	}
+	return true, "", nil
 }
 
 func executeScript(cfg *Config, scriptContents string) (string, error) {

@@ -3753,6 +3753,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	}
 
 	if username != "" {
+		// SQLite has no backslash escapes, so Go's %q can't quote this device-reported name.
 		query += fmt.Sprintf(`
 			UNION
 
@@ -3763,8 +3764,8 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 			FROM
 				macos_user_profiles
 			WHERE
-				username = %q AND
-				type = "Configuration"`, username)
+				username = '%s' AND
+				type = "Configuration"`, strings.ReplaceAll(username, "'", "''"))
 	}
 	return query, true
 }

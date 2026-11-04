@@ -1193,10 +1193,10 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 
 	// Authorize again with team loaded now that we have team_id
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so
-		// the deprecated Puppet module can resolve a host identifier to a host id
-		// before pre-assigning profiles. Such a caller gets that id and nothing
-		// else: host details are read data it isn't entitled to.
+		// GitOps has no host read access, but it is granted selective_read here so it
+		// can resolve a host identifier to a host id, a documented permission kept for
+		// compatibility. Such a caller gets that id and nothing else: host details are
+		// read data it isn't entitled to.
 		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
 			return nil, selectiveErr
 		}
