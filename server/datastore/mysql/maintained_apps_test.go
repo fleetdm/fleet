@@ -57,6 +57,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAIngestIgnoresOtherSources", testWindowsFMAIngestIgnoresOtherSources},
 		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
 		{"ReconcileWindowsTitleFollowsIdentifier", testReconcileWindowsTitleFollowsIdentifier},
+		{"WindowsFMAAddResolvesTitleByInstallerLink", testWindowsFMAAddResolvesTitleByInstallerLink},
 		{"ReconcileWindowsTitleKeepsUpgradeCodeTitle", testReconcileWindowsTitleKeepsUpgradeCodeTitle},
 		{"ReconcileWindowsTitleSkipsTakenName", testReconcileWindowsTitleSkipsTakenName},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
@@ -2479,9 +2480,8 @@ func testWindowsFMAReconcileIndependentOfCatalogSync(t *testing.T, ds *Datastore
 }
 
 // testReconcileWindowsTitleFollowsIdentifier: a Windows installer without an upgrade code
-// names its title after unique_identifier, and adding the app looks the title up by that
-// name. When a catalog sync corrects the identifier, the existing title must follow it,
-// or the next add creates a second title for the same app.
+// names its title after unique_identifier. When a catalog sync corrects the identifier, the
+// existing title is renamed in place to follow it.
 func testReconcileWindowsTitleFollowsIdentifier(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2495,7 +2495,7 @@ func testReconcileWindowsTitleFollowsIdentifier(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "Postman x64 11.75.4",
 	})
 	require.NoError(t, err)
-	titleID := addWindowsFMATitledInstaller(t, ds, user.ID, nil, app.ID, "Postman x64 11.75.4", "")
+	titleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &app.ID, "Postman x64 11.75.4", "")
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Postman x64 12.34.1", Version: "12.34.1", Source: "programs"},
@@ -2522,8 +2522,64 @@ func testReconcileWindowsTitleFollowsIdentifier(t *testing.T, ds *Datastore) {
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team A"})
 	require.NoError(t, err)
-	require.Equal(t, titleID, addWindowsFMATitledInstaller(t, ds, user.ID, &team.ID, app.ID, "Postman x64", ""),
+	require.Equal(t, titleID, addWindowsTitledInstaller(t, ds, user.ID, &team.ID, &app.ID, "Postman x64", ""),
 		"adding the app to another team reuses the renamed title")
+}
+
+// testWindowsFMAAddResolvesTitleByInstallerLink: an add finds the app's title through its
+// existing installers rather than by name. The catalog sync commits a corrected identifier
+// before the reconcile renames the title, and an add that read the identifier before the
+// sync can land after the rename. A name lookup in either window would split the app
+// across two titles, which excludes it from inventory matching and which no pass repairs.
+func testWindowsFMAAddResolvesTitleByInstallerLink(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "team A"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "team B"})
+	require.NoError(t, err)
+
+	upsert := func(identifier string) *fleet.MaintainedApp {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             "Postman",
+			Slug:             "postman/windows",
+			Platform:         "windows",
+			UniqueIdentifier: identifier,
+		})
+		require.NoError(t, err)
+		return app
+	}
+
+	app := upsert("Postman x64 11.75.4")
+	titleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &app.ID, "Postman x64 11.75.4", "")
+
+	upsert("Postman x64")
+
+	resolved, err := ds.GetExistingSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Postman x64",
+		Source:               "programs",
+		Platform:             "windows",
+		FleetMaintainedAppID: &app.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, titleID, resolved, "a GitOps dry run resolves the same title the apply lands on")
+
+	require.Equal(t, titleID, addWindowsTitledInstaller(t, ds, user.ID, &teamA.ID, &app.ID, "Postman x64", ""),
+		"an add before the reconcile reuses the title under its old name")
+	require.Zero(t, countTitlesNamed(t, ds, "Postman x64"))
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, titleID, titleIDForTitleNamed(t, ds, "Postman x64"))
+
+	require.Equal(t, titleID, addWindowsTitledInstaller(t, ds, user.ID, &teamB.ID, &app.ID, "Postman x64 11.75.4", ""),
+		"an add that read the old identifier reuses the renamed title")
+	require.Zero(t, countTitlesNamed(t, ds, "Postman x64 11.75.4"))
+
+	matches, err := ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	require.Equal(t, titleID, *matches[0].TitleID)
 }
 
 // testReconcileWindowsTitleKeepsUpgradeCodeTitle: an installer with an upgrade code names
@@ -2540,7 +2596,7 @@ func testReconcileWindowsTitleKeepsUpgradeCodeTitle(t *testing.T, ds *Datastore)
 		UniqueIdentifier: "PuTTY release 0.83 (x64)",
 	})
 	require.NoError(t, err)
-	titleID := addWindowsFMATitledInstaller(t, ds, user.ID, nil, app.ID, "PuTTY", "{C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E}")
+	titleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &app.ID, "PuTTY", "{C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E}")
 
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "PuTTY",
@@ -2578,40 +2634,48 @@ func testReconcileWindowsTitleSkipsTakenName(t *testing.T, ds *Datastore) {
 
 	// The new name already belongs to an unrelated title.
 	notion := upsert("Notion", "notion/windows", "Notion 6.1.0")
-	notionTitleID := addWindowsFMATitledInstaller(t, ds, user.ID, nil, notion.ID, "Notion 6.1.0", "")
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES ('Notion', 'programs', '', '')`)
-		return err
-	})
+	notionTitleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &notion.ID, "Notion 6.1.0", "")
+	addWindowsTitledInstaller(t, ds, user.ID, &team.ID, nil, "Notion", "")
 
-	// Two titles owned by the same app both want the new name.
+	// The new name belongs to a title with an upgrade code, whose unique key is the code.
+	webex := upsert("Webex", "webex/windows", "Webex 45.6.0")
+	webexTitleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &webex.ID, "Webex 45.6.0", "")
+	addWindowsTitledInstaller(t, ds, user.ID, &team.ID, nil, "Webex", "{6AD5D8F3-1C2B-4E4F-9A3C-2F1B7E9D0C11}")
+
+	// Two apps whose corrected identifiers coincide, like x64 and ARM64 builds that register
+	// one DisplayName, both want the new name.
 	airtame := upsert("Airtame", "airtame/windows", "Airtame 4.15.0")
-	airtameTitleID := addWindowsFMATitledInstaller(t, ds, user.ID, nil, airtame.ID, "Airtame 4.15.0", "")
-	airtameTeamTitleID := addWindowsFMATitledInstaller(t, ds, user.ID, &team.ID, airtame.ID, "Airtame 4.14.0", "")
-	require.NotEqual(t, airtameTitleID, airtameTeamTitleID)
+	airtameTitleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &airtame.ID, "Airtame 4.15.0", "")
+	airtameArm := upsert("Airtame (ARM)", "airtame-arm/windows", "Airtame 4.14.0")
+	airtameArmTitleID := addWindowsTitledInstaller(t, ds, user.ID, &team.ID, &airtameArm.ID, "Airtame 4.14.0", "")
+	require.NotEqual(t, airtameTitleID, airtameArmTitleID)
 
 	// Renamable in the same pass.
 	gimp := upsert("GIMP", "gimp/windows", "GIMP 3.0.8-2")
-	gimpTitleID := addWindowsFMATitledInstaller(t, ds, user.ID, nil, gimp.ID, "GIMP 3.0.8-2", "")
+	gimpTitleID := addWindowsTitledInstaller(t, ds, user.ID, nil, &gimp.ID, "GIMP 3.0.8-2", "")
 
 	upsert("Notion", "notion/windows", "Notion")
+	upsert("Webex", "webex/windows", "Webex")
 	upsert("Airtame", "airtame/windows", "Airtame")
+	upsert("Airtame (ARM)", "airtame-arm/windows", "Airtame")
 	upsert("GIMP", "gimp/windows", "GIMP")
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	require.Equal(t, notionTitleID, titleIDForTitleNamed(t, ds, "Notion 6.1.0"))
 	require.Equal(t, 1, countTitlesNamed(t, ds, "Notion"))
+	require.Equal(t, webexTitleID, titleIDForTitleNamed(t, ds, "Webex 45.6.0"))
+	require.Equal(t, 1, countTitlesNamed(t, ds, "Webex"))
 	require.Equal(t, airtameTitleID, titleIDForTitleNamed(t, ds, "Airtame 4.15.0"))
-	require.Equal(t, airtameTeamTitleID, titleIDForTitleNamed(t, ds, "Airtame 4.14.0"))
+	require.Equal(t, airtameArmTitleID, titleIDForTitleNamed(t, ds, "Airtame 4.14.0"))
 	require.Zero(t, countTitlesNamed(t, ds, "Airtame"))
 	require.Equal(t, gimpTitleID, titleIDForTitleNamed(t, ds, "GIMP"))
 }
 
-// addWindowsFMATitledInstaller adds an installer for an existing Windows FMA to a team
-// (nil for no team) under the given title name, returning the title it lands on.
-func addWindowsFMATitledInstaller(t *testing.T, ds *Datastore, userID uint, teamID *uint, appID uint, title, upgradeCode string) uint {
+// addWindowsTitledInstaller adds a Windows installer to a team (nil for no team) under the
+// given title name, returning the title it lands on. fmaID links it to a Fleet-maintained
+// app; nil adds a custom package.
+func addWindowsTitledInstaller(t *testing.T, ds *Datastore, userID uint, teamID, fmaID *uint, title, upgradeCode string) uint {
 	t.Helper()
 
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(t.Context(), &fleet.UploadSoftwareInstallerPayload{
@@ -2626,7 +2690,7 @@ func addWindowsFMATitledInstaller(t *testing.T, ds *Datastore, userID uint, team
 		Version:              "1.0.0",
 		UserID:               userID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: &appID,
+		FleetMaintainedAppID: fmaID,
 	})
 	require.NoError(t, err)
 

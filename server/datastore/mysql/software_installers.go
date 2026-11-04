@@ -526,6 +526,21 @@ func softwareInstallerTitleSelect(payload *fleet.UploadSoftwareInstallerPayload)
 		// select by either name or upgrade code, preferring upgrade code
 		return `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND extension_for = '' AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`,
 			[]any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
+	case payload.Source == "programs" && payload.FleetMaintainedAppID != nil:
+		// Without an upgrade code the title is named after the app's unique_identifier, which a
+		// catalog sync can correct before the reconcile renames the title (or after an add read
+		// it and started downloading). A name lookup then would put the app on a second title
+		// that no later pass merges, so prefer the title the app's installers already own.
+		return `
+			SELECT id FROM (
+				SELECT MIN(si.title_id) AS id, 0 AS by_name
+				FROM software_installers si
+				WHERE si.fleet_maintained_app_id = ? AND si.title_id IS NOT NULL
+				HAVING COUNT(DISTINCT si.title_id) = 1
+				UNION ALL
+				SELECT id, 1 FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''
+			) t ORDER BY by_name LIMIT 1`,
+			[]any{*payload.FleetMaintainedAppID, payload.Title, payload.Source}
 	default:
 		return `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`,
 			[]any{payload.Title, payload.Source}

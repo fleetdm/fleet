@@ -77,8 +77,8 @@ var maintainedAppNameReconcileDiscoveryLimit = 10_000
 // It also renames Windows titles owned by an app's installer to the app's
 // unique_identifier, which is what the installer names a title without an upgrade code
 // after. Without this, correcting an identifier in apps.json would leave existing titles
-// on the old name, and the next add or GitOps apply, which looks the title up by name,
-// would create a second title for the same app.
+// on the old name. Adds still find them through the app's installer link, but anything
+// that goes by the name, such as inventory matching, would not.
 //
 // Discovery is a different matter and does join. That hazard is specific to UPDATE: a SELECT
 // here is a non-locking consistent read. So each pass finds its mismatched rows in
@@ -248,6 +248,8 @@ const (
 	// through the code, so they're left alone. Without an upgrade code a programs title is
 	// unique by name, so a rename is skipped when another title already has the new name or
 	// two titles want it; Windows software keeps its reported name, so only titles change.
+	// A title with an upgrade code is keyed on the code, so only its name shows that it
+	// holds the new name, and sharing that name would make name lookups ambiguous.
 	mismatchedWindowsTitlesByInstallerLink = `
 		SELECT MIN(st.id) AS id, fma.name
 		FROM (` + catalogIdentifiersByWindowsTitle + `) fma
@@ -257,6 +259,12 @@ const (
 			AND NOT EXISTS (
 				SELECT 1 FROM software_titles taken
 				WHERE taken.unique_identifier = fma.name
+					AND taken.source = st.source
+					AND taken.extension_for = st.extension_for
+			)
+			AND NOT EXISTS (
+				SELECT 1 FROM software_titles taken
+				WHERE taken.name = fma.name
 					AND taken.source = st.source
 					AND taken.extension_for = st.extension_for
 			)
