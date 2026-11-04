@@ -14,6 +14,12 @@ import (
 // A UTF-8 byte count is never smaller than the UTF-16 count Windows uses, so this holds on every OS.
 const maxFilenameBytes = 100
 
+// Fleet is a fleet as the package file name needs it.
+type Fleet struct {
+	ID   uint
+	Name string
+}
+
 // outputFilename returns the default name of a generated package: fleet-<platform>[-<arch>][-<fleet>].<ext>.
 func outputFilename(platform, arch, ext string, opt Options) string {
 	name := "fleet-" + platform
@@ -22,56 +28,52 @@ func outputFilename(platform, arch, ext string, opt Options) string {
 	}
 	ext = "." + ext
 	budget := maxFilenameBytes - len(name) - len("-") - len(ext)
-	if fleet := fleetFilenamePart(opt.FleetName, opt.FleetID, opt.OtherFleetNames, budget); fleet != "" {
+	if fleet := fleetFilenamePart(Fleet{ID: opt.FleetID, Name: opt.FleetName}, opt.OtherFleets, budget); fleet != "" {
 		name += "-" + fleet
 	}
 	return name + ext
 }
 
-// fleetFilenamePart returns the cleaned fleet name, cut to budget bytes. If another fleet's part could be the same,
-// it ends with the fleet ID instead, so their packages don't overwrite each other.
-func fleetFilenamePart(name string, id uint, others []string, budget int) string {
-	part := truncateUTF8(fleetNameForFilename(name), budget)
-	if part == "" || id == 0 || !collides(part, others, budget) {
-		return part
+// fleetFilenamePart returns the fleet's cleaned name, cut to budget bytes. Fleets whose parts match get their ID at the
+// end, in rounds until no two match, so their packages don't overwrite each other. Parts that end in different IDs
+// never match, and each round is decided from the same parts, so a fleet gets the same part whichever package is built.
+func fleetFilenamePart(fleet Fleet, others []Fleet, budget int) string {
+	all := append([]Fleet{fleet}, others...)
+	parts := make([]string, len(all))
+	for i, f := range all {
+		parts[i] = truncateUTF8(fleetNameForFilename(f.Name), budget)
 	}
-	suffix := strconv.FormatUint(uint64(id), 10)
-	if short := truncateUTF8(fleetNameForFilename(name), budget-len(suffix)-len("-")); short != "" {
+	withID := make([]bool, len(all))
+	for {
+		var round []int
+		for i := range all {
+			if withID[i] || parts[i] == "" || all[i].ID == 0 {
+				continue
+			}
+			for j := range all {
+				// Case-insensitive, like macOS and Windows file systems ("ſ" and "s" name the same file there).
+				if i != j && strings.EqualFold(parts[i], parts[j]) {
+					round = append(round, i)
+					break
+				}
+			}
+		}
+		if len(round) == 0 {
+			return parts[0]
+		}
+		for _, i := range round {
+			parts[i], withID[i] = nameWithID(all[i], budget), true
+		}
+	}
+}
+
+// nameWithID returns the fleet's cleaned name followed by its ID, cut to fit in budget bytes when the ID does.
+func nameWithID(f Fleet, budget int) string {
+	suffix := strconv.FormatUint(uint64(f.ID), 10)
+	if short := truncateUTF8(fleetNameForFilename(f.Name), budget-len(suffix)-len("-")); short != "" {
 		return short + "-" + suffix
 	}
 	return suffix
-}
-
-// collides reports whether another fleet's part can equal part: the same name, or a name shared by two other fleets,
-// which then get IDs ("foo-1" next to "foo" and "FOO"). Case-insensitive, like macOS and Windows file systems ("ſ"
-// and "s" name the same file there).
-func collides(part string, others []string, budget int) bool {
-	base, digits := "", ""
-	if i := strings.LastIndexByte(part, '-'); i > 0 && strings.Trim(part[i+1:], "0123456789") == "" {
-		base, digits = part[:i], part[i+1:]
-	}
-	for _, other := range others {
-		cleaned := fleetNameForFilename(other)
-		if strings.EqualFold(truncateUTF8(cleaned, budget), part) {
-			return true
-		}
-		if digits != "" && strings.EqualFold(truncateUTF8(cleaned, budget-len(digits)-len("-")), base) &&
-			sharedName(cleaned, others, budget) {
-			return true
-		}
-	}
-	return false
-}
-
-// sharedName reports whether more than one of the other fleets cleans up to cleaned, so each of them gets an ID.
-func sharedName(cleaned string, others []string, budget int) bool {
-	n := 0
-	for _, other := range others {
-		if strings.EqualFold(truncateUTF8(fleetNameForFilename(other), budget), truncateUTF8(cleaned, budget)) {
-			n++
-		}
-	}
-	return n > 1
 }
 
 // fleetNameForFilename lowercases a fleet name and keeps only its letters and digits, in any script, turning every

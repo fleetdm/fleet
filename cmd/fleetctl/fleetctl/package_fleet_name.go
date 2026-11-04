@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	zlog "github.com/rs/zerolog/log"
@@ -22,11 +23,11 @@ import (
 var fleetNameLookupTimeout = 10 * time.Second
 
 // packageFleet is what the package file name needs about the fleet an enroll secret belongs to: its name, and its ID
-// with the other fleets' names, to tell apart fleets whose names clean up the same.
+// with the other fleets, to tell apart fleets whose names clean up the same.
 type packageFleet struct {
-	Name       string
-	ID         uint
-	OtherNames []string
+	Name   string
+	ID     uint
+	Others []packaging.Fleet
 }
 
 // fleetForPackage finds the fleet that enrollSecret belongs to, asking the server through the fleetctl config contexts
@@ -122,7 +123,7 @@ func fleetFromServer(cc Context, enrollSecret string, timeout time.Duration) (pa
 				match := packageFleet{Name: f.Name, ID: f.ID}
 				for _, other := range fleets {
 					if other.ID != f.ID {
-						match.OtherNames = append(match.OtherNames, other.Name)
+						match.Others = append(match.Others, packaging.Fleet{ID: other.ID, Name: other.Name})
 					}
 				}
 				return match, nil

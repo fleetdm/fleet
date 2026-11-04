@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -56,7 +57,7 @@ func TestFleetNameForPackage(t *testing.T) {
 	hung := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-stuck }))
 	t.Cleanup(func() { close(stuck); hung.Close() })
 
-	servers := packageFleet{Name: "Servers", ID: 1, OtherNames: []string{"\U0001F4BB Workstations", "Workstations"}}
+	servers := packageFleet{Name: "Servers", ID: 1, Others: []packaging.Fleet{{ID: 2, Name: "\U0001F4BB Workstations"}, {ID: 3, Name: "Workstations"}}}
 	type fleetctlContext struct{ name, address, token string }
 	for _, tc := range []struct {
 		name     string
@@ -70,7 +71,7 @@ func TestFleetNameForPackage(t *testing.T) {
 			name:     "fleet secret",
 			contexts: []fleetctlContext{{"default", premium.URL, "admin-token"}},
 			fleetURL: premium.URL, secret: "workstations-secret",
-			want: packageFleet{Name: "\U0001F4BB Workstations", ID: 2, OtherNames: []string{"Servers", "Workstations"}},
+			want: packageFleet{Name: "\U0001F4BB Workstations", ID: 2, Others: []packaging.Fleet{{ID: 1, Name: "Servers"}, {ID: 3, Name: "Workstations"}}},
 		},
 		{
 			name:     "URL spelled differently from the context address",

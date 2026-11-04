@@ -151,10 +151,10 @@ type Options struct {
 	// FleetName is the name of the fleet the enroll secret belongs to, if known. It is added to the default output
 	// file name, cleaned up so it is safe in a file name.
 	FleetName string
-	// FleetID is that fleet's ID. It is added to the file name only when one of OtherFleetNames gives the same name.
+	// FleetID is that fleet's ID. It is added to the file name only when another fleet's name could give the same one.
 	FleetID uint
-	// OtherFleetNames are the names of the other fleets the user can see.
-	OtherFleetNames []string
+	// OtherFleets are the other fleets the user can see.
+	OtherFleets []Fleet
 	// FleetManagedHostIdentityCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
 	FleetManagedHostIdentityCertificate bool
 }
