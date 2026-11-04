@@ -71,6 +71,8 @@
   }
 
   .list-item__title {
+    // cap so the name doesn't reflow when hover swaps labels for actions
+    max-width: min(400px, 40vw);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -104,6 +106,12 @@
       align-self: center;
       color: $ui-fleet-black-75;
       font-size: $x-small; // Remove when global default font is implemented
+    }
+  }
+
+  &:hover {
+    .list-item__labels {
+      display: none;
     }
   }
 }
