@@ -1615,6 +1615,8 @@ Creates and/or modifies the reports included in the list. To modify an existing 
 
 If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
 
+Fleets can have labels with the same name. If a global report's `labels_include_any` or `labels_include_all` includes a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/queries`
 
 #### Parameters
@@ -1775,6 +1777,8 @@ Returns all packs in the Fleet instance.
 Creates and/or modifies the policies included in the list. To modify an existing policy, the name of the policy included in the list must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
 
 NOTE: when updating a policy, fleet and platform will be ignored.
+
+Fleets can have labels with the same name. If a global policy's label fields (`labels_include_any`, `labels_include_all`, `labels_exclude_any`, or `labels_exclude_all`) include a name that labels on more than one fleet use, this endpoint returns `409`.
 
 `POST /api/v1/fleet/spec/policies`
 
