@@ -4447,6 +4447,14 @@ func TestSoftwareBatchUploadFMALatestHashRewinds(t *testing.T) {
 	require.Equal(t, "1.0.0", r.applied[0].Version)
 }
 
+func TestSoftwareBatchUploadFMALatestMalformedPackage(t *testing.T) {
+	body, err := os.ReadFile("testdata/xar_no_data.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, hash: noCheckHash, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetFailedPrefix+"Uploaded file is not a valid installer package.", r.status)
+	require.False(t, r.store.PutFuncInvoked)
+}
+
 func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
 	body, err := os.ReadFile("testdata/dummy_installer.pkg")
 	require.NoError(t, err)
@@ -4456,4 +4464,107 @@ func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
 	require.Len(t, r.applied, 1)
 	require.Equal(t, "1.0.0", r.applied[0].Version)
 	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(body)), r.applied[0].StorageID)
+}
+
+// runURLBatch serves body at a URL, runs a one-entry batch for it and returns the batch status and the service logs.
+func runURLBatch(t *testing.T, body []byte, sha256 string, prepare func(*mock.Store)) (status string, ds *mock.Store, logs string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	ds = new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(context.Context, *uint, string) (*fleet.ExistingSoftwareInstaller, error) { return nil, nil }
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+	if prepare != nil {
+		prepare(ds)
+	}
+
+	var logBuf bytes.Buffer
+	svc := newTestService(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+	svc.keyValueStore, _ = inMemoryKeyValueStore()
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return false, nil },
+		PutFunc:    func(context.Context, string, io.ReadSeeker) error { return nil },
+	}
+
+	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1,
+		[]*fleet.SoftwareInstallerPayload{{URL: srv.URL + "/app.pkg", SHA256: sha256, AlwaysDownload: true}}, false)
+	got, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	return *got, ds, logBuf.String()
+}
+
+func TestSoftwareBatchUploadMalformedPackage(t *testing.T) {
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
+
+	crafted, err := os.ReadFile("testdata/xar_no_data.pkg")
+	require.NoError(t, err)
+	valid, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	validSum := sha256.Sum256(valid)
+	craftedSum := sha256.Sum256(crafted)
+
+	t.Run("crafted package fails the batch", func(t *testing.T) {
+		status, ds, _ := runURLBatch(t, crafted, "", nil)
+		require.Contains(t, status, batchSetFailedPrefix)
+		require.Contains(t, status, "not a valid installer package")
+		require.False(t, ds.BatchSetSoftwareInstallersFuncInvoked)
+	})
+
+	t.Run("pinned hash is checked before parsing", func(t *testing.T) {
+		// A parse failure would report an invalid package instead of a mismatch.
+		status, _, _ := runURLBatch(t, crafted, hex.EncodeToString(validSum[:]), nil)
+		require.Contains(t, status, "does not match provided hash")
+		require.NotContains(t, status, "not a valid installer package")
+	})
+
+	t.Run("pinned crafted package is still rejected", func(t *testing.T) {
+		status, _, _ := runURLBatch(t, crafted, hex.EncodeToString(craftedSum[:]), nil)
+		require.Contains(t, status, "not a valid installer package")
+	})
+
+	t.Run("valid package with matching pin", func(t *testing.T) {
+		status, ds, _ := runURLBatch(t, valid, hex.EncodeToString(validSum[:]), nil)
+		require.Equal(t, batchSetCompleted, status)
+		require.True(t, ds.BatchSetSoftwareInstallersFuncInvoked)
+	})
+
+	t.Run("valid package without pin", func(t *testing.T) {
+		status, _, _ := runURLBatch(t, valid, "", nil)
+		require.Equal(t, batchSetCompleted, status)
+	})
+}
+
+func TestSoftwareBatchUploadRecoversPanic(t *testing.T) {
+	valid, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+
+	status, _, logs := runURLBatch(t, valid, "", func(ds *mock.Store) {
+		ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			panic("boom")
+		}
+	})
+	require.Contains(t, status, batchSetFailedPrefix)
+	require.Contains(t, status, "Couldn't process software package http://")
+	require.Contains(t, status, "/app.pkg: unexpected error.")
+	require.NotContains(t, status, "boom")
+	require.NotContains(t, status, "goroutine")
+	require.Contains(t, logs, "panic processing software package")
+	require.Contains(t, logs, "stack=")
 }

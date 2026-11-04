@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -3555,7 +3556,17 @@ func (svc *Service) softwareBatchUpload(
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() error {
+		g.Go(func() (retErr error) {
+			// errgroup doesn't recover, and installer parsers can panic on crafted
+			// input, which would end the process from this goroutine.
+			defer func() {
+				if r := recover(); r != nil {
+					svc.logger.ErrorContext(ctx, "panic processing software package",
+						"request_uuid", requestUUID, "url", p.URL, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+					retErr = fmt.Errorf("Couldn't process software package %s: unexpected error.", p.URL)
+				}
+			}()
+
 			// A single failure fails the whole batch, so don't process (and download)
 			// the remaining payloads. With the limit of 1 above, gctx is always
 			// cancelled before the next goroutine starts; in-flight work isn't
@@ -3928,6 +3939,12 @@ func (svc *Service) softwareBatchUpload(
 				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
+						if errors.Is(err, file.ErrInvalidInstaller) {
+							return &fleet.BadRequestError{
+								Message:     "Uploaded file is not a valid installer package.",
+								InternalErr: ctxerr.Wrap(ctx, err, "extracting installer metadata"),
+							}
+						}
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
 					}
 
@@ -3956,14 +3973,21 @@ func (svc *Service) softwareBatchUpload(
 
 			var ext string
 			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
+				// Check the pin before parsing, so bytes that aren't the pinned
+				// installer never reach the parsers.
+				if p.SHA256 != "" {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "hashing downloaded installer")
+					}
+					if gotHash != p.SHA256 {
+						return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
+					}
+				}
+
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					return err
-				}
-
-				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
-					// this isn't the specified installer, so return an error
-					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
 
