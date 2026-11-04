@@ -233,7 +233,6 @@ type entity struct {
 var (
 	hostsTable    = entity{"hosts"}
 	invitesTable  = entity{"invites"}
-	packsTable    = entity{"packs"}
 	queriesTable  = entity{"queries"}
 	sessionsTable = entity{"sessions"}
 	usersTable    = entity{"users"}
@@ -745,8 +744,7 @@ var (
 	}
 	knownUnknownDataMigrations = map[int64]struct{}{
 		// This migration was present in 2.0.0, and was removed on a subsequent release.
-		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
-		// column doesn't exist anymore).
+		// It deleted soft-deleted 2017 packs (the `deleted` column no longer exists).
 		20171212182459: {},
 		// Deleted in
 		// https://github.com/fleetdm/fleet/commit/fd61dcab67f341c9e47fb6cb968171650c19a681

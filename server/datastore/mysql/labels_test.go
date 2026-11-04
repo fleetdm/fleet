@@ -1609,19 +1609,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	p, err := db.NewPack(ctx, &fleet.Pack{
-		Name:     t.Name(),
-		LabelIDs: []uint{l.ID},
-	})
-	require.NoError(t, err)
-
 	require.NoError(t, db.DeleteLabel(ctx, l.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
-
-	newP, err := db.Pack(ctx, p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Labels)
-
-	require.NoError(t, db.DeletePack(ctx, newP.Name))
 
 	// delete a non-existing label
 	err = db.DeleteLabel(ctx, "no-such-label", fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})

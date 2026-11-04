@@ -356,8 +356,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			// The longest TTL of the cached fleet and global orbit config
 			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
-			// A host moved to another fleet reads its packs from a per-host
-			// cache (1m).
+			// A host moved to another fleet reads its new fleet's agent
+			// options from a cache (1m).
 			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
 			// The ETag write fence (3m), which outlasts the cached osquery
 			// config inputs plus the pack config cache built from them. Hosts
