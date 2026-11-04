@@ -17,6 +17,9 @@ from pathlib import Path
 from layout import Layout
 from yamlio import Doc, EnvRef, ServerText, dump, env_escape
 
+# Files place() edits after writing the plan, checked with the rest before anything is written.
+ENV_DOCS = [".env.example", ".gitignore", "README.md", ".github/workflows/workflow.yml", ".github/fleet-gitops/gitops.sh"]
+
 UNASSIGNED_HEADER = """# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 # unassigned.yml
@@ -111,8 +114,10 @@ class Placer:
     def place(self):
         pristine = self.work / "pristine"
         restored = [str(p.relative_to(pristine)) for p in pristine.rglob("*") if p.is_file()]
-        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self._removals() + restored:
+        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self._removals() + restored + ENV_DOCS:
             self.target(rel)
+        for f in self.files.values():
+            self._blob(f)
         placed = self.work / "placed.json"
         earlier = json.loads(placed.read_text()) if placed.exists() else []
         done = False
@@ -124,15 +129,25 @@ class Placer:
                 self._write_fleet(fleet)
             self._remove()
             if self.plan["exceptions"].get("labels"):
-                doc = Doc((self.root / "default.yml").read_text(encoding="utf-8"))
+                default = self.target("default.yml")
+                doc = Doc(default.read_text(encoding="utf-8"))
                 doc.comment_out(["labels"])
-                (self.root / "default.yml").write_text(doc.text(), encoding="utf-8")
+                default.write_text(doc.text(), encoding="utf-8")
             self._env_docs()
             done = True
         finally:
             # After a failure, the next place still removes what this one and the last one wrote.
             paths = set(self.written) if done else set(self.written) | set(earlier)
             placed.write_text(json.dumps(sorted(paths), indent=2), encoding="utf-8")
+
+    def _blob(self, f: dict) -> Path | None:
+        """A file's content in the work folder; plan.json may have been edited, so the name has to be a digest there."""
+        if "blob" not in f:
+            return None
+        root = (self.work / "blobs").resolve()
+        if not isinstance(f["blob"], str) or not re.fullmatch(r"[0-9a-f]{64}", f["blob"]) or not (root / f["blob"]).resolve().is_relative_to(root):
+            raise ValueError(f"refusing {f.get('path')}: its blob isn't a file in the work folder's blobs")
+        return root / f["blob"]
 
     def _restore(self):
         """Put the scaffold back the way fleetctl new left it, so placing twice gives the same result."""
@@ -159,7 +174,7 @@ class Placer:
         path = self.target(f["path"])
         path.parent.mkdir(parents=True, exist_ok=True)
         if "blob" in f:
-            content = (self.work / "blobs" / f["blob"]).read_bytes()
+            content = self._blob(f).read_bytes()
             if f.get("escape"):
                 try:
                     text = content.decode("utf-8")
@@ -310,14 +325,14 @@ class Placer:
             lines.append(f"# Used in: {', '.join(e['used_in'])}")
             lines.append(f"{e['name']}=")
             lines.append("")
-        (self.root / ".env.example").write_text("\n".join(lines), encoding="utf-8")
+        self.target(".env.example").write_text("\n".join(lines), encoding="utf-8")
         self.written.append(".env.example")
 
-        gi = self.root / ".gitignore"
+        gi = self.target(".gitignore")
         if gi.exists() and not re.search(r"^\.env$", gi.read_text(encoding="utf-8"), re.M):
             gi.write_text(gi.read_text(encoding="utf-8").rstrip("\n") + "\n\n# Local environment variables (see .env.example)\n.env\n", encoding="utf-8")
 
-        readme = self.root / "README.md"
+        readme = self.target("README.md")
         if readme.exists() and env:
             intro = ("These YAML files reference the variables below instead of storing secrets. Add each one as a "
                      "repository secret (GitHub) or CI/CD variable (GitLab). `.env.example` lists the same variables "
@@ -328,7 +343,7 @@ class Placer:
                 rows.append(f"| `{e['name']}` | {', '.join(f'`{u}`' for u in e['used_in'])} | {e['description']} |")
             readme.write_text(readme.read_text(encoding="utf-8").rstrip("\n") + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
 
-        wf = self.root / ".github/workflows/workflow.yml"
+        wf = self.target(".github/workflows/workflow.yml")
         extra = [e["name"] for e in env if e["name"] not in ("FLEET_URL", "FLEET_API_TOKEN")]
         if wf.exists() and extra:
             text = wf.read_text(encoding="utf-8")
@@ -339,7 +354,7 @@ class Placer:
                 text = text[:m.end()] + add + text[m.end():]
                 wf.write_text(text, encoding="utf-8")
 
-        gs = self.root / ".github/fleet-gitops/gitops.sh"
+        gs = self.target(".github/fleet-gitops/gitops.sh")
         names = {e["name"] for e in env}
         if gs.exists() and names & {"FLEET_SSO_METADATA", "FLEET_MDM_SSO_METADATA"}:
             text = gs.read_text(encoding="utf-8")

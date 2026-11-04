@@ -237,8 +237,9 @@ def read_env_file(path: Path) -> dict:
             continue
         name, val = m.group(1), m.group(2).strip()
         if val[:1] in ("'", '"'):
-            if len(val) > 1 and val.endswith(val[0]):
-                values[name] = val[1:-1]
+            closed = re.match(r"(['\"])(.*?)\1\s*(?:#.*)?$", val)  # a trailing comment may follow the closing quote
+            if closed:
+                values[name] = closed.group(2)
             else:
                 quote, buf = val[0], [val[1:]]
             continue
@@ -716,7 +717,7 @@ class Checker:
     @staticmethod
     def _difference(section, field: str, fleet_value, repo_value) -> str:
         plain = all(isinstance(v, (bool, int, float, type(None))) for v in (fleet_value, repo_value))
-        if field == "agent_options" or (str(section).endswith(".features") and not plain):
+        if field == "agent_options" or (not plain and (str(section).endswith(".features") or section in KEYED_SECTIONS)):
             # Credentials there are variables; one written out in the repo mustn't end up in validation.json.
             return f"{field} differs between the repo and Fleet (applying would change it)"
         return f"{field} is {_short(repo_value)} in the repo but {_short(fleet_value)} in Fleet (applying would change it)"

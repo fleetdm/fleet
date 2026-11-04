@@ -354,6 +354,8 @@ class DryRunEnvTest(unittest.TestCase):
         f = self.tmp / ".env"
         f.write_text("# comment\nFLEET_A=plain  # note\nexport FLEET_B='single $x'\nFLEET_C=\"multi\nline\"\nFLEET_EMPTY=\n\nnot an entry\n")
         self.assertEqual(read_env_file(f), {"FLEET_A": "plain", "FLEET_B": "single $x", "FLEET_C": "multi\nline"})
+        f.write_text('FLEET_A="quoted"  # note\nFLEET_B=next\n')
+        self.assertEqual(read_env_file(f), {"FLEET_A": "quoted", "FLEET_B": "next"})
 
     def test_env_file_fills_values_fleet_cant_return(self):
         f = self.tmp / ".env"
@@ -474,6 +476,15 @@ class SecretSpansTest(unittest.TestCase):
         self.assertEqual(setup["short_secret_refs"], [short_src])
         self.assertEqual(title["plain_secret_refs"], [long_src])
         self.assertNotIn("wk-s3cr3t-value", repr([profile["plain_secret_refs"], script["plain_secret_refs"], title["plain_secret_refs"]]))
+
+    def test_marks_utf16_without_a_byte_order_mark(self):
+        c = Collector(api=None)
+        src = {"type": "enroll_secret", "team": 1, "index": 0}
+        c._secret_values = [("wk-s3cr3t-value", src)]
+        profile = {"name": "p", "content": "<string>wk-s3cr3t-value</string>".encode("utf-16-le")}
+        profile["content"].decode("utf-8")  # NULs are valid UTF-8, so this decodes
+        c._mark_secrets([{"profiles": [profile]}])
+        self.assertEqual(profile.get("plain_secret_refs"), [src])
 
     def test_marks_encoded_secrets_and_yaml_items(self):
         import base64 as b64
@@ -1236,6 +1247,18 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("fleets/servers.yml: queries is in the repo but isn't compared with Fleet (applying may change Fleet); "
                       "it's the old name of reports", messages)
 
+    def test_report_quotes_paths(self):
+        report = gitops_export.render_report(Path("/tmp/Jane Doe/repo"), self.plan, None)
+        self.assertIn("--dir '/tmp/Jane Doe/repo'", report)
+        self.assertIn("cd '/tmp/Jane Doe/repo'", report)
+
+    def test_written_out_credentials_stay_out_of_messages(self):
+        default = self.root / "default.yml"
+        default.write_text(default.read_text().replace("api_token: $FLEET_CA_WIFI_API_TOKEN", "api_token: tok"))
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("settings 'org_settings.certificate_authorities': digicert differs between the repo and Fleet", messages)
+        self.assertNotIn("tok\"", messages)
+
     def test_variables_must_sit_where_planned(self):
         servers = self.root / "fleets/servers.yml"
         servers.write_text(servers.read_text().replace("secret: $FLEET_SERVERS_ENROLL_SECRET", "secret: $FLEET_WORKSTATIONS_ENROLL_SECRET"))
@@ -1304,6 +1327,20 @@ class EndToEndTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Placer(self.plan, self.layout, self.work).place()
         self.assertEqual(list(outside.iterdir()), [])
+
+    def test_env_docs_and_blobs_stay_in_place(self):
+        outside = self.tmp / "outside"
+        outside.mkdir()
+        (self.root / ".env.example").unlink()
+        (self.root / ".env.example").symlink_to(outside / "env")
+        with self.assertRaises(ValueError):
+            Placer(self.plan, self.layout, self.work).place()
+        self.assertFalse((outside / "env").exists())
+        (self.root / ".env.example").unlink()
+        plan = json.loads(json.dumps(self.plan))
+        next(f for f in plan["files"].values() if "blob" in f)["blob"] = "../../etc/passwd"
+        with self.assertRaises(ValueError):
+            Placer(plan, self.layout, self.work).place()
 
     def test_fleet_files_never_collide_or_linger(self):
         snap = snapshot()

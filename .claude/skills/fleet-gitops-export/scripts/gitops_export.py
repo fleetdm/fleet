@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 import tempfile
@@ -426,10 +427,10 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
     script = Path(__file__).resolve()
     lines += ["", "## Rerun the dry run", "",
               "Put the variables above in the repo's `.env` (never committed), then run the same checks again:", "",
-              "```bash", f"python3 {script} validate --dir {target}", "```", "",
-              "Or run fleetctl yourself with the variables exported. A shell reads `.env` with its own quoting rules, and "
+              "```bash", f"python3 {shlex.quote(str(script))} validate --dir {shlex.quote(str(target))}", "```", "",
+              "Or run fleetctl yourself with the variables exported. A shell reads `.env` with its own quoting rules, and " +
               "multi-line values (SSO metadata) need the indentation `.github/fleet-gitops/gitops.sh` describes:", "",
-              "```bash", f"cd {target}", "set -a; . ./.env; set +a",
+              "```bash", f"cd {shlex.quote(str(target))}", "set -a; . ./.env; set +a",
               "fleetctl gitops " + " ".join(f"-f {f}" for f in files) + " --delete-other-fleets --dry-run", "```", ""]
     return "\n".join(lines)
 

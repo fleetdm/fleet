@@ -181,6 +181,8 @@ class Collector:
                 except UnicodeDecodeError:
                     spans_key = "plain_secret_refs"  # matched as bytes; it can't take a variable
             plain, other, whole, in_word = match(text)
+            if isinstance(body, bytes) and isinstance(text, str) and "\x00" in text:
+                other = other + match(body)[1]  # UTF-16 without a byte-order mark can still decode as UTF-8
             add(owner, "short_secret_refs", whole)
             if in_word:
                 owner["short_secret_in_word"] = True
