@@ -487,7 +487,6 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet Fast Track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
-- [Meraki goes EoL](https://docs.google.com/presentation/d/19_aV9Xx94RClPdO34YBWdDo1FGBP_75MlttV8IcE4TM/edit?slide=id.g3f521d67c72_1_0#slide=id.g3f521d67c72_1_0)
 
 
 <!--
