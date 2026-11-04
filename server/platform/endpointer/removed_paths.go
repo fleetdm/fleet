@@ -29,8 +29,9 @@ type RemovedPathOverlap struct {
 	// Methods has HEAD next to GET when GET overlaps, because a stdlib GET pattern also matches HEAD.
 	Methods       []string
 	RouteTemplate string
-	// LivePaths are the live routes that RouteTemplate catches for a method they don't serve. A request to one gets a 405, not a 404.
-	LivePaths []string
+	// LivePaths maps the live routes that RouteTemplate catches for a method they don't serve to the methods they do serve. A request to one
+	// gets a 405 with those methods in its Allow header, not a 404.
+	LivePaths map[string]string
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
@@ -62,9 +63,12 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
-			if slices.ContainsFunc(removed.Overlap.LivePaths, func(live string) bool { return literalSegmentsMatch(live, r.URL.Path) }) {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				return
+			for live, allow := range removed.Overlap.LivePaths {
+				if literalSegmentsMatch(live, r.URL.Path) {
+					w.Header().Set("Allow", allow)
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
 			}
 			http.NotFound(w, r)
 			return

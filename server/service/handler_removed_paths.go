@@ -27,10 +27,10 @@ var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}": {
 		Methods:       []string{http.MethodGet, http.MethodHead, http.MethodPost},
 		RouteTemplate: "/api/_version_/fleet/scripts/batch/{summary_segment}/{batch_execution_id}",
-		LivePaths: []string{
-			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/cancel",
-			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/host_results",
-			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/host-results",
+		LivePaths: map[string]string{
+			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/cancel":       http.MethodPost,
+			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/host_results": http.MethodGet,
+			"/api/_version_/fleet/scripts/batch/{batch_execution_id}/host-results": http.MethodGet,
 		},
 	},
 }

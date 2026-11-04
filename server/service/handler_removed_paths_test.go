@@ -86,21 +86,23 @@ func TestRemovedPathOverlaps(t *testing.T) {
 	for _, c := range []struct {
 		method, path string
 		wantStatus   int
+		wantAllow    string
 	}{
-		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed},
-		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed},
-		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed},
-		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host-results", http.StatusMethodNotAllowed},
-		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed},
-		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound},
-		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound},
-		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound},
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed, http.MethodGet},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/host-results", http.StatusMethodNotAllowed, http.MethodGet},
+		{http.MethodHead, "/api/v1/fleet/scripts/batch/abc/host_results", http.StatusMethodNotAllowed, http.MethodGet},
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
+		{http.MethodPost, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
+		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
 			assert.Equal(t, c.wantStatus, rec.Code)
+			assert.Equal(t, c.wantAllow, rec.Header().Get("Allow"))
 		})
 	}
 }
