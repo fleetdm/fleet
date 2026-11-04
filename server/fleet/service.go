@@ -495,7 +495,7 @@ type Service interface {
 	// creates an activity for each deletion. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error

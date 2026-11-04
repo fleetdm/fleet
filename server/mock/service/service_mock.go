@@ -253,7 +253,7 @@ type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
 
@@ -3422,11 +3422,11 @@ func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) (
 	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
-func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs, skipBulkPending)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
 func (s *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error {
