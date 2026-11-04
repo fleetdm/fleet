@@ -208,7 +208,7 @@ After following the authentication steps, the user might hit the following messa
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
 
-The refetch only works after Fleet has verified the host's Entra device ID, which can take up to 10 minutes after the user registers with Platform SSO. If the user still can't log in, they should wait a few minutes and refetch again.
+Fleet also updates Intune on its own once it has verified the host's Entra device ID, which can take up to 10 minutes after the user registers with Platform SSO. If the user still can't log in after refetching, they should wait a few minutes and try again.
 
 ### Windows
 
