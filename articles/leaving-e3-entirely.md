@@ -162,7 +162,7 @@ Remember when computers were exciting? They can be again.
 
 ---
 
-*Fine print: the zero touch, $0 offer.* Available to new customers who purchase Fleet Premium, or start a proof of value for Fleet Premium, to fully replace Intune on at least 500 PCs (Windows, Linux, or both) before December 31, 2026. For the term of the Fleet Premium subscription covering those PCs, Fleet pays the one-time fee for Dell Ready Image, Lenovo Ready to Provision, or the equivalent service from HP, Acer, and other manufacturers on any new PCs you buy, up to the average discounted, negotiated price Fleet sees among customers of similar size. To redeem, forward the email you received from Fleet to Dell, Lenovo, or your hardware maker. Other prices in this post are November 2026 list prices.
+*Fine print: the zero touch, $0 promise.*  This limited-time offer is available to new customers who purchase Fleet Premium for the first time, or start a proof of value for Fleet Premium, to fully replace Intune on at least 500 PCs (Windows, Linux, or both). For the term of the Fleet Premium subscription covering those PCs, Fleet pays the one-time fee for Dell Ready Image, Lenovo Ready to Provision, or the equivalent service from HP, Acer, and other manufacturers on any new PCs you buy, up to the average discounted, negotiated price Fleet sees among customers of similar size. To redeem, forward us the email you received from Fleet to Dell, Lenovo, or your hardware maker. 
 
 <meta name="articleTitle" value="Leaving E3 entirely">
 <meta name="authorFullName" value="Mike McNeil">
