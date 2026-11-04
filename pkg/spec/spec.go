@@ -271,11 +271,10 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 
 // removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
 func removedNameError(kind removednames.Kind, name string) error {
-	entry, ok := removednames.Find(kind, name, "")
-	if !ok {
-		panic(fmt.Sprintf("removed name %s has no entry in pkg/removednames", name))
+	if entry, ok := removednames.Find(kind, name, ""); ok {
+		return errors.New(entry.Message())
 	}
-	return errors.New(entry.Message())
+	return fmt.Errorf("%q is not available anymore", name)
 }
 
 // SplitYaml splits a text file into separate yaml documents divided by ---

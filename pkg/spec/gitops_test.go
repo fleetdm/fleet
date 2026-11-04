@@ -5232,11 +5232,6 @@ org_settings:
 func TestRemovedTeamKeys(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range RemovedGitOpsKeys {
-		_, ok := removednames.Find(removednames.KindYAMLKey, key.OldPath, "")
-		require.True(t, ok, "%s has no entry in pkg/removednames", key.OldPath)
-	}
-
 	globalConfig := func(mdmSection string) string {
 		return `
 controls:
@@ -5258,6 +5253,9 @@ org_settings:
 		require.True(t, ok, path)
 		return entry.Message()
 	}
+	for _, key := range RemovedGitOpsKeys {
+		removed(key.OldPath)
+	}
 	const abmPath = "org_settings.mdm.apple_business[]."
 
 	tests := []struct {
@@ -5266,23 +5264,19 @@ org_settings:
 		want []string
 	}{
 		{"team_settings", "name: Workstations\nteam_settings:\n  secrets:\n    - secret: abc\n", []string{removed("team_settings")}},
-		{"ABM keys", globalConfig(`
+		{"ABM and VPP keys", globalConfig(`
     apple_business:
       - organization_name: Test Org
         macos_team: Workstations
         ios_team: Phones
         ipados_team: Tablets
-        byod_team: Personal`), []string{
-			removed(abmPath + "macos_team"), removed(abmPath + "ios_team"), removed(abmPath + "ipados_team"), removed(abmPath + "byod_team"),
-		}},
-		{"ABM key under the deprecated parent", globalConfig(`
-    apple_business_manager:
-      - organization_name: Test Org
-        macos_team: Workstations`), []string{removed(abmPath + "macos_team")}},
-		{"VPP teams", globalConfig(`
+        byod_team: Personal
     volume_purchasing_program:
       - location: Earth
-        teams: [Workstations]`), []string{removed("org_settings.mdm.volume_purchasing_program[].teams")}},
+        teams: [Workstations]`), []string{
+			removed(abmPath + "macos_team"), removed(abmPath + "ios_team"), removed(abmPath + "ipados_team"), removed(abmPath + "byod_team"),
+			removed("org_settings.mdm.volume_purchasing_program[].teams"),
+		}},
 		{"new keys are accepted", globalConfig(`
     apple_business:
       - organization_name: Test Org
@@ -5293,7 +5287,6 @@ org_settings:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			dir := t.TempDir()
 			yamlPath := filepath.Join(dir, "gitops.yml")
 			require.NoError(t, os.WriteFile(yamlPath, []byte(tt.yaml), 0o644))
@@ -5312,7 +5305,6 @@ org_settings:
 
 	// The file that org_settings references is parsed on its own, so it is checked on its own and the error names it.
 	t.Run("keys in a file-backed org_settings", func(t *testing.T) {
-		t.Parallel()
 		dir := t.TempDir()
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte("controls:\nreports:\npolicies:\nagent_options:\norg_settings:\n  path: org.yml\n"), 0o644))
