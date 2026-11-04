@@ -651,6 +651,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
+	storedLinearByTeamID, err := fleet.IndexLinearIntegrations(appConfig.Integrations.Linear)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
 	// unmarshaling into AppConfig, since the request body was captured as
 	// json.RawMessage and wasn't processed by the request decoder's rewriter.
@@ -1297,6 +1302,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
 			}
 		}
+	}
+	// Linear is independent from Jira and Zendesk: if linear is null, we keep the existing setting.
+	if newAppConfig.Integrations.Linear != nil {
+		if _, err := fleet.ValidateLinearIntegrations(ctx, storedLinearByTeamID, newAppConfig.Integrations.Linear); err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: err.Error(),
+				})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Linear integration", err.Error()))
+		}
+		appConfig.Integrations.Linear = newAppConfig.Integrations.Linear
+	} else {
+		appConfig.Integrations.Linear = oldAppConfig.Integrations.Linear
 	}
 	// If google_calendar is null, we keep the existing setting.
 	if newAppConfig.Integrations.GoogleCalendar == nil {

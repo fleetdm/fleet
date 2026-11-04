@@ -122,7 +122,7 @@ type StatisticsPayload struct {
 	AnyHostActivitiesWebhookEnabled  bool `json:"anyHostActivitiesWebhookEnabled"`
 	GlobalActivityWebhookEnabled     bool `json:"globalActivityWebhookEnabled"`
 
-	// A ticket destination is "configured" when a Jira or Zendesk integration exists in the global
+	// A ticket destination is "configured" when a Jira, Zendesk or Linear integration exists in the global
 	// config; fleet-level entries only toggle an already-configured destination.
 	TicketDestinationConfigured bool `json:"ticketDestinationConfigured"`
 	// SSOConfiguredFleetUsers covers logging in to Fleet; SSOConfiguredEndUsers covers end user
