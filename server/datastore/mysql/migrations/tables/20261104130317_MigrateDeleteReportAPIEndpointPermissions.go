@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
 )
 
 func init() {
@@ -29,50 +31,39 @@ func Up_20261104130317(tx *sql.Tx) error {
 	}
 
 	type grant struct {
-		userID uint
-		method string
-		path   string
+		UserID uint   `db:"user_id"`
+		Method string `db:"method"`
+		Path   string `db:"path"`
 	}
-	rows, err := tx.Query(`SELECT user_id, method, path FROM user_api_endpoints WHERE method = 'DELETE'`)
-	if err != nil {
+	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
+	var grants []grant
+	if err := txx.Select(&grants, `SELECT user_id, method, path FROM user_api_endpoints WHERE method = 'DELETE'`); err != nil {
 		return fmt.Errorf("select DELETE api endpoint grants: %w", err)
 	}
 	var toDelete, toInsert []grant
-	for rows.Next() {
-		var g grant
-		if err := rows.Scan(&g.userID, &g.method, &g.path); err != nil {
-			rows.Close()
-			return fmt.Errorf("scan api endpoint grant: %w", err)
-		}
-		targets, ok := replacements[fingerprint(g.path)]
+	for _, g := range grants {
+		targets, ok := replacements[fingerprint(g.Path)]
 		if !ok {
 			continue
 		}
 		toDelete = append(toDelete, g)
 		for _, p := range targets {
-			toInsert = append(toInsert, grant{userID: g.userID, method: "DELETE", path: p})
+			toInsert = append(toInsert, grant{UserID: g.UserID, Method: "DELETE", Path: p})
 		}
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return fmt.Errorf("iterate api endpoint grants: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return fmt.Errorf("close api endpoint grants rows: %w", err)
 	}
 
 	// Delete everything before inserting: a by-name grant may have been saved with an
 	// ":id" placeholder, which is the exact string of the new by-ID path.
 	for _, g := range toDelete {
 		if _, err := tx.Exec(`DELETE FROM user_api_endpoints WHERE user_id = ? AND method = ? AND path = ?`,
-			g.userID, g.method, g.path); err != nil {
-			return fmt.Errorf("delete old delete-report grant for user %d: %w", g.userID, err)
+			g.UserID, g.Method, g.Path); err != nil {
+			return fmt.Errorf("delete old delete-report grant for user %d: %w", g.UserID, err)
 		}
 	}
 	for _, g := range toInsert {
 		if _, err := tx.Exec(`INSERT INTO user_api_endpoints (user_id, path, method) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id`,
-			g.userID, g.path, g.method); err != nil {
-			return fmt.Errorf("insert delete-report grant for user %d: %w", g.userID, err)
+			g.UserID, g.Path, g.Method); err != nil {
+			return fmt.Errorf("insert delete-report grant for user %d: %w", g.UserID, err)
 		}
 	}
 	return nil
