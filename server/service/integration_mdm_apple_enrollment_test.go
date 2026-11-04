@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -67,6 +68,61 @@ func (s *integrationMDMTestSuite) TestUserAuthenticate() {
 
 	err = mdmDevice.UserAuthenticate()
 	require.ErrorContains(t, err, "410 Gone")
+}
+
+func (s *integrationMDMTestSuite) TestAppleMDMSharedPushTopic() {
+	t := s.T()
+	ctx := t.Context()
+
+	topic, err := assets.APNSTopic(ctx, s.ds)
+	require.NoError(t, err)
+
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	devices := []*mdmtest.TestAppleMDMClient{
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1", mdmtest.WithPushTopic(topic)),
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "iPhone14,6", mdmtest.WithPushTopic(topic)),
+	}
+	var deviceIDs []string
+	for _, d := range devices {
+		require.NoError(t, d.Enroll())
+		deviceIDs = append(deviceIDs, d.UUID)
+
+		var stored string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored, "SELECT topic FROM nano_enrollments WHERE id = ?", d.UUID)
+		})
+		require.Equal(t, topic, stored)
+	}
+
+	var (
+		pushedMu     sync.Mutex
+		pushedTopics []string
+	)
+	origPush := s.pushProvider.PushFunc
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		pushedMu.Lock()
+		defer pushedMu.Unlock()
+		for _, p := range pushes {
+			pushedTopics = append(pushedTopics, p.Topic)
+		}
+		return mockSuccessfulPush(ctx, pushes)
+	}
+
+	cmdUUID := uuid.NewString()
+	require.NoError(t, s.mdmCommander.CertificateList(ctx, deviceIDs, cmdUUID))
+	require.Equal(t, []string{topic, topic}, pushedTopics)
+
+	for _, d := range devices {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, cmdUUID, cmd.CommandUUID)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
