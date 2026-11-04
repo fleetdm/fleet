@@ -103,7 +103,7 @@ generate_packages(){
   #In the team directory, create a package for each specified type
 	for type in ${types[@]}
     do
-      fleetctl package ${flags[@]} --type=$type --fleet-url=$url --enroll-secret=$secret --outfile=fleetd-$name_formatted.$type
+      fleetctl package ${flags[@]} --type=$type --fleet-url=$url --enroll-secret=$secret --outfile="fleetd-$name_formatted.$type"
     done
   
   
