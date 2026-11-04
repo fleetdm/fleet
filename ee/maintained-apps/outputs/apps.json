@@ -9571,13 +9571,6 @@
       "description": "WeChat is a free messaging and calling application."
     },
     {
-      "name": "WeCom",
-      "slug": "wecom/windows",
-      "platform": "windows",
-      "unique_identifier": "WeCom",
-      "description": "WeCom is a business communication and collaboration app from Tencent."
-    },
-    {
       "name": "WeekToDo",
       "slug": "weektodo/darwin",
       "platform": "darwin",

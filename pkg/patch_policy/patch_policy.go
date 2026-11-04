@@ -299,7 +299,6 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"VirtualBox":                                "LIKE 'virtualbox%'",
 	"Wacom Tablet":                              "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
 	"WebStorm":                                  "IN ('webstorm.exe','webstorm64.exe')",
-	"WeCom":                                     "= 'wxwork.exe'",
 	"Windows App":                               "= 'windowsapp.exe'",
 	"XnSoft XnConvert":                          "= 'xnconvert.exe'",
 	"YACReader":                                 "IN ('yacreader.exe','yacreaderlibrary.exe')",
