@@ -14727,7 +14727,7 @@ Get a list of all software.
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?fleet_id=3&platform=darwin,windows`
+`GET /api/v1/fleet/software/titles?fleet_id=3&platform=darwin,windows,ios`
 
 ##### Default response
 
@@ -14736,7 +14736,7 @@ Get a list of all software.
 ```json
 {
   "counts_updated_at": "2026-06-04T12:34:56Z",
-  "count": 3,
+  "count": 4,
   "software_titles": [
     {
       "id": 2792,
@@ -14776,6 +14776,7 @@ Get a list of all software.
               "package_url": ""
           }
       ],
+      "app_store_apps": null,
       "bundle_identifier": "com.tinyspeck.slackmacgap",
       "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
       "display_name": ""
@@ -14797,6 +14798,7 @@ Get a list of all software.
           }
       ],
       "packages": null,
+      "app_store_apps": null,
       "display_name": ""
     },
     {
@@ -14815,8 +14817,47 @@ Get a list of all software.
           }
       ],
       "packages": null,
+      "app_store_apps": null,
       "bundle_identifier": "com.raycast.macos",
       "display_name": ""
+    },
+    {
+      "id": 3311,
+      "name": "Cloudflare One Agent",
+      "icon_url": null,
+      "source": "ios_apps",
+      "extension_for": "",
+      "hosts_count": 15,
+      "versions_count": 1,
+      "versions": [
+          {
+              "id": 720415,
+              "version": "2.6.0",
+              "vulnerabilities": null
+          }
+      ],
+      "packages": null,
+      "app_store_apps": [
+          {
+              "id": 41,
+              "name": "Production",
+              "app_store_id": "6443476492",
+              "platform": "ios",
+              "version": "2.6.0",
+              "self_service": true,
+              "automatic_install_policies": null
+          },
+          {
+              "id": 42,
+              "name": "Test",
+              "app_store_id": "6443476492",
+              "platform": "ios",
+              "version": "2.6.0",
+              "self_service": false,
+              "automatic_install_policies": null
+          }
+      ],
+      "display_name": "Cloudflare One Agent"
     }
   ],
   "meta": {
@@ -14831,6 +14872,8 @@ The `extension_for` field is included when set and when empty. It shows the brow
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title.
+
+A software title can have more than one App Store app version. The `app_store_apps` array lists all of them. Learn more in [Get software](#get-software).
 
 ### List software versions
 
@@ -15256,7 +15299,13 @@ For example:
       "created_at": "2026-02-03T10:14:22.882031Z",
       "categories": null,
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
+      "vpp_token": {
+        "id": 1,
+        "org_name": "Fleet Device Management Inc.",
+        "organization_unit": "Fleet Device Management Inc.",
+        "country_code": "us"
+      }
     }
   ]
 }
