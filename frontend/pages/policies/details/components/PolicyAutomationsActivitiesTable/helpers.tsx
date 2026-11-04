@@ -110,19 +110,17 @@ export const getAutomationRunDisplayName = (
  *  red for failures, green for successes. */
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
-): { name: "error-outline" | "success"; color?: Colors } => {
+): { name: "error" | "success"; color?: Colors } => {
   if (activity.details?.skipped_install) {
-    return { name: "error-outline", color: "ui-fleet-black-50" };
+    return { name: "error", color: "ui-fleet-black-50" };
   }
   if (
     activity.type === ActivityType.NotifiedEndUserBeforePatching &&
     activity.status === "success"
   ) {
-    return { name: "error-outline", color: "ui-fleet-black-50" };
+    return { name: "error", color: "ui-fleet-black-50" };
   }
-  return activity.status === "error"
-    ? { name: "error-outline" }
-    : { name: "success" };
+  return activity.status === "error" ? { name: "error" } : { name: "success" };
 };
 
 /**

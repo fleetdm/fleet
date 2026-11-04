@@ -72,7 +72,7 @@ const END_USER_EXPERIENCE_OPTIONS: CustomOptionType[] = [
  * would point at a feature the user has no way to reach and gets suppressed.
  */
 const ImmediateBanner = ({ showLink }: { showLink: boolean }) => (
-  <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+  <InfoBanner icon="error" iconColor="ui-fleet-black-50">
     End user is not notified. Patch is forced as soon as policy fails.
     {showLink && (
       <>
@@ -88,7 +88,7 @@ const ImmediateBanner = ({ showLink }: { showLink: boolean }) => (
 );
 
 const NotifyBanner = () => (
-  <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+  <InfoBanner icon="error" iconColor="ui-fleet-black-50">
     End user is notified when the policy fails. Patch is forced <b>1 hour</b>{" "}
     later. Fleet Desktop is required.{" "}
     <CustomLink
@@ -100,7 +100,7 @@ const NotifyBanner = () => (
 );
 
 const WindowsBanner = () => (
-  <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+  <InfoBanner icon="error" iconColor="ui-fleet-black-50">
     End user is not notified. Patch is forced as soon as policy fails.
     Notifications for Windows are coming soon.
   </InfoBanner>
@@ -124,7 +124,7 @@ const DeadlineBanner = ({ fleetId }: { fleetId?: number }) => {
     { fleet_id: fleetId }
   );
   return (
-    <InfoBanner icon="error-outline" iconColor="ui-fleet-black-50">
+    <InfoBanner icon="error" iconColor="ui-fleet-black-50">
       Patch is done silently when app is closed or forced on{" "}
       <b>
         {daysLabel || "---"}

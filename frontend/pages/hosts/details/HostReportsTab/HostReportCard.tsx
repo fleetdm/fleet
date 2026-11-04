@@ -135,7 +135,7 @@ const HostReportCard = ({
     if (doesNotStoreResults) {
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message="Results from this report are not stored in Fleet."
         />
       );
@@ -144,7 +144,7 @@ const HostReportCard = ({
     if (isAwaitingResults) {
       return (
         <ReportBanner
-          iconName="pending-outline"
+          iconName="pending"
           message={`Fleet is awaiting results from ${hostName}.`}
         />
       );
@@ -163,7 +163,7 @@ const HostReportCard = ({
       const additionalCount = report.n_host_results - 1;
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message={`${additionalCount} additional ${pluralize(
             additionalCount,
             "result"

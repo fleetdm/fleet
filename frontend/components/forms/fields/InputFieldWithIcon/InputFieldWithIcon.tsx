@@ -166,7 +166,7 @@ const InputFieldWithIcon = ({
             variant="subdued"
             className={`${baseClass}__clear-button`}
           >
-            <Icon name="close-filled" color="core-fleet-black" />
+            <Icon name="close" color="core-fleet-black" />
           </Button>
         )}
       </div>

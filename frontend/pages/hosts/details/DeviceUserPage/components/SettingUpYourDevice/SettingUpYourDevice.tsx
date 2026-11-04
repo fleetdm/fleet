@@ -53,7 +53,7 @@ const SettingUpYourDevice = ({
           failed to install.
         </p>
         <p>
-          <Icon name="error-outline" color="status-error" size="small" />{" "}
+          <Icon name="error" color="status-error" size="small" />{" "}
           <TooltipWrapper
             tipContent={<>Hold down power button/Touch ID for 5 seconds</>}
           >

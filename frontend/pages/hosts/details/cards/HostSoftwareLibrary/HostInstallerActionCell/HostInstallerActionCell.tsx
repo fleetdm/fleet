@@ -439,7 +439,7 @@ export const HostInstallerActionCell = ({
           baseClass={baseClass}
           disabled={false}
           onClick={onClickOpenInstructionsAction}
-          icon="info-outline"
+          icon="info"
           text="How to open"
           testId={`${baseClass}__instructions-button--test`}
         />

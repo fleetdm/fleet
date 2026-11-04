@@ -37,9 +37,9 @@ const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   success: "success",
   successPartial: "success",
   pending: "pending",
-  pendingPartial: "pending-outline",
+  pendingPartial: "pending",
   error: "error",
-  failure: "error-outline",
+  failure: "error",
   actionRequired: "error",
 };
 

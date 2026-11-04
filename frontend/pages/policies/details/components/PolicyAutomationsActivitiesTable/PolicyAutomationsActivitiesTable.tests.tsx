@@ -239,9 +239,9 @@ describe("getAutomationStatusIcon", () => {
           },
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(getAutomationStatusIcon(mockActivity({ status: "error" }))).toEqual({
-      name: "error-outline",
+      name: "error",
     });
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
@@ -256,7 +256,7 @@ describe("getAutomationStatusIcon", () => {
           status: "success",
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(
       getAutomationStatusIcon(
         mockActivity({
@@ -264,7 +264,7 @@ describe("getAutomationStatusIcon", () => {
           status: "error",
         })
       )
-    ).toEqual({ name: "error-outline" });
+    ).toEqual({ name: "error" });
   });
 });
 

@@ -452,7 +452,7 @@ const LibraryItemAccordion = ({
   };
 
   const renderStatusCount = (
-    iconName: "success" | "pending-outline" | "error",
+    iconName: "success" | "pending" | "error",
     count: number,
     label: string,
     iconTooltip: React.ReactNode,
@@ -767,11 +767,11 @@ const LibraryItemAccordion = ({
                   position="top"
                   tipOffset={8}
                 >
-                  <Icon name="info-outline" color="ui-fleet-black-50" />
+                  <Icon name="info" color="ui-fleet-black-50" />
                 </TooltipWrapper>
               )}
               {renderStatusCount(
-                "pending-outline",
+                "pending",
                 pending,
                 "pending",
                 pendingIconTooltip,

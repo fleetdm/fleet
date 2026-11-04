@@ -33,10 +33,10 @@ export interface IToastCardProps {
 
 const variantIcon: Record<
   ToastVariant,
-  { name: "success" | "error-outline"; color: Colors }
+  { name: "success" | "error"; color: Colors }
 > = {
   success: { name: "success", color: "status-success" },
-  error: { name: "error-outline", color: "status-error" },
+  error: { name: "error", color: "status-error" },
 };
 
 // Serialized payloads that hold nothing worth revealing. Compared against the

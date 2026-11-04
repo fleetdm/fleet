@@ -15,14 +15,7 @@ const meta: Meta<typeof IconStatusMessage> = {
     },
     iconName: {
       control: { type: "select" },
-      options: [
-        undefined,
-        "success",
-        "success",
-        "error",
-        "error-outline",
-        "info",
-      ],
+      options: [undefined, "success", "success", "error", "error", "info"],
       description: "Name of the icon to display",
     },
     iconColor: {

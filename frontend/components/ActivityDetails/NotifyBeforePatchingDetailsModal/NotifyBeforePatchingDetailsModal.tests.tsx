@@ -356,7 +356,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
 
     useScriptResultHandler({ exit_code: 41 });
     renderModal({ status: "failed" });
-    expect(await screen.findByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(await screen.findByTestId("error-icon")).toBeInTheDocument();
   });
 
   it("does not show the Details reveal when no script ran (dispatcher deferral)", async () => {
@@ -376,7 +376,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     useScriptResultHandler({ exit_code: 0 });
     renderModal({ status: "failed" });
 
-    expect(await screen.findByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(await screen.findByTestId("error-icon")).toBeInTheDocument();
     expect(
       screen.queryByText(/If the host is offline when the patch is forced/)
     ).not.toBeInTheDocument();
