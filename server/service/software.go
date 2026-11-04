@@ -108,22 +108,33 @@ func (r streamSoftwareVersionsResponse) HijackRender(_ context.Context, w http.R
 		return
 	}
 
-	_, _ = w.Write(data[:len(data)-1]) // without the closing brace
-	_, _ = io.WriteString(w, `,"software":[`)
+	// A failed write means the client is gone, so stop rather than encode the rest for nobody.
+	var writeErr error
+	write := func(b []byte) {
+		if writeErr == nil {
+			_, writeErr = w.Write(b)
+		}
+	}
+
+	write(data[:len(data)-1]) // without the closing brace
+	write([]byte(`,"software":[`))
 	for i := range r.Software {
+		if writeErr != nil {
+			return
+		}
 		// By pointer, so that fleet.Software's MarshalJSON is used.
 		sw, err := json.Marshal(&r.Software[i])
 		if err != nil {
-			_, _ = io.WriteString(w, `],`)
+			write([]byte(`],`))
 			writeError(fmt.Sprintf("marshaling software %d: %s", r.Software[i].ID, err))
 			return
 		}
 		if i > 0 {
-			_, _ = io.WriteString(w, `,`)
+			write([]byte(`,`))
 		}
-		_, _ = w.Write(sw)
+		write(sw)
 	}
-	_, _ = io.WriteString(w, `]}`)
+	write([]byte(`]}`))
 }
 
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

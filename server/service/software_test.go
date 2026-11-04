@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -297,4 +298,29 @@ func TestStreamSoftwareVersionsResponse(t *testing.T) {
 			require.JSONEq(t, string(want), rr.Body.String())
 		})
 	}
+
+	t.Run("stops writing once the client is gone", func(t *testing.T) {
+		many := make([]fleet.Software, 1000)
+		for i := range many {
+			many[i] = software[0]
+		}
+		w := &failingResponseWriter{header: http.Header{}}
+		streamSoftwareVersionsResponse{listSoftwareVersionsResponse: listSoftwareVersionsResponse{
+			Count: len(many), Software: many,
+		}}.HijackRender(t.Context(), w)
+		require.Equal(t, 1, w.writes)
+	})
+}
+
+// failingResponseWriter fails every write, like a connection the client has closed.
+type failingResponseWriter struct {
+	header http.Header
+	writes int
+}
+
+func (w *failingResponseWriter) Header() http.Header { return w.header }
+func (w *failingResponseWriter) WriteHeader(int)     {}
+func (w *failingResponseWriter) Write([]byte) (int, error) {
+	w.writes++
+	return 0, errors.New("connection closed")
 }
