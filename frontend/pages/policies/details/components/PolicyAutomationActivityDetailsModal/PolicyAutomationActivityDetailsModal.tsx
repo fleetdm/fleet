@@ -5,11 +5,13 @@ import { useQuery } from "react-query";
 import {
   PRE_INSTALL_QUERY_FAIL_OUTPUT,
   SKIPPED_PRE_INSTALL_OUTPUT,
+  SKIPPED_PRE_INSTALL_OUTPUT_DEADLINE,
   SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY,
 } from "components/ActivityDetails/InstallDetails/constants";
 import {
   getCaveatMessage,
   getAutomationNotifiedMessage,
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
@@ -35,6 +37,7 @@ import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
+  isDeadlineSkip,
   isNotifySkip,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -62,6 +65,7 @@ const PolicyAutomationActivityDetailsModal = ({
   const isSkippedInstall =
     isSoftwareInstall && !!activity.details?.skipped_install;
   const isSkippedNotifyVariant = isSkippedInstall && isNotifySkip(activity);
+  const isSkippedDeadlineVariant = isSkippedInstall && isDeadlineSkip(activity);
   const scriptExecutionId = activity.details?.script_execution_id;
 
   const [showDetails, setShowDetails] = useState(false);
@@ -94,6 +98,9 @@ const PolicyAutomationActivityDetailsModal = ({
         scriptResult?.exit_code
       );
     }
+    if (isSkippedDeadlineVariant) {
+      return SKIPPED_INSTALL_DEADLINE_EXPLANATION;
+    }
     if (isSkippedNotifyVariant) {
       return SKIPPED_INSTALL_NOTIFY_EXPLANATION;
     }
@@ -106,14 +113,17 @@ const PolicyAutomationActivityDetailsModal = ({
     scriptResult?.exit_code != null &&
     EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code);
 
-  // Notify + notify-skip cases hide output behind a Details reveal.
+  // Notify + notify-skip + deadline-skip hide output behind a Details reveal.
   const detailsLabel = (() => {
     if (isNotify) return "Notification script output:";
-    if (isSkippedNotifyVariant) return "Pre-install query output:";
+    if (isSkippedDeadlineVariant || isSkippedNotifyVariant) {
+      return "Pre-install query output:";
+    }
     return null;
   })();
   const detailsContent = (() => {
     if (isNotify) return scriptResult?.output || activity.output || null;
+    if (isSkippedDeadlineVariant) return SKIPPED_PRE_INSTALL_OUTPUT_DEADLINE;
     if (isSkippedNotifyVariant) return SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY;
     return null;
   })();

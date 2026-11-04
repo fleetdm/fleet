@@ -1350,7 +1350,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", fleetReservedProfile), getMDMConfigProfileStatusRequest{}, http.StatusNotFound)
 }
 
-// TestSpecTeamsOSUpdatesDeployToHosts verifies that POST /api/latest/fleet/spec/teams
+// TestSpecTeamsOSUpdatesDeployToHosts verifies that POST /api/latest/fleet/spec/fleets
 // deploys OS updates declarations/profiles to enrolled Windows, iOS, iPadOS, and macOS
 // hosts when OS update settings are initially set or when deadline/minimum version changes.
 func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
@@ -1499,10 +1499,10 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	)
 
 	// -------------------------------------------------------------------------
-	// Step 1: Set initial OS updates for all platforms via POST /spec/teams.
+	// Step 1: Set initial OS updates for all platforms via POST /spec/fleets.
 	// -------------------------------------------------------------------------
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1552,9 +1552,9 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	checkWindowsProfileQueued(windowsOSUpdatesProfileUUID)
 
 	// -------------------------------------------------------------------------
-	// Step 2: Update deadline and minimum version via POST /spec/teams.
+	// Step 2: Update deadline and minimum version via POST /spec/fleets.
 	// -------------------------------------------------------------------------
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1610,9 +1610,9 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	checkWindowsProfileQueued(windowsOSUpdatesProfileUUID)
 
 	// -------------------------------------------------------------------------
-	// Step 3: Clear deadline and minimum version via POST /spec/teams.
+	// Step 3: Clear deadline and minimum version via POST /spec/fleets.
 	// -------------------------------------------------------------------------
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{

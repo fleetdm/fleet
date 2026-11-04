@@ -3,6 +3,7 @@
   "slug": "infix-pdf-editor/windows",
   "package_identifier": "Iceni.InfixPDFEditor",
   "unique_identifier": "Infix PDF Editor",
+  "fuzzy_match_name": true,
   "program_publisher": "Iceni Technology",
   "installer_arch": "x86",
   "installer_type": "exe",

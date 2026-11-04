@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.722.1",
+      "version": "7.726.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app' AND version_compare(bundle_short_version, '7.722.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.granola.app' AND version_compare(bundle_short_version, '7.726.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.granola.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.722.1/Granola-7.722.1-mac-universal.dmg",
+      "installer_url": "https://dr2v7l5emb758.cloudfront.net/7.726.2/Granola-7.726.2-mac-universal.dmg",
       "install_script_ref": "212b6a3e",
       "uninstall_script_ref": "b56301b9",
-      "sha256": "b75289bbbeba3f930ff00c5f8871eda252687b92c620b9a7da4a65e321428ed0",
+      "sha256": "ba388e640688f07d9273690842ac13183dfbe71d9ce7d67c9208cdaf96654c8c",
       "default_categories": [
         "Productivity"
       ]

@@ -203,6 +203,19 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
+	"timezone_unix": {
+		Description: "Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.",
+		Query:       `SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'`,
+		Discovery:   `SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'`,
+		Platforms:   append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc:  ingestTimezoneUnix,
+	},
+	"timezone_windows": {
+		Description: "Reads the Windows time zone name from the registry and maps it to an IANA name using the CLDR windowsZones table.",
+		Query:       `SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\TimeZoneKeyName'`,
+		Platforms:   []string{"windows"},
+		IngestFunc:  ingestTimezoneWindows,
+	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
@@ -506,6 +519,39 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		IngestFunc: ingestKubequeryInfo,
 		Discovery:  discoveryTable("kubernetes_info"),
 	},
+}
+
+func ingestTimezoneUnix(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+	// macOS briefly removes /etc/localtime while switching zones, so zero rows is expected at times.
+	if len(rows) != 1 {
+		return nil
+	}
+	_, name, ok := strings.Cut(rows[0]["symlink_target_path"], "zoneinfo/")
+	if !ok {
+		return nil
+	}
+	name = strings.TrimPrefix(strings.TrimPrefix(name, "posix/"), "right/")
+	setHostTimezone(host, name)
+	return nil
+}
+
+func ingestTimezoneWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		return nil
+	}
+	setHostTimezone(host, windowsTimezones[strings.TrimSpace(rows[0]["data"])])
+	return nil
+}
+
+func setHostTimezone(host *fleet.Host, name string) {
+	// LoadLocation accepts "" (UTC), "Local", and "Factory" (zone not set), none of which names the host's zone.
+	if name == "" || name == "Local" || name == "Factory" {
+		return
+	}
+	if _, err := time.LoadLocation(name); err != nil {
+		return
+	}
+	host.TimeZone = &name
 }
 
 func ingestNetworkInterface(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -3707,6 +3753,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	}
 
 	if username != "" {
+		// SQLite has no backslash escapes, so Go's %q can't quote this device-reported name.
 		query += fmt.Sprintf(`
 			UNION
 
@@ -3717,8 +3764,8 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 			FROM
 				macos_user_profiles
 			WHERE
-				username = %q AND
-				type = "Configuration"`, username)
+				username = '%s' AND
+				type = "Configuration"`, strings.ReplaceAll(username, "'", "''"))
 	}
 	return query, true
 }
@@ -4017,6 +4064,7 @@ var luksVerifyQuery = DetailQuery{
 		WITH RECURSIVE
 		devices AS (
 			SELECT
+				parent,
 				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
 				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
 				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
@@ -4026,6 +4074,14 @@ var luksVerifyQuery = DetailQuery{
 			GROUP BY parent
 		HAVING path <> '' AND fstype <> ''
 		),
+		-- lsblk lists every mount point of a device under "mountpoints" and keeps only
+		-- one of them in "mountpoint". A btrfs root with subvolumes (Omarchy) mounts the
+		-- same device at /, /home and more, so '/' may appear only in the list.
+		root_devices AS (
+			SELECT substr(parent, 1, length(parent) - length('/mountpoints')) AS parent
+			FROM lsblk
+			WHERE parent LIKE '%/mountpoints' AND value = '/'
+		),
 		root_mount AS (
 			SELECT
 				path,
@@ -4034,7 +4090,7 @@ var luksVerifyQuery = DetailQuery{
 				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname,
 				fstype
 			FROM devices
-			WHERE mountpoint = '/'
+			WHERE mountpoint = '/' OR parent IN (SELECT parent FROM root_devices)
 		),
 		luks_h(path, kname, pkname, fstype) AS (
 			SELECT

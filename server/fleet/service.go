@@ -495,7 +495,7 @@ type Service interface {
 	// creates an activity for each deletion. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -1165,17 +1165,7 @@ type Service interface {
 
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
-	// request that will match the profiles to a team (or create one if needed),
-	// assign the host to that team and assign the profiles to the host.
-	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-
-	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
-	// team, creating one if none match, assigns the corresponding host to that
-	// team and assigns the matched team's profiles to the host.
-	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
@@ -1605,6 +1595,12 @@ type Service interface {
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
 
+	// GetPatchDeadlineSettings returns the fleet's patch deadline settings, or the default when none are stored.
+	GetPatchDeadlineSettings(ctx context.Context, teamID *uint) (*PatchDeadlineSettings, error)
+	// UpdatePatchDeadlineSettings validates and stores the fleet's patch deadline settings. days and time
+	// are the values as decoded from JSON.
+	UpdatePatchDeadlineSettings(ctx context.Context, teamID *uint, days, time any) (*PatchDeadlineSettings, error)
+
 	/////////////////////////////////////////////////////////////////////////////////
 	// Organization logo
 
@@ -2031,6 +2027,9 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MinOrbitOmarchyLUKSVersion is the earliest version of Orbit whose passphrase prompt opens
+	// under Hyprland, which Omarchy uses.
+	MinOrbitOmarchyLUKSVersion = "1.64.0"
 	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
 	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
 	LinuxEscrowInFlightWindow = 5 * time.Minute

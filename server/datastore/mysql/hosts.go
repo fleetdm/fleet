@@ -620,6 +620,7 @@ var hostRefs = []string{
 	// command UUID and can access the request/response without this table's entry.
 	"host_in_house_software_installs",
 	"host_vpp_software_installs",
+	"host_android_software_installs",
 	"host_last_known_locations",
 	"host_issues",
 	"host_custom_host_vitals",
@@ -2241,7 +2242,7 @@ func (ds *Datastore) filterHostsByMDMBootstrapPackageStatus(ctx context.Context,
 		if err != nil {
 			return "", nil, err
 		}
-		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR hda.mdm_migration_completed IS NOT NULL) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
 		params = append(params, allowedDuringMigration)
 	case fleet.MDMBootstrapPackageInstalled:
 		subquery += ` AND ncr.status = 'Acknowledged'`
@@ -3455,6 +3456,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      h.timezone,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       hd.bitlocker_protection_status,
@@ -6116,9 +6118,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			h.node_key IS NOT NULL as osquery_enrolled,
 			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
 			h.platform,
-			hda.mdm_migration_deadline IS NOT NULL AND
-				(hda.mdm_migration_completed IS NULL OR
-				(hda.mdm_migration_deadline > hda.mdm_migration_completed)) AS migration_in_progress
+			hda.mdm_migration_deadline,
+			hda.mdm_migration_completed,
+			hda.mdm_migration_deadline IS NOT NULL AND hda.mdm_migration_completed IS NULL AS migration_in_progress
 		FROM
 			hosts h
 		LEFT JOIN

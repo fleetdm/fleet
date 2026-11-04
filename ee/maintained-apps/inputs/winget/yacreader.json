@@ -4,6 +4,7 @@
   "package_identifier": "YACReader.YACReader",
   "unique_identifier": "YACReader",
   "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %';",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

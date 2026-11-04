@@ -197,7 +197,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
 	s.DoJSON("POST", "/api/latest/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
@@ -393,6 +393,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		http.StatusPaymentRequired, &updateAppStoreAppResponse{})
 	s.Do("DELETE", "/api/latest/fleet/software/titles/123/available_for_install", nil, http.StatusPaymentRequired,
 		"fleet_id", "0", "version_id", "1")
+
+	// get and edit patch deadline settings
+	s.Do("GET", "/api/latest/fleet/software/patch_deadline_settings", nil, http.StatusPaymentRequired, "fleet_id", "0")
+	s.Do("PATCH", "/api/latest/fleet/software/patch_deadline_settings",
+		map[string]any{"fleet_id": 0, "days": []string{"monday"}, "time": "09:00"}, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {

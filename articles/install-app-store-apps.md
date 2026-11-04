@@ -38,6 +38,10 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+4. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
+
+> Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
+
 #### Install Android web app (web clip)
 
 > Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.

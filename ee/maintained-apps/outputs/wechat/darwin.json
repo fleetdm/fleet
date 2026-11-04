@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.2.0.15",
+      "version": "4.2.0.16",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_short_version, '4.2.0.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_version, '270352') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.tencent.xinWeChat' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dldir1.qq.com/weixin/Universal/Mac/xWeChatMac_universal_4.2.0.15_270351.dmg",
+      "installer_url": "https://dldir1.qq.com/weixin/Universal/Mac/xWeChatMac_universal_4.2.0.16_270352.dmg",
       "install_script_ref": "d08f2525",
       "uninstall_script_ref": "acf4eb02",
-      "sha256": "4d4e98b26be2e70bc58f03eb233fb349cacf0e7a32f33a0731f0a3bbbab00584",
+      "sha256": "077b99658e2d2083458a181f6de21ac9442fef8479635e367afdb0e4b1be5f22",
       "default_categories": [
         "Communication"
       ]

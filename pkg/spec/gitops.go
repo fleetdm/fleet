@@ -382,6 +382,13 @@ type Software struct {
 	Packages            []SoftwarePackage    `json:"packages"`
 	AppStoreApps        []AppStoreApp        `json:"app_store_apps"`
 	FleetMaintainedApps []FleetMaintainedApp `json:"fleet_maintained_apps"`
+	// PatchDeadlineSettings holds the values as YAML gave them, so the validator can tell a number from a string.
+	PatchDeadlineSettings *PatchDeadlineSettingsSpec `json:"patch_deadline_settings"`
+}
+
+type PatchDeadlineSettingsSpec struct {
+	Days any `json:"days"`
+	Time any `json:"time"`
 }
 
 type AppStoreApp struct {
@@ -478,6 +485,14 @@ type GitOpsSoftware struct {
 	Packages            []*fleet.SoftwarePackageSpec
 	AppStoreApps        []*fleet.TeamSpecAppStoreApp
 	FleetMaintainedApps []*fleet.MaintainedAppSpec
+	// PatchDeadlineSettings is nil when the file omits the key.
+	PatchDeadlineSettings *GitOpsPatchDeadlineSettings `json:"patch_deadline_settings"`
+}
+
+// GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.
+type GitOpsPatchDeadlineSettings struct {
+	Days []string `json:"days"`
+	Time string   `json:"time"`
 }
 
 type Logf func(format string, a ...interface{})
@@ -2254,15 +2269,24 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
-			if item.PatchWhenClosed || item.NotifyBeforePatching {
+			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
-				if item.NotifyBeforePatching && slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
-					multiError = multierror.Append(multiError, fmt.Errorf(
-						"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
+					if item.NotifyBeforePatching {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+					}
+					if item.PatchDeadline {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS))
+					}
 				}
 				patchOption := "patch_when_closed"
 				if item.NotifyBeforePatching {
 					patchOption = "notify_before_patching"
+				}
+				if item.PatchDeadline {
+					patchOption = "patch_deadline"
 				}
 				// Declarative: reject an explicit false instead of letting the datastore silently
 				// force it on; auto-set when omitted.
@@ -2448,9 +2472,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on fleet: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
 			} else {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on fleet: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
 			}
 			return errs
 		}
@@ -2472,7 +2496,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !matched {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on team", installSoftwareObj.HashSHA256)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on fleet", installSoftwareObj.HashSHA256)))
 		}
 	}
 
@@ -2485,13 +2509,13 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !appOnTeamFound {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on fleet %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
 		}
 	}
 
 	if installSoftwareObj.FleetMaintainedAppSlug != "" {
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for fleet %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
 		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
@@ -2769,6 +2793,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.AppStoreApps, "app_store_app")...)
 		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.FleetMaintainedApps, "fleet_maintained_app")...)
+	}
+	if raw := software.PatchDeadlineSettings; raw != nil {
+		days, tm, err := fleet.ValidatePatchDeadlineSettings(raw.Days, raw.Time)
+		if err != nil {
+			multiError = multierror.Append(multiError, err)
+		} else {
+			result.Software.PatchDeadlineSettings = &GitOpsPatchDeadlineSettings{Days: days, Time: tm}
+		}
 	}
 
 	var pathErrs []error

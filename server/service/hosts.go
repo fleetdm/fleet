@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -1192,10 +1193,10 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 
 	// Authorize again with team loaded now that we have team_id
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so
-		// the deprecated Puppet module can resolve a host identifier to a host id
-		// before pre-assigning profiles. Such a caller gets that id and nothing
-		// else: host details are read data it isn't entitled to.
+		// GitOps has no host read access, but it is granted selective_read here so it
+		// can resolve a host identifier to a host id, a documented permission kept for
+		// compatibility. Such a caller gets that id and nothing else: host details are
+		// read data it isn't entitled to.
 		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
 			return nil, selectiveErr
 		}
@@ -1367,7 +1368,7 @@ func (r addHostsToTeamResponse) Error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -1403,7 +1404,7 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 	return nil
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	// Authorize transfer access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
@@ -1458,12 +1459,15 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
+		}
 	}
 
-	if !skipBulkPending {
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-		}
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -1634,6 +1638,11 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		}
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
+		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
 		}
 	}
 
@@ -2311,6 +2320,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
 	}
 
+	var patchDeadlineAt *time.Time
+	if host.Platform == "darwin" {
+		patchDeadlineAt, err = svc.ds.GetHostPatchDeadlineAt(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host patch deadline")
+		}
+	}
+
 	// LastMDMCheckedInAt lives on Host so it's also available to the list-hosts
 	// loader; the details service overwrites the (potentially nil) value from
 	// the list-load with the fresh nano_enrollments read done above.
@@ -2330,6 +2347,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		GoogleDeviceID:                googleDeviceID,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
 		OSUpdateDeadline:              osUpdateDeadline,
+		PatchDeadlineAt:               patchDeadlineAt,
 	}, nil
 }
 

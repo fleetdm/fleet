@@ -24,6 +24,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner/Spinner";
 import Textarea from "components/Textarea";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
@@ -40,7 +41,10 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
-import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
+import {
+  isNotifyBeforePatchingSkip,
+  isPatchDeadlineSkip,
+} from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -57,6 +61,7 @@ export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
   skipped_install?: boolean;
+  activity_created_at?: string;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -82,6 +87,7 @@ interface IInstallStatusMessage {
    Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
   skippedInstall?: boolean;
+  activityCreatedAt?: string;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -93,6 +99,7 @@ export const StatusMessage = ({
   contactUrl,
   canOverrideFailureWithInstalled = false,
   skippedInstall = false,
+  activityCreatedAt,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -115,7 +122,6 @@ export const StatusMessage = ({
     software_title,
     software_display_name,
     status,
-    updated_at,
     created_at,
   } = installResult;
   const displayedTitle = getDisplayedSoftwareName(
@@ -129,22 +135,43 @@ export const StatusMessage = ({
     "the host"
   );
 
+  const timeAgoText = timeAgo(new Date(activityCreatedAt || created_at), {
+    includeSeconds: true,
+    addSuffix: true,
+  });
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
-  )
-    ? ` (${timeAgo(new Date(updated_at || created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
+  ) ? (
+    <>
+      {" ("}
+      {activityCreatedAt ? (
+        timeAgoText
+      ) : (
+        <TooltipWrapper
+          tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
+          position="top"
+          showArrow
+        >
+          {timeAgoText}
+        </TooltipWrapper>
+      )}
+      {")"}
+    </>
+  ) : (
+    ""
+  );
 
   // A patch-when-closed skip must render its own message even when the host
   // currently reports the app as installed. The skip is the load-bearing state
   // (deferred update); collapsing it into "is installed" would hide the
   // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
-    // Notify variant appends "Fleet notifies the end user..." to
-    // pre_install_query_output; patch_when_closed doesn't.
+    // Three skip variants share the same payload shape; the pre_install_query_output
+    // substring is the only reliable discriminator today. Check deadline first
+    // because the notify marker is a strict substring of the deadline copy.
+    const isDeadlineVariant = isPatchDeadlineSkip(
+      installResult.pre_install_query_output
+    );
     const isNotifyVariant = isNotifyBeforePatchingSkip(
       installResult.pre_install_query_output
     );
@@ -164,6 +191,16 @@ export const StatusMessage = ({
       </>
     );
 
+    const getSkipCopy = () => {
+      if (isDeadlineVariant) {
+        return "The app was open. Fleet will notify the end user 1 hour before the patch deadline.";
+      }
+      if (isNotifyVariant) {
+        return "The app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+      }
+      return skippedDetails;
+    };
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -173,10 +210,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}.{" "}
-            {isNotifyVariant
-              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
-              : skippedDetails}
+            {displayTimeStamp}. {getSkipCopy()}
           </span>
         }
       />
@@ -540,6 +574,7 @@ export const SoftwareInstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
+          activityCreatedAt={detailsFromProps.activity_created_at}
           skippedInstall={detailsFromProps.skipped_install}
         />
 

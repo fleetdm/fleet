@@ -527,7 +527,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
-							}, 0)
+							}, 0, nil)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -1114,6 +1114,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	require.NoError(t, err)
 
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }

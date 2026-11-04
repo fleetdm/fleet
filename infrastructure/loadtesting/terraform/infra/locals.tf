@@ -40,10 +40,11 @@ locals {
     }
   )
 
-  # Orbit config notifications require the transport, so the two are switched together.
+  # Orbit and osquery config notifications require the transport, so they are switched together.
   websocket_environment_variables = var.enable_websocket_transport ? {
-    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
-    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED      = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED   = "true"
+    FLEET_WEBSOCKET_OSQUERY_CONFIG_ENABLED = "true"
   } : {}
 
   extra_environment_variables = merge(

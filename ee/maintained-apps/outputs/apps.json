@@ -789,7 +789,7 @@
       "name": "Audacity",
       "slug": "audacity/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.audacityteam.audacity",
+      "unique_identifier": "org.audacityteam.audacity4",
       "description": "Audacity is a multi-track audio editor and recorder."
     },
     {
@@ -1111,7 +1111,7 @@
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.eatbiscuit.biscuit",
+      "unique_identifier": "com.eatbiscult.biscult",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -1125,7 +1125,7 @@
       "name": "BitBox",
       "slug": "bitbox/darwin",
       "platform": "darwin",
-      "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+      "unique_identifier": "ch.shiftcrypto.wallet",
       "description": "BitBox is a companion app for the Swiss-made BitBox hardware wallet."
     },
     {
@@ -1748,7 +1748,7 @@
       "name": "ClipBook",
       "slug": "clipbook/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.ikryanov.clipbook",
+      "unique_identifier": "com.ikryanov.clipbook.v2",
       "description": "ClipBook is a clipboard history app."
     },
     {
@@ -3162,7 +3162,7 @@
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.expressvpn.ExpressVPN",
+      "unique_identifier": "com.express.vpn",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
@@ -3687,7 +3687,7 @@
       "name": "GIMP",
       "slug": "gimp/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gimp.gimp-3.0",
+      "unique_identifier": "org.gimp.gimp",
       "description": "GIMP is a free and open-source image editor."
     },
     {
@@ -4396,13 +4396,6 @@
       "platform": "windows",
       "unique_identifier": "iMazing",
       "description": "iMazing is an iPhone management application."
-    },
-    {
-      "name": "ImHex",
-      "slug": "imhex/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.WerWolv.ImHex",
-      "description": "ImHex is a hex editor for reverse engineers."
     },
     {
       "name": "ImHex",
@@ -5546,6 +5539,13 @@
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
+      "name": "Microsoft OLE DB Driver 18 for SQL Server",
+      "slug": "microsoft-ole-db-driver-18/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver for SQL Server",
+      "description": "Microsoft OLE DB Driver 18 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
+    },
+    {
       "name": "Microsoft OLE DB Driver 19 for SQL Server",
       "slug": "microsoft-ole-db-driver-19/windows",
       "platform": "windows",
@@ -5759,7 +5759,7 @@
       "name": "MonitorControl",
       "slug": "monitorcontrol/darwin",
       "platform": "darwin",
-      "unique_identifier": "me.guillaumeb.MonitorControl",
+      "unique_identifier": "app.monitorcontrol.MonitorControl",
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
     },
     {
@@ -6102,7 +6102,7 @@
       "name": "Notesnook",
       "slug": "notesnook/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.streetwriters.notesnook",
+      "unique_identifier": "org.streetwriters.notesnook",
       "description": "Notesnook is a privacy-focused note taking app."
     },
     {
@@ -6592,7 +6592,7 @@
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tapbots.Pastebot2Mac",
+      "unique_identifier": "com.tapbots.Pastebot3Mac",
       "description": "Pastebot is a workflow application to improve productivity."
     },
     {
@@ -9518,7 +9518,7 @@
       "name": "Webex",
       "slug": "webex/windows",
       "platform": "windows",
-      "unique_identifier": "Cisco Webex",
+      "unique_identifier": "Webex",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
@@ -9707,7 +9707,7 @@
       "name": "Wondershare Filmora",
       "slug": "wondershare-filmora/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.wondershare.filmoramac",
+      "unique_identifier": "com.wondershare.filmoramacos",
       "description": "Wondershare Filmora is a video editor."
     },
     {

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -74,4 +75,36 @@ func (oc *OrbitClient) DistributedRead() (*DistributedReadResponse, error) {
 func (oc *OrbitClient) DistributedWrite(req *DistributedWriteRequest) error {
 	var resp distributedWriteResponse
 	return oc.authenticatedRequest(http.MethodPost, "/api/osquery/distributed/write", req, &resp)
+}
+
+type osqueryConfigRequest struct {
+	NodeKey string `json:"node_key"`
+	// ETag is always sent, empty when there is no validator yet, opting in to
+	// conditional config requests.
+	ETag           string `json:"etag"`
+	fallbackChange bool
+}
+
+func (r *osqueryConfigRequest) SetOrbitNodeKey(nodeKey string) { r.NodeKey = nodeKey }
+
+func (r *osqueryConfigRequest) setRequestHeaders(req *http.Request) {
+	setNodeKeyHeader(req, r.NodeKey)
+	if r.fallbackChange {
+		req.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+	}
+}
+
+// OsqueryConfig fetches the host's osquery config, authenticating with the
+// orbit node key, and returns the raw response: the config, with the server's
+// validator under the "etag" key when the server supports conditional
+// requests, or {"etag":"ok"} when etag is current. fallbackChange reports
+// that the previous fetch, a fallback poll, found the config changed (see
+// fleet.OsqueryConfigFallbackChangeHeader).
+func (oc *OrbitClient) OsqueryConfig(etag string, fallbackChange bool) (json.RawMessage, error) {
+	var resp json.RawMessage
+	req := &osqueryConfigRequest{ETag: etag, fallbackChange: fallbackChange}
+	if err := oc.authenticatedRequest(http.MethodPost, "/api/osquery/config", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
