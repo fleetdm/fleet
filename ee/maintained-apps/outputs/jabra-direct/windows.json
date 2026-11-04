@@ -3,8 +3,8 @@
     {
       "version": "8.4.30601",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S' AND version_compare(version, '8.4.30601') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher IN ('GN A/S', 'GN Audio A/S', 'GN Hearing A/S');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher IN ('GN A/S', 'GN Audio A/S', 'GN Hearing A/S') AND version_compare(version, '8.4.30601') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'jabra direct.exe');"
       },
       "installer_url": "https://jabraxpressonlineprdstor.blob.core.windows.net/jdo/JabraDirectSetup.exe",
