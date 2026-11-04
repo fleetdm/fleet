@@ -1905,7 +1905,7 @@ func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChall
 	})
 }
 
-func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksOnlyCertificateIdPAccount() {
+func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksCertificateIdPAccount() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1947,12 +1947,8 @@ func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksOnlyCertificateIdPAcco
 	require.NoError(t, device.Authenticate())
 	device.SetAuthorizationBearerToken(otherToken)
 	require.NoError(t, device.TokenUpdate(true))
-	requireLinked(device, nil)
-
-	// a later TokenUpdate with its own challenge links its own account
-	device.SetAuthorizationBearerToken(ownToken)
-	require.NoError(t, device.TokenUpdate(false))
 	requireLinked(device, ownAccount)
+	requireLinked(otherDevice, otherAccount)
 }
 
 func (s *integrationMDMTestSuite) TestOTAProfile() {

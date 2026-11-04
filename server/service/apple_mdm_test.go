@@ -3786,10 +3786,6 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		}{
 			{"no certificate", nil},
 			{"certificate without binding extension", newBindingCert(t, nil)},
-			{"certificate bound to another IdP account", newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
-				Purpose:        fleet.AppleMDMCertPurposeADUE,
-				IDPAccountUUID: new("other-idp-uuid"),
-			})},
 			{"certificate binding without IdP account", newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
 				Purpose:      fleet.AppleMDMCertPurposeSCEPRenewal,
 				EnrollmentID: new(enrollID),
@@ -3823,6 +3819,44 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 				require.Empty(t, gotMAID)
 			})
 		}
+	})
+
+	t.Run("UserEnrollmentDevice links the IDP account its certificate is bound to, not the bearer's", func(t *testing.T) {
+		activities = nil
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+		ds.GetADUEEnrollmentChallengeFuncInvoked = false
+		ds.GetMDMIdPAccountByUUIDFunc = func(_ context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+		}
+		var gotAcct string
+		ds.AssociateHostMDMIdPAccountFunc = func(_ context.Context, _ string, acctUUID string) (string, error) {
+			gotAcct = acctUUID
+			return "", nil
+		}
+		var gotMAID string
+		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
+			gotMAID = managedAppleID
+			return nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{
+				Context:       ctx,
+				EnrollID:      &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
+				Authorization: "Bearer challenge-for-idp-uuid",
+				Certificate: newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
+					Purpose:        fleet.AppleMDMCertPurposeADUE,
+					IDPAccountUUID: new("other-idp-uuid"),
+				}),
+			},
+			&mdm.TokenUpdate{UDID: enrollID, EnrollmentID: enrollID},
+		)
+		require.NoError(t, err)
+		require.Equal(t, "other-idp-uuid", gotAcct)
+		require.Equal(t, "other-idp-uuid@example.com", gotMAID)
+		require.False(t, ds.GetADUEEnrollmentChallengeFuncInvoked)
 	})
 
 	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {
