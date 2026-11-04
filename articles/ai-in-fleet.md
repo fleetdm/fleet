@@ -1,5 +1,9 @@
 # AI in Fleet
 
+<!--
+This page is required evidence for an ISO 42001 control. Do not delete, rename, or move it, because its URL is part of the evidence. Run all edits past the CIO before merging.
+-->
+
 Fleet uses AI to help IT and security teams work faster. In every AI feature, people stay in control: AI drafts and answers, and your team decides what happens on your devices. This page lists each AI feature in Fleet, what data it sends and to whom, how to turn it off, and how to report a concern.
 
 ## Your control
