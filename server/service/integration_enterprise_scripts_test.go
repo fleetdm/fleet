@@ -681,12 +681,6 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
-	// wait for the background run to queue the script, the batch should be started
-	require.Eventually(t, func() bool {
-		batchActivity, err := s.ds.GetBatchActivity(ctx, batchRes.BatchExecutionID)
-		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
-	}, 5*time.Second, 10*time.Millisecond)
-
 	var batchStatusResp fleet.BatchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)

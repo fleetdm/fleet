@@ -5843,10 +5843,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Execute the batch script on all hosts.
-	hostIDs := []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID}
-	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, hostIDs)
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
-	err = ds.BatchExecuteScript(ctx, execID, &user.ID, script.ID, hostIDs)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	// Filter by batch script execution ID, without status, should return all hosts
@@ -5912,9 +5911,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
 	// that have "activated" the script activity) and the upcoming_activities table (for hosts that
 	// have not yet activated the script activity).
-	secondExecID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, hostIDs)
+	secondExecID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
-	err = ds.BatchExecuteScript(ctx, secondExecID, &user.ID, script.ID, hostIDs)
+	err = ds.RunScheduledBatchActivity(ctx, secondExecID)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
@@ -10966,7 +10965,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	batchExecID, err := ds.NewBatchScriptExecution(ctx, nil, script.ID, []uint{host.ID})
 	require.NoError(t, err)
-	err = ds.BatchExecuteScript(ctx, batchExecID, nil, script.ID, []uint{host.ID})
+	err = ds.RunScheduledBatchActivity(ctx, batchExecID)
 	require.NoError(t, err)
 
 	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
