@@ -12254,7 +12254,8 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
-| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
+| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |                                                                    |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -12491,7 +12492,8 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
-| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. Set to `null` to clear the pinned package. |
+| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -15068,7 +15070,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.50.128",
             "platform": "darwin",
             "uploaded_at": "2026-06-04T17:29:09.155424Z",
-            "id": 36817,
+            "installer_id": 36817,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -15100,7 +15102,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.51.133",
             "platform": "darwin",
             "uploaded_at": "2026-06-10T09:14:51.482217Z",
-            "id": 36901,
+            "installer_id": 36901,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -15492,14 +15494,14 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "package": {
+  "software_package": {
     "title_id": 2792,
     "name": "Slack-4.50.128-macOS.pkg",
     "icon_url": null,
     "version": "4.50.128",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:43:46.125681Z",
-    "id": 36818,
+    "installer_id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15586,14 +15588,14 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ```json
 {
-  "package": {
+  "software_installer": {
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
     "icon_url": null,
     "version": "4.45.64",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:47:23Z",
-    "id": 36818,
+    "installer_id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
