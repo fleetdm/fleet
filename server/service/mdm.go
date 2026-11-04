@@ -1212,9 +1212,7 @@ func (r listMDMCommandsResponse) Error() error { return r.Err }
 // We the DecodeBody method to perform custom validation before hitting the service layer.
 func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	if strings.TrimSpace(req.HostIdentifier) == "" {
-		return &fleet.BadRequestError{
-			Message: `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`,
-		}
+		return fleet.NewParamRequiredDeprecationError("host_identifier")
 	}
 
 	if req.CommandStatus != "" {
