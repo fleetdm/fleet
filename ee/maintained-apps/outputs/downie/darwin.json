@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.13.3",
+      "version": "4.13.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4' AND version_compare(bundle_short_version, '4.13.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4' AND version_compare(bundle_short_version, '4.13.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.charliemonroe.Downie-4' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5273.dmg",
+      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5284.dmg",
       "install_script_ref": "a16c41f0",
       "uninstall_script_ref": "4a9b4cc6",
-      "sha256": "1618bde44fc110dd3ee8ea2b48cd3bbfec41904389dbc79c72bbaafa73b3b71c",
+      "sha256": "513d5df16b969ab4838b6df45c59f65e3b37b6388609292bc8e379edba4fa2cc",
       "default_categories": [
         "Productivity"
       ]
