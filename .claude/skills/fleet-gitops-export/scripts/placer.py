@@ -15,7 +15,7 @@ import shutil
 from pathlib import Path
 
 from layout import Layout
-from yamlio import Doc, EnvRef, dump, env_escape
+from yamlio import Doc, EnvRef, ServerText, dump, env_escape
 
 UNASSIGNED_HEADER = """# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
@@ -99,6 +99,8 @@ class Placer:
                 return relref(self.files[data["$file"]]["path"], base_dir)
             if set(data) == {"$env"}:
                 return EnvRef(data["$env"])
+            if set(data) == {"$server_text"}:
+                return ServerText(data["$server_text"])
             return {k: self.resolve(v, base_dir) for k, v in data.items()}
         if isinstance(data, list):
             return [self.resolve(v, base_dir) for v in data]
@@ -211,6 +213,9 @@ class Placer:
             self._apply_entries(doc, fleet, section.split("."), entries, base)
         if self.plan["exceptions"].get("software") and doc.find(["software"]) is not None:
             doc.comment_out(["software"])
+        for key in fleet.get("comment_out") or []:
+            if doc.find([key]) is not None:
+                doc.comment_out([key])
         out = self.target(rel)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(doc.text(), encoding="utf-8")

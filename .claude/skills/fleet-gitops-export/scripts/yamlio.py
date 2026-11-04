@@ -19,6 +19,10 @@ class EnvRef(str):
     """A value written as $NAME so fleetctl gitops fills it from the environment."""
 
 
+class ServerText(str):
+    """YAML text whose $FLEET_SECRET_ variables the server fills in (controls.name_template); elsewhere fleetctl rejects them."""
+
+
 # ---------------------------------------------------------------- escaping
 
 _SPECIAL_VAR = set("*#$@!?-0123456789")
@@ -39,15 +43,16 @@ def _shell_name(s: str) -> str:
     return m.group(0) if m else ""
 
 
-def _expandable(text: str, j: int) -> bool:
+def _expandable(text: str, j: int, secrets_for_server: bool = True) -> bool:
     name = _shell_name(text[j + 1:])
     if not name:
         return False
-    # fleetctl leaves these for the server.
-    return not (name.upper().startswith("FLEET_VAR_") or name.startswith("FLEET_SECRET_"))
+    # fleetctl leaves these for the server: FLEET_VAR_ anywhere, FLEET_SECRET_ in profiles and the
+    # name template (it rejects them in other YAML, so there they're escaped as literal text).
+    return not (name.upper().startswith("FLEET_VAR_") or (secrets_for_server and name.startswith("FLEET_SECRET_")))
 
 
-def env_escape(text: str) -> str:
+def env_escape(text: str, secrets_for_server: bool = True) -> str:
     """Return text that fleetctl's env expansion turns back into `text`.
 
     fleetctl turns an odd run of k backslashes before '$' into (k-1)/2
@@ -63,14 +68,14 @@ def env_escape(text: str) -> str:
             while j < n and text[j] == "\\":
                 j += 1
             k = j - i
-            if j < n and text[j] == "$" and (k % 2 == 1 or _expandable(text, j)):
+            if j < n and text[j] == "$" and (k % 2 == 1 or _expandable(text, j, secrets_for_server)):
                 out.append("\\" * (2 * k + 1) + "$")
                 i = j + 1
             else:
                 out.append(text[i:j])
                 i = j
             continue
-        if c == "$" and _expandable(text, i):
+        if c == "$" and _expandable(text, i, secrets_for_server):
             out.append("\\$")
         else:
             out.append(c)
@@ -86,7 +91,8 @@ def fleet_secret_names(text: str) -> set[str]:
 
 _PLAIN = re.compile(r"(?:[A-Za-z_/]|\.\.?/)[A-Za-z0-9_ ./@()\-,+=*]*")
 _AMBIGUOUS = {"y", "n", "yes", "no", "true", "false", "on", "off", "null", "~"}
-_KEY_PLAIN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_\-.]*")
+# Keys starting with a digit stay quoted: YAML reads 1.10, 010, 0x1F, and 1e3 as numbers.
+_KEY_PLAIN = re.compile(r"[A-Za-z_][A-Za-z0-9_\-.]*")
 
 
 def _plain_ok(s: str) -> bool:
@@ -107,23 +113,27 @@ def scalar(v) -> str:
     s = str(v)
     if _plain_ok(s):
         return s
-    if env_escape(s) == s:
+    return _quoted(s, isinstance(v, ServerText))
+
+
+def _quoted(s: str, secrets_for_server: bool = False) -> str:
+    if env_escape(s, secrets_for_server) == s:
         return json.dumps(s, ensure_ascii=False)
     # "\$" isn't a valid escape inside double quotes for standard YAML parsers, so a string
     # with a dollar sign fleetctl would expand goes in single quotes when it can, and
     # otherwise in double quotes with that dollar written as \x24, which YAML reads as "$"
     # and fleetctl's expansion never sees.
     if not any((ord(c) < 32 and c != "\t") or c == "\x7f" for c in s):
-        return "'" + env_escape(s).replace("'", "''") + "'"
+        return "'" + env_escape(s, secrets_for_server).replace("'", "''") + "'"
     quoted = json.dumps(s, ensure_ascii=False)
-    return "".join("\\x24" if c == "$" and _expandable(quoted, i) else c for i, c in enumerate(quoted))
+    return "".join("\\x24" if c == "$" and _expandable(quoted, i, secrets_for_server) else c for i, c in enumerate(quoted))
 
 
 def _key(k) -> str:
     k = str(k)
     if _KEY_PLAIN.fullmatch(k) and k.lower() not in _AMBIGUOUS:
         return k
-    return json.dumps(k, ensure_ascii=False)
+    return _quoted(k)
 
 
 def _block_ok(s) -> bool:
@@ -143,7 +153,7 @@ def _block(s: str, ind: int) -> tuple[str, list[str]]:
     else:
         header, body = "|-", s
     pad = " " * ind
-    return header, [(pad + env_escape(ln)) if ln else "" for ln in body.split("\n")]
+    return header, [(pad + env_escape(ln, isinstance(s, ServerText))) if ln else "" for ln in body.split("\n")]
 
 
 def _emit_map(d: dict, ind: int, out: list[str]):

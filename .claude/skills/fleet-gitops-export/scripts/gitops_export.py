@@ -364,11 +364,11 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
         scope = {"global": "Global" if srv["premium"] else "Global", "unassigned": "Unassigned"}.get(f["key"], f.get("name") or f["sections"].get("name"))
         scope_file[scope] = f["file"]
     if srv["premium"]:
-        scope_file["Unassigned controls"] = "default.yml"
+        scope_file["Unassigned controls"] = plan.get("controls_file") or "default.yml"
     for scope, counts in plan["counts"].items():
         file = scope_file.get(scope, "default.yml" if scope in ("Global", "Unassigned") else "?")
         if scope == "Unassigned":
-            file = "fleets/unassigned.yml + default.yml (controls)"
+            file = "fleets/unassigned.yml" if plan.get("controls_file") == "fleets/unassigned.yml" else "fleets/unassigned.yml + default.yml (controls)"
         summary = ", ".join(k if k in SINGLE else f"{n} {k}" for k, n in sorted(counts.items(), key=lambda kv: kv[0].lower()))
         lines.append(f"| `{file}` | {scope} | {summary} |")
     review = [n for n in plan["notes"] if n["level"] == "review"]

@@ -20,8 +20,8 @@ from fleet_api import Fleetctl, FleetctlError  # noqa: E402
 from fleet_defaults import is_default_script  # noqa: E402
 from layout import Layout  # noqa: E402
 from placer import Placer, glob_match  # noqa: E402
-from planner import ALIASES, Planner, _fma_script_state, _script_platform, _url_names_version, slugify  # noqa: E402
-from yamlio import Doc, EnvRef, _shell_name, dump, env_escape  # noqa: E402
+from planner import ALIASES, Planner, _fma_script_state, _script_platform, _url_names_version, exact_name_ok, slugify  # noqa: E402
+from yamlio import Doc, EnvRef, ServerText, _shell_name, dump, env_escape  # noqa: E402
 
 REPO = HERE.parents[4]
 TEMPLATES = REPO / "cmd/fleetctl/fleetctl/templates/new"
@@ -91,6 +91,21 @@ class EnvEscapeTest(unittest.TestCase):
             with self.subTest(text=text):
                 doc = dump({"v": text})
                 self.assertEqual(load_yaml(fleetctl_expand(doc, {}), backend)["v"], text)
+
+    def test_fleet_secrets_are_escaped_outside_the_name_template(self):
+        self.assertIn("\\$FLEET_SECRET_WIFI", dump({"description": "uses $FLEET_SECRET_WIFI"}))
+        template = dump({"name_template": ServerText("mac-$FLEET_SECRET_SITE")})
+        self.assertIn("$FLEET_SECRET_SITE", template)
+        self.assertNotIn("\\$", template)
+
+    def test_keys_that_read_as_numbers_are_quoted(self):
+        backend = yaml_backend()
+        if not backend:
+            self.skipTest("no YAML parser")
+        from checks import load_yaml
+        for k in ("1.10", "010", "0x1F", "1e3", "1_000", "$HOME", "true", "pack-1"):
+            with self.subTest(key=k):
+                self.assertEqual(list(load_yaml(fleetctl_expand(dump({k: 1}), {}), backend)), [k])
 
     def test_env_ref_is_expanded(self):
         self.assertEqual(dump({"secret": EnvRef("FLEET_X")}), "secret: $FLEET_X\n")
@@ -462,7 +477,14 @@ class FleetDefaultsTest(unittest.TestCase):
         pkg = default_script("uninstall_pkg.sh").replace("$PACKAGE_ID", "(\n  'com.example.a'\n  'com.example.b'\n)")
         self.assertTrue(is_default_script("uninstall_script", "pkg", pkg))
         upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
-        self.assertTrue(is_default_script("uninstall_script", "msi", upgrade))
+        self.assertTrue(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{ABC-123}"]}))
+
+    def test_msi_default_follows_the_upgrade_code(self):
+        product = default_script("uninstall_msi.ps1").replace("$PACKAGE_ID", "'{PROD-1}'")
+        upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
+        self.assertFalse(is_default_script("uninstall_script", "msi", product, {"UPGRADE_CODE": ["{ABC-123}"]}))
+        self.assertTrue(is_default_script("uninstall_script", "msi", product))
+        self.assertFalse(is_default_script("uninstall_script", "msi", upgrade))
 
     def test_retargeted_defaults_are_not_defaults(self):
         ids = {"PACKAGE_ID": ["zoom"]}
@@ -471,6 +493,11 @@ class FleetDefaultsTest(unittest.TestCase):
         upgrade = default_script("uninstall_msi_with_upgrade_code.ps1").replace('"$UPGRADE_CODE"', "'{ABC-123}'")
         self.assertTrue(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{ABC-123}"]}))
         self.assertFalse(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{DEF-456}"]}))
+
+    def test_glob_characters_can_be_file_names(self):
+        self.assertTrue(exact_name_ok("[AllowSpotlightCollection].xml"))
+        self.assertTrue(exact_name_ok("{braces}.sh"))
+        self.assertFalse(exact_name_ok("star*.sh"))
 
     def test_fleetd_script_is_never_a_default(self):
         self.assertFalse(is_default_script("install_script", "pkg", default_script("install_pkg_fleetd.sh")))
@@ -831,6 +858,48 @@ class EndToEndTest(unittest.TestCase):
         default.write_text(text.replace("    enable_sso: true\n", "    enable_sso: true\n    enable_jit_provisioning: true\n", 1))
         self.assertIn("settings 'org_settings.sso_settings': enable_jit_provisioning is in the repo but not in Fleet",
                       "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_unassigned_policy_scripts_put_controls_in_unassigned_file(self):
+        snap = snapshot()
+        un = next(s for s in snap["scopes"] if s["key"] == "unassigned")
+        un["policies"][0]["run_script"] = {"id": 1, "name": "hello.sh"}
+        plan = self.replan(snap)
+        self.assertEqual(plan["controls_file"], "fleets/unassigned.yml")
+        unassigned = self.read("fleets/unassigned.yml")
+        self.assertIn("path: ../platforms/macos/scripts/hello.sh", unassigned)
+        self.assertIn("windows_enabled_and_configured: true", unassigned)
+        self.assertNotRegex(self.read("default.yml"), r"(?m)^controls:")
+        self.assertIn("run_script:\n    path: ../scripts/hello.sh", self.read("platforms/macos/policies/unassigned-check.yml"))
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_names_fleetctl_rejects_arent_exported(self):
+        snap = snapshot()
+        g = snap["scopes"][0]
+        g["labels"].append({"name": "Équipe Macs", "query": "SELECT 1", "label_membership_type": "dynamic"})
+        g["reports"].append({"id": 2, "name": "Users’ apps", "query": "SELECT 1;", "platform": "", "interval": 60})
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["name"] = ws["team"]["name"] = "No-Team"
+        plan = self.replan(snap)
+        gaps = {n["item"] for n in plan["notes"] if n["level"] == "gap" and "ASCII" in n["message"]}
+        self.assertEqual(gaps, {"Équipe Macs", "Users’ apps"})
+        self.assertNotIn("fleets/no-team.yml", [f["file"] for f in plan["fleets"]])
+
+    def test_policy_installs_the_package_it_picked(self):
+        snap = snapshot()
+        srv = next(s for s in snap["scopes"] if s["key"] == "2")
+        base = {"platform": "darwin", "install_script": "installer -pkg \"$INSTALLER_PATH\" -target /\n"}
+        first = dict(base, installer_id=31, name="acme-arm.pkg", version="2.0", url="https://x.test/latest/acme-arm.pkg", hash_sha256="d" * 64)
+        second = dict(base, installer_id=32, name="acme-intel.pkg", version="2.0", url="https://x.test/latest/acme-intel.pkg", hash_sha256="e" * 64)
+        srv["software"]["titles"].append({"id": 30, "name": "Acme", "software_package": first, "packages": [first, second]})
+        srv["policies"].append({"id": 9, "name": "Acme installed", "query": "SELECT 1;", "platform": "darwin",
+                                "install_software": {"software_title_id": 30, "software_package_id": 32, "name": "Acme"}})
+        plan = self.replan(snap)
+        policy = self.read("platforms/macos/policies/acme-installed.yml")
+        self.assertIn("hash_sha256: " + "e" * 64, policy)
+        package = self.read("platforms/macos/software/acme.package.yml")
+        self.assertIn("e" * 64, package)
+        self.assertNotIn("d" * 64, package)
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
 
     def test_fleetd_install_script_is_kept(self):
         snap = snapshot()

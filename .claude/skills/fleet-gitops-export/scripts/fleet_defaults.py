@@ -59,7 +59,12 @@ def is_default_script(key: str, extension: str, script: str, ids: dict | None = 
     the default. Placeholders missing from `ids` (the API doesn't return every identifier) accept any value.
     """
     text = _norm(script or "")
-    for filename in DEFAULTS.get(key, {}).get(extension.lower().lstrip("."), []):
+    ext = extension.lower().lstrip(".")
+    names = DEFAULTS.get(key, {}).get(ext, [])
+    if ext == "msi" and key == "uninstall_script":
+        # On apply, Fleet fills in the upgrade-code script when the package has an upgrade code, the other one otherwise.
+        names = ["uninstall_msi_with_upgrade_code.ps1" if (ids or {}).get("UPGRADE_CODE") else "uninstall_msi.ps1"]
+    for filename in names:
         template, pattern, kinds = _pattern(filename)
         if text == template:
             return True

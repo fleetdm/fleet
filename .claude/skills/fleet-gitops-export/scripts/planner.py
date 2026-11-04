@@ -53,7 +53,8 @@ MAC_HINTS = re.compile(r"\b(?:launchctl|defaults|osascript|profiles|diskutil|sof
 # dogfood after the uninstall template changed); a script an admin rewrote scores far lower.
 FMA_DRIFT_RATIO = 0.75
 
-UNSAFE_CHARS = set('/\\:*?"<>|[{')
+# fleetctl takes literal [ and { in a path: when the file exists (Windows CSP profile names use them).
+UNSAFE_CHARS = set('/\\:*?"<>|')
 
 # Certificate authority fields written as variables.
 CA_SECRETS = {"digicert": ["api_token"], "ndes_scep_proxy": ["password"], "custom_scep_proxy": ["challenge"],
@@ -244,6 +245,14 @@ class Planner:
                   f"In Fleet, {fix}, then export again. Until then, applying this repo would delete it")
         return True
 
+    def _name_ok(self, item: dict, scope: str, kind: str) -> bool:
+        """A label or report GitOps can define: fleetctl requires ASCII names, and it can't hold an enroll secret."""
+        if not item["name"].isascii():
+            self.note("gap", scope, item["name"], f"fleetctl requires a {kind} name in ASCII, so it isn't exported. Rename it in Fleet, "
+                                                  "then export again. Until then, applying this repo would delete it")
+            return False
+        return not self._plain_secret_gap(item, scope, item["name"])
+
     def _record_env_refs(self, fid: str, names: list, scope: str):
         if not names:
             return
@@ -319,10 +328,18 @@ class Planner:
             default["sections"]["custom_host_vitals"] = vitals
             self.count("Global", "custom host vitals", len(vitals))
 
+        unassigned = self._fleet_entry("unassigned") if premium else None
+        # fleetctl checks an Unassigned policy's run_script and resend_configuration_profile against
+        # unassigned.yml's own controls, so those policies need the controls there (fleetctl allows one file).
+        holder = default
+        if premium and any(p.get("run_script") or p.get("resend_configuration_profile") for p in scopes["unassigned"].get("policies") or []):
+            holder = unassigned
+            default["comment_out"] = ["controls"]
+        self.controls_file = holder["file"]
         controls = self._global_controls(cfg["mdm"])
         controls_scope = scopes["unassigned"] if premium else scopes["global"]
-        controls.update(self._fleet_controls(cfg["mdm"], controls_scope, default))
-        default["sections"]["controls"] = controls
+        controls.update(self._fleet_controls(cfg["mdm"], controls_scope, holder))
+        holder["sections"]["controls"] = controls
 
         g = scopes["global"]
         self._labels(g, default)
@@ -331,7 +348,6 @@ class Planner:
 
         if premium:
             un = scopes["unassigned"]
-            unassigned = self._fleet_entry("unassigned")
             unassigned["sections"]["name"] = "Unassigned"
             team = un.get("team") or {}
             wh = drop_aliases("", team.get("webhook_settings") or {})
@@ -359,6 +375,7 @@ class Planner:
         return {
             "version": 1,
             "server": {"version": snap["version"], "premium": premium, "user": snap["me"]},
+            "controls_file": self.controls_file,
             "flags": self.flags,
             "exceptions": self.exceptions,
             "files": self.files,
@@ -393,7 +410,8 @@ class Planner:
                 action = "fill"
             else:
                 fpath, n = f"fleets/{slug}.yml", 2
-                while fpath in taken or fpath in templates or fpath == "fleets/unassigned.yml":
+                # fleetctl reads both names as the Unassigned file, whatever the fleet is called.
+                while fpath in taken or fpath in templates or fpath in ("fleets/unassigned.yml", "fleets/no-team.yml"):
                     fpath, n = f"fleets/{slug}-{n}.yml", n + 1
                 tpl = mobile_tpl if self._is_mobile(sc) else computer_tpl
                 action = "clone"
@@ -725,7 +743,7 @@ class Planner:
             if mdm.get("enable_recovery_lock_password"):
                 c["enable_recovery_lock_password"] = True
             if mdm.get("name_template"):
-                c["name_template"] = mdm["name_template"]
+                c["name_template"] = {"$server_text": mdm["name_template"]}
         apple = drop_aliases("settings", mdm.get("apple_settings") or mdm.get("macos_settings") or {})
         windows = drop_aliases("settings", mdm.get("windows_settings") or {})
         linux = mdm.get("linux_settings") or {}
@@ -912,7 +930,10 @@ class Planner:
         # Named after the fleet file, which is unique where fleet names can share a slug ("EMEA Ops", "EMEA+Ops").
         directory = self.layout.labels_dir if is_global else f"{self.layout.labels_dir}/{os.path.splitext(os.path.basename(fleet['file']))[0]}"
         self._existing_labels = getattr(self, "_existing_labels", set())
+        scope = self._scope_name(fleet)
         for lbl in labels:
+            if not self._name_ok(lbl, scope, "label"):
+                continue
             spec = {"name": lbl["name"]}
             if lbl.get("description"):
                 spec["description"] = lbl["description"]
@@ -924,17 +945,20 @@ class Planner:
                 spec["platform"] = lbl["platform"]
             if mtype == "manual":
                 spec["hosts"] = [str(h) for h in (lbl.get("hosts") or [])]
+                if spec["hosts"]:
+                    self.note("info", scope, lbl["name"], "a manual label's hosts are written as Fleet's host IDs, which match these hosts "
+                                                          "on this Fleet only; on another Fleet instance, replace them with serial numbers")
             if mtype == "host_vitals":
                 spec["criteria"] = lbl.get("criteria")
             target = self._template_label_file(lbl["name"]) if is_global else None
             if target:
                 fid = self.add_file("label", None, os.path.basename(target), data=[spec], exact=True, directory=os.path.dirname(target),
-                                    fleet=self._scope_name(fleet), escape=True, label=lbl["name"])
+                                    fleet=scope, escape=True, label=lbl["name"])
             else:
                 fid = self.add_file("label", None, lbl["name"], data=[spec], ext=".yml", directory=directory,
-                                    fleet=self._scope_name(fleet), escape=True, label=lbl["name"])
+                                    fleet=scope, escape=True, label=lbl["name"])
             self._existing_labels.add(self.files[fid]["path"])
-            self.count(self._scope_name(fleet), "labels")
+            self.count(scope, "labels")
             if not is_global:
                 fleet["sections"]["labels"] = [{"paths": "../" + directory + "/*.yml"}]
 
@@ -957,6 +981,8 @@ class Planner:
         failing = set((webhook_settings.get("failing_policies_webhook") or {}).get("policy_ids") or [])
         sw = self._software_index(fleet["key"])
         for p in sc.get("policies") or []:
+            if self._plain_secret_gap(p, scope, p["name"]):
+                continue
             spec = {"name": p["name"]}
             ptype = p.get("type") or "dynamic"
             if ptype != "patch":
@@ -988,6 +1014,9 @@ class Planner:
                 ref = sw.get(p["install_software"].get("software_title_id"))
                 if ref and ref["kind"] == "fma":
                     spec["install_software"] = {"fleet_maintained_app_slug": ref["slug"]}
+                elif ref and ref["kind"] == "package" and ref.get("by_package"):
+                    # fleetctl can't point package_path at a multi-package file; the hash picks the package.
+                    spec["install_software"] = {"hash_sha256": ref["by_package"].get(_policy_package_id(p["install_software"])) or ref["hash"]}
                 elif ref and ref["kind"] == "package":
                     spec["install_software"] = {"package_path": {"$file": ref["file"]}} if ref.get("file") else {"hash_sha256": ref["hash"]}
                 elif ref and ref["kind"] == "app_store_app":
@@ -1011,12 +1040,14 @@ class Planner:
             self.count(scope, "policies")
 
     def _controls_key(self, fleet):
-        # Unassigned's scripts live in default.yml's controls (fleetctl allows controls in only one of the two files).
-        return "global" if fleet["key"] == "unassigned" else fleet["key"]
+        # Unassigned's scripts live with the global controls, in whichever of the two files holds them.
+        return ("global" if self.controls_file == "default.yml" else "unassigned") if fleet["key"] == "unassigned" else fleet["key"]
 
     def _reports(self, sc, fleet):
         scope = self._scope_name(fleet)
         for r in sc.get("reports") or []:
+            if not self._name_ok(r, scope, "report"):
+                continue
             spec = {"name": r["name"]}
             if r.get("description"):
                 spec["description"] = r["description"]
@@ -1045,6 +1076,12 @@ class Planner:
         sw = sc.get("software") or {}
         self._sw_index = getattr(self, "_sw_index", {})
         index = self._sw_index.setdefault(fleet["key"], {})
+        # Packages a policy installs, by title: on a multi-package title the policy names one by hash, so it's pinned.
+        self._policy_packages: dict = {}
+        for p in sc.get("policies") or []:
+            inst = p.get("install_software") or {}
+            if inst.get("software_title_id"):
+                self._policy_packages.setdefault(inst["software_title_id"], set()).add(_policy_package_id(inst))
         if self.exceptions.get("software"):
             for t in sw.get("titles", []):
                 pkg, app = t.get("software_package") or {}, t.get("app_store_app") or {}
@@ -1233,17 +1270,25 @@ class Planner:
         items = []
         pkg_dir, _ = self.layout.dir_for("package", platform)
         unpinned = False
+        wanted = self._policy_packages.get(t["id"], set()) if multi else set()
+        by_package = {}
         for i, p in enumerate(pkgs):
             prefix = files_prefix if not multi else f"{files_prefix}-{i + 1}"
             item = {}
             if p.get("url"):
                 item["url"] = p["url"]
-            if p.get("url") and not _url_names_version(p["url"], p.get("version") or pkg.get("version")):
+            named = p.get("installer_id") in wanted or (None in wanted and p.get("installer_id") == pkg.get("installer_id"))
+            versioned = not p.get("url") or _url_names_version(p["url"], p.get("version") or pkg.get("version"))
+            if not versioned and not named:
                 unpinned = True
                 self.note("info", scope, title, "the package URL doesn't name a version, so hash_sha256 isn't pinned and each GitOps run "
                                                 "installs what the URL serves then (a pinned hash would fail once the vendor publishes an update)")
             else:
                 item["hash_sha256"] = p.get("hash_sha256") or pkg.get("hash_sha256")
+                if not versioned:
+                    self.note("info", scope, title, f"{p.get('name') or 'a package'}: hash_sha256 is pinned because a policy installs this package "
+                                                    "of the title, though its URL doesn't name a version; GitOps fails once the vendor replaces the file")
+            by_package[p.get("installer_id")] = item.get("hash_sha256")
             p_ext = os.path.splitext(p.get("name") or fname)[1]
             ids = _package_ids(t, p_ext)
             for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall"), ("post_install_script", "post-install")):
@@ -1265,6 +1310,8 @@ class Planner:
         if unpinned and not multi:
             # Without a pinned hash, a policy can't name the package by hash once it updates; package_path finds it by URL.
             index[t["id"]] = {"kind": "package", "hash": pkg.get("hash_sha256"), "file": fid}
+        elif multi:
+            index[t["id"]] = {"kind": "package", "hash": pkg.get("hash_sha256"), "by_package": by_package}
         entry = {}
         if not multi:
             common(entry, pkg)
@@ -1366,7 +1413,7 @@ class Planner:
             target = "default.yml" if key == "global" else self._fleet_files.get(key, {}).get("file")
             if not target:
                 continue
-            controls = "default.yml" if key == "unassigned" else target
+            controls = self.controls_file if key == "unassigned" else target
             sw = self._software_index(key)
             team = sc.get("team") or {}
             failing = set(((team or cfg).get("webhook_settings") or {})
@@ -1396,7 +1443,7 @@ class Planner:
                     f["install_software"] = bool(inst)
                 else:
                     # A title this fleet doesn't have can't be named in the repo, so it can't match.
-                    f["install_software"] = inst and (_install_target(titles.get(inst.get("software_title_id")) or {})
+                    f["install_software"] = inst and (_install_target(titles.get(inst.get("software_title_id")) or {}, inst)
                                                       or f"software title {inst.get('name')!r}")
                 add(target, "policies", p["name"], f)
             for r in sc.get("reports") or []:
@@ -1549,12 +1596,15 @@ def _api_controls(mdm: dict, premium: bool, is_global: bool):
     yield "controls.setup_experience", fields
 
 
-def _install_target(t: dict):
-    """What a policy's install_software names, as the reconcile check resolves it: a package by URL or hash."""
+def _install_target(t: dict, inst: dict | None = None):
+    """What a policy's install_software names, as the reconcile check resolves it: a package by URL or hash
+    (on a multi-package title, the package the policy picked)."""
     pkg, app = t.get("software_package"), t.get("app_store_app")
     if pkg and pkg.get("fleet_maintained_app_id"):
         return f"fma:{(t.get('fma') or {}).get('slug')}"
     if pkg:
+        chosen = _policy_package_id(inst or {})
+        pkg = next((p for p in t.get("packages") or [] if chosen and p.get("installer_id") == chosen), pkg)
         return {ANY_OF: [f"package:{v}" for v in (pkg.get("url"), pkg.get("hash_sha256")) if v]}
     if app:
         return f"app:{app.get('app_store_id')}"
@@ -1677,6 +1727,11 @@ def _fma_script_state(pkg: dict, fma: dict, key: str) -> str:
         return "default"
     ratio = difflib.SequenceMatcher(None, stored.splitlines(), catalog.splitlines(), autojunk=False).ratio()
     return "older" if ratio >= FMA_DRIFT_RATIO else "custom"
+
+
+def _policy_package_id(inst: dict):
+    """The package a policy installs on a multi-package title (None: the title's first-added package)."""
+    return inst.get("software_package_id") or inst.get("software_installer_id") or None
 
 
 def _package_ids(t: dict, ext: str) -> dict:
