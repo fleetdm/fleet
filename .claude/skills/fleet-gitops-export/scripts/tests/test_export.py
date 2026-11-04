@@ -314,6 +314,9 @@ class CommandTest(unittest.TestCase):
             self.assertFalse((work / "pristine/.env").exists())
             self.assertTrue((work / "pristine/default.yml").exists())
             self.assertFalse((work / "new").exists())
+            layout = Layout.load(work / "layout.json")
+            self.assertNotIn("fleets/servers.yml", layout.fleet_templates)
+            self.assertEqual(layout.root, target.resolve())
         finally:
             gitops_export.session, gitops_export.say = saved
             shutil.rmtree(tmp)
@@ -971,6 +974,10 @@ class EndToEndTest(unittest.TestCase):
         srv = next(s for s in snap["scopes"] if s["key"] == "2")
         token_url = "https://cdn.example.test/prod/7.1.5.4332/zoom_amd64.deb?token=tok-123456789"
         srv["software"]["titles"][0]["software_package"]["url"] = token_url
+        rpm = srv["software"]["titles"][1]
+        rpm["software_package"].update(installer_id=210, url="https://cdn.example.test/zoom-latest.rpm?token=rpm-987654321")
+        rpm["packages"] = [dict(rpm["software_package"])]
+        srv["policies"][1]["install_software"]["software_package_id"] = 210
         ws = next(s for s in snap["scopes"] if s["key"] == "1")
         ws["profiles"].append({"profile_uuid": "w", "name": "Wi-Fi", "platform": "darwin",
                                "content": b"<plist><dict><key>PayloadDisplayName</key><string>Wi-Fi</string>"
@@ -989,7 +996,7 @@ class EndToEndTest(unittest.TestCase):
                          {"type": "config", "pointer": ["agent_options", "config", "options", "aws_secret_access_key"]})
         self.assertEqual(env["FLEET_ZOOM_URL"]["pointer"], ["software_title", "software_package", "url"])
         dump_ = json.dumps(plan)
-        for needle in ("AKIAEXAMPLESECRET0", "tok-123456789", SECRET):
+        for needle in ("AKIAEXAMPLESECRET0", "tok-123456789", "rpm-987654321", SECRET):
             self.assertNotIn(needle, dump_)
         self.assertTrue(any(n["level"] == "gap" and n["item"] == "Secret check" for n in plan["notes"]))
         self.assertTrue(any(n["level"] == "warn" and n["item"] == "Wi-Fi" and "Password" in n["message"] for n in plan["notes"]))
@@ -1024,6 +1031,41 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("e" * 64, package)
         self.assertNotIn("d" * 64, package)
         self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_app_store_versions_and_ipa_configurations_reconcile(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        png = b"\x89PNG\r\n\x1a\n" + b"1" * 20
+        ws["software"]["titles"] += [
+            {"id": 13, "name": "Notes", "icon": png, "app_store_app": {"app_store_id": "111", "platform": "ios", "vpp_token": {"location": "Loc"}},
+             "app_store_apps": [{"id": 1, "name": "Stable", "app_store_id": "111", "self_service": True},
+                                {"id": 2, "name": "Beta", "app_store_id": "111"}]},
+            {"id": 14, "name": "Field app", "software_package": {"name": "field.ipa", "platform": "ios", "version": "1.0",
+                                                                 "url": "https://x.test/1.0/field.ipa", "hash_sha256": "f" * 64,
+                                                                 "configuration": "<dict><key>k</key><string>v</string></dict>"}}]
+        plan = self.replan(snap)
+        self.assertEqual([r["message"] for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_leak_check_skips_values_that_arent_secrets(self):
+        hook = "https://hooks.example.test/fleet/activities"
+        snap = snapshot()
+        snap["config"]["webhook_settings"] = {"activities_webhook": {"enable_activities_webhook": True, "destination_url": hook}}
+        un = next(s for s in snap["scopes"] if s["key"] == "unassigned")
+        un["scripts"].append({"id": 6, "name": "notify.sh", "content": f"#!/bin/sh\ncurl -X POST {hook}\n".encode()})
+        plan = self.replan(snap)
+
+        class FakeAPI:
+            def json(self, path, params=None):
+                return {"webhook_settings": {"activities_webhook": {"destination_url": hook}}}
+
+        webhook = [e for e in plan["env"] if (e["source"].get("pointer") or [""])[0] == "webhook_settings"]
+        self.assertEqual(len(webhook), 1)
+        ch = Checker(self.root, dict(plan, env=webhook))
+        env, _ = ch.dry_run_env(FakeAPI(), None)
+        self.assertEqual(env[webhook[0]["name"]], hook)
+        ch.check_leaks()
+        self.assertEqual(ch.secret_values, {})
+        self.assertEqual([r for r in ch.results["reconcile"] if r["level"] == "FAIL"], [])
 
     def test_fleetd_install_script_is_kept(self):
         snap = snapshot()

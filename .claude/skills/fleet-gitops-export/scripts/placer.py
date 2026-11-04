@@ -26,8 +26,8 @@ UNASSIGNED_HEADER = """# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 # Controls for these hosts (configuration profiles, scripts,
 # OS updates, setup experience) live under `controls:` in
-# default.yml: fleetctl gitops accepts them in only one of
-# the two files.
+# default.yml or here: fleetctl gitops accepts them in only
+# one of the two files.
 #
 # To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files

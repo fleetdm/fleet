@@ -735,7 +735,7 @@ class Planner:
         if mig.get("enable") or mig.get("mode") or mig.get("webhook_url"):
             mig = dict(mig)
             if mig.get("webhook_url"):
-                mig["webhook_url"] = self.add_env("FLEET_MACOS_MIGRATION_WEBHOOK_URL", "default.yml", "macOS migration webhook URL",
+                mig["webhook_url"] = self.add_env("FLEET_MACOS_MIGRATION_WEBHOOK_URL", self.controls_file, "macOS migration webhook URL",
                                                   {"type": "config", "pointer": ["mdm", "macos_migration", "webhook_url"]})
             c["macos_migration"] = mig
         if mdm.get("windows_enabled_and_configured"):
@@ -747,7 +747,7 @@ class Planner:
             c["apple_account_provisioning"] = {
                 "oauth_idp_token_url": aap.get("oauth_idp_token_url"),
                 "oauth_idp_client_id": aap.get("oauth_idp_client_id"),
-                "oauth_idp_client_secret": self.add_env("FLEET_APPLE_ACCOUNT_PROVISIONING_CLIENT_SECRET", "default.yml",
+                "oauth_idp_client_secret": self.add_env("FLEET_APPLE_ACCOUNT_PROVISIONING_CLIENT_SECRET", self.controls_file,
                                                         "OAuth client secret for Apple account provisioning", {"type": "mask"}),
             }
         return c
@@ -1352,8 +1352,13 @@ class Planner:
         fid = self.add_file("package", platform, f"{files_prefix}.package.yml", data=items, exact=True, fleet=scope, escape=True,
                             directory=pkg_dir, label=title)
         for p in pkgs:
-            if p.get("url_var") and self.files[fid]["path"] not in self.env[p["url_var"]]["used_in"]:
-                self.env[p["url_var"]]["used_in"].append(self.files[fid]["path"])
+            if p.get("url_var"):
+                if self.files[fid]["path"] not in self.env[p["url_var"]]["used_in"]:
+                    self.env[p["url_var"]]["used_in"].append(self.files[fid]["path"])
+                # The title lists the package twice (software_package and packages); both name it by the variable.
+                for same in [t.get("software_package") or {}] + (t.get("packages") or []):
+                    if same is not p and same.get("url") == p["url"] and same.get("installer_id") == p.get("installer_id"):
+                        same["url_var"] = p["url_var"]
         if unpinned and not multi:
             # Without a pinned hash, a policy can't name the package by hash once it updates; package_path finds it by URL.
             index[t["id"]] = {"kind": "package", "hash": pkg.get("hash_sha256"), "file": fid}
@@ -1805,7 +1810,10 @@ def _software_identities(t: dict, keep_fma_scripts=(), setup: dict | None = None
         multi = len(versions) > 1 or (len(versions) == 1 and versions[0].get("name") not in (None, "", "Default version"))
         ident = f"app:{app.get('app_store_id')}:{app.get('platform', '')}"
         mobile = app.get("platform") in ("ios", "ipados")
-        top = {"icon": icon, "setup_experience": True if (app.get("app_store_id"), app.get("platform")) in setup["apps"] else None}
+        loc = (app.get("vpp_token") or {}).get("location")
+        top = {"icon": icon, "setup_experience": True if (app.get("app_store_id"), app.get("platform")) in setup["apps"] else None,
+               # Written only when the fleet has more than one VPP token; left out, Fleet keeps it.
+               "location": {ANY_OF: [None, loc]} if loc else None}
         if not multi:
             f = {"self_service": app.get("self_service"), "categories": app.get("categories"), "display_name": t.get("display_name"),
                  "configuration": app_config_value(app.get("platform", ""), app.get("configuration")), **top}

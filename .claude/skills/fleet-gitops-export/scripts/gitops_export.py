@@ -237,7 +237,9 @@ def cmd_scaffold(args) -> int:
     if pristine.exists():
         shutil.rmtree(pristine)
     fresh.rename(pristine)
-    layout = Layout.scan(str(target))
+    # The target may still hold an earlier export's files, which would read as templates.
+    layout = Layout.scan(str(pristine))
+    layout.data["root"] = str(target.resolve())
     layout.save(work / "layout.json")
     say(out.replace(str(fresh), str(target)).split("\nNext steps")[0].strip())
     say(f"layout: {len(layout.fleet_templates)} fleet templates, {len(layout.globs)} globs, platform folders under {layout.platform_root}/")

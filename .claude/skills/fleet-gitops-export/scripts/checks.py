@@ -462,9 +462,11 @@ class Checker:
         except ValueError:
             return body.decode(errors="replace")
 
-    def _software_fields(self, scripts: dict, base: str, entry: dict) -> dict:
+    def _software_fields(self, scripts: dict, base: str, entry: dict, entry_base: str | None = None) -> dict:
         """A software item's settings: its own, else the fleet-level entry's (as fleetctl merges them),
-        with its scripts and query as reconcile compares them (scripts by hash)."""
+        with its scripts and query as reconcile compares them (scripts by hash). Paths in `scripts` are
+        relative to `base`, paths in `entry` (in the fleet file) to `entry_base`."""
+        entry_base = base if entry_base is None else entry_base
         f = {k: scripts.get(k) or entry.get(k) for k in ("self_service", "categories", "display_name")}
         labels = {k: scripts[k] for k in LABEL_KEYS if scripts.get(k)} or {k: entry[k] for k in LABEL_KEYS if entry.get(k)}
         f.update({k: labels.get(k) for k in LABEL_KEYS})
@@ -473,9 +475,9 @@ class Checker:
         f["pre_install_query"] = self._query(base, scripts.get("pre_install_query"))
         for key in ("setup_experience", "setup_experience_platform"):
             f[key] = scripts.get(key) or entry.get(key)
-        f["icon"] = self._script_sha(base, scripts.get("icon") or entry.get("icon"))
+        f["icon"] = self._script_sha(base, scripts["icon"]) if scripts.get("icon") else self._script_sha(entry_base, entry.get("icon"))
         if entry.get("configuration"):
-            f["configuration"] = self._app_config(base, entry["configuration"], "ios")
+            f["configuration"] = self._app_config(entry_base, entry["configuration"], "ios")
         return f
 
     def _install_software(self, base: str, inst):
@@ -587,7 +589,7 @@ class Checker:
             if path and path.endswith((".yml", ".yaml")):
                 for item in (i for i in _as_list(self.docs.get(path)) if isinstance(i, dict)):
                     found["software"].append([f"package:{item.get('url') or item.get('hash_sha256')}",
-                                              self._software_fields(item, os.path.dirname(path), entry)])
+                                              self._software_fields(item, os.path.dirname(path), entry, base)])
             elif path:
                 found["software"].append([f"package:{self._hash(path)}", self._software_fields(entry, base, entry)])
             else:
@@ -603,15 +605,16 @@ class Checker:
             if not isinstance(item, dict):
                 continue
             ident, platform = f"app:{item.get('app_store_id')}:{item.get('platform', '')}", item.get("platform", "")
+            top = {"display_name": item.get("display_name"), "setup_experience": item.get("setup_experience"),
+                   "icon": self._script_sha(base, item.get("icon")), "location": item.get("location")}
             if item.get("versions"):
-                found["software"].append([ident, {"display_name": item.get("display_name")}])
+                found["software"].append([ident, top])
             versions = [(f"{ident}:{v.get('name')}", v) for v in item.get("versions") or [] if isinstance(v, dict)] or [(ident, item)]
             for key, v in versions:
                 f = {k: v.get(k) for k in ("self_service", "categories", "display_name") + LABEL_KEYS + APP_FIELDS}
                 f["configuration"] = self._app_config(base, v.get("configuration"), platform)
                 if v is item:
-                    f["setup_experience"] = item.get("setup_experience")
-                    f["icon"] = self._script_sha(base, item.get("icon"))
+                    f.update(top)
                 found["software"].append([key, f])
         for item in _as_list(_walk(doc, ["controls", "android_settings", "certificates"])):
             if isinstance(item, dict):
@@ -694,8 +697,7 @@ class Checker:
                         continue
                     if kind == "settings" and (n, field) in STRICT:
                         if _strict(fleet_value) != _strict(got[n].get(field)):
-                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
-                                                   f"but {_short(fleet_value)} in Fleet (applying would change it)")
+                            self.fail("reconcile", f"{top}: {what} {n!r}: {self._difference(n, field, fleet_value, got[n].get(field))}")
                         continue
                     if not _same(fleet_value, got[n].get(field)):
                         if field.endswith("sha256"):
@@ -707,10 +709,17 @@ class Checker:
                                 self.fail("reconcile", f"{top}: {what} {n!r}: {part or 'content '}differs between the repo and Fleet "
                                                        "(applying would change it)")
                             continue
-                        self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
-                                               f"but {_short(fleet_value)} in Fleet (applying would change it)")
+                        self.fail("reconcile", f"{top}: {what} {n!r}: {self._difference(n, field, fleet_value, got[n].get(field))}")
 
         self._coverage(top, kinds.get("settings") or [])
+
+    @staticmethod
+    def _difference(section, field: str, fleet_value, repo_value) -> str:
+        plain = all(isinstance(v, (bool, int, float, type(None))) for v in (fleet_value, repo_value))
+        if field == "agent_options" or (str(section).endswith(".features") and not plain):
+            # Credentials there are variables; one written out in the repo mustn't end up in validation.json.
+            return f"{field} differs between the repo and Fleet (applying would change it)"
+        return f"{field} is {_short(repo_value)} in the repo but {_short(fleet_value)} in Fleet (applying would change it)"
 
     def _coverage(self, top: str, settings: list):
         """Fail on repo keys no comparison reads: applying would set them, and nothing here checks them."""
@@ -859,7 +868,10 @@ class Checker:
             except (KeyError, IndexError, TypeError, ValueError, OSError, subprocess.SubprocessError, FleetctlError) as ex:
                 val = PLACEHOLDER
                 notes.append(f"{name}: couldn't read it from Fleet ({ex}); the dry run used a placeholder")
-            if t != "fleet_url" and isinstance(val, str) and val not in (PLACEHOLDER, f'"{MASK}"', MASK):
+            # Webhook URLs and IdP metadata are variables too, but a script or profile may use the same URL.
+            secret = t in ("enroll_secret", "ca", "mask", "fleet_secret", "api") or \
+                (t in ("config", "team_config") and (src.get("pointer") or [""])[0] in ("agent_options", "features"))
+            if secret and isinstance(val, str) and val not in (PLACEHOLDER, f'"{MASK}"', MASK):
                 self.secret_values[name] = val  # in memory only, for check_leaks
             # fleetctl substitutes values into YAML as-is (bare `key: $NAME`), so one with YAML syntax in it
             # reads back as something else. Multi-line metadata, JSON objects, and FLEET_SECRET_ values

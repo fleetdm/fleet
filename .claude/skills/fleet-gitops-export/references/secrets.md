@@ -44,7 +44,7 @@ Scripts, the setup experience script, software scripts, and DDM activations aren
 
 ## Making sure none get through
 
-The collector also matches each enroll secret escaped for JSON (including `\/`), URL-encoded, XML-escaped, and inside base64 `<data>` payloads. fleetctl would insert the plain value for a variable, so a file holding one of those forms is left out rather than rewritten. Items written as YAML (policies, reports, labels, profile metadata) are left out the same way. The plan's inventory, which reconcile compares against, keeps no values for items left out because of a secret, and leaves variable-held settings out, so `plan.json` holds no secret either. As a last check, `validate` searches every repo file for the values it fetched for the dry run and fails on any it finds.
+The collector also matches each enroll secret escaped for JSON (including `\/`), URL-encoded, XML-escaped, and inside base64 `<data>` payloads. fleetctl would insert the plain value for a variable, so a file holding one of those forms is left out rather than rewritten. Items written as YAML (policies, reports, labels, profile metadata) are left out the same way. The plan's inventory, which reconcile compares against, keeps no values for items left out because of a secret, and leaves variable-held settings out, so `plan.json` holds no secret either. As a last check, `validate` searches every repo file for the secret values it fetched for the dry run and fails on any it finds. Webhook URLs and IdP metadata are variables too but aren't searched for, since a script or profile may hold the same URL.
 
 ## Not treated as secrets
 

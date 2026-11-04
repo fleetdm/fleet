@@ -23,6 +23,9 @@ SETUP_PLATFORMS = "macos,windows,linux,ios,ipados,android"
 MIN_SECRET_LEN = 8  # shorter values match ordinary text too often to be replaced safely
 # Settings the planner writes key by key from Fleet's data, where a secret value can become a variable.
 SETTINGS_PASSED_THROUGH = ("agent_options", "features")
+# Package fields the planner writes (into package YAML or as files beside it).
+PACKAGE_FIELDS = ("name", "url", "install_script", "uninstall_script", "post_install_script", "pre_install_query",
+                  "configuration", "categories")
 
 
 def _items(d: dict | None, *keys):
@@ -53,6 +56,10 @@ def _b64(text: str) -> bytes:
         return base64.b64decode("".join(text.split()), validate=True)
     except (binascii.Error, ValueError):
         return b""
+
+
+def _written(item: dict, *keys) -> dict:
+    return {k: item[k] for k in keys if k in item}
 
 
 def _word(secret: str, raw: bool):
@@ -204,26 +211,37 @@ class Collector:
                 out.append(pointer)
             return out
 
+        # Only what the planner writes is scanned, so metadata it drops (authors, timestamps) can't leave an item out.
         for sc in scopes:
             for item in (sc.get("profiles") or []) + (sc.get("assets") or []):
                 scan(item, item["content"], "env_refs")
-                scan(item, {k: v for k, v in item.items() if k not in ("content", "env_refs")})
-            for item in (sc.get("scripts") or []) + (sc.get("policies") or []) + (sc.get("reports") or []) + (sc.get("labels") or []):
-                scan(item, item)
+                scan(item, _written(item, "name", "description", "activation"))
+            for item in sc.get("scripts") or []:
+                scan(item, _written(item, "name", "content"))
+            for item in sc.get("policies") or []:
+                scan(item, _written(item, "name", "query", "description", "resolution"))
+            for item in sc.get("reports") or []:
+                scan(item, _written(item, "name", "query", "description"))
+            for item in sc.get("labels") or []:
+                scan(item, _written(item, "name", "query", "description", "criteria"))
             setup = sc.get("setup") or {}
-            for key in ("script", "enrollment_profile"):
-                if isinstance(setup.get(key), dict):
-                    scan(setup[key], setup[key])
+            if isinstance(setup.get("script"), dict):
+                scan(setup["script"], _written(setup["script"], "name", "content"))
+            if isinstance(setup.get("enrollment_profile"), dict):
+                scan(setup["enrollment_profile"], _written(setup["enrollment_profile"], "name", "enrollment_profile", "profile"))
             for t in (sc.get("software") or {}).get("titles") or []:
-                scan(t, {k: v for k, v in t.items() if k != "icon"})
+                packages = [t.get("software_package") or {}] + (t.get("packages") or [])
+                apps = [t.get("app_store_app") or {}] + (t.get("app_store_apps") or [])
+                scan(t, [_written(t, "name", "display_name")] + [_written(x, *PACKAGE_FIELDS) for x in packages]
+                     + [_written(x, "name", "configuration", "categories") for x in apps])
         if snap is not None:
             cfg = snap.get("config") or {}
             for rule in cfg.get("yara_rules") or []:
                 if isinstance(rule, dict):
-                    scan(rule, rule)
+                    scan(rule, _written(rule, "name", "contents"))
             windows_eula = (snap.get("eula") or {}).get("windows")
             if windows_eula:
-                scan(windows_eula, windows_eula)
+                scan(windows_eula, _written(windows_eula, "name", "content"))
             paths = {"global": [p for k in SETTINGS_PASSED_THROUGH for p in setting_paths(cfg.get(k), [k], [])]}
             for sc in scopes:
                 team = sc.get("team") or {}
