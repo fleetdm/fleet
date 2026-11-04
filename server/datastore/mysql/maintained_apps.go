@@ -74,6 +74,12 @@ var maintainedAppNameReconcileDiscoveryLimit = 10_000
 // by the precise installer link, then by bundle identifier but only where it maps to a
 // single app name.
 //
+// It also renames Windows titles owned by an app's installer to the app's
+// unique_identifier, which is what the installer names a title without an upgrade code
+// after. Without this, correcting an identifier in apps.json would leave existing titles
+// on the old name, and the next add or GitOps apply, which looks the title up by name,
+// would create a second title for the same app.
+//
 // Discovery is a different matter and does join. That hazard is specific to UPDATE: a SELECT
 // here is a non-locking consistent read. So each pass finds its mismatched rows in
 // LIMIT-bounded windows and renames them by primary key in small batches, each batch its own
@@ -105,6 +111,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 		{"software by installer link", mismatchedSoftwareByInstallerLink, updateSoftwareNames, &renamedSoftware},
 		{"software_titles by bundle identifier", mismatchedTitlesByIdentifier, updateSoftwareTitleNames, &renamedTitles},
 		{"software by bundle identifier", mismatchedSoftwareByIdentifier, updateSoftwareNames, &renamedSoftware},
+		{"windows software_titles by installer link", mismatchedWindowsTitlesByInstallerLink, updateSoftwareTitleNames, &renamedTitles},
 	}
 
 	for _, step := range steps {
@@ -224,6 +231,37 @@ const (
 			ON s.bundle_identifier = fma.unique_identifier
 			AND s.source NOT IN ('ios_apps', 'ipados_apps')
 		WHERE s.name <> fma.name
+		LIMIT ?`
+
+	// windows title_id -> unique_identifier, for titles linked to a single app via their
+	// installer.
+	catalogIdentifiersByWindowsTitle = `
+		SELECT si.title_id, MIN(fma.unique_identifier) AS name
+		FROM software_installers si
+		JOIN fleet_maintained_apps fma
+			ON fma.id = si.fleet_maintained_app_id AND fma.platform = 'windows'
+		WHERE si.title_id IS NOT NULL
+		GROUP BY si.title_id
+		HAVING COUNT(DISTINCT fma.unique_identifier) = 1`
+
+	// Titles with an upgrade code are named after the app's display name and matched
+	// through the code, so they're left alone. Without an upgrade code a programs title is
+	// unique by name, so a rename is skipped when another title already has the new name or
+	// two titles want it; Windows software keeps its reported name, so only titles change.
+	mismatchedWindowsTitlesByInstallerLink = `
+		SELECT MIN(st.id) AS id, fma.name
+		FROM (` + catalogIdentifiersByWindowsTitle + `) fma
+		STRAIGHT_JOIN software_titles st ON st.id = fma.title_id
+		WHERE st.name <> fma.name
+			AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
+			AND NOT EXISTS (
+				SELECT 1 FROM software_titles taken
+				WHERE taken.unique_identifier = fma.name
+					AND taken.source = st.source
+					AND taken.extension_for = st.extension_for
+			)
+		GROUP BY fma.name
+		HAVING COUNT(*) = 1
 		LIMIT ?`
 
 	updateSoftwareTitleNames = `UPDATE software_titles SET name = ? WHERE id IN (?) AND name <> ?`
