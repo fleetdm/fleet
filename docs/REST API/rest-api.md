@@ -16228,7 +16228,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/desktop/:token/software/:software_title_id/install`
+`POST /api/v1/fleet/desktop/:token/software/install/:software_title_id`
 
 #### Parameters
 
@@ -16239,7 +16239,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 #### Example
 
-`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
+`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
 
 ##### Default response
 
