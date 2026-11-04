@@ -136,7 +136,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		for _, method := range stdlibMethods(methods) {
+		for _, method := range methods {
 			if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
 				continue
 			}
@@ -163,16 +163,6 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 	// Everything the fast path did not claim, including method mismatches and unknown paths, is served by gorilla.
 	fast.Handle("/", gorillaFallback{r})
 	return fast, nil
-}
-
-// stdlibMethods returns the methods of a route to register on the stdlib mux. A stdlib GET pattern also matches HEAD, and
-// newFastPathRoute hands those requests to gorilla, so a route with both only registers GET. Its own HEAD pattern would conflict with
-// any GET pattern that is more specific about the path.
-func stdlibMethods(methods []string) []string {
-	if !slices.Contains(methods, http.MethodGet) {
-		return methods
-	}
-	return slices.DeleteFunc(slices.Clone(methods), func(method string) bool { return method == http.MethodHead })
 }
 
 // conflictPanic is the phrase net/http uses when two registered patterns overlap without one being more specific.

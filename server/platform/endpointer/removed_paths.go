@@ -25,12 +25,11 @@ type RemovedPath struct {
 	Message func(method string) string
 }
 
-// RemovedPathOverlap registers RouteTemplate instead of the removed path for the methods that overlap a live route. RouteTemplate writes
-// the overlapping literal segment as a wildcard, which makes it less specific than the live route, and a request without the literals of
-// the removed path gets a 404. The other methods keep the removed path, so a wrong method on the live route still gets a 405.
+// RemovedPathOverlap registers RouteTemplate instead of the removed path for the one method that overlaps a live route. RouteTemplate
+// writes the overlapping literal segment as a wildcard, which makes it less specific than the live route, and a request without the
+// literals of the removed path gets a 404. The other methods keep the removed path, so a wrong method on the live route still gets a 405.
 type RemovedPathOverlap struct {
-	// Methods has HEAD next to GET when GET overlaps, because a stdlib GET pattern also matches HEAD.
-	Methods       []string
+	Method        string
 	RouteTemplate string
 	// LivePaths maps the live routes that RouteTemplate catches for a method they don't serve to the methods they do serve. A request to one
 	// gets a 405 with those methods in its Allow header, not a 404.
@@ -56,14 +55,12 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 		if len(removed.Methods) > 0 {
 			methods = slices.Clone(removed.Methods)
 		}
-		// The overlap only applies to the methods that were removed.
-		overlap := removed.Overlap
-		overlapMethods := slices.DeleteFunc(slices.Clone(overlap.Methods), func(method string) bool { return !slices.Contains(methods, method) })
-		if len(overlapMethods) > 0 {
-			methods = slices.DeleteFunc(methods, func(method string) bool { return slices.Contains(overlapMethods, method) })
+		// The overlap only applies to a method that was removed.
+		if overlap := removed.Overlap; overlap.RouteTemplate != "" && slices.Contains(methods, overlap.Method) {
+			methods = slices.DeleteFunc(methods, func(method string) bool { return method == overlap.Method })
 			// Register a more generic path template so it doesn't conflict with the still supported path template
-			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlapMethods...).
-				Name(getNameFromPathAndVerb("overlap", removed.Path, ""))
+			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlap.Method).
+				Name(getNameFromPathAndVerb(overlap.Method, removed.Path, ""))
 		}
 		if len(methods) == 0 {
 			continue // the overlap route took the only removed method

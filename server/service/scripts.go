@@ -820,8 +820,6 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	return scriptResponses, nil
 }
 
-// Deprecated summary endpoint, to be removed in favor of the status endpoint
-// once the batch script details page is ready.
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.BatchScriptExecutionHostResultsRequest)
 	hosts, meta, count, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID, req.BatchExecutionStatus, req.ListOptions)
