@@ -41,6 +41,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMatchWithUpgradeCodeWhenTitleHasNone", testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone},
 		{"WindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone", testWindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone},
 		{"WindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp", testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp},
+		{"WindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct", testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct},
 		{"WindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling", testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling},
 		{"WindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe", testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe},
 		{"WindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode", testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode},
@@ -2439,9 +2440,10 @@ func testWindowsFMAMergeMultipleDestinations(t *testing.T, ds *Datastore) {
 	require.Zero(t, countTitlesNamed(t, ds, "Obsidian 1.5.3"))
 }
 
-// testWindowsFMAIngestIgnoresOtherSources: name matching is only meaningful for the
-// programs table. Software from another source that happens to share a prefix with an
-// added app must keep its own title.
+// testWindowsFMAIngestIgnoresOtherSources: name matching is only meaningful for programs
+// rows with no extension_for, like the installer's title. Software from another source,
+// or scoped to an extension, that happens to share a prefix with an added app must keep
+// its own title.
 func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2452,15 +2454,22 @@ func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 9.9.9", Version: "9.9.9", Source: "chrome_extensions", ExtensionID: "abc"},
+		// Batched with a row that does match, so the title lookup returns the installer's title.
+		{Name: "Granola 9.9.8", Version: "9.9.8", Source: "programs"},
+		{Name: "Granola 9.9.7", Version: "9.9.7", Source: "programs", ExtensionFor: "foo"},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"),
 		"non-programs software must not be collapsed onto the installer's title")
+	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 9.9.8"))
+	require.Equal(t, "Granola 9.9.7", titleNameForSoftware(t, ds, "Granola 9.9.7"),
+		"a programs row scoped to an extension must not be collapsed onto the installer's title")
 
 	// And the reconcile pass leaves it alone too.
 	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"))
+	require.Equal(t, "Granola 9.9.7", titleNameForSoftware(t, ds, "Granola 9.9.7"))
 }
 
 // testWindowsFMAReconcileIndependentOfCatalogSync: the Windows merge is reachable on its
@@ -2793,6 +2802,43 @@ func testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp(t *testing.T, ds *Dat
 	})
 	require.NoError(t, err)
 	require.Equal(t, addIn+" 2", titleNameForSoftware(t, ds, addIn+" 2"))
+}
+
+// testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct: PowerShell Preview's MSI
+// reports "PowerShell 7-preview-x64", which prefix-matches the PowerShell app by its
+// catalog name. What follows the name isn't a version, so the Preview program keeps its
+// own title, at ingestion and in the reconcile pass, while PowerShell's own program joins.
+func testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		previewX64 = "PowerShell 7-preview-x64"
+		previewX86 = "PowerShell 7-preview-x86"
+		stable     = "PowerShell 7-x64"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: previewX64, Version: "7.6.0.4", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+	})
+	require.NoError(t, err)
+
+	addWindowsFMAWithInstallerExtension(t, ds, user.ID, "PowerShell", "PowerShell 7-x64", "powershell/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, previewX64, titleNameForSoftware(t, ds, previewX64))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: previewX86, Version: "7.6.0.4", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+		{Name: stable, Version: "7.6.9.0", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, previewX86, titleNameForSoftware(t, ds, previewX86))
+	require.Equal(t, "PowerShell", titleNameForSoftware(t, ds, stable))
 }
 
 // testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling: QGIS LTR's MSI reports

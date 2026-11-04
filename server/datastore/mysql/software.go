@@ -1324,7 +1324,9 @@ type windowsFMAPrefix struct {
 // a cached version of the app's installer is an MSI, whose program reports an upgrade
 // code, and the title has none to join through because the FMA manifest carries none.
 // Requiring an MSI keeps an unrelated MSI product that shares a prefix, such as an
-// add-in named after an app that has never shipped an MSI, off its title.
+// add-in named after an app that has never shipped an MSI, off its title. Requiring the
+// prefix to be followed by nothing or a version keeps off an MSI product named after
+// the app: "PowerShell 7-preview-x64" is PowerShell Preview, not PowerShell.
 //
 // Other versions of the product report the same name, so two more cases are excluded.
 // An app with a release-channel sibling: "QGIS 3.44.15" is QGIS LTR, yet prefix-matches
@@ -1337,12 +1339,28 @@ func (p windowsFMAPrefix) acceptsProgram(name, upgradeCode string) bool {
 	if p.titleUpgradeCode != "" || !p.msiInstaller || p.channelSibling {
 		return false
 	}
+	normalized := normalizeSoftwareNameForMatch(name)
+	if rest, ok := strings.CutPrefix(normalized, p.prefix); !ok || !startsWithVersionWord(rest) {
+		return false
+	}
 	if p.versionSeries == "" {
 		return true
 	}
-	rest, ok := strings.CutPrefix(normalizeSoftwareNameForMatch(name), p.versionSeries)
+	rest, ok := strings.CutPrefix(normalized, p.versionSeries)
 	// A digit here means another version, such as 250 for series 25.
 	return ok && (rest == "" || rest[0] < '0' || rest[0] > '9')
+}
+
+// startsWithVersionWord reports whether s, what a program name has after its matched
+// prefix, is empty or starts with a word of digits and dots, optionally led by "v":
+// " 25.38.109 (25.0.5.0.3), 64-bit" or " v23.5.1040", but not " 7-preview-x64".
+func startsWithVersionWord(s string) bool {
+	if s == "" {
+		return true
+	}
+	word, _, _ := strings.Cut(strings.TrimPrefix(s, " "), " ")
+	word = strings.TrimPrefix(word, "v")
+	return word != "" && word[0] >= '0' && word[0] <= '9' && strings.Trim(word, "0123456789.") == ""
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
@@ -1549,7 +1567,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							newTitleName = computedName
 						}
 					}
-				} else if sw.Source == "programs" {
+				} else if sw.Source == "programs" && sw.ExtensionFor == "" {
 					// Use the canonical FMA name so versioned program names collapse
 					// onto the single title the FMA installer owns. The title's own upgrade
 					// code is carried so the insert collides with that title on

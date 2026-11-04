@@ -13296,6 +13296,11 @@ func TestWindowsFMAPrefixAcceptsProgram(t *testing.T) {
 	msiNoCode := prefixFor("Azul Zulu JRE", "", true, false)
 	require.True(t, msiNoCode.acceptsProgram(jre25, ""))
 	require.True(t, msiNoCode.acceptsProgram(jre25, code), "nothing else can join an MSI app's program to a title without an upgrade code")
+	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE", code))
+	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE v25.38.109", code))
+	require.False(t, msiNoCode.acceptsProgram("Azul Zulu JRE FX 25.38.109", code), "a word after the name that isn't a version names another product")
+	require.False(t, msiNoCode.acceptsProgram("Azul Zulu JRE 25-preview", code))
+	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE FX 25.38.109", ""), "the version word only narrows the upgrade-code fallback")
 
 	msiWithCode := prefixFor("Azul Zulu JRE", code, true, false)
 	require.True(t, msiWithCode.acceptsProgram(jre25, ""))
