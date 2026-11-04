@@ -36,6 +36,7 @@ import GitOpsMode from "./GitOpsMode";
 import Info from "./Info";
 import InfoOutline from "./InfoOutline";
 import Install from "./Install";
+import InstallAuto from "./InstallAuto";
 import InstallSelfService from "./InstallSelfService";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
@@ -55,9 +56,12 @@ import PremiumFeature from "./PremiumFeature";
 import Profile from "./Profile";
 import Query from "./Query";
 import Refresh from "./Refresh";
+import Retry from "./Retry";
 import Run from "./Run";
 import Search from "./Search";
+import SelfService from "./SelfService";
 import Settings from "./Settings";
+import Sort from "./Sort";
 import Sparkles from "./Sparkles";
 // Status Icons
 import Success from "./Success";
@@ -68,6 +72,7 @@ import TotalHosts from "./TotalHosts";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Ubuntu from "./Ubuntu";
+import Update from "./Update";
 import Upload from "./Upload";
 import User from "./User";
 import Warning from "./Warning";
@@ -96,6 +101,7 @@ export const ICON_MAP = {
   filter: Filter,
   "filter-alt": FilterAlt,
   "filter-funnel": FilterFunnel,
+  sort: Sort,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   "total-hosts": TotalHosts,
@@ -145,11 +151,15 @@ export const ICON_MAP = {
   download: Download,
   upload: Upload,
   refresh: Refresh,
+  retry: Retry,
+  update: Update,
   run: Run,
   install: Install,
   "install-self-service": InstallSelfService,
+  "install-auto": InstallAuto,
   settings: Settings,
   "automatic-self-service": AutomaticSelfService,
+  "self-service": SelfService,
   user: User,
   "gitops-mode": GitOpsMode,
   pin: Pin,

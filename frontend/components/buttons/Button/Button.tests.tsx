@@ -140,7 +140,7 @@ describe("Button component", () => {
       screen
         .getByTestId("plus-icon")
         .querySelector("path")
-        ?.getAttribute("stroke")
+        ?.getAttribute("fill")
     ).toContain("core-fleet-white");
   });
   it("auto-colors the icon white on the alert variant", () => {
@@ -153,7 +153,7 @@ describe("Button component", () => {
       screen
         .getByTestId("plus-icon")
         .querySelector("path")
-        ?.getAttribute("stroke")
+        ?.getAttribute("fill")
     ).toContain("core-fleet-white");
   });
   it("does not render the icon on the oversized variant (icons not enabled)", () => {
@@ -174,7 +174,7 @@ describe("Button component", () => {
       screen
         .getByTestId("plus-icon")
         .querySelector("path")
-        ?.getAttribute("stroke")
+        ?.getAttribute("fill")
     ).toContain("ui-fleet-black-75");
   });
   it("treats a false child as no label and applies icon-only styling", () => {
