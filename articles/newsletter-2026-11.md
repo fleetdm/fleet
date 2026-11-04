@@ -64,7 +64,9 @@ Fleet is open source, and people outside Fleet helped build it in October.
 
 Thanks also to everyone who made their first contribution to Fleet in October: [@416rehman](https://github.com/416rehman), [Aliaska Varieva](https://github.com/aliaska-varieva), [@AmanSarsenov-01](https://github.com/AmanSarsenov-01), [Ben Owens](https://github.com/browens1116), [Billy Bryant](https://github.com/billyjbryant), [Catherine Lu](https://github.com/cathyhulu), [Chris Durham](https://github.com/chrsdrhm), [Chris Kennard](https://github.com/chriskennard-kobold), [Dan Keller](https://github.com/K3ll3r), [Eloi Torrents](https://github.com/Eloitor), [Eric Beahan](https://github.com/ebeahan), [IOCRYPOSTO](https://github.com/Aaditya1273), [Jake P](https://github.com/Taraan03), [Jarryd Stanbrook](https://github.com/jarrydstan), [Jason Kurtz](https://github.com/JasonMKurtz), [@jdscreations](https://github.com/jdscreations), [Liu XingJian](https://github.com/tianxingjian2406), [Manik Singh](https://github.com/Manik-733), [Matt Anderson](https://github.com/Synse), [@mjsenatore](https://github.com/mjsenatore), [Om Lahore](https://github.com/omlahore), [Ovo](https://github.com/OvOhao), [@patrickrgr](https://github.com/patrickrgr), [Prajwal Janbandhu](https://github.com/Prajwal2246), [Pratik Singh](https://github.com/kitarp29), [Rayen Mabrouk](https://github.com/RayenMabrouk2), [Robbie Trencheny](https://github.com/robbiet480), [@shubhamkapoor01](https://github.com/shubhamkapoor01), [timball](https://github.com/timball), [Tobias Almén](https://github.com/almenscorner), and [Yanis](https://github.com/ynaamane).
 
-[Contribute today](https://fleetdm.com/docs/contributing).
+Thank you all!
+
+That's a wrap for November. [See you at the summit](https://www.linkedin.com/events/7518683538410459136/)!
 
 <meta name="articleTitle" value="Fleet news: November 2026">
 <meta name="authorFullName" value="Aube Paul">
