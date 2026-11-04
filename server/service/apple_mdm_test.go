@@ -3754,6 +3754,10 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 				Context:       ctx,
 				EnrollID:      &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
 				Authorization: "Bearer challenge",
+				Certificate: newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
+					Purpose:        fleet.AppleMDMCertPurposeADUE,
+					IDPAccountUUID: new("idp-uuid"),
+				}),
 			},
 			&mdm.TokenUpdate{
 				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
@@ -3768,6 +3772,94 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			HostUUID: enrollID,
 			IdPEmail: "bearer.user@example.com",
 		}}, activities)
+	})
+
+	t.Run("UserEnrollmentDevice skips IDP account the enrollment certificate is not bound to", func(t *testing.T) {
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+		ds.GetMDMIdPAccountByUUIDFunc = func(_ context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: uuid, Email: "other.user@example.com"}, nil
+		}
+		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) (string, error) { return "", nil }
+
+		cases := []struct {
+			name string
+			cert *x509.Certificate
+		}{
+			{"no certificate", nil},
+			{"certificate without binding extension", newBindingCert(t, nil)},
+			{"certificate binding without IdP account", newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
+				Purpose:      fleet.AppleMDMCertPurposeSCEPRenewal,
+				EnrollmentID: new(enrollID),
+			})},
+			{"invalid binding extension", newRawBindingCert(t, []byte("not-asn1"))},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				activities = nil
+				ds.AssociateHostMDMIdPAccountFuncInvoked = false
+				ds.SetHostManagedAppleIDFuncInvoked = false
+				gotMAID := "unset"
+				ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
+					gotMAID = managedAppleID
+					return nil
+				}
+
+				err := svc.TokenUpdate(
+					&mdm.Request{
+						Context:       ctx,
+						EnrollID:      &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
+						Authorization: "Bearer challenge",
+						Certificate:   c.cert,
+					},
+					&mdm.TokenUpdate{UDID: enrollID, EnrollmentID: enrollID},
+				)
+				require.NoError(t, err)
+				require.False(t, ds.AssociateHostMDMIdPAccountFuncInvoked)
+				require.Empty(t, activities)
+				require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
+				require.Empty(t, gotMAID)
+			})
+		}
+	})
+
+	t.Run("UserEnrollmentDevice links the IDP account its certificate is bound to, not the bearer's", func(t *testing.T) {
+		activities = nil
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+		ds.GetADUEEnrollmentChallengeFuncInvoked = false
+		ds.GetMDMIdPAccountByUUIDFunc = func(_ context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+		}
+		var gotAcct string
+		ds.AssociateHostMDMIdPAccountFunc = func(_ context.Context, _ string, acctUUID string) (string, error) {
+			gotAcct = acctUUID
+			return "", nil
+		}
+		var gotMAID string
+		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
+			gotMAID = managedAppleID
+			return nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{
+				Context:       ctx,
+				EnrollID:      &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
+				Authorization: "Bearer challenge-for-idp-uuid",
+				Certificate: newBindingCert(t, &apple_mdm.AppleMDMCertificateBindingExtension{
+					Purpose:        fleet.AppleMDMCertPurposeADUE,
+					IDPAccountUUID: new("other-idp-uuid"),
+				}),
+			},
+			&mdm.TokenUpdate{UDID: enrollID, EnrollmentID: enrollID},
+		)
+		require.NoError(t, err)
+		require.Equal(t, "other-idp-uuid", gotAcct)
+		require.Equal(t, "other-idp-uuid@example.com", gotMAID)
+		require.False(t, ds.GetADUEEnrollmentChallengeFuncInvoked)
 	})
 
 	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {

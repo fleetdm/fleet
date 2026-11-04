@@ -3687,7 +3687,7 @@
       "name": "GIMP",
       "slug": "gimp/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gimp.gimp-3.0",
+      "unique_identifier": "org.gimp.gimp",
       "description": "GIMP is a free and open-source image editor."
     },
     {
