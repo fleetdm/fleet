@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -109,7 +111,8 @@ func TestLabels(t *testing.T) {
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
-		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
+		{"ApplyLabelSpecsNamesAcrossFleets", testApplyLabelSpecsNamesAcrossFleets},
+		{"LabelNamesSharedAcrossFleets", testLabelNamesSharedAcrossFleets},
 		{"ApplyLabelSpecsCannotModifyBuiltInLabel", testApplyLabelSpecsCannotModifyBuiltInLabel},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
@@ -3666,6 +3669,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		labelNames  []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
 		user        *fleet.User
 		expectError bool
+		keep        []string // names expected to stay as they are, since only the other side of the global/fleet boundary is set aside
 	}
 
 	cases := []testCase{
@@ -3725,6 +3729,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			notOnTeamID: &team2.ID,
 			user:        multiTeamAdmin,
 			expectError: false,
+			keep:        []string{"team1-setaside-admin"},
 		},
 		{
 			name:        "team maintainer can set aside their own team's labels if they can also edit the not-on team",
@@ -3732,6 +3737,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			notOnTeamID: &team2.ID,
 			user:        multiTeamMaintainer,
 			expectError: false,
+			keep:        []string{"team1-setaside-maintain"},
 		},
 		{
 			name:        "team technician can set aside their own team's labels if they can also edit the not-on team",
@@ -3739,6 +3745,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			notOnTeamID: &team2.ID,
 			user:        multiTeamTechnician,
 			expectError: false,
+			keep:        []string{"team1-setaside-technician"},
 		},
 		{
 			name:        "team gitops can set aside their own team's labels if they can also edit the not-on team",
@@ -3749,6 +3756,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleGitOps},
 			}}),
 			expectError: false,
+			keep:        []string{"team1-setaside-gitops"},
 		},
 		{
 			name:        "team observer cannot set aside team labels",
@@ -3762,21 +3770,24 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			labels:      []labelSpec{{name: "team1-setaside-5", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team1.ID,
 			user:        team1Admin,
-			expectError: true,
+			expectError: false,
+			keep:        []string{"team1-setaside-5"},
 		},
 		{
 			name:        "team admin cannot set aside labels when applying to the same team, even if that user authored",
 			labels:      []labelSpec{{name: "team1-setaside-6", teamID: &team1.ID, authorID: &team1Admin.ID}},
 			notOnTeamID: &team1.ID,
 			user:        team1Admin,
-			expectError: true,
+			expectError: false,
+			keep:        []string{"team1-setaside-6"},
 		},
 		{
 			name:        "cannot set aside global labels when applying to global",
 			labels:      []labelSpec{{name: "global-setaside-5", teamID: nil, authorID: nil}},
 			notOnTeamID: nil,
 			user:        globalAdmin,
-			expectError: true,
+			expectError: false,
+			keep:        []string{"global-setaside-5"},
 		},
 		{
 			name:        "team user with write role can set aside their authored global labels",
@@ -3808,6 +3819,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
 			}}),
 			expectError: false,
+			keep:        []string{"team2-setaside-1"},
 		},
 		{
 			name:        "multi-team user cannot set aside labels from teams they don't have write access to",
@@ -3817,15 +3829,18 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
 				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserver},
 			}}),
-			expectError: true,
+			expectError: false,
+			keep:        []string{"team2-setaside-2"},
 		},
 		{
-			name:        "non-existent label should fail",
+			// e.g. another fleet in the same GitOps run already set aside the global label
+			name:        "non-existent label is a no-op",
 			labels:      nil,
 			notOnTeamID: &team1.ID,
 			labelNames:  []string{"nonexistent-label"},
 			user:        globalAdmin,
-			expectError: true,
+			expectError: false,
+			keep:        []string{"nonexistent-label"},
 		},
 		{
 			name: "multiple labels can be set aside at once",
@@ -3836,6 +3851,18 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			notOnTeamID: &team1.ID,
 			user:        multiTeamMaintainer,
 			expectError: false,
+			keep:        []string{"multi-setaside-2"},
+		},
+		{
+			name: "applying to global sets aside the name on every fleet",
+			labels: []labelSpec{
+				{name: "shared-setaside", teamID: &team1.ID, authorID: nil},
+				{name: "shared-setaside", teamID: &team2.ID, authorID: nil},
+			},
+			notOnTeamID: nil,
+			labelNames:  []string{"shared-setaside"},
+			user:        globalAdmin,
+			expectError: false,
 		},
 	}
 
@@ -3844,14 +3871,16 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			// Create labels for this test case
 			var expectedLabelNames []string
 			for _, spec := range tc.labels {
-				// Build expected renamed name based on label's team ID
-				var expectedSuffix string
-				if spec.teamID == nil {
-					expectedSuffix = "__team_0"
-				} else {
-					expectedSuffix = fmt.Sprintf("__team_%d", *spec.teamID)
+				if !slices.Contains(tc.keep, spec.name) {
+					// Build expected renamed name based on label's team ID
+					var expectedSuffix string
+					if spec.teamID == nil {
+						expectedSuffix = "__team_0"
+					} else {
+						expectedSuffix = fmt.Sprintf("__team_%d", *spec.teamID)
+					}
+					expectedLabelNames = append(expectedLabelNames, spec.name+expectedSuffix)
 				}
-				expectedLabelNames = append(expectedLabelNames, spec.name+expectedSuffix)
 
 				_, err := ds.NewLabel(ctx, &fleet.Label{
 					Name:                spec.name,
@@ -3879,9 +3908,13 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			}
 			require.NoError(t, err)
 
-			// Original name should not exist
-			oldLabels, _ := ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{User: globalAdmin})
-			require.Empty(t, oldLabels)
+			// Only the kept labels should still have their original name
+			oldLabels, err := ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{User: globalAdmin})
+			require.NoError(t, err)
+			for _, name := range labelNames {
+				_, ok := oldLabels[name]
+				require.Equal(t, slices.Contains(tc.keep, name) && name != "nonexistent-label", ok, name)
+			}
 
 			// All renamed labels should exist
 			renamedLabels, _ := ds.LabelsByName(ctx, expectedLabelNames, fleet.TeamFilter{User: globalAdmin})
@@ -3894,53 +3927,187 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam(t *testing.T, ds *Datastore) {
+func testApplyLabelSpecsNamesAcrossFleets(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Create two teams
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_label_conflict"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_label_conflict"})
 	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
 
-	// Create a label on team1
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
-		{Name: "conflicting-label", Query: "SELECT 1", TeamID: &team1.ID},
+		{Name: "shared-label", Query: "SELECT 1", TeamID: &team1.ID},
 	})
 	require.NoError(t, err)
 
-	// Try to create a label with the same name on team2 - should error
+	// Another fleet can use the same name, case variants included.
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
-		{Name: "conflicting-label", Query: "SELECT 2", TeamID: &team2.ID},
+		{Name: "SHARED-label", Query: "SELECT 2", TeamID: &team2.ID},
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+	require.NoError(t, err)
 
-	// Try to create a label with the same name globally (no team) - should error
+	// A global label can't, since every fleet sees global labels.
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
-		{Name: "conflicting-label", Query: "SELECT 3"},
+		{Name: "shared-label", Query: "SELECT 3"},
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	require.ErrorContains(t, err, fleet.LabelNameInUseByFleetsErrMsg)
 
-	// Create a global label
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{Name: "global-label", Query: "SELECT 4"},
 	})
 	require.NoError(t, err)
 
-	// Try to create a label with the same name on a team - should error
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
-		{Name: "global-label", Query: "SELECT 5", TeamID: &team2.ID},
+		{Name: "Global-Label", Query: "SELECT 5", TeamID: &team2.ID},
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+	require.ErrorAs(t, err, &conflictErr)
+	require.ErrorContains(t, err, fleet.LabelNameInUseGloballyErrMsg)
 
-	// Updating the original label on the same team should still work
+	// Updating a fleet's label only touches that fleet's label.
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
-		{Name: "conflicting-label", Query: "SELECT 1 updated", TeamID: &team1.ID},
+		{Name: "shared-label", Query: "SELECT 1 updated", Platform: "darwin", TeamID: &team1.ID},
 	})
 	require.NoError(t, err)
+
+	team1Label, err := ds.LabelByName(ctx, "shared-label", fleet.TeamFilter{User: test.UserAdmin, TeamID: &team1.ID})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 updated", team1Label.Query)
+	require.Equal(t, "darwin", team1Label.Platform)
+	team2Label, err := ds.LabelByName(ctx, "shared-label", fleet.TeamFilter{User: test.UserAdmin, TeamID: &team2.ID})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 2", team2Label.Query)
+	require.Empty(t, team2Label.Platform)
+	require.NotEqual(t, team1Label.ID, team2Label.ID)
+
+	ids, err := ds.AllLabelIDsByName(ctx, []string{"shared-label"}, adminFilter)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{team1Label.ID, team2Label.ID}, slices.Concat(slices.Collect(maps.Values(ids))...))
+}
+
+func testLabelNamesSharedAcrossFleets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_shared_names"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_shared_names"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
+	scoped := func(teamID uint) fleet.TeamFilter {
+		return fleet.TeamFilter{User: test.UserAdmin, TeamID: &teamID}
+	}
+	newLabel := func(name string, teamID *uint) (*fleet.Label, error) {
+		return ds.NewLabel(ctx, &fleet.Label{Name: name, Query: "SELECT 1", TeamID: teamID, LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+	}
+	requireConflict := func(t *testing.T, err error, msg string) {
+		t.Helper()
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		require.ErrorContains(t, err, msg)
+	}
+
+	eng1, err := newLabel("Engineering", &team1.ID)
+	require.NoError(t, err)
+	eng2, err := newLabel("Engineering", &team2.ID)
+	require.NoError(t, err)
+	ops, err := newLabel("Ops", nil)
+	require.NoError(t, err)
+	other1, err := newLabel("Other", &team1.ID)
+	require.NoError(t, err)
+
+	t.Run("create", func(t *testing.T) {
+		_, err := newLabel("engineering", nil)
+		requireConflict(t, err, fleet.LabelNameInUseByFleetsErrMsg)
+		_, err = newLabel("OPS", &team1.ID)
+		requireConflict(t, err, fleet.LabelNameInUseGloballyErrMsg)
+		_, err = newLabel("ENGINEERING", &team1.ID)
+		require.True(t, IsDuplicate(err), err)
+		_, err = newLabel("ops", nil)
+		require.True(t, IsDuplicate(err), err)
+	})
+
+	t.Run("rename", func(t *testing.T) {
+		_, _, err := ds.SaveLabel(ctx, &fleet.Label{ID: other1.ID, Name: "Ops"}, nil, adminFilter)
+		requireConflict(t, err, fleet.LabelNameInUseGloballyErrMsg)
+		_, _, err = ds.SaveLabel(ctx, &fleet.Label{ID: ops.ID, Name: "Engineering"}, nil, adminFilter)
+		requireConflict(t, err, fleet.LabelNameInUseByFleetsErrMsg)
+		_, _, err = ds.SaveLabel(ctx, &fleet.Label{ID: other1.ID, Name: "Engineering"}, nil, adminFilter)
+		require.True(t, IsDuplicate(err), err)
+
+		// Unchanged names and renames within the rules still work, including a fleet label passed without its fleet.
+		_, _, err = ds.SaveLabel(ctx, &fleet.Label{ID: eng1.ID, Name: "Engineering", Description: "team1"}, nil, adminFilter)
+		require.NoError(t, err)
+		_, _, err = ds.SaveLabel(ctx, &fleet.Label{ID: ops.ID, Name: "Ops", Description: "global"}, nil, adminFilter)
+		require.NoError(t, err)
+	})
+
+	t.Run("lookups by name", func(t *testing.T) {
+		ids, err := ds.LabelIDsByName(ctx, []string{"Engineering", "Ops"}, scoped(team1.ID))
+		require.NoError(t, err)
+		require.Equal(t, map[string]uint{"Engineering": eng1.ID, "Ops": ops.ID}, ids)
+		ids, err = ds.LabelIDsByName(ctx, []string{"Engineering", "Ops"}, scoped(team2.ID))
+		require.NoError(t, err)
+		require.Equal(t, map[string]uint{"Engineering": eng2.ID, "Ops": ops.ID}, ids)
+
+		_, err = ds.LabelIDsByName(ctx, []string{"Engineering", "Ops"}, adminFilter)
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+		all, err := ds.AllLabelIDsByName(ctx, []string{"Engineering", "Ops"}, adminFilter)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{eng1.ID, eng2.ID}, all["Engineering"])
+		require.Equal(t, []uint{ops.ID}, all["Ops"])
+
+		_, err = ds.GetLabelSpec(ctx, adminFilter, "Engineering")
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+		spec, err := ds.GetLabelSpec(ctx, scoped(team2.ID), "Engineering")
+		require.NoError(t, err)
+		require.Equal(t, eng2.ID, spec.ID)
+	})
+
+	t.Run("policies and reports resolve names in their fleet", func(t *testing.T) {
+		policy, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+			Name: "shared-names-policy", Query: "SELECT 1", LabelsIncludeAny: []string{"Engineering", "Ops"},
+		})
+		require.NoError(t, err)
+		policy, err = ds.Policy(ctx, policy.ID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{eng2.ID, ops.ID}, []uint{policy.LabelsIncludeAny[0].LabelID, policy.LabelsIncludeAny[1].LabelID})
+
+		// A global policy still resolves among all labels, so a shared name is rejected rather than matching every fleet.
+		_, err = ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+			Name: "shared-names-global-policy", Query: "SELECT 1", LabelsIncludeAny: []string{"Engineering"},
+		})
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+
+		query, err := ds.NewQuery(ctx, &fleet.Query{
+			Name: "shared-names-report", Query: "SELECT 1", TeamID: &team1.ID, Logging: fleet.LoggingSnapshot,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "Engineering"}},
+		})
+		require.NoError(t, err)
+		query, err = ds.Query(ctx, query.ID)
+		require.NoError(t, err)
+		require.Len(t, query.LabelsIncludeAny, 1)
+		require.Equal(t, eng1.ID, query.LabelsIncludeAny[0].LabelID)
+
+		_, err = ds.NewQuery(ctx, &fleet.Query{
+			Name: "shared-names-global-report", Query: "SELECT 1", Logging: fleet.LoggingSnapshot,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "Engineering"}},
+		})
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		err := ds.DeleteLabel(ctx, "Engineering", adminFilter)
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+
+		require.NoError(t, ds.DeleteLabel(ctx, "Engineering", scoped(team2.ID)))
+		_, err = ds.LabelByName(ctx, "Engineering", scoped(team2.ID))
+		require.True(t, fleet.IsNotFound(err), err)
+		label, err := ds.LabelByName(ctx, "Engineering", scoped(team1.ID))
+		require.NoError(t, err)
+		require.Equal(t, eng1.ID, label.ID)
+	})
 }
 
 func testApplyLabelSpecsCannotModifyBuiltInLabel(t *testing.T, ds *Datastore) {

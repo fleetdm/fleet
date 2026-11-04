@@ -516,35 +516,46 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	}
 
 	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
+	stm, args, err := sqlx.In(`SELECT id, name, team_id FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
 
-	rows, err := tx.QueryxContext(ctx, stm, args...)
-	if err != nil {
+	var lbls []struct {
+		ID     uint   `db:"id"`
+		Name   string `db:"name"`
+		TeamID *uint  `db:"team_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &lbls, stm, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
-	defer rows.Close()
 
-	lblNameToID := make(map[string]uint)
-	for rows.Next() {
-		var id uint
-		var name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return ctxerr.Wrap(ctx, err, "scan existing query")
-		}
-		lblNameToID[name] = id
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching query IDs")
-	}
-	if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-		return ctxerr.Wrap(ctx, err, "closing query IDs")
+	lblsByName := make(map[string][]int, len(lbls))
+	for i, lbl := range lbls {
+		lblsByName[lbl.Name] = append(lblsByName[lbl.Name], i)
 	}
 
-	if len(lblNameToID) < numLabelNames {
+	if len(lblsByName) < numLabelNames {
 		return ctxerr.New(ctx, "not all labels found for query")
+	}
+
+	// Fleets can share label names, so a fleet's report resolves names among global labels and its own fleet's
+	// labels. A global report still resolves among all labels, as long as the name picks out a single one.
+	resolveID := func(name string, teamID *uint) (uint, bool, error) {
+		var matches []uint
+		for _, i := range lblsByName[name] {
+			if teamID == nil || lbls[i].TeamID == nil || *lbls[i].TeamID == *teamID {
+				matches = append(matches, lbls[i].ID)
+			}
+		}
+		switch len(matches) {
+		case 0:
+			return 0, false, nil
+		case 1:
+			return matches[0], true, nil
+		default:
+			return 0, false, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+		}
 	}
 
 	// Each query has at most one non-empty scope (mutex enforced above).
@@ -552,29 +563,36 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	params := make([]string, 0, numLabelNames)
 	insertArgs := make([]any, 0, numLabelNames*3)
 
-	resolve := func(qID uint, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
+	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) ([]fleet.LabelIdent, error) {
 		if len(src) == 0 {
-			return src
+			return src, nil
 		}
 		out := make([]fleet.LabelIdent, 0, len(src))
 		for _, lbl := range src {
-			lblID, ok := lblNameToID[lbl.LabelName]
+			lblID, ok, err := resolveID(lbl.LabelName, q.TeamID)
+			if err != nil {
+				return nil, err
+			}
 			if !ok {
 				continue
 			}
 			params = append(params, "(?, ?, ?)")
-			insertArgs = append(insertArgs, qID, lblID, requireAll)
+			insertArgs = append(insertArgs, q.ID, lblID, requireAll)
 			out = append(out, fleet.LabelIdent{LabelID: lblID, LabelName: lbl.LabelName})
 		}
 		if len(out) == 0 {
-			return src
+			return src, nil
 		}
-		return out
+		return out, nil
 	}
 
 	for _, q := range queries {
-		q.LabelsIncludeAny = resolve(q.ID, q.LabelsIncludeAny, false)
-		q.LabelsIncludeAll = resolve(q.ID, q.LabelsIncludeAll, true)
+		if q.LabelsIncludeAny, err = resolve(q, q.LabelsIncludeAny, false); err != nil {
+			return err
+		}
+		if q.LabelsIncludeAll, err = resolve(q, q.LabelsIncludeAll, true); err != nil {
+			return err
+		}
 	}
 
 	if len(params) == 0 {

@@ -184,7 +184,7 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 
 func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
-	const insertLabelStmt = `
+	insertLabelStmt := `
 		INSERT INTO policy_labels (
 			policy_id,
 			label_id,
@@ -195,6 +195,12 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		FROM labels
 		WHERE name IN (?)
 	`
+	var scopeArgs []any
+	// Fleets can share label names, so a fleet's policy only resolves names among global labels and its own labels.
+	if policy.TeamID != nil {
+		insertLabelStmt += ` AND (team_id IS NULL OR team_id = ?)`
+		scopeArgs = append(scopeArgs, *policy.TeamID)
+	}
 
 	if err := policy.VerifyLabelScopes(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
@@ -215,7 +221,7 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 			names = append(names, label.LabelName)
 		}
 
-		stmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, requireAll, names)
+		stmt, args, err := sqlx.In(insertLabelStmt, append([]any{policy.ID, exclude, requireAll, names}, scopeArgs...)...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
 		}
@@ -230,6 +236,19 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 			return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
 		}
 
+		if rowsAffected > int64(len(names)) {
+			// Only a global policy gets here: it resolves names among all labels, so a name shared by several fleets
+			// matched each of their labels.
+			stmt, args, err := sqlx.In(`SELECT name FROM labels WHERE name IN (?) GROUP BY name HAVING COUNT(*) > 1 LIMIT 1`, names)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "constructing ambiguous policy label query")
+			}
+			var name string
+			if err := sqlx.GetContext(ctx, tx, &name, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "finding ambiguous policy label")
+			}
+			return ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+		}
 		if rowsAffected != int64(len(names)) {
 			return ctxerr.Errorf(ctx, "invalid label")
 		}
@@ -1654,6 +1673,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID:               policyID,
+			TeamID:           &teamID,
 			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
 			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
 			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
@@ -2257,6 +2277,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
+						TeamID:           teamID,
 						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
 						LabelsIncludeAll: fleet.LabelNamesToIdents(spec.LabelsIncludeAll),
 						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),

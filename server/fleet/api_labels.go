@@ -106,7 +106,8 @@ type ListHostsInLabelRequest struct {
 ////////////////////////////////////////////////////////////////////////////////
 
 type DeleteLabelRequest struct {
-	Name string `url:"name"`
+	Name    string `url:"name"`
+	FleetID *uint  `query:"fleet_id,optional"`
 }
 
 type DeleteLabelResponse struct {

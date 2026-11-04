@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
@@ -74,9 +75,7 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
+	ds.LabelByNameFunc = testing_utils.LabelByNameOnLookupFleet
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error { return nil }
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{}, nil

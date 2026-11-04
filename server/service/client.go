@@ -3564,7 +3564,10 @@ func (c *Client) doGitOpsLabels(
 	}
 	namesToMove := make([]string, 0, len(toMove))
 	for _, l := range toMove {
-		namesToMove = append(namesToMove, l.Name)
+		// A global label's name can be taken over from several fleets at once, but the server expects each name once.
+		if !slices.Contains(namesToMove, l.Name) {
+			namesToMove = append(namesToMove, l.Name)
+		}
 		logFn("[-] moving label %q from fleet %q to fleet %q\n", l.Name, l.FromTeamName, l.ToTeamName)
 	}
 	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)

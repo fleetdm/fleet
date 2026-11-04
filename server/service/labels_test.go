@@ -311,7 +311,7 @@ func TestLabelsAuth(t *testing.T) {
 							require.ErrorIs(t, svc.ApplyLabelSpecs(ctx2, []*fleet.LabelSpec{}, tc.label.TeamID, nil), fleet.ErrMissingLicense)
 
 							// We'll let global admins clean up team labels if they downgraded to Free
-							require.NoError(t, svc.DeleteLabel(ctx2, tc.label.Name))
+							require.NoError(t, svc.DeleteLabel(ctx2, tc.label.TeamID, tc.label.Name))
 							require.NoError(t, svc.DeleteLabelByID(ctx2, tc.label.ID))
 						}
 
@@ -330,7 +330,7 @@ func TestLabelsAuth(t *testing.T) {
 					_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
 					checkAuthErr(t, tc.shouldFailRead, err)
 
-					err = svc.DeleteLabel(ctx2, tc.label.Name)
+					err = svc.DeleteLabel(ctx2, tc.label.TeamID, tc.label.Name)
 					checkAuthErr(t, tc.shouldFailWrite, err)
 
 					err = svc.DeleteLabelByID(ctx2, tc.label.ID)
@@ -577,7 +577,7 @@ func TestBuiltInLabelNameCaseVariants(t *testing.T) {
 			require.ErrorContains(t, err, "cannot rename label to 'All Hosts' because it conflicts with the name of a built-in label")
 			require.False(t, ds.SaveLabelFuncInvoked)
 
-			err = svc.DeleteLabel(ctx, variant)
+			err = svc.DeleteLabel(ctx, nil, variant)
 			require.ErrorContains(t, err, "cannot delete built-in label 'All Hosts'")
 			require.False(t, ds.DeleteLabelFuncInvoked)
 		})
@@ -1020,6 +1020,125 @@ func TestBatchValidateLabels(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("name shared by several fleets resolves to the entity's fleet", func(t *testing.T) {
+		const teamID = uint(5)
+		ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+			return map[string][]uint{"shared": {10, 20}}, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			require.NotNil(t, filter.TeamID)
+			require.Equal(t, teamID, *filter.TeamID)
+			return map[string]*fleet.Label{"shared": {ID: 20, Name: "shared", TeamID: new(teamID)}}, nil
+		}
+
+		got, err := svc.BatchValidateLabels(ctx, new(teamID), []string{"shared"})
+		require.NoError(t, err)
+		require.Equal(t, map[string]fleet.LabelIdent{"shared": mockLabelIdent("shared", 20)}, got)
+	})
+
+	t.Run("case variants on other fleets count as the same name", func(t *testing.T) {
+		const teamID = uint(5)
+		ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+			return map[string][]uint{"Engineering": {10}, "engineering": {11}}, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			return map[string]*fleet.Label{"Engineering": {ID: 10, Name: "Engineering", TeamID: new(teamID)}}, nil
+		}
+
+		got, err := svc.BatchValidateLabels(ctx, new(teamID), []string{"Engineering"})
+		require.NoError(t, err)
+		require.Equal(t, map[string]fleet.LabelIdent{"Engineering": mockLabelIdent("Engineering", 10)}, got)
+	})
+}
+
+func TestDeleteLabelWithSharedNames(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	const teamID = uint(3)
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team"}, nil
+	}
+	var deletedWith *fleet.TeamFilter
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		deletedWith = &filter
+		return nil
+	}
+	requireScope := func(t *testing.T, filter *fleet.TeamFilter, want uint) {
+		t.Helper()
+		require.NotNil(t, filter)
+		require.NotNil(t, filter.TeamID)
+		require.Equal(t, want, *filter.TeamID)
+	}
+
+	t.Run("by name without a fleet only looks at global labels", func(t *testing.T) {
+		deletedWith = nil
+		var lookedUpWith fleet.TeamFilter
+		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+			lookedUpWith = filter
+			return &fleet.Label{ID: 1, Name: name}, nil
+		}
+		require.NoError(t, svc.DeleteLabel(ctx, nil, "global"))
+		requireScope(t, &lookedUpWith, 0)
+		requireScope(t, deletedWith, 0)
+	})
+
+	t.Run("by name on a fleet", func(t *testing.T) {
+		deletedWith = nil
+		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+			requireScope(t, &filter, teamID)
+			return &fleet.Label{ID: 2, Name: name, TeamID: new(teamID)}, nil
+		}
+		require.NoError(t, svc.DeleteLabel(ctx, new(teamID), "shared"))
+		requireScope(t, deletedWith, teamID)
+	})
+
+	t.Run("by name on a fleet doesn't match a global label", func(t *testing.T) {
+		deletedWith = nil
+		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+			// The fleet's filter also includes global labels.
+			return &fleet.Label{ID: 1, Name: name}, nil
+		}
+		err := svc.DeleteLabel(ctx, new(teamID), "global")
+		require.True(t, fleet.IsNotFound(err), err)
+		require.Nil(t, deletedWith)
+	})
+
+	t.Run("by ID deletes within the label's own fleet", func(t *testing.T) {
+		deletedWith = nil
+		ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			return &fleet.LabelWithTeamName{ID: lid, Name: "shared", TeamID: new(teamID)}, nil, nil
+		}
+		require.NoError(t, svc.DeleteLabelByID(ctx, 2))
+		requireScope(t, deletedWith, teamID)
+	})
+}
+
+func TestTranslateSharedLabelName(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+		switch names[0] {
+		case "shared":
+			return map[string][]uint{"shared": {1, 2}}, nil
+		case "unique":
+			return map[string][]uint{"unique": {3}}, nil
+		}
+		return map[string][]uint{}, nil
+	}
+
+	_, err := translateLabelToID(ctx, ds, "shared")
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	id, err := translateLabelToID(ctx, ds, "unique")
+	require.NoError(t, err)
+	require.Equal(t, uint(3), id)
+	id, err = translateLabelToID(ctx, ds, "missing")
+	require.NoError(t, err)
+	require.Zero(t, id)
 }
 
 func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
@@ -1578,7 +1697,7 @@ func TestLabelActivities(t *testing.T) {
 		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 			return nil
 		}
-		err := svc.DeleteLabel(ctx, "to-remove")
+		err := svc.DeleteLabel(ctx, nil, "to-remove")
 		require.NoError(t, err)
 		require.Len(t, activities, 1)
 		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
@@ -1596,7 +1715,7 @@ func TestLabelActivities(t *testing.T) {
 		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 			return nil
 		}
-		err := svc.DeleteLabel(ctx, "team-label")
+		err := svc.DeleteLabel(ctx, new(teamID), "team-label")
 		require.NoError(t, err)
 		require.Len(t, activities, 1)
 		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
@@ -1624,7 +1743,7 @@ func TestLabelActivities(t *testing.T) {
 		}
 		t.Cleanup(func() { ds.TeamLiteFunc = prevTeamLite })
 
-		err := svc.DeleteLabel(ctx, "team-label-fail")
+		err := svc.DeleteLabel(ctx, new(teamID), "team-label-fail")
 		require.Error(t, err)
 		require.False(t, deleteCalled, "label must not be deleted when team lookup fails")
 		require.Empty(t, activities, "no activity should be emitted when delete is skipped")

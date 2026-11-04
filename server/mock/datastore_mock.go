@@ -228,6 +228,8 @@ type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query s
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error)
 
+type AllLabelIDsByNameFunc func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error)
+
 type LabelsByNameFunc func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error)
 
 type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
@@ -2980,6 +2982,9 @@ type DataStore struct {
 
 	LabelIDsByNameFunc        LabelIDsByNameFunc
 	LabelIDsByNameFuncInvoked bool
+
+	AllLabelIDsByNameFunc        AllLabelIDsByNameFunc
+	AllLabelIDsByNameFuncInvoked bool
 
 	LabelsByNameFunc        LabelsByNameFunc
 	LabelsByNameFuncInvoked bool
@@ -7365,6 +7370,13 @@ func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string, filter 
 	s.LabelIDsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.LabelIDsByNameFunc(ctx, labels, filter)
+}
+
+func (s *DataStore) AllLabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+	s.mu.Lock()
+	s.AllLabelIDsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.AllLabelIDsByNameFunc(ctx, names, filter)
 }
 
 func (s *DataStore) LabelsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {

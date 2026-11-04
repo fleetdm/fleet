@@ -77,7 +77,7 @@ func deleteCommand() *cli.Command {
 
 			for _, label := range specs.Labels {
 				fmt.Printf("[+] deleting label %q\n", label.Name)
-				if err := fleet.DeleteLabel(label.Name); err != nil {
+				if err := fleet.DeleteLabel(label.Name, label.TeamID); err != nil {
 					root := ctxerr.Cause(err)
 					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
 					case service.NotFoundErr:

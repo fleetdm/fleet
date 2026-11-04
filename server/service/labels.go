@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -554,14 +555,14 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 
 func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.DeleteLabelRequest)
-	err := svc.DeleteLabel(ctx, req.Name)
+	err := svc.DeleteLabel(ctx, req.FleetID, req.Name)
 	if err != nil {
 		return fleet.DeleteLabelResponse{Err: err}, nil
 	}
 	return fleet.DeleteLabelResponse{}, nil
 }
 
-func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
+func (svc *Service) DeleteLabel(ctx context.Context, teamID *uint, name string) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		svc.SkipAuth(ctx)
@@ -574,11 +575,20 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
-	filter := fleet.TeamFilter{User: vc.User}
+	// No license check on teamID: fleet labels left over from a downgrade to Free can still be cleaned up.
+	if teamID != nil && *teamID == 0 {
+		teamID = nil
+	}
+
+	filter := labelScopeFilter(vc.User, teamID)
 
 	// need to grab the label first to see if we have permission to delete it;
 	// if the label doesn't exist global users will see the true 404, other users will get a 403
 	label, err := svc.ds.LabelByName(ctx, name, filter)
+	if err == nil && !labelMatchesTeamScope(label, teamID) {
+		// The filter also returns global labels when a fleet is given.
+		err = ctxerr.Wrap(ctx, common_mysql.NotFound("Label").WithName(name))
+	}
 	if err != nil {
 		if authError := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authError != nil {
 			return authError
@@ -651,7 +661,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
-	if err := svc.ds.DeleteLabel(ctx, label.Name, filter); err != nil {
+	if err := svc.ds.DeleteLabel(ctx, label.Name, labelScopeFilter(vc.User, label.TeamID)); err != nil {
 		return err
 	}
 
@@ -912,6 +922,15 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return nil
 }
 
+// Fleets can share label names, so a lookup by name only covers the labels one fleet sees (or global labels only,
+// for a nil teamID).
+func labelScopeFilter(user *fleet.User, teamID *uint) fleet.TeamFilter {
+	if teamID == nil {
+		teamID = new(uint(0))
+	}
+	return fleet.TeamFilter{User: user, IncludeObserver: true, TeamID: teamID}
+}
+
 func labelMatchesTeamScope(l *fleet.Label, teamID *uint) bool {
 	if teamID == nil {
 		return l.TeamID == nil
@@ -1056,24 +1075,25 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	labels, err := svc.ds.LabelIDsByName(ctx, uniqueNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, authz.UserFromContext(ctx))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+		return nil, err
 	}
 
-	if len(labels) != len(uniqueNames) {
-		return nil, fleet.NewMissingLabelError(uniqueNames, labels)
+	if len(found) != len(uniqueNames) {
+		return nil, fleet.NewMissingLabelError(uniqueNames, found)
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+	scoped, err := labelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
-	byName := make(map[string]fleet.LabelIdent, len(labels))
-	for labelName, labelID := range labels {
+	byName := make(map[string]fleet.LabelIdent, len(scoped))
+	for labelName, label := range scoped {
 		byName[labelName] = fleet.LabelIdent{
 			LabelName: labelName,
-			LabelID:   labelID,
+			LabelID:   label.ID,
 		}
 	}
 	return byName, nil

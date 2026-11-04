@@ -322,8 +322,11 @@ type Datastore interface {
 
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
-	// LabelIDsByName retrieves the IDs associated with the given label names
+	// LabelIDsByName retrieves the IDs associated with the given label names. It returns a conflict error when a name
+	// matches labels on several fleets; use AllLabelIDsByName when that's expected.
 	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
+	// AllLabelIDsByName is like LabelIDsByName, but a name used by labels on several fleets maps to all their IDs.
+	AllLabelIDsByName(ctx context.Context, names []string, filter TeamFilter) (map[string][]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
 	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 

@@ -513,10 +513,26 @@ func gitopsCommand() *cli.Command {
 
 				// Delete labels at the end of the run to avoid issues with resource contention.
 				if !flDryRun {
+					movedOut := make(map[string]struct{})
+					for _, teamMoves := range labelMoves {
+						for _, m := range teamMoves {
+							if m.FromTeamName == teamName {
+								movedOut[m.Name] = struct{}{}
+							}
+						}
+					}
 					for _, name := range labelChangesSummary.LabelsToRemove {
 						l := name // rebind for closure
+						_, isMovedOut := movedOut[name]
 						allPostOps = append(allPostOps, func() error {
-							if err := fleetClient.DeleteLabel(l); err != nil {
+							// Read at the end of the run, since a fleet's ID is only known once it's been applied.
+							teamID := config.TeamID
+							target := l
+							if isMovedOut {
+								// The label was renamed when its destination was applied.
+								target = fleet.SetAsideLabelName(l, teamID)
+							}
+							if err := fleetClient.DeleteLabel(target, teamID); err != nil {
 								return err
 							}
 							return nil
@@ -924,45 +940,43 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	return nil
 }
 
-// Computes label moves and validates that there is no funny business around label changes,
-// like trying to add the same label on multiple teams or deleting the same label multiple times.
-// A label is moved when it is deleted from one team and added to another, the moves are stored in
-// a team name -> label names map.
+// Computes label moves and validates the label changes of every file in the run. Fleets can share label names, but a
+// name can't be used by both a global label and a fleet label. A label is moved when its name is deleted on one side
+// of that boundary and added on the other: the old label is set aside when the destination is applied, and deleted at
+// the end of the run. Moves are stored in a destination team name -> moves map.
 func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
-	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
-	addOps := make(map[string]spec.LabelChange)    // label name -> file name
-
-	for _, teamChanges := range allChanges {
-		for _, change := range teamChanges {
-			switch change.Op {
-			case "-":
-				if prevCh, ok := deleteOps[change.Name]; ok {
-					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
-				}
-				deleteOps[change.Name] = change
-			case "+":
-				if prevCh, ok := addOps[change.Name]; ok {
-					errMsg := "can't add label %q to %q, as it is already being added in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
-				}
-				addOps[change.Name] = change
-			}
-		}
+	globalChanges := make(map[string]spec.LabelChange)
+	for _, change := range allChanges[spec.LabelAPIGlobalTeamName] {
+		globalChanges[change.Name] = change
 	}
 
-	// A label is moved if it is added ('+') to a team AND deleted ('-') from any other team
 	moves := make(map[string][]spec.LabelMovement)
 	for teamName, teamChanges := range allChanges {
-		for _, ch := range teamChanges {
-			if ch.Op == "+" {
-				if prevCh, isDeletedElsewhere := deleteOps[ch.Name]; isDeletedElsewhere {
-					moves[teamName] = append(moves[teamName], spec.LabelMovement{
-						Name:         ch.Name,
-						FromTeamName: prevCh.TeamName,
-						ToTeamName:   ch.TeamName,
-					})
-				}
+		if teamName == spec.LabelAPIGlobalTeamName {
+			continue
+		}
+		for _, change := range teamChanges {
+			globalChange, ok := globalChanges[change.Name]
+			if !ok {
+				continue
+			}
+			switch {
+			case globalChange.Op == "+" && change.Op == "-":
+				moves[spec.LabelAPIGlobalTeamName] = append(moves[spec.LabelAPIGlobalTeamName], spec.LabelMovement{
+					Name:         change.Name,
+					FromTeamName: teamName,
+					ToTeamName:   spec.LabelAPIGlobalTeamName,
+				})
+			case globalChange.Op == "-" && change.Op == "+":
+				moves[teamName] = append(moves[teamName], spec.LabelMovement{
+					Name:         change.Name,
+					FromTeamName: spec.LabelAPIGlobalTeamName,
+					ToTeamName:   teamName,
+				})
+			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "="):
+				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, globalChange.FileName, fleet.LabelNameInUseByFleetsErrMsg)
+			case change.Op == "+" && globalChange.Op == "=":
+				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, change.FileName, fleet.LabelNameInUseGloballyErrMsg)
 			}
 		}
 	}
