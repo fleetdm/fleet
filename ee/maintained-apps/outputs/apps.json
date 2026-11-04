@@ -1951,7 +1951,7 @@
       "name": "Bitfocus Companion",
       "slug": "companion/darwin",
       "platform": "darwin",
-      "unique_identifier": "companion.bitfocus.no",
+      "unique_identifier": "test-companion.bitfocus.no",
       "description": "Bitfocus Companion is a streamdeck extension and emulation software."
     },
     {
