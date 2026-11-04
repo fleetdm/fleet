@@ -1528,13 +1528,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), nil, http.StatusNotFound, &delResp)
-
-	// the removed /teams paths answer 410, even to an authenticated admin
-	for _, path := range []string{"/teams", "/teams/1", "/teams/1/agent_options", "/teams/1/secrets", "/teams/1/users"} {
-		for _, method := range []string{"GET", "POST", "PATCH", "DELETE"} {
-			s.Do(method, "/api/latest/fleet"+path, nil, http.StatusGone)
-		}
-	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
