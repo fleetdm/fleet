@@ -14,7 +14,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2117,6 +2119,50 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID2, "user2@example.com", http.StatusOK))
 	assertDeviceID(mac1, testEntraDeviceID2)
 	assertRefetchRequested(mac1, true)
+
+	// A device ID belongs to one host: another host's verified token for it is rejected.
+	postToken(mac2, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID2, "user2@example.com",
+		entraDeviceNonce(testConditionalAccessProxySecret, mac2.UUID), time.Now()), http.StatusConflict)
+	assertDeviceID(mac2, "")
+
+	// A Windows host in another fleet can't claim it either, so its passing policy results don't
+	// update mac1's device in Entra.
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
+	require.NoError(t, err)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamB.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": true},
+	}, http.StatusOK, &tmResp)
+	var pr fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamB.ID), fleet.TeamPolicyRequest{
+		Query:                    "SELECT 1;",
+		Name:                     t.Name() + " compliance check",
+		Platform:                 "windows",
+		ConditionalAccessEnabled: true,
+	}, http.StatusOK, &pr)
+	winB := newHost("winB", "windows")
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamB.ID, []uint{winB.ID})))
+
+	var sentMu sync.Mutex
+	var sentDeviceIDs []string
+	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
+		ctx context.Context, tenantID, secret, deviceID, userPrincipalName string, mdmEnrolled bool,
+		deviceName, osName, osVersion string, compliant bool, lastCheckInTime time.Time,
+	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+		sentMu.Lock()
+		defer sentMu.Unlock()
+		sentDeviceIDs = append(sentDeviceIDs, deviceID)
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{MessageID: "messageID"}, nil
+	}
+
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID2), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, "")
+	assertDeviceID(mac1, testEntraDeviceID2)
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(winB, map[uint]*bool{pr.Policy.ID: new(true)}), http.StatusOK, &distributedResp)
+	require.Never(t, func() bool {
+		sentMu.Lock()
+		defer sentMu.Unlock()
+		return slices.Contains(sentDeviceIDs, testEntraDeviceID2)
+	}, time.Second, 50*time.Millisecond)
 
 	// Disabling the feature stops the request and the ingestion.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{

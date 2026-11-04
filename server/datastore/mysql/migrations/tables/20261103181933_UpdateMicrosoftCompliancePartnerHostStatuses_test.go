@@ -30,5 +30,7 @@ func TestUp_20261103181933(t *testing.T) {
 
 	var hostIDs []int64
 	require.NoError(t, db.Select(&hostIDs, `SELECT host_id FROM microsoft_compliance_partner_host_statuses ORDER BY host_id`))
+	// Both remaining rows share a device ID, so the new index must not be unique.
 	require.Equal(t, []int64{winID, deletedHostID}, hostIDs)
+	require.True(t, indexExists(db, "microsoft_compliance_partner_host_statuses", "idx_microsoft_compliance_partner_host_statuses_device_id"))
 }

@@ -136,19 +136,38 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 		return false, ctxerr.Wrap(ctx, err, "failed to get microsoft_compliance_partner_host_statuses")
 	}
 
-	// Create or override existing row for the host.
-	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO microsoft_compliance_partner_host_statuses
-		(host_id, device_id, user_principal_name)
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE
-		device_id = VALUES(device_id),
-		user_principal_name = VALUES(user_principal_name),
-		managed = NULL,
-		compliant = NULL`,
-		hostID, deviceID, userPrincipalName,
-	); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "create host conditional access status")
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// A device ID belongs to one host; it moves to another host only after the old host is
+		// deleted. The locking read keeps a concurrent claim from assigning it twice.
+		var otherHostID uint
+		err := sqlx.GetContext(ctx, tx, &otherHostID,
+			`SELECT host_id FROM microsoft_compliance_partner_host_statuses WHERE device_id = ? AND host_id <> ? LIMIT 1 FOR UPDATE`,
+			deviceID, hostID,
+		)
+		switch {
+		case err == nil:
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "check Entra device ID assignment")
+		}
+
+		// Create or override existing row for the host.
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO microsoft_compliance_partner_host_statuses
+			(host_id, device_id, user_principal_name)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			device_id = VALUES(device_id),
+			user_principal_name = VALUES(user_principal_name),
+			managed = NULL,
+			compliant = NULL`,
+			hostID, deviceID, userPrincipalName,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create host conditional access status")
+		}
+		return nil
+	}); err != nil {
+		return false, err
 	}
 	return true, nil
 }

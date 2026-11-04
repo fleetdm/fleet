@@ -17,6 +17,7 @@ func TestConditionalAccess(t *testing.T) {
 	}{
 		{"Setup", testConditionalAccessSetup},
 		{"Hosts", testConditionalAccessHosts},
+		{"DeviceIDOneHost", testConditionalAccessDeviceIDOneHost},
 	}
 
 	for _, c := range cases {
@@ -295,4 +296,36 @@ func TestExtractWindowsBuildVersion(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func testConditionalAccessDeviceIDOneHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
+	host2 := newTestHostWithPlatform(t, ds, "host2", "windows", nil)
+
+	changed, err := ds.CreateHostConditionalAccessStatus(ctx, host1.ID, "entraDeviceID", "user1@example.com")
+	require.NoError(t, err)
+	require.True(t, changed)
+
+	// Another host can't take the device ID.
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, host2.ID, "entraDeviceID", "")
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	_, err = ds.LoadHostConditionalAccessStatus(ctx, host2.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// The host that has it can still change its user.
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, host1.ID, "entraDeviceID", "user2@example.com")
+	require.NoError(t, err)
+	require.True(t, changed)
+
+	// After the host is deleted, the device ID can move to another host.
+	require.NoError(t, ds.DeleteHost(ctx, host1.ID))
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, host2.ID, "entraDeviceID", "")
+	require.NoError(t, err)
+	require.True(t, changed)
+	status, err := ds.LoadHostConditionalAccessStatus(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceID", status.DeviceID)
 }

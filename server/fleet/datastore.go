@@ -4335,7 +4335,7 @@ type Datastore interface {
 	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
 	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
 	// If the host already has a different deviceID/userPrincipalName it will override them.
-	// It returns whether the entry was created or changed.
+	// It returns whether the entry was created or changed, and a ConflictError if another host has deviceID.
 	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) (bool, error)
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
