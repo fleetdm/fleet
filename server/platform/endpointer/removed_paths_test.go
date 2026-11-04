@@ -81,3 +81,93 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	assert.Equal(t, "/api/_version_/fleet/gone/{id}", entry["removed_path"])
 	assert.NotContains(t, logs.String(), "secret")
 }
+
+func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
+	t.Parallel()
+
+	r := mux.NewRouter()
+	var logs bytes.Buffer
+	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
+		Path:    "/api/_version_/fleet/items/{id}/old/{name}",
+		Overlap: RemovedPathOverlap{Method: http.MethodPost, RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}"},
+		Message: func(method string) string { return "gone via " + method },
+	}})
+
+	for _, c := range []struct {
+		name, method, path string
+		wantStatus         int
+		wantBody           string
+	}{
+		{"overlapping method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via POST"},
+		{"other method", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via GET"},
+		{"other value is an unknown path", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound, "404 page not found\n"},
+		{"other value on another method is a mismatch", http.MethodPut, "/api/v1/fleet/items/1/other/abc", http.StatusMethodNotAllowed, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
+			assert.Contains(t, rec.Body.String(), c.wantBody)
+		})
+	}
+	assert.Equal(t, 2, strings.Count(logs.String(), "request to a removed path"), "only the 410s are logged")
+}
+
+func TestLiteralSegmentsMatch(t *testing.T) {
+	t.Parallel()
+
+	const template = "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}"
+	for _, c := range []struct {
+		name        string
+		requestPath string
+		want        bool
+	}{
+		{"removed path", "/api/v1/fleet/hosts/1/configuration_profiles/resend/abc", true},
+		{"under a URL prefix", "/prefix/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", true},
+		{"other literal", "/api/v1/fleet/hosts/1/configuration_profiles/foo/abc", false},
+		{"too few segments", "/resend/abc", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, literalSegmentsMatch(template, c.requestPath))
+		})
+	}
+}
+
+func TestRegisterRemovedPathsWithMethodsAndOverlap(t *testing.T) {
+	t.Parallel()
+
+	r := mux.NewRouter()
+	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.DiscardHandler), []RemovedPath{
+		{
+			// The overlap route takes the only removed method.
+			Path:    "/api/_version_/fleet/items/{id}/old/{name}",
+			Methods: []string{http.MethodPost},
+			Overlap: RemovedPathOverlap{Method: http.MethodPost, RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}"},
+			Message: func(method string) string { return "gone via " + method },
+		},
+		{
+			// The overlap is for a method that wasn't removed, so it isn't registered.
+			Path:    "/api/_version_/fleet/things/{id}/old/{name}",
+			Methods: []string{http.MethodDelete},
+			Overlap: RemovedPathOverlap{Method: http.MethodPost, RouteTemplate: "/api/_version_/fleet/things/{id}/{old_segment}/{name}"},
+			Message: func(method string) string { return "gone via " + method },
+		},
+	})
+
+	for _, c := range []struct {
+		name, method, path string
+		wantStatus         int
+	}{
+		{"overlap method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone},
+		{"overlap method, other literal", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound},
+		{"method that wasn't removed", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusMethodNotAllowed},
+		{"removed method without its overlap", http.MethodDelete, "/api/v1/fleet/things/1/old/abc", http.StatusGone},
+		{"overlap for a method that wasn't removed", http.MethodPost, "/api/v1/fleet/things/1/old/abc", http.StatusMethodNotAllowed},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
+		})
+	}
+}
