@@ -8,7 +8,7 @@
   * Fixed Fleet Desktop never starting on NixOS by resolving `sudo` at `/run/wrappers/bin/sudo`, which is not on the PATH systemd gives services there, and made a failed Fleet Desktop launch visible at the default log level.
   * Fixed the `cryptsetup_status`, `nftables`, `lsblk`, and `dconf_read` tables on NixOS, where the binaries they run are not in `/usr/bin` or `/usr/sbin`.
 
-* When connected to Fleet over the WebSocket transport, fleetd now fetches its orbit config as soon as Fleet notifies it of a change (for example, a script or software install was queued), and polls it at the interval Fleet sets (5 minutes by default) instead of every 30 seconds while it has nothing pending.
+* Improved orbit config fetching when connected over the WebSocket transport: fleetd now fetches its config as soon as Fleet notifies it of a change (for example, a script or software install was queued), and polls at the interval Fleet sets (5 minutes by default) instead of every 30 seconds while it has nothing pending.
 
 * Added support on Windows for an enroll secret delivered by Fleet MDM through the registry. When fleetd has to re-enroll and its stored secret is rejected, it picks up a secret a Fleet admin resent through the profile that carries it, without a restart.
 
