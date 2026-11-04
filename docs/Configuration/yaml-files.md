@@ -982,7 +982,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
   - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
-  - `hidden`, when `true`, only includes not-dismissed vulnerabilities. A user can adjust the status in the UI. (default: `false`).
+  - `hidden`, when `true`, includes both dismissed and not-dismissed vulnerabilities. A user can adjust the status in the UI. (default: `false`).
  
 A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
