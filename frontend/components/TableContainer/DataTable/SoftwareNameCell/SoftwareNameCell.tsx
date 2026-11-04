@@ -36,7 +36,7 @@ interface InstallIconTooltip {
 }
 
 interface InstallIconConfig {
-  iconName: IconNames;
+  iconNames: IconNames[];
   tooltip: (args: InstallIconTooltip) => JSX.Element;
 }
 
@@ -68,7 +68,7 @@ const hasValidAutoUpdate = ({
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
-    iconName: "install",
+    iconNames: ["install"],
     tooltip: ({ pageContext }) => (
       <>
         Software can be installed on the{" "}
@@ -77,12 +77,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
     ),
   },
   selfService: {
-    iconName: "user",
+    iconNames: ["self-service"],
     tooltip: ({ isIosOrIpadosApp = false, isAndroidPlayStoreApp = false }) =>
       getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp),
   },
   automatic: {
-    iconName: "refresh",
+    iconNames: ["install-auto"],
     tooltip: ({
       automaticInstallPoliciesCount = 0,
       autoUpdateEnabled = false,
@@ -117,7 +117,7 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
     },
   },
   automaticSelfService: {
-    iconName: "automatic-self-service",
+    iconNames: ["install-auto", "self-service"],
     tooltip: ({
       automaticInstallPoliciesCount = 0,
       isIosOrIpadosApp = false,
@@ -216,7 +216,7 @@ export const InstallIconWithTooltip = ({
     return null;
   }
 
-  const { iconName, tooltip } = installIconMap[iconType];
+  const { iconNames, tooltip } = installIconMap[iconType];
   const tipContent = tooltip({
     automaticInstallPoliciesCount,
     pageContext,
@@ -240,11 +240,14 @@ export const InstallIconWithTooltip = ({
         tipOffset={12}
         fixedPositionStrategy
       >
-        <Icon
-          name={iconName}
-          className={`${baseClass}__install-icon`}
-          color="ui-fleet-black-50"
-        />
+        {iconNames.map((iconName) => (
+          <Icon
+            key={iconName}
+            name={iconName}
+            className={`${baseClass}__install-icon`}
+            color="ui-fleet-black-50"
+          />
+        ))}
       </TooltipWrapper>
     </div>
   );

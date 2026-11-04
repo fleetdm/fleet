@@ -334,7 +334,7 @@ const LibraryItemAccordion = ({
   // per-row indicator says the same thing the title-level chip would.
   const renderSelfServiceIcon = () =>
     renderRowActionIcon({
-      iconName: "user",
+      iconName: "self-service",
       tooltipContent: getSelfServiceTooltip(
         !!isIosOrIpadosApp,
         !!isAndroidPlayStoreApp
@@ -354,7 +354,7 @@ const LibraryItemAccordion = ({
         ? getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)
         : "Auto updates on.";
     return renderRowActionIcon({
-      iconName: "refresh",
+      iconName: "update",
       tooltipContent,
       ariaLabel: "Edit version",
       onClick: onAutoUpdateClick,
@@ -368,7 +368,7 @@ const LibraryItemAccordion = ({
   // variant here.
   const renderAutoInstallIcon = () =>
     renderRowActionIcon({
-      iconName: "refresh",
+      iconName: "install-auto",
       tooltipContent: <>Policy triggers install.</>,
       ariaLabel: "View auto-install policies",
       onClick: onAutoInstallClick,

@@ -21,18 +21,16 @@ describe("SoftwareNameCell icon rendering", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
-    expect(screen.queryByTestId("user-icon")).toBeNull();
-    expect(screen.queryByTestId("refresh-icon")).toBeNull();
-    expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
+    expect(screen.queryByTestId("self-service-icon")).toBeNull();
+    expect(screen.queryByTestId("install-auto-icon")).toBeNull();
   });
 
   it("does not show icon when no installer (Host Inventory)", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} pageContext="hostDetails" />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
-    expect(screen.queryByTestId("user-icon")).toBeNull();
-    expect(screen.queryByTestId("refresh-icon")).toBeNull();
-    expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
+    expect(screen.queryByTestId("self-service-icon")).toBeNull();
+    expect(screen.queryByTestId("install-auto-icon")).toBeNull();
   });
 
   // Skip testing no installer + hostDetailsLibrary pageContext because that can never happen
@@ -77,17 +75,17 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   // 3 "self service installer" tests
-  it("shows user icon for self-service software (Software Title page)", async () => {
+  it("shows self-service icon for self-service software (Software Title page)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<SoftwareNameCell {...defaultProps} hasInstaller isSelfService />);
-    const icon = screen.getByTestId("user-icon");
+    const icon = screen.getByTestId("self-service-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/End users can install from/i)
     ).toBeInTheDocument();
   });
 
-  it("shows user icon for self-service software (Host Inventory)", async () => {
+  it("shows self-service icon for self-service software (Host Inventory)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -97,14 +95,14 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetails"
       />
     );
-    const icon = screen.getByTestId("user-icon");
+    const icon = screen.getByTestId("self-service-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/End users can install from/i)
     ).toBeInTheDocument();
   });
 
-  it("shows user icon for self-service software (Host Library)", async () => {
+  it("shows self-service icon for self-service software (Host Library)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -114,7 +112,7 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetailsLibrary"
       />
     );
-    const icon = screen.getByTestId("user-icon");
+    const icon = screen.getByTestId("self-service-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/End users can install from/i)
@@ -122,7 +120,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   // 3 "auto installer" tests
-  it("shows refresh icon for auto-install software (Software Title page)", async () => {
+  it("shows install-auto icon for auto-install software (Software Title page)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -131,14 +129,14 @@ describe("SoftwareNameCell icon rendering", () => {
         automaticInstallPoliciesCount={2}
       />
     );
-    const icon = screen.getByTestId("refresh-icon");
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
   });
 
-  it("shows refresh icon for auto-install software (Host Inventory)", async () => {
+  it("shows install-auto icon for auto-install software (Host Inventory)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -148,14 +146,14 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetails"
       />
     );
-    const icon = screen.getByTestId("refresh-icon");
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/3 policies trigger install./i)
     ).toBeInTheDocument();
   });
 
-  it("shows refresh icon for auto-install software (Host Library)", async () => {
+  it("shows install-auto icon for auto-install software (Host Library)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -165,7 +163,7 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetailsLibrary"
       />
     );
-    const icon = screen.getByTestId("refresh-icon");
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/A policy triggers install./i)
@@ -173,7 +171,7 @@ describe("SoftwareNameCell icon rendering", () => {
   });
 
   // 3 "self service + auto installer" tests
-  it("shows automatic-self-service icon for self-service + auto-install (Software Title page)", async () => {
+  it("shows install-auto and self-service icons for self-service + auto-install (Software Title page)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -183,7 +181,8 @@ describe("SoftwareNameCell icon rendering", () => {
         automaticInstallPoliciesCount={2}
       />
     );
-    const icon = screen.getByTestId("automatic-self-service-icon");
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/2 policies trigger install./i)
@@ -193,7 +192,7 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows automatic-self-service icon for self-service + auto-install (Host Inventory)", async () => {
+  it("shows install-auto and self-service icons for self-service + auto-install (Host Inventory)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -204,7 +203,8 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetails"
       />
     );
-    const icon = screen.getByTestId("automatic-self-service-icon");
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/2 policies trigger install./i)
@@ -214,7 +214,7 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows automatic-self-service icon for self-service + auto-install (Host Library)", async () => {
+  it("shows install-auto and self-service icons for self-service + auto-install (Host Library)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -225,7 +225,8 @@ describe("SoftwareNameCell icon rendering", () => {
         pageContext="hostDetailsLibrary"
       />
     );
-    const icon = screen.getByTestId("automatic-self-service-icon");
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/2 policies trigger install./i)
@@ -237,7 +238,7 @@ describe("SoftwareNameCell icon rendering", () => {
 
   // VPP auto-update folds into the automatic icon family: same visual as
   // policy-triggered auto-install, with an added tooltip line for the window.
-  it("shows the refresh icon with a window tooltip when autoUpdateEnabled is true (no policies, no self-service)", async () => {
+  it("shows the install-auto icon with a window tooltip when autoUpdateEnabled is true (no policies, no self-service)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -250,7 +251,7 @@ describe("SoftwareNameCell icon rendering", () => {
         autoUpdateWindowEnd="04:00"
       />
     );
-    const icon = screen.getByTestId("refresh-icon");
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(
@@ -266,7 +267,7 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the composite automatic-self-service icon with a double-barrel tooltip when self-service + auto-update", async () => {
+  it("shows install-auto and self-service icons with a double-barrel tooltip when self-service + auto-update", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -280,7 +281,8 @@ describe("SoftwareNameCell icon rendering", () => {
         autoUpdateWindowEnd="04:00"
       />
     );
-    const icon = screen.getByTestId("automatic-self-service-icon");
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(
@@ -314,7 +316,8 @@ describe("SoftwareNameCell icon rendering", () => {
         autoUpdateWindowEnd="04:00"
       />
     );
-    const icon = screen.getByTestId("automatic-self-service-icon");
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    const icon = screen.getByTestId("install-auto-icon");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/2 policies trigger install\./i)
@@ -346,10 +349,8 @@ describe("SoftwareNameCell icon rendering", () => {
         autoUpdateEnabled={false}
       />
     );
-    // No refresh, no composite — just the user icon.
-    expect(screen.getByTestId("user-icon")).toBeInTheDocument();
-    expect(screen.queryByTestId("refresh-icon")).toBeNull();
-    expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
+    expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("install-auto-icon")).toBeNull();
   });
 
   describe("configuration icon with version-name tooltip", () => {
@@ -407,7 +408,7 @@ describe("SoftwareNameCell icon rendering", () => {
           deliveredVersionName="Beta"
         />
       );
-      expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+      expect(screen.getByTestId("self-service-icon")).toBeInTheDocument();
       expect(screen.getByTestId("settings-icon")).toBeInTheDocument();
     });
 
