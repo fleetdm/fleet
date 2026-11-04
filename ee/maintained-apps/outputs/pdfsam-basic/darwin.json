@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.0.9",
+      "version": "6.0.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pdfsam.modules';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.pdfsam.modules' AND version_compare(bundle_short_version, '6.0.9') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.pdfsam.modules' AND version_compare(bundle_short_version, '6.0.10') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.pdfsam.modules' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/torakiki/pdfsam/releases/download/v6.0.9/pdfsam-basic-6.0.9-macos-arm64.dmg",
+      "installer_url": "https://github.com/torakiki/pdfsam/releases/download/v6.0.10/pdfsam-basic-6.0.10-macos-arm64.dmg",
       "install_script_ref": "d458b772",
       "uninstall_script_ref": "c812d3ca",
-      "sha256": "ad6cefc591ac1573e9cde25388fc7204cfa747c544e2997e22706f7f0f90a377",
+      "sha256": "8fec99e79f4650a6112bd756403ff6d875b46963b99c5bcb7b422c39310405a9",
       "default_categories": [
         "Productivity"
       ]
