@@ -7781,7 +7781,6 @@ This permanently removes the host from your AB, and cannot be added back automat
 - [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
 - [List label's hosts](#list-labels-hosts)
-- [Delete label by name](#delete-label-by-name)
 - [Delete label by ID](#delete-label-by-id)
 
 ### Add label
@@ -8269,28 +8268,6 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
   ]
 }
 ```
-
-### Delete label by name
-
-Deletes the label specified by name.
-
-`DELETE /api/v1/fleet/labels/:name`
-
-#### Parameters
-
-| Name     | Type    | In    | Description                     |
-| -------- | ------- | ----- | ------------------------------- |
-| name     | string  | path  | **Required**. The label's name. |
-| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet the label belongs to. If omitted, deletes the global label with the specified name. |
-
-#### Example
-
-`DELETE /api/v1/fleet/labels/ubuntu_label`
-
-##### Default response
-
-`Status: 200`
-
 
 ### Delete label by ID
 
