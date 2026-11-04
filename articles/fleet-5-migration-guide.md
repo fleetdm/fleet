@@ -180,7 +180,7 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 | `DELETE /api/v1/fleet/reports/:name` | [`DELETE /api/v1/fleet/reports/name/:name`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-name) |
 | `DELETE /api/v1/fleet/reports/id/:id` | [`DELETE /api/v1/fleet/reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). The old path still works but is deprecated. |
 
-`DELETE /api/v1/fleet/reports/:name` no longer deletes by name. For a report whose name is only digits (for example `42`), it now deletes the report with that ID instead. This includes `fleetctl delete` from Fleet 4.
+`DELETE /api/v1/fleet/reports/:name` no longer deletes by name, and returns a `410` error. For a report whose name is only digits (for example `42`), it deletes the report with that ID instead. This includes `fleetctl delete` from Fleet 4.
 
 What to do: Before you upgrade, replace `DELETE /api/v1/fleet/reports/:name` with `DELETE /api/v1/fleet/reports/name/:name` in your scripts, and upgrade `fleetctl`. API-only users keep their delete report permissions. Fleet moves them to the new paths during the upgrade.
 
