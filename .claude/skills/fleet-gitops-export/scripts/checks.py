@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 from fleet_api import API, FleetctlError
-from planner import ANY_OF, TOP_LEVEL
+from planner import ANY_OF, TOP_LEVEL, VARIABLE
 
 F = "/api/latest/fleet"
 PLACEHOLDER = "fleet-gitops-export-dry-run-placeholder"
@@ -65,6 +65,8 @@ KIND_NAMES = {"policies": "policy", "reports": "report", "labels": "label", "scr
 LABEL_KEYS = ("labels_include_any", "labels_exclude_any", "labels_include_all")
 # Settings whose omitted value isn't false.
 OMITTED = {("controls", "enable_profile_validation"): True}
+# Settings keyed by kind, where the repo's other keys are read too: a kind only the repo has is an addition.
+KEYED_SECTIONS = ("org_settings.integrations", "org_settings.certificate_authorities")
 
 
 def _sha(b: bytes) -> str:
@@ -157,7 +159,7 @@ class Checker:
         self.backend = yaml_backend()
         # Files where the export wrote $VARIABLEs in place of values Fleet stored (enroll secrets in profiles).
         self.env_refs = {f["path"]: f["env_refs"] for f in (plan.get("files") or {}).values() if f.get("env_refs")}
-        self.env_names = {e["name"] for e in plan.get("env") or []}
+        self.env_sources = {e["name"]: e["source"] for e in plan.get("env") or []}
         self.env_values: dict | None = None
         self.env_notes: list = []
 
@@ -285,12 +287,20 @@ class Checker:
         return out
 
     def _strip_env(self, v):
-        """A setting without the values the repo holds as variables (tokens, URLs), which Fleet's side leaves out too."""
+        """A setting without the values the repo holds as variables (tokens, URLs), which Fleet's side leaves out too.
+
+        A certificate authority secret's variable becomes {VARIABLE: where it was planned for}, as Fleet's side has it.
+        """
         if isinstance(v, dict):
-            def is_ref(x):
+            out = {}
+            for k, x in v.items():
                 m = re.fullmatch(r"\$\{?(\w+)\}?", x) if isinstance(x, str) else None
-                return bool(m) and m.group(1) in self.env_names
-            return {k: self._strip_env(x) for k, x in v.items() if not is_ref(x)}
+                src = self.env_sources.get(m.group(1)) if m else None
+                if src is None:
+                    out[k] = self._strip_env(x)
+                elif "kind" in src:
+                    out[k] = {VARIABLE: f"{src['kind']}[{src['index']}].{src['field']}"}
+            return out
         if isinstance(v, list):
             return [self._strip_env(x) for x in v]
         return v
@@ -395,6 +405,8 @@ class Checker:
             for k in fields:
                 v = _walk(node, [k])
                 values[k] = OMITTED.get((section, k)) if v is None and (section, k) in OMITTED else self._strip_env(v)
+            if section in KEYED_SECTIONS and isinstance(node, dict):
+                values.update({k: self._strip_env(v) for k, v in node.items() if k not in fields})
             found["settings"].append([section, values])
         for path, _ in self._items(top, ["controls", "scripts"]):
             if path:
@@ -485,6 +497,10 @@ class Checker:
                 for n in sorted({k for k in keys if keys.count(k) > 1}, key=str):
                     self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
                 for n in sorted(set(want) & set(got), key=str):
+                    extra = sorted(set(got[n]) - set(want[n])) if kind == "settings" else []
+                    for field in extra:
+                        if _norm(got[n][field]) is not None:
+                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is in the repo but not in Fleet (applying would create it)")
                     for field, fleet_value in want[n].items():
                         if got[n].get(field) == UNCHECKED:
                             self.warn("reconcile", f"{top}: {what} {n!r}: {field} not compared; the file holds variables "

@@ -333,6 +333,23 @@ class SecretSpansTest(unittest.TestCase):
         self.assertIn("inside a longer word", c.warnings[0]["message"])
         self.assertNotIn("short", repr(scopes[0]["scripts"][0]["short_secret_refs"]))
 
+    def test_marks_secrets_where_fleetctl_sends_files_as_is(self):
+        c = Collector(api=None)
+        long_src, short_src = {"type": "enroll_secret", "team": 1, "index": 0}, {"type": "enroll_secret", "team": None, "index": 0}
+        c._secret_values = [("wk-s3cr3t-value", long_src), ("short", short_src)]
+        profile = {"name": "Passcode", "content": b'{"Type": "x"}', "activation": b'{"Note": "wk-s3cr3t-value"}'}
+        script = {"name": "enroll.sh", "content": b"fleetctl package --enroll-secret wk-s3cr3t-value"}
+        setup = {"name": "setup.sh", "content": b"echo short"}
+        title = {"name": "Acme", "packages": [{"install_script": "true"}, {"post_install_script": "echo wk-s3cr3t-value"}]}
+        c._mark_secrets([{"profiles": [profile], "scripts": [script], "setup": {"script": setup}, "software": {"titles": [title]}}])
+        self.assertNotIn("env_refs", profile)
+        self.assertEqual(profile["plain_secret_refs"], [long_src])
+        self.assertEqual(script["plain_secret_refs"], [long_src])
+        self.assertNotIn("env_refs", script)
+        self.assertEqual(setup["short_secret_refs"], [short_src])
+        self.assertEqual(title["plain_secret_refs"], [long_src])
+        self.assertNotIn("wk-s3cr3t-value", repr([profile["plain_secret_refs"], script["plain_secret_refs"], title["plain_secret_refs"]]))
+
 
 class FleetDefaultsTest(unittest.TestCase):
     def test_recognizes_defaults_with_ids_filled_in(self):
@@ -389,6 +406,9 @@ class HelpersTest(unittest.TestCase):
         self.assertFalse(_url_names_version("https://x.test/8.1/latest.rpm", "8.1"))
         self.assertFalse(_url_names_version("https://x.test/app-current.pkg", None))
         self.assertTrue(_url_names_version("https://x.test/anything.pkg", None))
+        self.assertFalse(_url_names_version("https://vendor.example/latest/app.rpm", None))
+        self.assertFalse(_url_names_version("https://x.test/stable/app.deb", "8.11.16"))
+        self.assertTrue(_url_names_version("https://x.test/linux/stable/1password-8.11.16.deb", "8.11.16"))
 
     def test_fma_script_state(self):
         catalog = "".join(f"line {i}\n" for i in range(20))
@@ -631,7 +651,8 @@ class EndToEndTest(unittest.TestCase):
     def test_script_with_enroll_secret_isnt_exported(self):
         snap = snapshot()
         servers = next(s for s in snap["scopes"] if s["key"] == "2")
-        servers["scripts"].append({"id": 5, "name": "enroll.sh", "content": ENROLL_SCRIPT, "env_refs": secret_span(ENROLL_SCRIPT, SERVER_SECRET, 2)})
+        servers["scripts"].append({"id": 5, "name": "enroll.sh", "content": ENROLL_SCRIPT,
+                                   "plain_secret_refs": [{"type": "enroll_secret", "team": 2, "index": 0}]})
         plan = self.replan(snap)
         notes = [n for n in plan["notes"] if n["level"] == "gap" and n["item"] == "enroll.sh"]
         self.assertEqual(len(notes), 1)
@@ -640,6 +661,38 @@ class EndToEndTest(unittest.TestCase):
         self.assertFalse(list(self.root.rglob("enroll.sh")))
         self.assertFalse(any(SERVER_SECRET.encode() in p.read_bytes() for p in (self.work / "blobs").iterdir()))
         self.assertIn("script 'enroll.sh' is in Fleet but not in the repo", "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_enroll_secret_in_activation_setup_script_or_software_isnt_exported(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["profiles"].append({"profile_uuid": "d", "name": "Passcode", "platform": "darwin", "content": b'{"Type": "com.apple.configuration.passcode.settings"}',
+                               "activation": f'{{"Type": "com.apple.activation.simple", "Note": "{SECRET}"}}'.encode()})
+        ws["setup"] = {"script": {"name": "setup.sh", "content": f"#!/bin/sh\necho {SECRET}\n".encode()}}
+        ws["software"]["titles"].append({"id": 12, "name": "Acme", "software_package": {
+            "name": "acme.pkg", "platform": "darwin", "version": "1.0", "url": "https://x.test/1.0/acme.pkg", "hash_sha256": "c" * 64,
+            "install_script": f"installer -pkg \"$INSTALLER_PATH\" -target / && echo {SECRET}\n"}})
+        c = Collector(api=None)
+        c._secret_values = [(SECRET, {"type": "enroll_secret", "team": 1, "index": 0})]
+        c._mark_secrets(snap["scopes"])
+        plan = self.replan(snap)
+        gaps = {n["item"] for n in plan["notes"] if n["level"] == "gap" and "FLEET_WORKSTATIONS_ENROLL_SECRET" in n["message"]}
+        self.assertEqual(gaps, {"Passcode", "setup_experience.macos_script (setup.sh)", "Acme"})
+        written = [p for p in list(self.root.rglob("*")) + list((self.work / "blobs").iterdir()) if p.is_file()]
+        self.assertFalse([p for p in written if SECRET.encode() in p.read_bytes()])
+        self.assertNotIn("macos_script", self.read("fleets/workstations.yml"))
+        messages = "\n".join(r["message"] for r in self.reconcile(plan))
+        self.assertIn("profile 'Passcode' is in Fleet but not in the repo", messages)
+        self.assertIn("software 'package:https://x.test/1.0/acme.pkg' is in Fleet but not in the repo", messages)
+
+    def test_report_lists_exported_warnings_apart_from_gaps(self):
+        notes = [{"level": "warn", "scope": "Servers", "item": "enroll.sh", "message": "check it"},
+                 {"level": "gap", "scope": "Servers", "item": "Acme", "message": "left out"}]
+        report = gitops_export.render_report(self.root, dict(self.plan, notes=notes), None)
+        exported, missing = report.split("## Exported, check before committing")[1].split("## Not represented in GitOps")
+        self.assertIn("enroll.sh: check it", exported)
+        self.assertNotIn("Acme", exported)
+        self.assertIn("Acme: left out", missing)
+        self.assertNotIn("enroll.sh", missing)
 
     def test_reconcile_fills_in_enroll_secret_variables(self):
         ch = Checker(self.root, self.plan)
@@ -806,6 +859,27 @@ class EndToEndTest(unittest.TestCase):
         messages = "\n".join(r["message"] for r in self.reconcile())
         self.assertIn("settings 'org_settings.integrations': jira", messages)
         self.assertIn("settings 'org_settings.certificate_authorities': digicert", messages)
+
+        default.write_text(text.replace("api_token: $FLEET_CA_WIFI_API_TOKEN", "api_token: $FLEET_URL"))
+        self.assertIn("settings 'org_settings.certificate_authorities': digicert", "\n".join(r["message"] for r in self.reconcile()))
+        default.write_text(text)
+        self.assertEqual([r for r in self.reconcile() if r["level"] == "FAIL"], [])
+
+        snap = snapshot()
+        del snap["config"]["integrations"]["jira"]
+        snap["certificate_authorities"] = {"digicert": None, "hydrant": []}
+        plan = self.replan(snap)
+        text = default.read_text()
+        self.assertIn("  integrations: {}\n", text)
+        self.assertNotIn("certificate_authorities:", text)
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+        default.write_text(text.replace("  integrations: {}\n", "  integrations:\n    zendesk:\n      - url: https://z.example.test\n"
+                                                              "        api_token: $FLEET_URL\n"
+                                                              "  certificate_authorities:\n    hydrant:\n      - name: H\n"
+                                                              "        url: https://h.example.test\n"))
+        messages = "\n".join(r["message"] for r in self.reconcile(plan))
+        self.assertIn("settings 'org_settings.integrations': zendesk is in the repo but not in Fleet", messages)
+        self.assertIn("settings 'org_settings.certificate_authorities': hydrant is in the repo but not in Fleet", messages)
 
     def test_short_enroll_secret_keeps_item_out(self):
         snap = snapshot()

@@ -223,6 +223,19 @@ class Planner:
                   "secret to a longer one (and this item with it, if it uses the secret), then export again. Until then, applying this repo would delete it")
         return True
 
+    def _plain_secret_gap(self, item: dict, scope: str, name: str, fix: str = "take the secret out of it") -> bool:
+        """Leave out an item that holds an enroll secret where fleetctl doesn't fill in variables (scripts, activations)."""
+        if self._short_secret_gap(item, scope, name):
+            return True
+        refs = item.get("plain_secret_refs")
+        if not refs:
+            return False
+        names = sorted({self._enroll_secret_name(src["team"], src["index"])[0] for src in refs})
+        self.note("gap", scope, name,
+                  f"holds the value of {', '.join(names)} as plain text, so it isn't exported (that would put the secret in the repo). "
+                  f"In Fleet, {fix}, then export again. Until then, applying this repo would delete it")
+        return True
+
     def _record_env_refs(self, fid: str, names: list, scope: str):
         if not names:
             return
@@ -632,7 +645,7 @@ class Planner:
                 it = dict(it)
                 for field in secrets.get(kind, []):
                     label = it.get("name") or kind
-                    source = {"type": "mask"} if kind == "ejbca" else {"type": "ca", "kind": kind, "index": i, "field": field}
+                    source = {"type": "mask" if kind == "ejbca" else "ca", "kind": kind, "index": i, "field": field}
                     it[field] = self.add_env(f"FLEET_CA_{_envslug(label)}_{field.upper()}", "default.yml",
                                              f"{field} for the {kind} certificate authority {label}", source)
                 exported.append(it)
@@ -783,7 +796,7 @@ class Planner:
             se["apple_setup_assistant"] = {"$file": fid}
             self.count(scope, "ADE profile")
         script = setup.get("script")
-        if script:
+        if script and not self._plain_secret_gap(script, scope, f"setup_experience.macos_script ({script['name']})"):
             name = script["name"]
             fid = self.add_file("setup_script", "macos", name if exact_name_ok(name) else f"{slugify(scope)}-setup.sh",
                                 content=script["content"], exact=True, fleet=scope)
@@ -811,15 +824,7 @@ class Planner:
             if not exact_name_ok(name):
                 self.note("gap", scope, name, "the script name can't be a file name GitOps can reference with `path:`; rename it in Fleet, then export again")
                 continue
-            if self._short_secret_gap(s, scope, name):
-                continue
-            names_found = sorted({self._enroll_secret_name(r["source"]["team"], r["source"]["index"])[0] for r in s.get("env_refs") or []})
-            if names_found:
-                # fleetctl doesn't expand variables in scripts, so exporting it would put the secret in the repo.
-                self.note("gap", scope, name,
-                          f"holds the value of {', '.join(names_found)} as plain text, so it isn't exported (that would put the secret in the repo). "
-                          "In Fleet, replace the value with a $FLEET_SECRET_ variable (Fleet fills it in when the script runs), then export again. "
-                          "Until then, applying this repo would delete the script")
+            if self._plain_secret_gap(s, scope, name, "replace the value with a $FLEET_SECRET_ variable (Fleet fills it in when the script runs)"):
                 continue
             fid = self.add_file("script", platform, name, content=s["content"], exact=True, fleet=scope, review=review)
             self._script_ids[(fleet["key"], s["id"])] = fid
@@ -830,7 +835,7 @@ class Planner:
         mobile = fleet.get("template") and fleet["template"] == self._mobile_template()
         for p in sc.get("profiles") or []:
             content, name, plat = p["content"], p.get("name", ""), p.get("platform")
-            if self._short_secret_gap(p, scope, name):
+            if self._plain_secret_gap(p, scope, name, "take the secret out of its activation"):
                 continue
             text = text_of(content)
             opts = {}
@@ -1066,6 +1071,8 @@ class Planner:
             pkg, app = t.get("software_package"), t.get("app_store_app")
             title = t.get("name", "")
             if pkg:
+                if self._plain_secret_gap(t, scope, title, "take the secret out of its scripts and pre-install query"):
+                    continue
                 if pkg.get("name", "").lower().endswith(".ipa"):
                     if pkg["name"] in seen_ipa:
                         continue
@@ -1078,7 +1085,7 @@ class Planner:
                 apps.append(self._app_store_app(t, app, scope, app_setup, vpp_count, index))
                 self.count(scope, "App Store apps")
             else:
-                self.note("warn", scope, title, "software title has neither a package nor an App Store app; skipped")
+                self.note("gap", scope, title, "software title has neither a package nor an App Store app; skipped")
         soft = {}
         if fmas:
             soft["fleet_maintained_apps"] = fmas
@@ -1419,6 +1426,8 @@ class Planner:
 
 
 ANY_OF = "$any_of"
+# A secret the repo holds as a variable, compared by where that variable was planned for ("digicert[0].api_token").
+VARIABLE = "$variable"
 
 
 def _sha_text(s: str) -> str:
@@ -1429,7 +1438,8 @@ def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
     """(section, {field: value}) for the inline settings Fleet reports for a scope, keyed by their GitOps path.
 
     Values the repo holds as $VARIABLEs (webhook URLs, tokens, metadata) and policy_ids (set through
-    each policy) are left out; the check drops variables from the repo's side the same way. Logos are files.
+    each policy) are left out; the check drops variables from the repo's side the same way. Certificate
+    authority secrets are {VARIABLE: where} instead, so one holding another value's variable fails. Logos are files.
     """
     def webhooks(wh: dict, prefix: str, kinds=None):
         for k, v in (wh or {}).items():
@@ -1447,17 +1457,21 @@ def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
             if isinstance(cfg.get(k), dict):
                 yield f"org_settings.{k}", cfg[k]
         yield from webhooks(cfg.get("webhook_settings"), "org_settings.webhook_settings")
+        # Empty kinds are left out of these two, so the check reports a kind only the repo has as an addition.
         integ = cfg.get("integrations") or {}
-        fields = {k: v for k, v in integ.items() if isinstance(v, (bool, str, int, float))}
-        for k, secret in (("jira", "api_token"), ("zendesk", "api_token"), ("google_calendar", "api_key_json")) + \
-                ((("google_workspace", "api_key_json"),) if premium else ()):
-            if isinstance(integ.get(k), list):
+        secret_lists = {"jira": "api_token", "zendesk": "api_token", "google_calendar": "api_key_json", "google_workspace": "api_key_json"}
+        fields = {k: v for k, v in integ.items() if k not in secret_lists and v not in (None, [], {})}
+        for k, secret in secret_lists.items():
+            if integ.get(k) and isinstance(integ[k], list) and (premium or k != "google_workspace"):
                 fields[k] = [{f: x for f, x in it.items() if f != secret} for it in integ[k] if isinstance(it, dict)]
         yield "org_settings.integrations", fields
         cas = {}
         for kind, val in (snap.get("certificate_authorities") or {}).items():
-            items = [{f: x for f, x in it.items() if f not in CA_SECRETS.get(kind, [])} for it in (val if isinstance(val, list) else [val]) if it]
-            cas[kind] = items if isinstance(val, list) else (items[0] if items else None)
+            secrets = CA_SECRETS.get(kind, [])
+            items = [{**{f: x for f, x in it.items() if f not in secrets}, **{f: {VARIABLE: f"{kind}[{i}].{f}"} for f in secrets}}
+                     for i, it in enumerate(val if isinstance(val, list) else [val]) if it]
+            if items:
+                cas[kind] = items if isinstance(val, list) else items[0]
         yield "org_settings.certificate_authorities", cas
         sso = {k: v for k, v in (cfg.get("sso_settings") or {}).items() if k != "metadata"}
         if not premium:
@@ -1669,13 +1683,16 @@ def _url_names_version(url: str, version: str | None) -> bool:
     """Does the download URL's path name the package's version (so the bytes behind it shouldn't change)?
 
     Only a whole version counts: "8.1" doesn't match "18.1" or "8.1.2", and the host and query are ignored.
-    A file named for a channel ("latest.rpm" under "/8.1/", say) can still be replaced, so it never counts.
+    A file named for a channel ("latest.rpm" under "/8.1/", say) can still be replaced, so it never counts,
+    and a file under a channel folder ("/latest/app.rpm") counts only when the path names the version.
     """
     path = unquote(urlparse(url).path)
-    if re.search(r"(?<![A-Za-z])(?:latest|current|stable|nightly)(?![A-Za-z])", path.rsplit("/", 1)[-1], re.I):
+    channel = r"(?<![A-Za-z])(?:latest|current|stable|nightly)(?![A-Za-z])"
+    folder, _, filename = path.rpartition("/")
+    if re.search(channel, filename, re.I):
         return False
     if not version:
-        return True
+        return not re.search(channel, folder, re.I)
     v = version.split(":")[-1]  # Debian epoch
     return any(c and re.search(r"(?<![0-9A-Za-z])(?<![0-9]\.)[vV]?" + re.escape(c) + r"(?![0-9A-Za-z])(?!\.[0-9])", path)
                for c in (v, re.split(r"[-+~]", v)[0]))

@@ -339,7 +339,8 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
         summary = ", ".join(k if k in SINGLE else f"{n} {k}" for k, n in sorted(counts.items(), key=lambda kv: kv[0].lower()))
         lines.append(f"| `{file}` | {scope} | {summary} |")
     review = [n for n in plan["notes"] if n["level"] == "review"]
-    gaps = [n for n in plan["notes"] if n["level"] in ("gap", "warn")]
+    gaps = [n for n in plan["notes"] if n["level"] == "gap"]
+    warns = [n for n in plan["notes"] if n["level"] == "warn"]
     info = [n for n in plan["notes"] if n["level"] == "info"]
     new_dirs = sorted({os.path.dirname(f["path"]) for f in plan["files"].values() if f.get("origin") == "new"})
     if new_dirs:
@@ -348,6 +349,8 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
         lines += [f"- `{d}/`" for d in new_dirs]
     if review:
         lines += ["", "## Placement choices to check", ""] + [f"- **{n['scope']}**, `{n['item']}`: {n['message']}" for n in review]
+    if warns:
+        lines += ["", "## Exported, check before committing", ""] + [f"- **{n['scope']}**, {n['item']}: {n['message']}" for n in warns]
     lines += ["", "## Not represented in GitOps", ""]
     lines += [f"- **{n['scope']}**, {n['item']}: {n['message']}" for n in gaps] or ["- Nothing."]
     if info:

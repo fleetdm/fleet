@@ -3,8 +3,8 @@
 Returns one in-memory snapshot. Secret values are dropped here (enroll secrets
 become counts, masked values stay masked) so nothing downstream can write
 them; the dry run fetches the ones it needs again, in memory. Where an enroll
-secret appears inside a profile, DDM asset, or script, the item records the
-span and which secret it is, never the value.
+secret appears inside a profile, DDM asset, script, or software script, the
+item records the span or which secret it is, never the value.
 """
 
 from __future__ import annotations
@@ -43,7 +43,9 @@ class Collector:
         self._secret_values: list = []
 
     def warn(self, scope, item, message):
-        self.warnings.append({"scope": scope, "item": item, "message": message})
+        w = {"scope": scope, "item": item, "message": message}
+        if w not in self.warnings:
+            self.warnings.append(w)
 
     def collect(self) -> dict:
         api = self.api
@@ -94,35 +96,62 @@ class Collector:
         return snap
 
     def _mark_secrets(self, scopes):
+        """Mark items holding an enroll secret.
+
+        Profiles and DDM assets get the spans (`env_refs`), which become variables. fleetctl sends
+        scripts, setup scripts, software scripts, and activations as-is, so those only get which
+        secrets (`plain_secret_refs`), and the item is left out.
+        """
         values = [(v, src) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
         # Too short to replace safely: a whole-token match keeps the item out of the repo, any other match is a warning.
         short = [(v, re.compile(r"(?<![A-Za-z0-9])" + re.escape(v) + r"(?![A-Za-z0-9])"), src)
                  for v, src in self._secret_values if v and len(v) < MIN_SECRET_LEN]
+
+        def scan(sc, owner, name, body, spans_key):
+            try:
+                text = body.decode("utf-8") if isinstance(body, bytes) else body or ""
+            except UnicodeDecodeError:
+                return
+            whole = [src for _, p, src in short if p.search(text)]
+            if whole:
+                owner.setdefault("short_secret_refs", []).extend(s for s in whole if s not in owner["short_secret_refs"])
+            elif any(v in text for v, _, _ in short):
+                self.warn(sc.get("name"), name, f"contains the characters of an enroll secret shorter than {MIN_SECRET_LEN} "
+                                                "characters inside a longer word; check it before committing")
+            if spans_key == "plain_secret_refs":
+                found = [src for v, src in values if v in text]
+                if found:
+                    owner.setdefault(spans_key, []).extend(s for s in found if s not in owner[spans_key])
+                return
+            spans = []
+            for v, src in values:
+                start = text.find(v)
+                while start != -1:
+                    spans.append({"start": start, "end": start + len(v), "source": src})
+                    start = text.find(v, start + len(v))
+            refs, end = [], -1
+            for s in sorted(spans, key=lambda s: (s["start"], -s["end"])):
+                if s["start"] >= end:
+                    refs.append(s)
+                    end = s["end"]
+            if refs:
+                owner[spans_key] = refs
+
         for sc in scopes:
-            for item in (sc.get("profiles") or []) + (sc.get("assets") or []) + (sc.get("scripts") or []):
-                try:
-                    text = item["content"].decode("utf-8")
-                except UnicodeDecodeError:
-                    continue
-                whole = [src for _, p, src in short if p.search(text)]
-                if whole:
-                    item["short_secret_refs"] = whole
-                elif any(v in text for v, _, _ in short):
-                    self.warn(sc.get("name"), item.get("name"), f"contains the characters of an enroll secret shorter than {MIN_SECRET_LEN} "
-                                                                "characters inside a longer word; check it before committing")
-                spans = []
-                for v, src in values:
-                    start = text.find(v)
-                    while start != -1:
-                        spans.append({"start": start, "end": start + len(v), "source": src})
-                        start = text.find(v, start + len(v))
-                refs, end = [], -1
-                for s in sorted(spans, key=lambda s: (s["start"], -s["end"])):
-                    if s["start"] >= end:
-                        refs.append(s)
-                        end = s["end"]
-                if refs:
-                    item["env_refs"] = refs
+            for item in (sc.get("profiles") or []) + (sc.get("assets") or []):
+                scan(sc, item, item.get("name"), item["content"], "env_refs")
+                if item.get("activation"):
+                    scan(sc, item, item.get("name"), item["activation"], "plain_secret_refs")
+            for item in sc.get("scripts") or []:
+                scan(sc, item, item.get("name"), item["content"], "plain_secret_refs")
+            setup_script = (sc.get("setup") or {}).get("script")
+            if setup_script:
+                scan(sc, setup_script, setup_script.get("name"), setup_script["content"], "plain_secret_refs")
+            for t in (sc.get("software") or {}).get("titles") or []:
+                for pkg in [t.get("software_package") or {}] + (t.get("packages") or []):
+                    for key in ("install_script", "uninstall_script", "post_install_script", "pre_install_query"):
+                        if pkg.get(key):
+                            scan(sc, t, t.get("name"), pkg[key], "plain_secret_refs")
 
     # ------------------------------------------------------------ global
 
