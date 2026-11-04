@@ -28,25 +28,50 @@ func outputFilename(platform, arch, ext string, opt Options) string {
 	return name + ext
 }
 
-// fleetFilenamePart returns the cleaned fleet name, cut to budget bytes. If another fleet's name gives the same part,
-// it ends with the fleet ID instead, so their packages don't overwrite each other. Best effort: a fleet named "foo 3"
-// can still match another "foo" with ID 3.
+// fleetFilenamePart returns the cleaned fleet name, cut to budget bytes. If another fleet's part could be the same,
+// it ends with the fleet ID instead, so their packages don't overwrite each other.
 func fleetFilenamePart(name string, id uint, others []string, budget int) string {
 	part := truncateUTF8(fleetNameForFilename(name), budget)
-	if part == "" || id == 0 {
+	if part == "" || id == 0 || !collides(part, others, budget) {
 		return part
 	}
+	suffix := strconv.FormatUint(uint64(id), 10)
+	if short := truncateUTF8(fleetNameForFilename(name), budget-len(suffix)-len("-")); short != "" {
+		return short + "-" + suffix
+	}
+	return suffix
+}
+
+// collides reports whether another fleet's part can equal part: the same name, or a name shared by two other fleets,
+// which then get IDs ("foo-1" next to "foo" and "FOO"). Case-insensitive, like macOS and Windows file systems ("ſ"
+// and "s" name the same file there).
+func collides(part string, others []string, budget int) bool {
+	base, digits := "", ""
+	if i := strings.LastIndexByte(part, '-'); i > 0 && strings.Trim(part[i+1:], "0123456789") == "" {
+		base, digits = part[:i], part[i+1:]
+	}
 	for _, other := range others {
-		// Case-insensitive, like macOS and Windows file systems ("ſ" and "s" name the same file there).
-		if strings.EqualFold(truncateUTF8(fleetNameForFilename(other), budget), part) {
-			suffix := strconv.FormatUint(uint64(id), 10)
-			if short := truncateUTF8(fleetNameForFilename(name), budget-len(suffix)-len("-")); short != "" {
-				return short + "-" + suffix
-			}
-			return suffix
+		cleaned := fleetNameForFilename(other)
+		if strings.EqualFold(truncateUTF8(cleaned, budget), part) {
+			return true
+		}
+		if digits != "" && strings.EqualFold(truncateUTF8(cleaned, budget-len(digits)-len("-")), base) &&
+			sharedName(cleaned, others, budget) {
+			return true
 		}
 	}
-	return part
+	return false
+}
+
+// sharedName reports whether more than one of the other fleets cleans up to cleaned, so each of them gets an ID.
+func sharedName(cleaned string, others []string, budget int) bool {
+	n := 0
+	for _, other := range others {
+		if strings.EqualFold(truncateUTF8(fleetNameForFilename(other), budget), truncateUTF8(cleaned, budget)) {
+			n++
+		}
+	}
+	return n > 1
 }
 
 // fleetNameForFilename lowercases a fleet name and keeps only its letters and digits, in any script, turning every

@@ -70,6 +70,8 @@ func TestFleetFilenamePart(t *testing.T) {
 		{"other fleet differs only by a long s", "Workstations", 4, []string{"Work\u017ftations"}, "workstations-4"},
 		{"invisible joiner doesn't dodge the ID", "Workstations\u034f!", 6, []string{"Workstations"}, "workstations-6"},
 		{"names that match only after the cut", long + "x", 3, []string{long + "y"}, strings.Repeat("a", 28) + "-3"},
+		{"name equal to the ID-suffixed name of another fleet", "foo-1", 3, []string{"foo", "FOO"}, "foo-1-3"},
+		{"name with a number next to a fleet that keeps its name", "Workstations 2", 5, []string{"Workstations"}, "workstations-2"},
 		{"no ID to add", "Workstations", 0, []string{"workstations"}, "workstations"},
 		{"emoji-only names stay without a fleet name", "\U0001F680", 5, []string{"\U0001F6F8"}, ""},
 		// U+043E is a Cyrillic "о": it looks like the Latin "o" but is a different letter, so no collision.
