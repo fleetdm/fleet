@@ -11,6 +11,8 @@ import (
 // message of its table entry. A path moves here from deprecatedPathAliases in the change that stops serving it.
 var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
+	"/api/_version_/fleet/mdm/apple/profiles/preassign",
+	"/api/_version_/fleet/mdm/apple/profiles/match",
 }
 
 func removedPaths() []endpointer.RemovedPath {
