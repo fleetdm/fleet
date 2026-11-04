@@ -16,15 +16,15 @@ If you manage Windows today, some of this probably sounds familiar:
 - Devices don't behave the way you set them up.
 - Leaving feels out of reach, because profiles don't export and switching tools sounds like wiping every PC.
 
-Meanwhile, the price keeps rising. On July 1, Microsoft 365 E3 went up to $39 per user per month. That seat includes Intune, Entra ID P1, Windows Enterprise, and Defender, whether you use them or not.
+Meanwhile, the price keeps rising. On July 1, 2026, Microsoft 365 E3 went up to $39 per user per month. That seat includes Intune, Entra ID P1, Windows Enterprise, and Defender, whether you use them or not.
 
-What keeps most teams stuck is Windows setup. Zero touch has always run through Autopilot, which requires Entra, so even companies on Okta or Google keep paying Microsoft for identity just to set up laptops. For 1,000 people, Entra ID P1 alone costs $252,000 over three years. Bill Gates shouldn't decide what software you buy just because you like his operating system.
+What keeps most teams stuck is Windows setup. Zero touch has always run through Autopilot, which requires Entra, so even companies on Okta or Google keep paying Microsoft for identity just to set up laptops. For 1,000 people, Entra ID P1 alone costs $252,000 over three years.
 
 ## What changes with Fleet
 
 Fleet removes the Windows setup problem and gives you the choice back:
 
-- Zero touch, $0 means new PCs arrive already managed. When you order, forward an email from Fleet to Dell, Lenovo, or HP, and they install Fleet before the device ships. You don't need Autopilot, Entra, Intune, or USB sticks, and the same approach works for Linux.
+- **Zero touch, $0** means new PCs arrive already managed. When you order, forward an email from Fleet to Dell, Lenovo, or HP, and they install Fleet before the device ships. You don't need Autopilot, Entra, Intune, or USB sticks, and the same approach works for Linux.
 - AI-native endpoint engineering replaces the guesswork. Every setting in Fleet is a file, and every feature has an API, so you can ask for a change like "get our Windows PCs to CIS Level 2," review it, and approve it. You see what's actually on each device right now, not what it reported hours ago.
 - You choose your own tools. Pick the identity provider, productivity suite, and EDR that suit your company. Fleet manages Windows, Mac, and Linux in one place.
 
