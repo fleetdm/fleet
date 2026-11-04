@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261103124720, Down_20261103124720)
+	MigrationClient.AddMigration(Up_20261104214521, Down_20261104214521)
 }
 
-func Up_20261103124720(tx *sql.Tx) error {
+func Up_20261104214521(tx *sql.Tx) error {
 	// NULL team_ids never collide in a unique index, so global labels are keyed as 0 (no fleet has that ID) to
 	// stay unique among themselves.
 	if !indexExistsTx(tx, "labels", "idx_label_unique_name_team") {
@@ -25,6 +25,6 @@ func Up_20261103124720(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261103124720(tx *sql.Tx) error {
+func Down_20261104214521(tx *sql.Tx) error {
 	return nil
 }
