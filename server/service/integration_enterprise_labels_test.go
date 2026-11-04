@@ -104,15 +104,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	require.Equal(t, team1Label.ID, teamLabel(team1.ID).ID)
 	require.Equal(t, team2Label.ID, teamLabel(team2.ID).ID)
 
-	var delResp fleet.DeleteLabelResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusNotFound, &delResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(globalName)), nil, http.StatusNotFound, &delResp, "fleet_id", fmt.Sprint(team1.ID))
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusOK, &delResp, "fleet_id", fmt.Sprint(team1.ID))
+	// Labels are deleted by ID, so deleting one fleet's label leaves the other fleet's label with the same name.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusNotFound)
+	var delResp fleet.DeleteLabelByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1Label.ID), nil, http.StatusOK, &delResp)
 
 	var getResp fleet.GetLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusNotFound, &getResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2Label.ID), nil, http.StatusOK, &getResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(globalName)), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", createResp.Label.ID), nil, http.StatusOK, &delResp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
@@ -209,15 +209,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.Equal(t, newName, modResp.Label.Name)
 
 	// Delete team labels
-	var delResp fleet.DeleteLabelResponse
+	var delResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1LabelID), nil, http.StatusOK, &delResp)
 
 	// Verify it's deleted
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), nil, http.StatusNotFound, &getResp)
 
-	// Delete team2 label by name; without a fleet only global labels are matched
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", team2Label.Name), nil, http.StatusNotFound, &delResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", team2Label.Name), nil, http.StatusOK, &delResp, "fleet_id", fmt.Sprint(team2.ID))
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team2LabelID), nil, http.StatusOK, &delResp)
 
 	// Verify it's deleted
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2LabelID), nil, http.StatusNotFound, &getResp)
@@ -642,10 +640,9 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "foreign key constraint on labels: TestDeleteLabels1")
 
-	// try to delete a label that does not exist by id and name
+	// try to delete a label that does not exist
 	var delLabelResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1+1000), nil, http.StatusNotFound, &delLabelResp)
-	s.DoJSON("DELETE", "/api/v1/fleet/labels/no-such-label", nil, http.StatusNotFound, &delLabelResp)
 
 	// delete the unused label2
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl2), nil, http.StatusOK, &delLabelResp)

@@ -365,8 +365,6 @@ type Service interface {
 	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
-	DeleteLabel(ctx context.Context, teamID *uint, name string) (err error)
-	// DeleteLabelByID is for backwards compatibility with the UI
 	DeleteLabelByID(ctx context.Context, id uint) (err error)
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.

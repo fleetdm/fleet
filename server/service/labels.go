@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -547,76 +546,6 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 	}
 
 	return hosts, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Label
-////////////////////////////////////////////////////////////////////////////////
-
-func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.DeleteLabelRequest)
-	err := svc.DeleteLabel(ctx, req.FleetID, req.Name)
-	if err != nil {
-		return fleet.DeleteLabelResponse{Err: err}, nil
-	}
-	return fleet.DeleteLabelResponse{}, nil
-}
-
-func (svc *Service) DeleteLabel(ctx context.Context, teamID *uint, name string) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		svc.SkipAuth(ctx)
-		return fleet.ErrNoContext
-	}
-
-	// check if the label is a built-in label
-	if reserved, ok := fleet.IsReservedLabelName(name); ok {
-		svc.SkipAuth(ctx)
-		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
-	}
-
-	// No license check on teamID: fleet labels left over from a downgrade to Free can still be cleaned up.
-	if teamID != nil && *teamID == 0 {
-		teamID = nil
-	}
-
-	filter := labelScopeFilter(vc.User, teamID)
-
-	// need to grab the label first to see if we have permission to delete it;
-	// if the label doesn't exist global users will see the true 404, other users will get a 403
-	label, err := svc.ds.LabelByName(ctx, name, filter)
-	if err == nil && !labelMatchesTeamScope(label, teamID) {
-		// The filter also returns global labels when a fleet is given.
-		err = ctxerr.Wrap(ctx, common_mysql.NotFound("Label").WithName(name))
-	}
-	if err != nil {
-		if authError := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authError != nil {
-			return authError
-		}
-		return err
-	}
-	if err := svc.authz.Authorize(ctx, label, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	teamName, err := svc.lookupTeamName(ctx, label.TeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "lookup team name for deleted label")
-	}
-
-	if err := svc.ds.DeleteLabel(ctx, name, filter); err != nil {
-		return err
-	}
-
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
-		ID:        label.ID,
-		Name:      label.Name,
-		FleetID:   label.TeamID,
-		FleetName: teamName,
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for label deletion")
-	}
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

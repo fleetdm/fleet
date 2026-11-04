@@ -1031,7 +1031,6 @@ func AddLabelMocks(ds *mock.Store) {
 		return nil
 	}
 
-	ds.LabelByNameFunc = LabelByNameOnLookupFleet
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
@@ -1058,14 +1057,16 @@ func AddLabelMocks(ds *mock.Store) {
 	}
 }
 
-// LabelByNameOnLookupFleet puts the label on the fleet it was looked up on, as GitOps deletes a fleet's labels with
-// its fleet_id.
-func LabelByNameOnLookupFleet(_ context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-	var teamID *uint
-	if filter.TeamID != nil && *filter.TeamID > 0 {
-		teamID = filter.TeamID
+// LabelsByID serves label lookups by ID from a test's label specs, since GitOps deletes labels by ID.
+func LabelsByID(specs ...*fleet.LabelSpec) func(context.Context, uint, fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	return func(_ context.Context, lid uint, _ fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		for _, s := range specs {
+			if s.ID == lid {
+				return &fleet.LabelWithTeamName{ID: s.ID, Name: s.Name, TeamID: s.TeamID, LabelType: s.LabelType}, nil, nil
+			}
+		}
+		return nil, nil, &notFoundError{}
 	}
-	return &fleet.Label{ID: 1, Name: name, TeamID: teamID}, nil
 }
 
 type notFoundError struct{}

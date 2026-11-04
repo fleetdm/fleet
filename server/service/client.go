@@ -3542,7 +3542,7 @@ func (c *Client) doGitOpsLabels(
 			logFn("[-] would've deleted %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
 		}
 		for _, labelToDelete := range toDelete {
-			logFn("[-] would've deleted label '%s'\n", labelToDelete)
+			logFn("[-] would've deleted label '%s'\n", labelToDelete.Name)
 		}
 		if nToAdd > 0 {
 			logFn("[+] would've created %s\n", numberWithPluralization(nToAdd, "label", "labels"))
@@ -3560,7 +3560,7 @@ func (c *Client) doGitOpsLabels(
 		logFn("[-] deleting %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
 	}
 	for _, l := range toDelete {
-		logFn("[-] deleting label '%s'\n", l)
+		logFn("[-] deleting label '%s'\n", l.Name)
 	}
 	labelsToMove := make([]fleet.LabelToMove, 0, len(toMove))
 	for _, l := range toMove {

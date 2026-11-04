@@ -46,12 +46,9 @@ func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	return responseBody.Specs, err
 }
 
-// DeleteLabel deletes the label with the matching name on the given fleet, or the global label when teamID is nil.
-func (c *Client) DeleteLabel(name string, teamID *uint) error {
-	verb, path := "DELETE", "/api/latest/fleet/labels/"+url.PathEscape(name)
-	var responseBody fleet.DeleteLabelResponse
-	if teamID != nil && *teamID > 0 {
-		return c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("fleet_id=%d", *teamID))
-	}
+// DeleteLabelByID deletes the label with the given ID.
+func (c *Client) DeleteLabelByID(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id)
+	var responseBody fleet.DeleteLabelByIDResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

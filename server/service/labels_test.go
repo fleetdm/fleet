@@ -311,7 +311,6 @@ func TestLabelsAuth(t *testing.T) {
 							require.ErrorIs(t, svc.ApplyLabelSpecs(ctx2, []*fleet.LabelSpec{}, tc.label.TeamID, nil), fleet.ErrMissingLicense)
 
 							// We'll let global admins clean up team labels if they downgraded to Free
-							require.NoError(t, svc.DeleteLabel(ctx2, tc.label.TeamID, tc.label.Name))
 							require.NoError(t, svc.DeleteLabelByID(ctx2, tc.label.ID))
 						}
 
@@ -329,9 +328,6 @@ func TestLabelsAuth(t *testing.T) {
 
 					_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
 					checkAuthErr(t, tc.shouldFailRead, err)
-
-					err = svc.DeleteLabel(ctx2, tc.label.TeamID, tc.label.Name)
-					checkAuthErr(t, tc.shouldFailWrite, err)
 
 					err = svc.DeleteLabelByID(ctx2, tc.label.ID)
 					checkAuthErr(t, tc.shouldFailWrite, err)
@@ -577,9 +573,6 @@ func TestBuiltInLabelNameCaseVariants(t *testing.T) {
 			require.ErrorContains(t, err, "cannot rename label to 'All Hosts' because it conflicts with the name of a built-in label")
 			require.False(t, ds.SaveLabelFuncInvoked)
 
-			err = svc.DeleteLabel(ctx, nil, variant)
-			require.ErrorContains(t, err, "cannot delete built-in label 'All Hosts'")
-			require.False(t, ds.DeleteLabelFuncInvoked)
 		})
 	}
 }
@@ -1072,39 +1065,6 @@ func TestDeleteLabelWithSharedNames(t *testing.T) {
 		require.NotNil(t, filter.TeamID)
 		require.Equal(t, want, *filter.TeamID)
 	}
-
-	t.Run("by name without a fleet only looks at global labels", func(t *testing.T) {
-		deletedWith = nil
-		var lookedUpWith fleet.TeamFilter
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			lookedUpWith = filter
-			return &fleet.Label{ID: 1, Name: name}, nil
-		}
-		require.NoError(t, svc.DeleteLabel(ctx, nil, "global"))
-		requireScope(t, &lookedUpWith, 0)
-		requireScope(t, deletedWith, 0)
-	})
-
-	t.Run("by name on a fleet", func(t *testing.T) {
-		deletedWith = nil
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			requireScope(t, &filter, teamID)
-			return &fleet.Label{ID: 2, Name: name, TeamID: new(teamID)}, nil
-		}
-		require.NoError(t, svc.DeleteLabel(ctx, new(teamID), "shared"))
-		requireScope(t, deletedWith, teamID)
-	})
-
-	t.Run("by name on a fleet doesn't match a global label", func(t *testing.T) {
-		deletedWith = nil
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			// The fleet's filter also includes global labels.
-			return &fleet.Label{ID: 1, Name: name}, nil
-		}
-		err := svc.DeleteLabel(ctx, new(teamID), "global")
-		require.True(t, fleet.IsNotFound(err), err)
-		require.Nil(t, deletedWith)
-	})
 
 	t.Run("by ID deletes within the label's own fleet", func(t *testing.T) {
 		deletedWith = nil
@@ -1693,66 +1653,6 @@ func TestLabelActivities(t *testing.T) {
 		require.Equal(t, teamID, *got.FleetID)
 		require.NotNil(t, got.FleetName)
 		require.Equal(t, teamName, *got.FleetName)
-	})
-
-	t.Run("delete label by name via UI emits deleted_label", func(t *testing.T) {
-		activities = activities[:0]
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			return &fleet.Label{ID: 200, Name: name}, nil
-		}
-		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-			return nil
-		}
-		err := svc.DeleteLabel(ctx, nil, "to-remove")
-		require.NoError(t, err)
-		require.Len(t, activities, 1)
-		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
-		require.True(t, ok, "expected ActivityTypeDeletedLabel, got %T", activities[0])
-		require.Equal(t, uint(200), got.ID)
-		require.Equal(t, "to-remove", got.Name)
-		require.Nil(t, got.FleetID)
-	})
-
-	t.Run("delete team label by name resolves team name", func(t *testing.T) {
-		activities = activities[:0]
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			return &fleet.Label{ID: 201, Name: name, TeamID: ptr.Uint(teamID)}, nil
-		}
-		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-			return nil
-		}
-		err := svc.DeleteLabel(ctx, new(teamID), "team-label")
-		require.NoError(t, err)
-		require.Len(t, activities, 1)
-		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
-		require.True(t, ok)
-		require.NotNil(t, got.FleetID)
-		require.Equal(t, teamID, *got.FleetID)
-		require.NotNil(t, got.FleetName)
-		require.Equal(t, teamName, *got.FleetName)
-	})
-
-	t.Run("delete team label aborts before delete when team lookup fails", func(t *testing.T) {
-		activities = activities[:0]
-		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-			return &fleet.Label{ID: 250, Name: name, TeamID: ptr.Uint(teamID)}, nil
-		}
-		var deleteCalled bool
-		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-			deleteCalled = true
-			return nil
-		}
-		// Override TeamLite for this subtest only.
-		prevTeamLite := ds.TeamLiteFunc
-		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-			return nil, assert.AnError
-		}
-		t.Cleanup(func() { ds.TeamLiteFunc = prevTeamLite })
-
-		err := svc.DeleteLabel(ctx, new(teamID), "team-label-fail")
-		require.Error(t, err)
-		require.False(t, deleteCalled, "label must not be deleted when team lookup fails")
-		require.Empty(t, activities, "no activity should be emitted when delete is skipped")
 	})
 
 	t.Run("delete label by ID via UI emits deleted_label", func(t *testing.T) {

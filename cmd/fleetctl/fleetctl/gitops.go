@@ -516,31 +516,12 @@ func gitopsCommand() *cli.Command {
 				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamName], labelMoves[teamName])
 				config.LabelChangesSummary = labelChangesSummary
 
-				// Delete labels at the end of the run to avoid issues with resource contention.
+				// Delete labels at the end of the run to avoid issues with resource contention. Deleting by ID also finds a
+				// label that was renamed (set aside) during the run because its name moved to or from the global level.
 				if !flDryRun {
-					movedOut := make(map[string]struct{})
-					for _, teamMoves := range labelMoves {
-						for _, m := range teamMoves {
-							if m.FromTeamName == teamName {
-								movedOut[m.Name] = struct{}{}
-							}
-						}
-					}
-					for _, name := range labelChangesSummary.LabelsToRemove {
-						l := name // rebind for closure
-						_, isMovedOut := movedOut[name]
+					for _, l := range labelChangesSummary.LabelsToRemove {
 						allPostOps = append(allPostOps, func() error {
-							// Read at the end of the run, since a fleet's ID is only known once it's been applied.
-							teamID := config.TeamID
-							target := l
-							if isMovedOut {
-								// The label was renamed when its destination was applied.
-								target = fleet.SetAsideLabelName(l, teamID)
-							}
-							if err := fleetClient.DeleteLabel(target, teamID); err != nil {
-								return err
-							}
-							return nil
+							return fleetClient.DeleteLabelByID(l.ID)
 						})
 					}
 				}
@@ -1015,7 +996,7 @@ func computeLabelChanges(
 			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {
-			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+			change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
 		return labelOperations
@@ -1034,7 +1015,7 @@ func computeLabelChanges(
 		}
 		// Remove from the map to track which specified labels are to be added.
 		delete(specifiedMap, l.Name)
-		change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+		change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 

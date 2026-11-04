@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
@@ -75,9 +78,18 @@ func deleteCommand() *cli.Command {
 				}
 			}
 
+			labelIDs := newLabelIDLookup(fleet)
 			for _, label := range specs.Labels {
 				fmt.Printf("[+] deleting label %q\n", label.Name)
-				if err := fleet.DeleteLabel(label.Name, label.TeamID); err != nil {
+				id, err := labelIDs.find(label.Name, label.TeamID)
+				if err != nil {
+					return err
+				}
+				if id == 0 {
+					fmt.Printf("[!] label %q doesn't exist\n", label.Name)
+					continue
+				}
+				if err := fleet.DeleteLabelByID(id); err != nil {
 					root := ctxerr.Cause(err)
 					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
 					case service.NotFoundErr:
@@ -91,4 +103,34 @@ func deleteCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// Labels are deleted by ID, and fleets can share label names, so a spec's label is looked up by name among its own
+// fleet's labels (or the global labels).
+type labelIDLookup struct {
+	client  *service.Client
+	byFleet map[uint][]*fleet.LabelSpec
+}
+
+func newLabelIDLookup(client *service.Client) *labelIDLookup {
+	return &labelIDLookup{client: client, byFleet: make(map[uint][]*fleet.LabelSpec)}
+}
+
+// find returns 0 if there's no such label. Names compare case-insensitively, like in Fleet.
+func (l *labelIDLookup) find(name string, fleetID *uint) (uint, error) {
+	id := ptr.ValOrZero(fleetID)
+	labels, ok := l.byFleet[id]
+	if !ok {
+		var err error
+		if labels, err = l.client.GetLabels(id); err != nil {
+			return 0, err
+		}
+		l.byFleet[id] = labels
+	}
+	for _, label := range labels {
+		if strings.EqualFold(label.Name, name) && ptr.ValOrZero(label.TeamID) == id {
+			return label.ID, nil
+		}
+	}
+	return 0, nil
 }

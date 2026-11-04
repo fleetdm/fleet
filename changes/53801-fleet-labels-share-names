@@ -1,2 +1,2 @@
 - Allowed labels on different fleets to have the same name. A label's name must be unique among the labels a fleet can see (its own labels and global labels), so a global label can't share a name with any fleet's label.
-- Added a `fleet_id` parameter to the delete label by name API endpoint. When `fleet_id` is omitted, only a global label with that name is deleted.
+- Removed the delete label by name API endpoint (`DELETE /api/v1/fleet/labels/:name`). Use delete label by ID (`DELETE /api/v1/fleet/labels/id/:id`) instead. `fleetctl gitops` and `fleetctl delete` delete labels by ID.

@@ -179,8 +179,6 @@ type LabelsSummaryFunc func(ctx context.Context, teamID *uint) (labels []*fleet.
 
 type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error)
 
-type DeleteLabelFunc func(ctx context.Context, teamID *uint, name string) (err error)
-
 type DeleteLabelByIDFunc func(ctx context.Context, id uint) (err error)
 
 type ListHostsInLabelFunc func(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
@@ -1296,9 +1294,6 @@ type Service struct {
 
 	GetLabelFunc        GetLabelFunc
 	GetLabelFuncInvoked bool
-
-	DeleteLabelFunc        DeleteLabelFunc
-	DeleteLabelFuncInvoked bool
 
 	DeleteLabelByIDFunc        DeleteLabelByIDFunc
 	DeleteLabelByIDFuncInvoked bool
@@ -3171,13 +3166,6 @@ func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.LabelWith
 	s.GetLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelFunc(ctx, id)
-}
-
-func (s *Service) DeleteLabel(ctx context.Context, teamID *uint, name string) (err error) {
-	s.mu.Lock()
-	s.DeleteLabelFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, teamID, name)
 }
 
 func (s *Service) DeleteLabelByID(ctx context.Context, id uint) (err error) {

@@ -1418,7 +1418,6 @@ func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when excepted")
 	}
-	ds.LabelByNameFunc = testing_utils.LabelByNameOnLookupFleet
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
@@ -1515,7 +1514,6 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
 	}
 	setupDefaultTeamConfigMocks(ds)
-	ds.LabelByNameFunc = testing_utils.LabelByNameOnLookupFleet
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Test Fleet" {
 			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
@@ -1727,20 +1725,18 @@ func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{savedTeam}, nil
 	}
+	existingLabel := &fleet.LabelSpec{ID: 1, Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"}
+	existingTeamLabel := &fleet.LabelSpec{ID: 2, Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: new(uint(1))}
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		if filter.TeamID != nil && *filter.TeamID == 1 {
-			return []*fleet.LabelSpec{
-				{Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: ptr.Uint(1)},
-			}, nil
+			return []*fleet.LabelSpec{existingTeamLabel}, nil
 		}
-		return []*fleet.LabelSpec{
-			{Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
-		}, nil
+		return []*fleet.LabelSpec{existingLabel}, nil
 	}
+	ds.LabelFunc = testing_utils.LabelsByID(existingLabel, existingTeamLabel)
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when all are deleted")
 	}
-	ds.LabelByNameFunc = testing_utils.LabelByNameOnLookupFleet
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
@@ -2358,27 +2354,30 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 
 	// Labels
-	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
-		return []*fleet.LabelSpec{
-			{
-				Name:                "a",
-				Description:         "A global label",
-				LabelMembershipType: fleet.LabelMembershipTypeManual,
-				Hosts:               []string{"host2", "host3"},
-			},
-			{
-				Name:                "c",
-				Description:         "A label that should be deleted",
-				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-				Query:               "SELECT 1 from osquery_info",
-			},
-		}, nil
+	existingLabels := []*fleet.LabelSpec{
+		{
+			ID:                  1,
+			Name:                "a",
+			Description:         "A global label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"host2", "host3"},
+		},
+		{
+			ID:                  3,
+			Name:                "c",
+			Description:         "A label that should be deleted",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			Query:               "SELECT 1 from osquery_info",
+		},
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return existingLabels, nil
+	}
+	ds.LabelFunc = testing_utils.LabelsByID(existingLabels...)
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		appliedLabelSpecs = specs
 		return nil
 	}
-	ds.LabelByNameFunc = testing_utils.LabelByNameOnLookupFleet
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
