@@ -278,7 +278,6 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE"},
 				Destination: &opt.FleetManagedHostIdentityCertificate,
 			},
-			configFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -476,7 +475,7 @@ func packageCommand() *cli.Command {
 			// opt is package-level, so reset what no flag sets.
 			opt.FleetName, opt.FleetID, opt.OtherFleetNames = "", 0, nil
 			if opt.CustomOutfile == "" {
-				f := fleetForPackage(c.String("config"), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+				f := fleetForPackage(defaultConfigPath(), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
 				opt.FleetName, opt.FleetID, opt.OtherFleetNames = f.Name, f.ID, f.OtherNames
 			}
 			path, err := buildFunc(opt)

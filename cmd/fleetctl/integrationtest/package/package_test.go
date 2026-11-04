@@ -22,6 +22,11 @@ import (
 func TestPackage(t *testing.T) {
 	nettest.Run(t)
 
+	// fleetctl package reads ~/.fleet/config (USERPROFILE on Windows) for the fleet name: never the developer's own.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
 	updateOpt := update.DefaultOptions
 	updateOpt.RootDirectory = t.TempDir()
 	_, err := packaging.InitializeUpdates(updateOpt)
@@ -70,14 +75,14 @@ func TestPackage(t *testing.T) {
 				{ID: 2, Name: "workstations canary", Secrets: []*fleet.EnrollSecret{{Secret: "other-secret"}}},
 			}, nil
 		}
-		configPath := filepath.Join(t.TempDir(), "config")
 		config := fmt.Sprintf("contexts:\n  default:\n    address: %s\n    token: admin-token\n    tls-skip-verify: true\n", server.URL)
-		require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
+		require.NoError(t, os.MkdirAll(filepath.Join(home, ".fleet"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(home, ".fleet", "config"), []byte(config), 0o600))
 
 		t.Cleanup(func() { os.Remove("fleet-linux-arm64-workstations-canary-1.deb") })
 		fleetctltest.RunAppForTest(t, []string{
 			"package", "--type=deb", "--arch=arm64", "--insecure", "--disable-open-folder",
-			"--fleet-url=" + server.URL, "--enroll-secret=canary-secret", "--config=" + configPath,
+			"--fleet-url=" + server.URL, "--enroll-secret=canary-secret",
 		})
 		info, err := os.Stat("fleet-linux-arm64-workstations-canary-1.deb")
 		require.NoError(t, err)
