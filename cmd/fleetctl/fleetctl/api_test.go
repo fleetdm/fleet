@@ -3,6 +3,7 @@ package fleetctl
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -241,4 +242,35 @@ func TestRunApiCommand(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetToken(t *testing.T) {
+	writeTestConfig := func(t *testing.T, token string) string {
+		configPath := filepath.Join(t.TempDir(), "config")
+		require.NoError(t, writeConfig(configPath, configFile{
+			Contexts: map[string]Context{"default": {Token: token}},
+		}))
+		return configPath
+	}
+
+	t.Run("env var unset uses config token", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "")
+		token, err := getToken(writeTestConfig(t, "config-token"), "default")
+		require.NoError(t, err)
+		require.Equal(t, "config-token", token)
+	})
+
+	t.Run("env var set and config token empty", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "env-token")
+		token, err := getToken(writeTestConfig(t, ""), "default")
+		require.NoError(t, err)
+		require.Equal(t, "env-token", token)
+	})
+
+	t.Run("env var takes precedence over config token", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "env-token")
+		token, err := getToken(writeTestConfig(t, "config-token"), "default")
+		require.NoError(t, err)
+		require.Equal(t, "env-token", token)
+	})
 }
