@@ -93,6 +93,11 @@ func TestFleetNameForPackage(t *testing.T) {
 			fleetURL: premium.URL, secret: "servers-secret", wantNote: true,
 		},
 		{
+			name:     "role that can't read secrets in one context, admin in another",
+			contexts: []fleetctlContext{{"default", premium.URL, "observer-token"}, {"other", premium.URL, "admin-token"}},
+			fleetURL: premium.URL, secret: "servers-secret", want: servers,
+		},
+		{
 			name:     "expired token in one context, valid in another",
 			contexts: []fleetctlContext{{"default", premium.URL, "expired-token"}, {"other", premium.URL, "admin-token"}},
 			fleetURL: premium.URL, secret: "servers-secret", want: servers,
