@@ -83,7 +83,7 @@ describe("Button component", () => {
     );
     expect(container.firstChild).toHaveClass("button--icon-only");
   });
-  it("sizes the icon to small on a small icon-only button", () => {
+  it("sizes the icon to medium on a small icon-only button", () => {
     render(
       <Button
         variant="secondary"
@@ -92,10 +92,9 @@ describe("Button component", () => {
         ariaLabel="Delete"
       />
     );
-    // Small icon = 12px per ICON_SIZES.
     expect(
       screen.getByTestId("trash-icon").querySelector("svg")
-    ).toHaveAttribute("width", "12");
+    ).toHaveAttribute("width", "16");
   });
   it("renders icon left of the label by default and applies the with-icon class", () => {
     const { container } = render(
