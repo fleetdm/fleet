@@ -1729,13 +1729,11 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 // NewActivityFunc is an alias for fleet.NewActivityFunc.
 type NewActivityFunc = fleet.NewActivityFunc
 
-// IOSiPadOSRefetchBatchSize caps the devices refetched per cron tick so a large
-// fleet's hourly refetch is spread across ticks instead of sent at once. At a
-// 1-minute tick this covers ~60k iOS/iPadOS hosts per hour.
-var IOSiPadOSRefetchBatchSize = 1000
-
+// IOSiPadOSRefetch sends refetch commands to at most batchSize iOS/iPadOS hosts,
+// longest-waiting first, so a large fleet's hourly refetch is spread across
+// cron ticks instead of sent at once.
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc,
+	newActivityFn NewActivityFunc, batchSize int,
 ) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -1748,7 +1746,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	start := time.Now()
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, fleet.MobileRefetchInterval, IOSiPadOSRefetchBatchSize)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, fleet.MobileRefetchInterval, batchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
@@ -1756,7 +1754,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return nil
 	}
 	logger.InfoContext(ctx, "sending commands to refetch", "count", len(devices),
-		"batch_full", len(devices) >= IOSiPadOSRefetchBatchSize, "lookup-duration", time.Since(start))
+		"batch_full", len(devices) >= batchSize, "lookup-duration", time.Since(start))
 
 	type deviceGroup struct {
 		hostIDs []uint
