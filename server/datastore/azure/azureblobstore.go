@@ -6,9 +6,15 @@ package azure
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -33,6 +39,57 @@ func (fileNotFoundError) Error() string {
 
 func (fileNotFoundError) IsNotFound() bool {
 	return true
+}
+
+// apiError replaces the verbose *azcore.ResponseError message (request URL,
+// raw XML body, RequestId) with a short one, like S3's "api error <code>:
+// <message>". Unwrap returns a slice so that ctxerr.Cause stops here and the
+// API response shows this message, while errors.As and bloberror.HasCode can
+// still reach the SDK error.
+type apiError struct {
+	code    string
+	message string
+	err     error
+}
+
+func (e *apiError) Error() string {
+	return fmt.Sprintf("api error %s: %s", e.code, e.message)
+}
+
+func (e *apiError) Unwrap() []error {
+	return []error{e.err}
+}
+
+// newAPIError returns err as an *apiError if it is an Azure response error,
+// otherwise it returns err unchanged.
+func newAPIError(err error) error {
+	var respErr *azcore.ResponseError
+	if !errors.As(err, &respErr) {
+		return err
+	}
+
+	code := respErr.ErrorCode
+	if code == "" {
+		code = strconv.Itoa(respErr.StatusCode)
+	}
+	// HEAD requests (e.g. Exists) have no body, so fall back to the status text.
+	msg := http.StatusText(respErr.StatusCode)
+	if respErr.RawResponse != nil {
+		if body, err := runtime.Payload(respErr.RawResponse); err == nil {
+			var xmlErr struct {
+				Message string `xml:"Message"`
+			}
+			if xml.Unmarshal(body, &xmlErr) == nil {
+				// Azure appends RequestId and Time on separate lines.
+				firstLine, _, _ := strings.Cut(xmlErr.Message, "\n")
+				if firstLine = strings.TrimSpace(firstLine); firstLine != "" {
+					msg = firstLine
+				}
+			}
+		}
+	}
+
+	return &apiError{code: code, message: msg, err: err}
 }
 
 // newAzureBlobStore initializes an Azure Blob Storage-backed store using
