@@ -13354,7 +13354,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 Deletes the report specified by name.
 
-`DELETE /api/v1/fleet/reports/:name`
+`DELETE /api/v1/fleet/reports/name/:name`
 
 #### Parameters
 
@@ -13365,7 +13365,7 @@ Deletes the report specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/reports/foo`
+`DELETE /api/v1/fleet/reports/name/foo`
 
 ##### Default response
 
@@ -13374,9 +13374,11 @@ Deletes the report specified by name.
 
 ### Delete report by ID
 
+> `DELETE /api/v1/fleet/reports/id/:id` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+
 Deletes the report specified by ID.
 
-`DELETE /api/v1/fleet/reports/id/:id`
+`DELETE /api/v1/fleet/reports/:id`
 
 #### Parameters
 
@@ -13386,7 +13388,7 @@ Deletes the report specified by ID.
 
 #### Example
 
-`DELETE /api/v1/fleet/reports/id/28`
+`DELETE /api/v1/fleet/reports/28`
 
 ##### Default response
 
