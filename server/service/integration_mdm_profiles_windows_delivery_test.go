@@ -1172,7 +1172,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	// set the windows custom settings fields
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
 				"custom_settings": [
@@ -1195,7 +1195,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// check that they are returned by a GET /config
@@ -1209,7 +1209,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{ "windows_settings": { "custom_settings": null } }
   `), http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{team.Name: team.ID}, applyResp.TeamIDsByName)
@@ -1223,7 +1223,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{ "windows_settings": { "custom_settings": null } }
   `), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
@@ -1233,7 +1233,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// apply with invalid mix of labels fails
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
 				"custom_settings": [

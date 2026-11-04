@@ -63,7 +63,9 @@ Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) with:
 
 ### 3. Fleet MCP server
 
-Run the [Fleet MCP server](https://github.com/fleetdm/fleet-mcp) and note its URL (default: `http://localhost:8181/sse`).
+The bot uses the MCP server built into Fleet Premium, at `/api/v1/fleet/mcp` on your Fleet server. Create an API-only user for the bot. If you limit its API endpoints, grant **Use Fleet's MCP server** (`POST /api/v1/fleet/mcp`) and the endpoints for the tools the bot should use (see the [Fleet MCP guide](https://fleetdm.com/guides/fleet-mcp)). Its API token is `FLEET_MCP_AUTH_TOKEN`.
+
+The [standalone MCP server](https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp) also works: use its `/mcp` URL and its `MCP_AUTH_TOKEN`.
 
 ### 4. Environment variables
 
@@ -84,7 +86,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
 MAX_TOOL_CALLS=100                               # safety cap on tool calls per response (default: 100)
 
-FLEET_MCP_URL=http://localhost:8181/sse
+FLEET_MCP_URL=https://fleet.example.com/api/v1/fleet/mcp
+FLEET_MCP_AUTH_TOKEN=...                         # API token of the bot's API-only Fleet user
 FLEET_MCP_TOOL_TIMEOUT_MS=240000                 # optional, per-tool-call timeout (default: 4 minutes)
 PORT=3000                                        # port for the GitHub webhook listener
 

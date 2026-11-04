@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.2",
+      "version": "4.5.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.tinywins.recut';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.tinywins.recut' AND version_compare(bundle_short_version, '4.5.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.tinywins.recut' AND version_compare(bundle_short_version, '4.5.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'co.tinywins.recut' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.getrecut.com/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjA1LCJwdXIiOiJibG9iX2lkIn19--29919ba3029b0ff63cb12fde6a3c342fc16ea92d/Recut_4.5.2_universal.dmg",
+      "installer_url": "https://updates.getrecut.com/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjIzLCJwdXIiOiJibG9iX2lkIn19--7dc23c1958764c44e9d5fe1e414084d8cf85a8ee/Recut_4.5.4_universal.dmg",
       "install_script_ref": "a4802c41",
       "uninstall_script_ref": "f45e4960",
-      "sha256": "cd0ed306a2d7552ff49c0f1d3e7b23b85e8f85a0f71ec0a3594adb20306cfe81",
+      "sha256": "3c2d5c5f98fc19eb4783e98b603bcd28db03d070c18e77c1d6585489200f25bb",
       "default_categories": [
         "Developer tools"
       ]

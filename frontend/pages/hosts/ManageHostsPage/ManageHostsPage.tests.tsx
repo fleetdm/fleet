@@ -548,8 +548,8 @@ describe("ManageHostsPage", () => {
       status: "online",
       platform: "darwin",
       os_version: "macOS 14.0",
-      team_id: null,
-      team_name: null,
+      fleet_id: null,
+      fleet_name: null,
       primary_ip: "192.168.1.1",
       primary_mac: "00:00:00:00:00:00",
       seen_time: "2024-01-01T00:00:00Z",
@@ -593,7 +593,8 @@ describe("ManageHostsPage", () => {
           display_name: "test-host",
           status: "online",
           platform: "darwin",
-          team_id: null,
+          fleet_id: 1,
+          fleet_name: "Workstations",
           issues: { total_issues_count: 0, failing_policies_count: 0 },
         },
       ]);
@@ -634,6 +635,11 @@ describe("ManageHostsPage", () => {
 
       expect(await screen.findByText("1 host")).toBeInTheDocument();
       expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
+
+      // The Fleet column reads fleet_name and only exists on Premium. The table re-renders when the fleets load, so retry.
+      await waitFor(() => {
+        expect(screen.queryByText("Workstations") !== null).toBe(isPremiumTier);
+      });
     }
   );
 
@@ -646,8 +652,8 @@ describe("ManageHostsPage", () => {
       status: "online",
       platform: "darwin",
       os_version: "macOS 14.0",
-      team_id: null,
-      team_name: null,
+      fleet_id: null,
+      fleet_name: null,
       seen_time: "2024-01-01T00:00:00Z",
       issues: { total_issues_count: 0, failing_policies_count: 0 },
     };

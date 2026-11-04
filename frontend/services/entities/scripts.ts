@@ -143,7 +143,7 @@ export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
 // 200 successful response
 
 export interface IScriptBatchSummaryV1 extends IScriptBatchHostCountsV1 {
-  team_id: number;
+  fleet_id: number;
   script_name: string;
   created_at: string;
   // below fields not yet used by the UI
@@ -167,7 +167,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
   created_at: string;
   script_id: number;
   script_name: string;
-  team_id: number;
+  fleet_id: number;
   status: ScriptBatchStatus;
   canceled: boolean;
   /** ISO 8601 date-time string. Always present as of Fleet 4.73.0 - `null`able for backwards compatibility with older batch runs. */

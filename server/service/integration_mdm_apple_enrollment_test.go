@@ -1087,7 +1087,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 		Name:    tm.Name,
 		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// a new fleetd configuration profile for that team is created
 	s.awaitTriggerProfileSchedule(t)
@@ -1904,6 +1904,52 @@ func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChall
 	requireBound(t, adueDevice.EnrollInfo.SCEPChallenge, fleet.AppleSCEPChallengeInfo{
 		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(account.UUID),
 	})
+}
+
+func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksCertificateIdPAccount() {
+	t := s.T()
+	ctx := context.Background()
+
+	newAccount := func(name string) (*fleet.MDMIdPAccount, string) {
+		account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: name, Email: name + "@example.com"}
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+		token, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+		require.NoError(t, err)
+		return account, token
+	}
+	requireLinked := func(device *mdmtest.TestAppleMDMClient, want *fleet.MDMIdPAccount) {
+		linked, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		host, err := s.ds.HostByIdentifier(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		managedAppleID, err := s.ds.GetHostManagedAppleID(ctx, host.ID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, linked)
+			require.Empty(t, managedAppleID)
+			return
+		}
+		require.NotNil(t, linked)
+		require.Equal(t, want.UUID, linked.UUID)
+		require.Equal(t, want.Email, managedAppleID)
+	}
+
+	// the other user's challenge is already used by their own enrollment
+	otherAccount, otherToken := newAccount("adue-other")
+	otherDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", otherToken)
+	require.NoError(t, otherDevice.Enroll())
+	requireLinked(otherDevice, otherAccount)
+
+	// this device's certificate is issued for its own account, then its first TokenUpdate sends the other challenge
+	ownAccount, ownToken := newAccount("adue-own")
+	device := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", ownToken)
+	require.NoError(t, device.FetchAccountDrivenEnrollmentProfile())
+	require.NoError(t, device.SCEPEnroll())
+	require.NoError(t, device.Authenticate())
+	device.SetAuthorizationBearerToken(otherToken)
+	require.NoError(t, device.TokenUpdate(true))
+	requireLinked(device, ownAccount)
+	requireLinked(otherDevice, otherAccount)
 }
 
 func (s *integrationMDMTestSuite) TestOTAProfile() {

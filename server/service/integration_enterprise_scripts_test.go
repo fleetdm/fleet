@@ -1893,7 +1893,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// retrieving the team returns the scripts
 	var teamResp getTeamResponse
@@ -1908,7 +1908,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
@@ -1923,7 +1923,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
@@ -1937,7 +1937,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
@@ -1951,7 +1951,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)

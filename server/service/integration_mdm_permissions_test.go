@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 			},
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// Attempt to set profile batch for team t1, should allow.
 	teamProfiles := [][]byte{
@@ -158,7 +158,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 			},
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// Attempt to set profile batch for team t1, should allow.
 	teamProfiles = [][]byte{

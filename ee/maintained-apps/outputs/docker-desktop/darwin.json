@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.97.0",
+      "version": "4.98.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '4.97.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '4.98.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.docker.docker' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.docker.com/mac/main/arm64/244584/Docker.dmg",
+      "installer_url": "https://desktop.docker.com/mac/main/arm64/245422/Docker.dmg",
       "install_script_ref": "c6377a7b",
       "uninstall_script_ref": "eff03f68",
-      "sha256": "94e4ccec4a035b7dcdf67cfff0520d4b46ee873ae04b155abc0d22b333cc90ad",
+      "sha256": "9c6f13ce4edda2abf20d801552b6acb96acd3d64b3e91b50c4484353802758b5",
       "default_categories": [
         "Developer tools"
       ]

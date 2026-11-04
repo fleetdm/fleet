@@ -120,7 +120,6 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // 🚀 Code for core product and integrations
-    'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
     'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
@@ -228,7 +227,6 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation

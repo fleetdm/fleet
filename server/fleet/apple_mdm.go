@@ -763,44 +763,6 @@ type MDMCustomEnrollmentProfileItem struct {
 	EndUserEmail string
 }
 
-// MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
-// preassigns profiles to hosts before generating corresponding teams for each
-// unique set of profiles and assigning hosts to those teams and profiles. For
-// example, puppet scripts use this.
-type MDMApplePreassignProfilePayload struct {
-	ExternalHostIdentifier string `json:"external_host_identifier"`
-	HostUUID               string `json:"host_uuid"`
-	Profile                []byte `json:"profile"`
-	Group                  string `json:"group"`
-	Exclude                bool   `json:"exclude"`
-}
-
-// HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
-// broken and we should consider moving to a better hash, but it needs to match
-// the hashing algorithm used by the Mysql database for profiles (SHA2 would be
-// an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
-func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
-	sum := md5.Sum(p.Profile) //nolint: gosec
-
-	// mysql's HEX function returns uppercase
-	return strings.ToUpper(hex.EncodeToString(sum[:]))
-}
-
-// MDMApplePreassignHostProfiles represents the set of profiles that were
-// pre-assigned to a given host identified by its UUID.
-type MDMApplePreassignHostProfiles struct {
-	HostUUID string
-	Profiles []MDMApplePreassignProfile
-}
-
-// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
-type MDMApplePreassignProfile struct {
-	Profile    []byte
-	Group      string
-	HexMD5Hash string
-	Exclude    bool
-}
-
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
@@ -868,9 +830,9 @@ type HostDEPAssignment struct {
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
-	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
-	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
-	// date.
+	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its
+	// Migration. Not a timestamp but a marker that the host completed a Migration; once set, the
+	// host is not considered to be migrating again until its ABM assignment is removed.
 	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed" json:"mdm_migration_completed,omitempty"`
 	// ProfileUUID is the UUID of the enrollment profile last assigned by Fleet via ABM.
 	ProfileUUID *string `db:"profile_uuid" json:"profile_uuid,omitempty"`
@@ -1008,14 +970,6 @@ type MDMAppleSetupAssistant struct {
 // AuthzType implements authz.AuthzTyper.
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
-}
-
-// ProfileMatcher defines the methods required to preassign and retrieve MDM
-// profiles for matching with teams and associating with hosts. A Redis-based
-// implementation is used in production.
-type ProfileMatcher interface {
-	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
 
 // SCEPIdentityCertificate represents a certificate issued during MDM

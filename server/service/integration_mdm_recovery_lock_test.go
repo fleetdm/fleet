@@ -153,7 +153,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's enabled
 	teamResp = getTeamResponse{}
@@ -167,7 +167,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(false),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's disabled
 	teamResp = getTeamResponse{}
@@ -183,7 +183,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}}}
 	var specResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 	newTeamID := specResp.TeamIDsByName[newTeamName]
 	require.NotZero(t, newTeamID)
 

@@ -321,9 +321,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve a host by identifier should succeed, but return the host id
 	// and nothing else: GitOps is denied on every other host read endpoint, and only
-	// needs the id here to resolve an identifier for the Puppet module's
-	// profile pre-assignment. Asserting on the raw body since decoding into a
-	// response struct wouldn't catch extra fields.
+	// gets the id here, a documented permission kept for compatibility. Asserting on
+	// the raw body since decoding into a response struct wouldn't catch extra fields.
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
