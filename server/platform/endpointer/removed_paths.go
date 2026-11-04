@@ -11,11 +11,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// RemovedPath is a URL path that no longer exists. A request to it with any usual method gets 410 Gone and Message, without authentication,
-// because the path is gone for everyone and the response says nothing about the caller's data.
+// RemovedPath is a URL path that no longer exists. A request to it with any usual method (or one of Methods, when set) gets 410 Gone and
+// Message, without authentication, because the path is gone for everyone and the response says nothing about the caller's data.
 type RemovedPath struct {
 	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
 	Path string
+	// Methods limits the 410 to these methods, for a path that shares its shape with routes that are still served: a 410 on every method
+	// would answer wrong-method requests to those routes, which should get 405. Empty means every method in removedPathMethods.
+	Methods []string
 	// Message is the response message for a request that used the given HTTP method.
 	Message func(method string) string
 }
@@ -32,8 +35,12 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 	versionRegex := strings.Join(append(append([]string{}, versions...), "latest"), "|")
 	for _, removed := range paths {
 		pathForHandler := strings.Replace(removed.Path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
-		r.Handle(pathForHandler, removedPathHandler(removed, logger)).Methods(slices.Clone(removedPathMethods)...).
-			Name(getNameFromPathAndVerb("any", removed.Path, ""))
+		methods, verb := removedPathMethods, "any"
+		if len(removed.Methods) > 0 {
+			methods, verb = removed.Methods, strings.Join(removed.Methods, "_")
+		}
+		r.Handle(pathForHandler, removedPathHandler(removed, logger)).Methods(slices.Clone(methods)...).
+			Name(getNameFromPathAndVerb(verb, removed.Path, ""))
 	}
 }
 

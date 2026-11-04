@@ -8,7 +8,8 @@ import (
 )
 
 // removedPathTemplates are the paths that Fleet 5 removed, as they appear in pkg/removednames. A request to one gets 410 Gone with the
-// message of its table entry. A path moves here from deprecatedPathAliases in the change that stops serving it.
+// message of its table entry, for every method, or only for the entry's Context when it names one. A path moves here from
+// deprecatedPathAliases in the change that stops serving it.
 var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
@@ -20,16 +21,35 @@ var removedPathTemplates = []string{
 func removedPaths() []endpointer.RemovedPath {
 	paths := make([]endpointer.RemovedPath, 0, len(removedPathTemplates))
 	for _, template := range removedPathTemplates {
-		entry, ok := removednames.Find(removednames.KindPath, template, "")
+		entry, ok := removedPathEntry(template)
 		if !ok {
 			panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", template))
 		}
-		paths = append(paths, endpointer.RemovedPath{Path: template, Message: func(method string) string {
-			// The entry is for every method, and the message names the one that was used. Requests share the closure, so set it on a copy.
-			withMethod := entry
-			withMethod.Context = method
-			return withMethod.Message()
-		}})
+		paths = append(paths, removedPathFor(template, entry))
 	}
 	return paths
+}
+
+// removedPathEntry finds the entry whatever its Context: removednames.Find with an empty context skips an entry pinned to a method.
+func removedPathEntry(template string) (removednames.Entry, bool) {
+	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
+		if entry.Old == template {
+			return entry, true
+		}
+	}
+	return removednames.Entry{}, false
+}
+
+func removedPathFor(template string, entry removednames.Entry) endpointer.RemovedPath {
+	var methods []string
+	if entry.Context != "" {
+		// The entry removed only this method; the path's other methods stay with whatever routes serve them.
+		methods = []string{entry.Context}
+	}
+	return endpointer.RemovedPath{Path: template, Methods: methods, Message: func(method string) string {
+		// The message names the method that was used. Requests share the closure, so set it on a copy.
+		withMethod := entry
+		withMethod.Context = method
+		return withMethod.Message()
+	}}
 }
