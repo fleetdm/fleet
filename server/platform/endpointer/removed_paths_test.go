@@ -19,11 +19,21 @@ func TestRegisterRemovedPaths(t *testing.T) {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/fleet/kept", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	// A live route with the same shape as the method-limited removed path below, registered first as in the API.
+	r.HandleFunc("/api/v1/fleet/partly/{id:[0-9]+}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }).
+		Methods(http.MethodGet)
 	var logs bytes.Buffer
-	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
-		Path:    "/api/_version_/fleet/gone/{id}",
-		Message: func(method string) string { return "gone via " + method },
-	}})
+	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{
+		{
+			Path:    "/api/_version_/fleet/gone/{id}",
+			Message: func(method string) string { return "gone via " + method },
+		},
+		{
+			Path:    "/api/_version_/fleet/partly/{name}",
+			Methods: []string{http.MethodDelete},
+			Message: func(method string) string { return "partly gone via " + method },
+		},
+	})
 
 	removedRequests := 0
 	for _, c := range []struct {
@@ -37,6 +47,11 @@ func TestRegisterRemovedPaths(t *testing.T) {
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
+		{"limited to its method", http.MethodDelete, "/api/latest/fleet/partly/abc", http.StatusGone, "partly gone via DELETE"},
+		{"limited, live route with the same shape", http.MethodGet, "/api/v1/fleet/partly/1", http.StatusOK, ""},
+		{"limited, other method", http.MethodGet, "/api/v1/fleet/partly/abc", http.StatusMethodNotAllowed, ""},
+		{"limited, other method on a live route's value", http.MethodPut, "/api/v1/fleet/partly/1", http.StatusMethodNotAllowed, ""},
+		{"limited, head", http.MethodHead, "/api/v1/fleet/partly/abc", http.StatusMethodNotAllowed, ""},
 	} {
 		if c.wantStatus == http.StatusGone {
 			removedRequests++
