@@ -23,12 +23,15 @@ $registryUninstallPaths = @(
 
 # Matches the shipped exists query: a versioned/inconsistent DisplayName and a
 # publisher that recent builds moved from "Citrix Systems, Inc." to "Cloud
-# Software Group".
+# Software Group". "Citrix Workspace Inside" is a bundled sub-component with its
+# own (lower) version that registers early; excluding it keeps the poll from
+# killing the bootstrapper before the main app is registered.
 function Test-CitrixInstalled {
     try {
         $props = Get-ItemProperty -Path $registryUninstallPaths -ErrorAction SilentlyContinue |
             Where-Object {
                 $_.DisplayName -like 'Citrix Workspace*' -and
+                $_.DisplayName -notlike '*Inside*' -and
                 ($_.Publisher -like 'Citrix*' -or $_.Publisher -like 'Cloud Software Group*')
             } |
             Select-Object -First 1

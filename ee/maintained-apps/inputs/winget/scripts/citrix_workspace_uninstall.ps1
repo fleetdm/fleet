@@ -20,6 +20,7 @@ try {
   ForEach-Object {
     $props = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
     if ($props -and $props.DisplayName -like $displayNameLike -and
+        $props.DisplayName -notlike '*Inside*' -and
         ($props.Publisher -like 'Citrix*' -or $props.Publisher -like 'Cloud Software Group*')) {
       $props
     }

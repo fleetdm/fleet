@@ -1,13 +1,13 @@
 # Locates Opera from the registry and runs its uninstaller silently.
 #
 # Opera registers a machine-wide ARP entry (DisplayName "Opera Stable <version>",
-# Publisher "Opera Software") whose UninstallString points at its own
-# installer.exe. QuietUninstallString already carries the silent switches; when
-# only UninstallString is present we add --uninstall --silent ourselves.
-#
-# Opera's uninstaller relaunches itself from a versioned/temp copy and returns
-# before removal is finished, so after launching it we poll until the ARP
-# registration is gone rather than trusting the immediate exit.
+# Publisher "Opera Software"). Its UninstallString is
+# "<InstallFolder>\opera.exe" /uninstall -- Opera uses single-dash switches, and
+# a bare /uninstall shows an "uninstall reasons" survey screen that blocks a
+# headless run. We take only the opera.exe path from the registry and pass clean
+# switches: /silent suppresses the survey, /allusers=1 removes the machine-wide
+# install. The uninstaller returns before removal finishes, so we then poll until
+# the registration is gone.
 
 $displayNameLike = "Opera Stable*"
 $publisherLike = "Opera Software*"
@@ -37,34 +37,30 @@ $uninstallCommand = if ($uninstall.QuietUninstallString) {
   $uninstall.UninstallString
 }
 
+# Take only the opera.exe path; discard the registry's own switches and pass our
+# own clean, silent ones.
 $exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+if ($uninstallCommand -match '^\s*"([^"]+)"') {
     $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
     $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
 } else {
     Throw "Could not parse uninstall string: $uninstallCommand"
 }
 
-if ($existingArgs -notmatch '(?i)(^|\s)--uninstall($|\s)') {
-    $existingArgs = ("$existingArgs --uninstall").Trim()
-}
-if ($existingArgs -notmatch '(?i)(^|\s)--silent($|\s)') {
-    $existingArgs = ("$existingArgs --silent").Trim()
+if (-not (Test-Path -LiteralPath $exePath)) {
+    Write-Host "Uninstaller not found at $exePath"
+    Exit 1
 }
 
+$uninstallArgs = "/uninstall", "/silent", "/allusers=1"
+
 Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $existingArgs"
+Write-Host "Uninstall args: $($uninstallArgs -join ' ')"
 
 $processOptions = @{
     FilePath = $exePath
-    ArgumentList = $existingArgs
+    ArgumentList = $uninstallArgs
     NoNewWindow = $true
     PassThru = $true
     Wait = $true
@@ -74,11 +70,11 @@ $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
 
-# The uninstaller returns before it finishes removing the app, so wait for the
-# registration to actually disappear.
+# Opera's uninstaller returns before it finishes removing the app, so wait for
+# the registration to actually disappear.
 for ($waited = 0; $waited -lt 120; $waited++) {
     if (-not (Get-OperaEntry)) {
-        Write-Host "Opera removed after ${waited}s"
+        Write-Host "Opera removed after ${waited}x3s"
         Exit 0
     }
     Start-Sleep -Seconds 3
