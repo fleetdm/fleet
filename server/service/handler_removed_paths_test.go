@@ -25,9 +25,16 @@ func TestRemovedPaths(t *testing.T) {
 	// removedPaths panics when a path has no removednames entry.
 	require.Len(t, removedPaths(), len(removedPathTemplates))
 
+	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
+	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
+	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
+	var removedShapes []string
+	for _, template := range removedPathTemplates {
+		removedShapes = append(removedShapes, shape(template))
+	}
 	for _, alias := range deprecatedPathAliases {
 		for _, deprecated := range alias.DeprecatedPaths {
-			assert.NotContains(t, removedPathTemplates, deprecated, "a removed path must not also be served as an alias of %s", alias.PrimaryPath)
+			assert.NotContains(t, removedShapes, shape(deprecated), "a removed path must not also be served as an alias of %s", alias.PrimaryPath)
 		}
 	}
 
@@ -37,7 +44,6 @@ func TestRemovedPaths(t *testing.T) {
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
-	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
 	for _, template := range removedPathTemplates {
 		_, ok := removednames.Find(removednames.KindPath, template, "")
 		require.True(t, ok, template)
