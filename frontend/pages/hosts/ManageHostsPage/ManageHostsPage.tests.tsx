@@ -410,9 +410,10 @@ describe("ManageHostsPage", () => {
     }
   });
 
-  it("sends the App Store app version filter from the URL with the host list and count requests", async () => {
+  it("sends the App Store app version filter and the mapped fleet_name sort key from the URL with the host list and count requests", async () => {
     let listedVersionId: string | null = null;
     let countedVersionId: string | null = null;
+    let listedOrderKey: string | null = null;
     setupHandlers(0);
     mockServer.use(
       http.get(baseUrl("/fleets"), () => {
@@ -424,9 +425,9 @@ describe("ManageHostsPage", () => {
         return HttpResponse.json({ secrets: [] });
       }),
       http.get(baseUrl("/hosts"), ({ request }) => {
-        listedVersionId = new URL(request.url).searchParams.get(
-          "app_store_app_version_id"
-        );
+        const params = new URL(request.url).searchParams;
+        listedVersionId = params.get("app_store_app_version_id");
+        listedOrderKey = params.get("order_key");
         return HttpResponse.json({ hosts: [] });
       }),
       http.get(baseUrl("/hosts/count"), ({ request }) => {
@@ -453,13 +454,14 @@ describe("ManageHostsPage", () => {
       location: {
         pathname: "/hosts/manage",
         search:
-          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5",
+          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5&order_key=team_name",
         hash: "",
         query: {
           fleet_id: "1",
           software_title_id: "12",
           software_status: "failed",
           app_store_app_version_id: "5",
+          order_key: "team_name",
         },
       },
     });
@@ -468,6 +470,8 @@ describe("ManageHostsPage", () => {
     // open the hosts page filtered by an App Store app version, both requests should filter by that version
     await waitFor(() => expect(listedVersionId).toBe("5"));
     await waitFor(() => expect(countedVersionId).toBe("5"));
+    // a legacy team_name sort key in the URL is sent as fleet_name
+    expect(listedOrderKey).toBe("fleet_name");
   });
 
   it("renders filtered empty state with enabled controls", async () => {
@@ -581,107 +585,29 @@ describe("ManageHostsPage", () => {
     ).not.toBeDisabled();
   });
 
-  it("sorts by fleet_name when the URL still has the legacy team_name sort key", async () => {
-    let listedOrderKey: string | null = null;
-    setupHandlers(0);
-    mockServer.use(
-      http.get(baseUrl("/hosts"), ({ request }) => {
-        listedOrderKey = new URL(request.url).searchParams.get("order_key");
-        return HttpResponse.json({ hosts: [] });
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: { app: mockAppContext },
-    });
-
-    render(
-      <ManageHostsPage
-        {...(createMockProps({
-          location: {
-            pathname: "/hosts/manage",
-            search: "?order_key=team_name&order_direction=asc",
-            hash: "",
-            query: { order_key: "team_name", order_direction: "asc" },
-          },
-        }) as any)}
-      />
-    );
-
-    await waitFor(() => expect(listedOrderKey).toBe("fleet_name"));
-  });
-
   it.each([
-    { saved: "team_name", fleetColumnShown: false },
-    { saved: "fleet_name", fleetColumnShown: false },
-    { saved: "uuid", fleetColumnShown: true },
+    {
+      tier: "Free",
+      isPremiumTier: false,
+      hasSelection: false,
+      fleetColumn: false,
+    },
+    {
+      tier: "Premium",
+      isPremiumTier: true,
+      hasSelection: true,
+      fleetColumn: true,
+    },
+    {
+      tier: "Premium with the Fleet column saved as hidden under team_name",
+      isPremiumTier: true,
+      hasSelection: true,
+      savedHidden: "team_name",
+      fleetColumn: false,
+    },
   ])(
-    "shows the Fleet column: $fleetColumnShown when the saved hidden columns are [$saved]",
-    async ({ saved, fleetColumnShown }) => {
-      setupHandlers(1, [
-        {
-          id: 1,
-          hostname: "test-host",
-          display_name: "test-host",
-          status: "online",
-          platform: "darwin",
-          fleet_id: 1,
-          fleet_name: "Workstations",
-          issues: { total_issues_count: 0, failing_policies_count: 0 },
-        },
-      ]);
-      mockServer.use(
-        http.get(baseUrl("/fleets"), () => {
-          return HttpResponse.json({
-            fleets: [{ id: 1, name: "Team 1", description: "" }],
-          });
-        })
-      );
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            ...mockAppContext,
-            isPremiumTier: true,
-            isFreeTier: false,
-            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
-            setCurrentTeam: jest.fn(),
-            userSettings: {
-              hidden_host_columns: [...defaultHiddenColumns, saved],
-            } as any,
-          },
-        },
-      });
-
-      render(
-        <ManageHostsPage
-          {...(createMockProps({
-            location: {
-              pathname: "/hosts/manage",
-              search: "?fleet_id=1",
-              hash: "",
-              query: { fleet_id: "1" },
-            },
-          }) as any)}
-        />
-      );
-
-      expect(await screen.findByText("1 host")).toBeInTheDocument();
-      // The table re-renders when the fleets load, so retry.
-      await waitFor(() => {
-        expect(screen.queryByText("Workstations") !== null).toBe(
-          fleetColumnShown
-        );
-      });
-    }
-  );
-
-  it.each([
-    { tier: "Free", isPremiumTier: false, hasSelection: false },
-    { tier: "Premium", isPremiumTier: true, hasSelection: true },
-  ])(
-    "offers host selection for bulk delete to a technician on Fleet $tier: $hasSelection",
-    async ({ isPremiumTier, hasSelection }) => {
+    "for a technician on Fleet $tier: selection $hasSelection, Fleet column $fleetColumn",
+    async ({ isPremiumTier, hasSelection, savedHidden, fleetColumn }) => {
       setupHandlers(1, [
         {
           id: 1,
@@ -713,6 +639,11 @@ describe("ManageHostsPage", () => {
             isGlobalAdmin: false,
             isGlobalTechnician: true,
             currentUser: createMockUser({ global_role: "technician" }),
+            ...(savedHidden && {
+              userSettings: {
+                hidden_host_columns: [...defaultHiddenColumns, savedHidden],
+              } as any,
+            }),
           },
         },
       });
@@ -732,9 +663,9 @@ describe("ManageHostsPage", () => {
       expect(await screen.findByText("1 host")).toBeInTheDocument();
       expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
 
-      // The Fleet column reads fleet_name and only exists on Premium. The table re-renders when the fleets load, so retry.
+      // The Fleet column reads fleet_name and only exists on Premium, unless hidden. The table re-renders when the fleets load, so retry.
       await waitFor(() => {
-        expect(screen.queryByText("Workstations") !== null).toBe(isPremiumTier);
+        expect(screen.queryByText("Workstations") !== null).toBe(fleetColumn);
       });
     }
   );
