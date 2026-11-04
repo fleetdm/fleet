@@ -225,8 +225,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.enable_windows_mdm` |
-| `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.enable_windows_mdm_migration` |
+| `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_enabled` |
+| `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
 
 What to do: Search for these keys and rename them.
 
@@ -492,8 +492,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `controls.windows_enabled_and_configured` | `controls.enable_windows_mdm` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
-| `controls.windows_migration_enabled` | `controls.enable_windows_mdm_migration` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
+| `controls.windows_enabled_and_configured` | `controls.windows_mdm_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
+| `controls.windows_migration_enabled` | `controls.windows_mdm_migration_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 
 What to do: Rename these keys.
 
