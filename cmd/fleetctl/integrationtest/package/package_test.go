@@ -26,6 +26,7 @@ func TestPackage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	t.Setenv("CONFIG", "") // fleetctl reads it before the default config path
 
 	updateOpt := update.DefaultOptions
 	updateOpt.RootDirectory = t.TempDir()
