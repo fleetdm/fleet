@@ -2786,7 +2786,7 @@ _Available in Fleet Premium._
 | enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                               | string  | The URL of the Jira server to integrate with. |
 | username                          | string  | The Jira username to use for this Jira integration. |
-| api_token                         | string  | The API token of the Jira username to use for this Jira integration. |
+| api_token                         | string  | The API token of the Jira username to use for this Jira integration. Atlassian API tokens [expire after one year at most](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/), so you'll have to create a new token and update this integration every year. |
 | project_key                       | string  | The Jira project key to use for this integration. Jira tickets will be created in this project. |
 
 <br/>

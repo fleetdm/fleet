@@ -677,11 +677,7 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-type MDMApplePreassignProfileFunc func(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error
-
-type MDMAppleMatchPreassignmentFunc func(ctx context.Context, externalHostIdentifier string) error
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 type MDMAppleDeviceLockFunc func(ctx context.Context, hostID uint) error
 
@@ -2046,12 +2042,6 @@ type Service struct {
 
 	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
 	BatchSetMDMAppleProfilesFuncInvoked bool
-
-	MDMApplePreassignProfileFunc        MDMApplePreassignProfileFunc
-	MDMApplePreassignProfileFuncInvoked bool
-
-	MDMAppleMatchPreassignmentFunc        MDMAppleMatchPreassignmentFunc
-	MDMAppleMatchPreassignmentFuncInvoked bool
 
 	MDMAppleDeviceLockFunc        MDMAppleDeviceLockFunc
 	MDMAppleDeviceLockFuncInvoked bool
@@ -4916,25 +4906,11 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
+func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending)
-}
-
-func (s *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	s.mu.Lock()
-	s.MDMApplePreassignProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMApplePreassignProfileFunc(ctx, payload)
-}
-
-func (s *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
-	s.mu.Lock()
-	s.MDMAppleMatchPreassignmentFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleMatchPreassignmentFunc(ctx, externalHostIdentifier)
+	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun)
 }
 
 func (s *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {

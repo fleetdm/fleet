@@ -1276,7 +1276,7 @@ Can be configured for "All fleets" (`org_settings`).
 
 - `url` is the URL of your Jira (default: `""`)
 - `username` is the username of your Jira account (default: `""`).
-- `api_token` is the Jira API token (default: `""`).
+- `api_token` is the Jira API token (default: `""`). Atlassian API tokens [expire after one year at most](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/), so you'll have to create a new token and update this integration every year.
 - `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: `""`).
 
 Can be configured for "All fleets" (`org_settings`). Use API to configure Jira for specific fleets or "Unassigned" hosts.
