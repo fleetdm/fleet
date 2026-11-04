@@ -3256,6 +3256,28 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "unsupported install_date format")
 }
 
+func TestBuildConfigProfilesMacOSQueryQuotesUsername(t *testing.T) {
+	cases := []struct {
+		username string
+		want     string
+	}{
+		{"alice", `username = 'alice' AND`},
+		{"o'brien", `username = 'o''brien' AND`},
+		{`alice" OR 1=1 OR --`, `username = 'alice" OR 1=1 OR --' AND`},
+		{`a\" OR 1=1 --`, `username = 'a\" OR 1=1 --' AND`},
+		{"alice' OR 1=1 OR '", `username = 'alice'' OR 1=1 OR ''' AND`},
+	}
+	for _, c := range cases {
+		ds := new(mock.Store)
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return c.username, "user-uuid", nil
+		}
+		query, ok := buildConfigProfilesMacOSQuery(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{UUID: "host-uuid"}, ds)
+		require.True(t, ok)
+		require.Contains(t, query, c.want, c.username)
+	}
+}
+
 func TestParseMacOSProfileInstallDate(t *testing.T) {
 	const (
 		nnbsp = "\u202f" // narrow no-break space (U+202F), emitted by macOS 14+ before AM/PM

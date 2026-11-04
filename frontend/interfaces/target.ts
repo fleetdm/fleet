@@ -58,7 +58,7 @@ export interface ISelectedTargetsByType {
 export interface IPackTargets {
   host_ids: (number | string)[];
   label_ids: (number | string)[];
-  team_ids: (number | string)[];
+  fleet_ids: (number | string)[];
 }
 
 // TODO: Also use for testing

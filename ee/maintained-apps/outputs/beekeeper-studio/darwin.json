@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.2.0",
+      "version": "6.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.beekeeperstudio.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.beekeeperstudio.desktop' AND version_compare(bundle_short_version, '6.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.beekeeperstudio.desktop' AND version_compare(bundle_short_version, '6.2.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.beekeeperstudio.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.2.0/Beekeeper-Studio-6.2.0-arm64.dmg",
+      "installer_url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.2.1/Beekeeper-Studio-6.2.1-arm64.dmg",
       "install_script_ref": "4478631b",
       "uninstall_script_ref": "bb57af4d",
-      "sha256": "bf38ab6216118d2c83d295075a5d303d23b7214710411bcbb3b7914dcbe301e5",
+      "sha256": "e7962be7271229dd4a37c39c0a19a90105a0a4c97a54f1c1c8c0194a3c3632ac",
       "default_categories": [
         "Developer tools"
       ]

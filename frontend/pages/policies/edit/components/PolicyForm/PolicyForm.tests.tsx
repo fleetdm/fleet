@@ -148,7 +148,7 @@ describe("PolicyForm - component", () => {
         withBackendMock: true,
         context: {
           policy: {
-            policyTeamId: storedPolicy.team_id ?? undefined,
+            policyTeamId: storedPolicy.fleet_id ?? undefined,
             lastEditedQueryId: storedPolicy.id,
             lastEditedQueryName: storedPolicy.name,
             lastEditedQueryDescription: storedPolicy.description,
@@ -181,7 +181,7 @@ describe("PolicyForm - component", () => {
       return render(
         <PolicyForm
           {...defaultProps}
-          teamIdForApi={storedPolicy.team_id ?? undefined}
+          teamIdForApi={storedPolicy.fleet_id ?? undefined}
           policyIdForEdit={storedPolicy.id}
           storedPolicy={storedPolicy}
           {...extraProps}
@@ -190,7 +190,7 @@ describe("PolicyForm - component", () => {
     };
 
     it("shows Hide from end user checked for a hidden fleet policy", async () => {
-      renderEditForm(createMockPolicy({ team_id: 2, hidden: true }), true);
+      renderEditForm(createMockPolicy({ fleet_id: 2, hidden: true }), true);
 
       const hiddenCheckbox = await screen.findByRole("checkbox", {
         name: "hidden-policy",
@@ -201,7 +201,7 @@ describe("PolicyForm - component", () => {
 
     it("disables Hide from end user when the policy uses conditional access", async () => {
       renderEditForm(
-        createMockPolicy({ team_id: 2, conditional_access_enabled: true }),
+        createMockPolicy({ fleet_id: 2, conditional_access_enabled: true }),
         false
       );
 
@@ -232,7 +232,7 @@ describe("PolicyForm - component", () => {
 
       const { user } = renderEditForm(
         createMockPolicy({
-          team_id: 2,
+          fleet_id: 2,
           platform: "darwin",
           conditional_access_enabled: true,
         }),
@@ -255,7 +255,7 @@ describe("PolicyForm - component", () => {
     });
 
     it("offers Hide from end user for an All fleets policy", async () => {
-      renderEditForm(createMockPolicy({ team_id: null, hidden: true }), true);
+      renderEditForm(createMockPolicy({ fleet_id: null, hidden: true }), true);
 
       const hiddenCheckbox = await screen.findByRole("checkbox", {
         name: "hidden-policy",
@@ -1042,7 +1042,7 @@ describe("PolicyForm - component", () => {
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
-          team_id: 1,
+          fleet_id: 1,
           patch_when_closed: false,
           continuous_automations_enabled: false,
         };
@@ -1066,7 +1066,7 @@ describe("PolicyForm - component", () => {
         // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
-            team_id: 1,
+            fleet_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
             notify_before_patching: false,
@@ -1086,7 +1086,7 @@ describe("PolicyForm - component", () => {
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
-          team_id: 1,
+          fleet_id: 1,
           patch_when_closed: false,
           continuous_automations_enabled: false,
         };
@@ -1152,7 +1152,7 @@ describe("PolicyForm - component", () => {
           .mockResolvedValue({} as never);
         const windowsPatchPolicy = {
           ...patchPolicy,
-          team_id: 1,
+          fleet_id: 1,
           platform: "windows" as const,
           patch_when_closed: false,
           notify_before_patching: false,
@@ -1234,7 +1234,7 @@ describe("PolicyForm - component", () => {
             teamIdForApi={2}
             storedPolicy={{
               ...patchPolicy,
-              team_id: 2,
+              fleet_id: 2,
               conditional_access_enabled: true,
             }}
             onUpdate={onUpdate}
@@ -1404,7 +1404,7 @@ describe("PolicyForm - component", () => {
           {...defaultProps}
           storedPolicy={createMockPolicy({
             name: "Foo",
-            team_id: createMockTeamSummary().id,
+            fleet_id: createMockTeamSummary().id,
           })}
         />
       );
@@ -1457,12 +1457,12 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      // The stored policy is global (team_id === null) — the form must show
+      // The stored policy is global (fleet_id === null) — the form must show
       // "All fleets", not the URL team's name.
       render(
         <PolicyForm
           {...defaultProps}
-          storedPolicy={createMockPolicy({ name: "Foo", team_id: null })}
+          storedPolicy={createMockPolicy({ name: "Foo", fleet_id: null })}
         />
       );
 
