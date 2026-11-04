@@ -220,7 +220,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
 			require.Equal(t, cmd.HostUUID, hostUUID)
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}, Device: &android.Device{DeviceID: "D"}}, nil
 		}
 		// BYO: the work profile was removed, so host_mdm_actions must be cleared for the "Wiped" badge to drop.
 		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
@@ -248,6 +248,27 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		require.IsType(t, fleet.ActivityTypeMDMUnenrolled{}, activities[0])
 	})
 
+	t.Run("acknowledged WIPE of an earlier device records the result without unenrolling", func(t *testing.T) {
+		cmd := pendingCommandForReconcile("cmd-wipe-old-device", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		var gotStatus string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			gotStatus = status
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 56, UUID: hostUUID}, Device: &android.Device{DeviceID: "NEW"}}, nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+		assert.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+		assert.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked, "the host has moved to another device")
+		assert.False(t, mockDS.ClearHostMDMActionsFuncInvoked)
+	})
+
 	t.Run("a failed WIPE side effect leaves the command pending so the next run retries it", func(t *testing.T) {
 		// The reconciler only ever selects pending rows, so writing the terminal status before the
 		// unenroll side effect succeeds would strand the host: acknowledged, still enrolled, and never
@@ -258,7 +279,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: 55, UUID: hostUUID}}, nil
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 55, UUID: hostUUID}, Device: &android.Device{DeviceID: "D"}}, nil
 		}
 		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil

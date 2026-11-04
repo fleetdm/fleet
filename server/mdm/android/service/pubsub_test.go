@@ -3730,7 +3730,7 @@ func TestPubSubCommand(t *testing.T) {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: 100, UUID: hostUUID}}, nil
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 100, UUID: hostUUID}, Device: &android.Device{DeviceID: "D"}}, nil
 		}
 		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil
@@ -3743,6 +3743,35 @@ func TestPubSubCommand(t *testing.T) {
 		err := svc.ProcessPubSubPush(t.Context(), validToken, msg)
 		require.Error(t, err, "transient DB failure must bubble so Pub/Sub retries")
 		require.Contains(t, err.Error(), "simulated transient DB connection drop", "wrapped error must preserve the original cause")
+	})
+
+	t.Run("WIPE+ack for an earlier device records the result without unenrolling", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-old-device",
+			HostUUID:      "host-uuid-wipe-old-device",
+			OperationName: "enterprises/E/devices/D/operations/wipe-old-device",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		var gotStatus string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			gotStatus = status
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 101, UUID: hostUUID}, Device: &android.Device{DeviceID: "NEW"}}, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+		require.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked, "the host has moved to another device")
+		require.False(t, mockDS.ClearHostMDMActionsFuncInvoked)
 	})
 
 	t.Run("WIPE+ack transient host lookup failure bubbles error so Pub/Sub retries", func(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -296,12 +297,19 @@ func setAndroidCommandTerminalState(ctx context.Context, ds fleet.Datastore, new
 func androidWipeAckUnenroll(ctx context.Context, ds fleet.Datastore, newActivityFn fleet.NewActivityFunc,
 	cmd *android.MDMAndroidCommand, onUnenrolled func(hostID uint),
 ) error {
-	ah, err := ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
+	// Primary: a replica that hasn't caught up with a device change would still return the previous device ID.
+	ah, err := ds.AndroidHostLiteByHostUUID(ctxdb.RequirePrimary(ctx, true), cmd.HostUUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
 	}
 	// No host found (e.g. deleted from Fleet) leaves nothing to unenroll; returning nil lets the command reach a terminal state.
 	if err != nil || ah == nil || ah.Host == nil {
+		return nil
+	}
+	// A wipe of an earlier device must not unenroll the host from the device it has moved to.
+	if ah.Device == nil || deviceIDFromOperationName(cmd.OperationName) != ah.Device.DeviceID {
+		logging.WithExtras(ctx, "android_wipe_unenroll_skipped", "wipe is not for the host's current device",
+			"command_uuid", cmd.CommandUUID)
 		return nil
 	}
 
