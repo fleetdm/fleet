@@ -1010,6 +1010,7 @@ import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
+import TableauReader from "./png/TableauReader.png";
 import TablePlus from "./png/TablePlus.png";
 import Tabtab from "./png/Tabtab.png";
 import Tailscale from "./png/Tailscale.png";
@@ -2210,6 +2211,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
+  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,

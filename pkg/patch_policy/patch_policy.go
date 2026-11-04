@@ -294,6 +294,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Sublime Text":                              "= 'sublime_text.exe'",
 	"Tableau Desktop":                           "= 'tableau.exe'",
 	"Tableau Prep":                              "= 'tableau prep builder.exe'",
+	"Tableau Reader":                            "= 'tabreader.exe'",
 	"Vim":                                       "IN ('gvim.exe','vim.exe','evim.exe','gview.exe','gvimdiff.exe','view.exe','vimdiff.exe')",
 	"VirtualBox":                                "LIKE 'virtualbox%'",
 	"Wacom Tablet":                              "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
