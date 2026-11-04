@@ -30,7 +30,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -59,7 +58,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -90,7 +88,6 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -118,7 +115,6 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,

@@ -55,12 +55,6 @@ export interface ISelectedTargetsByType {
   teams: ITeam[];
 }
 
-export interface IPackTargets {
-  host_ids: (number | string)[];
-  label_ids: (number | string)[];
-  fleet_ids: (number | string)[];
-}
-
 // TODO: Also use for testing
 export const DEFAULT_TARGETS: ITarget[] = [];
 

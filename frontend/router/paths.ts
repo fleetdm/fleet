@@ -139,10 +139,6 @@ export default {
 
   LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
 
-  EDIT_PACK: (packId: number): string => {
-    return `${URL_PREFIX}/packs/${packId}/edit`;
-  },
-  PACK: (packId: number): string => `${URL_PREFIX}/packs/${packId}`,
   EDIT_LABEL: (labelId: number): string => `${URL_PREFIX}/labels/${labelId}`,
   EDIT_REPORT: (queryId: number): string =>
     `${URL_PREFIX}/reports/${queryId}/edit`,
@@ -244,8 +240,6 @@ export default {
     }
     return `${URL_PREFIX}/settings/fleets`;
   },
-  MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
-  NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_REPORTS: `${URL_PREFIX}/reports/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,

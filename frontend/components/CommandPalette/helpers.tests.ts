@@ -158,27 +158,6 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("manage-software-automations");
     });
 
-    it("shows packs only when searching for 'packs'", () => {
-      const itemsNoSearch = buildPaletteItems(BASE_CONTEXT);
-      expect(itemsNoSearch.map((i) => i.id)).not.toContain("packs");
-
-      const itemsWithSearch = buildPaletteItems({
-        ...BASE_CONTEXT,
-        search: "packs",
-      });
-      const ids = itemsWithSearch.map((i) => i.id);
-      expect(ids).toContain("packs");
-      expect(ids).toContain("new-pack");
-    });
-
-    it("does not show packs when searching for 'package'", () => {
-      const items = buildPaletteItems({
-        ...BASE_CONTEXT,
-        search: "package",
-      });
-      expect(items.map((i) => i.id)).not.toContain("packs");
-    });
-
     it("omits the teamName chip when destination matches current context", () => {
       // On Engineering, every action either stays on Engineering or goes
       // there — no chip should render.
