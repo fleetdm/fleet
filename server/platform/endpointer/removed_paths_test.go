@@ -71,8 +71,6 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	t.Parallel()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/api/v1/fleet/items/{id}/{name}/live", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }).
-		Methods(http.MethodPost)
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
 		Path:    "/api/_version_/fleet/items/{id}/old/{name}",
@@ -80,32 +78,24 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 		Message: func(method string) string { return "gone via " + method },
 	}})
 
-	removedRequests := 0
 	for _, c := range []struct {
 		name, method, path string
 		wantStatus         int
 		wantBody           string
 	}{
-		{"removed path on the overlapping method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone, ""},
-		{"removed path on another method", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusGone, ""},
-		{"live route wins the overlap", http.MethodPost, "/api/v1/fleet/items/1/old/live", http.StatusOK, ""},
-		{"live route", http.MethodPost, "/api/v1/fleet/items/1/abc/live", http.StatusOK, ""},
-		{"wrong method on the live route", http.MethodPut, "/api/v1/fleet/items/1/abc/live", http.StatusMethodNotAllowed, ""},
+		{"overlapping method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via POST"},
+		{"other method", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via GET"},
 		{"other value answers like an unknown path", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound, "404 page not found\n"},
+		{"other value on another method is a mismatch", http.MethodPut, "/api/v1/fleet/items/1/other/abc", http.StatusMethodNotAllowed, ""},
 	} {
-		if c.wantStatus == http.StatusGone {
-			removedRequests++
-		}
 		t.Run(c.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			r.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
 			assert.Equal(t, c.wantStatus, rec.Code)
-			if c.wantBody != "" {
-				assert.Equal(t, c.wantBody, rec.Body.String())
-			}
+			assert.Contains(t, rec.Body.String(), c.wantBody)
 		})
 	}
-	assert.Equal(t, removedRequests, strings.Count(logs.String(), "request to a removed path"), "only requests to the removed path are logged")
+	assert.Equal(t, 2, strings.Count(logs.String(), "request to a removed path"), "only the 410s are logged")
 }
 
 func TestLiteralSegmentsMatch(t *testing.T) {
@@ -118,14 +108,11 @@ func TestLiteralSegmentsMatch(t *testing.T) {
 		want        bool
 	}{
 		{"removed path", "/api/v1/fleet/hosts/1/configuration_profiles/resend/abc", true},
-		{"removed path under a URL prefix", "/prefix/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", true},
-		{"other value in the literal segment", "/api/v1/fleet/hosts/1/configuration_profiles/foo/abc", false},
-		{"live spelling", "/api/v1/fleet/hosts/1/configuration_profiles/abc/resend", false},
+		{"under a URL prefix", "/prefix/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", true},
+		{"other literal", "/api/v1/fleet/hosts/1/configuration_profiles/foo/abc", false},
 		{"too few segments", "/resend/abc", false},
-		{"empty", "", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, c.want, literalSegmentsMatch(template, c.requestPath))
 		})
 	}

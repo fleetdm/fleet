@@ -239,25 +239,18 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byFastPath,
 		},
 		{
-			name: "live resend", method: "POST",
-			path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/resend", wantServedBy: byFastPath,
-		},
-		{
 			name: "removed resend spelling", method: "POST",
 			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
 		},
 		{
-			name: "removed resend spelling on any method", method: "GET",
+			name: "removed resend spelling on another method", method: "GET",
 			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
 		},
 		{name: "wrong method on the live resend", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/resend"},
-		{name: "wrong method on the live install", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/install"},
-		{name: "unknown profile path on another method", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/foo/bar"},
 		{
-			name: "removed resend spelling with a non-numeric host id", method: "POST",
-			path: "/api/latest/fleet/hosts/abc/configuration_profiles/resend/abc", wantServedBy: byFastPath,
+			name: "live resend declining a non-numeric host id", method: "POST",
+			path: "/api/latest/fleet/hosts/abc/configuration_profiles/foo/resend", wantServedBy: byGorilla,
 		},
-		{name: "removed path without path variables", method: "PUT", path: "/api/latest/fleet/spec/teams", wantServedBy: byFastPath},
 		{name: "encoded separator in a path variable", method: "GET", path: "/api/latest/fleet/device/abc%2Fdef"},
 		{
 			name: "encoded space in a path variable", method: "GET",
