@@ -66,7 +66,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete reports                                                                                                           |          |            |            | ✅         | ✅    | ✅      |
 | View all reports and their results                                                                                                         | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Manage [report automations](https://fleetdm.com/guides/reports#schedule-a-report)                                                |          |            |            | ✅         | ✅    | ✅      |
-| Create, edit, view, and delete packs                                                                                                       |          |            |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅         | ✅    |         |
