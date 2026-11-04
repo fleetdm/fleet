@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.150.0",
+      "version": "2.151.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elsevier.mendeley';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elsevier.mendeley' AND version_compare(bundle_short_version, '2.150.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elsevier.mendeley' AND version_compare(bundle_short_version, '2.151.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.elsevier.mendeley' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://static.mendeley.com/bin/desktop/mendeley-reference-manager-2.150.0-universal.dmg",
+      "installer_url": "https://static.mendeley.com/bin/desktop/mendeley-reference-manager-2.151.0-universal.dmg",
       "install_script_ref": "09a7b9c3",
       "uninstall_script_ref": "1062958d",
-      "sha256": "f6bda072a9392e7730b06e19b3961364d96c2ecedca2965513bc85f309212105",
+      "sha256": "251615fa09307215fdf17c67f13500712f37b353215ad3ed3687ed6f371f1690",
       "default_categories": [
         "Productivity"
       ]

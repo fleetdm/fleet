@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.0",
+      "version": "17.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor' AND version_compare(bundle_short_version, '17.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor' AND version_compare(bundle_short_version, '17.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.SweetScape.010Editor' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.sweetscape.com/010EditorMacARM64Installer17.0.dmg",
+      "installer_url": "https://download.sweetscape.com/010EditorMacARM64Installer17.0.1.dmg",
       "install_script_ref": "7378f805",
       "uninstall_script_ref": "58d6202b",
-      "sha256": "49af39f736c5b38bb4323184a28744dfcd15c560eb5ee3193ef6f3cfc428e652",
+      "sha256": "6144cac83a6f4c5ab81a9391f2074804e472098a686925de7ad2085bf47a7c8a",
       "default_categories": [
         "Developer tools"
       ]

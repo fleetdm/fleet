@@ -46,6 +46,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/plist"
@@ -1086,7 +1087,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 		Name:    tm.Name,
 		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// a new fleetd configuration profile for that team is created
 	s.awaitTriggerProfileSchedule(t)
@@ -1905,6 +1906,52 @@ func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChall
 	})
 }
 
+func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksCertificateIdPAccount() {
+	t := s.T()
+	ctx := context.Background()
+
+	newAccount := func(name string) (*fleet.MDMIdPAccount, string) {
+		account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: name, Email: name + "@example.com"}
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+		token, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+		require.NoError(t, err)
+		return account, token
+	}
+	requireLinked := func(device *mdmtest.TestAppleMDMClient, want *fleet.MDMIdPAccount) {
+		linked, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		host, err := s.ds.HostByIdentifier(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		managedAppleID, err := s.ds.GetHostManagedAppleID(ctx, host.ID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, linked)
+			require.Empty(t, managedAppleID)
+			return
+		}
+		require.NotNil(t, linked)
+		require.Equal(t, want.UUID, linked.UUID)
+		require.Equal(t, want.Email, managedAppleID)
+	}
+
+	// the other user's challenge is already used by their own enrollment
+	otherAccount, otherToken := newAccount("adue-other")
+	otherDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", otherToken)
+	require.NoError(t, otherDevice.Enroll())
+	requireLinked(otherDevice, otherAccount)
+
+	// this device's certificate is issued for its own account, then its first TokenUpdate sends the other challenge
+	ownAccount, ownToken := newAccount("adue-own")
+	device := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", ownToken)
+	require.NoError(t, device.FetchAccountDrivenEnrollmentProfile())
+	require.NoError(t, device.SCEPEnroll())
+	require.NoError(t, device.Authenticate())
+	device.SetAuthorizationBearerToken(otherToken)
+	require.NoError(t, device.TokenUpdate(true))
+	requireLinked(device, ownAccount)
+	requireLinked(otherDevice, otherAccount)
+}
+
 func (s *integrationMDMTestSuite) TestOTAProfile() {
 	t := s.T()
 	ctx := context.Background()
@@ -1985,6 +2032,51 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		})
 		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
 	})
+}
+
+// A Mac assigned to Fleet in Apple Business can still be enrolled by hand. How it enrolled, not the assignment, decides
+// whether the enrollment is reported and handled as automatic.
+func (s *integrationMDMTestSuite) TestManualEnrollmentOfAppleBusinessAssignedMac() {
+	t := s.T()
+	ctx := t.Context()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(uuid.NewString()),
+		NodeKey:         new(uuid.NewString()),
+		Hostname:        "ab-assigned-manual.local",
+		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
+		UUID:            strings.ToUpper(uuid.NewString()),
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+	})
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`, host.ID, host.HardwareSerial)
+		return err
+	})
+
+	desktopToken := uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, desktopToken))
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	mdmDevice.UUID, mdmDevice.SerialNumber = host.UUID, host.HardwareSerial
+	// Reenroll doesn't report AwaitingConfiguration, which a manual enrollment never does.
+	require.NoError(t, mdmDevice.Reenroll())
+
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), fmt.Sprintf(
+		`{"host_id": %d, "host_serial": %q, "enrollment_id": null, "host_display_name": %q, "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`,
+		host.ID, host.HardwareSerial, host.Hostname), 0)
+
+	var tasks []string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &tasks,
+			`SELECT JSON_UNQUOTE(JSON_EXTRACT(args, '$.task')) FROM jobs WHERE name = 'apple_mdm' AND JSON_UNQUOTE(JSON_EXTRACT(args, '$.host_uuid')) = ?`,
+			host.UUID)
+	})
+	require.Equal(t, []string{string(worker.AppleMDMPostManualEnrollmentTask)}, tasks)
 }
 
 // A host's identity is tied to the device enrolled under its UUID. A check-in from another enrollment that reports

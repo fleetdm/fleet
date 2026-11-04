@@ -43,7 +43,7 @@ const defaultLiveQueryRestPeriod = 25 * time.Second
 
 // maxSingleHostBlock caps the server-side wait the single-host timeout is
 // derived from. FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's
-// wait budget, set far above anything a server blocks for (900s in render.yaml)
+// wait budget, set far above anything a server blocks for (e.g. 900s)
 // so fleet-wide queries outlast asleep hosts; uncapped, that budget would let
 // one stalled connection hang for 15 minutes. Fleet's own period must stay
 // under the request timeout of any proxy in front of it, so real values are

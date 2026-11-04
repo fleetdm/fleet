@@ -1275,6 +1275,21 @@ func TestProfileTargetsReservedLocURI(t *testing.T) {
 			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
 			want:   false,
 		},
+		{
+			name:   "OS update LocURI with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Updat&#101;/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "OS update LocURI with a hex character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/&#x55;pdate/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "non-OS-update profile with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target><Data>&#49;</Data></Item></Replace>`,
+			want:   false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
