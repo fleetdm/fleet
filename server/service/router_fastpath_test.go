@@ -250,9 +250,12 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			name: "removed resend spelling on any method", method: "GET",
 			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
 		},
+		{name: "wrong method on the live resend", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/resend"},
+		{name: "wrong method on the live install", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/install"},
+		{name: "unknown profile path on another method", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/foo/bar"},
 		{
 			name: "removed resend spelling with a non-numeric host id", method: "POST",
-			path: "/api/latest/fleet/hosts/abc/configuration_profiles/resend/abc",
+			path: "/api/latest/fleet/hosts/abc/configuration_profiles/resend/abc", wantServedBy: byFastPath,
 		},
 		{name: "removed path without path variables", method: "PUT", path: "/api/latest/fleet/spec/teams", wantServedBy: byFastPath},
 		{name: "encoded separator in a path variable", method: "GET", path: "/api/latest/fleet/device/abc%2Fdef"},

@@ -16,11 +16,18 @@ import (
 type RemovedPath struct {
 	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
 	Path string
-	// Route, when set, is the template to register instead of Path, for a Path that a stdlib ServeMux cannot register next to a live route.
-	// It writes the overlapping literal segment as a wildcard, and a request without the literals of Path gets a 404.
-	Route string
+	// Overlap is for a Path that a stdlib ServeMux cannot register next to a live route.
+	Overlap RemovedPathOverlap
 	// Message is the response message for a request that used the given HTTP method.
 	Message func(method string) string
+}
+
+// RemovedPathOverlap registers Route instead of the removed path for the one method that overlaps a live route. Route writes the overlapping
+// literal segment as a wildcard, which makes it less specific than the live route, and a request without the literals of the removed path
+// gets a 404. The other methods keep the removed path, so a wrong method on the live route still gets a 405.
+type RemovedPathOverlap struct {
+	Method string
+	Route  string
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
@@ -34,19 +41,22 @@ var removedPathMethods = []string{
 func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
 	versionRegex := strings.Join(append(append([]string{}, versions...), "latest"), "|")
 	for _, removed := range paths {
-		route := removed.Path
-		if removed.Route != "" {
-			route = removed.Route
+		versioned := func(path string) string {
+			return strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
 		}
-		pathForHandler := strings.Replace(route, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
-		r.Handle(pathForHandler, removedPathHandler(removed, logger)).Methods(slices.Clone(removedPathMethods)...).
-			Name(getNameFromPathAndVerb("any", removed.Path, ""))
+		handler := removedPathHandler(removed, logger)
+		methods := slices.Clone(removedPathMethods)
+		if overlap := removed.Overlap; overlap.Route != "" {
+			methods = slices.DeleteFunc(methods, func(method string) bool { return method == overlap.Method })
+			r.Handle(versioned(overlap.Route), handler).Methods(overlap.Method).Name(getNameFromPathAndVerb(overlap.Method, removed.Path, ""))
+		}
+		r.Handle(versioned(removed.Path), handler).Methods(methods...).Name(getNameFromPathAndVerb("any", removed.Path, ""))
 	}
 }
 
 func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if removed.Route != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
+		if removed.Overlap.Route != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
 			http.NotFound(w, r)
 			return
 		}

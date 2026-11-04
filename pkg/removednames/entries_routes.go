@@ -6,6 +6,6 @@ func init() { register(routeEntries...) }
 var routeEntries = []Entry{
 	{
 		Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
-		Format: EndpointFormat{},
+		New: pathPrefix + "/hosts/{host_id}/configuration_profiles/{profile_uuid}/resend", Format: EndpointFormat{},
 	},
 }
