@@ -1661,13 +1661,6 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/windows",
-      "platform": "windows",
-      "unique_identifier": "Citrix Workspace",
-      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
-    },
-    {
       "name": "Claude DevTools",
       "slug": "claude-devtools/darwin",
       "platform": "darwin",
@@ -6502,13 +6495,6 @@
       "slug": "opera/darwin",
       "platform": "darwin",
       "unique_identifier": "com.operasoftware.Opera",
-      "description": "Opera is a web browser."
-    },
-    {
-      "name": "Opera",
-      "slug": "opera/windows",
-      "platform": "windows",
-      "unique_identifier": "Opera Stable",
       "description": "Opera is a web browser."
     },
     {

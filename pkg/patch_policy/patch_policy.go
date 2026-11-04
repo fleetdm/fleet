@@ -226,7 +226,6 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Beyond Compare":                    "= 'bcompare.exe'",
 	"Bulk Crap Uninstaller":             "= 'bcuninstaller.exe'",
 	"Certify The Web":                   "= 'certify.ui.desktop.exe'",
-	"Citrix Workspace":                  "IN ('selfservice.exe','selfserviceplugin.exe','wfica32.exe')",
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
 	"Clockify Desktop":                  "= 'clockifywindows.exe'",
 	"Connect Fonts":                     "= 'monotype connect.exe'",
